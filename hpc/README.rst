@@ -22,13 +22,14 @@ Pre-installation
 
 Note: These instructions currently only work with gcc and not Intel compilers.
 
-1. Clone the PyRate repository into your home directory, or another directory
+1. Clone the ``passive-seismic`` repository into your home directory, or
+another directory
 of your choice:
 
    .. code:: bash
 
        $ cd ~
-       $ git clone git@github.com:GeoscienceAustralia/passive-seismic.git
+       $ git clone https://github.com/GeoscienceAustralia/passive-seismic.git
 
 2. Unload the icc compiler and default openmpi from the terminal:
 
@@ -75,7 +76,7 @@ of your choice:
 Installation
 ------------
 
-1. Create a new virtualenv for PyRate:
+1. Create a new virtualenv for ``passive-seismic``:
 
    .. code:: bash
 
@@ -90,6 +91,7 @@ Installation
 3. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
 
    .. code:: bash
+
        $ cd ~
        $ git clone https://github.com/basaks/h5py.git
        $ cd ~/h5py
