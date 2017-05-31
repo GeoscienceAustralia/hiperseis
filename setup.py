@@ -66,13 +66,14 @@ setup(
         'mpi4py == 2.0.0',
         'scipy >= 0.15.1',
         'PyYAML >= 3.11',
-        'matplotlib == 1.5.1',
+        'matplotlib >= 1.4.3',  # nci version with python=3.4
         'pyproj >= 1.9.5',
         'Pillow >= 2.8.2',
         'joblib',
         'obspy >= 1.0.3',
-        'h5py == 2.6.0',
-        'pyasdf'
+        'h5py >= 2.6.0',
+        'pyasdf',
+        'pandas'
     ],
     extras_require={
         'dev': [
