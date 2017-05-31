@@ -73,7 +73,8 @@ setup(
         'obspy >= 1.0.3',
         'h5py >= 2.6.0',
         'pyasdf',
-        'pandas'
+        'pandas',
+        'pyqtgraph'
     ],
     extras_require={
         'dev': [
