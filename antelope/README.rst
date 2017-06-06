@@ -7,9 +7,9 @@ dev system and may need further tuning on the prod system.
 
 These instructions assume you are using bash shell.
 
-----------------
-Pre-installation
-----------------
+-----------------
+Create Virtualenv
+-----------------
 
 1. Install ``virtualenv``:
 
@@ -20,94 +20,56 @@ Pre-installation
    This will install ``virtualenv`` binary in ``~/.local/bin/virtualenv``.
 
 
-2. Clone the ``passive-seismic`` repository into your home directory, or
-another directory of your choice ( I chose /export/
+2. Create and activate your ``virtualenv``. I chose
+to install my ``virtualenv``s in ``/export/development/sudipta/venvs``
+due to low space allocation in my home directory.
 
    .. code:: bash
 
-       $ cd ~
-       $ git clone https://github.com/GeoscienceAustralia/passive-seismic.git
+       $ cd /export/development/sudipta/
+       $ mkdir venvs
+       $ /.local/bin/virtualenv --system-site-packages /export/development/sudipta/venvs/antelope
+       $ source /export/development/sudipta/venvs/antelope/bin/activate
 
-2. Unload the icc compiler and default openmpi from the terminal:
-
-   .. code:: bash
-
-       $ module unload intel-cc
-       $ module unload intel-fc
-       $ module unload openmpi
-
-3. Load the modules required for installation and running:
+3. Upgrade ``obspy`` as the ``obspy`` in the ANTELOPE system could be very old.
+Also install ``lxml`` without using the binaries.
 
    .. code:: bash
 
-       $ module load python3/3.4.3 python3/3.4.3-matplotlib
-       $ module load hdf5/1.8.14p openmpi/1.8 mpi4py/2.0.0
+       $ pip install obspy -U --no-deps
+       $ pip install lxml --no-binary :all:
 
-   (Alternatively, you may wish to add the above lines to your
-   ``~/.profile`` file)
 
-4. Now add the following lines to the end of your ``~/.profile`` file:
+-----------------
+Events to QuakeML
+-----------------
 
-   .. code:: bash
-
-       export PATH=$HOME/.local/bin:$PATH
-       export PYTHONPATH=$HOME/.local/lib/python3.4/site-packages:$PYTHONPATH
-       export VIRTUALENVWRAPPER_PYTHON=/apps/python3/3.4.3/bin/python3
-       export LC_ALL=en_AU.UTF-8
-       export LANG=en_AU.UTF-8
-       source $HOME/.local/bin/virtualenvwrapper.sh
-
-5. Install virtualenv and ``virtualenvwrapper`` in a terminal:
+1. Clone the ``antelope_contrib`` repository into your home directory, or
+another directory of your choice (I chose ``/export/development/sudipta/``
+due to low space allocation in my home directory.)
 
    .. code:: bash
 
-       $ pip3 install  --user virtualenv virtualenvwrapper
+       $ cd /export/development/sudipta/
+       $ git clone https://github.com/GeoscienceAustralia/antelope_contrib.git
 
-6. Refresh your environment by sourcing your ``~/.profile`` file:
-
-   .. code:: bash
-
-       $ source ~/.profile
-
-------------
-Installation
-------------
-
-1. Create a new virtualenv for ``passive-seismic``:
+2. Test one event can be converted to QuakeML
 
    .. code:: bash
 
-       $ mkvirtualenv --system-site-packages seismic
+       $ cd antelope_contrib/bin/export/events
+       $ python ga_event2qml.py -s schemas/QuakeML-BED-1.2.rng -o event_id.xml db_loc event_id -d
 
-2. Make sure the virtualenv is activated:
+    Note the ``db_loc`` has to point to the correct db, and ``event_id`` has
+    to exist in the antelope database. The ``ga_event2qml.py`` converts the
+    event corresponding to the ``event_id`` into the ``QuakeML`` ``event_id
+    .xml``. The script also runs a validation routine on the generate
+    ``QuakeML``.
 
-   .. code:: bash
-
-       $ workon seismic
-
-3. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
-
-   .. code:: bash
-
-       $ cd ~
-       $ git clone https://github.com/basaks/h5py.git
-       $ cd ~/h5py
-       $ export CC=mpicc
-       $ python setup.py configure --mpi --hdf5=/apps/hdf5/1.8.14p
-       $ python setup.py install
-
-
-4. Install ``passive-seismic``:
+3. Convert all events in the ANTELOPE database:
 
    .. code:: bash
 
-       $ cd ~/passive-seismic
-       $ python setup.py install
+       $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng db_loc outdir
 
-5. Once installation has completed, you can run the tests to verify
-   everything has gone correctly:
-
-   .. code:: bash
-
-       $ pip install pytest
-       $ pytest tests/
+    This will generate the QuakeML files inside the ``outdir``.
