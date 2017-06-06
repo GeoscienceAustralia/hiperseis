@@ -51,8 +51,8 @@ setup(
     author='Geoscience Australia Passive Seismic Team',
     author_email='',
     url='https://github.com/GeoscienceAustralia/Passive-Seismic',
-    packages=[''],
-    # package_dir={'': ''},
+    packages=['seismic', ],
+    package_dir={'passive-seismic': 'seismic'},
     include_package_data=True,
     entry_points={
         'console_scripts': [
