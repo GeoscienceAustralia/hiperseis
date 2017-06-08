@@ -28,7 +28,7 @@ due to low space allocation in my home directory.
 
        $ cd /export/development/sudipta/
        $ mkdir venvs
-       $ /.local/bin/virtualenv --system-site-packages /export/development/sudipta/venvs/antelope
+       $ ~/.local/bin/virtualenv --system-site-packages /export/development/sudipta/venvs/antelope
        $ source /export/development/sudipta/venvs/antelope/bin/activate
 
 3. Upgrade ``obspy`` as the ``obspy`` in the ANTELOPE system could be very old.
@@ -36,7 +36,7 @@ Also install ``lxml`` without using the binaries.
 
    .. code:: bash
 
-       $ pip install obspy -U --no-deps
+       $ pip install git+https://github.com/basaks/obspy.git -U --no-deps
        $ pip install lxml --no-binary :all:
 
 
@@ -70,6 +70,8 @@ due to low space allocation in my home directory.)
 
    .. code:: bash
 
-       $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng db_loc outdir
+       $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng -o sc3.xml
+       db_path
 
-    This will generate the QuakeML files inside the ``outdir``.
+    This will generate the QuakeML files inside the ``outdir`` and a
+    corresponding ``seiscomp3`` xml file ``sc3.xml``.
