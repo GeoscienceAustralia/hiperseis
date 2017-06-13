@@ -225,6 +225,8 @@ def decode_rce(fp, bytes):
     minute = x[0]
     x = struct.unpack('>i', block[20:24])
     sec = x[0]
+
+
     if (year < 2010 or year > 3000):
         bad_time = 1
     elif (month < 0 or month > 12):
