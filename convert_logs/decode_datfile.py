@@ -30,15 +30,15 @@ def REC_START(fp):
 
 def test_time_fields(year, month, day, hour, minute, sec, seedyear, strtime,
                      bad_time):
-    if (seedyear > 0):
+    if seedyear > 0:
         val = year - seedyear
         if (val > 1) or (val < -1):
             bad_time = 1
-    if (year < 2010 or year > 3000):
+    if year < 2010 or year > 3000:
         bad_time = 1
-    if (month < 1 or month > 12):
+    if month < 1 or month > 12:
         bad_time = 1
-    if (day < 1 or month > 31):
+    if day < 1 or month > 31:
         bad_time = 1
     if (hour < 0 or hour > 23):
         bad_time = 1
@@ -52,7 +52,7 @@ def test_time_fields(year, month, day, hour, minute, sec, seedyear, strtime,
     strtime = str1 + "T" + str2
     #   else:
     #       strtime=""
-    return (bad_time, strtime)
+    return bad_time, strtime
 
 
 def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
@@ -93,17 +93,18 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
         temperature = 0
     bad_time, strtime = test_time_fields(year, month, day, hour, minute, sec,
                                          seedyear, strtime, bad_time)
-    if (bad_time == 1):
+
+    if bad_time == 1:
         if print_bad_gps == 1:
             print("    !!!GPS BAD TIME ", strtime, " at ", fp.tell())
         bad_gps = bad_gps + 1
-        return ("", mylat, mylng, myalt)
+        return "", mylat, mylng, myalt
     else:
         good_gps = good_gps + 1
         mylat.append(lat)
         mylng.append(lng)
         myalt.append(alt)
-        return (strtime, mylat, mylng, myalt)
+        return strtime, mylat, mylng, myalt
 
 
 def decode_bsn(fp, bytes):
@@ -207,7 +208,7 @@ def decode_rcs(fp, bytes):
         print("    !!!RCS BAD TIME ", strtime, " at ", fp.tell())
     else:
         print("RCS Record Start Time   :", strtime)
-    return (outcome)
+    return outcome
 
 
 def decode_rce(fp, bytes):
@@ -319,12 +320,14 @@ def get_block(fp, bytes):
 
     try:
         block = fp.read(bytes)
+        # ids = struct.unpack('{}s'.format(bytes), block[0:bytes])
+        # print(ids, 'in get block')
         if len(block) > 0:
-            return (len(block))
+            return len(block)
         else:
-            return (0)
+            return 0
     except IOError:
-        return (-1)
+        return -1
 
 
 def try_recover_file(fp, x1):
@@ -474,7 +477,7 @@ print_bad_temperture = 0
 print_badid_update = 0
 bad_str_id = 0
 strtime = ""
-block = []
+# block = []
 recoder_restarted_pos = []
 good_gps = 0
 bad_gps = 0
@@ -543,6 +546,13 @@ elif headertest == 1:
         "********* WARNNING WARNNING Indication first 8 chars match a minseed file -->",
         recstr)
     print("********* WARNNING WARNNING")
+
+
+out_d = {}
+for v in VALIDCODES:
+    out_d[v] = 'Not Read or Not available'
+
+
 while 1:
     bad_time = 0
     file_postion = fp.tell()
@@ -555,14 +565,15 @@ while 1:
         break
     (ids) = struct.unpack('3s', block[0:3])
     id_str = ids[0]
-    if id_str == 'BSN':
+
+    if str(id_str) == 'BSN':
         recoder_restarted_pos.append(file_postion)
+        print(flagmarker, flagmarker & 0x0001)
         if not (flagmarker & 0x0001):
             print("##########################################################")
             print("   Seedyear was ", seedyear,
                   "                    To change use -y year option")
-            print("START OF RECORDER ")
-            print(" ")
+            print("START OF RECORDER\n")
             first_rec = 0
         else:
             print("GPS  TOTAL    ", good_gps + bad_gps)
@@ -572,14 +583,18 @@ while 1:
             good_gps = 0
             bad_gps = 0
             gps_update_failed = 0
-            print("**** RECORDER RESTARTED OR EXCHANGED*******************")
+            fault = 'RECORDER RESTARTED OR EXCHANGED'
+            print("**** {} *******************".format(fault))
+            out_d[id_str] = fault
         outcome = decode_bsn(fp, 4)
+
         if outcome < 1:
             decode_message(outcome, 4)
-
             break
         loop_counter = 0
         flagmarker = set_bit(flagmarker, 0)
+        out_d[id_str] = outcome
+
     elif id_str == 'SPR':
         flagmarker = set_bit(flagmarker, 2)
         outcome = decode_spr(fp, 4)
@@ -587,6 +602,8 @@ while 1:
             decode_message(outcome, 4)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
+
     elif id_str == 'SMM':
         flagmarker = set_bit(flagmarker, 3)
         outcome = decode_smm(fp, 4, SEISTYPES)
@@ -594,14 +611,15 @@ while 1:
             decode_message(outcome, 4)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
     elif id_str == 'FWV':
-        print(id_str)
         flagmarker = set_bit(flagmarker, 1)
         outcome = decode_fwv(fp, 22)
         if outcome < 1:
             decode_message(outcome, 22)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
     elif id_str == 'SMS':
         flagmarker = set_bit(flagmarker, 4)
         outcome = decode_sms(fp, 4)
@@ -609,6 +627,7 @@ while 1:
             decode_message(outcome, 4)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
     elif id_str == 'RCS':
         flagmarker = set_bit(flagmarker, 5)
         outcome = decode_rcs(fp, 24)
@@ -616,6 +635,7 @@ while 1:
             decode_message(outcome, 24)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
     elif id_str == 'RCE':
         flagmarker = set_bit(flagmarker, 6)
         outcome = decode_rce(fp, 24)
@@ -623,6 +643,7 @@ while 1:
             decode_message(outcome, 24)
             break
         loop_counter = 0
+        out_d[id_str] = outcome
     elif id_str == 'UDF':
         flagmarker = set_bit(flagmarker, 7)
         outcome = decode_udf(fp, 24)
@@ -631,7 +652,8 @@ while 1:
             break
         gps_update_failed = gps_update_failed + 1
         loop_counter = 0
-    elif (id_str == 'GPS'):
+        out_d[id_str] = outcome
+    elif id_str == 'GPS':
         flagmarker = set_bit(flagmarker, 8)
         first_gps = 0
         (strtime, mylat, mylng, myalt) = decode_gps(fp, 60,
@@ -639,15 +661,16 @@ while 1:
                                                     print_bad_gps, mylat, mylng,
                                                     myalt, seedyear, strtime,
                                                     bad_time)
-        if (len(strtime) > 0):
-            if not strtime[1] == 0 and not strtime[2] == 0 and not strtime[
-                2] == 0:
+        if len(strtime) > 0:
+            if (not strtime[1] == 0) and (not strtime[2] == 0) and \
+                    (not strtime[2] == 0):
                 if print_gps_update == 1:
                     print("GPS UPDATED ", strtime)
                 dt = UTCDateTime(strtime) - UTCDateTime(1970, 1, 1, 0, 0)
-                if (x == 0):
+                if not x:
                     x = dt
         loop_counter = 0
+        out_d[id_str] = 'Not defined'
     else:
         bad_str_id = bad_str_id + 1
         bad_strs.append(id_str)
@@ -704,6 +727,7 @@ if restarts > 0:
 # the 2 allowed values for flagmarker!!!
 x1 = 0xb111111101
 x2 = 0xb111111111
+
 if not flagmarker == x1 and not flagmarker == x2:
     print("LOGFILE HAS MISSING FLAGS:")
 for i in range(0, 9):
@@ -726,3 +750,5 @@ for i in range(0, 9):
         elif i == 8:
             print("  Gps Updates                  NOT RECORDED")
 fp.close()
+
+print(out_d)
