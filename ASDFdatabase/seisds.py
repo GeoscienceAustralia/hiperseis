@@ -101,16 +101,17 @@ class SeisDB(object):
             except KeyError as e:
                 print "Indexing JSON dictionary has failed with a key error({0}): {1}".format(e.errorno, e.strerror)
 
-    def queryByTime(self, sta, chan, query_time):
+    def queryByTime(self, sta, chan, query_starttime, query_endtime):
+        qs = query_starttime
+        qe = query_endtime
         assert self._json_loaded, "Invalid SeisDB object. Try loading a valid JSON file first."
         assert self._valid_index, "Invalid SeisDB object. Index has not been generated."
         if not self._use_numpy_index:
             indices = []
             for _i, key in enumerate(self._formatted_dict.keys()):
                 matched_entry = self._formatted_dict[key]
-                if ((matched_entry['tr_starttime'] <= query_time < matched_entry['tr_endtime'])
-                    or (query_time <= matched_entry['tr_starttime'] and matched_entry['tr_starttime'] < query_time + (
-                        30 * 60))) \
+                if ((matched_entry['tr_starttime'] <= qs < matched_entry['tr_endtime'])
+                    or (query_time <= matched_entry['tr_starttime'] and matched_entry['tr_starttime'] < qe)) \
                         and ((matched_entry['new_station'] in sta) and (matched_entry['new_channel'] in chan)):
                     indices.append(_i)
             # indices_array = np.array(indices)
@@ -124,9 +125,9 @@ class SeisDB(object):
         else:
             _indexed_np_array_masked = np.where((np.in1d(self._indexed_np_array['sta'], sta))
                            & (np.in1d(self._indexed_np_array['cha'], chan))
-                           & np.logical_or(np.logical_and(self._indexed_np_array['st'] <= query_time,  query_time < self._indexed_np_array['et']),
-                                           (np.logical_and(query_time <= self._indexed_np_array['st'],
-                                                           self._indexed_np_array['st'] < query_time + (30 * 60)))))
+                           & np.logical_or(np.logical_and(self._indexed_np_array['st'] <= qs,  qs < self._indexed_np_array['et']),
+                                           (np.logical_and(qs <= self._indexed_np_array['st'],
+                                                           self._indexed_np_array['st'] < qe))))
             # print(_indexed_np_array_masked[0])
             # for index in _indexed_np_array_masked[0]:
             #    print(self._indexed_np_array[index, 6])
