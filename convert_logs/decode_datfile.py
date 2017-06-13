@@ -127,14 +127,14 @@ def decode_spr(fp, bytes):
         return (-2)
     x = struct.unpack('>i', block[0:bytes])
     print("Sample Period       : ", x[0])
-    return (outcome)
+    return outcome
 
 
 def decode_sms(fp, bytes):
     x1 = fp.tell()
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return (outcome)
+        return outcome
     if len(block) < bytes:
         return -2
     #    block = fp.read(bytes)
@@ -332,55 +332,55 @@ def try_recover_file(fp, x1):
         x2 = fp.tell()
         outcome, block = get_block(fp, 1)
         if outcome < 1:
-            return (outcome)
+            return outcome
         if block[0] == 'B':
-            outcome = get_block(fp, 2)
+            outcome, block = get_block(fp, 2)
             if outcome < 1:
-                return (outcome)
+                return outcome
             if block[0] == 'S' and block[1] == 'N':
                 valid_code = 1
         elif block[0] == 'U':
-            outcome = get_block(fp, 2)
+            outcome, block = get_block(fp, 2)
             if outcome < 1:
-                return (outcome)
+                return outcome
             if block[0] == 'D' and block[1] == 'F':
                 valid_code = 1
         elif block[0] == 'G':
-            outcome = get_block(fp, 2)
+            outcome, block = get_block(fp, 2)
             if outcome < 1:
-                return (outcome)
+                return outcome
             if block[0] == 'P' and block[1] == 'S':
                 valid_code = 1
         elif block[0] == 'F':
-            outcome = get_block(fp, 2)
+            outcome, block = get_block(fp, 2)
             if outcome < 0:
-                return (outcome)
+                return outcome
             if block[0] == 'W' and block[1] == 'V':
                 valid_code = 1
         elif block[0] == 'S':
-            outcome = get_block(fp, 1)
+            outcome, block = get_block(fp, 1)
             if outcome < 1:
-                return (-1)
+                return -1
             if block[0] == 'P':
-                outcome = get_block(fp, 1)
+                outcome, block = get_block(fp, 1)
                 if outcome < 1:
-                    return (outcome)
+                    return outcome
                 if block[0] == 'R':
                     valid_code = 1
             elif block[0] == 'M':
-                outcome = get_block(fp, 2)
+                outcome, block = get_block(fp, 2)
                 if outcome < 0:
-                    return (outcome)
+                    return outcome
                 if block[0] == 'S' or block[0] == 'M':
                     valid_code = 1
         elif block[0] == 'R':
-            outcome = get_block(fp, 1)
+            outcome, block = get_block(fp, 1)
             if outcome < 1:
-                return (outcome)
+                return outcome
             if block[0] == 'C':
-                outcome = get_block(fp, 1)
+                outcome, block = get_block(fp, 1)
                 if outcome < 1:
-                    return (outcome)
+                    return outcome
                 if block[0] == 'S' or block[0] == 'E':
                     valid_code = 1
     fp.seek(-3, 1)
@@ -456,7 +456,6 @@ def test_fileformat_start(fp, filename):
 @click.argument('datfile')
 def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
     """Program to display contents of the logfile <datfile>.dat"""
-    print(datfile)
 
     current_time = datetime.datetime.now()
     seedyear = current_time.year
@@ -557,7 +556,6 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
 
         if str(id_str) == 'BSN':
             recoder_restarted_pos.append(file_postion)
-            print(flagmarker, flagmarker & 0x0001)
             if not (flagmarker & 0x0001):
                 print("##########################################################")
                 print("   Seedyear was ", seedyear,
@@ -618,9 +616,7 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'RCS':
-            print('RCS========================')
             flagmarker = set_bit(flagmarker, 5)
-            print(outcome, 'RCS========================')
             outcome = decode_rcs(fp, 24)
 
             if outcome < 1:
@@ -629,7 +625,6 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'RCE':
-            print('RCE========================')
             flagmarker = set_bit(flagmarker, 6)
             outcome = decode_rce(fp, 24)
             if outcome < 1:
@@ -638,7 +633,6 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'UDF':
-            print('UDF========================')
             flagmarker = set_bit(flagmarker, 7)
             outcome = decode_udf(fp, 24)
             if outcome < 1:
@@ -648,7 +642,6 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'GPS':
-            print('GPS=======================')
             flagmarker = set_bit(flagmarker, 8)
             first_gps = 0
             strtime, mylat, mylng, myalt = decode_gps(
