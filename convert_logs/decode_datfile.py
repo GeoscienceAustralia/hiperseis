@@ -5,13 +5,14 @@ Mondo script
 """
 
 from __future__ import print_function
-import datetime
 import math
 import os
 import struct
 import sys
 import click
 from obspy.core import UTCDateTime
+import datetime
+YEAR = datetime.datetime.now().year
 
 
 def REC_START(fp):
@@ -135,12 +136,12 @@ def decode_sms(fp, bytes):
     if outcome < 1:
         return (outcome)
     if len(block) < bytes:
-        return (-2)
+        return -2
     #    block = fp.read(bytes)
     x2 = fp.tell()
     #    x = struct.unpack('>s',block[0:bytes])
     print("Seismometer No.     : ", block)
-    return (outcome)
+    return outcome
 
 
 def decode_fwv(fp, bytes):
@@ -156,105 +157,22 @@ def decode_fwv(fp, bytes):
 def decode_smm(fp, bytes, typesseis):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return (outcome)
+        return outcome
     if len(block) < bytes:
-        return (-2)
+        return -2
     #    block = fp.read(bytes)
     x = struct.unpack('>i', block[0:bytes])
     print("Seismometer Type    : ", typesseis[x[0]])
-    return (outcome)
-
-
-def decode_rcs(fp, bytes):
-    outcome = get_block(fp, bytes)
-    if outcome < 1:
-        return (outcome)
-    if len(block) < bytes:
-        return (-2)
-    #    block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
-    if (year < 2010 or year > 3000):
-        bad_time = 1
-    elif (month < 0 or month > 12):
-        bad_time = 1
-    elif (day < 1 or month > 31):
-        bad_time = 1
-    elif (hour < 0 or hour > 23):
-        bad_time = 1
-    elif (minute < 0 or minute > 59):
-        bad_time = 1
-    elif (sec < 0 or sec > 59):
-        bad_time = 1
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "  " + str2
-    if (bad_time == 1):
-        print("    !!!RCS BAD TIME ", strtime, " at ", fp.tell())
-    else:
-        print("RCS Record Start Time   :", strtime)
     return outcome
 
 
-def decode_rce(fp, bytes):
+def decode_rcs(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
         return outcome
     if len(block) < bytes:
         return -2
     #    block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
-
-
-    if (year < 2010 or year > 3000):
-        bad_time = 1
-    elif (month < 0 or month > 12):
-        bad_time = 1
-    elif (day < 1 or month > 31):
-        bad_time = 1
-    elif (hour < 0 or hour > 23):
-        bad_time = 1
-    elif (minute < 0 or minute > 59):
-        bad_time = 1
-    elif (sec < 0 or sec > 59):
-        bad_time = 1
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "  " + str2
-    if (bad_time == 1):
-        print("    !!!RCE BAD TIME ", strtime, " at ", fp.tell())
-    else:
-        print("Record END Time   :", strtime)
-    return (outcome)
-
-
-def decode_udf(fp, bytes):
-    outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
     x = struct.unpack('>i', block[0:4])
     day = x[0]
     x = struct.unpack('>i', block[4:8])
@@ -283,10 +201,92 @@ def decode_udf(fp, bytes):
     str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
     strtime = str1 + "  " + str2
     if bad_time == 1:
+        print("    !!!RCS BAD TIME ", strtime, " at ", fp.tell())
+    else:
+        print("RCS Record Start Time   :", strtime)
+    return outcome
+
+
+def decode_rce(fp, bytes):
+    outcome, block = get_block(fp, bytes)
+    if outcome < 1:
+        return outcome
+    if len(block) < bytes:
+        return -2
+    #    block = fp.read(bytes)
+    x = struct.unpack('>i', block[0:4])
+    day = x[0]
+    x = struct.unpack('>i', block[4:8])
+    month = x[0]
+    x = struct.unpack('>i', block[8:12])
+    year = x[0]
+    x = struct.unpack('>i', block[12:16])
+    hour = x[0]
+    x = struct.unpack('>i', block[16:20])
+    minute = x[0]
+    x = struct.unpack('>i', block[20:24])
+    sec = x[0]
+
+    if (year < 2010 or year > 3000):
+        bad_time = 1
+    elif (month < 0 or month > 12):
+        bad_time = 1
+    elif (day < 1 or month > 31):
+        bad_time = 1
+    elif (hour < 0 or hour > 23):
+        bad_time = 1
+    elif (minute < 0 or minute > 59):
+        bad_time = 1
+    elif (sec < 0 or sec > 59):
+        bad_time = 1
+    str1 = str(year) + "-" + str(month) + "-" + str(day)
+    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
+    strtime = str1 + "  " + str2
+    if bad_time == 1:
+        print("    !!!RCE BAD TIME ", strtime, " at ", fp.tell())
+    else:
+        print("Record END Time   :", strtime)
+    return outcome
+
+
+def decode_udf(fp, bytes):
+    outcome, block = get_block(fp, bytes)
+    if outcome < 1:
+        return outcome
+    if len(block) < bytes:
+        return -2
+    x = struct.unpack('>i', block[0:4])
+    day = x[0]
+    x = struct.unpack('>i', block[4:8])
+    month = x[0]
+    x = struct.unpack('>i', block[8:12])
+    year = x[0]
+    x = struct.unpack('>i', block[12:16])
+    hour = x[0]
+    x = struct.unpack('>i', block[16:20])
+    minute = x[0]
+    x = struct.unpack('>i', block[20:24])
+    sec = x[0]
+    if year < 2010 or year > 3000:
+        bad_time = 1
+    elif month < 0 or month > 12:
+        bad_time = 1
+    elif day < 1 or month > 31:
+        bad_time = 1
+    elif hour < 0 or hour > 23:
+        bad_time = 1
+    elif minute < 0 or minute > 59:
+        bad_time = 1
+    elif sec < 0 or sec > 59:
+        bad_time = 1
+    str1 = str(year) + "-" + str(month) + "-" + str(day)
+    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
+    strtime = str1 + "  " + str2
+    if bad_time == 1:
         print("    !!!UDF BAD TIME ", strtime, " at ", fp.tell())
     else:
         print("GPS UPDATE FAILED Time   :", strtime)
-    return (outcome)
+    return outcome
 
 
 def print_bad_strings(bad_strs, bad_strs_pos):
@@ -450,8 +450,9 @@ def test_fileformat_start(fp, filename):
 @click.option('-a', '--all',
               default=False, type=bool, help='Print all')
 @click.option('-y', '--year',
-              default=False, type=bool, help='Gpsyear.\n'
-                                             'max(Gpsyear - year) == 1')
+              default=YEAR,
+              type=click.IntRange(YEAR-1, YEAR+1),
+              help='Gpsyear. max(Gpsyear - year) == 1')
 @click.argument('datfile')
 def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
     """Program to display contents of the logfile <datfile>.dat"""
@@ -541,8 +542,7 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
     for v in VALIDCODES:
         out_d[v] = 'Not Read or Not available'
 
-
-    while 1:
+    while True:
         bad_time = 0
         file_postion = fp.tell()
         strtime = ""
@@ -618,14 +618,18 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'RCS':
+            print('RCS========================')
             flagmarker = set_bit(flagmarker, 5)
+            print(outcome, 'RCS========================')
             outcome = decode_rcs(fp, 24)
+
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'RCE':
+            print('RCE========================')
             flagmarker = set_bit(flagmarker, 6)
             outcome = decode_rce(fp, 24)
             if outcome < 1:
@@ -634,6 +638,7 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'UDF':
+            print('UDF========================')
             flagmarker = set_bit(flagmarker, 7)
             outcome = decode_udf(fp, 24)
             if outcome < 1:
@@ -643,13 +648,13 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             loop_counter = 0
             out_d[id_str] = outcome
         elif id_str == 'GPS':
+            print('GPS=======================')
             flagmarker = set_bit(flagmarker, 8)
             first_gps = 0
-            (strtime, mylat, mylng, myalt) = decode_gps(fp, 60,
-                                                        print_bad_temperture,
-                                                        print_bad_gps, mylat, mylng,
-                                                        myalt, seedyear, strtime,
-                                                        bad_time)
+            strtime, mylat, mylng, myalt = decode_gps(
+                fp, 60, print_bad_temperture, print_bad_gps, mylat, mylng,
+                myalt, seedyear, strtime, bad_time, good_gps, bad_gps
+            )
             if len(strtime) > 0:
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
