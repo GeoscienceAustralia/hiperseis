@@ -1,66 +1,41 @@
 #!/usr/bin/python
-
 """
-Mondo script
+Use this script to convert the binary .dat ANU log files into jsons.
 """
 
 from __future__ import print_function
 import math
-import os
 import struct
 import sys
+import json
+import logging
 import click
-from obspy.core import UTCDateTime
 import datetime
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
+
+
+# constants
 YEAR = datetime.datetime.now().year
+VALIDCODES = ["BSN", "FWV", "SPR", "SMM", "SMS", "RCS", "RCE", "UDF", "GPS"]
+VALIDSIZES = [4, 22, 4, 4, 10, 24, 24, 24, 60]
+SEISTYPES = ["LennartzLE-3DlITE", "GurupCMG-40T", "GuralpCMG-3ESP",
+             "TrilliumCompact", "MarkL4", "MarkL4C"]
 
 
-def REC_START(fp):
-    block = fp.read(24)
-    x = struct.unpack('>i', block[0:4])
-    year = x[0]
-    x = struct.unpack('>i', block[4:8])
-    doy = x[0]
-    x = struct.unpack('>i', block[8:12])
-    hour = x[0]
-    x = struct.unpack('>i', block[12:16])
-    minute = x[0]
-    x = struct.unpack('>i', block[16:20])
-    sec = x[0]
-    start = UTCDateTime(1970, 1, 1, 0, 0)
+def test_time_fields(year, month, day, hour, minute, sec):
+    gps_time = datetime.datetime(year=year, month=month, day=day,
+                                 hour=hour, minute=minute, second=sec)
 
-
-def test_time_fields(year, month, day, hour, minute, sec, seedyear, strtime,
-                     bad_time):
-    if seedyear > 0:
-        val = year - seedyear
-        if (val > 1) or (val < -1):
-            bad_time = 1
-    if year < 2010 or year > 3000:
-        bad_time = 1
-    if month < 1 or month > 12:
-        bad_time = 1
-    if day < 1 or month > 31:
-        bad_time = 1
-    if (hour < 0 or hour > 23):
-        bad_time = 1
-    if (minute < 0 or minute > 59):
-        bad_time = 1
-    if (sec < 0 or sec > 59):
-        bad_time = 1
-    #    if not bad_time ==1:
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "T" + str2
-    #   else:
-    #       strtime=""
-    return bad_time, strtime
+    return gps_time.strftime('%d/%m/%Y %H:%M:%S:%f')
 
 
 def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
-               myalt, seedyear, strtime, bad_time, good_gps, bad_gps):
+               myalt, clock, battery, temp, seedyear, strtime, good_gps,
+               bad_gps):
 
-    block = fp.read(60)
+    block = fp.read(bytes)
     x = struct.unpack('>i', block[0:4])
     day = x[0]
     x = struct.unpack('>i', block[4:8])
@@ -87,25 +62,27 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
         battery_percent = 0
     x = struct.unpack('>i', block[56:60])
     temperature = x[0]
-    bad_time = 0
     if (temperature < -50) or (temperature > 150):
         if print_bad_temperture == 1:
-            print("  @@@@ Bad temperture ", temperature, "  at ", fp.tell())
+            log.warning("  @@@@ Bad temperture {} at {}".format(
+                temperature, fp.tell()))
         temperature = 0
-    bad_time, strtime = test_time_fields(year, month, day, hour, minute, sec,
-                                         seedyear, strtime, bad_time)
 
-    if bad_time == 1:
-        if print_bad_gps == 1:
-            print("    !!!GPS BAD TIME ", strtime, " at ", fp.tell())
-        bad_gps = bad_gps + 1
-        return "", mylat, mylng, myalt
-    else:
-        good_gps = good_gps + 1
+    try:
+        strtime = test_time_fields(year, month, day, hour, minute, sec)
+        good_gps += 1
         mylat.append(lat)
         mylng.append(lng)
         myalt.append(alt)
-        return strtime, mylat, mylng, myalt
+        clock.append(clock_error)
+        battery.append(battery_percent)
+        temp.append(temperature)
+    except:
+        bad_gps += 1
+        strtime = "Date Error"
+
+    return strtime, mylat, mylng, myalt, clock, battery, temp, \
+               good_gps, bad_gps
 
 
 def decode_bsn(fp, bytes):
@@ -115,19 +92,19 @@ def decode_bsn(fp, bytes):
     if len(block) < bytes:
         return -2
     x = struct.unpack('>i', block[0:bytes])
-    print("Board Serial Number : ", x[0])
-    return outcome
+    log.info("BSN: Board Serial Number: {}".format(x[0]))
+    return outcome, x[0]
 
 
 def decode_spr(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return (outcome)
+        return outcome
     if len(block) < bytes:
-        return (-2)
+        return -2
     x = struct.unpack('>i', block[0:bytes])
-    print("Sample Period       : ", x[0])
-    return outcome
+    log.info("SPR: Sample Period: {}".format(x[0]))
+    return outcome, x[0]
 
 
 def decode_sms(fp, bytes):
@@ -139,19 +116,19 @@ def decode_sms(fp, bytes):
         return -2
     #    block = fp.read(bytes)
     x2 = fp.tell()
-    #    x = struct.unpack('>s',block[0:bytes])
-    print("Seismometer No.     : ", block)
-    return outcome
+    x = struct.unpack('>i', block[0:bytes])
+    log.info("SMS: Seismometer No: {}".format(block))
+    return outcome, x[0]
 
 
 def decode_fwv(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return (outcome)
+        return outcome
     if len(block) < bytes:
-        return (-2)
-    print("Firmware Version    : ", block)
-    return (outcome)
+        return -2
+    log.info("FWV: Firmware Version    :{}".format(block))
+    return outcome, block
 
 
 def decode_smm(fp, bytes, typesseis):
@@ -162,8 +139,8 @@ def decode_smm(fp, bytes, typesseis):
         return -2
     #    block = fp.read(bytes)
     x = struct.unpack('>i', block[0:bytes])
-    print("Seismometer Type    : ", typesseis[x[0]])
-    return outcome
+    log.info("SMM: Seismometer Type: {}".format(typesseis[x[0]]))
+    return outcome, typesseis[x[0]]
 
 
 def decode_rcs(fp, bytes):
@@ -172,124 +149,71 @@ def decode_rcs(fp, bytes):
         return outcome
     if len(block) < bytes:
         return -2
-    #    block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
-    if (year < 2010 or year > 3000):
-        bad_time = 1
-    elif (month < 0 or month > 12):
-        bad_time = 1
-    elif (day < 1 or month > 31):
-        bad_time = 1
-    elif (hour < 0 or hour > 23):
-        bad_time = 1
-    elif (minute < 0 or minute > 59):
-        bad_time = 1
-    elif (sec < 0 or sec > 59):
-        bad_time = 1
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "  " + str2
-    if bad_time == 1:
-        print("    !!!RCS BAD TIME ", strtime, " at ", fp.tell())
-    else:
-        print("RCS Record Start Time   :", strtime)
-    return outcome
+    try:
+        str_start_time = _unpack_time(block)
+        log.info("RCS: RCS Record Start Time: {}".format(str_start_time))
+    except:
+        str_start_time = 'Bad Recode START Time/RCS time'
+        log.warning(str_start_time)
+
+    return outcome, str_start_time
 
 
 def decode_rce(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return outcome
+        return outcome, None
     if len(block) < bytes:
-        return -2
-    #    block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
+        return -2, None
+    try:
+        str_stop_time = _unpack_time(block)
+        log.info("RCE: Record END Time: {}".format(str_stop_time))
+    except:
+        str_stop_time = 'Bad Recode END Time/RCE time'
+        log.warn(str_stop_time)
+    return outcome, str_stop_time
 
-    if (year < 2010 or year > 3000):
-        bad_time = 1
-    elif (month < 0 or month > 12):
-        bad_time = 1
-    elif (day < 1 or month > 31):
-        bad_time = 1
-    elif (hour < 0 or hour > 23):
-        bad_time = 1
-    elif (minute < 0 or minute > 59):
-        bad_time = 1
-    elif (sec < 0 or sec > 59):
-        bad_time = 1
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "  " + str2
-    if bad_time == 1:
-        print("    !!!RCE BAD TIME ", strtime, " at ", fp.tell())
-    else:
-        print("Record END Time   :", strtime)
-    return outcome
+
+def _unpack_time(block):
+    x = struct.unpack('>i', block[0:4])
+    year = x[0]
+    x = struct.unpack('>i', block[4:8])
+    days = x[0]
+    x = struct.unpack('>i', block[8:12])
+    hours = x[0]
+    x = struct.unpack('>i', block[12:16])
+    minutes = x[0]
+    x = struct.unpack('>i', block[16:20])
+    secs = x[0]
+    x = struct.unpack('>i', block[20:24])
+    usec = x[0]
+    start_time = datetime.datetime(year, 1, 1)
+    start_time += datetime.timedelta(days=days - 1,
+                                     hours=hours,
+                                     minutes=minutes,
+                                     seconds=secs,
+                                     microseconds=usec)
+    return start_time.strftime('%d/%m/%Y %H:%M:%S:%f')
 
 
 def decode_udf(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return outcome
+        return outcome, None
     if len(block) < bytes:
-        return -2
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
-    if year < 2010 or year > 3000:
-        bad_time = 1
-    elif month < 0 or month > 12:
-        bad_time = 1
-    elif day < 1 or month > 31:
-        bad_time = 1
-    elif hour < 0 or hour > 23:
-        bad_time = 1
-    elif minute < 0 or minute > 59:
-        bad_time = 1
-    elif sec < 0 or sec > 59:
-        bad_time = 1
-    str1 = str(year) + "-" + str(month) + "-" + str(day)
-    str2 = "%02d:%02d:%02d.000" % (hour, minute, sec)
-    strtime = str1 + "  " + str2
-    if bad_time == 1:
-        print("    !!!UDF BAD TIME ", strtime, " at ", fp.tell())
-    else:
-        print("GPS UPDATE FAILED Time   :", strtime)
-    return outcome
+        return -2, None
+
+    try:
+        str_udf_time = _unpack_time(block)
+        log.info("UDF: GPS UPDATE FAILED Time: {}".format(str_udf_time))
+    except:
+        str_udf_time = "   !!!UDF BAD TIME at {}".format(fp.tell())
+        log.warning(str_udf_time)
+
+    return outcome, str_udf_time
 
 
-def print_bad_strings(bad_strs, bad_strs_pos):
+def print_bad_strings(bad_strs, bad_strs_pos, bad_str_id):
     print("BAD_STRINGS DUMP")
     print("      string   file-pos")
     for i in range(bad_str_id):
@@ -417,7 +341,7 @@ def set_bit(value, bit):
     return value
 
 
-def test_fileformat_start(fp, filename):
+def test_fileformat_start(fp):
     blk = []
     recstring = ""
     mseedheader = 1
@@ -447,94 +371,60 @@ def test_fileformat_start(fp, filename):
               default=False, type=bool, help='Print bad id strings')
 @click.option('-t', '--temperature',
               default=False, type=bool, help='Print bad temperature info')
-@click.option('-a', '--all',
+@click.option('-a', '--all_print',
               default=False, type=bool, help='Print all')
 @click.option('-y', '--year',
               default=YEAR,
-              type=click.IntRange(YEAR-1, YEAR+1),
+              type=click.IntRange(2000, YEAR+1),
               help='Gpsyear. max(Gpsyear - year) == 1')
-@click.argument('datfile')
-def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
+@click.option('-o', '--output',
+              default='output.json',
+              type=click.File('wb'),
+              help='output json file name')
+@click.argument('datfile', type=click.File('r'))
+def anulog(datfile, bad_gps, id_str, gps_update,
+           temperature, all_print, year, output):
     """Program to display contents of the logfile <datfile>.dat"""
 
-    current_time = datetime.datetime.now()
-    seedyear = current_time.year
-    first_rec = 1
-    debug = 0
-    VALIDCODES = ["BSN", "FWV", "SPR", "SMM", "SMS", "RCS", "RCE", "UDF", "GPS"]
-    VALIDSIZES = [4, 22, 4, 4, 10, 24, 24, 24, 60]
-    SEISTYPES = ["LennartzLE-3DlITE", "GurupCMG-40T", "GuralpCMG-3ESP",
-                 "TrilliumCompact", "MarkL4", "MarkL4C"]
-    print_bad_gps = 0
-    print_gps_update = 0
+    seedyear = year
     gps_update_failed = 0
-    print_bad_temperture = 0
-    print_badid_update = 0
     bad_str_id = 0
-    strtime = ""
     recoder_restarted_pos = []
-    good_gps = 0
-    bad_gps = 0
+    good_gps_count = 0
+    bad_gps_count = 0
     flagmarker = int(0)
     mylat = []
     mylng = []
     myalt = []
+    clock = []
+    battery = []
+    temp = []
+
     bad_strs = []
     bad_strs_pos = []
-    headertest = 0
-    recstr = []
-    com_args = sys.argv[1:]
-    max_args = len(com_args)
-    # j = 0
-    # while (j < max_args):
-    #     if (com_args[j] == '-badgps' or com_args[j] == '-b'):
-    #         if com_args[j + 1] == "yes":
-    #             print_bad_gps = 1
-    #     elif (com_args[j] == '-update' or com_args[j] == '-u'):
-    #         if com_args[j + 1] == "yes":
-    #             print_gps_update = 1
-    #     elif (com_args[j] == '-idbad' or com_args[j] == '-i'):
-    #         if com_args[j + 1] == "yes":
-    #             print_badid_update = 1
-    #     elif (com_args[j] == '-all' or com_args[j] == '-a'):
-    #         if com_args[j + 1] == "yes":
-    #             print_badid_update = 1
-    #             print_gps_update = 1
-    #             print_bad_gps = 1
-    #             print_bad_temperture = 1
-    #     elif (com_args[j] == '-temp' or com_args[j] == '-t'):
-    #         if com_args[j + 1] == "yes":
-    #             print_bad_temperture = 1
-    #     elif (com_args[j] == '-year' or com_args[j] == '-y'):
-    #         seedyear = int(com_args[j + 1])
-    #     elif (com_args[j] == '-filename' or com_args[j] == '-f'):
-    #         filename = com_args[j + 1]
-    #     elif (com_args[j] == '-help' or com_args[j] == '-h'):
-    #         pass
-    #         sys.exit(3)
-    #     j = j + 2
+    print_bad_gps = bad_gps
+    print_gps_update = gps_update
+    print_badid_update = id_str
+    print_bad_temperture = temperature
 
-    if not os.path.isfile(datfile):
-        print("File ", datfile, "  DOES NOT EXIST")
-        sys.exit(4)
+    if all_print:
+        print_badid_update = 1
+        print_gps_update = 1
+        print_bad_gps = 1
+        print_bad_temperture = 1
 
-    try:
-        fp = open(datfile, "rb")
-    except IOError:
-        print("Failed to open file ", datfile)
-        sys.exit(10)
     loop_counter = 0
-    x = 0
+
     # quick test of first lines
-    headertest, recstr = test_fileformat_start(fp, datfile)
+    headertest, recstr = test_fileformat_start(datfile)
+
     if headertest < 0:
-        fp.close()
+        datfile.close()
         sys.exit(100)
     elif headertest == 1:
         print("********* WARNNING WARNINIG")
-        print(
-            "********* WARNNING WARNNING Indication first 8 chars match a minseed file -->",
-            recstr)
+        print("********* WARNNING WARNNING Indication first 8 chars match "
+              "a minseed file -->", recstr)
         print("********* WARNNING WARNNING")
 
     out_d = {}
@@ -542,11 +432,10 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
         out_d[v] = 'Not Read or Not available'
 
     while True:
-        bad_time = 0
-        file_postion = fp.tell()
+        file_postion = datfile.tell()
         strtime = ""
         try:
-            block = fp.read(3)
+            block = datfile.read(3)
             if len(block) < 3:
                 break
         except IOError:
@@ -557,128 +446,117 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
         if str(id_str) == 'BSN':
             recoder_restarted_pos.append(file_postion)
             if not (flagmarker & 0x0001):
-                print("##########################################################")
+                print("######################################################")
                 print("   Seedyear was ", seedyear,
                       "                    To change use -y year option")
                 print("START OF RECORDER\n")
-                first_rec = 0
             else:
-                print("GPS  TOTAL    ", good_gps + bad_gps)
-                print("Good          ", good_gps)
-                print("Bad           ", bad_gps)
+                print("GPS  TOTAL    ", good_gps_count + bad_gps_count)
+                print("Good          ", good_gps_count)
+                print("Bad           ", bad_gps_count)
                 print("UPDATE FAILED ", gps_update_failed)
-                good_gps = 0
-                bad_gps = 0
+                good_gps_count = 0
+                bad_gps_count = 0
                 gps_update_failed = 0
                 fault = 'RECORDER RESTARTED OR EXCHANGED'
                 print("**** {} *******************".format(fault))
-                out_d[id_str] = fault
-            outcome = decode_bsn(fp, 4)
+            outcome, out_d[id_str] = decode_bsn(datfile, 4)
 
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
             flagmarker = set_bit(flagmarker, 0)
-            out_d[id_str] = outcome
 
         elif id_str == 'SPR':
             flagmarker = set_bit(flagmarker, 2)
-            outcome = decode_spr(fp, 4)
+            outcome, out_d[id_str] = decode_spr(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
 
         elif id_str == 'SMM':
             flagmarker = set_bit(flagmarker, 3)
-            outcome = decode_smm(fp, 4, SEISTYPES)
+            outcome, out_d[id_str] = decode_smm(datfile, 4, SEISTYPES)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'FWV':
             flagmarker = set_bit(flagmarker, 1)
-            outcome = decode_fwv(fp, 22)
+            outcome, out_d[id_str] = decode_fwv(datfile, 22)
             if outcome < 1:
                 decode_message(outcome, 22)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'SMS':
             flagmarker = set_bit(flagmarker, 4)
-            outcome = decode_sms(fp, 4)
+            outcome, out_d[id_str] = decode_sms(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'RCS':
             flagmarker = set_bit(flagmarker, 5)
-            outcome = decode_rcs(fp, 24)
+            outcome, out_d[id_str] = decode_rcs(datfile, 24)
 
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'RCE':
             flagmarker = set_bit(flagmarker, 6)
-            outcome = decode_rce(fp, 24)
+            outcome, out_d[id_str] = decode_rce(datfile, 24)
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'UDF':
             flagmarker = set_bit(flagmarker, 7)
-            outcome = decode_udf(fp, 24)
+            outcome, out_d[id_str] = decode_udf(datfile, 24)
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             gps_update_failed = gps_update_failed + 1
             loop_counter = 0
-            out_d[id_str] = outcome
+
         elif id_str == 'GPS':
             flagmarker = set_bit(flagmarker, 8)
-            first_gps = 0
-            strtime, mylat, mylng, myalt = decode_gps(
-                fp, 60, print_bad_temperture, print_bad_gps, mylat, mylng,
-                myalt, seedyear, strtime, bad_time, good_gps, bad_gps
-            )
+            strtime, mylat, mylng, myalt, clock, battery, temp, \
+            good_gps_count, bad_gps_count = \
+                decode_gps(datfile, 60, print_bad_temperture, print_bad_gps,
+                           mylat, mylng, myalt, clock, battery, temp, seedyear,
+                           strtime, good_gps_count, bad_gps_count)
             if len(strtime) > 0:
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
                     if print_gps_update == 1:
                         print("GPS UPDATED ", strtime)
-                    dt = UTCDateTime(strtime) - UTCDateTime(1970, 1, 1, 0, 0)
-                    if not x:
-                        x = dt
             loop_counter = 0
-            out_d[id_str] = 'Not defined'
         else:
             bad_str_id = bad_str_id + 1
             bad_strs.append(id_str)
             bad_strs_pos.append(file_postion)
             if loop_counter == 3:
-                fp.close()
+                datfile.close()
                 sys.exit(1)
-            #        if print_badid_update == 1:
-            #            print "Bad id str ",id_str," at pos ",fp.tell(),"  file marker ",file_postion
-            debug = 1
-            outcome = try_recover_file(fp, file_postion)
+
+            outcome = try_recover_file(datfile, file_postion)
             if outcome < 0:
                 print("Error reading file")
             elif outcome == 0:
                 print("End of File reached")
                 break
-            #        if print_badid_update == 1:
-            #            print "       Recoverd at pos ",fp.tell()
             loop_counter = loop_counter + 1
     print("GPS:  TOTAL      Good        Bad      Update failed")
-    print("     ", good_gps + bad_gps, "     ", good_gps, "      ", bad_gps,
+    print("     ", good_gps_count + bad_gps_count, "     ",
+          good_gps_count, "      ", bad_gps_count,
           "       ", gps_update_failed)
     print("BAD_STR_ID\'S  ", bad_str_id)
     mean, val = cal_statistic(mylat)
@@ -687,8 +565,8 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
     strlng = str('%.5f' % mean) + " +/- " + str('%.5f' % val)
     mean, val = cal_statistic(myalt)
     stralt = str('%d' % mean) + " +/- " + str('%d' % val)
-    if good_gps > 0:
-        #    print "Geo Coords:   ",'%.5f'%(sum(mylat)/len(mylat)),"  ",'%.5f'%(sum(mylng)/len(mylng)),"   ",int(sum(myalt)/len(myalt))
+
+    if good_gps_count > 0:
         print("GEO COORDS")
         print("       MEANS VALS:   ", strlat, "  ", strlng, "   ", stralt)
         val1, val2 = cal_median_value(mylat)
@@ -699,9 +577,9 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
         median_alt = (val1 + val2) / 2.0
         print("      MEDIAN VALS:", '   %.5f' % median_lat, "              ",
               '%.5f' % median_lng, "               ", '%.2f' % median_alt)
-    print("######################################################################")
+    print("##################################################################")
     if print_badid_update == 1:
-        print_bad_strings(bad_strs, bad_strs_pos)
+        print_bad_strings(bad_strs, bad_strs_pos, bad_str_id)
     restarts = len(recoder_restarted_pos)
     if restarts > 0:
         if not recoder_restarted_pos[0] == 0:
@@ -711,12 +589,21 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             print("WARNING File ", datfile, " restarted!. Marks at location ")
             for i in range(1, restarts):
                 print(i, ":     ", recoder_restarted_pos[i], " byte")
-    # the 2 allowed values for flagmarker!!!
-    x1 = 0xb111111101
-    x2 = 0xb111111111
 
-    if not flagmarker == x1 and not flagmarker == x2:
-        print("LOGFILE HAS MISSING FLAGS:")
+    # the 2 allowed values for flagmarker!!!
+    # x1 = 0xb111111101
+    # x2 = 0xb111111111
+    #
+    # if not flagmarker == x1 and not flagmarker == x2:
+    #     print("LOGFILE HAS MISSING FLAGS:")
+
+    # TODO: fix flagmarker check
+    """
+    Those are really large hex numbers (760495542529 and 760495542545). 
+    I have not seens the flagmaker equal 383, 447 (later being when 'UDF' 
+    flag is present) 
+    """
+
     for i in range(0, 9):
         x = (1 << i)
         if not (flagmarker & x):
@@ -727,7 +614,7 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
             elif i == 2:
                 print("  Sample Rate                  NOT RECORDED")
             elif i == 3:
-                print("  Seismometer Mode Code        NOT RECORDED")
+                print("  Seismometer Type             NOT RECORDED")
             elif i == 4:
                 print("  Seismometer Serial Number    NOT RECORDED")
             elif i == 5:
@@ -736,10 +623,11 @@ def anulog(datfile, bad_gps, id_str, gps_update, temperature, all, year):
                 print("  Record End Time              NOT RECORDED")
             elif i == 8:
                 print("  Gps Updates                  NOT RECORDED")
-    fp.close()
+    datfile.close()
 
-    print(out_d)
-
+    out_d['GPS'] = {'ALTITUDE': myalt, 'LATITUDE': mylat, 'LONGITUDE': mylng,
+                    'CLOCK': clock, 'BATTERY': battery, 'TEMPERATURE': temp}
+    json.dump(out_d, output)
 
 if __name__ == '__main__':
     anulog()
