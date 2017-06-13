@@ -16,6 +16,7 @@ from obspy.core import read
 import sys
 from query_input_yes_no import query_yes_no
 
+
 warnings.filterwarnings("error")
 
 code_start_time = time.time()
