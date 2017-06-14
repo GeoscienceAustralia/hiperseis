@@ -18,7 +18,8 @@ def logfile(request):
 def test_convert_logs(random_filename, logfile):
     output = random_filename(ext='.json')
     check_call(('python', join(LOGS, 'decode_datfile.py'),
-                join(TESTDATA, logfile + '.dat'), '-o', output))
+                join(TESTDATA, logfile + '.dat'), '-o', output,
+                '-y', '2015'))
     d_out = json.load(open(output, 'r'))
     d_stored = json.load(open(join(TESTDATA, logfile + '.json'),
                               'r'))

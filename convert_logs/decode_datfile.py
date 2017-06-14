@@ -25,51 +25,44 @@ SEISTYPES = ["LennartzLE-3DlITE", "GurupCMG-40T", "GuralpCMG-3ESP",
 
 
 def test_time_fields(year, month, day, hour, minute, sec):
-    gps_time = datetime.datetime(year=year, month=month, day=day,
-                                 hour=hour, minute=minute, second=sec)
-
-    return gps_time.strftime('%d/%m/%Y %H:%M:%S:%f')
+    try:
+        gps_time = datetime.datetime(year=year, month=month, day=day,
+                                     hour=hour, minute=minute, second=sec)
+        return gps_time.strftime('%d/%m/%Y %H:%M:%S')
+    except ValueError:
+        return False
 
 
 def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
-               myalt, clock, battery, temp, seedyear, strtime, good_gps,
-               bad_gps):
+               myalt, clock, battery, temp, seedyear, good_gps, bad_gps):
 
     block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:4])
-    day = x[0]
-    x = struct.unpack('>i', block[4:8])
-    month = x[0]
-    x = struct.unpack('>i', block[8:12])
-    year = x[0]
-    x = struct.unpack('>i', block[12:16])
-    hour = x[0]
-    x = struct.unpack('>i', block[16:20])
-    minute = x[0]
-    x = struct.unpack('>i', block[20:24])
-    sec = x[0]
-    x = struct.unpack('>d', block[24:32])
-    lat = x[0]
-    x = struct.unpack('>d', block[32:40])
-    lng = x[0]
-    x = struct.unpack('>d', block[40:48])
-    alt = x[0]
-    x = struct.unpack('>i', block[48:52])
-    clock_error = x[0]
-    x = struct.unpack('>i', block[52:56])
-    battery_percent = x[0]
+    day = struct.unpack('>i', block[0:4])[0]
+    month = struct.unpack('>i', block[4:8])[0]
+    year = struct.unpack('>i', block[8:12])[0]
+    good_year = True if abs(year-seedyear) <= 1 else False
+
+    hour = struct.unpack('>i', block[12:16])[0]
+    minute = struct.unpack('>i', block[16:20])[0]
+    sec = struct.unpack('>i', block[20:24])[0]
+    lat = struct.unpack('>d', block[24:32])[0]
+    lng = struct.unpack('>d', block[32:40])[0]
+    alt = struct.unpack('>d', block[40:48])[0]
+    clock_error = struct.unpack('>i', block[48:52])[0]
+    battery_percent = struct.unpack('>i', block[52:56])[0]
     if battery_percent > 100:
         battery_percent = 0
-    x = struct.unpack('>i', block[56:60])
-    temperature = x[0]
+    temperature = struct.unpack('>i', block[56:60])[0]
+
     if (temperature < -50) or (temperature > 150):
-        if print_bad_temperture == 1:
+        if print_bad_temperture:
             log.warning("  @@@@ Bad temperture {} at {}".format(
                 temperature, fp.tell()))
         temperature = 0
 
-    try:
-        strtime = test_time_fields(year, month, day, hour, minute, sec)
+    strtime = test_time_fields(year, month, day, hour, minute, sec)
+
+    if good_year and strtime:
         good_gps += 1
         mylat.append(lat)
         mylng.append(lng)
@@ -77,9 +70,13 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
         clock.append(clock_error)
         battery.append(battery_percent)
         temp.append(temperature)
-    except:
+    else:
         bad_gps += 1
-        strtime = "Date Error"
+        strtime = "{}/{}/{} {}:{}:{}".format(day, month, year, hour, minute,
+                                             sec)
+        if print_bad_gps:
+            log.warning("    !!!GPS BAD TIME {strtime} at {location}".format(
+                strtime=strtime, location=fp.tell()))
 
     return strtime, mylat, mylng, myalt, clock, battery, temp, \
                good_gps, bad_gps
@@ -88,9 +85,9 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
 def decode_bsn(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
-        return outcome
+        return outcome, None
     if len(block) < bytes:
-        return -2
+        return -2, None
     x = struct.unpack('>i', block[0:bytes])
     log.info("BSN: Board Serial Number: {}".format(x[0]))
     return outcome, x[0]
@@ -131,7 +128,7 @@ def decode_fwv(fp, bytes):
     return outcome, block
 
 
-def decode_smm(fp, bytes, typesseis):
+def decode_smm(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome < 1:
         return outcome
@@ -139,8 +136,8 @@ def decode_smm(fp, bytes, typesseis):
         return -2
     #    block = fp.read(bytes)
     x = struct.unpack('>i', block[0:bytes])
-    log.info("SMM: Seismometer Type: {}".format(typesseis[x[0]]))
-    return outcome, typesseis[x[0]]
+    log.info("SMM: Seismometer Type: {}".format(SEISTYPES[x[0]]))
+    return outcome, SEISTYPES[x[0]]
 
 
 def decode_rcs(fp, bytes):
@@ -170,7 +167,7 @@ def decode_rce(fp, bytes):
         log.info("RCE: Record END Time: {}".format(str_stop_time))
     except:
         str_stop_time = 'Bad Recode END Time/RCE time'
-        log.warn(str_stop_time)
+        log.warning(str_stop_time)
     return outcome, str_stop_time
 
 
@@ -478,7 +475,7 @@ def anulog(datfile, bad_gps, id_str, gps_update,
 
         elif id_str == 'SMM':
             flagmarker = set_bit(flagmarker, 3)
-            outcome, out_d[id_str] = decode_smm(datfile, 4, SEISTYPES)
+            outcome, out_d[id_str] = decode_smm(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
@@ -532,7 +529,7 @@ def anulog(datfile, bad_gps, id_str, gps_update,
             good_gps_count, bad_gps_count = \
                 decode_gps(datfile, 60, print_bad_temperture, print_bad_gps,
                            mylat, mylng, myalt, clock, battery, temp, seedyear,
-                           strtime, good_gps_count, bad_gps_count)
+                           good_gps_count, bad_gps_count)
             if len(strtime) > 0:
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
