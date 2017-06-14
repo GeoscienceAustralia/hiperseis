@@ -66,12 +66,29 @@ due to low space allocation in my home directory.)
     .xml``. The script also runs a validation routine on the generate
     ``QuakeML``.
 
-3. Convert all events in the ANTELOPE database:
+
+----------------------
+QuakeML to Seiscomp3ML
+----------------------
+Once the single event test is successful, proceed to covert all of the events
+ in the ANTELOPE database into Seiscomp3 compatible XML.
+
+1. Convert all events in the ANTELOPE database:
 
    .. code:: bash
 
-       $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng -o sc3.xml
-       db_path
+       $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng -o sc3.xml db_path
 
     This will generate the QuakeML files inside the ``outdir`` and a
     corresponding ``seiscomp3`` xml file ``sc3.xml``.
+
+
+------------------
+Ingest Seiscomp3ML
+------------------
+
+This ``sc3.xml`` can be imported into ``seiscomp3`` using hte following command
+
+   .. code:: bash
+
+      $ scdb -i sc3.xml -d mysql://sysop:sysop@localhost/seis
