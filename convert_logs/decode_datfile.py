@@ -72,11 +72,11 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
         temp.append(temperature)
     else:
         bad_gps += 1
-        strtime = "{}/{}/{} {}:{}:{}".format(day, month, year, hour, minute,
-                                             sec)
+        bad_time_str = "{}/{}/{} {}:{}:{}".format(day, month, year, hour,
+                                                  minute, sec)
         if print_bad_gps:
             log.warning("    !!!GPS BAD TIME {strtime} at {location}".format(
-                strtime=strtime, location=fp.tell()))
+                strtime=bad_time_str, location=fp.tell()))
 
     return strtime, mylat, mylng, myalt, clock, battery, temp, \
         good_gps, bad_gps
@@ -372,7 +372,6 @@ def anulog(datfile, bad_gps, id_str, gps_update,
            temperature, all_print, year, output):
     """Program to display contents of the logfile <datfile>.dat"""
 
-    seedyear = year
     gps_update_failed = 0
     bad_str_id = 0
     recoder_restarted_pos = []
@@ -394,10 +393,10 @@ def anulog(datfile, bad_gps, id_str, gps_update,
     print_bad_temperture = temperature
 
     if all_print:
-        print_badid_update = 1
-        print_gps_update = 1
-        print_bad_gps = 1
-        print_bad_temperture = 1
+        print_badid_update = True
+        print_gps_update = True
+        print_bad_gps = True
+        print_bad_temperture = True
 
     loop_counter = 0
 
@@ -433,7 +432,7 @@ def anulog(datfile, bad_gps, id_str, gps_update,
             recoder_restarted_pos.append(file_postion)
             if not (flagmarker & 0x0001):
                 print("######################################################")
-                print("   Seedyear was ", seedyear,
+                print("   Seedyear was ", year,
                       "                    To change use -y year option")
                 print("START OF RECORDER\n")
             else:
@@ -517,13 +516,13 @@ def anulog(datfile, bad_gps, id_str, gps_update,
             strtime, mylat, mylng, myalt, clock, battery, temp, \
             good_gps_count, bad_gps_count = \
                 decode_gps(datfile, 60, print_bad_temperture, print_bad_gps,
-                           mylat, mylng, myalt, clock, battery, temp, seedyear,
+                           mylat, mylng, myalt, clock, battery, temp, year,
                            good_gps_count, bad_gps_count)
-            if len(strtime) > 0:
+            if strtime:
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
                     if print_gps_update == 1:
-                        print("GPS UPDATED ", strtime)
+                        log.info("GPS UPDATED {}".format(strtime))
             loop_counter = 0
         else:
             bad_str_id = bad_str_id + 1
