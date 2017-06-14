@@ -3,7 +3,6 @@
 Use this script to convert the binary .dat ANU log files into jsons.
 """
 
-
 from __future__ import print_function
 import math
 import struct
