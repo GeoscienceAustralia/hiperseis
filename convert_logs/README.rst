@@ -14,12 +14,10 @@ Environment has these python packages:
    .. code:: bash
 
     click (6.7)
-    lxml (3.8.0)
-    matplotlib (2.0.2)
     numpy (1.13.0)
-    obspy (1.0.3)
-    scipy (0.19.0)
-
+    pip (9.0.1)
+    setuptools (36.0.1)
+    wheel (0.29.0)
 
 ------------------
 Running the script
