@@ -27,10 +27,10 @@ code_start_time = time.time()
 data_path = '/g/data/ha3/Passive/'
 
 # IRIS Virtual Ntework name
-virt_net = '_GA_ANUtest'
+virt_net = '_ANU'
 
 # FDSN network identifier
-FDSNnetwork = 'XX'
+FDSNnetwork = '7G(2013-2015)'
 
 # =========================================================================== #
 

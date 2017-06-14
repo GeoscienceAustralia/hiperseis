@@ -111,7 +111,7 @@ class SeisDB(object):
             for _i, key in enumerate(self._formatted_dict.keys()):
                 matched_entry = self._formatted_dict[key]
                 if ((matched_entry['tr_starttime'] <= qs < matched_entry['tr_endtime'])
-                    or (query_time <= matched_entry['tr_starttime'] and matched_entry['tr_starttime'] < qe)) \
+                    or (qs <= matched_entry['tr_starttime'] and matched_entry['tr_starttime'] < qe)) \
                         and ((matched_entry['new_station'] in sta) and (matched_entry['new_channel'] in chan)):
                     indices.append(_i)
             # indices_array = np.array(indices)
@@ -121,7 +121,10 @@ class SeisDB(object):
             #    print(self._indexed_dict[index]['ASDF_tag'])
             # print(len(indices_array))
             # return {k:self._indexed_dict[self._index_dict_list[k]] for k in indices if k in self._index_dict_list}
-            return {k: self._indexed_dict[k] for k in indices}
+            return {k: {"ASDF_tag": self._indexed_dict[k],
+                        "new_station": self._formatted_dict[k]["new_station"],
+                        "new_network": self._formatted_dict[k]["new_network"]}
+                    for k in indices}
         else:
             _indexed_np_array_masked = np.where((np.in1d(self._indexed_np_array['sta'], sta))
                            & (np.in1d(self._indexed_np_array['cha'], chan))
@@ -134,7 +137,10 @@ class SeisDB(object):
             # print(len(_indexed_np_array_masked[0]))
             # print(self._index_dict_list[0])
             # return {k:self._indexed_dict[self._indexed_np_array[k]] for k in _indexed_np_array_masked[0] if k in self._indexed_np_array}
-            return {k: self._indexed_dict[k] for k in _indexed_np_array_masked[0]}
+            return {k: {"ASDF_tag": self._indexed_dict[k],
+                        "new_station": self._indexed_np_array['sta'][k],
+                        "new_network": self._indexed_np_array['net'][k]}
+                    for k in _indexed_np_array_masked[0]}
 
 
 if __name__ == "__main__":
