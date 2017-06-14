@@ -79,95 +79,85 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
                 strtime=strtime, location=fp.tell()))
 
     return strtime, mylat, mylng, myalt, clock, battery, temp, \
-               good_gps, bad_gps
+        good_gps, bad_gps
 
 
 def decode_bsn(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
+    if outcome >= 1:
+        x = struct.unpack('>i', block[0:bytes])
+        log.info("BSN: Board Serial Number: {}".format(x[0]))
+        return outcome, x[0]
+    else:
         return outcome, None
-    if len(block) < bytes:
-        return -2, None
-    x = struct.unpack('>i', block[0:bytes])
-    log.info("BSN: Board Serial Number: {}".format(x[0]))
-    return outcome, x[0]
 
 
 def decode_spr(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
-    x = struct.unpack('>i', block[0:bytes])
-    log.info("SPR: Sample Period: {}".format(x[0]))
-    return outcome, x[0]
+    if outcome >= 1:
+        x = struct.unpack('>i', block[0:bytes])
+        log.info("SPR: Sample Period: {}".format(x[0]))
+        return outcome, x[0]
+    else:
+        return outcome, None
 
 
 def decode_sms(fp, bytes):
     x1 = fp.tell()
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
-    #    block = fp.read(bytes)
-    x2 = fp.tell()
-    x = struct.unpack('>i', block[0:bytes])
-    log.info("SMS: Seismometer No: {}".format(block))
-    return outcome, x[0]
+    if outcome >= 1:
+        x2 = fp.tell()
+        x = struct.unpack('>i', block[0:bytes])
+        log.info("SMS: Seismometer No: {}".format(block))
+        return outcome, x[0]
+    else:
+        return outcome, None
 
 
 def decode_fwv(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
-    log.info("FWV: Firmware Version    :{}".format(block))
-    return outcome, block
+    if outcome >= 1:
+        log.info("FWV: Firmware Version    :{}".format(block))
+        return outcome, block
+    else:
+        return outcome, None
 
 
 def decode_smm(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
-    #    block = fp.read(bytes)
-    x = struct.unpack('>i', block[0:bytes])
-    log.info("SMM: Seismometer Type: {}".format(SEISTYPES[x[0]]))
-    return outcome, SEISTYPES[x[0]]
+    if outcome >= 1:
+        x = struct.unpack('>i', block[0:bytes])
+        log.info("SMM: Seismometer Type: {}".format(SEISTYPES[x[0]]))
+        return outcome, SEISTYPES[x[0]]
+    else:
+        return outcome, None
 
 
 def decode_rcs(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome
-    if len(block) < bytes:
-        return -2
-    try:
-        str_start_time = _unpack_time(block)
-        log.info("RCS: RCS Record Start Time: {}".format(str_start_time))
-    except:
-        str_start_time = 'Bad Recode START Time/RCS time'
-        log.warning(str_start_time)
+    str_start_time = None
+    if outcome >= 1:
+        try:
+            str_start_time = _unpack_time(block)
+            log.info("RCS: RCS Record Start Time: {}".format(str_start_time))
+        except:
+            str_start_time = 'Bad Recode START Time/RCS time'
+            log.warning(str_start_time)
 
     return outcome, str_start_time
 
 
 def decode_rce(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome, None
-    if len(block) < bytes:
-        return -2, None
-    try:
-        str_stop_time = _unpack_time(block)
-        log.info("RCE: Record END Time: {}".format(str_stop_time))
-    except:
-        str_stop_time = 'Bad Recode END Time/RCE time'
-        log.warning(str_stop_time)
+    str_stop_time = None
+    if outcome >= 1:
+        try:
+            str_stop_time = _unpack_time(block)
+            log.info("RCE: Record END Time: {}".format(str_stop_time))
+        except ValueError:
+            str_stop_time = 'Bad Recode END Time/RCE time'
+            log.warning(str_stop_time)
+
     return outcome, str_stop_time
 
 
@@ -195,24 +185,21 @@ def _unpack_time(block):
 
 def decode_udf(fp, bytes):
     outcome, block = get_block(fp, bytes)
-    if outcome < 1:
-        return outcome, None
-    if len(block) < bytes:
-        return -2, None
-
-    try:
-        str_udf_time = _unpack_time(block)
-        log.info("UDF: GPS UPDATE FAILED Time: {}".format(str_udf_time))
-    except:
-        str_udf_time = "   !!!UDF BAD TIME at {}".format(fp.tell())
-        log.warning(str_udf_time)
+    str_udf_time = None
+    if outcome >= 1:
+        try:
+            str_udf_time = _unpack_time(block)
+            log.info("UDF: GPS UPDATE FAILED Time: {}".format(str_udf_time))
+        except ValueError:
+            str_udf_time = "   !!!UDF BAD TIME at {}".format(fp.tell())
+            log.warning(str_udf_time)
 
     return outcome, str_udf_time
 
 
 def print_bad_strings(bad_strs, bad_strs_pos, bad_str_id):
-    print("BAD_STRINGS DUMP")
-    print("      string   file-pos")
+    log.info("BAD_STRINGS DUMP")
+    log.info("      string   file-pos")
     for i in range(bad_str_id):
         print(i + 1, "  --->", end=' ')
         for k in range(len(bad_strs[i])):
@@ -224,12 +211,12 @@ def print_bad_strings(bad_strs, bad_strs_pos, bad_str_id):
 
 def decode_message(outcome, size):
     if outcome == -1:
-        print(" *** IOERROR in reading file")
+        log.warning(" *** IOERROR in reading file")
     elif outcome == 0:
-        print(" *** End of File reached")
+        log.warning(" *** End of File reached")
     else:
-        print(" Requested ", size, " bytes. Only ", outcome,
-              " bytes were available ")
+        log.warning(" Requested {size} bytes. Only {outcome} bytes were "
+                    "available".format(size=size, outcome=outcome))
 
 
 def get_block(fp, bytes):
@@ -239,6 +226,8 @@ def get_block(fp, bytes):
         # print(ids, 'in get block')
         if len(block) > 0:
             return len(block), block
+        elif len(block) < bytes:
+            return -2, None
         else:
             return 0, None
     except IOError:
@@ -344,7 +333,7 @@ def test_fileformat_start(fp):
     mseedheader = 1
     blk = fp.read(20)
     if len(blk) < 20:
-        print("Failed to read first 20 chars")
+        log.warning("Failed to read first 20 chars")
         mseedheader = -1
         return mseedheader, recstring
     recstring = str(blk[0:5])
