@@ -23,11 +23,24 @@ Environment has these python packages:
 Running the script
 ------------------
 
+There are two ways to run the ``anulog`` conversions:
+
+#. directly run the python script
+#. after ``passive-seismic`` is installed, you can use the command ``anulog``
+
 Checkout the help string:
 
    .. code:: bash
 
     $ python decode_datfile.py --help
+
+After ``passive-seismic`` is installed, you can simply use the ``anulog`` command
+
+   .. code:: bash
+
+    $ anulog --help
+
+Both will produce the following help string:
 
 ::
 

@@ -372,13 +372,13 @@ def anulog(datfile, bad_gps, id_str, gps_update,
            temperature, all_print, year, output):
     """Program to display contents of the logfile <datfile>.dat"""
 
-    out_d = read_anulog(datfile, bad_gps, id_str, gps_update,
-                        temperature, all_print, year)
+    out_d = decode_anulog(datfile, bad_gps, id_str, gps_update,
+                          temperature, all_print, year)
     json.dump(out_d, output)
 
 
-def read_anulog(datfile, bad_gps, id_str, gps_update,
-                temperature, all_print, year):
+def decode_anulog(datfile, bad_gps, id_str, gps_update,
+                  temperature, all_print, year):
     gps_update_failed = 0
     bad_str_id = 0
     recoder_restarted_pos = []
