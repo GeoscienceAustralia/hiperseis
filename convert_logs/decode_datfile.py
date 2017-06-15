@@ -372,6 +372,13 @@ def anulog(datfile, bad_gps, id_str, gps_update,
            temperature, all_print, year, output):
     """Program to display contents of the logfile <datfile>.dat"""
 
+    out_d = read_anulog(datfile, bad_gps, id_str, gps_update,
+                        temperature, all_print, year)
+    json.dump(out_d, output)
+
+
+def read_anulog(datfile, bad_gps, id_str, gps_update,
+                temperature, all_print, year):
     gps_update_failed = 0
     bad_str_id = 0
     recoder_restarted_pos = []
@@ -384,25 +391,20 @@ def anulog(datfile, bad_gps, id_str, gps_update,
     clock = []
     battery = []
     temp = []
-
     bad_strs = []
     bad_strs_pos = []
     print_bad_gps = bad_gps
     print_gps_update = gps_update
     print_badid_update = id_str
     print_bad_temperture = temperature
-
     if all_print:
         print_badid_update = True
         print_gps_update = True
         print_bad_gps = True
         print_bad_temperture = True
-
     loop_counter = 0
-
     # quick test of first lines
     headertest, recstr = test_fileformat_start(datfile)
-
     if headertest < 0:
         datfile.close()
         sys.exit(100)
@@ -411,11 +413,9 @@ def anulog(datfile, bad_gps, id_str, gps_update,
         print("********* WARNNING WARNNING Indication first 8 chars match "
               "a minseed file -->", recstr)
         print("********* WARNNING WARNNING")
-
     out_d = {}
     for v in VALIDCODES:
         out_d[v] = 'Not Read or Not available'
-
     while True:
         file_postion = datfile.tell()
         strtime = ""
@@ -550,7 +550,6 @@ def anulog(datfile, bad_gps, id_str, gps_update,
     strlng = str('%.5f' % mean) + " +/- " + str('%.5f' % val)
     mean, val = cal_statistic(myalt)
     stralt = str('%d' % mean) + " +/- " + str('%d' % val)
-
     if good_gps_count > 0:
         print("GEO COORDS")
         print("       MEANS VALS:   ", strlat, "  ", strlng, "   ", stralt)
@@ -581,14 +580,12 @@ def anulog(datfile, bad_gps, id_str, gps_update,
     #
     # if not flagmarker == x1 and not flagmarker == x2:
     #     print("LOGFILE HAS MISSING FLAGS:")
-
     # TODO: fix flagmarker check
     """
-    Those are really large hex numbers (760495542529 and 760495542545). 
-    I have not seens the flagmaker equal 383, 447 (later being when 'UDF' 
-    flag is present) 
-    """
-
+        Those are really large hex numbers (760495542529 and 760495542545). 
+        I have not seens the flagmaker equal 383, 447 (later being when 'UDF' 
+        flag is present) 
+        """
     for i in range(0, 9):
         x = (1 << i)
         if not (flagmarker & x):
@@ -609,10 +606,10 @@ def anulog(datfile, bad_gps, id_str, gps_update,
             elif i == 8:
                 print("  Gps Updates                  NOT RECORDED")
     datfile.close()
-
     out_d['GPS'] = {'ALTITUDE': myalt, 'LATITUDE': mylat, 'LONGITUDE': mylng,
                     'CLOCK': clock, 'BATTERY': battery, 'TEMPERATURE': temp}
-    json.dump(out_d, output)
+    return out_d
+
 
 if __name__ == '__main__':
     anulog()
