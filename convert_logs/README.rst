@@ -45,25 +45,32 @@ Both will produce the following help string:
 
 ::
 
-  Usage: decode_datfile.py [OPTIONS] DATFILE
+ Usage: anulog [OPTIONS] DATFILE
+
   Program to display contents of the logfile <datfile>.dat
-  Options:
-   -b, --bad_gps BOOLEAN      Print bad gps info
-   -u, --gps_update BOOLEAN   Print the gps update info
-   -i, --id_str BOOLEAN       Print bad id strings
-   -t, --temperature BOOLEAN  Print bad temperature info
-   -a, --all_print BOOLEAN    Print all
-   -y, --year INTEGER RANGE   Gpsyear. max(Gpsyear - year) == 1
-   -o, --output FILENAME      output json file name
-   --help                     Show this message and exit.
+
+ Options:
+  -b, --bad_gps BOOLEAN       Print bad gps info
+  -u, --gps_update BOOLEAN    Print the gps update info
+  -i, --id_str BOOLEAN        Print bad id strings
+  -t, --temperature BOOLEAN   Print bad temperature info
+  -a, --all_print BOOLEAN     Print all
+  -y, --year INTEGER RANGE    Gpsyear. max(Gpsyear - year) == 1
+  -o, --output_dir DIRECTORY  Output dir name. If no output dir is provided,
+                              input dir will be used.
+  --help                      Show this message and exit.
 
 A typical log file conversion command is just the following:
 
    .. code:: bash
 
-    $ python decode_datfile.py logfile.dat -o output.json
+    $ python decode_datfile.py datfile
+    $ # or
+    $ anulog datfile
 
-This will output a ``output.json`` corresponding tot the ``logfile.dat``.
+This will output ``json``s  corresponding to the ``.dat`` ``anulog`` files.
+The input `datfile` could be one `.dat` log file, or can be a directory of
+``.dat`` logfiles.
 
 ---------------------------
 Using inside custom scripts
@@ -76,3 +83,22 @@ like the following:
    .. code:: bash
 
     $ In [1]: from convert_logs.decode_datfile import decode_anulog
+
+
+The function ``decode_anulog`` will output a python ``dict`` corresponding to
+ the binary ``anulog`` file.
+
+-------------------
+Parallel conversion
+-------------------
+
+The ``decode_datfile.py``/``anulog`` code uses ``multiprocessing``. To use
+multiprocessing in your script you can use the following:
+
+   .. code:: bash
+
+    $ In [2]: from joblib import Parallel, delayed
+    $ In [3]: datfiles = glob.glob(os.path.join(datfile_dir, '*.dat'))
+    $ In [4]: log_dicts = Parallel(n_jobs=-1)(delayed(decode_anulog)(
+                  d, bad_gps, id_str, gps_update, temperature, all_print, year)
+                                          for d in datfiles)
