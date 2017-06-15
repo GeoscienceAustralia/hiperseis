@@ -1,7 +1,8 @@
 Using the ANU Logfile Script
 ============================
 
-The ``passive-seismic/convert_logs/decode_datfile.py`` can be used to convert the binary `.dat` ANU log files into ``jsons``.
+The ``passive-seismic/convert_logs/decode_datfile.py`` can be used to convert
+the binary `.dat` ANU log files into ``jsons``.
 
 Can only use python2.7 for now.
 
@@ -63,3 +64,15 @@ A typical log file conversion command is just the following:
     $ python decode_datfile.py logfile.dat -o output.json
 
 This will output a ``output.json`` corresponding tot the ``logfile.dat``.
+
+---------------------------
+Using inside custom scripts
+---------------------------
+
+Once ``passive-seismic`` is installed, you have access to the decode
+functionality ``decode_anulog`` to use in your script. Import it in your script
+like the following:
+
+   .. code:: bash
+
+    $ In [1]: from convert_logs.decode_datfile import decode_anulog

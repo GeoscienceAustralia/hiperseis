@@ -379,6 +379,29 @@ def anulog(datfile, bad_gps, id_str, gps_update,
 
 def decode_anulog(datfile, bad_gps, id_str, gps_update,
                   temperature, all_print, year):
+    """
+    Parameters
+    ----------
+    datfile: str
+        path to the binary datafile that needs to be converted
+    bad_gps: bool, optional, default False
+        whether to report problems in data conversion during processing
+    id_str: bool, optional, default False
+        whether to report problematic id strings during processing
+    gps_update:
+    temperature: bool, optional
+        whether to report temperature conversion problems during processing
+    all_print: bool, optional
+        whether to print all log messages
+    year: int, optional
+        optional GPS year
+
+    Returns
+    -------
+    out_d: dict
+        dictionary containing all the log data
+
+    """
     gps_update_failed = 0
     bad_str_id = 0
     recoder_restarted_pos = []
