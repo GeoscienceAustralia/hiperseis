@@ -4,6 +4,8 @@ Use this script to convert the binary .dat ANU log files into jsons.
 """
 
 from __future__ import print_function
+import os
+from os.path import split, splitext, join, abspath, basename
 import math
 import struct
 import sys
@@ -11,6 +13,9 @@ import json
 import logging
 import click
 import datetime
+import glob
+from joblib import Parallel, delayed
+
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -363,18 +368,39 @@ def test_fileformat_start(fp):
               default=YEAR,
               type=click.IntRange(2000, YEAR+1),
               help='Gpsyear. max(Gpsyear - year) == 1')
-@click.option('-o', '--output',
-              default='output.json',
-              type=click.File('wb'),
-              help='output json file name')
-@click.argument('datfile', type=click.File('r'))
+@click.option('-o', '--output_dir',
+              default=None,
+              type=click.Path(writable=True, file_okay=False),
+              help='Output dir name. If no output dir is provided, \n'
+                   'input dir will be used.')
+@click.argument('datfile', type=click.Path(exists=True))
 def anulog(datfile, bad_gps, id_str, gps_update,
-           temperature, all_print, year, output):
+           temperature, all_print, year, output_dir):
     """Program to display contents of the logfile <datfile>.dat"""
 
-    out_d = decode_anulog(datfile, bad_gps, id_str, gps_update,
-                          temperature, all_print, year)
-    json.dump(out_d, output)
+    # if a dir if provided, get all .dat files from that dir
+    if os.path.isdir(datfile):
+        datfiles = glob.glob(os.path.join(datfile, '*.dat'))
+    else:  # otherwise if file if provided
+        assert os.path.isfile(datfile)
+        datfiles = [datfile]
+
+    # n_jobs=-1 uses all cpus
+    dicts = Parallel(n_jobs=-1)(delayed(decode_anulog)(
+        d, bad_gps, id_str, gps_update, temperature, all_print, year)
+                               for d in datfiles)
+
+    # use input dir as default output dir
+    basedir = os.path.abspath(output_dir) if output_dir \
+        else os.path.split(datfiles[0])[0]
+
+    if not os.path.exists(basedir):
+        log.info('Supplied output dir does not exist. It will be created.')
+        os.makedirs(basedir)
+
+    for d, dd in zip(datfiles, dicts):
+        output_file = join(basedir, splitext(basename(d))[0]) + '.json'
+        json.dump(dd, open(output_file, 'w'))
 
 
 def decode_anulog(datfile, bad_gps, id_str, gps_update,
@@ -382,7 +408,7 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
     """
     Parameters
     ----------
-    datfile: str
+    datfile: str or file pointer
         path to the binary datafile that needs to be converted
     bad_gps: bool, optional, default False
         whether to report problems in data conversion during processing
@@ -395,13 +421,17 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
         whether to print all log messages
     year: int, optional
         optional GPS year
-
     Returns
     -------
     out_d: dict
         dictionary containing all the log data
 
     """
+
+    # if a file path is sent instead of a file pointer
+    if os.path.isfile(datfile):
+        datfile = open(datfile, 'r')
+
     gps_update_failed = 0
     bad_str_id = 0
     recoder_restarted_pos = []
