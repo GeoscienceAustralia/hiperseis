@@ -15,6 +15,7 @@ import click
 import datetime
 import glob
 from joblib import Parallel, delayed
+from obspy import UTCDateTime
 
 
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +40,7 @@ def test_time_fields(year, month, day, hour, minute, sec):
 
 
 def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
-               myalt, clock, battery, temp, seedyear, good_gps, bad_gps):
+               myalt, clock, battery, temp, seedyear, good_gps, bad_gps, float_time):
 
     block = fp.read(bytes)
     day = struct.unpack('>i', block[0:4])[0]
@@ -67,6 +68,8 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
 
     strtime = test_time_fields(year, month, day, hour, minute, sec)
 
+
+
     if good_year and strtime:
         good_gps += 1
         mylat.append(lat)
@@ -75,6 +78,7 @@ def decode_gps(fp, bytes, print_bad_temperture, print_bad_gps, mylat, mylng,
         clock.append(clock_error)
         battery.append(battery_percent)
         temp.append(temperature)
+        float_time.append(UTCDateTime(year=year, month=month, day=day, hour=hour, minute=minute, second=sec).timestamp)
     else:
         bad_gps += 1
         bad_time_str = "{}/{}/{} {}:{}:{}".format(day, month, year, hour,
@@ -403,8 +407,8 @@ def anulog(datfile, bad_gps, id_str, gps_update,
         json.dump(dd, open(output_file, 'w'))
 
 
-def decode_anulog(datfile, bad_gps, id_str, gps_update,
-                  temperature, all_print, year):
+def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
+                  temperature=False, all_print=False, year=YEAR):
     """
     Parameters
     ----------
@@ -438,6 +442,7 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
     good_gps_count = 0
     bad_gps_count = 0
     flagmarker = int(0)
+    float_time = []
     mylat = []
     mylng = []
     myalt = []
@@ -462,10 +467,11 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
         datfile.close()
         sys.exit(100)
     elif headertest == 1:
-        print("********* WARNNING WARNINIG")
-        print("********* WARNNING WARNNING Indication first 8 chars match "
-              "a minseed file -->", recstr)
-        print("********* WARNNING WARNNING")
+        pass
+        # print("********* WARNNING WARNINIG")
+        # print("********* WARNNING WARNNING Indication first 8 chars match "
+        #       "a minseed file -->", recstr)
+        # print("********* WARNNING WARNNING")
     out_d = {}
     for v in VALIDCODES:
         out_d[v] = 'Not Read or Not available'
@@ -484,20 +490,21 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
         if str(id_str) == 'BSN':
             recoder_restarted_pos.append(file_postion)
             if not (flagmarker & 0x0001):
-                print("######################################################")
-                print("   Seedyear was ", year,
-                      "                    To change use -y year option")
-                print("START OF RECORDER\n")
+                pass
+                # print("######################################################")
+                # print("   Seedyear was ", year,
+                #       "                    To change use -y year option")
+                # print("START OF RECORDER\n")
             else:
-                print("GPS  TOTAL    ", good_gps_count + bad_gps_count)
-                print("Good          ", good_gps_count)
-                print("Bad           ", bad_gps_count)
-                print("UPDATE FAILED ", gps_update_failed)
+                # print("GPS  TOTAL    ", good_gps_count + bad_gps_count)
+                # print("Good          ", good_gps_count)
+                # print("Bad           ", bad_gps_count)
+                # print("UPDATE FAILED ", gps_update_failed)
                 good_gps_count = 0
                 bad_gps_count = 0
                 gps_update_failed = 0
                 fault = 'RECORDER RESTARTED OR EXCHANGED'
-                print("**** {} *******************".format(fault))
+                # print("**** {} *******************".format(fault))
             outcome, out_d[id_str] = decode_bsn(datfile, 4)
 
             if outcome < 1:
@@ -570,7 +577,7 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
             good_gps_count, bad_gps_count = \
                 decode_gps(datfile, 60, print_bad_temperture, print_bad_gps,
                            mylat, mylng, myalt, clock, battery, temp, year,
-                           good_gps_count, bad_gps_count)
+                           good_gps_count, bad_gps_count, float_time)
             if strtime:
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
@@ -587,16 +594,17 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
 
             outcome = try_recover_file(datfile, file_postion)
             if outcome < 0:
-                print("Error reading file")
+                # print("Error reading file")
+                pass
             elif outcome == 0:
-                print("End of File reached")
+                # print("End of File reached")
                 break
             loop_counter = loop_counter + 1
-    print("GPS:  TOTAL      Good        Bad      Update failed")
-    print("     ", good_gps_count + bad_gps_count, "     ",
-          good_gps_count, "      ", bad_gps_count,
-          "       ", gps_update_failed)
-    print("BAD_STR_ID\'S  ", bad_str_id)
+    # print("GPS:  TOTAL      Good        Bad      Update failed")
+    # print("     ", good_gps_count + bad_gps_count, "     ",
+    #       good_gps_count, "      ", bad_gps_count,
+    #       "       ", gps_update_failed)
+    # print("BAD_STR_ID\'S  ", bad_str_id)
     mean, val = cal_statistic(mylat)
     strlat = str('%.5f' % mean) + " +/- " + str('%.5f' % val)
     mean, val = cal_statistic(mylng)
@@ -604,28 +612,30 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
     mean, val = cal_statistic(myalt)
     stralt = str('%d' % mean) + " +/- " + str('%d' % val)
     if good_gps_count > 0:
-        print("GEO COORDS")
-        print("       MEANS VALS:   ", strlat, "  ", strlng, "   ", stralt)
+        # print("GEO COORDS")
+        # print("       MEANS VALS:   ", strlat, "  ", strlng, "   ", stralt)
         val1, val2 = cal_median_value(mylat)
         median_lat = (val1 + val2) / 2.0
         val1, val2 = cal_median_value(mylng)
         median_lng = (val1 + val2) / 2.0
         val1, val2 = cal_median_value(myalt)
         median_alt = (val1 + val2) / 2.0
-        print("      MEDIAN VALS:", '   %.5f' % median_lat, "              ",
-              '%.5f' % median_lng, "               ", '%.2f' % median_alt)
-    print("##################################################################")
+        # print("      MEDIAN VALS:", '   %.5f' % median_lat, "              ",
+        #       '%.5f' % median_lng, "               ", '%.2f' % median_alt)
+    # print("##################################################################")
     if print_badid_update == 1:
         print_bad_strings(bad_strs, bad_strs_pos, bad_str_id)
     restarts = len(recoder_restarted_pos)
     if restarts > 0:
         if not recoder_restarted_pos[0] == 0:
-            print("Hit of corruption at start of file. The BSN entry")
-            print("is not at the start of the file ")
+            pass
+            # print("Hit of corruption at start of file. The BSN entry")
+            # print("is not at the start of the file ")
         if restarts > 1:
-            print("WARNING File ", datfile, " restarted!. Marks at location ")
+            # print("WARNING File ", datfile, " restarted!. Marks at location ")
             for i in range(1, restarts):
-                print(i, ":     ", recoder_restarted_pos[i], " byte")
+                pass
+                # print(i, ":     ", recoder_restarted_pos[i], " byte")
 
     # the 2 allowed values for flagmarker!!!
     # x1 = 0xb111111101
@@ -639,27 +649,27 @@ def decode_anulog(datfile, bad_gps, id_str, gps_update,
         I have not seens the flagmaker equal 383, 447 (later being when 'UDF' 
         flag is present) 
         """
-    for i in range(0, 9):
-        x = (1 << i)
-        if not (flagmarker & x):
-            if i == 0:
-                print("  Board Serial Number          NOT RECORDED")
-            elif i == 1:
-                print("  Firmware Version Number      NOT RECORDED")
-            elif i == 2:
-                print("  Sample Rate                  NOT RECORDED")
-            elif i == 3:
-                print("  Seismometer Type             NOT RECORDED")
-            elif i == 4:
-                print("  Seismometer Serial Number    NOT RECORDED")
-            elif i == 5:
-                print("  Record Start Time            NOT RECORDED")
-            elif i == 6:
-                print("  Record End Time              NOT RECORDED")
-            elif i == 8:
-                print("  Gps Updates                  NOT RECORDED")
+    # for i in range(0, 9):
+    #     x = (1 << i)
+    #     if not (flagmarker & x):
+    #         if i == 0:
+    #             print("  Board Serial Number          NOT RECORDED")
+    #         elif i == 1:
+    #             print("  Firmware Version Number      NOT RECORDED")
+    #         elif i == 2:
+    #             print("  Sample Rate                  NOT RECORDED")
+    #         elif i == 3:
+    #             print("  Seismometer Type             NOT RECORDED")
+    #         elif i == 4:
+    #             print("  Seismometer Serial Number    NOT RECORDED")
+    #         elif i == 5:
+    #             print("  Record Start Time            NOT RECORDED")
+    #         elif i == 6:
+    #             print("  Record End Time              NOT RECORDED")
+    #         elif i == 8:
+    #             print("  Gps Updates                  NOT RECORDED")
     datfile.close()
-    out_d['GPS'] = {'ALTITUDE': myalt, 'LATITUDE': mylat, 'LONGITUDE': mylng,
+    out_d['GPS'] = {'LOCK_TIME': float_time, 'ALTITUDE': myalt, 'LATITUDE': mylat, 'LONGITUDE': mylng,
                     'CLOCK': clock, 'BATTERY': battery, 'TEMPERATURE': temp}
     return out_d
 
