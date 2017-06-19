@@ -19,6 +19,7 @@ Environment has these python packages:
     pip (9.0.1)
     setuptools (36.0.1)
     wheel (0.29.0)
+    obspy (1.0.3)
 
 ------------------
 Running the script
@@ -58,6 +59,8 @@ Both will produce the following help string:
   -y, --year INTEGER RANGE    Gpsyear. max(Gpsyear - year) == 1
   -o, --output_dir DIRECTORY  Output dir name. If no output dir is provided,
                               input dir will be used.
+  -v, --verbosity [DEBUG|INFO|WARNING|ERROR]
+                                  Level of logging
   --help                      Show this message and exit.
 
 A typical log file conversion command is just the following:

@@ -19,9 +19,8 @@ from obspy import UTCDateTime
 
 
 logging.basicConfig(
-    format='%(levelname) -6s %(filename)s:%(lineno)d %(message)s',
-    datefmt='%d-%m-%Y:%H:%M:%S',
-    level=logging.INFO)
+    format='%(levelname) -4s %(filename)s:%(lineno)d %(message)s',
+    datefmt='%d-%m-%Y:%H:%M:%S')
 log = logging.getLogger(__name__)
 
 
@@ -102,7 +101,7 @@ def decode_bsn(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome >= 1:
         x = struct.unpack('>i', block[0:bytes])
-        log.info("BSN: Board Serial Number: {}".format(x[0]))
+        log.debug("BSN: Board Serial Number: {}".format(x[0]))
         return outcome, x[0]
     else:
         return outcome, None
@@ -112,7 +111,7 @@ def decode_spr(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome >= 1:
         x = struct.unpack('>i', block[0:bytes])
-        log.info("SPR: Sample Period: {}".format(x[0]))
+        log.debug("SPR: Sample Period: {}".format(x[0]))
         return outcome, x[0]
     else:
         return outcome, None
@@ -124,7 +123,7 @@ def decode_sms(fp, bytes):
     if outcome >= 1:
         x2 = fp.tell()
         x = struct.unpack('>i', block[0:bytes])
-        log.info("SMS: Seismometer No: {}".format(block))
+        log.debug("SMS: Seismometer No: {}".format(block))
         return outcome, x[0]
     else:
         return outcome, None
@@ -133,7 +132,7 @@ def decode_sms(fp, bytes):
 def decode_fwv(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome >= 1:
-        log.info("FWV: Firmware Version    :{}".format(block))
+        log.debug("FWV: Firmware Version    :{}".format(block))
         return outcome, block
     else:
         return outcome, None
@@ -143,7 +142,7 @@ def decode_smm(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome >= 1:
         x = struct.unpack('>i', block[0:bytes])
-        log.info("SMM: Seismometer Type: {}".format(SEISTYPES[x[0]]))
+        log.debug("SMM: Seismometer Type: {}".format(SEISTYPES[x[0]]))
         return outcome, SEISTYPES[x[0]]
     else:
         return outcome, None
@@ -155,7 +154,7 @@ def decode_rcs(fp, bytes):
     if outcome >= 1:
         try:
             str_start_time = _unpack_time(block)
-            log.info("RCS: RCS Record Start Time: {}".format(str_start_time))
+            log.debug("RCS: RCS Record Start Time: {}".format(str_start_time))
         except:
             str_start_time = 'Bad Recode START Time/RCS time'
             log.warning(str_start_time)
@@ -169,7 +168,7 @@ def decode_rce(fp, bytes):
     if outcome >= 1:
         try:
             str_stop_time = _unpack_time(block)
-            log.info("RCE: Record END Time: {}".format(str_stop_time))
+            log.debug("RCE: Record END Time: {}".format(str_stop_time))
         except ValueError:
             str_stop_time = 'Bad Recode END Time/RCE time'
             log.warning(str_stop_time)
@@ -205,7 +204,7 @@ def decode_udf(fp, bytes):
     if outcome >= 1:
         try:
             str_udf_time = _unpack_time(block)
-            log.info("UDF: GPS UPDATE FAILED Time: {}".format(str_udf_time))
+            log.debug("UDF: GPS UPDATE FAILED Time: {}".format(str_udf_time))
         except ValueError:
             str_udf_time = "   !!!UDF BAD TIME at {}".format(fp.tell())
             log.warning(str_udf_time)
@@ -381,12 +380,16 @@ def test_fileformat_start(fp):
               type=click.Path(writable=True, file_okay=False),
               help='Output dir name. If no output dir is provided, \n'
                    'input dir will be used.')
+@click.option('-v', '--verbosity',
+              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
+              default='INFO', help='Level of logging')
 @click.argument('datfile', type=click.Path(exists=True))
 def anulog(datfile, bad_gps, id_str, gps_update,
-           temperature, all_print, year, output_dir):
+           temperature, all_print, year, output_dir, verbosity):
     """Program to display contents of the logfile <datfile>.dat"""
 
     # if a dir if provided, get all .dat files from that dir
+    log.setLevel(level=verbosity)
     if os.path.isdir(datfile):
         datfiles = glob.glob(os.path.join(datfile, '*.dat'))
     else:  # otherwise if file if provided
@@ -473,9 +476,9 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         datfile.close()
         sys.exit(100)
     elif headertest == 1:
-        log.warning("Indication first 8 chars match "
+        log.debug("Indication first 8 chars match "
                     "a minseed file --> {}".format(recstr))
-        log.warning("********* WARNNING WARNNING")
+        log.debug("********* WARNNING WARNNING")
     out_d = {}
     for v in VALIDCODES:
         out_d[v] = 'Not Read or Not available'
@@ -494,19 +497,19 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         if str(id_str) == 'BSN':
             recoder_restarted_pos.append(file_postion)
             if not (flagmarker & 0x0001):
-                log.info("Seedyear was {year}. To change use -y year "
+                log.debug("Seedyear was {year}. To change use -y year "
                          "option".format(year=year))
-                log.info("START OF RECORDER\n")
+                log.debug("START OF RECORDER\n")
             else:
-                log.info("GPS  TOTAL    ", good_gps_count + bad_gps_count)
-                log.info("Good          ", good_gps_count)
-                log.info("Bad           ", bad_gps_count)
-                log.info("UPDATE FAILED ", gps_update_failed)
+                log.debug("GPS  TOTAL    ", good_gps_count + bad_gps_count)
+                log.debug("Good          ", good_gps_count)
+                log.debug("Bad           ", bad_gps_count)
+                log.debug("UPDATE FAILED ", gps_update_failed)
                 good_gps_count = 0
                 bad_gps_count = 0
                 gps_update_failed = 0
                 fault = 'RECORDER RESTARTED OR EXCHANGED'
-                log.info("**** {} *******************".format(fault))
+                log.debug("**** {} *******************".format(fault))
             outcome, out_d[id_str] = decode_bsn(datfile, 4)
 
             if outcome < 1:
@@ -584,7 +587,7 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
                 if (not strtime[1] == 0) and (not strtime[2] == 0) and \
                         (not strtime[2] == 0):
                     if print_gps_update == 1:
-                        log.info("GPS UPDATED {}".format(strtime))
+                        log.debug("GPS UPDATED {}".format(strtime))
             loop_counter = 0
         else:
             bad_str_id = bad_str_id + 1
@@ -598,15 +601,15 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
             if outcome < 0:
                 log.error("Error reading file")
             elif outcome == 0:
-                log.info("End of File reached")
+                log.debug("End of File reached")
                 break
             loop_counter = loop_counter + 1
-    log.info("GPS:\tTOTAL\tGood\tBad\tUpdate failed")
-    log.info("\t\t{}\t{}\t{}\t{}".format(good_gps_count+bad_gps_count,
-                                 good_gps_count,
-                                 bad_gps_count,
-                                 gps_update_failed))
-    log.info("BAD_STR_ID\'S {}".format(bad_str_id))
+    log.debug("GPS:\tTOTAL\tGood\tBad\tUpdate failed")
+    log.debug("\t\t{}\t{}\t{}\t{}".format(good_gps_count+bad_gps_count,
+                                          good_gps_count,
+                                          bad_gps_count,
+                                          gps_update_failed))
+    log.debug("BAD_STR_ID\'S {}".format(bad_str_id))
     mean, val = cal_statistic(mylat)
     strlat = str('%.5f' % mean) + " +/- " + str('%.5f' % val)
     mean, val = cal_statistic(mylng)
@@ -614,8 +617,8 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
     mean, val = cal_statistic(myalt)
     stralt = str('%d' % mean) + " +/- " + str('%d' % val)
     if good_gps_count > 0:
-        log.info(" GEO COORDS")
-        log.info(" MEANS VALS: {strlat}, {strlng}, {stralt}".format(
+        log.debug(" GEO COORDS")
+        log.debug(" MEANS VALS: {strlat}, {strlng}, {stralt}".format(
             strlat=strlat, strlng=strlng, stralt=stralt))
         val1, val2 = cal_median_value(mylat)
         median_lat = (val1 + val2) / 2.0
@@ -623,20 +626,20 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         median_lng = (val1 + val2) / 2.0
         val1, val2 = cal_median_value(myalt)
         median_alt = (val1 + val2) / 2.0
-        log.info(" MEDIAN VALS: {0:.5f} {0:.5f} {0:.5f}".format(
-                 median_lat, median_lng, median_alt))
+        log.debug(" MEDIAN VALS: {0:.5f} {0:.5f} {0:.5f}".format(
+                  median_lat, median_lng, median_alt))
     if print_badid_update == 1:
         print_bad_strings(bad_strs, bad_strs_pos, bad_str_id)
     restarts = len(recoder_restarted_pos)
     if restarts > 0:
         if not recoder_restarted_pos[0] == 0:
-            log.warning("Hit of corruption at start of file. The BSN entry")
-            log.warning("is not at the start of the file ")
+            log.error("Hit of corruption at start of file. The BSN entry")
+            log.error("is not at the start of the file ")
         if restarts > 1:
-            log.warning("File {datfile} restarted!. Marks at "
+            log.debug("File {datfile} restarted!. Marks at "
                         "location".format(datfile=datfile))
             for i in range(1, restarts):
-                log.warning(i, ":     ", recoder_restarted_pos[i], " byte")
+                log.debug(i, ":     ", recoder_restarted_pos[i], " byte")
 
     # the 2 allowed values for flagmarker!!!
     # x1 = 0xb111111101
@@ -654,21 +657,21 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         x = (1 << i)
         if not (flagmarker & x):
             if i == 0:
-                log.info("  Board Serial Number          NOT RECORDED")
+                log.debug("  Board Serial Number          NOT RECORDED")
             elif i == 1:
-                log.info("  Firmware Version Number      NOT RECORDED")
+                log.debug("  Firmware Version Number      NOT RECORDED")
             elif i == 2:
-                log.info("  Sample Rate                  NOT RECORDED")
+                log.debug("  Sample Rate                  NOT RECORDED")
             elif i == 3:
-                log.info("  Seismometer Type             NOT RECORDED")
+                log.debug("  Seismometer Type             NOT RECORDED")
             elif i == 4:
-                log.info("  Seismometer Serial Number    NOT RECORDED")
+                log.debug("  Seismometer Serial Number    NOT RECORDED")
             elif i == 5:
-                log.info("  Record Start Time            NOT RECORDED")
+                log.debug("  Record Start Time            NOT RECORDED")
             elif i == 6:
-                log.info("  Record End Time              NOT RECORDED")
+                log.debug("  Record End Time              NOT RECORDED")
             elif i == 8:
-                log.info("  Gps Updates                  NOT RECORDED")
+                log.debug("  Gps Updates                  NOT RECORDED")
     datfile.close()
     out_d['GPS'] = {'ALTITUDE': myalt, 'LATITUDE': mylat, 'LONGITUDE': mylng,
                     'CLOCK': clock, 'BATTERY': battery, 'TEMPERATURE': temp,
