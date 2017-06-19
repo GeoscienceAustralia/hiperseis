@@ -71,8 +71,8 @@ A typical log file conversion command is just the following:
     $ # or
     $ anulog datfile
 
-This will output ``json``s  corresponding to the ``.dat`` ``anulog`` files.
-The input `datfile` could be one `.dat` log file, or can be a directory of
+This will output ``.json`` files  corresponding to the ``.dat`` ``anulog`` files.
+The input ``datfile`` could be one ``.dat`` log file, or can be a directory of
 ``.dat`` logfiles.
 
 ---------------------------
