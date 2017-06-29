@@ -24,5 +24,6 @@ def test_h5py(random_filename):
 
     f = h5py.File(hdf, 'r', libver='latest')
     b = f['test'][:]
+    f.close()
     assert len(b) == size
     assert np.allclose(b, np.array(range(size)))
