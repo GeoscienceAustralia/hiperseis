@@ -54,3 +54,4 @@ ENV/
 .ropeproject
 .gitignore
 .idea/
+xcorqc/run.sh
