@@ -60,11 +60,11 @@ due to low space allocation in my home directory.)
        $ cd antelope_contrib/bin/export/events
        $ python ga_event2qml.py -s schemas/QuakeML-BED-1.2.rng -o event_id.xml db_loc event_id -d
 
-    Note the ``db_loc`` has to point to the correct db, and ``event_id`` has
-    to exist in the antelope database. The ``ga_event2qml.py`` converts the
-    event corresponding to the ``event_id`` into the ``QuakeML`` ``event_id
-    .xml``. The script also runs a validation routine on the generate
-    ``QuakeML``.
+Note the ``db_loc`` has to point to the correct db, and ``event_id`` has
+to exist in the antelope database. The ``ga_event2qml.py`` converts the
+event corresponding to the ``event_id`` into the ``QuakeML`` ``event_id
+.xml``. The script also runs a validation routine on the generate
+``QuakeML``.
 
 
 ----------------------
@@ -79,16 +79,16 @@ Once the single event test is successful, proceed to covert all of the events
 
        $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng -o sc3.xml db_path
 
-    This will generate the QuakeML files inside the ``outdir`` and a
-    corresponding ``seiscomp3`` xml file ``sc3.xml``.
+This will generate the QuakeML files inside the ``outdir`` and a
+corresponding ``seiscomp3`` xml file ``sc3.xml``.
 
 
 ------------------
 Ingest Seiscomp3ML
 ------------------
 
-This ``sc3.xml`` can be imported into ``seiscomp3`` using hte following command
+This ``sc3.xml`` can be imported into ``seiscomp3`` using the following command
 
    .. code:: bash
 
-      $ scdb -i sc3.xml -d mysql://sysop:sysop@localhost/seis
+      $ scdb -i sc3.xml -d mysql://sysop:sysop@localhost/seiscomp3
