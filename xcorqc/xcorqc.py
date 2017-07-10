@@ -31,10 +31,18 @@ def zeropad(tr, padlen):
 
 def zeropad_ba(tr, padlen):
     assert (tr.shape[0] < padlen)
-    padded = np.zeros(padlen)
+    padded = np.zeros(padlen, dtype=np.complex_)
+    s = int((padlen - tr.shape[0]) / 2)
+    padded[s:(s + tr.shape[0])] = scipy.fftpack.fftshift(tr)
+    return scipy.fftpack.ifftshift(padded)
+
+def zeropad_ba_old(tr, padlen):
+    assert (tr.shape[0] < padlen)
+    padded = np.zeros(padlen, dtype=np.complex_)
     s = int((padlen - tr.shape[0]) / 2)
     padded[s:(s + tr.shape[0])] = tr
     return padded
+
 
 
 def taperDetrend(tr, taperlen):
@@ -67,14 +75,14 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
         wtr2s = 0
         resl = []
         while wtr1s < itr1e and wtr2s < itr2e:
-            wtr1e = min(itr1e, wtr1s + window_samples_1)
-            wtr2e = min(itr2e, wtr2s + window_samples_2)
+            wtr1e = int(min(itr1e, wtr1s + window_samples_1))
+            wtr2e = int(min(itr2e, wtr2s + window_samples_2))
             if wtr1e - wtr1s < window_samples_1 or wtr2e - wtr2s < window_samples_2:
                 wtr1s = wtr1e
                 wtr2s = wtr2e
                 continue
-            tr1_d = taperDetrend(tr1_d_all[wtr1s:wtr1e].astype(np.float_, copy=True), sr1 / flo)
-            tr2_d = taperDetrend(tr2_d_all[wtr2s:wtr2e].astype(np.float_, copy=True), sr2 / flo)
+            tr1_d = taperDetrend(tr1_d_all[wtr1s:wtr1e].astype(np.float_, copy=True), int(sr1 / flo))
+            tr2_d = taperDetrend(tr2_d_all[wtr2s:wtr2e].astype(np.float_, copy=True), int(sr2 / flo))
             if (sr1 < sr2):
                 fftlen2 = 2 ** (int(np.log2(2 * max(window_samples_1, window_samples_2) - 1)) + 1)
                 fftlen1 = int((fftlen2 * 1.0 * sr1) / sr2)
@@ -83,6 +91,8 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
                 outdims1 = np.array([fftlen1])
                 rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * fftn(
                     zeropad(ndflip(tr2_d), fftlen2), shape=outdims2)
+                #rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * np.conjugate(fftn(
+                #    zeropad(tr2_d, fftlen2), shape=outdims2))
             elif (sr1 > sr2):
                 fftlen1 = 2 ** (int(np.log2(2 * max(window_samples_1, window_samples_2) - 1)) + 1)
                 fftlen2 = int((fftlen1 * 1.0 * sr2) / sr1)
@@ -91,10 +101,13 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
                 outdims1 = np.array([fftlen1])
                 rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * zeropad_ba(
                     fftn(zeropad(ndflip(tr2_d), fftlen2), shape=outdims2), fftlen1)
+                #rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * np.conjugate(zeropad_ba(
+                #    fftn(zeropad(tr2_d, fftlen2), shape=outdims2), fftlen1))
             else:
                 fftlen = 2 ** (int(np.log2(2 * window_samples_1 - 1)) + 1)
                 outdims = np.array([fftlen])
                 rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * fftn(zeropad(ndflip(tr2_d), fftlen), shape=outdims)
+                #rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * np.conjugate(fftn(zeropad(tr2_d, fftlen), shape=outdims))
             resl.append(rf)
             wtr1s = wtr1e
             wtr2s = wtr2e
@@ -106,13 +119,15 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
         mean = butterworthBPF(mean, tr1.stats.sampling_rate, flo, fhi)
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
-        mean = np.sqrt(np.imag(mean) ** 2 + np.real(mean) ** 2)
+        #mean = np.sqrt(np.imag(mean) ** 2 + np.real(mean) ** 2)
         # mask out the zero line for the max
         zerolower = xcorlen / 2 - sr * 1.5
         zeroupper = xcorlen / 2 + sr * 1.5
         maskmean = mean.view(np.ma.MaskedArray)
         maskmean[zerolower:zeroupper] = np.ma.masked
-        mean /= np.ma.max(maskmean)
+        #mean /= np.ma.max(maskmean)
+        mean /= 3.0*np.ma.std(maskmean) # three sigma
+        mean = np.sqrt(np.imag(mean) ** 2 + np.real(mean) ** 2)
         resll.append(mean[:xcorlen])
         itr1s = wtr1e
         itr2s = wtr2e
@@ -176,8 +191,7 @@ def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list)
         # print xcorr_list[i]
         # ax[i,0].plot(xcorr_x_list[i], (xcorr_list[i]), label=comp_xcorr, lw=1.2)
         # print xcorr_list[i].shape
-        ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0]), xcorr_list[i], vmin=0, vmax=1,
-                            cmap='jet')  # , label=comp_xcorr, lw=1.2)
+        ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0]+1), xcorr_list[i], vmin=0, vmax=1,cmap='jet')  # , label=comp_xcorr, lw=1.2)
         ax[0, i].set_ylabel('Day')
         ax[0, i].set_xlabel('Lag (s)')
         ax[0, i].set_title(comp_xcorr)
@@ -191,6 +205,40 @@ def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list)
     # plt.show()
     os.chdir(plot_output_dir)
     # print 'Saving figure...'
-    plt.savefig(figname + '.png', dpi=1000)
+    plt.savefig(figname + '.png', dpi=600)
     # print 'Saved'
     plt.clf()
+
+
+if __name__ == "__main__":
+    sdr = '/g/data/ha3/Passive/Ref/'
+    fn1 = 'AUQLP__BHZ__-14-05-23-00-00-00.msd'
+    fn1b = 'AUQLP__BHZ__-14-05-24-00-00-00.msd'
+    fn2 = 'AUINKA_BHZ__-14-05-23-00-00-00.msd'
+    fn2b = 'AUINKA_BHZ__-14-05-24-00-00-00.msd'
+    st1 = read(sdr+fn1)
+    st1 += read(sdr+fn1b)
+    st1.merge()
+    st2 = read(sdr+fn2)
+    st2 += read(sdr+fn2b)
+    st2.merge()
+    st1.resample(50.0)
+    st2.resample(50.0)
+    print(st1)
+    print(st2)
+    ylist, x, comp_list = IntervalStackXCorr(st1,st2)
+    print ylist
+    print x
+    print comp_list
+    st2.resample(40.0)
+    ylist2, x2, comp_list2 = IntervalStackXCorr(st1,st2)
+    print ylist2
+    print x2
+    print comp_list2
+    # confirm the error is zero
+    maxdiff = np.max(np.abs(ylist2[0]-ylist[0]))
+    print "Max diff = " + str(maxdiff)
+    assert maxdiff < 0.05, "The xcor after resampling is not the same"
+    saveXCorrPlot(ylist2,x2,'/g/data/ha3/','out2xcor',comp_list2)
+    
+    
