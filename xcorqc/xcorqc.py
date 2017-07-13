@@ -6,10 +6,27 @@ from obspy.core import Stream, UTCDateTime
 from obspy import read
 from obspy.signal.cross_correlation import xcorr
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy
 import math
 from fft import *
+
+# Greatest common divisor of more than 2 numbers.
+
+def gcd(*numbers):
+    """Return the greatest common divisor of the given integers"""
+    from fractions import gcd
+    return reduce(gcd, numbers)
+
+# Assuming numbers are positive integers.
+
+def lcm(*numbers):
+    """Return lowest common multiple."""    
+    def lcm(a, b):
+        return (a * b) // gcd(a, b)
+    return reduce(lcm, numbers, 1)
 
 
 def butterworthBPF(spectrum, samprate, f_lo, f_hi):
@@ -43,8 +60,6 @@ def zeropad_ba_old(tr, padlen):
     padded[s:(s + tr.shape[0])] = tr
     return padded
 
-
-
 def taperDetrend(tr, taperlen):
     """ First detrend, then tapers signal"""
     tr -= np.median(tr)
@@ -74,6 +89,9 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
         wtr1s = 0
         wtr2s = 0
         resl = []
+        sr = max(sr1, sr2)
+	xcorlen = 2 * window_seconds * sr - 1
+        fftlen = 2 ** (int(np.log2(xcorlen)) + 1)
         while wtr1s < itr1e and wtr2s < itr2e:
             wtr1e = int(min(itr1e, wtr1s + window_samples_1))
             wtr2e = int(min(itr2e, wtr2s + window_samples_2))
@@ -84,45 +102,34 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400, flo=0.9, fhi=1
             tr1_d = taperDetrend(tr1_d_all[wtr1s:wtr1e].astype(np.float_, copy=True), int(sr1 / flo))
             tr2_d = taperDetrend(tr2_d_all[wtr2s:wtr2e].astype(np.float_, copy=True), int(sr2 / flo))
             if (sr1 < sr2):
-                fftlen2 = 2 ** (int(np.log2(2 * max(window_samples_1, window_samples_2) - 1)) + 1)
-                fftlen1 = int((fftlen2 * 1.0 * sr1) / sr2)
-                fftlen = fftlen2
+                fftlen2 = fftlen
+                fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
                 outdims2 = np.array([fftlen2])
                 outdims1 = np.array([fftlen1])
                 rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * fftn(
                     zeropad(ndflip(tr2_d), fftlen2), shape=outdims2)
-                #rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * np.conjugate(fftn(
-                #    zeropad(tr2_d, fftlen2), shape=outdims2))
             elif (sr1 > sr2):
-                fftlen1 = 2 ** (int(np.log2(2 * max(window_samples_1, window_samples_2) - 1)) + 1)
-                fftlen2 = int((fftlen1 * 1.0 * sr2) / sr1)
-                fftlen = fftlen1
+                fftlen1 = fftlen
+                fftlen2 = int((fftlen1 * 1.0 * sr2) / sr)
                 outdims2 = np.array([fftlen2])
                 outdims1 = np.array([fftlen1])
                 rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * zeropad_ba(
                     fftn(zeropad(ndflip(tr2_d), fftlen2), shape=outdims2), fftlen1)
-                #rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * np.conjugate(zeropad_ba(
-                #    fftn(zeropad(tr2_d, fftlen2), shape=outdims2), fftlen1))
             else:
                 fftlen = 2 ** (int(np.log2(2 * window_samples_1 - 1)) + 1)
                 outdims = np.array([fftlen])
                 rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * fftn(zeropad(ndflip(tr2_d), fftlen), shape=outdims)
-                #rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * np.conjugate(fftn(zeropad(tr2_d, fftlen), shape=outdims))
             resl.append(rf)
             wtr1s = wtr1e
             wtr2s = wtr2e
-        xcorlen = 2 * max(window_samples_1, window_samples_2) - 1
-        fftlen = 2 ** (int(np.log2(xcorlen)) + 1)
-        sr = max(sr1, sr2)
         step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
         mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
-        mean = butterworthBPF(mean, tr1.stats.sampling_rate, flo, fhi)
+        mean = butterworthBPF(mean, sr, flo, fhi)
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
-        #mean = np.sqrt(np.imag(mean) ** 2 + np.real(mean) ** 2)
         # mask out the zero line for the max
-        zerolower = xcorlen / 2 - sr * 1.5
-        zeroupper = xcorlen / 2 + sr * 1.5
+        zerolower = xcorlen / 2 - sr / flo
+        zeroupper = xcorlen / 2 + sr / flo
         maskmean = mean.view(np.ma.MaskedArray)
         maskmean[zerolower:zeroupper] = np.ma.masked
         #mean /= np.ma.max(maskmean)
@@ -169,44 +176,27 @@ def IntervalStackXCorr(refstn, st,
 
 def saveXCorr(xcorr_list, xcorr_x_list, xcor_output_dir, figname):
     os.chdir(xcor_output_dir)
-    # for i, comp_xcorr in enumerate(comp_list):
     for i, l in enumerate(xcorr_list):
         np.savetxt(figname + '.xcor', xcorr_list[i])
-    # np.savetxt('%s_%d.xcor'%(comp_xcorr,i),xcorr_list[i])
 
 
 def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list):
     nplots = len(comp_list)
-    # print "Number of plots: " + str(nplots)
     if nplots == 0:
         return
-    # plt.rc('figure', figsize=(11.69,8.27))
     fig, ax = plt.subplots(1, nplots, squeeze=False)
     fig.set_figheight(23.39)  # 11.69)
     fig.set_figwidth(16.53)  # 8.27)
-    # axes = fig.axes
-    # print ax
 
     for i, comp_xcorr in enumerate(comp_list):
-        # print xcorr_list[i]
-        # ax[i,0].plot(xcorr_x_list[i], (xcorr_list[i]), label=comp_xcorr, lw=1.2)
-        # print xcorr_list[i].shape
         ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0]+1), xcorr_list[i], vmin=0, vmax=1,cmap='jet')  # , label=comp_xcorr, lw=1.2)
         ax[0, i].set_ylabel('Day')
         ax[0, i].set_xlabel('Lag (s)')
         ax[0, i].set_title(comp_xcorr)
-        # ax[0,i].grid()
         ax[0, i].invert_yaxis()
-    # ax[0,i].legend()
-    # ax[1,i].plot(getStreamX(ref_list[i]), (ref_list[i]), label="Reference", lw=1.2)
-    # ax[2,i].plot(getStreamX(stn_list[i]), (stn_list[i]), label="Station", lw=1.2)
 
-    # plt.legend()
-    # plt.show()
     os.chdir(plot_output_dir)
-    # print 'Saving figure...'
-    plt.savefig(figname + '.png', dpi=600)
-    # print 'Saved'
+    plt.savefig(figname + '.png', dpi=300)
     plt.clf()
 
 
@@ -222,23 +212,31 @@ if __name__ == "__main__":
     st2 = read(sdr+fn2)
     st2 += read(sdr+fn2b)
     st2.merge()
-    st1.resample(50.0)
-    st2.resample(50.0)
+    st2.resample(80.0,no_filter=True)
     print(st1)
     print(st2)
     ylist, x, comp_list = IntervalStackXCorr(st1,st2)
     print ylist
     print x
     print comp_list
-    st2.resample(40.0)
+    st1.resample(80.0,no_filter=True)
     ylist2, x2, comp_list2 = IntervalStackXCorr(st1,st2)
     print ylist2
     print x2
     print comp_list2
     # confirm the error is zero
+    #stdyratio = np.std(ylist2[0]/ylist[0])
     maxdiff = np.max(np.abs(ylist2[0]-ylist[0]))
+    saveXCorrPlot(ylist,x,'/g/data/ha3/','outxcor_dsr4',comp_list)
+    saveXCorr(ylist,x2,'/g/data/ha3/','outxcor_8040')
+    saveXCorr(ylist2,x2,'/g/data/ha3/','outxcor_8080')
+    #print "Std y ratio = " + str(stdyratio)
     print "Max diff = " + str(maxdiff)
+    #plt.subplot(211)
+    #plt.plot(ylist[0][179999:180001])
+    #plt.subplot(212)
+    #plt.plot(ylist2[0][179999:180001])
+    #plt.show()
     assert maxdiff < 0.05, "The xcor after resampling is not the same"
-    saveXCorrPlot(ylist2,x2,'/g/data/ha3/','out2xcor',comp_list2)
     
     
