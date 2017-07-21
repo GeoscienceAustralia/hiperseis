@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - run: mkdir -p test_output/pytest test_output/flake8 test_output/coverage
-      - run: pip3 install .[dev]
+      - run: pip install .[dev]
       # - run: make lint
       - run: make coverage
       - store_artifacts:
