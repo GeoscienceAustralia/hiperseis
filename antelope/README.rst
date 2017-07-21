@@ -73,11 +73,12 @@ QuakeML to Seiscomp3ML
 Once the single event test is successful, proceed to covert all of the events
  in the ANTELOPE database into Seiscomp3 compatible XML.
 
-1. Convert all events in the ANTELOPE database:
+Convert all events in the ANTELOPE database:
 
    .. code:: bash
 
        $ python extract_events.py -s schemas/QuakeML-BED-1.2.rng -o sc3.xml db_path
+
 
 This will generate the QuakeML files inside the ``outdir`` and a
 corresponding ``seiscomp3`` xml file ``sc3.xml``.

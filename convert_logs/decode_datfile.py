@@ -5,7 +5,7 @@ Use this script to convert the binary .dat ANU log files into jsons.
 
 from __future__ import print_function
 import os
-from os.path import split, splitext, join, abspath, basename
+from os.path import splitext, join, basename
 import math
 import struct
 import sys
@@ -340,7 +340,6 @@ def set_bit(value, bit):
 
 
 def test_fileformat_start(fp):
-    blk = []
     recstring = ""
     mseedheader = 1
     blk = fp.read(20)
@@ -484,7 +483,6 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         out_d[v] = 'Not Read or Not available'
     while True:
         file_postion = datfile.tell()
-        strtime = ""
         try:
             block = datfile.read(3)
             if len(block) < 3:

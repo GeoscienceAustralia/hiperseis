@@ -30,7 +30,7 @@ data_path = '/g/data/ha3/Passive/'
 # IRIS Virtual Ntework name
 virt_net = '_ANU'
 
-# FDSN network identifier
+# FDSN network identifier2
 FDSNnetwork = '7F(2013-2014)'
 
 # rough year of survey
