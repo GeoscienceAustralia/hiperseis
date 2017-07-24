@@ -31,7 +31,7 @@ class PyTest(TestCommand, object):
         import pytest
         exit(pytest.main(self.pytest_args))
 
-readme = open('README.md').read()
+readme = open('README.rst').read()
 
 doclink = """
 Documentation
