@@ -81,7 +81,14 @@ setup(
         'dev': [
             'sphinx',
             'ghp-import',
-            'sphinxcontrib-programoutput'
+            'sphinxcontrib-programoutput',
+            'tox',
+            'pytest>=3.1.0',
+            'pytest-flake8>=0.8.1',
+            'pytest-mock>=1.6.0',
+            'pytest-cov>=2.5.1',
+            'pytest-regtest>=0.15.1',
+            'flake8-docstrings>=1.1.0',
         ]
     },
     tests_require=[

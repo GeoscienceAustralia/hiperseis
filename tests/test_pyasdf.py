@@ -18,7 +18,7 @@ def test_helloworld():
 def test_h5py(random_filename):
     hdf = run_once(random_filename, ext='.hdf5')
     f = h5py.File(hdf, 'w', driver='mpio', comm=comm)
-    dset = f.create_dataset('test', (4,), dtype='i')
+    dset = f.create_dataset('test', (size,), dtype='i')
     dset[rank] = rank
     f.close()
 
