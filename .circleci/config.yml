@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: basaks/passive-seismic:0.1
+      - image: basaks/passive-seismic:0.2
     working_directory: /usr/src/passive-seismic
     steps:
       - checkout
