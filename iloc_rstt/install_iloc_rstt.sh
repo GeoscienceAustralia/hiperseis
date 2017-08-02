@@ -4,8 +4,8 @@ wget http://www.seismology.hu/data/iLoc/iLocRelease1.60.tar.gz
 tar -xzf iLocRelease1.60.tar.gz
 mkdir lib bin
 
-cat passive-seismic/iloc_rstt/iloc_envs.sh >> ~/.bashrc
-source ~/.bashrc
+cat passive-seismic/iloc_rstt/iloc_envs.sh >> $HOME/.bashrc
+source $HOME/.bashrc
 
 # install build essential for centos
 sudo yum groupinstall 'Development Tools' -y
@@ -15,8 +15,8 @@ sudo yum install blas lapack -y
 
 
 # Install RSTT
-cp iLocRelease1.60/SLBM_Root.3.0.5.Linux.tar.gz .
-tar -xzf SLBM_Root.3.0.5.Linux.tar.gz
+cp $HOME/iLocRelease1.60/SLBM_Root.3.0.5.Linux.tar.gz $HOME/
+tar -xzf $HOME/SLBM_Root.3.0.5.Linux.tar.gz
 cd SLBM_Root.3.0.5.Linux/ \
     && make clean_objs \
     && make geotess \
@@ -34,7 +34,7 @@ sudo ln -s /usr/lib64/libblas.so.3.4 /usr/lib/librefblas.so
 
 
 # install iLoc
-cd ~/iLocRelease1.60/src/ \
+cd $HOME/iLocRelease1.60/src/ \
     && sed -i '120s/\#//g' Makefile \
     && sed -i '121s/\#//g' Makefile \
     && sed -i '122s/\#//g' Makefile \
@@ -44,11 +44,11 @@ cd ~/iLocRelease1.60/src/ \
 
 
 # create a symlink to the executable
-sudo ln -s ~/iLocRelease1.60/src/iloc_sc3db /usr/bin/iloc
+sudo ln -s $HOME/iLocRelease1.60/src/iloc_sc3db /usr/bin/iloc
 
 
 # copy the mysql conf
-cp ~/passive-seismic/iloc_rstt/.my.cnf ~/
+cp $HOME/passive-seismic/iloc_rstt/.my.cnf $HOME/
 
 # use iloc with seiscomp3 db:
 # echo "event_id update_db=1 do_gridsearch=0 depth=5" | iloc sc3db
