@@ -25,14 +25,17 @@ mysqladmin -u root password 'CWBr00tpwd'
 mysqladmin -u root -pCWBr00tpwd version
 
 
-# create users
+# create users and set permissions
 sudo adduser vdl
+# make vdl home group accessible
+sudo chmod -R 750 /home/vdl
 
 sudo adduser davidk
 sudo usermod -g vdl davidk
 sudo adduser sudipta
 sudo usermod -g vdl sudipta
 
+sudo usermod -g vdl ec2-user
 
 
 # become user vdl and get the software from USGS ftp site
@@ -47,9 +50,12 @@ tar -zxvf EdgeCWBRelease.tar.gz
 tar -xvf bin_release.tar 
 tar -xvf scripts_release.tar 
 
- mv bin ~vdl
- cp -p Jars/* ~vdl/bin/
- chmod -R 755 ~vdl/bin
+mv bin ~vdl
+cp -p Jars/* ~vdl/bin/
+chmod -R 755 ~vdl/bin
+
+# make sure java class lib has jars
+ln -s  /home/vdl/bin bin/lib   
 
 cp -r scripts ~vdl/
 
@@ -94,5 +100,5 @@ sudo shutdown -r now
 # default-time-zone='+00:00'
 
 
-
-# install crontab for user vdl
+###################################################################
+# install crontab under the user vdl
