@@ -95,10 +95,34 @@ sudo shutdown -r now
 # after restarting, the mysql server should be up and running.
 # ssh -X to enable X-windows
 
-# More Configurations
+###################################################################
+# More Configurations:
+
 # In the /etc/my.cnf file always add to the [mysqld] section
 # default-time-zone='+00:00'
 
+# database ops users setup by X-win GUI:
+#this will create 2 .dbconnn/*.conf  encryptedfile 
+ ~vdl/scripts/INSTALL/dbsetup
 
-###################################################################
+# created proper ~vdl/*.prop files
+#ip-172-31-2-68::vdl:~>ls *.prop
+#edgecon.prop*  edge_ip-172-31-2-68.prop*  edge.prop*	metagui.prop  msread.prop*  query.prop*  queryserver.prop*
+ip
+
+# create a role file
+ip-172-31-2-68::vdl:~>ls roles_ip-172-31-2-68*
+roles_ip-172-31-2-68
+
+# Finally install the crontab.
 # install crontab under the user vdl
+
+
+# Testings:
+
+# query -ls
+# query -lsc -b 2005,1
+# query -h localhost -lsc -b 2005,1
+
+# query -lsc -b 2016,1
+
