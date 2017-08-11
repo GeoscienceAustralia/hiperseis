@@ -186,8 +186,8 @@ for service in service_dir_list:
                 orig_loc = tr.stats.location
                 new_loc = orig_loc
 
-                if starttime < UTCDateTime("2017-08-08T21:06:06.500000Z"):
-                    continue
+                # if starttime < UTCDateTime("2017-08-08T21:06:06.500000Z"):
+                #     continue
 
                 # The ASDF formatted waveform name [full_id, station_id, starttime, endtime, tag]
                 ASDF_tag = make_ASDF_tag(tr, "raw_recording").encode('ascii')
