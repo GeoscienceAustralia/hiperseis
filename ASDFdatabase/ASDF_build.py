@@ -31,7 +31,7 @@ data_path = '/g/data/ha3/Passive/'
 virt_net = '_ANU'
 
 # FDSN network identifier2
-FDSNnetwork = '7F(2013-2014)'
+FDSNnetwork = '7G(2013-2015)'
 
 # rough year of survey
 rough_year = 2013
@@ -44,7 +44,7 @@ tol = 0.001
 
 grid_file = join(data_path, 'AUS_Seismic_MT_grid/AUS_seismic_MT_grid.txt')
 XML_path_out = join(data_path, virt_net, FDSNnetwork, 'network_metadata')
-path_DATA = join(data_path, virt_net, FDSNnetwork, 'raw_DATA_partial/')
+path_DATA = join(data_path, virt_net, FDSNnetwork, 'raw_DATA/')
 ASDF_path_out = join(data_path, virt_net, FDSNnetwork, 'ASDF')
 
 if not exists(XML_path_out):
@@ -179,11 +179,22 @@ for service in service_dir_list:
         logfile_counter += 1
 
         # decode the logfile into dictionary
-        logfile_dict = decode_anulog(anu_logfile[0], year=rough_year)
+        try:
+            logfile_dict = decode_anulog(anu_logfile[0], year=rough_year)
+        except TypeError:
+            # there was an error decoding the logfile
+            # skip
+            ASDF_log_file.write(anu_logfile[0] + '\t' + 'LogfileDecodeError\n')
+            continue
+
 
         lat_list = logfile_dict['GPS']['LATITUDE']
         lng_list = logfile_dict['GPS']['LONGITUDE']
         alt_list = logfile_dict['GPS']['ALTITUDE']
+
+        if lat_list == [] or lng_list == [] or alt_list == []:
+            ASDF_log_file.write(anu_logfile[0] + '\t' + 'LogfileDecodeError\n')
+            continue
 
 
         # remove outliers and then get mean
@@ -337,7 +348,7 @@ for service in service_dir_list:
         if len(seed_files) == 0:
             continue
 
-        print '\r Working on station: ', station_name
+        print '\r Working on station: ', new_station
 
         # dictionary for channel_location (keys) so that we can create an inventory to location level later
         channel_loc_dict = {}
@@ -420,10 +431,9 @@ for service in service_dir_list:
                 except ASDFWarning:
                     # trace already exist in ASDF file!
                     ASDF_log_file.write(filename + '\t' + ASDF_tag + '\t' + "ASDFDuplicateError\n")
-            # make iventory for channel
 
-            keys_list.append(str(ASDF_tag))
-            info_list.append(temp_dict)
+                keys_list.append(str(ASDF_tag))
+                info_list.append(temp_dict)
 
         # list for channel inventories
         channel_inventory_list = []

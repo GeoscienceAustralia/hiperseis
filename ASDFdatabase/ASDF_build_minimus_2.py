@@ -35,11 +35,10 @@ data_path = '/g/data/ha3/Passive/'
 virt_net = '_GA_AusArray'
 
 # FDSN network identifier2
-FDSNnetwork = 'XA'
+FDSNnetwork = 'FA'
 
 # =========================================================================== #
 
-XML_in = join(data_path, virt_net, FDSNnetwork, 'network_metadata', FDSNnetwork + ".xml")
 XML_path_out = join(data_path, virt_net, FDSNnetwork, 'network_metadata')
 path_DATA = join(data_path, virt_net, FDSNnetwork, 'raw_DATA/')
 ASDF_path_out = join(data_path, virt_net, FDSNnetwork, 'ASDF')
@@ -87,9 +86,6 @@ ASDF_log_file = open(ASDF_log_out, 'w')
 
 # Create/open the ASDF file
 ds = pyasdf.ASDFDataSet(ASDF_out, compression="gzip-3")
-
-# open the station XML into obspy inventory
-inv = read_inventory(XML_in)
 
 # create empty inventory to add all inventories together
 new_inv = Inventory(networks=[], source="Geoscience Australia AusArray")
@@ -151,8 +147,14 @@ for service in service_dir_list:
     for station_path in station_dir_list:
         station_name = basename(station_path)
 
-        # if not station_name == "ED1":
-        #     continue
+        # get the asscoated station xml file
+        XML_in = join(data_path, virt_net, FDSNnetwork, 'network_metadata', FDSNnetwork + "_" + station_name + ".xml")
+
+        # open up the inventory
+        read_inv = read_inventory(XML_in)
+
+        # get the starttime of the station
+        sta_start = read_inv[0][0].start_date
 
         # get miniseed files
         seed_files = glob.glob(join(station_path, '*miniSEED*/*'))  # '*miniSEED/*.mseed*'))
@@ -183,8 +185,6 @@ for service in service_dir_list:
                 # the file is not miniseed
                 ASDF_log_file.write(filename + '\t' + "TypeError\n")
 
-            # print st
-
             # iterate through traces in st (there will usually be only one trace per stream,
             # however if there are problems with the miniseed files - like much of the ANU data - there
             # can be more than one trace in a miniseed file (seperated by a large time gap)
@@ -193,13 +193,12 @@ for service in service_dir_list:
                 if len(tr) == 0:
                     continue
 
-                print(tr)
+
 
                 waveforms_added += 1
 
                 # do some checks to make sure that the network, station, channel, location information is correct
-                # Station Name: for now just assume that what is in the traces is correct
-                orig_station = tr.stats.station
+
                 # Network Code: the network code in the miniseed header is prone to user error
                 # (i.e. whatever the operator entered into the instrument in the field)
                 orig_net = tr.stats.network
@@ -218,15 +217,18 @@ for service in service_dir_list:
                 orig_chan = tr.stats.channel
                 new_chan = orig_chan
 
-                # Location Code: set to none
+                # Location Code: use miniseed
                 orig_loc = tr.stats.location
-                new_loc = ""
+                new_loc = orig_loc
 
                 starttime = tr.stats.starttime.timestamp
                 endtime = tr.stats.endtime.timestamp
 
-                # if starttime < UTCDateTime("2017-07-19T03:56:20.000000Z"):
-                #     continue
+                # check if the trace end date is after the start date if not skip
+                if endtime < UTCDateTime(sta_start).timestamp:
+                    continue
+
+                # print(tr)
 
                 # see if station is already in start_end dict
                 if new_station in station_start_end_dict.keys():
@@ -240,7 +242,8 @@ for service in service_dir_list:
                 else:
                     station_start_end_dict[new_station] = [starttime, endtime]
 
-
+                # if starttime < UTCDateTime("2017-08-08T21:06:06.500000Z"):
+                #     continue
 
                 # The ASDF formatted waveform name [full_id, station_id, starttime, endtime, tag]
                 ASDF_tag = make_ASDF_tag(tr, "raw_recording").encode('ascii')
@@ -261,9 +264,12 @@ for service in service_dir_list:
                              "log_filename": ""}
 
 
-                print new_net,new_station,new_chan,new_loc
+                # print new_net
+                # print new_station
+                # print new_chan
+                # print new_loc
                 # get the inventory object for the channel
-                select_inv = inv.select(network=new_net, station=new_station, channel=new_chan, location=new_loc)
+                select_inv = read_inv.select(network=new_net, station=new_station, channel=new_chan, location=new_loc)
 
                 # print(select_inv)
 
@@ -318,6 +324,8 @@ for service in service_dir_list:
 
                 try:
                     # Add waveform to the ASDF file
+                    # if station_name == "TEST3":
+                    #     print(tr)
                     ds.add_waveforms(tr, tag="raw_recording", labels=[basename(service)])
                 except ASDFWarning:
                     # trace already exist in ASDF file!
@@ -330,20 +338,6 @@ for service in service_dir_list:
 
 # go through the stations in the station inventory dict and append them to the network inventory
 for station, sta_inv in station_inventory_dict.iteritems():
-    # update the station start and end time
-    # get the start/end dates from dict
-    start_date = UTCDateTime(station_start_end_dict[station][0])
-    end_date = UTCDateTime(station_start_end_dict[station][1])
-
-    print sta_inv
-    print start_date
-    print end_date
-
-    # update the start and end date
-    sta_inv[0].creation_date = start_date
-    sta_inv[0].start_date = start_date
-    sta_inv[0].end_date = end_date
-
     net_inv.stations.append(sta_inv)
 
 
@@ -364,7 +358,7 @@ for key, (start, end) in station_start_end_dict.iteritems():
 net_inv.start_date = UTCDateTime(network_start_end[0])
 net_inv.end_date = UTCDateTime(network_start_end[1])
 
-print(net_inv)
+# print(net_inv)
 
 #add the network inventory to the complete and updated inventory
 new_inv.networks.append(net_inv)
