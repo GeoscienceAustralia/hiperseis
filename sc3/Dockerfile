@@ -12,6 +12,9 @@ RUN apt-get -y install build-essential \
                        libopenmpi-dev \
                        git \
                        vim \
+                       openssh-server \
+                       openssl \
+                       libssl-dev \
                        libblas-dev \
                        liblapack-dev \
                        python-dev python-pip \
@@ -34,6 +37,7 @@ RUN wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.14/src
     rm -rf /hdf5-1.8.14 /hdf5-1.8.14.tar.gz
 
 RUN git clone https://github.com/h5py/h5py.git && \
+    export CC=mpicc && \
     cd h5py && python setup.py configure --mpi --hdf5=/usr/local/hdf5/ && \
     python setup.py install && \
     cd .. && rm -rf h5py
@@ -41,3 +45,9 @@ RUN git clone https://github.com/h5py/h5py.git && \
 RUN git clone https://github.com/GeoscienceAustralia/passive-seismic && \
     cd passive-seismic && \
     python setup.py develop
+
+
+EXPOSE 22
+
+# Start sshd
+CMD ["/usr/sbin/sshd", "-D"]
