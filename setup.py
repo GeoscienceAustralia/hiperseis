@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup
 from setuptools.command.test import test as TestCommand
 import sys
 
@@ -59,7 +59,10 @@ setup(
             'anulog = convert_logs.decode_datfile:anulog'
         ]
     },
-    setup_requires=[NUMPY_VERSION],  # required due to obspy
+
+    # numpy preinstall required due to obspy
+    # mpi4py  preinstall required due to h5py
+    setup_requires=[NUMPY_VERSION, 'mpi4py==2.0.0'],
     install_requires=[
         'Click >= 6.0',
         NUMPY_VERSION,

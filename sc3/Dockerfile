@@ -11,10 +11,16 @@ RUN apt-get -y install build-essential \
                        m4 \
                        libopenmpi-dev \
                        git \
-                       python-dev python-pip\
+                       vim \
+                       libblas-dev \
+                       liblapack-dev \
+                       python-dev python-pip \
                        python3-dev python3-pip
 
 RUN pip install -U pip
+
+# required due to h5py install
+RUN pip install mpi4py==2.0.0
 
 # Build parallel HDF5
 # choose version 1.8.14 as it matches with NCI version
@@ -29,8 +35,9 @@ RUN wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.14/src
 
 RUN git clone https://github.com/h5py/h5py.git && \
     cd h5py && python setup.py configure --mpi --hdf5=/usr/local/hdf5/ && \
+    python setup.py install && \
     cd .. && rm -rf h5py
 
 RUN git clone https://github.com/GeoscienceAustralia/passive-seismic && \
     cd passive-seismic && \
-    pip install .[dev]
+    python setup.py develop
