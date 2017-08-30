@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, Extension
 from setuptools.command.test import test as TestCommand
 import sys
 
@@ -59,7 +59,7 @@ setup(
             'anulog = convert_logs.decode_datfile:anulog'
         ]
     },
-    setup_requires=[NUMPY_VERSION],  # required due to netCDF4
+    setup_requires=[NUMPY_VERSION],  # required due to obspy
     install_requires=[
         'Click >= 6.0',
         NUMPY_VERSION,
@@ -109,11 +109,11 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
+        # "Programming Language :: Python :: 3",
+        # "Programming Language :: Python :: 3.3",
+        # "Programming Language :: Python :: 3.4",
+        # "Programming Language :: Python :: 3.5",
+        # "Programming Language :: Python :: 3.6",
         # "Programming Language :: Python :: 3.7",
         # add additional supported python versions
         "Intended Audience :: Science/Research",
