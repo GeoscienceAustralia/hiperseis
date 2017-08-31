@@ -39,12 +39,12 @@ git clone https://github.com/h5py/h5py.git && \
     cd .. && sudo rm -rf h5py
 
 # Setup virtualenv
-echo "source /usr/local/bin/virtualenvwrapper.sh" >> $HOME/.bashrc
+echo "source /usr/bin/virtualenvwrapper.sh" >> $HOME/.bashrc
 source $HOME/.bashrc
 
 mkvirtualenv --system-site-packages seismic
-workon seismic
 
-git clone https://github.com/GeoscienceAustralia/passive-seismic && \
+workon seismic && \
+    git clone https://github.com/GeoscienceAustralia/passive-seismic && \
     cd passive-seismic && \
     python setup.py develop
