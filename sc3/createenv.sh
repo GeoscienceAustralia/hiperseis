@@ -23,10 +23,14 @@ sudo yum install -y development \
                     tkinter \
                     tcl-devel \
                     tk-devel \
-                    libffi-devel
+                    libffi-devel \
+                    libxml2 \
+                    libxml2-devel \
+                    libxslt \
+                    libxslt-devel
 
 sudo yum install -y python-pip
-sudo pip install -U pip virtualenv virtualenvwrapper numpy mpi4py
+sudo pip install -U pip virtualenv virtualenvwrapper numpy
 
 # required due to h5py install
 sudo pip install mpi4py==2.0.0
@@ -37,9 +41,8 @@ tar -xzvf hdf5-1.8.14.tar.gz
 cd hdf5-1.8.14 && \
     ./configure --enable-parallel --enable-shared --prefix=/usr/local/hdf5 && \
     make && \
-    sudo make install
-
-rm -rf /hdf5-1.8.14 /hdf5-1.8.14.tar.gz
+    sudo make install && \
+    cd .. && sudo rm -rf /hdf5-1.8.14 /hdf5-1.8.14.tar.gz2
 
 # build parallel h5py
 # /usr/include/openmpi-x86_64/mpi.h
