@@ -9,9 +9,21 @@ sudo yum install -y development \
                     git \
                     vim \
                     libpng \
+                    libpng-devel \
                     epel-release \
-                    blas \
-                    lapack
+                    blas blas-devel \
+                    lapack lapack-devel \
+                    libtiff-devel \
+                    libjpeg-devel \
+                    zlib-devel \
+                    freetype-devel \
+                    lcms2-devel \
+                    libwebp-devel \
+                    openjpeg2-devel \
+                    tkinter \
+                    tcl-devel \
+                    tk-devel \
+                    libffi-devel
 
 sudo yum install -y python-pip
 sudo pip install -U pip virtualenv virtualenvwrapper numpy mpi4py
@@ -19,7 +31,7 @@ sudo pip install -U pip virtualenv virtualenvwrapper numpy mpi4py
 # required due to h5py install
 sudo pip install mpi4py==2.0.0
 
-#Build HDF5
+#Build parallel HDF5
 wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz
 tar -xzvf hdf5-1.8.14.tar.gz
 cd hdf5-1.8.14 && \
@@ -29,6 +41,7 @@ cd hdf5-1.8.14 && \
 
 rm -rf /hdf5-1.8.14 /hdf5-1.8.14.tar.gz
 
+# build parallel h5py
 # /usr/include/openmpi-x86_64/mpi.h
 git clone https://github.com/h5py/h5py.git && \
     cd h5py && git checkout tags/2.7.0  && \
