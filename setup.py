@@ -67,6 +67,7 @@ setup(
         'Click >= 6.0',
         NUMPY_VERSION,
         'Cython >= 0.22.1',
+        'decorator >= 4.1.0',
         'mpi4py == 2.0.0',
         'scipy >= 0.15.1',
         'PyYAML >= 3.11',
