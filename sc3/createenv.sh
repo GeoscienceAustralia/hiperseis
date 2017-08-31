@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
-sudo yum install -y development \
-                    wget \
+# manage env variables
+cat $HOME/passive-seismic/sc3/sc3_envs.txt >> $HOME/.bashrc
+source $HOME/.bashrc
+
+sudo yum update -y
+sudo yum groupinstall 'Development Tools' -y
+
+sudo yum install -y wget \
                     tar \
                     bzip2-devel \
                     m4 \
@@ -32,12 +38,14 @@ sudo yum install -y development \
 sudo yum install -y python-pip
 sudo pip install -U pip virtualenv virtualenvwrapper numpy
 
-# required due to h5py install
-sudo pip install mpi4py==2.0.0
+# install mpi4py
+sudo pip install mpi4py
 
+
+echo "Installing parallel hdf5...."
 #Build parallel HDF5
 wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz
-tar -xzvf hdf5-1.8.14.tar.gz
+tar -xzf hdf5-1.8.14.tar.gz
 cd hdf5-1.8.14 && \
     ./configure --enable-parallel --enable-shared --prefix=/usr/local/hdf5 && \
     make && \
@@ -46,6 +54,7 @@ cd hdf5-1.8.14 && \
 
 # build parallel h5py
 # /usr/include/openmpi-x86_64/mpi.h
+echo "Installing parallel h5py...."
 git clone https://github.com/h5py/h5py.git && \
     cd h5py && git checkout tags/2.7.0  && \
     sed -i "52i \ \ \ \ COMPILER_SETTINGS['include_dirs'].extend(['/usr/include/openmpi-x86_64'])" setup_build.py && \
@@ -60,6 +69,7 @@ source $HOME/.bashrc
 
 mkvirtualenv --system-site-packages seismic
 
+echo "Installing passive seismic software....."
 workon seismic && \
     git clone https://github.com/GeoscienceAustralia/passive-seismic && \
     cd passive-seismic && \
