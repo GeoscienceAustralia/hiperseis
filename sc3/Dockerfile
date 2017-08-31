@@ -17,8 +17,23 @@ RUN apt-get -y install build-essential \
                        libssl-dev \
                        libblas-dev \
                        liblapack-dev \
-                       python-dev python-pip \
-                       python3-dev python3-pip
+                       libpng-dev \
+                       python-setuptools \
+                       libffi-dev \
+                       libxml2-dev \
+                       libxslt1-dev \
+                       libtiff4-dev \
+                       libjpeg8-dev \
+                       zlib1g-dev \
+                       libfreetype6-dev \
+                       liblcms2-dev \
+                       libwebp-dev \
+                       tcl8.5-dev \
+                       tk8.5-dev \
+                       python-tk \
+                       python-dev \
+                       python3-dev \
+                       python3-pip
 
 RUN pip install -U pip
 
