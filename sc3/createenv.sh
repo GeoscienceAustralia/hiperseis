@@ -74,5 +74,5 @@ mkvirtualenv --system-site-packages seismic
 
 echo "Installing passive seismic software....."
 workon seismic && \
-    cd passive-seismic && \
+    if [ -z ${CIRCLECI+x} ]; then cd passive-seismic ; fi && \
     python setup.py develop
