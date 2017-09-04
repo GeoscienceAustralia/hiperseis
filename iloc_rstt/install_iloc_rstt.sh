@@ -8,10 +8,10 @@ mkdir lib bin
 # source $HOME/.bashrc
 
 # install build essential for centos
-# sudo yum groupinstall 'Development Tools' -y
+sudo yum groupinstall 'Development Tools' -y
 
 # Install the lapack libraries
-# sudo yum install blas lapack -y
+sudo yum install blas lapack -y
 
 
 # Install RSTT

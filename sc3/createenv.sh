@@ -76,7 +76,7 @@ echo "Installing passive seismic software....."
 
 if [ -z ${CIRCLECI+x} ]; then cd $HOME/passive-seismic ; fi && \
     # install iloc and rstt
-    bash ./iloc_rstt/install_iloc_rstt.sh && \
+    ./iloc_rstt/install_iloc_rstt.sh && \
     # install python packages
     workon seismic && \
     python setup.py develop
