@@ -57,7 +57,11 @@ eval $CMD
 
 for ms_file in `ls *.ms | xargs`; do
 	if [ -f ${ms_file} ]; then
-		scart -I ${ms_file}
+		scart -I ${ms_file} $SEISCOMP3_ARCHIVE
+		if [ $? -ne 0 ]; then
+			echo "The ingesting of the miniseed file ${ms_file} did not succeed! Aborting."
+			exit 1
+		fi
 		rm *.ms
 	fi
 done
