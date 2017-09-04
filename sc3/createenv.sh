@@ -73,6 +73,10 @@ source $HOME/.bashrc
 mkvirtualenv --system-site-packages seismic
 
 echo "Installing passive seismic software....."
-workon seismic && \
-    if [ -z ${CIRCLECI+x} ]; then cd passive-seismic ; fi && \
+
+if [ -z ${CIRCLECI+x} ]; then cd $HOME/passive-seismic ; fi && \
+    # install iloc and rstt
+    bash ./iloc_rstt/install_iloc_rstt.sh && \
+    # install python packages
+    workon seismic && \
     python setup.py develop

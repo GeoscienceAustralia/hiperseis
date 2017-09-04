@@ -4,14 +4,14 @@ wget http://www.seismology.hu/data/iLoc/iLocRelease1.60.tar.gz
 tar -xzf iLocRelease1.60.tar.gz
 mkdir lib bin
 
-cat passive-seismic/iloc_rstt/iloc_envs.sh >> $HOME/.bashrc
-source $HOME/.bashrc
+# cat passive-seismic/iloc_rstt/iloc_envs.sh >> $HOME/.bashrc
+# source $HOME/.bashrc
 
 # install build essential for centos
-sudo yum groupinstall 'Development Tools' -y
+# sudo yum groupinstall 'Development Tools' -y
 
 # Install the lapack libraries
-sudo yum install blas lapack -y
+# sudo yum install blas lapack -y
 
 
 # Install RSTT
