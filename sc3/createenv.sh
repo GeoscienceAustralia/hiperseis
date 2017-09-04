@@ -33,7 +33,9 @@ sudo yum install -y wget \
                     libxml2 \
                     libxml2-devel \
                     libxslt \
-                    libxslt-devel
+                    libxslt-devel \
+                    python-pip \
+                    python-devel
 
 sudo yum install -y python-pip
 sudo pip install -U pip virtualenv virtualenvwrapper numpy
@@ -72,5 +74,5 @@ mkvirtualenv --system-site-packages seismic
 
 echo "Installing passive seismic software....."
 workon seismic && \
-    cd passive-seismic && \
+    if [ -z ${CIRCLECI+x} ]; then cd passive-seismic ; fi && \
     python setup.py develop
