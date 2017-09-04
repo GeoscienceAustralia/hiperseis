@@ -61,7 +61,10 @@ sudo ln -s $ILOC_DIR/src/iloc_sc3db /usr/bin/iloc
 
 
 # copy the mysql conf
-cp $HOME/passive-seismic/iloc_rstt/.my.cnf $HOME/
+if [ -z ${CIRCLECI+x} ];
+    then cp $HOME/passive-seismic/iloc_rstt/.my.cnf $HOME/;
+    else cp /usr/src/passive-seismic/iloc_rstt/.my.cnf $HOME/
+fi
 
 # use iloc with seiscomp3 db:
 # echo "event_id update_db=1 do_gridsearch=0 depth=5" | iloc sc3db
