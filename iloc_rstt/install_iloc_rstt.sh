@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-# get iLoc and RSTT
-wget http://www.seismology.hu/data/iLoc/iLocRelease1.60.tar.gz
-tar -xzf iLocRelease1.60.tar.gz
-mkdir lib bin
 
+LIB_DIR=$HOME/lib
+BIN_DIR=$HOME/bin
+ILOC=iLocRelease1.60.tar.gz
+ILOC_DIR=$HOME/iLocRelease1.60
+SLBM=$ILOC_DIR/SLBM_Root.3.0.5.Linux.tar.gz
+SLBM_DIR=$ILOC_DIR/SLBM_Root.3.0.5.Linux
+
+
+# get iLoc and RSTT
+wget http://www.seismology.hu/data/iLoc/$ILOC && \
+    mkdir $ILOC_DIR && \
+    tar -xzf $ILOC --directory $ILOC_DIR && \
+    rm $ILOC
+
+mkdir $LIB_DIR $BIN_DIR
+
+# if iloc env vars are still not available
 # cat passive-seismic/iloc_rstt/iloc_envs.sh >> $HOME/.bashrc
 # source $HOME/.bashrc
 
@@ -13,15 +26,15 @@ sudo yum groupinstall 'Development Tools' -y
 # Install the lapack libraries
 sudo yum install blas lapack -y
 
-
 # Install RSTT
-cp $HOME/iLocRelease1.60/SLBM_Root.3.0.5.Linux.tar.gz $HOME/
-tar -xzf $HOME/SLBM_Root.3.0.5.Linux.tar.gz
-cd SLBM_Root.3.0.5.Linux/ \
-    && make clean_objs \
-    && make geotess \
-    && make cc \
-    && make c
+cp $SLBM $HOME/ && \
+    tar -xzf $SLBM --directory $SLBM_DIR && \
+    rm $SLBM && \
+    cd $SLBM_DIR \
+        && make clean_objs \
+        && make geotess \
+        && make cc \
+        && make c
 
 # install mysql, since siescomp3 already comes with mysql, this may not be
 # required.
@@ -34,7 +47,7 @@ sudo ln -s /usr/lib64/libblas.so.3.4 /usr/lib/librefblas.so
 
 
 # install iLoc
-cd $HOME/iLocRelease1.60/src/ \
+cd $ILOC_DIR/src/ \
     && sed -i '120s/\#//g' Makefile \
     && sed -i '121s/\#//g' Makefile \
     && sed -i '122s/\#//g' Makefile \
@@ -44,7 +57,7 @@ cd $HOME/iLocRelease1.60/src/ \
 
 
 # create a symlink to the executable
-sudo ln -s $HOME/iLocRelease1.60/src/iloc_sc3db /usr/bin/iloc
+sudo ln -s $ILOC_DIR/src/iloc_sc3db /usr/bin/iloc
 
 
 # copy the mysql conf
