@@ -13,10 +13,10 @@ code_start_time = time.time()
 # =========================== User Input Required =========================== #
 
 #Path to the ASDF file for xcor
-data_path = '/g/data/ha3/g.h5'
+data_path = '/g/data/ha3/US_test.h5'
 out = '/g/data/ha3/out.h5'
 
-temp_net = "XX"
+temp_net = "TA"
 
 # =========================================================================== #
 
@@ -60,60 +60,64 @@ def test_process(st, inv):
 
     xcor_st = Stream()
 
-    tr1 = Stream([st[0]])
-    tr2 = Stream([st[1]])
+    # tr1 = Stream([st[0]])
+    # tr2 = Stream([st[1]])
+    #
+    # y, x, comp = IntervalStackXCorr(tr1, tr2)
+    #
+    # for day_stack_xcor in y:
+    #     print(type(day_stack_xcor))
+    #     print(day_stack_xcor[0])
+    #
+    #     # fill in headers
+    #     stats = {'network': tr1[0].stats.network, 'station': tr1[0].stats.station, 'location': '',
+    #              'channel': tr1[0].stats.channel, 'npts': len(day_stack_xcor[0]), 'sampling_rate': 100,
+    #              'mseed': {'dataquality': 'D'}}
+    #
+    #     stats["starttime"] = tr1[0].stats.starttime
+    #
+    #     xcor_st += Trace(data=day_stack_xcor[0], header=stats)
 
-    y, x, comp = IntervalStackXCorr(tr1, tr2)
-
-    for day_stack_xcor in y:
-        print(type(day_stack_xcor))
-        print(day_stack_xcor[0])
-
-        # fill in headers
-        stats = {'network': tr1[0].stats.network, 'station': tr1[0].stats.station, 'location': '',
-                 'channel': tr1[0].stats.channel, 'npts': len(day_stack_xcor[0]), 'sampling_rate': 100,
-                 'mseed': {'dataquality': 'D'}}
-
-        stats["starttime"] = tr1[0].stats.starttime
-
-        xcor_st += Trace(data=day_stack_xcor[0], header=stats)
 
 
-    #
-    # for tr in st:
-    #     temp_st = Stream(traces=[tr])
-    #     print('')
-    #
-    #     # get the uid label
-    #     uid_label = tr.stats.asdf.labels[1]
-    #     perm_sta = tr.stats.asdf.labels[2]
-    #
-    #     print(uid_label, perm_sta)
-    #
-    #
-    #     perm_st = id_st_dict[uid_label]
-    #
-    #     print(temp_st)
-    #     print(perm_st)
-    #     print("DO XCOR......")
-    #
-    #
-    #     y, x, comp = IntervalStackXCorr(perm_st, temp_st)
-    #
-    #
-    #
-    #     for day_stack_xcor in y:
-    #         print(type(day_stack_xcor))
-    #         print(day_stack_xcor[0])
-    #
-    #         # fill in headers
-    #         stats = {'network': tr.stats.network, 'station': tr.stats.station, 'location': '',
-    #                  'channel': tr.stats.channel, 'npts': len(day_stack_xcor[0]), 'sampling_rate': 100,
-    #                  'mseed': {'dataquality': 'D'}}
-    #
-    #         stats["starttime"] = tr.stats.starttime
-    #
-    #         xcor_st += Trace(data=day_stack_xcor[0], header=stats)
+    for tr in st:
+        temp_st = Stream(traces=[tr])
+        print('')
+
+        # get the uid label
+        uid_label = tr.stats.asdf.labels[1]
+
+        print(uid_label)
+
+
+        perm_st = id_st_dict[uid_label]
+
+        print(temp_st)
+        print(perm_st)
+        print("DO XCOR......")
+
+
+        y, x, comp = IntervalStackXCorr(perm_st, temp_st, flo=0.9, fhi=1.1, interval_seconds=4*86400, window_seconds=1800)
+
+        # saveXCorrPlot(y, x, '/g/data/ha3/', 'test_plot', comp)
+
+
+
+        for day_stack_xcor in y:
+            print(type(day_stack_xcor))
+            print(day_stack_xcor[0])
+
+            # fill in headers
+            stats = {'network': tr.stats.network, 'station': tr.stats.station, 'location': "",
+                     'channel': uid_label[2:], 'npts': len(day_stack_xcor[0]), 'sampling_rate': tr.stats.sampling_rate,
+                     'mseed': {'dataquality': 'D'}}
+
+            stats["starttime"] = tr.stats.starttime
+
+            xcor_st += Trace(data=day_stack_xcor[0], header=stats)
+
+
+        # break
 
 
     return xcor_st
@@ -122,7 +126,21 @@ def test_process(st, inv):
 
 ds.process(process_function=test_process,
            output_filename=out,
-           tag_map={"raw_recording": "test_write"})
+           tag_map={"raw_recording": "xcor"})
 
+
+# load in new ASDF that has been written
+new_ds = pyasdf.ASDFDataSet(out)
+
+# now just copy over waveforms from input ASDF file to new ASDF
+for sta_id in ds.waveforms.list():
+    sta_acc = ds.waveforms[sta_id]
+    for asdf_st_id in sta_acc.list():
+        if not asdf_st_id == "StationXML":
+            new_ds.add_waveforms(sta_acc[asdf_st_id],tag=asdf_st_id.split('__')[3])
+        else:
+            new_ds.add_stationxml(sta_acc[asdf_st_id])
+
+del new_ds
 
 del ds
