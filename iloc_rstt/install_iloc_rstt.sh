@@ -5,31 +5,37 @@ BIN_DIR=$HOME/bin
 ILOC=iLocRelease1.60.tar.gz
 ILOC_DIR=$HOME/iLocRelease1.60
 SLBM=$ILOC_DIR/SLBM_Root.3.0.5.Linux.tar.gz
-SLBM_DIR=$ILOC_DIR/SLBM_Root.3.0.5.Linux
+SLBM_DIR=$HOME/SLBM_Root.3.0.5.Linux
 
-
-# get iLoc and RSTT
-wget http://www.seismology.hu/data/iLoc/$ILOC && \
-    mkdir $ILOC_DIR && \
-    tar -xzf $ILOC --directory $ILOC_DIR && \
-    rm $ILOC
-
-mkdir $LIB_DIR $BIN_DIR
-
-# if iloc env vars are still not available
-# cat passive-seismic/iloc_rstt/iloc_envs.sh >> $HOME/.bashrc
-# source $HOME/.bashrc
+sudo yum update -y
 
 # install build essential for centos
 sudo yum groupinstall 'Development Tools' -y
 
 # Install the lapack libraries
-sudo yum install blas lapack -y
+sudo yum install -y blas \
+                    lapack \
+                    wget \
+                    tar
 
+# get iLoc and RSTT
+wget http://www.seismology.hu/data/iLoc/$ILOC && \
+    tar -xzf $ILOC --directory $HOME && \
+    rm $ILOC
+
+mkdir $LIB_DIR $BIN_DIR
+
+# if iloc env vars are still not available
+if [ -z ${ILOCROOT+x} ]; then
+    cat $HOME/passive-seismic/sc3/sc3_envs.txt >> $HOME/.bashrc;
+    source $HOME/.bashrc
+fi
+
+echo 'Installing RSTT ...'
 # Install RSTT
 cp $SLBM $HOME/ && \
-    tar -xzf $SLBM --directory $SLBM_DIR && \
-    rm $SLBM && \
+    tar -xzf $SLBM --directory $HOME && \
+    rm $HOME/SLBM_Root.3.0.5.Linux.tar.gz && \
     cd $SLBM_DIR \
         && make clean_objs \
         && make geotess \
@@ -45,7 +51,7 @@ sudo ln -s /usr/lib64/mysql/libmysqlclient.so /usr/lib/libmysqlclient.so
 sudo ln -s /usr/lib64/liblapack.so.3.4 /usr/lib/liblapack.so
 sudo ln -s /usr/lib64/libblas.so.3.4 /usr/lib/librefblas.so
 
-
+echo 'Installing iLoc ...'
 # install iLoc
 cd $ILOC_DIR/src/ \
     && sed -i '120s/\#//g' Makefile \
@@ -60,10 +66,11 @@ cd $ILOC_DIR/src/ \
 sudo ln -s $ILOC_DIR/src/iloc_sc3db /usr/bin/iloc
 
 
+echo 'Copy mysql conf into home dir'
 # copy the mysql conf
 if [ -z ${CIRCLECI+x} ];
     then cp $HOME/passive-seismic/iloc_rstt/.my.cnf $HOME/;
-    else cp /usr/src/passive-seismic/iloc_rstt/.my.cnf $HOME/
+    else cp /root/passive-seismic/iloc_rstt/.my.cnf $HOME/
 fi
 
 # use iloc with seiscomp3 db:
