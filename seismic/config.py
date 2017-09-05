@@ -1,11 +1,7 @@
 import logging
 import yaml
-from collections import namedtuple
 from os import path
-
 log = logging.getLogger(__name__)
-
-time_range = namedtuple('time_range', ['start_time', 'end_time'])
 
 
 class Config:
@@ -39,7 +35,7 @@ class Config:
                 log.info('Events were supplied for picking algorithm')
 
             if i['type'] == 'time':
-                self.time_range = time_range(**i['times'])
+                self.time_range = i['times']
                 log.info('Time range was supplied for picking algorithm')
 
         if ((not self.miniseeds) + (not self.events) + (not self.time_range))\
