@@ -7,6 +7,7 @@ jobs:
     steps:
       - checkout
       - run: sed -i 's/sudo//g' sc3/createenv.sh
+      - run: sed -i 's/sudo//g' iloc_rstt/install_iloc_rstt.sh
       - run: ./sc3/createenv.sh
       - run: mkdir -p test_output/pytest test_output/flake8 test_output/coverage
       - run: pip install .[dev]

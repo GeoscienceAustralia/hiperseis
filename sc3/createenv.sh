@@ -35,7 +35,8 @@ sudo yum install -y wget \
                     libxslt \
                     libxslt-devel \
                     python-pip \
-                    python-devel
+                    python-devel \
+                    java-1.7.0-openjdk  # required due to cwbquery
 
 sudo yum install -y python-pip
 sudo pip install -U pip virtualenv virtualenvwrapper numpy
@@ -73,6 +74,10 @@ source $HOME/.bashrc
 mkvirtualenv --system-site-packages seismic
 
 echo "Installing passive seismic software....."
-workon seismic && \
-    if [ -z ${CIRCLECI+x} ]; then cd passive-seismic ; fi && \
+
+if [ -z ${CIRCLECI+x} ]; then cd $HOME/passive-seismic ; fi && \
+    # install iloc and rstt
+    ./iloc_rstt/install_iloc_rstt.sh && \
+    # install python packages
+    workon seismic && \
     python setup.py develop
