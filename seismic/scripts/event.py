@@ -19,8 +19,24 @@ def cli(verbosity):
 @cli.command()
 @click.argument('config_file')
 def pick(config_file):
+    """
+    :param config_file: user supplied config file for picking
+    :return: tba
+    """
     log.info('Reading config file...')
     cf = seismic.config.Config(config_file)
     st = Stream()
     for f in cf.miniseeds:
         st += obspy_read(f)
+
+
+@cli.command()
+@click.argument('config_file')
+def locate(config_file):
+    """
+    :param config_file: user supplied config file for picking
+    :return: tba
+    """
+    log.info('Reading config file...')
+    cf = seismic.config.Config(config_file)
+    pass
