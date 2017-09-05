@@ -1,3 +1,4 @@
+# one can supply one of miniseed, events, or time range
 inputs:
   - name: my miniseed files
     type: miniseed
@@ -17,5 +18,5 @@ inputs:
   - name: my time range
     type: time # not supported yet
     times:
-      start_time:
-      end_time:
+      start_time: 2017-03-28 16:18:30  # format YYYY-MM-DD HH:mm:ss
+      end_time: 2017-03-28 17:18:30
