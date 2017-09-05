@@ -56,7 +56,8 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'anulog = convert_logs.decode_datfile:anulog'
+            'anulog = convert_logs.decode_datfile:anulog',
+            'seismic = seismic.scripts.picker:cli'
         ]
     },
 

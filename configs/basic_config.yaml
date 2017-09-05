@@ -1,0 +1,20 @@
+inputs:
+  - name: my miniseed files
+    type: miniseed
+    files:
+      # - directory:
+      - file: tests/mocks/data/ev0_6.a01.gse2
+      - file: tests/mocks/data/ev0_6.a02.gse2
+      # - list:
+  # events and time based functionality only available inside SC3
+  - name: my events
+    type: events
+    events:
+      - event_id:
+      - event_id_list:
+
+  - name: my time range
+    type: time
+    times:
+      start_time:
+      end_time:
