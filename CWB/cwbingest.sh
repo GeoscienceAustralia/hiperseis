@@ -2,7 +2,7 @@
 
 CURRENT_DIR=`pwd`
 WORKING_DIR=~/CWBQuery
-TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S")
+TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
 START_TIME="2005/01/01 00:00:00"
 BEGIN_TIME_VAR_FILE=/tmp/beginTime.txt
 SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
@@ -36,7 +36,7 @@ JARS=`ls *.jar | xargs`
 if [ -z "${JARS// }" ]; then
 	echo "Jars have not been downloaded yet. Downloading ..."
         echo "Creating temporary directory $TEMPDIR for downloading and uncompressing jar files..."
-	mkdir $TEMPDIR-$(date +"%m-%d-%y-%r")
+	mkdir $TEMPDIR
 	echo "cd-ing into the temporary directory $TEMPDIR ..."
 	cd $TEMPDIR
 
@@ -53,7 +53,7 @@ if [ -z "${JARS// }" ]; then
 	rm -rf $TEMPDIR
 fi
 
-TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S")
+TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
 echo "Creating temporary directory $TEMPDIR for generating the miniseed files..."
 mkdir $TEMPDIR
 echo "cd-ing into temporary directory $TEMPDIR ..."
