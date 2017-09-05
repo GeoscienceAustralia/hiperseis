@@ -57,7 +57,7 @@ setup(
     entry_points={
         'console_scripts': [
             'anulog = convert_logs.decode_datfile:anulog',
-            'seismic = seismic.scripts.picker:cli'
+            'seismic = seismic.scripts.event:cli'
         ]
     },
 

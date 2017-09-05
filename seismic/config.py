@@ -26,3 +26,6 @@ class Config:
         for i in self.inputs:
             if i['type'] == 'miniseed':
                 self.miniseeds = [path.abspath(p['file']) for p in i['files']]
+
+            if i['type'] == 'events':
+                self.events = i['events']
