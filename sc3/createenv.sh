@@ -35,7 +35,8 @@ sudo yum install -y wget \
                     libxslt \
                     libxslt-devel \
                     python-pip \
-                    python-devel
+                    python-devel \
+                    java-1.7.0-openjdk  # required due to cwbquery
 
 sudo yum install -y python-pip
 sudo pip install -U pip virtualenv virtualenvwrapper numpy
