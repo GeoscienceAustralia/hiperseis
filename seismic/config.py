@@ -1,8 +1,11 @@
 import logging
 import yaml
+from collections import namedtuple
 from os import path
 
 log = logging.getLogger(__name__)
+
+time_range = namedtuple('time_range', ['start_time', 'end_time'])
 
 
 class Config:
@@ -23,9 +26,27 @@ class Config:
         self.name = path.basename(yaml_file).rsplit(".", 1)[0]
         self.inputs = s['inputs']
 
+        self.miniseeds = False
+        self.events = False
+        self.time_range = False
         for i in self.inputs:
             if i['type'] == 'miniseed':
                 self.miniseeds = [path.abspath(p['file']) for p in i['files']]
+                log.info('Miniseeds were supplied for picking algorithm')
 
             if i['type'] == 'events':
                 self.events = i['events']
+                log.info('Events were supplied for picking algorithm')
+
+            if i['type'] == 'time':
+                self.time_range = time_range(**i['times'])
+                log.info('Time range was supplied for picking algorithm')
+
+        if ((not self.miniseeds) + (not self.events) + (not self.time_range))\
+                != 1:
+            raise ConfigException('Only one of miniseed, events or time '
+                                  'range has to be specified')
+
+
+class ConfigException(Exception):
+    pass
