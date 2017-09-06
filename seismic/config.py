@@ -22,26 +22,29 @@ class Config:
         self.name = path.basename(yaml_file).rsplit(".", 1)[0]
         self.inputs = s['inputs']
 
-        self.miniseeds = False
-        self.events = False
-        self.time_range = False
+        self.seeds = False
+        self.evnts = False
+        self.trange = False
         for i in self.inputs:
             if i['type'] == 'miniseed':
                 self.miniseeds = [path.abspath(p['file']) for p in i['files']]
                 log.info('Miniseeds were supplied for picking algorithm')
+                self.seeds = True
 
             if i['type'] == 'events':
                 self.events = i['events']
                 log.info('Events were supplied for picking algorithm')
+                self.evnts = True
 
             if i['type'] == 'time':
                 self.time_range = i['times']
                 log.info('Time range was supplied for picking algorithm')
+                self.trange = True
 
-        if ((not self.miniseeds) + (not self.events) + (not self.time_range))\
-                != 1:
+        sum_inputs = self.seeds + self.evnts + self.trange
+        if sum_inputs != 1:
             raise ConfigException('Only one of miniseed, events or time '
-                                  'range has to be specified')
+                                  'range can be specified')
 
 
 class ConfigException(Exception):
