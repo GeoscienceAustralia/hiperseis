@@ -50,9 +50,7 @@ def test_conflict_2s(random_filename, custom_conf_2s):
 
 
 def test_conflict(random_filename, conf):
-    conf['inputs'].append(events)
-    conf['inputs'].append(times)
-    conf['inputs'].append(miniseeds)
+    conf['inputs'] += [miniseeds, events, times]
     yaml_file = random_filename(ext='.yaml')
     with open(yaml_file, 'w') as outfile:
         yaml.dump(conf, outfile, default_flow_style=False)
@@ -71,10 +69,33 @@ def test_no_conflict(random_filename, custom_conf):
         pytest.fail(msg='Too many inputs provided')
 
 
-# def test_dateformat(random_filename):
-#     yaml_file = random_filename(ext='.yaml')
-#     with open(yaml_file, 'w') as outfile:
-#         yaml.dump(conf, outfile, default_flow_style=False)
-#
-#     cf = config.Config(yaml_file)
-#     print(cf.time_range)
+@pytest.fixture(params=[3, 1, 12])
+def month(request):
+    return request.param
+
+
+@pytest.fixture(params=[1, 5, 18, 28])
+def day(request):
+    return request.param
+
+
+def test_dateformat(random_filename, conf, month, day):
+    times = {
+        'times': {
+            'end_time': datetime.datetime(2017, month, day, 17, 18, 30),
+            'start_time': datetime.datetime(2017, month, day, 16, 18, 30)},
+        'name': 'my time range', 'type': 'time'
+    }
+
+    conf['inputs'].append(times)
+    yaml_file = random_filename(ext='.yaml')
+    with open(yaml_file, 'w') as outfile:
+        yaml.dump(conf, outfile, default_flow_style=False)
+
+    cf = config.Config(yaml_file)
+    assert 'start_time' in cf.time_range
+    assert 'end_time' in cf.time_range
+    assert cf.time_range['start_time'].month == month
+    assert cf.time_range['start_time'].day == day
+    assert cf.time_range['end_time'].month == month
+    assert cf.time_range['end_time'].day == day
