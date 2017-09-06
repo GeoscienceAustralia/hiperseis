@@ -1,9 +1,11 @@
+from __future__ import print_function
 import click
 import logging
 from obspy.core import read as obspy_read, Stream
 
 import seismic
 from seismic import pslog, config
+from seismic.pickers import pickermaps
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +26,22 @@ def pick(config_file):
     :return: tba
     """
     log.info('Reading config file...')
-    cf = seismic.config.Config(config_file)
+    cf = config.Config(config_file)
+
+    log.info('Preparing time series')
     st = Stream()
-    for f in cf.miniseeds:
-        st += obspy_read(f)
+
+    if cf.seeds:
+        for f in cf.miniseeds:
+            st += obspy_read(f)
+        log.info('Miniseeds accumulated')
+    else:
+        raise NotImplementedError
+    log.info('Applying picking algorithm')
+    picker = pickermaps[cf.picker['algorithm']](**cf.picker['params'])
+
+    event = picker.event(st, config=cf)
+    event.write(filename='test.xml', format='SC3ML')
 
 
 @cli.command()
@@ -38,5 +52,4 @@ def locate(config_file):
     :return: tba
     """
     log.info('Reading config file...')
-    cf = seismic.config.Config(config_file)
-    pass
+    cf = config.Config(config_file)
