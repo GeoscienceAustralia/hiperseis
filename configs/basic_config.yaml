@@ -50,16 +50,28 @@ picker:
     pol_coeff: 10
     uncert_coeff: 3
 
-  algorithm: fbpicker
+#  algorithm: fbpicker
+#  params:
+#    t_long: 5
+#    freqmin: 1
+#    corner: 1
+#    perc_taper: 0.1
+#    mode: 'rms'
+#    t_ma: 20
+#    nsigma: 6
+#    t_up: 0.78
+#    nr_len: 2
+#    nr_coeff: 2
+#    pol_len: 10
+#    pol_coeff: 10
+#    uncert_coeff: 3
+
+  algorithm: ktpicker
   params:
-    t_long: 5
-    freqmin: 1
-    corner: 1
-    perc_taper: 0.1
-    mode: 'rms'
-    t_ma: 20
+    t_win: 1
+    t_ma: 10
     nsigma: 6
-    t_up: 0.78
+    t_up: 0.2
     nr_len: 2
     nr_coeff: 2
     pol_len: 10
