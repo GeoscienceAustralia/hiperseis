@@ -46,6 +46,8 @@ class Config:
             raise ConfigException('Only one of miniseed, events or time '
                                   'range can be specified')
 
+        self.picker = s['picker']
+
 
 class ConfigException(Exception):
     pass
