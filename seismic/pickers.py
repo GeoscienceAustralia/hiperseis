@@ -4,7 +4,7 @@ from phasepapy.phasepicker.fbpicker import FBPicker
 
 
 # write custom picker classes here
-all_pickers = {
+pickermaps = {
     'aicdpicker': AICDPicker,
     'fbpicker': FBPicker,
     'ktpicker': KTPicker,
