@@ -10,7 +10,8 @@ DATA = os.path.join(TESTS, 'mocks', 'data')
 
 @pytest.fixture
 def conf():
-    return {'inputs': []}
+    return {'inputs': [],
+            'picker': None}
 
 miniseeds = {'files': [{'file': os.path.join(DATA, 'ev0_6.a01.gse2')},
                        {'file': os.path.join(DATA, 'ev0_6.a02.gse2')}],
