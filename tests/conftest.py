@@ -5,6 +5,19 @@ import string
 import os.path
 import pytest
 
+TESTS = os.path.dirname(__file__)
+DATA = os.path.join(TESTS, 'mocks', 'data')
+
+
+@pytest.fixture
+def test_dir():
+    return TESTS
+
+
+@pytest.fixture
+def data_dir():
+    return DATA
+
 
 @pytest.fixture
 def random_filename(tmpdir_factory):
