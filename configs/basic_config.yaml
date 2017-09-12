@@ -50,42 +50,21 @@ picker:
     pol_coeff: 10
     uncert_coeff: 3
 
-#  algorithm: fbpicker
-#  params:
-#    t_long: 5
-#    freqmin: 1
-#    corner: 1
-#    perc_taper: 0.1
-#    mode: 'rms'
-#    t_ma: 20
-#    nsigma: 6
-#    t_up: 0.78
-#    nr_len: 2
-#    nr_coeff: 2
-#    pol_len: 10
-#    pol_coeff: 10
-#    uncert_coeff: 3
-
-#  algorithm: ktpicker
-#  params:
-#    t_win: 1
-#    t_ma: 10
-#    nsigma: 6
-#    t_up: 0.2
-#    nr_len: 2
-#    nr_coeff: 2
-#    pol_len: 10
-#    pol_coeff: 10
-#    uncert_coeff: 3
-
-  algorithm: pkbaer
+  algorithm: fbpicker
   params:
-    tdownmax: 20
-    tupevent: 60
-    thr1: 7.0
-    thr2: 12.0
-    preset_len: 100
-    p_dur: 100
+    t_long: 5
+    freqmin: 1
+    corner: 1
+    perc_taper: 0.1
+    mode: 'rms'
+    t_ma: 20
+    nsigma: 6
+    t_up: 0.78
+    nr_len: 2
+    nr_coeff: 2
+    pol_len: 10
+    pol_coeff: 10
+    uncert_coeff: 3
 
 #  algorithm: ktpicker
 #  params:

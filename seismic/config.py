@@ -1,6 +1,7 @@
 import logging
 import yaml
 from os import path
+from obspy import UTCDateTime
 log = logging.getLogger(__name__)
 
 
@@ -38,6 +39,8 @@ class Config:
 
             if i['type'] == 'time':
                 self.time_range = i['times']
+                self.time_range = {k: UTCDateTime(v) for k, v
+                                   in self.time_range.items()}
                 log.info('Time range was supplied for picking algorithm')
                 self.trange = True
 
