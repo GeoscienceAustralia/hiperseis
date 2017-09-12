@@ -4,6 +4,7 @@ import random
 import string
 import os.path
 import pytest
+import datetime
 
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
@@ -27,3 +28,41 @@ def random_filename(tmpdir_factory):
                         for _ in range(10))
         return os.path.join(dir, fname + ext)
     return make_random_filename
+
+
+@pytest.fixture
+def conf():
+    return {'inputs': [],
+            'picker': None}
+
+
+@pytest.fixture
+def events():
+    return {'name': 'my events',
+            'events': [{'event_id': 'ga2017abcdefg'},
+                       {'event_id': 'ga2017hijklmn'}],
+            'type': 'events'}
+
+
+@pytest.fixture
+def times():
+    return {'times': {'end_time': datetime.datetime(2017, 3, 28, 17, 18, 30),
+                      'start_time':
+                          datetime.datetime(2017, 3, 28, 16, 18, 30)},
+            'name': 'my time range', 'type': 'time'}
+
+
+@pytest.fixture
+def miniseed():
+    return {'files': [{'file': os.path.join(DATA, 'ev0_6.a01.gse2')},
+                      {'file': os.path.join(DATA, 'ev0_6.a02.gse2')}],
+            'name': 'my miniseed files', 'type': 'miniseed'}
+
+
+@pytest.fixture
+def params_dict(events, times, miniseed):
+    return {
+        'miniseeds': miniseed,
+        'events': events,
+        'times': times
+        }

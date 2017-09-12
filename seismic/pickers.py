@@ -39,7 +39,7 @@ class PKBaer:
         """
         reltrc = tr.data
         samp_int = tr.stats.sampling_rate
-        pptime, pfm = pk_baer(reltrc=tr,
+        pptime, pfm = pk_baer(reltrc=reltrc,
                               samp_int=samp_int,
                               tdownmax=self.tdownmax,
                               tupevent=self.tupevent,
