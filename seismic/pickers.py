@@ -1,4 +1,9 @@
+from joblib import delayed, Parallel
+from obspy import UTCDateTime
 from obspy.signal.trigger import ar_pick, pk_baer
+from obspy.core.event import Event, Pick, WaveformStreamID
+from obspy.core.event import CreationInfo, Comment, Origin
+
 from phasepapy.phasepicker.aicdpicker import AICDPicker
 from phasepapy.phasepicker.ktpicker import KTPicker
 from phasepapy.phasepicker.fbpicker import FBPicker
@@ -51,10 +56,74 @@ class PKBaer:
 
         return pptime / samp_int, pfm
 
+
+class AICDPickerGA(AICDPicker):
+    """
+    Our adaptation of AICDpicker.
+    See docs for AICDpicker.
+    """
+
+    def __init__(self, t_ma=3, nsigma=6, t_up=0.2, nr_len=2,
+                 nr_coeff=2, pol_len=10, pol_coeff=10,
+                 uncert_coeff=3):
+        super(AICDPickerGA, self).__init__(t_ma=t_ma,
+                                           nsigma=nsigma,
+                                           t_up=t_up,
+                                           nr_len=nr_len,
+                                           nr_coeff=nr_coeff,
+                                           pol_len=pol_len,
+                                           pol_coeff=pol_coeff,
+                                           uncert_coeff=uncert_coeff)
+
+    def event(self, st):
+        event = Event()
+        # event.origins.append(Origin())
+        event.creation_info = CreationInfo(author='GA-pst',
+                                           creation_time=UTCDateTime(),
+                                           agency_uri='GA')
+        event.comments.append(Comment(text='pst-aicdpicker'))
+
+        # note Parallel might cause issues during mpi processing
+        res = Parallel(n_jobs=-1)(delayed(self._pick_paralllel)(tr)
+                                 for tr in st)
+        for pks, ws, ps in res:
+            for p in pks:
+                event.picks.append(
+                    Pick(waveform_id=ws, phase_hint=ps, time=p)
+                )
+        return event
+
+    def _pick_paralllel(self, tr):
+        _, picks, polarity, snr, uncertainty = self.picks(tr=tr)
+        phase = self._naive_phase_type(tr)
+        wav_id = WaveformStreamID(station_code=tr.stats.station,
+                                  channel_code=tr.stats.channel,
+                                  network_code=tr.stats.network,
+                                  location_code=tr.stats.location
+                                  )
+        return picks, wav_id, phase
+
+    @staticmethod
+    def _naive_phase_type(tr):
+        """
+        copied from EQcorrscan.git
+        :param tr: obspy.trace object
+        :return: str
+        """
+        # We are going to assume, for now, that if the pick is made on the
+        # horizontal channel then it is an S, otherwise we will assume it is
+        # a P-phase: obviously a bad assumption...
+        if tr.stats.channel[-1] == 'Z':
+            phase = 'P'
+        else:
+            phase = 'S'
+        return phase
+
+
 pickermaps = {
-    'aicdpicker': AICDPicker,
-    'fbpicker': FBPicker,
-    'ktpicker': KTPicker,
-    'pkbaer': PKBaer,
+    'aicdpicker': AICDPickerGA,
+    # 'fbpicker': FBPicker,
+    # 'ktpicker': KTPicker,
+    # 'pkbaer': PKBaer,
 }
 
