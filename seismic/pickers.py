@@ -12,7 +12,8 @@ class PKBaer:
     For inputs and outputs refer to obspy.signal.trigge.pk_bear class
     """
 
-    def __init__(self, tdownmax, tupevent, thr1, thr2, preset_len, p_dur):
+    def __init__(self, tdownmax=20, tupevent=60, thr1=7.0, thr2=12.0,
+                 preset_len=100, p_dur=100):
         self.tdownmax = tdownmax
         self.tupevent = tupevent
         self.thr1 = thr1
