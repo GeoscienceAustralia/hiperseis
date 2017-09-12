@@ -18,16 +18,11 @@ def algorithm(request):
     return request.param
 
 
-def test_pickermaps(conf, miniseed, random_filename, algorithm):
+def test_pickermaps(algorithm):
     """
     basic operation test for now
     """
-    conf['inputs'].append(miniseed)
-    yaml_file = random_filename(ext='.yaml')
-    with open(yaml_file, 'w') as outfile:
-        yaml.dump(conf, outfile, default_flow_style=False)
-    cf = config.Config(yaml_file)
     picker = pickermaps[algorithm]()
-    st = obspy_read()
+    st = obspy_read(mseed)
     for s in st[:2]:
         picker.picks(s)
