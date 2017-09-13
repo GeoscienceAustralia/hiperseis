@@ -1,13 +1,11 @@
 import os
-import yaml
 import pytest
 from obspy.core import read as obspy_read
 from seismic.pickers import pickermaps
-from seismic import config
 
 TESTS = os.path.dirname(__file__)
 MOCKS = os.path.join(TESTS, 'mocks')
-mseed = os.path.join(MOCKS, 'ga2017qxlpiu.mseed')
+mseed = os.path.join(MOCKS, 'ga2017qxlpiu_short.mseed')
 xml = os.path.join(MOCKS, 'ga2017qxlpiu.xml')
 
 algos = list(pickermaps.keys())
