@@ -82,3 +82,14 @@ def test_dateformat(random_filename, conf, month, day):
     assert cf.time_range['start_time'].day == day
     assert cf.time_range['end_time'].month == month
     assert cf.time_range['end_time'].day == day
+
+
+def test_detrend_filter_not_supplied(random_filename, params_dict, conf):
+    conf['inputs'].append(params_dict['miniseeds'])
+    yaml_file = random_filename(ext='.yaml')
+    with open(yaml_file, 'w') as outfile:
+        yaml.dump(conf, outfile, default_flow_style=False)
+
+    cf = config.Config(yaml_file)
+    assert (not cf.detrend)
+    assert (not cf.filter)
