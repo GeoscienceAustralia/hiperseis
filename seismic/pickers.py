@@ -1,13 +1,15 @@
 from joblib import delayed, Parallel
 from obspy import UTCDateTime
 from obspy.signal.trigger import ar_pick, pk_baer
-from obspy.core.event import Event, Pick, WaveformStreamID
+from obspy.core.event import Event, Pick, WaveformStreamID, Amplitude
 from obspy.core.event import CreationInfo, Comment, Origin
 
 from phasepapy.phasepicker.aicdpicker import AICDPicker
 from phasepapy.phasepicker.ktpicker import KTPicker
 from phasepapy.phasepicker.fbpicker import FBPicker
 
+PST_AUTHOR = 'GA-PST'
+AGENCY_URI = 'GA'
 
 def _naive_phase_type(tr):
     """
@@ -95,18 +97,24 @@ class AICDPickerGA(AICDPicker):
     def event(self, st):
         event = Event()
         # event.origins.append(Origin())
-        event.creation_info = CreationInfo(author='GA-pst',
-                                           creation_time=UTCDateTime(),
-                                           agency_uri='GA')
+        creation_info = CreationInfo(author=self.__class__.__name__ +
+                                            PST_AUTHOR,
+                                     creation_time=UTCDateTime(),
+                                     agency_uri=AGENCY_URI)
+
+        event.creation_info = creation_info
         event.comments.append(Comment(text='pst-aicdpicker'))
 
         # note Parallel might cause issues during mpi processing
         res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr)
                                   for tr in st)
+
         for pks, ws, ps in res:
             for p in pks:
                 event.picks.append(
-                    Pick(waveform_id=ws, phase_hint=ps, time=p)
+                    Pick(waveform_id=ws, phase_hint=ps, time=p,
+                         creation_info=creation_info)
+                    # FIXME: same creation info for all picks
                 )
         return event
 
