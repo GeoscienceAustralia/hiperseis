@@ -51,11 +51,9 @@ class Config:
 
         self.picker = s['picker']
 
-        if 'detrend' in s:
-            self.detrend = s['detrend']
+        self.detrend = s['detrend'] if 'detrend' in s else False
 
-        if 'filter' in s:
-            self.filter = s['filter']
+        self.filter = s['filter'] if 'filter' in s else False
 
 
 class ConfigException(Exception):
