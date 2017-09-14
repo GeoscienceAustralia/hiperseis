@@ -1,3 +1,4 @@
+import logging
 from joblib import delayed, Parallel
 from obspy import UTCDateTime
 from obspy.signal.trigger import ar_pick, pk_baer
@@ -8,8 +9,10 @@ from phasepapy.phasepicker.aicdpicker import AICDPicker
 from phasepapy.phasepicker.ktpicker import KTPicker
 from phasepapy.phasepicker.fbpicker import FBPicker
 
-PST_AUTHOR = 'GA-PST'
+PST_AUTHOR = ':GA-PST'
 AGENCY_URI = 'GA'
+log = logging.getLogger(__name__)
+
 
 def _naive_phase_type(tr):
     """
@@ -94,7 +97,7 @@ class AICDPickerGA(AICDPicker):
                             pol_coeff=pol_coeff,
                             uncert_coeff=uncert_coeff)
 
-    def event(self, st):
+    def event(self, st, config):
         event = Event()
         # event.origins.append(Origin())
         creation_info = CreationInfo(author=self.__class__.__name__ +
@@ -105,8 +108,9 @@ class AICDPickerGA(AICDPicker):
         event.creation_info = creation_info
         event.comments.append(Comment(text='pst-aicdpicker'))
 
-        # note Parallel might cause issues during mpi processing
-        res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr)
+        # note Parallel might cause issues during mpi processing, ok for now
+        # TODO: should split this to multiple MPI processes
+        res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr, config)
                                   for tr in st)
 
         for pks, ws, ps in res:
@@ -118,7 +122,14 @@ class AICDPickerGA(AICDPicker):
                 )
         return event
 
-    def _pick_parallel(self, tr):
+    def _pick_parallel(self, tr, config):
+        if config.detrend:
+            tr = tr.detrend(config.detrend)
+            log.info("Applied '{}' detrend to trace".format(config.detrend))
+        if config.filter:
+            tr = tr.filter(config.filter['type'], ** config.filter['params'])
+            log.info("Applied '{}' filter with params: {}".format(
+                config.filter['type'], config.filter['params']))
         _, picks, polarity, snr, uncertainty = self.picks(tr=tr)
         phase = _naive_phase_type(tr)
         wav_id = WaveformStreamID(station_code=tr.stats.station,
