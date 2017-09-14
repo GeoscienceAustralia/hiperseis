@@ -51,6 +51,12 @@ class Config:
 
         self.picker = s['picker']
 
+        if 'detrend' in s:
+            self.detrend = s['detrend']
+
+        if 'filter' in s:
+            self.filter = s['filter']
+
 
 class ConfigException(Exception):
     pass
