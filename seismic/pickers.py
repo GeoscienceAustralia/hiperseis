@@ -2,8 +2,8 @@ import logging
 from joblib import delayed, Parallel
 from obspy import UTCDateTime
 from obspy.signal.trigger import ar_pick, pk_baer
-from obspy.core.event import Event, Pick, WaveformStreamID, Amplitude
-from obspy.core.event import CreationInfo, Comment, Origin
+from obspy.core.event import Event, Pick, WaveformStreamID, Amplitude, \
+    ResourceIdentifier, CreationInfo, Comment, Origin
 
 from phasepapy.phasepicker.aicdpicker import AICDPicker
 from phasepapy.phasepicker.ktpicker import KTPicker
@@ -113,11 +113,19 @@ class AICDPickerGA(AICDPicker):
         res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr, config)
                                   for tr in st)
 
+        filter_id = ResourceIdentifier(
+            prefix="filter",
+            id="{}".format(config.filter['type']),
+            referred_object=event
+        )
+
         for pks, ws, ps in res:
             for p in pks:
                 event.picks.append(
                     Pick(waveform_id=ws, phase_hint=ps, time=p,
-                         creation_info=creation_info)
+                         creation_info=creation_info,
+                         evaluation_mode='automatic',
+                         filter_id=filter_id)
                     # FIXME: same creation info for all picks
                 )
         return event
