@@ -30,6 +30,63 @@ def _naive_phase_type(tr):
     return phase
 
 
+class PickerMixin:
+
+    """
+    Mixin class for all passive-seismic compatible classes.
+    """
+
+    def event(self, st, config):
+        event = Event()
+        # event.origins.append(Origin())
+        creation_info = CreationInfo(author=self.__class__.__name__ +
+                                            PST_AUTHOR,
+                                     creation_time=UTCDateTime(),
+                                     agency_uri=AGENCY_URI)
+
+        event.creation_info = creation_info
+        event.comments.append(Comment(text='pst-aicdpicker'))
+
+        # note Parallel might cause issues during mpi processing, ok for now
+        # TODO: should split this to multiple MPI processes
+        res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
+                                  for tr in st)
+
+        filter_id = ResourceIdentifier(
+            id="filter/{}".format(config.filter['type']),
+            # TODO: explore inserting the filter parameters as id
+            referred_object=event
+        )
+
+        for pks, ws, ps in res:
+            for p in pks:
+                event.picks.append(
+                    Pick(waveform_id=ws, phase_hint=ps, time=p,
+                         creation_info=creation_info,
+                         evaluation_mode='automatic',
+                         filter_id=filter_id)
+                    # FIXME: same creation info for all picks
+                )
+        return event
+
+    def _pick_parallel(self, tr, config):
+        if config.detrend:
+            tr = tr.detrend(config.detrend)
+            log.info("Applied '{}' detrend to trace".format(config.detrend))
+        if config.filter:
+            tr = tr.filter(config.filter['type'], ** config.filter['params'])
+            log.info("Applied '{}' filter with params: {}".format(
+                config.filter['type'], config.filter['params']))
+        _, picks, polarity, snr, uncertainty = self.picks(tr=tr)
+        phase = _naive_phase_type(tr)
+        wav_id = WaveformStreamID(station_code=tr.stats.station,
+                                  channel_code=tr.stats.channel,
+                                  network_code=tr.stats.network,
+                                  location_code=tr.stats.location
+                                  )
+        return picks, wav_id, phase
+
+
 # write custom picker classes here
 class PKBaer:
     """
@@ -78,7 +135,7 @@ class PKBaer:
         return pptime / samp_int, pfm
 
 
-class AICDPickerGA(AICDPicker):
+class AICDPickerGA(AICDPicker, PickerMixin):
     """
     Our adaptation of AICDpicker.
     See docs for AICDpicker.
@@ -97,60 +154,36 @@ class AICDPickerGA(AICDPicker):
                             pol_coeff=pol_coeff,
                             uncert_coeff=uncert_coeff)
 
-    def event(self, st, config):
-        event = Event()
-        # event.origins.append(Origin())
-        creation_info = CreationInfo(author=self.__class__.__name__ +
-                                            PST_AUTHOR,
-                                     creation_time=UTCDateTime(),
-                                     agency_uri=AGENCY_URI)
 
-        event.creation_info = creation_info
-        event.comments.append(Comment(text='pst-aicdpicker'))
+class FBPickerGA(FBPicker, PickerMixin):
+    """
+    Our adaptation of FBpicker.
+    See docs for FBpicker.
+    """
 
-        # note Parallel might cause issues during mpi processing, ok for now
-        # TODO: should split this to multiple MPI processes
-        res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr, config)
-                                  for tr in st)
-
-        filter_id = ResourceIdentifier(
-            prefix="filter",
-            id="{}".format(config.filter['type']),
-            referred_object=event
-        )
-
-        for pks, ws, ps in res:
-            for p in pks:
-                event.picks.append(
-                    Pick(waveform_id=ws, phase_hint=ps, time=p,
-                         creation_info=creation_info,
-                         evaluation_mode='automatic',
-                         filter_id=filter_id)
-                    # FIXME: same creation info for all picks
-                )
-        return event
-
-    def _pick_parallel(self, tr, config):
-        if config.detrend:
-            tr = tr.detrend(config.detrend)
-            log.info("Applied '{}' detrend to trace".format(config.detrend))
-        if config.filter:
-            tr = tr.filter(config.filter['type'], ** config.filter['params'])
-            log.info("Applied '{}' filter with params: {}".format(
-                config.filter['type'], config.filter['params']))
-        _, picks, polarity, snr, uncertainty = self.picks(tr=tr)
-        phase = _naive_phase_type(tr)
-        wav_id = WaveformStreamID(station_code=tr.stats.station,
-                                  channel_code=tr.stats.channel,
-                                  network_code=tr.stats.network,
-                                  location_code=tr.stats.location
-                                  )
-        return picks, wav_id, phase
+    def __init__(self, t_long=5, freqmin=1, corner=1, perc_taper=0.1,
+                 mode='rms', t_ma=20, nsigma=6, t_up=0.78, nr_len=2,
+                 nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3):
+        FBPicker.__init__(self,
+                          t_long=t_long,
+                          freqmin=freqmin,
+                          corner=corner,
+                          perc_taper=perc_taper,
+                          mode=mode,
+                          t_ma=t_ma,
+                          nsigma=nsigma,
+                          t_up=t_up,
+                          nr_len=nr_len,
+                          nr_coeff=nr_coeff,
+                          pol_len=pol_len,
+                          pol_coeff=pol_coeff,
+                          uncert_coeff=uncert_coeff
+                          )
 
 
 pickermaps = {
     'aicdpicker': AICDPickerGA,
-    'fbpicker': FBPicker,
+    'fbpicker': FBPickerGA,
     'ktpicker': KTPicker,
     # 'pkbaer': PKBaer,
 }
