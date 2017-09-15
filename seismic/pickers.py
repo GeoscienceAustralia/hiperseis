@@ -13,6 +13,8 @@ PST_AUTHOR = ':GA-PST'
 AGENCY_URI = 'GA'
 log = logging.getLogger(__name__)
 
+PickPolarityMap = {'D':"positive", 'C': "negative", '':"undecidable"}
+
 
 def _naive_phase_type(tr):
     """
@@ -54,17 +56,19 @@ class PickerMixin:
 
         filter_id = ResourceIdentifier(
             id="filter/{}".format(config.filter['type']),
-            # TODO: explore inserting the filter parameters as id
+            # TODO: explore inserting the filter parameters in id
             referred_object=event
         )
 
-        for pks, ws, ps in res:
-            for p in pks:
+        for pks, ws, ps, pol in res:
+            for p, pl in zip(pks, pol):
                 event.picks.append(
                     Pick(waveform_id=ws, phase_hint=ps, time=p,
                          creation_info=creation_info,
                          evaluation_mode='automatic',
-                         filter_id=filter_id)
+                         filter_id=filter_id,
+                         polarity=PickPolarityMap[pl],
+                         )
                     # FIXME: same creation info for all picks
                 )
         return event
@@ -84,7 +88,7 @@ class PickerMixin:
                                   network_code=tr.stats.network,
                                   location_code=tr.stats.location
                                   )
-        return picks, wav_id, phase
+        return picks, wav_id, phase, polarity
 
 
 # write custom picker classes here
