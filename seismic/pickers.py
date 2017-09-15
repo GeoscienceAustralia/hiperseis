@@ -181,6 +181,27 @@ class FBPickerGA(FBPicker, PickerMixin):
                           )
 
 
+class KTPickerGA(KTPicker, PickerMixin):
+    """
+    Our adaptation of FBpicker.
+    See docs for FBpicker.
+    """
+
+    def __init__(self, t_win=1, t_ma=10, nsigma=6, t_up=0.2, nr_len=2,
+                 nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3):
+        KTPicker.__init__(self,
+                          t_win=t_win,
+                          t_ma=t_ma,
+                          nsigma=nsigma,
+                          t_up=t_up,
+                          nr_len=nr_len,
+                          nr_coeff=nr_coeff,
+                          pol_len=pol_len,
+                          pol_coeff=pol_coeff,
+                          uncert_coeff=uncert_coeff
+                          )
+
+
 pickermaps = {
     'aicdpicker': AICDPickerGA,
     'fbpicker': FBPickerGA,
