@@ -11,6 +11,7 @@ from phasepapy.phasepicker.fbpicker import FBPicker
 
 PST_AUTHOR = ':GA-PST'
 AGENCY_URI = 'GA'
+AGENCY_ID = 'GA'
 log = logging.getLogger(__name__)
 
 # TODO: check polarity definition with Alexei
@@ -45,7 +46,8 @@ class PickerMixin:
         creation_info = CreationInfo(author=self.__class__.__name__ +
                                             PST_AUTHOR,
                                      creation_time=UTCDateTime(),
-                                     agency_uri=AGENCY_URI)
+                                     agency_uri=AGENCY_URI,
+                                     agency_id=AGENCY_ID)
 
         event.creation_info = creation_info
         event.comments.append(Comment(text='pst-aicdpicker'))
@@ -54,12 +56,12 @@ class PickerMixin:
         # TODO: should split this to multiple MPI processes
         res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
                                  for tr in st)
-
-        filter_id = ResourceIdentifier(
-            id="filter/{}".format(config.filter['type']),
-            # TODO: explore inserting the filter parameters in id
-            referred_object=event
-        )
+        if config.filter:
+            filter_id = ResourceIdentifier(
+                id="filter/{}".format(config.filter['type']),
+                # TODO: explore inserting the filter parameters in id
+                referred_object=event
+            )
         res_event_id = ResourceIdentifier(prefix='event')
 
         for pks, ws, ps, snr, pol in res:
@@ -222,7 +224,7 @@ class KTPickerGA(KTPicker, PickerMixin):
 pickermaps = {
     'aicdpicker': AICDPickerGA,
     'fbpicker': FBPickerGA,
-    'ktpicker': KTPicker,
+    'ktpicker': KTPickerGA,
     # 'pkbaer': PKBaer,
 }
 

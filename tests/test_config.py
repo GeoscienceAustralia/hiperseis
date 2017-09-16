@@ -85,5 +85,6 @@ def test_dateformat(random_filename, conf, month, day):
 
 
 def test_detrend_filter_not_supplied(miniseed_conf):
+    miniseed_conf.filter = False
     assert (not miniseed_conf.detrend)
     assert (not miniseed_conf.filter)
