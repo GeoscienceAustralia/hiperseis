@@ -1,6 +1,7 @@
 import os
 import pytest
 from obspy.core import read as obspy_read
+from obspy.core.event import Event, read_events
 from seismic.pickers import pickermaps
 
 TESTS = os.path.dirname(__file__)
@@ -24,3 +25,12 @@ def test_pickermaps(algorithm):
     st = obspy_read(mseed)
     for s in st[:2]:
         picker.picks(s)
+
+
+def test_pick_amplitude_assocs(miniseed_conf, algorithm):
+    picker = pickermaps[algorithm]()
+    st = obspy_read(mseed)
+    event = picker.event(st, config=miniseed_conf)
+    assert len(event.picks) == len(event.amplitudes)
+    for p, a in zip(event.picks, event.amplitudes):
+        assert a.pick_id == p.resource_id

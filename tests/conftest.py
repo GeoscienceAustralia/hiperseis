@@ -71,8 +71,18 @@ def params_dict(events, times, miniseed):
 
 
 @pytest.fixture
-def miniseed_conf(random_filename, conf, params_dict):
+def bandpass_filter():
+    return {'type': 'bandpass',
+            'params': {'freqmin': 2.0,
+                       'freqmax': 16.0,
+                       'corners': 3,
+                       'zerophase': True}}
+
+
+@pytest.fixture
+def miniseed_conf(random_filename, conf, params_dict, bandpass_filter):
     conf['inputs'].append(params_dict['miniseeds'])
+    conf['filter'] = bandpass_filter
     yaml_file = random_filename(ext='.yml')
     with open(yaml_file, 'w') as outfile:
         yaml.dump(conf, outfile, default_flow_style=False)
