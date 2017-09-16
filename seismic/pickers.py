@@ -13,7 +13,8 @@ PST_AUTHOR = ':GA-PST'
 AGENCY_URI = 'GA'
 log = logging.getLogger(__name__)
 
-PickPolarityMap = {'D':"positive", 'C': "negative", '':"undecidable"}
+# TODO: check polarity definition with Alexei
+PickPolarityMap = {'D': "positive", 'C': "negative", '': "undecidable"}
 
 
 def _naive_phase_type(tr):
@@ -52,24 +53,36 @@ class PickerMixin:
         # note Parallel might cause issues during mpi processing, ok for now
         # TODO: should split this to multiple MPI processes
         res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
-                                  for tr in st)
+                                 for tr in st)
 
         filter_id = ResourceIdentifier(
             id="filter/{}".format(config.filter['type']),
             # TODO: explore inserting the filter parameters in id
             referred_object=event
         )
+        res_event_id = ResourceIdentifier(prefix='event')
 
         for pks, ws, ps, pol in res:
             for p, pl in zip(pks, pol):
-                event.picks.append(
-                    Pick(waveform_id=ws, phase_hint=ps, time=p,
-                         creation_info=creation_info,
-                         evaluation_mode='automatic',
-                         filter_id=filter_id,
-                         polarity=PickPolarityMap[pl],
-                         )
-                    # FIXME: same creation info for all picks
+                pick_id = ResourceIdentifier(prefix='pick',
+                                             referred_object=event)
+                pick = Pick(
+                            resource_id=pick_id,
+                            waveform_id=ws, phase_hint=ps, time=p,
+                            creation_info=creation_info,
+                            # FIXME: same creation info for all picks
+                            evaluation_mode='automatic',
+                            filter_id=filter_id,
+                            polarity=PickPolarityMap[pl],
+                            referred_object=res_event_id
+                            )
+                event.picks.append(pick)
+
+                event.amplitudes.append(
+                    Amplitude(pick_id=pick_id,
+                              creation_info=creation_info,
+                              waveform_id=ws,
+                              referred_object=res_event_id)
                 )
         return event
 
