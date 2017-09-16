@@ -1,10 +1,12 @@
 from __future__ import division
-
+import yaml
 import random
 import string
 import os.path
 import pytest
 import datetime
+
+from seismic import config
 
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
@@ -66,3 +68,13 @@ def params_dict(events, times, miniseed):
         'events': events,
         'times': times
         }
+
+
+@pytest.fixture
+def miniseed_conf(random_filename, conf, params_dict):
+    conf['inputs'].append(params_dict['miniseeds'])
+    yaml_file = random_filename(ext='.yml')
+    with open(yaml_file, 'w') as outfile:
+        yaml.dump(conf, outfile, default_flow_style=False)
+    cf = config.Config(yaml_file)
+    return cf
