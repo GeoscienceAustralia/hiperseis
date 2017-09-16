@@ -62,28 +62,28 @@ class PickerMixin:
         )
         res_event_id = ResourceIdentifier(prefix='event')
 
-        for pks, ws, ps, pol in res:
-            for p, pl in zip(pks, pol):
+        for pks, ws, ps, snr, pol in res:
+            for p, sn, pl in zip(pks, snr, pol):
                 pick_id = ResourceIdentifier(prefix='pick',
                                              referred_object=event)
-                pick = Pick(
-                            resource_id=pick_id,
+                pick = Pick(resource_id=pick_id,
                             waveform_id=ws, phase_hint=ps, time=p,
                             creation_info=creation_info,
                             # FIXME: same creation info for all picks
                             evaluation_mode='automatic',
                             filter_id=filter_id,
                             polarity=PickPolarityMap[pl],
-                            referred_object=res_event_id
-                            )
+                            referred_object=res_event_id)
                 event.picks.append(pick)
 
                 event.amplitudes.append(
                     Amplitude(pick_id=pick_id,
+                              generic_amplitude=sn,
+                              snr=sn,
                               creation_info=creation_info,
+                              type='snr',
                               waveform_id=ws,
-                              referred_object=res_event_id)
-                )
+                              referred_object=res_event_id))
         return event
 
     def _pick_parallel(self, tr, config):
@@ -101,7 +101,7 @@ class PickerMixin:
                                   network_code=tr.stats.network,
                                   location_code=tr.stats.location
                                   )
-        return picks, wav_id, phase, polarity
+        return picks, wav_id, phase, snr, polarity
 
 
 # write custom picker classes here
