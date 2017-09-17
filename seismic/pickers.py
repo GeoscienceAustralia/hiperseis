@@ -1,4 +1,5 @@
 import logging
+import sys
 from joblib import delayed, Parallel
 from obspy import UTCDateTime
 from obspy.signal.trigger import ar_pick, pk_baer
@@ -16,6 +17,7 @@ log = logging.getLogger(__name__)
 
 # TODO: check polarity definition with Alexei
 PickPolarityMap = {'D': "positive", 'C': "negative", '': "undecidable"}
+PY3 = (sys.version_info[0] == 3)
 
 
 def _naive_phase_type(tr):
@@ -54,8 +56,13 @@ class PickerMixin:
 
         # note Parallel might cause issues during mpi processing, ok for now
         # TODO: should split this to multiple MPI processes
-        res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
-                                 for tr in st)
+
+        if PY3:
+            res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
+                                     for tr in st)
+        else:
+            res = [self._pick_parallel(tr, config) for tr in st]
+
         if config.filter:
             filter_id = ResourceIdentifier(
                 id="filter/{}".format(config.filter['type']),
