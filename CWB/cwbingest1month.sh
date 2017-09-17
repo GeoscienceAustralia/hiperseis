@@ -2,7 +2,7 @@
 
 #java -jar -Xmx1600m ~/CWBQuery/CWBQuery.jar -h 54.153.144.205 -t dcc -s 'AUAS31.BHN' -b '2015/03/10 00:00:00' -d 31d
 CURRENT_DIR=`pwd`
-WORKING_DIR=~/CWBQuery
+WORKING_DIR=~/CWBQuery-$(date +"%m-%d-%y-%H-%M-%S-%N")
 TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
 START_TIME="2015/03/01 00:00:00"
 SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
@@ -61,6 +61,7 @@ do
         eval $JAVA_CMD &
         child_pid=$!
         echo "The pid of the java command process just spawned is $child_pid ... "
+	count=0
         while : ; do
 		echo "Checking with kill -0 ..."
                 kill -0 $child_pid
@@ -72,13 +73,14 @@ do
                         break
                 fi
                 sleep 30
-                temp_folder_size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.'`
-                temp_folder_size_unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
-                if [[ $temp_folder_size_unit == *"G"* && $(echo $temp_folder_size | cut -f1 -d".") -gt 5 ]]; then
+                size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.' | cut -f1 -d"."`
+                unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
+                if [[ ($unit == *"G"* && $size -gt 5) || $count -gt 30 ]]; then
 	                echo "Killing with kill -9 ..."
                         kill -9 $child_pid
                         break
                 fi
+		count=`expr $count + 1`
         done
 
         if [ $miniseed_generation_success -eq 1 ]; then
