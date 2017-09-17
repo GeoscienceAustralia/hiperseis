@@ -10,6 +10,7 @@ CWB_QUERY_JAR_FILE=$WORKING_DIR/CWBQuery.jar
 CWB_QUERY_SERVER_IP=54.153.144.205
 TARBALL_FILE=EdgeCWBRelease.tar.gz
 COUNTER_LOCATION=/tmp/counter
+MS_STATUS_LOCATION=/tmp/mseedStatus
 mkdir -p $WORKING_DIR
 
 if ! type -p java; then
@@ -48,7 +49,7 @@ fi
 
 while IFS= read -r net_sta_cha_expr
 do
-        miniseed_generation_success=0
+        echo 0 > $MS_STATUS_LOCATION
         TEMPDIR=$WORKING_DIR/$net_sta_cha_expr-tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
         echo "Creating temporary directory $TEMPDIR for generating the miniseed files..."
         mkdir $TEMPDIR
@@ -69,22 +70,24 @@ do
 		echo "return code of kill -0 = $retCode ..."
                 if [ $retCode -ne 0 ]; then
                         echo "Miniseed generation succeeded"
-                        miniseed_generation_success=1
+                        echo 1 > $MS_STATUS_LOCATION
                         break
                 fi
                 sleep 30
                 size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.' | cut -f1 -d"."`
                 unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
                 if [[ ($unit == *"G"* && $size -gt 5) || `cat $COUNTER_LOCATION` -gt 30 ]]; then
-	                echo "Killing with kill -9 ..."
-                        kill -9 $child_pid
+			child_procs=`pgrep -P $child_pid | xargs`
+			echo "Killing pid $child_pid and its children $child_procs with kill -9 ..."
+                        kill -9 $child_pid $child_procs
                         break
                 fi
 		count=$(expr `cat $COUNTER_LOCATION` + 1)
+		echo "count = $count ..."
 		echo $count > $COUNTER_LOCATION
         done
 
-        if [ $miniseed_generation_success -eq 1 ]; then
+        if [ $(expr `cat $MS_STATUS_LOCATION`) -eq 1 ]; then
                 for ms_file in `ls *.msd | xargs`; do
                         if [ -f ${ms_file} ]; then
                                 SCART_CMD="scart -I ${ms_file} $SEISCOMP3_ARCHIVE"
