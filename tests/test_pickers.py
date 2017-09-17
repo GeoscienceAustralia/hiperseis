@@ -33,4 +33,4 @@ def test_pick_amplitude_assocs(miniseed_conf, algorithm):
     event = picker.event(st, config=miniseed_conf)
     assert len(event.picks) == len(event.amplitudes)
     for p, a in zip(event.picks, event.amplitudes):
-        assert a.pick_id == p.resource_id
+        assert a.pick_id == p.resource_id2
