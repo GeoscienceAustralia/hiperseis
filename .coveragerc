@@ -37,5 +37,5 @@ exclude_lines =
 
 ignore_errors = True
 
-[html]
-directory = coverage_html_report
+# [html]
+# rectory = coverage_html_report
