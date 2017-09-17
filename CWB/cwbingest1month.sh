@@ -9,7 +9,7 @@ SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
 CWB_QUERY_JAR_FILE=$WORKING_DIR/CWBQuery.jar
 CWB_QUERY_SERVER_IP=54.153.144.205
 TARBALL_FILE=EdgeCWBRelease.tar.gz
-
+COUNTER_LOCATION=/tmp/counter
 mkdir -p $WORKING_DIR
 
 if ! type -p java; then
@@ -61,7 +61,7 @@ do
         eval $JAVA_CMD &
         child_pid=$!
         echo "The pid of the java command process just spawned is $child_pid ... "
-	count=0
+	echo 0 > $COUNTER_LOCATION
         while : ; do
 		echo "Checking with kill -0 ..."
                 kill -0 $child_pid
@@ -75,12 +75,13 @@ do
                 sleep 30
                 size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.' | cut -f1 -d"."`
                 unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
-                if [[ ($unit == *"G"* && $size -gt 5) || $count -gt 30 ]]; then
+                if [[ ($unit == *"G"* && $size -gt 5) || `cat $COUNTER_LOCATION` -gt 30 ]]; then
 	                echo "Killing with kill -9 ..."
                         kill -9 $child_pid
                         break
                 fi
-		count=`expr $count + 1`
+		count=$(expr `cat $COUNTER_LOCATION` + 1)
+		echo $count > $COUNTER_LOCATION
         done
 
         if [ $miniseed_generation_success -eq 1 ]; then
