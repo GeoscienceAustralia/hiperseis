@@ -3,6 +3,7 @@
 #java -jar -Xmx1600m ~/CWBQuery/CWBQuery.jar -h 54.153.144.205 -t dcc -s 'AUAS31.BHN' -b '2015/03/10 00:00:00' -d 31d
 CURRENT_DIR=`pwd`
 WORKING_DIR=~/CWBQuery-$(date +"%m-%d-%y-%H-%M-%S-%N")
+sleep 1
 TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
 START_TIME="2015/03/01 00:00:00"
 SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
@@ -87,7 +88,8 @@ do
 		echo $count > $COUNTER_LOCATION
         done
 
-        if [ $(expr `cat $MS_STATUS_LOCATION`) -eq 1 ]; then
+	MS_FILES=`ls *.msd | xargs`
+        if [[ $(expr `cat $MS_STATUS_LOCATION`) -eq 1 || ! -z "${MS_FILES// }" ]]; then
                 for ms_file in `ls *.msd | xargs`; do
                         if [ -f ${ms_file} ]; then
                                 SCART_CMD="scart -I ${ms_file} $SEISCOMP3_ARCHIVE"
