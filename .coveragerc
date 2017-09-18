@@ -6,6 +6,8 @@ omit =
     # omit everything in
     # seismic/tasks/*
     # omit these files
+    seismic/pslog.py
+    seismic/scripts/event.py
 
 [report]
 # Regexes for lines to exclude from consideration

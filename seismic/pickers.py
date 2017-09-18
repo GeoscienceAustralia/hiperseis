@@ -15,8 +15,7 @@ AGENCY_URI = 'ga.gov.au'
 AGENCY_ID = 'GA'
 log = logging.getLogger(__name__)
 
-# TODO: check polarity definition with Alexei
-PickPolarityMap = {'D': "positive", 'C': "negative", '': "undecidable"}
+PickPolarityMap = {'C': "positive", 'D': "negative", '': "undecidable"}
 PY3 = (sys.version_info[0] == 3)
 
 
