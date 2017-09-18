@@ -7,6 +7,9 @@ if [ -z ${ILOCROOT+x} ]; then
     env
 fi
 
+CC=$(which mpicc)
+VIRTUALENVWAPPPER=$(which virtualenvwrapper.sh)
+
 sudo yum update -y
 sudo yum groupinstall 'Development Tools' -y
 
