@@ -11,7 +11,7 @@ from phasepapy.phasepicker.ktpicker import KTPicker
 from phasepapy.phasepicker.fbpicker import FBPicker
 
 PST_AUTHOR = ':GA-PST'
-AGENCY_URI = 'GA'
+AGENCY_URI = 'ga.gov.au'
 AGENCY_ID = 'GA'
 log = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ class PickerMixin:
         # TODO: should split this to multiple MPI processes
 
         if PY3:
-            res = Parallel(n_jobs=1)(delayed(self._pick_parallel)(tr, config)
-                                     for tr in st)
+            res = Parallel(n_jobs=-1)(delayed(self._pick_parallel)(tr, config)
+                                      for tr in st)
         else:
             res = [self._pick_parallel(tr, config) for tr in st]
 
