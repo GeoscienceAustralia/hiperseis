@@ -35,8 +35,7 @@ test:
 	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
 
 coverage:
-	pytest --cov-report term-missing:skip-covered --cov=seismic --cache-clear tests/
+	pytest --junit-xml=test_output/pytest/results.xml --cov=seismic --cov-report=html:test_output/coverage --cache-clear ./tests
+
+coveralls:
 	coveralls
-
-# pytest --junit-xml=test_output/pytest/results.xml --cov=seismic --cov-report=html:test_output/coverage --cache-clear --cov-fail-under=50 ./tests
-
