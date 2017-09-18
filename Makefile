@@ -35,7 +35,7 @@ test:
 	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
 
 coverage:
-	pytest --junit-xml=test_output/pytest/results.xml --cov=seismic --cov-report=html:test_output/coverage --cache-clear ./tests
+	pytest --junit-xml=test_output/pytest/results.xml --cov --cov-report=html:test_output/coverage --cache-clear ./tests
 
 coveralls:
 	coveralls
