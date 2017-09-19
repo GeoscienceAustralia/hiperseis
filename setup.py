@@ -101,7 +101,6 @@ setup(
             'pytest-cov',
             'coverage == 4.4.1',
             'codecov == 2.0.9',
-            'coveralls >= 1.1',
             'tox',
             'pytest >= 3.1.0',
             'pytest-flake8 >= 0.8.1',

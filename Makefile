@@ -36,6 +36,3 @@ test:
 
 coverage:
 	pytest --junit-xml=test_output/pytest/results.xml --cov --cov-report=html:test_output/coverage --cache-clear ./tests
-
-coveralls:
-	coveralls
