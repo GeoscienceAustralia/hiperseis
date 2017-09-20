@@ -28,6 +28,7 @@ def _naive_phase_type(tr):
     # We are going to assume, for now, that if the pick is made on the
     # horizontal channel then it is an S, otherwise we will assume it is
     # a P-phase: obviously a bad assumption...
+    # TODO: Discuss further with Alexei
     if tr.stats.channel[-1] == 'Z':
         phase = 'P'
     else:
@@ -233,4 +234,3 @@ pickermaps = {
     'ktpicker': KTPickerGA,
     # 'pkbaer': PKBaer,
 }
-
