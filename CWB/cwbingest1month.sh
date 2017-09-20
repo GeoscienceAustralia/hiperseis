@@ -10,8 +10,8 @@ SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
 CWB_QUERY_JAR_FILE=$WORKING_DIR/CWBQuery.jar
 CWB_QUERY_SERVER_IP=54.153.144.205
 TARBALL_FILE=EdgeCWBRelease.tar.gz
-COUNTER_LOCATION=/tmp/counter
-MS_STATUS_LOCATION=/tmp/mseedStatus
+COUNTER_LOCATION=$WORKING_DIR/counter
+MS_STATUS_LOCATION=$WORKING_DIR/mseedStatus
 mkdir -p $WORKING_DIR
 
 if ! type -p java; then
@@ -57,7 +57,7 @@ do
         echo "cd-ing into temporary directory $TEMPDIR ..."
         cd $TEMPDIR
 
-        JAVA_CMD="java -jar -Xmx1600m $CWB_QUERY_JAR_FILE -h $CWB_QUERY_SERVER_IP -t dcc -s \"$net_sta_cha_expr\" -b \"2015/03/01 00:00:00\" -d 31d > /tmp/$net_sta_cha_expr-cwbquery-log.out 2>/tmp/$net_sta_cha_expr-cwbquery-log.err"
+        JAVA_CMD="java -jar -Xmx1600m $CWB_QUERY_JAR_FILE -h $CWB_QUERY_SERVER_IP -t dcc512 -s \"$net_sta_cha_expr\" -b \"2015/03/01 00:00:00\" -d 31d -nonice > /tmp/$net_sta_cha_expr-cwbquery-log.out 2>/tmp/$net_sta_cha_expr-cwbquery-log.err"
         echo "Executing the command $JAVA_CMD ... "
 
         eval $JAVA_CMD &
