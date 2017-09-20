@@ -29,10 +29,13 @@ docs:
 	open docs/_build/html/index.html
 
 lint:
-	pytest --junit-xml=test_output/flake8/results.xml --flake8 -p no:regtest --cache-clear convert_logs
+	pytest --junit-xml=test_output/flake8/results.xml \
+	    --flake8 -p no:regtest	--cache-clear seismic
 
 test:
 	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
 
 coverage:
-	pytest --junit-xml=test_output/pytest/results.xml --cov --cov-report=html:test_output/coverage --cache-clear ./tests
+	pytest --junit-xml=test_output/pytest/results.xml --cov \
+	    --cov-report=html:test_output/coverage --cov-fail-under=50 \
+	    --cache-clear ./tests
