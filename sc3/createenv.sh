@@ -69,7 +69,7 @@ git clone https://github.com/h5py/h5py.git && \
     cd .. && sudo rm -rf h5py
 
 # install twited python package for fdsnws to function
-echo "Installing python twister package"
+echo "Installing python twisted package"
 wget http://twistedmatrix.com/Releases/Twisted/12.1/Twisted-12.1.0.tar.bz2
 tar jxvf Twisted-12.1.0.tar.bz2 \
     cd Twisted-12.1.0 \
