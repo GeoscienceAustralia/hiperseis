@@ -10,6 +10,7 @@ sudo yum groupinstall 'Development Tools' -y
 sudo yum install -y wget \
                     tar \
                     bzip2-devel \
+                    bzip2 \
                     m4 \
                     openmpi openmpi-devel \
                     git \
@@ -36,6 +37,7 @@ sudo yum install -y wget \
                     libxslt-devel \
                     python-pip \
                     python-devel \
+                    python-zope-interface \
                     java-1.7.0-openjdk  # required due to cwbquery
 
 sudo yum install -y python-pip
@@ -65,6 +67,13 @@ git clone https://github.com/h5py/h5py.git && \
     python setup.py configure --mpi --hdf5=/usr/local/hdf5/ && \
     sudo python setup.py install && \
     cd .. && sudo rm -rf h5py
+
+# install twited python package for fdsnws to function
+echo "Installing python twister package"
+wget http://twistedmatrix.com/Releases/Twisted/12.1/Twisted-12.1.0.tar.bz2
+tar jxvf Twisted-12.1.0.tar.bz2 \
+    cd Twisted-12.1.0 \
+    sudo python setup.py install
 
 # Setup virtualenv
 echo '' >> $HOME/.bashrc
