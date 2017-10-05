@@ -32,12 +32,16 @@ done
 
 scart -dsvE --list $evid-stream.txt /opt/seiscomp3/var/lib/archive > $evid-perm.ms
 
-scautopick --ep --playback -I file://$evid-perm.ms -d $DBFLAG > picks.xml
-scautoloc --ep picks.xml -d $DBFLAG $VERBOSITY > origins.xml
-scamp --ep origins.xml -I file://$evid-perm.ms -d $DBFLAG $VERBOSITY > amps.xml
-scmag --ep amps.xml -d $DBFLAG $VERBOSITY > mags.xml
-scevent --ep mags.xml -d $DBFLAG $VERBOSITY > events.xml
+scautopick --ep --playback -I file://$evid-perm.ms -d $DBFLAG > $evid-picks.xml
+scautoloc --ep $evid-picks.xml -d $DBFLAG $VERBOSITY > $evid-origins.xml
+grep origin $evid-origins.xml
+if [ $? -eq 0 ]; then
+	echo "Origins for event $1 generated successfully ..."
+	echo $1 >> origin-success.txt
+fi
+scamp --ep $evid-origins.xml -I file://$evid-perm.ms -d $DBFLAG $VERBOSITY > $evid-amps.xml
+scmag --ep $evid-amps.xml -d $DBFLAG $VERBOSITY > $evid-mags.xml
+scevent --ep $evid-mags.xml -d $DBFLAG $VERBOSITY > $evid-events.xml
 
 # scdb -i events.xml -d $DBFLAG $VERBOSITY
-COVERALLS_REPO_TOKEN=fzU0I2CIwPKYFCrkn0ZtsVzSTZUWI7KhJ2
 set -x; seiscomp stop; seiscomp start
