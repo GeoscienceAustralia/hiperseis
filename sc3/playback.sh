@@ -31,15 +31,19 @@ for expression in $net_sta_cha_exprs; do
 done
 
 scart -dsvE --list $evid-stream.txt /opt/seiscomp3/var/lib/archive > $evid-perm.ms
+beginTime=`head -1 $evid-stream.txt | cut -d";" -f1`
+endTime=`head -1 $evid-stream.txt | cut -d";" -f2`
+scart -dsvE -t "$beginTime~$endTime" -n 7G /opt/seiscomp3/var/lib/archive > $evid-temp.ms
+python mergePermTemp.py $evid-perm.ms $evid-temp.ms $evid-merged.ms
 
-scautopick --ep --playback -I file://$evid-perm.ms -d $DBFLAG > $evid-picks.xml
+scautopick --ep --playback -I file://$evid-merged.ms -d $DBFLAG > $evid-picks.xml
 scautoloc --ep $evid-picks.xml -d $DBFLAG $VERBOSITY > $evid-origins.xml
 grep origin $evid-origins.xml
 if [ $? -eq 0 ]; then
 	echo "Origins for event $1 generated successfully ..."
 	echo $1 >> origin-success.txt
 fi
-scamp --ep $evid-origins.xml -I file://$evid-perm.ms -d $DBFLAG $VERBOSITY > $evid-amps.xml
+scamp --ep $evid-origins.xml -I file://$evid-merged.ms -d $DBFLAG $VERBOSITY > $evid-amps.xml
 scmag --ep $evid-amps.xml -d $DBFLAG $VERBOSITY > $evid-mags.xml
 scevent --ep $evid-mags.xml -d $DBFLAG $VERBOSITY > $evid-events.xml
 
