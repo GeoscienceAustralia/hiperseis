@@ -19,6 +19,9 @@ jobs:
       - run:
           name: install python env
           command: |
+            yum install geos-devel -y
+            geos-config --includes
+            echo "Return value of geos-config --includes command: $?"
             pip install git+https://github.com/obspy/obspy.git
             env GEOS_DIR=/usr/include/ pip install --process-dependency-links -e .[dev]
       # - run: make lint
