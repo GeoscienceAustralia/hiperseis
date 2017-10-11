@@ -79,7 +79,7 @@ setup(
         'pyasdf',
         'pandas',
         'pyqtgraph',
-	'netCDF4 >= 1.3.0',
+        'netCDF4 >= 1.3.0',
     ],
     extras_require={
         'dev': [
