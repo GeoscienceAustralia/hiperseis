@@ -78,7 +78,8 @@ setup(
         'h5py >= 2.6.0',
         'pyasdf',
         'pandas',
-        'pyqtgraph'
+        'pyqtgraph',
+	'netCDF4 >= 1.3.0',
     ],
     extras_require={
         'dev': [
