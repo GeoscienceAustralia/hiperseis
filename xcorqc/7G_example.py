@@ -1,63 +1,79 @@
 import xcorqc
 import argparse
 import datetime
-import glob, os
+import glob, os, sys
 from os.path import join, exists
+from obspy import Stream, Trace, UTCDateTime
+import pyasdf
 import json
+import numpy as np
+
+sys.path.append('/home/562/rxh562/work/pst/passive-seismic/ASDFdatabase')
+from seisds import SeisDB
+from xcorqc import IntervalStackXCorr, xcorr2
 
 # =========================== User Input Required =========================== #
 
-#Path to the data
-data_path = '/g/data/ha3/Passive/'
+# == Path to Temporary Station Data ==
+tempDataFile        = '/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015).h5'
+# Associated json database file
+tempDataDBFile      = '/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015)_raw_dataDB.json'
+# Station codes to analyse (set to ['*']) for all stations
+tempStationCodes    =  ['CP43', 'CQ43']
+# Decimation factor applied to traces
+tempDecFactor       = 5
 
-#IRIS Virtual Ntework name
-virt_net = '_ANU'
+# == Time-Range, Windowing and Decimation ==
+startTime           = "2015-01-01T00:00:00"
+endTime             = "2015-06-01T00:00:00"
+# Size of data-buffer (we don't want to fetch all data at once)
+bufferSeconds       = 3600*24*10 # 10 days (should be a multiple of interval Seconds)
+# Interval over which windows are stacked
+intervalSeconds     = 3600*24*10 # 10 day
+# Size of data-window to be stacked
+windowSeconds       = 3600
 
-# FDSN network identifier (2 Characters)
-FDSNnetwork = '7G(2013-2015)'
+# == Path to Reference Station Data ==
+refDataFile         = '/g/data/ha3/rakib/_ANU/7G(2013-2015)/refData/stka.6m.h5'
+# Station codes to analyse (set to ['*']) for all stations
+refStationCodes     = ['*'] #['INKA']
+# Decimation factor applied to traces
+refDecFactor        = 5
 
-# Component to analyse
-comp = 'BHZ'
+# == Component to analyse ==
+comp                = 'BHZ'
 
-network_path = join(data_path, virt_net, FDSNnetwork) 
+# == Output Path ==
+outputDir           = '/g/data/ha3/Passive/newXcorr/'
 
-years=('2014','2015','2016')
+# =========================== End of User Input ============================= #
 
-refstn_code = 'INKA'
 
-pltoutdir = '/g/data/ha3/Passive/xcor4/'
 
-arraydatadir = '/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/'
-arrayjsonfile = '7G(2013-2015)_raw_dataDB.json'
-arrayasdffile = '7G(2013-2015).h5'
-refdatadir='/g/data/ha3/Passive/Ref/'
-refjsonfile='INKA.json' #FIXME put the ref station here
-refasdffile = 'INKA.h5'
 
-# =========================================================================== #
-# Load data
 
-array_sdb = SeisDB(arraydatadir+arrayjsonfile)
-array_asdf = pyasdf.ASDFDataSet(arraydatadir+arrayasdffile)
+# =========================== Begin Processing ============================= #
 
-# Create the ref station data NOTE: this only needs to be done once
-ref_sdb = SeisDB(refjsonfile + refjsonfile)
-ref_asdf = pyasdf.ASDFDataSet(refdatadir+refasdffile)
+# Open data sets
+refDs       = None
+tempDs      = None
+tempDsDb    = None
 
-# =========================================================================== #
+try:
+    refDs       = pyasdf.ASDFDataSet(refDataFile, mode='r')
+    tempDs      = pyasdf.ASDFDataSet(tempDataFile, mode='r')
+    tempDsDb    = SeisDB(tempDataDBFile)
+except:
+    msg = 'Failed to open data sets. Check input file names..'
+    raise Exception(msg)
+#end try
 
-st = Stream()
-refst = Stream()
 
-#ASHBY: Can you please write the ASDF waveform loading code from the above files
-#       and funnel the streams into arrayst and refst respectively?
-refst.merge(method=1,fill_value=0)
-refst.print_gaps()
-print "Merging deployment streams"
-st.merge(method=1,fill_value=0)
-st.print_gaps()
-print "Running xcor"
-#plotname = stn_+'_'+('%04d%02d'%(year,month))+"-"+('%03d%03d'%(doys[0],doys[len(doys)-1]))
-[xcl,xcxl,complist] = IntervalStackXCorr(refst,st)
-saveXCorr(xcl,xcxl,xcorrout,figname) # Saves numpy array
-saveXCorrPlot(xcl,xcxl,plotout,figname) # Saves plot as png
+startTime = UTCDateTime(startTime)
+endTime   = UTCDateTime(endTime)
+
+x, xCorrResDict, wcResDict = IntervalStackXCorr(refDs, tempDs, tempDsDb, startTime, endTime,
+                                                refStationCodes, tempStationCodes, comp, refDecFactor,
+                                                tempDecFactor, bufferSeconds, intervalSeconds,
+                                                windowSeconds, flo=0.5, fhi=3, outputPath=outputDir,
+                                                verbose=2)
