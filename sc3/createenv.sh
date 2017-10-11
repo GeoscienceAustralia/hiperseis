@@ -38,7 +38,7 @@ sudo yum install -y wget \
                     python-pip \
                     python-devel \
                     python-zope-interface \
-                    netcdf-devel \
+                    netcdf-devel.x86_64 \
                     java-1.7.0-openjdk  # required due to cwbquery
 
 sudo yum install -y python-pip
