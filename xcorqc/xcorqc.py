@@ -228,7 +228,7 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
     while wildcards can be used to process all stations. Only a single parameter (channel_wildcard)
     is provided to pick a channel for the data sources, with the assumption that cross-correlations
     are performed on the same component. Data is fetched from the sources in chunks to limit memory
-    usage.
+    usage and data-windows with gaps are discarded.
 
     Cross-correlation results are written out for each station-pair, in the specified folder, as
     NETCDF4 files. Panoply (https://www.giss.nasa.gov/tools/panoply/), already installed on the
