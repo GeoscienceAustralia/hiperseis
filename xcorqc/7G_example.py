@@ -8,8 +8,7 @@ import pyasdf
 import json
 import numpy as np
 
-sys.path.append('/home/562/rxh562/work/pst/passive-seismic/ASDFdatabase')
-from seisds import SeisDB
+from ASDFdatabase.seisds import SeisDB
 from xcorqc import IntervalStackXCorr, xcorr2
 
 # =========================== User Input Required =========================== #
