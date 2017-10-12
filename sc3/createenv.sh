@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-CWD=`pwd`
-cd $HOME
-git clone https://github.com/GeoscienceAustralia/passive-seismic.git
-cd $CWD
-
 # manage env variables
 if [ -z ${ILOCROOT+x} ]; then
     cat $HOME/passive-seismic/sc3/sc3_envs.txt >> $HOME/.bashrc;
