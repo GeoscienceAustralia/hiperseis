@@ -20,7 +20,7 @@ location) primary station already associated.
 two temporary stations waveform (from each temporary stations network).
 
 4. For a primary station for which we already have association, this station 
-will have most likely have an associated P arrival, or may be an S arrival 
+will most likely have an associated P arrival, or may be an S arrival 
 (confirm). Make sure the vertical channel is associated with the P wave. 
 (Some rules required here if the P is associated with some other 
 channels). If we have the S arrival, we are done with that station after 

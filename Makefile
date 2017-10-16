@@ -36,7 +36,7 @@ test:
 	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
 
 coverage:
-	mpirun -n 4 pytest tests/test_pyasdf.py
+	mpirun --allow-run-as-root -n 2 pytest tests/test_pyasdf.py
 	pytest --junit-xml=test_output/pytest/results.xml --cov \
 	    --cov-report=html:test_output/coverage --cov-fail-under=50 \
 	    --cache-clear ./tests
