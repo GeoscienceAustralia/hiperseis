@@ -12,9 +12,9 @@ few primary stations associations with mostly P arrivals. We will use the `ISF`
     sccnv -i event.xml -o ims10:isf.txt
     ```
 2. Record the location (lat/lon) of the event and export primary stations 
-waveforms from all stations within a certain radius of the event. This radius 
-will be, say, 20% more than the farthest (from event location) primary station 
-already associated.
+waveforms (all channels) from all stations within a certain radius of the 
+event. This radius will be, say, 20% more than the farthest (from event 
+location) primary station already associated.
 
 3. If any temporary station falls within this radius, we need to add one or max 
 two temporary stations waveform (from each temporary stations network).
@@ -30,14 +30,14 @@ the time of the S arrival and write it (i.e. associate the arrival) in the
 `ISF` file.
 
 6. For primary stations for which we don't already have associations (possible
- due to step 2 above), we need run both the P and S picking algorithms. Add 
- the picks in the `ISF` file. 
+ due to step 2 above), we need to run both the P and S picking algorithms and 
+ add the picks in the `ISF` file. 
 
 7. We repeat step 6 for temporary station identified in step 3.
 
 8. We run `iloc` on the updated `ISF` file as the following:
     ```bash
-    echo "isf_infile=isf.dat isf_outfile=isf.out" | ~/bin/iloc isf > isf.log
+    echo "isf_infile=isf.dat isf_outfile=isf.out" | iloc isf > isf.log
     ```
     
 When an arrival is added in the ISF file, and used in `iloc`, `iloc` 
