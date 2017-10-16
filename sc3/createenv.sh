@@ -38,6 +38,7 @@ sudo yum install -y wget \
                     python-pip \
                     python-devel \
                     python-zope-interface \
+                    netcdf-devel.x86_64 \
                     java-1.7.0-openjdk  # required due to cwbquery
 
 sudo yum install -y python-pip
@@ -56,6 +57,7 @@ cd hdf5-1.8.14 && \
     make && \
     sudo make install && \
     cd .. && sudo rm -rf /hdf5-1.8.14 /hdf5-1.8.14.tar.gz2
+export HDF5_DIR=/usr/local/hdf5/
 
 # build parallel h5py
 # /usr/include/openmpi-x86_64/mpi.h
