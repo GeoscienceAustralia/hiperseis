@@ -26,7 +26,7 @@ will have most likely have an associated P arrival, or may be an S arrival
 5. Otherwise, we need to detect S wave arrival for this station. The 
 procedure is as follows. We need to take a 50 seconds window (25 seconds 
 either side) of the P arrival time and run the (S wave) picking algorithm. Note 
-the time of the S arrival and write it (i.e. associate the arrival) to the 
+the time of the S arrival and write it (i.e. associate the arrival) in the 
 `ISF` file.
 
 6. For primary stations for which we don't already have associations (possible
@@ -39,3 +39,7 @@ the time of the S arrival and write it (i.e. associate the arrival) to the
     ```bash
     echo "isf_infile=isf.dat isf_outfile=isf.out" | ~/bin/iloc isf > isf.log
     ```
+    
+When an arrival is added in the ISF file, and used in `iloc`, `iloc` 
+assumes that the arrival is associated with the event, and runs it's location
+ algorithm on all the associated arrivals in the ISF file.  
