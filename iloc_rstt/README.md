@@ -25,8 +25,7 @@ will have most likely have an associated P arrival, or may be an S arrival
 (Some rules required here if the P is associated with some other 
 channels). If we have the S arrival, we are done with that station after 
 confirming that the S waves came from either the `N` or `E` channels, where 
-`E` and `N` represents the North-South, and East-West components of 
-measured at a station.
+`E` and `N` are the North-South, and East-West components at the station.
 
 5. Otherwise, we need to detect S wave arrival for this station. The 
 procedure is as follows. We need to take a 50 seconds window (25 seconds 
