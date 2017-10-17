@@ -92,6 +92,7 @@ setup(
         'pyqtgraph',
         'phasepapy == 1.1.1',
         'basemap == 1.1.0',
+        'netCDF4 >= 1.3.0',
     ],
     extras_require={
         'dev': [
