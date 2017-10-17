@@ -1,7 +1,8 @@
 import numpy as np
 import time
 import json
-from obspy import UTCDateTime
+import pyasdf
+from obspy import UTCDateTime, Stream, Trace
 import random
 
 
@@ -42,6 +43,7 @@ class SeisDB(object):
                     temp_list = []
                     for _j, (sub_key, sub_value) in enumerate(value.iteritems()):
                         # only add some of the attributes to the numpy array to speed up lookup
+
                         if sub_key == "tr_starttime":
                             temp_list.append(float(sub_value))
                             if not dtype_pop:
@@ -70,7 +72,6 @@ class SeisDB(object):
                     dtype_pop = True
 
                     self._index_dict_list.append(tuple(temp_list))
-
                 dt = np.dtype(type_list)
                 self._indexed_np_array = np.array(self._index_dict_list, dtype=dt)
                 self._use_numpy_index = True
@@ -142,20 +143,123 @@ class SeisDB(object):
                         "new_network": self._indexed_np_array['net'][k]}
                     for k in _indexed_np_array_masked[0]}
 
+    def queryToStream(self, ds, query, query_starttime, query_endtime,
+                      decimation_factor=None):
+        """
+        Method to use output from seisds query to return waveform streams
+
+        :type ds: ASDFDataSet
+        :param ds: ASDFDataSet to fetch waveforms from
+        :type query: dict
+        :param query: Dictionary returned by function 'queryByTime'
+        :type query_starttime: UTCDateTime or str
+        :param query_starttime: Start time of waveform
+        :type query_endtime: UTCDateTime or str
+        :param query_endtime: End time of waveform
+        :type decimation_factor: int
+        :param decimation_factor: Decimation factor applied to returned waveforms
+
+        :return : Stream object with merged waveform data, in which gaps are masked
+        """
+
+        # Open a new st object
+        st = Stream()
+
+        for matched_info in query.values():
+
+            # read the data from the ASDF into stream
+            temp_tr = ds.waveforms[matched_info["new_network"] + '.' + matched_info["new_station"]][
+                matched_info["ASDF_tag"]][0]
+
+            # trim trace to start and endtime
+            temp_tr.trim(starttime=UTCDateTime(query_starttime),
+                         endtime=UTCDateTime(query_endtime))
+
+            # append the asdf id tag into the trace stats so that the original data is accesbale
+            temp_tr.stats.asdf.orig_id = matched_info["ASDF_tag"]
+
+            # Decimate trace
+            if(decimation_factor is not None): temp_tr.decimate(decimation_factor)
+
+            # append trace to stream
+            st += temp_tr
+
+            # free memory
+            temp_tr = None
+        #end for
+
+        if st.__nonzero__():
+            # Attempt to merge all traces with matching ID'S in place
+            #print('')
+            #print('Merging %d Traces ....' % len(st))
+            # filling no data with 0
+            #st.print_gaps()
+            st.merge()
+            return st
+        else:
+            return None
+    #end func
+
+    def fetchDataByTime(self, ds, sta, chan, query_starttime, query_endtime,
+                        decimation_factor=None):
+        """
+        Wrapper to use output from seisds query to return waveform streams
+
+        :type ds: ASDFDataSet
+        :param ds: ASDFDataSet to fetch waveforms from
+        :type sta: list
+        :param sta: List of station names
+        :type chan: str
+        :param chan: Wildcard to be used to filter channels
+        :type query_starttime: UTCDateTime or str
+        :param query_starttime: Start time of waveform
+        :type query_endtime: UTCDateTime or str
+        :param query_endtime: End time of waveform
+        :type decimation_factor: int
+        :param decimation_factor: Decimation factor applied to returned waveforms
+
+        :return : Stream object with merged waveform data, in which gaps are masked
+        """
+
+        qr = self.queryByTime(sta, chan, query_starttime, query_endtime)
+
+        st = self.queryToStream(ds, qr, query_starttime, query_endtime,
+                                decimation_factor=decimation_factor)
+
+        return st
+    #end func
+#end class
 
 if __name__ == "__main__":
     print "Testing db access"
-    sta = ["SQ2A1", "SQ2F6"]
+    #sta = ["SQ2A1", "SQ2F6"]
+    sta = ["CP43", "CQ43"]
     chan = ["BHZ"]
-    query_time = UTCDateTime(2014, 3, 17, 00).timestamp
+    query_stime = UTCDateTime(2015, 1, 1, 00).timestamp
+    query_etime = UTCDateTime(2015, 1, 2, 00).timestamp
+
     db = '/g/data1/ha3/Passive/_ANU/7F(2013-2014)/raw_DATA/7F(2013-2014)_raw_dataDB.json'
+
+    #db = '/g/data/ha3/rakib/_ANU/7G(2013-2015)/ASDF/7G(2013-2015)_raw_dataDB.json'
+
+    db = '/g/data1/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015)_raw_dataDB.json'
+    ds = '/g/data1/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015).h5'
+
     print "Sta = " + str(sta)
     print "Chan = " + str(chan)
-    print "Query time = " + str(query_time)
+    print "Query start time = " + str(query_stime)
+    print "Query end time = " + str(query_etime)
     print "JSON file = " + str(db)
     sdb = SeisDB(db)
-    res = sdb.queryByTime(sta, chan, query_time)
+
+    '''
+    res = sdb.queryByTime(sta, chan, query_stime, query_etime)
     # print res
     for index, element in res.iteritems():
         print "Index = " + str(index)
         print "Element = " + str(element)
+    '''
+
+    h5ds = pyasdf.ASDFDataSet(ds)
+    st = sdb.fetchDataByTime(h5ds, sta, chan, query_stime, query_etime)
+    del h5ds
