@@ -67,7 +67,7 @@ else
 fi
 
 # become user vdl and get the software from USGS ftp site
-sudo -u vdl bash install-vdl-bash
+sudo -u vdl bash install-vdl.bash
 
 # restart the server
 
