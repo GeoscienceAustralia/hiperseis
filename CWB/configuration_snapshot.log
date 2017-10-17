@@ -1,0 +1,11 @@
+
+# 2017-09-21
+
+ip-172-31-2-68::vdl:~>crontab -l
+
+#<role> ----- ip-172-31-2-68 ------ Version 2.149 base Sep 13, 2017 ( New HASH, baler44, GUI refactor, Google Style)
+* * * * * bash scripts/chkCWB alarm ^ 350 -alarm -nocmd -snw -noudpchan >>LOG/chkcwb.log 2>&1
+#<instance> ----- 2#0 ip-172-31-2-68 vdl -----
+* * * * * bash scripts/chkCWB edgemom 2#0 350 -f EDGEMOM/edgemom_2#0.setup >>LOG/chkcwb.log 2>&1
+#<querymom> 2Q0 ip-172-31-2-68 vdl
+* * * * * bash scripts/chkCWB querymom 2Q0 450 -max -f EDGEMOM/querymom_2Q0.setup >>LOG/chkcwb.log 2>&1

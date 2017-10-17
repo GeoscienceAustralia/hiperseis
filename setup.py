@@ -59,7 +59,10 @@ setup(
             'anulog = convert_logs.decode_datfile:anulog'
         ]
     },
-    setup_requires=[NUMPY_VERSION],  # required due to netCDF4
+
+    # numpy preinstall required due to obspy
+    # mpi4py  preinstall required due to h5py
+    setup_requires=[NUMPY_VERSION, 'mpi4py==2.0.0', 'decorator>=4.1.0'],
     install_requires=[
         'Click >= 6.0',
         NUMPY_VERSION,
@@ -75,7 +78,8 @@ setup(
         'h5py >= 2.6.0',
         'pyasdf',
         'pandas',
-        'pyqtgraph'
+        'pyqtgraph',
+        'netCDF4 >= 1.3.0',
     ],
     extras_require={
         'dev': [
@@ -109,11 +113,11 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
+        # "Programming Language :: Python :: 3",
+        # "Programming Language :: Python :: 3.3",
+        # "Programming Language :: Python :: 3.4",
+        # "Programming Language :: Python :: 3.5",
+        # "Programming Language :: Python :: 3.6",
         # "Programming Language :: Python :: 3.7",
         # add additional supported python versions
         "Intended Audience :: Science/Research",
