@@ -27,16 +27,24 @@ code_start_time = time.time()
 # =========================== User Input Required =========================== #
 
 # Path to the data
-data_path = '/Users/ashbycooper/Desktop/Passive/'
+data_path = '/g/data/ha3/Passive/'
 
 # path to IRIS dataless seed to stationxml converter
-seed_xml_conv_path = "/Users/ashbycooper/SEEDtoXML/stationxml-converter-1.0.9.jar"
+seed_xml_conv_path = "/g/data/ha3/axc547/IRIS_SEED_XML/stationxml-converter-1.0.9.jar"
 
 # IRIS Virtual Ntework name
 virt_net = '_AusArray'
 
 # FDSN network identifier2
 FDSNnetwork = 'OA'
+
+# survey starttime override
+# date/time of the overall start for a deployment, this will override the start date/time stored within the dataless SEED metadata
+# i.e. useful to exclude old data on SD cards recorded before the deployment if the clear SD command was not sent during instrument deployemnt
+# default = None
+# UTC Time!!!!
+# format = "2017-09-10T00:00:00"
+deployment_starttime_override = "2017-09-10T00:00:00"
 
 # =========================================================================== #
 
@@ -164,7 +172,7 @@ for service in service_dir_list:
         # open up the recently created xml file
         station_inv = read_inventory(xml_out)
 
-        print(station_inv)
+        # print(station_inv)
         # get station name for metadata
         meta_station_name = station_inv[0][0].code
         meta_network_code = station_inv[0].code
@@ -232,6 +240,12 @@ for service in service_dir_list:
                     print("trace is outside")
                     continue
 
+                #check if there is a deployment starttime override set
+                if not deployment_starttime_override == None:
+                    if not UTCDateTime(endtime) > UTCDateTime(deployment_starttime_override):
+                        print("trace is outside")
+                        continue
+
 
 
                 # if starttime < UTCDateTime("2017-08-08T21:06:06.500000Z"):
@@ -260,16 +274,16 @@ for service in service_dir_list:
                 # get the inventory object for the channel
                 select_inv = station_inv.select(network=new_net, station=new_station, channel=new_chan, location=new_loc)
 
-                print("===================")
-                print(tr)
-                print(select_inv)
+                # print("===================")
+                # print(tr)
+                # print(select_inv)
 
 
 
 
                 nscl = new_net+"."+new_station+"."+new_chan+"."+new_loc
 
-                # see if station is already in start_end dict
+                # see if network_station_channel_loction is already in start_end dict
                 if nscl in nscl_start_end_dict.keys():
                     # compare time to start and end times in dict and see if it is earlier/later
                     stored_starttime = nscl_start_end_dict[nscl][0]
@@ -312,7 +326,7 @@ for service in service_dir_list:
                 #     print("couldnt add inventory")
                 #     print select_inv
 
-                # add inventory to dictionary
+                # add inventory to dictionary overwrite if there is more than one (i.e. if there are multiple service intervals)
                 nscl_inventory_dict[nscl] = select_inv
 
 
