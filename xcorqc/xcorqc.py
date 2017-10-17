@@ -167,7 +167,7 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
         if (windowCount == 0):
             resl.append(np.zeros(fftlen))
             if (verbose == 1):
-                printf('\t\t\tWarning: No windows processed due to gaps in data in current interval')
+                print('\t\t\tWarning: No windows processed due to gaps in data in current interval')
             # end if
         # end if
 
