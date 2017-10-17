@@ -1,7 +1,7 @@
 import pyasdf
 import time
 import os
-from xcorqc.xcorqc import IntervalStackXCorr, saveXCorrPlot
+from xcorqc.xcorqc import xcorr2
 from obspy import Stream, Trace
 import matplotlib.pyplot as plt
 from obspy import UTCDateTime
@@ -13,10 +13,10 @@ code_start_time = time.time()
 # =========================== User Input Required =========================== #
 
 #Path to the ASDF file for xcor
-data_path = '/g/data/ha3/US_test.h5'
-out = '/g/data/ha3/out.h5'
+data_path = '/g/data1/ha3/Passive/_AusArray/OA/processing/test_xcor_ashby/two_stns_xcor_test.h5'
+out = '/g/data1/ha3/Passive/_AusArray/OA/processing/test_xcor_ashby/two_stns_xcor_out.h5'
 
-temp_net = "TA"
+temp_net = "OA"
 
 # =========================================================================== #
 
@@ -44,7 +44,7 @@ for net_sta in ds.waveforms.list():
         for wave in iter_waveforms:
             if not wave == "StationXML":
                 iter_st = iter_sta_accessor[wave]
-                print(iter_st)
+                # print(iter_st)
 
                 # add it to the dict
                 tag = wave.split('__')[3]
@@ -52,11 +52,11 @@ for net_sta in ds.waveforms.list():
                 id_st_dict[tag] = iter_st
 
 
-print(id_st_dict)
+# print(id_st_dict)
 
 print('')
 
-def test_process(st, inv):
+def xcor_process(st, inv):
 
     xcor_st = Stream()
 
@@ -83,6 +83,7 @@ def test_process(st, inv):
     for tr in st:
         temp_st = Stream(traces=[tr])
         print('')
+        print(tr.stats.asdf.labels)
 
         # get the uid label
         uid_label = tr.stats.asdf.labels[1]
@@ -92,29 +93,42 @@ def test_process(st, inv):
 
         perm_st = id_st_dict[uid_label]
 
+        temp_tr = temp_st[0]
+        ref_tr = perm_st[0]
+
+        stationPair = ref_tr.stats.station + '.' + temp_tr.stats.station
+
         print(temp_st)
         print(perm_st)
         print("DO XCOR......")
 
+        xcl, winsPerInterval = xcorr2(ref_tr, temp_tr)
 
-        y, x, comp = IntervalStackXCorr(perm_st, temp_st, flo=0.9, fhi=1.1, interval_seconds=4*86400, window_seconds=1800)
+        if (xcl is None):
+            print("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
+                  (stationPair) + " due to gaps in data.")
+            continue
+
+
+        print(xcl)
+        print(winsPerInterval)
 
         # saveXCorrPlot(y, x, '/g/data/ha3/', 'test_plot', comp)
 
 
+        # fill in headers for new xcor trace
+        stats = {'network': tr.stats.network, 'station': tr.stats.station, 'location': "",
+                 'channel': uid_label[2:], 'npts': len(xcl[0]), 'sampling_rate': tr.stats.sampling_rate,
+                 'mseed': {'dataquality': 'D'}, "asdf": {}}
 
-        for day_stack_xcor in y:
-            print(type(day_stack_xcor))
-            print(day_stack_xcor[0])
 
-            # fill in headers
-            stats = {'network': tr.stats.network, 'station': tr.stats.station, 'location': "",
-                     'channel': uid_label[2:], 'npts': len(day_stack_xcor[0]), 'sampling_rate': tr.stats.sampling_rate,
-                     'mseed': {'dataquality': 'D'}}
+        stats["starttime"] = tr.stats.starttime
 
-            stats["starttime"] = tr.stats.starttime
+        temp_tr = Trace(data=xcl[0], header=stats)
 
-            xcor_st += Trace(data=day_stack_xcor[0], header=stats)
+        temp_tr.stats.asdf.labels = tr.stats.asdf.labels
+
+        xcor_st += temp_tr
 
 
         # break
@@ -124,7 +138,7 @@ def test_process(st, inv):
 
 
 
-ds.process(process_function=test_process,
+ds.process(process_function=xcor_process,
            output_filename=out,
            tag_map={"raw_recording": "xcor"})
 
@@ -140,6 +154,9 @@ for sta_id in ds.waveforms.list():
             new_ds.add_waveforms(sta_acc[asdf_st_id],tag=asdf_st_id.split('__')[3])
         else:
             new_ds.add_stationxml(sta_acc[asdf_st_id])
+
+
+
 
 del new_ds
 
