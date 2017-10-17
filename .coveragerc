@@ -1,0 +1,43 @@
+# .coveragerc to control coverage.py
+[run]
+branch = True
+source = seismic
+omit =
+    # omit everything in
+    # seismic/tasks/*
+    # omit these files
+    seismic/pslog.py
+    seismic/scripts/event.py
+
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    def __str__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+    raise ValueError
+    raise RuntimeError
+    raise IOError
+    except OSError
+    except ValueError
+    except IndexError
+    raise ImportError
+    except ImportError
+    raise ConfigException
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+ignore_errors = True
+
+# [html]
+# rectory = coverage_html_report
