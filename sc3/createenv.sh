@@ -37,6 +37,7 @@ sudo yum install -y wget \
                     libxslt \
                     libxslt-devel \
                     python-devel \
+                    netcdf-devel.x86_64 \
                     java-1.7.0-openjdk  # required due to cwbquery
 
 # clone passive-seismic in home directory after git install
@@ -78,14 +79,14 @@ git clone https://github.com/h5py/h5py.git && \
 # Setup virtualenv
 echo '' >> $HOME/.bashrc
 echo "source /usr/bin/virtualenvwrapper.sh" >> $HOME/.bashrc
-source $HOME/.bashrc
 
 echo "Installing passive seismic software....."
 
 
 if [ -z ${CIRCLECI+x} ];
     then
-    cd $HOME/passive-seismic &&
+    source $HOME/.bashrc && \
+    cd $HOME/passive-seismic && \
     mkvirtualenv --system-site-packages seismic && \
     # install python packages
     workon seismic && \
