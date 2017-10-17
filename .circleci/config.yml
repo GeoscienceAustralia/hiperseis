@@ -2,17 +2,32 @@ version: 2
 jobs:
   build:
     docker:
-      - image: geoscienceaustralia/passive-seismic
-    working_directory: /usr/src/passive-seismic
+      - image: geoscienceaustralia/passive-seismic:latest
+    working_directory: /root/passive-seismic
     steps:
       - checkout
-      - run: sed -i 's/sudo//g' sc3/createenv.sh
-      - run: sed -i 's/sudo//g' iloc_rstt/install_iloc_rstt.sh
-      - run: ./sc3/createenv.sh
-      - run: mkdir -p test_output/pytest test_output/flake8 test_output/coverage
-      - run: pip install .[dev]
+      - run:
+          name: prepare bash scripts
+          command: |
+            sed -i 's/sudo//g' sc3/createenv.sh
+            sed -i 's/sudo//g' iloc_rstt/install_iloc_rstt.sh
+      - run:
+          name: run bash scripts
+          command: |
+            ./sc3/createenv.sh
+            ./iloc_rstt/install_iloc_rstt.sh
+      - run:
+          name: install python env
+          command: |
+            pip install git+https://github.com/obspy/obspy.git
+            env GEOS_DIR=/usr/include/ pip install --process-dependency-links -e .[dev]
       # - run: make lint
-      - run: make coverage
+      - run:
+          name: run tests
+          command: |
+            mkdir -p test_output/pytest test_output/flake8 test_output/coverage
+            export PATH=/usr/lib64/openmpi/bin:$PATH
+            make coverage
       - store_artifacts:
           path: test_output/coverage
           destination: reports

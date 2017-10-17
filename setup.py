@@ -51,18 +51,31 @@ setup(
     author='Geoscience Australia Passive Seismic Team',
     author_email='',
     url='https://github.com/GeoscienceAustralia/Passive-Seismic',
-    packages=['seismic', 'convert_logs'],
+    packages=['seismic', 'convert_logs', 'seismic.scripts'],
     package_dir={'passive-seismic': 'seismic'},
     include_package_data=True,
+    dependency_links=[
+        'https://github.com/matplotlib/basemap/archive/'
+        'v1.1.0.zip#egg=basemap-1.1.0',
+        'https://github.com/GeoscienceAustralia/PhasePApy/'
+        'archive/master.zip#egg=phasepapy-1.1.1',
+        # git+https://github.com/GeoscienceAustralia/PhasePApy.git@v1.1.1
+        ],
     entry_points={
         'console_scripts': [
-            'anulog = convert_logs.decode_datfile:anulog'
+            'anulog = convert_logs.decode_datfile:anulog',
+            'seismic = seismic.scripts.event:cli',
         ]
     },
 
     # numpy preinstall required due to obspy
     # mpi4py  preinstall required due to h5py
-    setup_requires=[NUMPY_VERSION, 'mpi4py==2.0.0', 'decorator>=4.1.0'],
+    setup_requires=[
+        NUMPY_VERSION,
+        'mpi4py==2.0.0',
+        'decorator>=4.1.0',
+        'setuptools>=36.2.1'
+    ],
     install_requires=[
         'Click >= 6.0',
         NUMPY_VERSION,
@@ -71,14 +84,14 @@ setup(
         'scipy >= 0.15.1',
         'PyYAML >= 3.11',
         'matplotlib >= 1.4.3',  # nci version with python=3.4
-        'pyproj >= 1.9.5',
-        'Pillow >= 2.8.2',
         'joblib',
-        'obspy >= 1.0.3',
+        'obspy >= 1.0.3',  # 1.0.3 does not have sc3ml read functionality
         'h5py >= 2.6.0',
         'pyasdf',
         'pandas',
         'pyqtgraph',
+        'phasepapy == 1.1.1',
+        'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
     ],
     extras_require={
@@ -86,22 +99,18 @@ setup(
             'sphinx',
             'ghp-import',
             'sphinxcontrib-programoutput',
+            'pytest-cov',
+            'coverage == 4.4.1',
+            'codecov == 2.0.9',
             'tox',
-            'pytest>=3.1.0',
-            'pytest-flake8>=0.8.1',
-            'pytest-mock>=1.6.0',
-            'pytest-cov>=2.5.1',
-            'pytest-regtest>=0.15.1',
-            'flake8-docstrings>=1.1.0',
+            'pytest >= 3.1.0',
+            'pytest-flake8 >= 0.8.1',
+            'pytest-mock >= 1.6.0',
+            'pytest-cov == 2.5.1',
+            'pytest-regtest >= 0.15.1',
+            'flake8-docstrings >= 1.1.0',
         ]
     },
-    tests_require=[
-        'pytest-cov',
-        'coverage',
-        'codecov',
-        'tox',
-        'pytest'  # pytest should be last
-    ],
     license="Apache Software License 2.0",
     zip_safe=False,
     keywords='Passive Seismic',
