@@ -17,6 +17,7 @@ from obspy import read_inventory
 from obspy.core import inventory, read, UTCDateTime
 
 import sys
+import subprocess
 from query_input_yes_no import query_yes_no
 
 warnings.filterwarnings("error")
@@ -26,17 +27,21 @@ code_start_time = time.time()
 # =========================== User Input Required =========================== #
 
 # Path to the data
-data_path = '/g/data/ha3/Passive/'
+data_path = '/Users/ashbycooper/Desktop/Passive/'
+
+# path to IRIS dataless seed to stationxml converter
+seed_xml_conv_path = "/Users/ashbycooper/SEEDtoXML/stationxml-converter-1.0.9.jar"
 
 # IRIS Virtual Ntework name
-virt_net = '_GA_AusArray'
+virt_net = '_AusArray'
 
 # FDSN network identifier2
-FDSNnetwork = 'X7'
+FDSNnetwork = 'OA'
 
 # =========================================================================== #
 
-XML_in = join(data_path, virt_net, FDSNnetwork, 'network_metadata', FDSNnetwork + ".xml")
+# XML_in = join(data_path, virt_net, FDSNnetwork, 'network_metadata', FDSNnetwork + ".xml")
+XML_path = join(data_path, virt_net, FDSNnetwork, 'network_metadata')
 path_DATA = join(data_path, virt_net, FDSNnetwork, 'raw_DATA/')
 ASDF_path_out = join(data_path, virt_net, FDSNnetwork, 'ASDF')
 
@@ -85,7 +90,7 @@ ASDF_log_file = open(ASDF_log_out, 'w')
 ds = pyasdf.ASDFDataSet(ASDF_out, compression="gzip-3")
 
 # open the station XML into obspy inventory
-inv = read_inventory(XML_in)
+# inv = read_inventory(XML_in)
 
 
 
@@ -122,6 +127,15 @@ service_dir_list = glob.glob(path_DATA + '*')
 # counter for number of logfiles
 logfile_counter = 0
 
+# dictionary to keep inventory for all stations (default dict)
+nscl_inventory_dict = {}
+
+# dictionary to keep end date/start date for each netwrok,station, channel,location
+nscl_start_end_dict ={}
+
+#set with stations that are in ASDF file
+station_start_end_dict = {}
+
 # iterate through service directories
 for service in service_dir_list:
 
@@ -134,7 +148,26 @@ for service in service_dir_list:
 
     # iterate through station directories
     for station_path in station_dir_list:
-        station_name = basename(station_path)
+        station_name = basename(station_path).split("_")[1]
+
+        #get dataless seed file
+        xseed_file = glob.glob(join(station_path, '*.dataless'))[0]
+        xml_out = join(XML_path, FDSNnetwork[0:2]+station_name+'.xml')
+
+        # shell command to decode the dataless seed
+        decode_str = 'java -jar {0} -x -so "Geoscience Australia AusArray" -o {1} {2}'.format(seed_xml_conv_path,
+                                                                                              xml_out, xseed_file)
+
+        # decode the dataless seed file
+        subprocess.call(decode_str, shell=True)
+
+        # open up the recently created xml file
+        station_inv = read_inventory(xml_out)
+
+        print(station_inv)
+        # get station name for metadata
+        meta_station_name = station_inv[0][0].code
+        meta_network_code = station_inv[0].code
 
         # get miniseed files
         seed_files = glob.glob(join(station_path, '*miniSEED*/*'))  # '*miniSEED/*.mseed*'))
@@ -165,19 +198,22 @@ for service in service_dir_list:
                 if len(tr) == 0:
                     continue
 
-                waveforms_added += 1
+
 
                 # do some checks to make sure that the network, station, channel, location information is correct
-                # Station Name: for now just assume that what is in the traces is correct
+                # Station Name: assign station name in the metadata as correct
                 orig_station = tr.stats.station
-                # Network Code: the network code in the miniseed header is prone to user error
-                # (i.e. whatever the operator entered into the instrument in the field)
+                # fix the station name
+                new_station = meta_station_name
+                tr.stats.station = new_station
+
+
+                # Network Code: assign network name in the metadata as correct
                 orig_net = tr.stats.network
-                # use the first two characters as network code. Temporary networks have start and end year as well
-                new_net = FDSNnetwork[:2]
-                # overwrite network code in miniseed header
+                new_net = meta_network_code
                 tr.stats.network = new_net
-                new_station = tr.stats.station
+
+
 
                 starttime = tr.stats.starttime.timestamp
                 endtime = tr.stats.endtime.timestamp
@@ -185,6 +221,18 @@ for service in service_dir_list:
                 new_chan = orig_chan
                 orig_loc = tr.stats.location
                 new_loc = orig_loc
+
+
+                # get the inventory for the station
+                sta_sel_inv = station_inv.select(network=new_net, station=new_station)
+
+                # check that the starttime in metadata is within the trace timespan
+                # i.e. the data is recorded during or after the clear SD card command was sent
+                if not UTCDateTime(endtime) > sta_sel_inv[0][0].start_date:
+                    print("trace is outside")
+                    continue
+
+
 
                 # if starttime < UTCDateTime("2017-08-08T21:06:06.500000Z"):
                 #     continue
@@ -210,11 +258,42 @@ for service in service_dir_list:
 
 
                 # get the inventory object for the channel
-                select_inv = inv.select(network=new_net, station=new_station, channel=new_chan, location=new_loc)
+                select_inv = station_inv.select(network=new_net, station=new_station, channel=new_chan, location=new_loc)
 
-                # print("===================")
-                # print(tr)
-                # print(select_inv)
+                print("===================")
+                print(tr)
+                print(select_inv)
+
+
+
+
+                nscl = new_net+"."+new_station+"."+new_chan+"."+new_loc
+
+                # see if station is already in start_end dict
+                if nscl in nscl_start_end_dict.keys():
+                    # compare time to start and end times in dict and see if it is earlier/later
+                    stored_starttime = nscl_start_end_dict[nscl][0]
+                    stored_endtime = nscl_start_end_dict[nscl][1]
+                    if starttime < stored_starttime:
+                        nscl_start_end_dict[nscl][0] = starttime
+                    elif endtime > stored_endtime:
+                        nscl_start_end_dict[nscl][1] = endtime
+
+                else:
+                    nscl_start_end_dict[nscl] = [starttime, endtime]
+
+                # see if station is already in start_end dict
+                if new_station in station_start_end_dict.keys():
+                    # compare time to start and end times in dict and see if it is earlier/later
+                    stored_starttime = station_start_end_dict[new_station][0]
+                    stored_endtime = station_start_end_dict[new_station][1]
+                    if starttime < stored_starttime:
+                        station_start_end_dict[new_station][0] = starttime
+                    elif endtime > stored_endtime:
+                        station_start_end_dict[new_station][1] = endtime
+
+                else:
+                    station_start_end_dict[new_station] = [starttime, endtime]
 
 
                 try:
@@ -223,14 +302,133 @@ for service in service_dir_list:
                 except ASDFWarning:
                     # trace already exist in ASDF file!
                     ASDF_log_file.write(filename + '\t' + ASDF_tag + '\t' + "ASDFDuplicateError\n")
-            # make iventory for channel
+                    continue
 
-            keys_list.append(str(ASDF_tag))
-            info_list.append(temp_dict)
+                waveforms_added += 1
+                # try:
+                #     #add inventory to ASDF
+                #     ds.add_stationxml(select_inv)
+                # except:
+                #     print("couldnt add inventory")
+                #     print select_inv
+
+                # add inventory to dictionary
+                nscl_inventory_dict[nscl] = select_inv
 
 
-# add the station xml data to the ASDF file
+
+
+                keys_list.append(str(ASDF_tag))
+                info_list.append(temp_dict)
+
+
+# list of station level inventories
+station_inventories_list =[]
+
+station_inventories_default_dict = defaultdict(list)
+station_inv_dict = {}
+
+for nscl, inv in nscl_inventory_dict.iteritems():
+    # get the channel level inventory
+    print ""
+    print nscl
+
+    #modify the start and end dates for the channeel/location level inventory
+    inv[0][0][0].start_date = UTCDateTime(nscl_start_end_dict[nscl][0])
+    inv[0][0][0].end_date = UTCDateTime(nscl_start_end_dict[nscl][1])
+    inv[0][0][0].elevation = inv[0][0].elevation
+
+    print(inv[0][0][0])
+    print(inv[0][0][0].start_date)
+    print(inv[0][0][0].end_date)
+
+    # add the channels to station_inv_dict
+    station_inventories_default_dict[nscl.split(".")[1]].append(inv[0][0][0])
+
+    station_inv_dict[nscl.split(".")[1]] = inv[0][0]
+
+# go through stations
+for station, chan_inv_list in station_inventories_default_dict.iteritems():
+
+    print ""
+    print station
+
+    #make a new station inventory object with all of the channels and updated start and end dates
+    # get the start/end dates from dict
+    start_date = UTCDateTime(station_start_end_dict[station][0])
+    end_date = UTCDateTime(station_start_end_dict[station][1])
+
+    site = station_inv_dict[station].site
+
+    # make the station_level inventory
+    station_inv = inventory.Station(code=station, creation_date=start_date, termination_date=end_date,
+                                    start_date=start_date, end_date=end_date,
+                                site=site,
+                                latitude=station_inv_dict[station].latitude,
+                                longitude=station_inv_dict[station].longitude,
+                                elevation=station_inv_dict[station].elevation,
+                                vault="Transportable Array",
+                                channels=station_inventories_default_dict[station],
+                                    total_number_of_channels=len(station_inventories_default_dict[station]))
+
+    print(station_inventories_default_dict[station][0])
+
+    print(station_inv)
+    station_inventories_list.append(station_inv)
+
+
+network_start_end = False
+# go through station start/end date dict and get the overall start_end date
+for key, (start, end) in station_start_end_dict.iteritems():
+    if not network_start_end:
+        network_start_end = [start, end]
+        continue
+
+    if start < network_start_end[0]:
+        network_start_end[0] = start
+    elif end > network_start_end[1]:
+        network_start_end[1] = end
+
+
+# now make network level inventory
+network_inv = inventory.Network(code=FDSNnetwork[0:2], start_date=UTCDateTime(network_start_end[0]),
+                                end_date=UTCDateTime(network_start_end[1]),
+                                stations=station_inventories_list,
+                                total_number_of_stations=len(station_inventories_list))
+
+# create the inventory
+inv = inventory.Inventory(networks=[network_inv], source= "Geoscience Australia")
+
+
+print "+==============================+++"
+print ""
+
+print(inv)
+print(inv[0])
+print(inv[0][0])
+print(inv[0][0][0])
+print(inv[0][0][1])
+
+XML_file = join(XML_path, FDSNnetwork+'.xml')
+
+if exists(XML_file):
+    remove(XML_file)
+
+# write the inventory into the default path
+inv.write(path_or_file_object=XML_file, format='STATIONXML')
+
+inv = read_inventory(XML_file)
+print "---------"
+print(inv)
+print(inv[0])
+print(inv[0][0])
+print(inv[0][0][0])
+print(inv[0][0][1])
+
+
+# add it to ASDF file
 ds.add_stationxml(inv)
+
 
 big_dictionary = dict(zip(keys_list, info_list))
 
