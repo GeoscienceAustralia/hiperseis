@@ -29,11 +29,14 @@ docs:
 	open docs/_build/html/index.html
 
 lint:
-	py.test --junit-xml=test_output/flake8/results.xml --flake8 -p no:regtest --cache-clear convert_logs
+	pytest --junit-xml=test_output/flake8/results.xml \
+	    --flake8 -p no:regtest	--cache-clear seismic
 
 test:
-	py.test --junit-xml=test_output/pytest/results.xml --cache-clear
+	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
 
 coverage:
-	py.test --junit-xml=test_output/pytest/results.xml --cov=convert_logs --cov-report=html:test_output/coverage --cache-clear --cov-fail-under=5 ./tests
-
+	mpirun --allow-run-as-root -n 2 pytest tests/test_pyasdf.py
+	pytest --junit-xml=test_output/pytest/results.xml --cov \
+	    --cov-report=html:test_output/coverage --cov-fail-under=50 \
+	    --cache-clear ./tests

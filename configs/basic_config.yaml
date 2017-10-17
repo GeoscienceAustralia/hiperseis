@@ -1,0 +1,89 @@
+# one can supply one of miniseed, events, or time range
+inputs:
+  - name: my miniseed files
+    type: miniseed
+    files:
+      # - directory: # not supported yet
+      - file: tests/mocks/ga2017qxlpiu_short.mseed
+#      - file: tests/mocks/data/ev0_6.a02.gse2
+      # - list: # not supported yet
+  # events and time based functionality only available inside SC3
+#  - name: my events
+#    type: events
+#    events:
+#      - event_id: ga2017abcdefg
+#      - event_id: ga2017hijklmn
+#      # - event_id_list: # not supported yet
+#
+#  - name: my time range
+#    type: time # not supported yet
+#    times:
+#      start_time: 2017-03-28 16:18:30  # format YYYY-MM-DD HH:mm:ss
+#      end_time: 2017-03-28 17:18:30
+
+
+# detrend options are: simple, linear, constant/demean, polynomial spline
+detrend: simple
+
+
+# filter options are bandpass, bandstop, lowpass, highpass, lowpass_cheby_2
+# For params of filter see https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.filter.html#obspy.core.trace.Trace.filter
+
+filter:
+  type: bandpass
+  params:
+    freqmin: 2.0
+    freqmax: 16.0
+    corners: 3
+    zerophase: True
+
+
+picker:
+  algorithm: aicdpicker
+  params:
+    t_ma: 3
+    nsigma: 6
+    t_up: 0.2
+    nr_len: 2
+    nr_coeff: 2
+    pol_len: 10
+    pol_coeff: 10
+    uncert_coeff: 3
+
+  algorithm: fbpicker
+  params:
+    t_long: 5
+    freqmin: 1
+    corner: 1
+    perc_taper: 0.1
+    mode: 'rms'
+    t_ma: 20
+    nsigma: 6
+    t_up: 0.78
+    nr_len: 2
+    nr_coeff: 2
+    pol_len: 10
+    pol_coeff: 10
+    uncert_coeff: 3
+
+#  algorithm: ktpicker
+#  params:
+#    t_win: 1
+#    t_ma: 10
+#    nsigma: 6
+#    t_up: 0.2
+#    nr_len: 2
+#    nr_coeff: 2
+#    pol_len: 10
+#    pol_coeff: 10
+#    uncert_coeff: 3
+
+#  algorithm: pkbaer
+#  params:
+#    tdownmax: 20
+#    tupevent: 60
+#    thr1: 7.0
+#    thr2: 12.0
+#    preset_len: 100
+#    p_dur: 100
+
