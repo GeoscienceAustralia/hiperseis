@@ -44,6 +44,6 @@ the time of the S arrival and write it (i.e. associate the arrival) in the
     echo "isf_infile=isf.txt isf_outfile=isf.out" | iloc isf > isf.log
     ```
     
-When an arrival is added in the ISF file, and used in `iloc`, `iloc` 
+When an arrival is added in the `ISF` file, and used in `iloc`, `iloc` 
 assumes that the arrival is associated with the event, and runs it's location
  algorithm on all the associated arrivals in the `ISF` file.  
