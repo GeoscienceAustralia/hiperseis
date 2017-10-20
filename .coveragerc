@@ -1,13 +1,16 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
-source = seismic
+source =
+    seismic
+    convert_logs
 omit =
     # omit everything in
     # seismic/tasks/*
     # omit these files
     seismic/pslog.py
     seismic/scripts/event.py
+    *__init__.py
 
 [report]
 # Regexes for lines to exclude from consideration
