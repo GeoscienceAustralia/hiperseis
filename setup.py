@@ -57,8 +57,8 @@ setup(
     dependency_links=[
         'https://github.com/matplotlib/basemap/archive/'
         'v1.1.0.zip#egg=basemap-1.1.0',
-        'https://github.com/GeoscienceAustralia/PhasePApy/'
-        'archive/master.zip#egg=phasepapy-1.1.1',
+        # 'https://github.com/GeoscienceAustralia/PhasePApy/'
+        # 'archive/master.zip#egg=phasepapy-1.1.1',
         # git+https://github.com/GeoscienceAustralia/PhasePApy.git@v1.1.1
         ],
     entry_points={
@@ -90,7 +90,7 @@ setup(
         'pyasdf',
         'pandas',
         'pyqtgraph',
-        'phasepapy == 1.1.1',
+        # 'phasepapy == 1.1.1',
         'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
     ],

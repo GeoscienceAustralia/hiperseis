@@ -1,7 +1,7 @@
 import os
 import pytest
 from obspy.core import read as obspy_read, Stream
-from obspy.core.event import Event, read_events
+# from obspy.core.event import Event, read_events
 from seismic.pickers import pickermaps
 
 TESTS = os.path.dirname(__file__)
