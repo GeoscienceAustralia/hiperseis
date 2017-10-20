@@ -37,7 +37,7 @@ test: mpi
 
 coverage: mpi
 	pytest --junit-xml=test_output/pytest/results.xml --cov \
-	    --cov-report=html:test_output/coverage --cov-fail-under=20 \
+	    --cov-report=html:test_output/coverage --cov-fail-under=60 \
 	    --cache-clear ./tests
 
 mpi:

@@ -401,16 +401,24 @@ def anulog(datfile, bad_gps, id_str, gps_update,
                                for d in datfiles)
 
     # use input dir as default output dir
+    basedir = _make_outdir(datfiles, output_dir)
+
+    for d, dd in zip(datfiles, dicts):
+        _dump(basedir, d, dd)
+
+
+def _dump(basedir, logfile, decoded_dict):
+    output_file = join(basedir, splitext(basename(logfile))[0]) + '.json'
+    json.dump(decoded_dict, open(output_file, 'w'))
+
+
+def _make_outdir(datfiles, output_dir):
     basedir = os.path.abspath(output_dir) if output_dir \
         else os.path.split(datfiles[0])[0]
-
     if not os.path.exists(basedir):
         log.info('Supplied output dir does not exist. It will be created.')
         os.makedirs(basedir)
-
-    for d, dd in zip(datfiles, dicts):
-        output_file = join(basedir, splitext(basename(d))[0]) + '.json'
-        json.dump(dd, open(output_file, 'w'))
+    return basedir
 
 
 def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
