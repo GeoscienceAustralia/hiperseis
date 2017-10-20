@@ -6,9 +6,9 @@ from obspy.signal.trigger import ar_pick, pk_baer
 from obspy.core.event import Event, Pick, WaveformStreamID, Amplitude, \
     ResourceIdentifier, CreationInfo, Comment, Origin
 
-from phasepapy.phasepicker.aicdpicker import AICDPicker
-from phasepapy.phasepicker.ktpicker import KTPicker
-from phasepapy.phasepicker.fbpicker import FBPicker
+from PhasePApy.phasepapy.phasepicker.aicdpicker import AICDPicker
+from PhasePApy.phasepapy.phasepicker.ktpicker import KTPicker
+from PhasePApy.phasepapy.phasepicker.fbpicker import FBPicker
 
 PST_AUTHOR = ':GA-PST'
 AGENCY_URI = 'ga.gov.au'
@@ -136,8 +136,6 @@ class PKBaer:
         ----------
         tr: obspy.core.trace.Trace
             obspy trace instance
-        samp_int: int
-            number of samples per second
 
         Returns
         -------
