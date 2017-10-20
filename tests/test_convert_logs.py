@@ -4,6 +4,7 @@ from os.path import join, splitext
 import json
 from subprocess import check_call
 import pytest
+from convert_logs.decode_datfile import decode_anulog, _make_outdir, _dump
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -22,10 +23,10 @@ def logfile(request):
 @pytest.mark.skipif(PY3, reason='only supported in py27')
 def test_convert_logs(random_filename, logfile):
     output_dir = os.path.dirname(random_filename())
-
-    check_call(('python', join(LOGS, 'decode_datfile.py'),
-                    join(TESTDATA, logfile), '-o', output_dir,
-                    '-y', '2015'))
+    logfile = join(TESTDATA, logfile)
+    decoded_dict = decode_anulog(datfile=logfile, year=2015)
+    base_dir = _make_outdir([logfile], output_dir)
+    _dump(base_dir, logfile, decoded_dict)
 
     basename = splitext(logfile)[0]
     d_out = json.load(open(join(output_dir, basename + '.json'), 'r'))
@@ -43,6 +44,4 @@ def test_convert_logs_parallel(random_filename):
         basename = splitext(d)[0]
         d_out = json.load(open(join(output_dir, basename + '.json'), 'r'))
         d_stored = json.load(open(join(TESTDATA, basename + '.json'), 'r'))
-        print(open(join(TESTDATA, basename + '.json'), 'r'),
-              open(join(output_dir, basename + '.json'), 'r'))
         assert d_out == d_stored
