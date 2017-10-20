@@ -7,8 +7,9 @@ jobs:
     steps:
       - checkout
       - run:
-          name: prepare bash scripts
+          name: get submodules and prepare bash scripts
           command: |
+            git submodule update --init --recursive --remote
             sed -i 's/sudo//g' sc3/createenv.sh
             sed -i 's/sudo//g' iloc_rstt/install_iloc_rstt.sh
       - run:
