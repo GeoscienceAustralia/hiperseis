@@ -10,7 +10,8 @@ omit =
     # omit these files
     seismic/pslog.py
     seismic/scripts/event.py
-    *__init__.py
+concurrency = multiprocessing
+parallel = True
 
 [report]
 # Regexes for lines to exclude from consideration
