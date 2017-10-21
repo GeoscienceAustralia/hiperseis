@@ -33,12 +33,13 @@ lint:
 	    --flake8 -p no:regtest	--cache-clear seismic
 
 test: mpi
-	pytest --junit-xml=test_output/pytest/results.xml --cache-clear
+	pytest --junit-xml=test_output/pytest/results.xml --cache-clear ./tests
 
 coverage: mpi
 	pytest --junit-xml=test_output/pytest/results.xml --cov \
-	    --cov-report=html:test_output/coverage --cov-fail-under=60 \
-	    --cache-clear ./tests
+	    --cov-report=html:test_output/coverage \
+	    --cov-report=term-missing:skip-covered \
+	    --cov-fail-under=60 --cache-clear ./tests
 
 mpi:
 	mpirun --allow-run-as-root -n 2 pytest tests/test_pyasdf.py
