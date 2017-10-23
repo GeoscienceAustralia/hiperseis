@@ -2,9 +2,9 @@ import sys
 import os
 from os.path import join, splitext
 import json
-from subprocess import check_call
 import pytest
-from convert_logs.decode_datfile import decode_anulog, _make_outdir, _dump
+from convert_logs.decode_datfile import decode_anulog, _make_outdir, \
+    _dump, _parallel_decode_anulog
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -37,10 +37,15 @@ def test_convert_logs(random_filename, logfile):
 @pytest.mark.skipif(PY3, reason='only supported in py27')
 def test_convert_logs_parallel(random_filename):
     output_dir = os.path.dirname(random_filename())
-    check_call(('python', join(LOGS, 'decode_datfile.py'),
-                TESTDATA, '-o', output_dir,
-                '-y', '2015'))
-    for d in test_dat_files:
+    logfiles = [join(TESTDATA, f) for f in test_dat_files]
+    dicts = _parallel_decode_anulog(logfiles, bad_gps=False, id_str=False,
+                                    gps_update=False, temperature=False,
+                                    all_print=False, year=2015)
+
+    base_dir = _make_outdir(logfiles, output_dir)
+
+    for d, dd in zip(logfiles, dicts):
+        _dump(base_dir, d, dd)
         basename = splitext(d)[0]
         d_out = json.load(open(join(output_dir, basename + '.json'), 'r'))
         d_stored = json.load(open(join(TESTDATA, basename + '.json'), 'r'))
