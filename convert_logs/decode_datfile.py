@@ -395,16 +395,24 @@ def anulog(datfile, bad_gps, id_str, gps_update,
         assert os.path.isfile(datfile)
         datfiles = [datfile]
 
-    # n_jobs=-1 uses all cpus
-    dicts = Parallel(n_jobs=-1)(delayed(decode_anulog)(
-        d, bad_gps, id_str, gps_update, temperature, all_print, year)
-                               for d in datfiles)
+    dicts = _parallel_decode_anulog(datfiles, bad_gps, id_str, gps_update,
+                                    temperature, all_print, year)
 
     # use input dir as default output dir
     basedir = _make_outdir(datfiles, output_dir)
 
     for d, dd in zip(datfiles, dicts):
         _dump(basedir, d, dd)
+
+
+def _parallel_decode_anulog(datfiles, bad_gps=False, id_str=False,
+                            gps_update=False, temperature=False,
+                            all_print=False, year=None):
+    # n_jobs=-1 uses all cpus
+    dicts = Parallel(n_jobs=-1)(delayed(decode_anulog)(
+        d, bad_gps, id_str, gps_update, temperature, all_print, year)
+                                for d in datfiles)
+    return dicts
 
 
 def _dump(basedir, logfile, decoded_dict):
