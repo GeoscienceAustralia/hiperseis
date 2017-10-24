@@ -2,8 +2,8 @@ import struct
 from obspy.core.event import Event, Pick, Amplitude, Magnitude, Origin
 
 '''
-Class that parses ascii data from one section of the
-.OUT files. Each output file section looks like below:
+Class that parses ascii data from one arrival line of each
+section of an .OUT file. Each .OUT file section looks like below:
 
   0110002900NORTHWEST PACIFIC EVENTS
 
