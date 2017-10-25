@@ -57,11 +57,9 @@ class ArrivalParser:
    arrivalStructFormat = '3s2s2s1x5s6s1x6s1x9s1x9s1s9s1x3s1x7s1x5s1x5s1x2s1x2s1x5s1x7s1x4s1x4s1x4s1x4s1x4s1x4s1x1s'
 
    def __init__(self, inputLine):
-      self.inp = inputLine
-      self._unpackArrival(self.inp)
+      self._unpackArrival(inputLine)
 
    def _unpackArrival(self, arrival):
-      print ArrivalParser.arrivalStructFormat
       retTuple = struct.unpack(ArrivalParser.arrivalStructFormat, arrival)
       self.year = retTuple[0].strip()
       self.month = retTuple[1].strip()
@@ -88,11 +86,3 @@ class ArrivalParser:
       self.wgt = retTuple[22].strip()
       self.isGA = retTuple[23].strip()
 
-def main():
-   parser = ArrivalParser('  51025 KIPM  94.90   4.59    264.85    159.58     50.63     pP      epP   epP   19 54 31.12  -0.16* -0.2                 0.9  0.0 G')
-   print parser.__dict__
-   parser = ArrivalParser('                                                             PcP      PcP   PcP  11 28 54.70   1.86*           -9.8  1.9  0.6  0.0  ', )
-   print parser.__dict__
-
-if __name__ == "__main__":
-   main()
