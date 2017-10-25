@@ -16,7 +16,7 @@ fi
 scevtstreams -E $1 -d mysql://sysop:sysop@localhost/seiscomp3 -L 0 -m 3600 > $evid-stream.txt
 net_sta_cha_exprs=`cat $evid-stream.txt | cut -d";" -f3 | xargs`
 for expression in $net_sta_cha_exprs; do
-	if [[ $expression = \.* ]]; then
+	if [[ $expression == \.* ]]; then
 		sta=`echo $expression | cut -d"." -f2`
 		potLoc=`find /opt/seiscomp3/var/lib/archive/2015/ -name $sta -type d | xargs`
 		if [[ ! -z "${potLoc// }" && ! $potLocs == *" "* ]]; then
