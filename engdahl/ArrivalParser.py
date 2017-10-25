@@ -54,7 +54,7 @@ section of an .OUT file. Each .OUT file section looks like below:
 
 class ArrivalParser:
    # the struct unpack format of each arrival is as per the .OUT format described above
-   arrivalStructFormat = '3s2s2s1x5s6s1x6s1x9s1x9s1s9s1x3s1x7s1x5s1x5s1x2s1x2s1x5s1x7s1x4s1x4s1x4s1x4s1x4s1x4s1x1s'
+   arrivalStructFormat = '3s2s2s1x5s6s1x6s1x9s1x9s1x9s1x3s1x7s1x5s1x5s1x2s1x2s1x5s1x7s1x4s1x4s1x4s1x4s1x4s1x4s1x1s'
 
    def __init__(self, inputLine):
       self._unpackArrival(inputLine)
