@@ -92,17 +92,15 @@ avh          statistical geometric mean of axes      f5.1
 iext         ISC event identifier                    i10
 '''
 
-class HDFParser:
+class HDFLineParser:
    # the struct unpack format is as per the hdf format described above
    hdfStructFormat = '1s3s2s2s3s3s4s3s6s1s8s8s6s6s4s4s4s4s4s4s4s8s8s8s6s6s6s4s4s4s4s5s10s'
 
    def __init__(self, inputLine):
-      self.inp = inputLine
-      self._unpackEpicentre(self.inp)
+      self._unpackEpicentre(inputLine)
 
    def _unpackEpicentre(self, epicentre):
-      print EventParser.hdfStructFormat
-      retTuple = struct.unpack(EventParser.hdfStructFormat, epicentre)
+      retTuple = struct.unpack(HDFLineParser.hdfStructFormat, epicentre)
       self.ahyp = retTuple[0].strip()
       self.isol = retTuple[1].strip()
       self.iseq = retTuple[2].strip()
@@ -137,9 +135,3 @@ class HDFParser:
       self.avh = retTuple[31].strip()
       self.iext = retTuple[32].strip()
 
-def main():
-   parser = HDFParser('ZFEQ   9  3 28  21 37 20.20   -0.770 120.269  15.0  15.0 0.0 0.0 0.0  11   0   0 265    0.00    0.00    0.00   0.5 360.0 360.0   0   0   0   0  0.0  99999999')
-   print parser.__dict__
-
-if __name__ == "__main__":
-   main()
