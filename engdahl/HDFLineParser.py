@@ -135,3 +135,7 @@ class HDFLineParser:
       self.avh = retTuple[31].strip()
       self.iext = retTuple[32].strip()
 
+      # fields to be populated from out file
+      self.seTime = None
+      self.seLat = None
+      self.seLon = None
