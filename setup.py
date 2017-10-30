@@ -6,11 +6,7 @@ import sys
 python_version = sys.version_info
 __version__ = "0.0.1"
 
-# numpy support for python3.3 not available for version > 1.10.1
-if python_version.major == 3 and python_version.minor == 3:
-    NUMPY_VERSION = 'numpy >= 1.9.2, <= 1.10.1'
-else:
-    NUMPY_VERSION = 'numpy >= 1.9.2'
+NUMPY_VERSION = 'numpy >= 1.9.2'
 
 
 class PyTest(TestCommand, object):
@@ -88,7 +84,6 @@ setup(
         'obspy >= 1.0.3',  # 1.0.3 does not have sc3ml read functionality
         'h5py >= 2.6.0',
         'pyasdf',
-        'pandas',
         'pyqtgraph',
         # 'phasepapy == 1.1.1',
         'basemap == 1.1.0',
