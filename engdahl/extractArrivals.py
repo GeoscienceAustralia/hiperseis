@@ -1,3 +1,4 @@
+import pprint
 from ArrivalParser import ArrivalParser
 from HDFLineParser import HDFLineParser
 from itertools import groupby
@@ -16,14 +17,17 @@ global pickCount
 pickCount = 1
 
 def setEventData(eventParser, arrivals, count):
+   global originCount
+   global eventCount
+   global pickCount
    creation_info = CreationInfo(author='niket_engdahl_data',
                                 creation_time=UTCDateTime(),
                                 agency_uri='NA',
                                 agency_id='engdahl')
-   origin = Origin(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+originCount),
-                   time=UTCDateTime(eventParser.iyr, eventParser.mon, eventParser.iday,
-                                    eventParser.ihr, eventParser.min, eventParser.sec.split('.')[0],
-                                    eventParser.sec.split('.')[1] + '0'),
+   origin = Origin(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+str(originCount)),
+                   time=UTCDateTime(int(str(2000 + int(eventParser.iyr))), int(eventParser.mon), int(eventParser.iday),
+                                    int(eventParser.ihr), int(eventParser.min), int(eventParser.sec.split('.')[0]),
+                                    int(eventParser.sec.split('.')[1] + '0')),
                    longitude=eventParser.glon,
                    latitude=eventParser.glat,
                    depth=eventParser.depth,
@@ -44,18 +48,30 @@ def setEventData(eventParser, arrivals, count):
    for arrParser in arrivals:
       pickOnset = None
       pol = None
+      if arrParser.phase and arrParser.phase.lower().startswith('p') and arrParser.year and arrParser.month and arrParser.day:
+         pPhaseArrival = arrParser
+      else:
+         arrParser.year = pPhaseArrival.year
+         arrParser.day = pPhaseArrival.day
+         arrParser.month = pPhaseArrival.month
+         arrParser.station = pPhaseArrival.station
+      if arrParser.phase1 == 'LR' or arrParser.phase2 == 'LR':
+         continue
       if arrParser.phase1.startswith('i'):
          pickOnset = PickOnset.impulsive
-         pol = arrParser.fm
+         if arrParser.fm == '+':
+            pol = PickPolarity.positive
+         elif arrParser.fm == '-':
+            pol = PickPolarity.negative
       elif arrParser.phase1.startswith('e'):
          pickOnset = PickOnset.emergent
-      pick = Pick(resource_id=ResourceIdentifier('engdahl:ga.gov.au/pick/'+pickCount),
-                  time=UTCDateTime(arrParser.year, arrParser.month, arrParser.day, arrParser.hour,
-                                   arrParser.minute, arrParser.second.split('.')[0],
-                                   arrParser.second.split('.')[1] + '0'),
+      pick = Pick(resource_id=ResourceIdentifier('engdahl:ga.gov.au/pick/'+str(pickCount)),
+                  time=UTCDateTime(int(str(2000 + int(arrParser.year))), int(arrParser.month), int(arrParser.day),
+                                   int(arrParser.hour), int(arrParser.minute), int(arrParser.second.split('.')[0]),
+                                   int(arrParser.second.split('.')[1] + '0')),
                   waveform_id=WaveformStreamID(station_code=arrParser.station),
                   methodID=ResourceIdentifier('STA/LTA'),
-                  backazimuth=arrParser.backaz,
+                  backazimuth=arrParser.backaz if arrParser.backaz else None,
                   onset=pickOnset,
                   phase_hint=arrParser.phase,
                   polarity=pol,
@@ -63,23 +79,29 @@ def setEventData(eventParser, arrivals, count):
                   # TO-DO
                   comment='populate all the remaining fields here as key value',
                   creation_info=creation_info)
+      if not arrParser.backaz:
+          print "arrParser.backaz is empty. printing the arrParser for debugging"
+          pprint.pprint(arrParser)
       pickCount += 1
       pickList.append(pick)
 
-      arrival = Arrival(pick_id=(pickCount-1),
+      arrival = Arrival(pick_id=str(pickCount-1),
                         phase=arrParser.phase[0],
-                        azimuth=arrParser.backaz,
-                        distance=arrParser.delta,
-                        time_residual=arrParser.residual,
-                        time_weight=arrParser.wgt,
-                        backazimuth_weight=arrParser.wgt)
+                        azimuth=arrParser.backaz if arrParser.backaz else None,
+                        distance=arrParser.delta if arrParser.delta else None,
+                        # if the * has some significance, it should be accounted for. ignoring for now.
+                        time_residual=arrParser.residual.rstrip('*'),
+                        time_weight=arrParser.wgt if arrParser.wgt else None,
+                        backazimuth_weight=arrParser.wgt if arrParser.wgt else None)
       arrivalList.append(arrival)
+      if not arrParser.wgt:
+          print "arrParser.wgt is empty. printing the arrParser for debugging"
+          pprint.pprint(arrParser)
 
    origin.arrivals = arrivalList
 
-   event = Event(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+eventCount),
-                 creation_info=creation_info,
-                 event_type='earthquake')
+   event = Event(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+str(eventCount)),
+                 creation_info=creation_info, event_type='earthquake')
 
    eventCount += 1
 
@@ -110,7 +132,7 @@ def getArrivalSections(hdfFile, outFile):
                      eventParser.seLon = groupline[groupline.substring('se lon =  ') + 10 : groupline.substring(' km     se depth')]
 
                ev = setEventData(eventParser, listOfArrivals, count)
-               ev.write(ev.resource_id.split('/')[-1]+".xml", format='SC3ML')
+               ev.write(ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
                #remove the below if condition after testing, its only for debugging
                if count > 5:
                    break
