@@ -4,10 +4,9 @@ from itertools import groupby
 import linecache
 import obspy
 from obspy import UTCDateTime
+from obspy.core.event.header import PickOnset, PickPolarity
 from obspy.core.event import Amplitude, Event, Magnitude, Origin, Pick,\
-   OriginQuality, CreationInfo, WaveformStreamID
-
-#def setPickData()
+   OriginQuality, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival
 
 def setEventData(eventParser, arrivals):
    event = Event()
@@ -18,45 +17,47 @@ def setEventData(eventParser, arrivals):
    event.creation_info = creation_info
    event.event_type = 'earthquake'
 
-   origin = Origin()
-   seconds = eventParser.sec.split('.')[0]
-   mseconds = eventParser.sec.split('.')[1] + '0'
-   origin.time = UTCDateTime(eventParser.iyr, eventParser.mon, eventParser.iday,
-                             eventParser.ihr, eventParser.min, seconds, mseconds)
-   origin.longitude = eventParser.glon
-   origin.latitude = eventParser.glat
-
-   #a field called ser in hdf file represents standard error in position
-   #there could be a way of deriving longitude and latitude error values
-   #from this ser value. but needs to be clarified
-   #origin.longitude_errors = eventParser.
-   #origin.latitude_errors = eventParser.
-
-   origin.depth = eventParser.depth
-   origin.depth_errors = eventParser.sedep
-
-   origin.method_id = 'EHB'
-   origin.earth_model_id = 'ak135'
-
-   origQual = OriginQuality(associated_phase_count=len(arrivals),
+   origin = Origin(time=UTCDateTime(eventParser.iyr, eventParser.mon, eventParser.iday,
+                                    eventParser.ihr, eventParser.min, eventParser.sec.split('.')[0],
+                                    eventParser.sec.split('.')[1] + '0'),
+                   longitude=eventParser.glon,
+                   latitude=eventParser.glat,
+                   depth=eventParser.depth,
+                   depth_errors=eventParser.sedep,
+                   method_id='EHB',
+                   earth_model_id='ak135',
+                   quality=OriginQuality(associated_phase_count=len(arrivals),
                             used_phase_count=len(arrivals),
                             standard_error=eventParser.se,
-                            azimuthal_gap=eventParser.openaz2)
-   origin.quality = origQual
-
-   origin.evaluation_mode = 'automatic'
-   creation_info = CreationInfo(author='niket_engdahl_data',
-                                creation_time=UTCDateTime(),
-                                agency_uri='NA',
-                                agency_id='engdahl')
-   origin.creation_info = creation_info
+                            azimuthal_gap=eventParser.openaz2),
+                   evaluation_mode='automatic',
+                   creation_info=creation_info)
 
    pickList = []
+   pPhaseArrival = None
    for arrParser in arrivals:
+      pickOnset = None
+      pol = None
+      if arrParser.phase1.startswith('i'):
+         pickOnset = PickOnset.impulsive
+         pol = arrParser.fm
+      elif arrParser.phase1.startswith('e'):
+         pickOnset = PickOnset.emergent
       pick = Pick(time=UTCDateTime(arrParser.year, arrParser.month, arrParser.day, arrParser.hour,
-                                   arrParser.minute, arrParser.second.split('.')[0], arrParser.second.split('.')[1]),
-                  waveform_id=WaveformStreamID(station_code=arrParser.station))
+                                   arrParser.minute, arrParser.second.split('.')[0],
+                                   arrParser.second.split('.')[1] + '0'),
+                  waveform_id=WaveformStreamID(station_code=arrParser.station),
+                  methodID=ResourceIdentifier('STA/LTA'),
+                  backazimuth=arrParser.backaz,
+                  onset=pickOnset,
+                  phase_hint=arrParser.phase,
+                  polarity=pol,
+                  evaluation_mode='automatic',
+                  # TO-DO
+                  comment='populate all the remaining fields here as key value',
+                  creation_info = creation_info)
       pickList.append(pick)
+      arrival = Arrival()
    event.picks = pickList
 
    return event
