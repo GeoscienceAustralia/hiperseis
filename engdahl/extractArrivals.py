@@ -1,4 +1,4 @@
-import pprint
+#import pprint
 from ArrivalParser import ArrivalParser
 from HDFLineParser import HDFLineParser
 from itertools import groupby
@@ -20,11 +20,11 @@ def setEventData(eventParser, arrivals, count):
    global originCount
    global eventCount
    global pickCount
-   creation_info = CreationInfo(author='niket_engdahl_data',
+   creation_info = CreationInfo(author='niket_engdahl_parser',
                                 creation_time=UTCDateTime(),
-                                agency_uri='NA',
-                                agency_id='engdahl')
-   origin = Origin(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+str(originCount)),
+                                agency_uri=ResourceIdentifier(id='smi:engdahl.ga.gov.au/ga-engdahl'),
+                                agency_id='ga-engdahl')
+   origin = Origin(resource_id=ResourceIdentifier(id='smi:engdahl.ga.gov.au/origin/'+str(originCount)),
                    time=UTCDateTime(int(str(2000 + int(eventParser.iyr))), int(eventParser.mon), int(eventParser.iday),
                                     int(eventParser.ihr), int(eventParser.min), int(eventParser.sec.split('.')[0]),
                                     int(eventParser.sec.split('.')[1] + '0')),
@@ -65,11 +65,11 @@ def setEventData(eventParser, arrivals, count):
             pol = PickPolarity.negative
       elif arrParser.phase1.startswith('e'):
          pickOnset = PickOnset.emergent
-      pick = Pick(resource_id=ResourceIdentifier('engdahl:ga.gov.au/pick/'+str(pickCount)),
+      pick = Pick(resource_id=ResourceIdentifier(id='smi:engdahl.ga.gov.au/pick/'+str(pickCount)),
                   time=UTCDateTime(int(str(2000 + int(arrParser.year))), int(arrParser.month), int(arrParser.day),
                                    int(arrParser.hour), int(arrParser.minute), int(arrParser.second.split('.')[0]),
                                    int(arrParser.second.split('.')[1] + '0')),
-                  waveform_id=WaveformStreamID(station_code=arrParser.station),
+                  waveform_id=WaveformStreamID(network_code='', station_code=arrParser.station, channel_code='BHZ'),
                   methodID=ResourceIdentifier('STA/LTA'),
                   backazimuth=arrParser.backaz if arrParser.backaz else None,
                   onset=pickOnset,
@@ -81,11 +81,11 @@ def setEventData(eventParser, arrivals, count):
                   creation_info=creation_info)
       if not arrParser.backaz:
           print "arrParser.backaz is empty. printing the arrParser for debugging"
-          pprint.pprint(arrParser)
+#          pprint.pprint(arrParser)
       pickCount += 1
       pickList.append(pick)
 
-      arrival = Arrival(pick_id=str(pickCount-1),
+      arrival = Arrival(pick_id=ResourceIdentifier(id='smi:engdahl.ga.gov.au/pick/'+str(pickCount-1)),
                         phase=arrParser.phase[0],
                         azimuth=arrParser.backaz if arrParser.backaz else None,
                         distance=arrParser.delta if arrParser.delta else None,
@@ -96,17 +96,18 @@ def setEventData(eventParser, arrivals, count):
       arrivalList.append(arrival)
       if not arrParser.wgt:
           print "arrParser.wgt is empty. printing the arrParser for debugging"
-          pprint.pprint(arrParser)
+#          pprint.pprint(arrParser)
 
    origin.arrivals = arrivalList
 
-   event = Event(resource_id=ResourceIdentifier('engdahl:ga.gov.au/event/'+str(eventCount)),
+   event = Event(resource_id=ResourceIdentifier(id='smi:engdahl.ga.gov.au/event/'+str(eventCount)),
                  creation_info=creation_info, event_type='earthquake')
 
    eventCount += 1
 
    event.picks = pickList
    event.origins = [origin, ]
+   event.preferred_origin_id = origin.resource_id
    return event
 
 def getArrivalSections(hdfFile, outFile):
