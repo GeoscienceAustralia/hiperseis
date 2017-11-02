@@ -1,4 +1,5 @@
 #import pprint
+import urllib2
 from ArrivalParser import ArrivalParser
 from HDFLineParser import HDFLineParser
 from itertools import groupby
@@ -8,6 +9,7 @@ from obspy import UTCDateTime
 from obspy.core.event.header import PickOnset, PickPolarity
 from obspy.core.event import Amplitude, Event, Magnitude, Origin, Pick,\
    OriginQuality, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival
+from obspy.clients.fdsn import Client
 
 global eventCount
 eventCount = 1
@@ -32,8 +34,8 @@ def setEventData(eventParser, arrivals, count):
                    latitude=eventParser.glat,
                    depth=eventParser.depth,
                    depth_errors=eventParser.sedep,
-                   method_id='EHB',
-                   earth_model_id='ak135',
+                   method_id=ResourceIdentifier(id='EHB'),
+                   earth_model_id=ResourceIdentifier(id='ak135'),
                    quality=OriginQuality(associated_phase_count=len(arrivals),
                             used_phase_count=len(arrivals),
                             standard_error=eventParser.se,
@@ -65,6 +67,21 @@ def setEventData(eventParser, arrivals, count):
             pol = PickPolarity.negative
       elif arrParser.phase1.startswith('e'):
          pickOnset = PickOnset.emergent
+      client = Client(base_url='https://service.iris.edu/fdsnws/', debug=True)
+      if not client.services.has_key('station') or not client.services.has_key('station'):
+         print('The fdsn client of obspy was not initiated successfully. The network code will not be populated.')
+      else:
+         inv = client.get_stations(station=arrParser.station, level='network')
+         networkCodes = [cod for cod in set([net.code for net in inv.networks]) if cod != 'SY']
+         if len(networkCodes) > 1:
+            print('Multiple network codes returned for the station: ' + arrParser.station +
+                  '. Continuing with this arrival without network code assignment. ' + arrParser.__dict__)
+         elif len(networkCodes) == 0:
+            print('No network found for this station: ' + arrParser.station +
+                  '. Continuing with this arrival without network code assignment. ' + arrParser.__dict__)
+         else:
+            arrParser.network = networkCodes[0]
+
       pick = Pick(resource_id=ResourceIdentifier(id='smi:engdahl.ga.gov.au/pick/'+str(pickCount)),
                   time=UTCDateTime(int(str(2000 + int(arrParser.year))), int(arrParser.month), int(arrParser.day),
                                    int(arrParser.hour), int(arrParser.minute), int(arrParser.second.split('.')[0]),
@@ -135,7 +152,7 @@ def getArrivalSections(hdfFile, outFile):
                ev = setEventData(eventParser, listOfArrivals, count)
                ev.write(ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
                #remove the below if condition after testing, its only for debugging
-               if count > 5:
+               if count > 2:
                    break
 
 

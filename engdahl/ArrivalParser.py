@@ -86,3 +86,5 @@ class ArrivalParser:
       self.wgt = retTuple[22].strip()
       self.isGA = retTuple[23].strip()
 
+      # fields derived from FDSN
+      self.network = None
