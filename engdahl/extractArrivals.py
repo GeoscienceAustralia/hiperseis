@@ -1,5 +1,4 @@
-#import pprint
-import urllib2
+#import urllib2
 from ArrivalParser import ArrivalParser
 from HDFLineParser import HDFLineParser
 from itertools import groupby
@@ -59,7 +58,7 @@ def setEventData(eventParser, arrivals, count):
                                     int(eventParser.sec.split('.')[1] + '0')),
                    longitude=eventParser.glon,
                    latitude=eventParser.glat,
-                   depth=eventParser.depth,
+                   depth=float(eventParser.depth) * 1000, # engdahl files report kms, obspy expects m
                    depth_errors=eventParser.sedep,
                    method_id=ResourceIdentifier(id='EHB'),
                    earth_model_id=ResourceIdentifier(id='ak135'),
@@ -127,7 +126,6 @@ def setEventData(eventParser, arrivals, count):
                   creation_info=creation_info)
       if not arrParser.backaz:
           print "arrParser.backaz is empty. printing the arrParser for debugging"
-#          pprint.pprint(arrParser)
       pickCount += 1
       pickList.append(pick)
 
@@ -168,13 +166,11 @@ def getArrivalSections(hdfFile, outFile):
                count = count + 1
                eventParser = HDFLineParser(linecache.getline(hdfFile, count).rstrip('\n'))
 
-#               print eventParser.__dict__
                listOfArrivals = []
                for groupline in value:
                   if len(groupline) == 133:
                      arrivalParser = ArrivalParser(groupline.rstrip('\n'))
                      listOfArrivals.append(arrivalParser)
-#                     print arrivalParser.__dict__
                   elif len(groupline) == 115 and groupline.endswith('km'):
                      eventParser.seTime = groupline[groupline.substring('se h =   ') + 9 : groupline.substring(' sec     se lat')]
                      eventParser.seLat = groupline[groupline.substring('se lat =  ') + 10 : groupline.substring(' km     se lon')]
@@ -183,8 +179,8 @@ def getArrivalSections(hdfFile, outFile):
                ev = setEventData(eventParser, listOfArrivals, count)
                ev.write(ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
                #remove the below if condition after testing, its only for debugging
-               if count > 2:
-                   break
+               #if count > 2:
+               #    break
 
 
 def main():
