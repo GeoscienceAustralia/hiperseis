@@ -85,7 +85,7 @@ def setEventData(eventParser, arrivals, count):
       pickOnset = None
       pol = None
 
-      if arrParser.phase and arrParser.phase.lower().startswith('p') and arrParser.year and arrParser.month and arrParser.day:
+      if arrParser.phase and arrParser.year and arrParser.month and arrParser.day:
          pPhaseArrival = arrParser
       else:
          arrParser.year = pPhaseArrival.year
@@ -98,7 +98,7 @@ def setEventData(eventParser, arrivals, count):
          arrParser.focalDip = pPhaseArrival.focalDip
          arrParser.angleAzimuth = pPhaseArrival.angleAzimuth
 
-      if arrParser.phase1 == 'LR' or arrParser.phase2 == 'LR':
+      if not arrParser.phase and (arrParser.phase1 == 'LR' or arrParser.phase2 == 'LR' or arrParser.hour == '24'):
          continue
 
       if arrParser.phase1.startswith('i'):
@@ -179,8 +179,8 @@ def getArrivalSections(hdfFile, outFile):
                ev = setEventData(eventParser, listOfArrivals, count)
                ev.write(ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
                #remove the below if condition after testing, its only for debugging
-               #if count > 2:
-               #    break
+               if count > 2:
+                   break
 
 
 def main():
