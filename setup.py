@@ -47,7 +47,7 @@ setup(
     author='Geoscience Australia Passive Seismic Team',
     author_email='',
     url='https://github.com/GeoscienceAustralia/Passive-Seismic',
-    packages=['seismic', 'convert_logs', 'seismic.scripts'],
+    packages=['seismic', 'convert_logs', 'seismic.scripts', 'seismic.cluster'],
     package_dir={'passive-seismic': 'seismic'},
     include_package_data=True,
     dependency_links=[
@@ -61,6 +61,7 @@ setup(
         'console_scripts': [
             'anulog = convert_logs.decode_datfile:anulog',
             'seismic = seismic.scripts.event:cli',
+            'cluster = seismic.cluster.cluster:cli',
         ]
     },
 
