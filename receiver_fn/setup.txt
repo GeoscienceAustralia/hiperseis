@@ -1,0 +1,7 @@
+sudo apt-get update
+sudo apt-get -y install python-pip
+sudo apt-get libgeos-dev libproj-dev gfortran
+sudo pip install numpy
+sudo pip install git+https://github.com/obspy/obspy.git
+sudo pip install rf
+
