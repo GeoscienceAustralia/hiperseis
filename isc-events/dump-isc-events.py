@@ -39,7 +39,10 @@ def start_dump(start, end, runFailed=False):
 
          # handle empty and malformed quakeml
          if not '<event ' in qmlResponse:
-            print('The returned quakeml for start='+str(start)+' and end='+str(end)+' returned no events')
+            if 'No events were found' in qmlResponse:
+               print('There are no events recoreded at ISC for start='+str(start)+' and end='+str(end))
+            else:
+               print('The returned quakeml for start='+str(start)+' and end='+str(end)+' returned no events')
             start = end
             end = end + tdelta
             continue
