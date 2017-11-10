@@ -61,7 +61,7 @@ setup(
         'console_scripts': [
             'anulog = convert_logs.decode_datfile:anulog',
             'seismic = seismic.scripts.event:cli',
-            'cluster = seismic.cluster.cluster:cli',
+            'cluster = seismic.cluster.cluster:cluster',
         ]
     },
 

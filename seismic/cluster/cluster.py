@@ -16,36 +16,48 @@ log = logging.getLogger(__name__)
 Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
 
-@click.group()
-@click.option('-v', '--verbosity',
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
-              default='INFO', help='Level of logging')
-def cli(verbosity):
-    seismic.pslog.configure(verbosity)
 
-
-@cli.command()
+@click.command()
 @click.argument('events_dir',
                 type=click.Path(exists=True, file_okay=False, dir_okay=True,
                                 writable=False, readable=True,
                                 resolve_path=True))
 @click.argument('station_metadata',
                 type=click.File(mode='r'))
+@click.option('-o', '--output_file',
+              type=click.File(mode='w'), default='cluster_p.csv',
+              help='Output P picks file')
 @click.option('-x', '--nx', type=int, default=1440,
               help='number of segments from 0 to 360 degrees for longtitude')
 @click.option('-y', '--ny', type=int, default=720,
               help='number of segments from 0 to 180 degrees for latitude')
 @click.option('-z', '--dz', type=float, default=25.0,
               help='unit segment length of depth in meters')
-def cluster(events_dir, station_metadata, nx, ny, dz):
+@click.option('-v', '--verbosity',
+              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
+              default='INFO', help='Level of logging')
+def cluster(events_dir, station_metadata, output_file, nx, ny, dz, verbosity):
+
+    seismic.pslog.configure(verbosity)
 
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
     stations = _read_stations(station_metadata)
 
+    writer = csv.writer(output_file)
+
     for e in events:
 
+        # use timestamp as the event number
+        ev_number = int(e.creation_info.creation_time.timestamp*1e6)
+
         origin = e.preferred_origin()
+        # other event parameters we need
+
+        ev_latitude = origin.latitude
+        ev_longitude = origin.longitude
+        ev_depth = origin.depth
+
         dx = 360./nx
         dy = 180./ny
 
@@ -83,7 +95,19 @@ def cluster(events_dir, station_metadata, nx, ny, dz):
             i = round(x/dx) + 1
             j = round(y/dy) + 1
             k = round(z/dz) + 1
-            station_block = (k-1)*nx*ny+(j-1)*nx+i
+            station_block = (k-1) * nx * ny + (j-1) * nx + i
+            # phase_type == 1 if P else S
+            phase_type = 1 if arr.phase == 'P' else 2
+            if phase_type == 2:
+                assert arr.phase == 'S'
+
+            writer.writerow([
+                event_block, station_block, arr.time_residual,
+                ev_number, ev_longitude, ev_latitude, ev_depth,
+                sta.longitude, sta.latitude,
+                (arr.pick_id.get_referred_object().time.timestamp -
+                 origin.time.timestamp),
+                phase_type])
 
 
 def _read_stations(csv_file):
