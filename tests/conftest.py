@@ -22,7 +22,7 @@ def mseed():
 
 @pytest.fixture
 def xml():
-    return os.path.join(MOCKS, 'ga2017qxlpiu.xml')
+    return os.path.join(MOCKS, 'events', 'ga2017qxlpiu.xml')
 
 
 @pytest.fixture
