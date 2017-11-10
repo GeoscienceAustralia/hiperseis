@@ -1,15 +1,20 @@
 """
 Clustering of events and station for 3d inversion input files.
 """
+from __future__ import print_function
 import os
 import click
 import logging
-from obspy import read_events, read_inventory
+import csv
+from obspy import read_events
 import seismic
 from seismic import pslog
+from collections import namedtuple
 
 log = logging.getLogger(__name__)
 
+Station = namedtuple('Station', 'station_code, latitude, longitude, '
+                                'elevation, network_code')
 
 @click.group()
 @click.option('-v', '--verbosity',
@@ -27,14 +32,16 @@ def cli(verbosity):
 @click.argument('station_metadata',
                 type=click.File(mode='r'))
 @click.option('-x', '--nx', type=int, default=1440,
-              help='number of segments from 0 to 360 for longtitude')
+              help='number of segments from 0 to 360 degrees for longtitude')
 @click.option('-y', '--ny', type=int, default=720,
-              help='number of segments from 0 to 180 for latitude')
+              help='number of segments from 0 to 180 degrees for latitude')
 @click.option('-z', '--dz', type=float, default=25.0,
               help='unit segment length of depth in meters')
 def cluster(events_dir, station_metadata, nx, ny, dz):
+
     events = read_events(os.path.join(events_dir, '*.xml')).events
-    stations = read_inventory(station_metadata)
+
+    stations = _read_stations(station_metadata)
 
     for e in events:
 
@@ -59,12 +66,16 @@ def cluster(events_dir, station_metadata, nx, ny, dz):
         event_block = (k-1) * nx * ny + (j-1) * nx + i
 
         for arr in origin.arrivals:
-            y = 90. - slat
+            sta_code = arr.pick_id.get_referred_object(
+            ).waveform_id.station_code
+            sta = stations[sta_code]
 
-            if slon > 0:
-                x = slon
+            y = 90. - float(sta.latitude)
+            lon = float(sta.longitude)
+            if lon > 0:
+                x = lon
             else:
-                x = slon+360.
+                x = lon + 360.
             # endif
 
             z = 0.
@@ -73,3 +84,18 @@ def cluster(events_dir, station_metadata, nx, ny, dz):
             j = round(y/dy) + 1
             k = round(z/dz) + 1
             station_block = (k-1)*nx*ny+(j-1)*nx+i
+
+
+def _read_stations(csv_file):
+    """
+    :param csv_file: str
+        csv stations file handle passed in by click
+    :return: stations_dict: dict
+        dict of stations indexed by station_code for quick lookup
+    """
+    stations_dict = {}
+    reader = csv.reader(csv_file)
+    reader.__next__()  # skip header
+    for station in map(Station._make, reader):
+        stations_dict[station.station_code] = station
+    return stations_dict
