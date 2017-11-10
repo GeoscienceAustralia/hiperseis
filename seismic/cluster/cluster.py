@@ -63,36 +63,19 @@ def process_event(event, stations, writer, nx, ny, dz):
 
     dx = 360. / nx
     dy = 180. / ny
-    y = 90. - origin.latitude
-    if origin.longitude > 0.:
-        x = origin.longitude
-    else:
-        x = origin.longitude + 360.
-    # endif
-    z = origin.depth
-    i = round(x / dx) + 1
-    j = round(y / dy) + 1
-    k = round(z / dz) + 1
-    event_block = (k - 1) * nx * ny + (j - 1) * nx + i
+    event_block = _find_block(dx, dy, dz, nx, ny,
+                              origin.latitude,
+                              origin.longitude,
+                              z = origin.depth)
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
         ).waveform_id.station_code
         sta = stations[sta_code]
 
-        y = 90. - float(sta.latitude)
-        lon = float(sta.longitude)
-        if lon > 0:
-            x = lon
-        else:
-            x = lon + 360.
-        # endif
+        station_block = _find_block(dx, dy, dz, nx, ny,
+                                    float(sta.latitude), float(sta.longitude),
+                                    z=0.0)
 
-        z = 0.
-
-        i = round(x / dx) + 1
-        j = round(y / dy) + 1
-        k = round(z / dz) + 1
-        station_block = (k - 1) * nx * ny + (j - 1) * nx + i
         # phase_type == 1 if P else S
         phase_type = 1 if arr.phase == 'P' else 2
         if phase_type == 2:
@@ -105,6 +88,16 @@ def process_event(event, stations, writer, nx, ny, dz):
             (arr.pick_id.get_referred_object().time.timestamp -
              origin.time.timestamp),
             phase_type])
+
+
+def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
+    y = 90. - lat
+    x = lon if lon > 0 else lon + 360.0
+    i = round(x / dx) + 1
+    j = round(y / dy) + 1
+    k = round(z / dz) + 1
+    station_block = (k - 1) * nx * ny + (j - 1) * nx + i
+    return station_block
 
 
 def _read_stations(csv_file):
