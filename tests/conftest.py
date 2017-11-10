@@ -11,6 +11,19 @@ from seismic import config
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
 
+TESTS = os.path.dirname(__file__)
+MOCKS = os.path.join(TESTS, 'mocks')
+
+
+@pytest.fixture
+def mseed():
+    return os.path.join(MOCKS, 'ga2017qxlpiu_short.mseed')
+
+
+@pytest.fixture
+def xml():
+    return os.path.join(MOCKS, 'ga2017qxlpiu.xml')
+
 
 @pytest.fixture
 def test_dir():
