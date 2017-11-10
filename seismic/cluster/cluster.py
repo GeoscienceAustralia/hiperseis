@@ -66,7 +66,7 @@ def process_event(event, stations, writer, nx, ny, dz):
     event_block = _find_block(dx, dy, dz, nx, ny,
                               origin.latitude,
                               origin.longitude,
-                              z = origin.depth)
+                              z=origin.depth)
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
         ).waveform_id.station_code
@@ -76,7 +76,7 @@ def process_event(event, stations, writer, nx, ny, dz):
                                     float(sta.latitude), float(sta.longitude),
                                     z=0.0)
 
-        # phase_type == 1 if P else S
+        # phase_type == 1 if P else 2
         phase_type = 1 if arr.phase == 'P' else 2
         if phase_type == 2:
             assert arr.phase == 'S'
@@ -109,7 +109,7 @@ def _read_stations(csv_file):
     """
     stations_dict = {}
     reader = csv.reader(csv_file)
-    reader.__next__()  # skip header
+    reader.next()  # skip header
     for station in map(Station._make, reader):
         stations_dict[station.station_code] = station
     return stations_dict
