@@ -11,7 +11,6 @@ saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 
 def test_single_event_output(xml, random_filename):
     output_file = random_filename(ext='.csv')
-    print(output_file)
     with open(stations_file, 'r') as sta_f:
         with open(output_file, 'w') as csvfile:
             writer = csv.writer(csvfile)
