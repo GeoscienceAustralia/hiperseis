@@ -8,6 +8,7 @@ from obspy import UTCDateTime
 from obspy.core.event.header import PickOnset, PickPolarity
 from obspy.core.event import Amplitude, Event, Magnitude, Origin, Pick,\
    OriginQuality, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival
+import os
 
 '''
 # This code is for associating stations with networks
@@ -85,7 +86,7 @@ def setEventData(eventParser, arrivals, count):
       pickOnset = None
       pol = None
 
-      if arrParser.phase and arrParser.year and arrParser.month and arrParser.day:
+      if arrParser.year and arrParser.month and arrParser.day and arrParser.station:
          pPhaseArrival = arrParser
       else:
          arrParser.year = pPhaseArrival.year
@@ -98,7 +99,7 @@ def setEventData(eventParser, arrivals, count):
          arrParser.focalDip = pPhaseArrival.focalDip
          arrParser.angleAzimuth = pPhaseArrival.angleAzimuth
 
-      if not arrParser.phase and (arrParser.phase1 == 'LR' or arrParser.phase2 == 'LR' or arrParser.hour == '24'):
+      if arrParser.phase1 == 'LR' or arrParser.phase2 == 'LR' or arrParser.hour == '24':
          continue
 
       if arrParser.phase1.startswith('i'):
@@ -177,7 +178,10 @@ def getArrivalSections(hdfFile, outFile):
                      eventParser.seLon = groupline[groupline.substring('se lon =  ') + 10 : groupline.substring(' km     se depth')]
 
                ev = setEventData(eventParser, listOfArrivals, count)
-               ev.write(ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
+               outDir=os.getcwd()+'/outdir'
+               if not os.path.exists(outDir):
+                  os.makedirs(outDir)
+               ev.write(outDir+'/'+ev.resource_id.id.split('/')[-1]+".xml", format='SC3ML')
                #remove the below if condition after testing, its only for debugging
                if count > 2:
                    break
