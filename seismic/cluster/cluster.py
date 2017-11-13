@@ -72,6 +72,7 @@ def process_event(event, stations, writer, nx, ny, dz):
         ).waveform_id.station_code
         sta = stations[sta_code]
 
+        # TODO: use station.elevation information
         station_block = _find_block(dx, dy, dz, nx, ny,
                                     float(sta.latitude), float(sta.longitude),
                                     z=0.0)
@@ -97,7 +98,7 @@ def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
     j = round(y / dy) + 1
     k = round(z / dz) + 1
     station_block = (k - 1) * nx * ny + (j - 1) * nx + i
-    return station_block
+    return int(station_block)
 
 
 def _read_stations(csv_file):
