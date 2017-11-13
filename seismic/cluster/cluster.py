@@ -27,8 +27,8 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
 @click.argument('station_metadata',
                 type=click.File(mode='r'))
 @click.option('-o', '--output_file',
-              type=click.File(mode='w'), default='outfile.csv',
-              help='Output picks file')
+              type=str, default='outfile',
+              help='output arrivals file basename')
 @click.option('-x', '--nx', type=int, default=1440,
               help='number of segments from 0 to 360 degrees for longitude')
 @click.option('-y', '--ny', type=int, default=720,
@@ -51,10 +51,17 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
 
     stations = _read_stations(station_metadata)
 
-    writer = csv.writer(output_file)
+    p_type, s_type = wave_type.split()
+    p_handle = open(output_file + '_' + p_type + '.csv', 'w')
+    s_handle = open(output_file + '_' + s_type + '.csv', 'w')
+    p_writer = csv.writer(p_handle)
+    s_writer = csv.writer(s_handle)
 
     for e in events:
-        process_event(e, stations, writer, nx, ny, dz, wave_type)
+        process_event(e, stations, p_writer, s_writer, nx, ny, dz, wave_type)
+
+    p_handle.close()
+    s_handle.close()
 
 
 @click.command()
@@ -97,8 +104,7 @@ def sort(output_file, sorted_file):
     final_df.to_csv(sorted_file)
 
 
-def process_event(event, stations, writer, nx, ny, dz, wave_type):
-
+def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
     p_type, s_type = wave_type.split()
 
     # use timestamp as the event number
@@ -126,18 +132,24 @@ def process_event(event, stations, writer, nx, ny, dz, wave_type):
                                     float(sta.latitude), float(sta.longitude),
                                     z=0.0)
 
-        # phase_type == 1 if P else 2
-        phase_type = 1 if arr.phase == 'P' else 2
-        if phase_type == 2:
-            assert arr.phase == 'S'
-
-        writer.writerow([
+        # phase_type == 1 if P and 2 if S
+        if arr.phase == p_type:
+            p_writer.writerow([
             event_block, station_block, arr.time_residual,
             ev_number, ev_longitude, ev_latitude, ev_depth,
             sta.longitude, sta.latitude,
             (arr.pick_id.get_referred_object().time.timestamp -
-             origin.time.timestamp),
-            phase_type])
+             origin.time.timestamp), 1])
+
+        elif arr.phase == s_type:
+            s_writer.writerow([
+                event_block, station_block, arr.time_residual,
+                ev_number, ev_longitude, ev_latitude, ev_depth,
+                sta.longitude, sta.latitude,
+                (arr.pick_id.get_referred_object().time.timestamp -
+                 origin.time.timestamp), 2])
+        else:
+            pass
 
 
 def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
