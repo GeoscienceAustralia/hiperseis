@@ -62,6 +62,7 @@ setup(
             'anulog = convert_logs.decode_datfile:anulog',
             'seismic = seismic.scripts.event:cli',
             'cluster = seismic.cluster.cluster:cluster',
+            'sort = seismic.cluster.cluster:sort',
         ]
     },
 
@@ -86,6 +87,7 @@ setup(
         'h5py >= 2.6.0',
         'pyasdf',
         'pyqtgraph',
+        'pandas',
         # 'phasepapy == 1.1.1',
         'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
