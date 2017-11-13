@@ -51,7 +51,9 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
 
     stations = _read_stations(station_metadata)
 
+    # Wave type pair to dump arrivals lists for
     p_type, s_type = wave_type.split()
+
     p_handle = open(output_file + '_' + p_type + '.csv', 'w')
     s_handle = open(output_file + '_' + s_type + '.csv', 'w')
     p_writer = csv.writer(p_handle)
@@ -135,11 +137,12 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         # phase_type == 1 if P and 2 if S
         if arr.phase == p_type:
             p_writer.writerow([
-            event_block, station_block, arr.time_residual,
-            ev_number, ev_longitude, ev_latitude, ev_depth,
-            sta.longitude, sta.latitude,
-            (arr.pick_id.get_referred_object().time.timestamp -
-             origin.time.timestamp), 1])
+                event_block, station_block, arr.time_residual,
+                ev_number, ev_longitude, ev_latitude, ev_depth,
+                sta.longitude, sta.latitude,
+                (arr.pick_id.get_referred_object().time.timestamp -
+                 origin.time.timestamp), 1
+                ])
 
         elif arr.phase == s_type:
             s_writer.writerow([
@@ -147,7 +150,8 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
                 ev_number, ev_longitude, ev_latitude, ev_depth,
                 sta.longitude, sta.latitude,
                 (arr.pick_id.get_referred_object().time.timestamp -
-                 origin.time.timestamp), 2])
+                 origin.time.timestamp), 2
+            ])
         else:
             pass
 
