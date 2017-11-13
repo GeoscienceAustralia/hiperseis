@@ -6,6 +6,7 @@ import os
 import click
 import logging
 import csv
+from glob import glob
 from collections import namedtuple
 import pandas as pd
 from obspy import read_events
@@ -47,21 +48,22 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
 
     seismic.pslog.configure(verbosity)
 
-    events = read_events(os.path.join(events_dir, '*.xml')).events
+    events = read_events(glob(os.path.join(events_dir, '*.xml'))).events
 
     stations = _read_stations(station_metadata)
 
+    process_many_events(events, nx, ny, dz, output_file, stations, wave_type)
+
+
+def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
     # Wave type pair to dump arrivals lists for
     p_type, s_type = wave_type.split()
-
     p_handle = open(output_file + '_' + p_type + '.csv', 'w')
     s_handle = open(output_file + '_' + s_type + '.csv', 'w')
     p_writer = csv.writer(p_handle)
     s_writer = csv.writer(s_handle)
-
     for e in events:
         process_event(e, stations, p_writer, s_writer, nx, ny, dz, wave_type)
-
     p_handle.close()
     s_handle.close()
 
@@ -135,24 +137,16 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
                                     z=0.0)
 
         # phase_type == 1 if P and 2 if S
-        if arr.phase == p_type:
-            p_writer.writerow([
+        if arr.phase in wave_type.split():
+            writer = p_writer if arr.phase == p_type else s_writer
+            writer.writerow([
                 event_block, station_block, arr.time_residual,
                 ev_number, ev_longitude, ev_latitude, ev_depth,
                 sta.longitude, sta.latitude,
                 (arr.pick_id.get_referred_object().time.timestamp -
-                 origin.time.timestamp), 1
+                 origin.time.timestamp), 1 if arr.phase == p_type else 2
                 ])
-
-        elif arr.phase == s_type:
-            s_writer.writerow([
-                event_block, station_block, arr.time_residual,
-                ev_number, ev_longitude, ev_latitude, ev_depth,
-                sta.longitude, sta.latitude,
-                (arr.pick_id.get_referred_object().time.timestamp -
-                 origin.time.timestamp), 2
-            ])
-        else:
+        else:  # ignore the other phases
             pass
 
 
@@ -179,5 +173,3 @@ def _read_stations(csv_file):
     for station in map(Station._make, reader):
         stations_dict[station.station_code] = station
     return stations_dict
-
-
