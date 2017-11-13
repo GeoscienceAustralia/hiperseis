@@ -6,7 +6,6 @@ import os
 import click
 import logging
 import csv
-from glob import glob
 from collections import namedtuple
 import pandas as pd
 from obspy import read_events
@@ -48,7 +47,7 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
 
     seismic.pslog.configure(verbosity)
 
-    events = read_events(glob(os.path.join(events_dir, '*.xml'))).events
+    events = read_events(os.path.join(events_dir, '*.xml')).events
 
     stations = _read_stations(station_metadata)
 
