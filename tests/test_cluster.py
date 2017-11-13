@@ -20,4 +20,4 @@ def test_single_event_output(xml, random_filename):
                           nx=1440, ny=720, dz=25.0)
     inputs = numpy.genfromtxt(saved_out, delimiter=',')
     outputs = numpy.genfromtxt(output_file, delimiter=',')
-    numpy.testing.assert_array_almost_equal_nulp(inputs, outputs)
+    numpy.testing.assert_array_almost_equal(inputs, outputs)
