@@ -6,10 +6,12 @@ import os
 import click
 import logging
 import csv
+from collections import namedtuple
+import pandas as pd
 from obspy import read_events
 import seismic
 from seismic import pslog
-from collections import namedtuple
+
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +50,34 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz, verbosity):
 
     for e in events:
         process_event(e, stations, writer, nx, ny, dz)
+
+
+@click.command()
+@click.argument('output_file',
+                type=click.File(mode='r'))
+@click.option('-s', '--sorted_file',
+              type=click.File(mode='w'), default='sorted.csv',
+              help='output sorted and filter file.')
+def sort(output_file, sorted_file):
+    """
+    Sort and filter based on the source and station block number.
+
+    If there are multiple source and station block combinations, we keep the
+    row corresponding to the median observered travel time (observed_tt).
+
+    :param output_file: output file from the cluster stage
+    :return: None
+
+    """
+    cluster_data = pd.read_csv(output_file, header=None)
+    cluster_data.columns = ['source_block', 'station_block',
+                             'residual', 'event_number',
+                             'source_longitude', 'source_latitude',
+                             'source_depth', 'station_longitude',
+                             'station_latitude', 'observed_tt', 'P_or_S']
+
+    cluster_data.sort_values(by=['source_block', 'station_block'])
+    cluster_data.to_csv(sorted_file, index=False, header=False)
 
 
 def process_event(event, stations, writer, nx, ny, dz):
@@ -114,3 +144,5 @@ def _read_stations(csv_file):
     for station in map(Station._make, reader):
         stations_dict[station.station_code] = station
     return stations_dict
+
+
