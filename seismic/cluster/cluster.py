@@ -27,18 +27,23 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
 @click.argument('station_metadata',
                 type=click.File(mode='r'))
 @click.option('-o', '--output_file',
-              type=click.File(mode='w'), default='cluster_p.csv',
-              help='Output P picks file')
+              type=click.File(mode='w'), default='outfile.csv',
+              help='Output picks file')
 @click.option('-x', '--nx', type=int, default=1440,
               help='number of segments from 0 to 360 degrees for longitude')
 @click.option('-y', '--ny', type=int, default=720,
               help='number of segments from 0 to 180 degrees for latitude')
 @click.option('-z', '--dz', type=float, default=25.0,
               help='unit segment length of depth in meters')
+@click.option('-w', '--wave_type',
+              type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
+              default='P S',
+              help='Wave type pair to generate inversion inputs')
 @click.option('-v', '--verbosity',
               type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
               default='INFO', help='Level of logging')
-def cluster(events_dir, station_metadata, output_file, nx, ny, dz, verbosity):
+def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
+            wave_type, verbosity):
 
     seismic.pslog.configure(verbosity)
 
@@ -49,7 +54,7 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz, verbosity):
     writer = csv.writer(output_file)
 
     for e in events:
-        process_event(e, stations, writer, nx, ny, dz)
+        process_event(e, stations, writer, nx, ny, dz, wave_type)
 
 
 @click.command()
@@ -60,7 +65,8 @@ def cluster(events_dir, station_metadata, output_file, nx, ny, dz, verbosity):
               help='output sorted and filter file.')
 def sort(output_file, sorted_file):
     """
-    Sort and filter based on the source and station block number.
+    Sort based on the source and station block number.
+    Filter based on median of observed travel time.
 
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observered travel time (observed_tt).
@@ -91,7 +97,9 @@ def sort(output_file, sorted_file):
     final_df.to_csv(sorted_file)
 
 
-def process_event(event, stations, writer, nx, ny, dz):
+def process_event(event, stations, writer, nx, ny, dz, wave_type):
+
+    p_type, s_type = wave_type.split()
 
     # use timestamp as the event number
     ev_number = int(event.creation_info.creation_time.timestamp * 1e6)
