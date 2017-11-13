@@ -69,15 +69,26 @@ def sort(output_file, sorted_file):
     :return: None
 
     """
-    cluster_data = pd.read_csv(output_file, header=None)
-    cluster_data.columns = ['source_block', 'station_block',
-                             'residual', 'event_number',
-                             'source_longitude', 'source_latitude',
-                             'source_depth', 'station_longitude',
-                             'station_latitude', 'observed_tt', 'P_or_S']
+    column_names = ['source_block', 'station_block',
+                    'residual', 'event_number',
+                    'source_longitude', 'source_latitude',
+                    'source_depth', 'station_longitude',
+                    'station_latitude', 'observed_tt', 'P_or_S']
 
-    cluster_data.sort_values(by=['source_block', 'station_block'])
+    cluster_data = pd.read_csv(output_file, header=None,
+                               names=column_names)
+    cluster_data.sort_values(by=['source_block', 'station_block'],
+                             inplace=True)
     cluster_data.to_csv(sorted_file, index=False, header=False)
+    groups = cluster_data.groupby(by=['source_block', 'station_block'])
+    keep = []
+    for _, group in groups:
+        med = group['observed_tt'].median()
+        keep.append(group[group['observed_tt'] == med])
+
+    final_df = pd.concat(keep)
+
+    final_df.to_csv(sorted_file)
 
 
 def process_event(event, stations, writer, nx, ny, dz):
@@ -140,7 +151,7 @@ def _read_stations(csv_file):
     """
     stations_dict = {}
     reader = csv.reader(csv_file)
-    reader.next()  # skip header
+    next(reader)  # skip header
     for station in map(Station._make, reader):
         stations_dict[station.station_code] = station
     return stations_dict
