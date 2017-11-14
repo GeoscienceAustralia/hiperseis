@@ -95,7 +95,7 @@ def sort(output_file, sorted_file):
                                names=column_names)
     cluster_data.sort_values(by=['source_block', 'station_block'],
                              inplace=True)
-    cluster_data.to_csv(sorted_file, index=False, header=False)
+    cluster_data.to_csv(sorted_file, index=False, header=True)
     groups = cluster_data.groupby(by=['source_block', 'station_block'])
     keep = []
     for _, group in groups:
@@ -105,6 +105,14 @@ def sort(output_file, sorted_file):
     final_df = pd.concat(keep)
 
     final_df.to_csv(sorted_file)
+
+
+@click.command()
+@click.argument('p_file', type=click.File(mode='r'))
+@click.argument('s_file', type=click.File(mode='r'))
+def match(p_file, s_file):
+    pass
+
 
 
 def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
@@ -129,13 +137,13 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         sta_code = arr.pick_id.get_referred_object(
         ).waveform_id.station_code
 
-        # ignore stations not in stations dict, workaround for now for
+        # ignore arrivals not in stations dict, workaround for now for
         # ENGDAHL/ISC events
-        # TODO: remove this if statement when ISC/ENGDAHL stations are added
+        # TODO: remove this condition once all ISC/ENGDAHL stations are
+        # available
         if sta_code not in stations:
             continue
         sta = stations[sta_code]
-
 
         # TODO: use station.elevation information
         station_block = _find_block(dx, dy, dz, nx, ny,
