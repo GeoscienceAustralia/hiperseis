@@ -128,7 +128,14 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
         ).waveform_id.station_code
+
+        # ignore stations not in stations dict, workaround for now for
+        # ENGDAHL/ISC events
+        # TODO: remove this if statement when ISC/ENGDAHL stations are added
+        if sta_code not in stations:
+            continue
         sta = stations[sta_code]
+
 
         # TODO: use station.elevation information
         station_block = _find_block(dx, dy, dz, nx, ny,
