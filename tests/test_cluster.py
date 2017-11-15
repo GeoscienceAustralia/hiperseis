@@ -58,9 +58,10 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
     with open(stations_file, 'r') as sta_f:
-        with open(p_file, 'w') as p_writer:
-            with open(s_file, 'w') as s_writer:
-                p_writer = csv.writer(p_writer)
+        with open(p_file, 'w') as p_wrt:
+            with open(s_file, 'w') as s_wrt:
+                p_writer = csv.writer(p_wrt)
+                s_writer = csv.writer(s_wrt)
                 process_event(read_events(event_xml)[0],
                               stations=read_stations(sta_f),
                               p_writer=p_writer,
