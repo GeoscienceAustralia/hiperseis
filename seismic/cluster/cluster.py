@@ -97,7 +97,6 @@ def sort(output_file, sorted_file):
                                names=column_names)
     cluster_data.sort_values(by=['source_block', 'station_block'],
                              inplace=True)
-    cluster_data.to_csv(sorted_file, index=False, header=True)
     groups = cluster_data.groupby(by=['source_block', 'station_block'])
     keep = []
     for _, group in groups:
@@ -105,7 +104,6 @@ def sort(output_file, sorted_file):
         keep.append(group[group['observed_tt'] == med])
 
     final_df = pd.concat(keep)
-
     final_df.to_csv(sorted_file, header=True)
 
 
