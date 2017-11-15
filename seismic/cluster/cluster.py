@@ -111,8 +111,15 @@ def sort(output_file, sorted_file):
 @click.argument('p_file', type=click.File(mode='r'))
 @click.argument('s_file', type=click.File(mode='r'))
 def match(p_file, s_file):
-    pass
+    """
+    Match source and station blocks and output matched files
 
+    :param p_file: str
+        path to sorted P arrivals
+    :param s_file: str
+        path to sorted S arrivals
+    :return:None
+    """
 
 
 def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
