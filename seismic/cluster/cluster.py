@@ -9,7 +9,6 @@ import csv
 from collections import namedtuple
 import pandas as pd
 from obspy import read_events
-import seismic
 from seismic import pslog
 
 
@@ -19,7 +18,15 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
 
 
-@click.command()
+@click.group()
+@click.option('-v', '--verbosity',
+              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
+              default='INFO', help='Level of logging')
+def cli(verbosity):
+    pslog.configure(verbosity)
+
+
+@cli.command()
 @click.argument('events_dir',
                 type=click.Path(exists=True, file_okay=False, dir_okay=True,
                                 writable=False, readable=True,
@@ -39,13 +46,8 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
               type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
               default='P S',
               help='Wave type pair to generate inversion inputs')
-@click.option('-v', '--verbosity',
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
-              default='INFO', help='Level of logging')
-def cluster(events_dir, station_metadata, output_file, nx, ny, dz,
-            wave_type, verbosity):
-
-    seismic.pslog.configure(verbosity)
+def gather(events_dir, station_metadata, output_file, nx, ny, dz,
+           wave_type):
 
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
@@ -67,7 +69,7 @@ def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
     s_handle.close()
 
 
-@click.command()
+@cli.command()
 @click.argument('output_file',
                 type=click.File(mode='r'))
 @click.option('-s', '--sorted_file',
@@ -104,10 +106,10 @@ def sort(output_file, sorted_file):
 
     final_df = pd.concat(keep)
 
-    final_df.to_csv(sorted_file)
+    final_df.to_csv(sorted_file, header=True)
 
 
-@click.command()
+@cli.command()
 @click.argument('p_file', type=click.File(mode='r'))
 @click.argument('s_file', type=click.File(mode='r'))
 def match(p_file, s_file):
@@ -120,6 +122,8 @@ def match(p_file, s_file):
         path to sorted S arrivals
     :return:None
     """
+    p_arr = pd.read_csv(p_file)
+    print(p_arr)
 
 
 def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
