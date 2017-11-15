@@ -17,6 +17,12 @@ log = logging.getLogger(__name__)
 Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
 
+column_names = ['source_block', 'station_block',
+                    'residual', 'event_number',
+                    'source_longitude', 'source_latitude',
+                    'source_depth', 'station_longitude',
+                    'station_latitude', 'observed_tt', 'P_or_S']
+
 
 @click.group()
 @click.option('-v', '--verbosity',
@@ -87,11 +93,6 @@ def sort(output_file, sorted_file):
     :return: None
 
     """
-    column_names = ['source_block', 'station_block',
-                    'residual', 'event_number',
-                    'source_longitude', 'source_latitude',
-                    'source_depth', 'station_longitude',
-                    'station_latitude', 'observed_tt', 'P_or_S']
 
     cluster_data = pd.read_csv(output_file, header=None,
                                names=column_names)
@@ -110,7 +111,13 @@ def sort(output_file, sorted_file):
 @cli.command()
 @click.argument('p_file', type=click.File(mode='r'))
 @click.argument('s_file', type=click.File(mode='r'))
-def match(p_file, s_file):
+@click.option('-p', '--matched_p_file',
+              type=click.File(mode='w'), default='matched_p.csv',
+              help='output matched p file.')
+@click.option('-s', '--matched_s_file',
+              type=click.File(mode='w'), default='matched_s.csv',
+              help='output matched s file.')
+def match(p_file, s_file, matched_p_file, matched_s_file):
     """
     Match source and station blocks and output matched files
 
@@ -121,7 +128,18 @@ def match(p_file, s_file):
     :return:None
     """
     p_arr = pd.read_csv(p_file)
-    print(p_arr)
+    s_arr = pd.read_csv(s_file)
+
+    blocks = pd.merge(p_arr[['source_block', 'station_block']],
+                      s_arr[['source_block', 'station_block']],
+                      how='inner',
+                      on=['source_block', 'station_block'])
+    matched_P = pd.merge(p_arr, blocks, how='inner',
+                         on=['source_block', 'station_block'])[column_names]
+    matched_S = pd.merge(s_arr, blocks, how='inner',
+                         on=['source_block', 'station_block'])[column_names]
+    matched_P.to_csv(matched_p_file, index=False, header=False)
+    matched_S.to_csv(matched_s_file, index=False, header=False)
 
 
 def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
