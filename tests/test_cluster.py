@@ -40,6 +40,14 @@ def test_single_event_output(xml, random_filename):
     assert len(origin.arrivals) == len(outputs)
 
 
+def test_sorted():
+    pass
+
+
+def test_filtered():
+    pass
+
+
 def test_multiple_event_output(random_filename):
 
     events = read_events(os.path.join(EVENTS, '*.xml')).events
@@ -59,10 +67,14 @@ def test_multiple_event_output(random_filename):
     # check all arrivals are present
     arrivals = []
     for e in events:
-        print('='*50)
-        print(e.resource_id)
         origin = e.preferred_origin()
-        print(origin)
-        arrivals += e.preferred_origin().arrivals
+        arrivals += origin.arrivals
 
-    print(len(arrivals))
+    p_arr = numpy.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
+    s_arr = numpy.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
+
+    assert len(arrivals) == len(p_arr) + len(s_arr)
+
+
+def test_matched_files():
+    pass
