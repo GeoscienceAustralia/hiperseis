@@ -18,10 +18,10 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
 
 column_names = ['source_block', 'station_block',
-                    'residual', 'event_number',
-                    'source_longitude', 'source_latitude',
-                    'source_depth', 'station_longitude',
-                    'station_latitude', 'observed_tt', 'P_or_S']
+                'residual', 'event_number',
+                'source_longitude', 'source_latitude',
+                'source_depth', 'station_longitude',
+                'station_latitude', 'observed_tt', 'P_or_S']
 
 
 @click.group()
@@ -57,7 +57,7 @@ def gather(events_dir, station_metadata, output_file, nx, ny, dz,
 
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
-    stations = _read_stations(station_metadata)
+    stations = read_stations(station_metadata)
 
     process_many_events(events, nx, ny, dz, output_file, stations, wave_type)
 
@@ -119,7 +119,8 @@ def sort(output_file, sorted_file):
               help='output matched s file.')
 def match(p_file, s_file, matched_p_file, matched_s_file):
     """
-    Match source and station blocks and output matched files
+    Match source and station blocks and output files with matched source and
+    station blocks.
 
     :param p_file: str
         path to sorted P arrivals
@@ -197,12 +198,13 @@ def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
     i = round(x / dx) + 1
     j = round(y / dy) + 1
     k = round(z / dz) + 1
-    station_block = (k - 1) * nx * ny + (j - 1) * nx + i
-    return int(station_block)
+    block_number = (k - 1) * nx * ny + (j - 1) * nx + i
+    return int(block_number)
 
 
-def _read_stations(csv_file):
+def read_stations(csv_file):
     """
+    Read station location from a csv file.
     :param csv_file: str
         csv stations file handle passed in by click
     :return: stations_dict: dict
