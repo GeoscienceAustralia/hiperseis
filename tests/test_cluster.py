@@ -3,6 +3,7 @@ import csv
 import glob
 import numpy as np
 import pytest
+import warnings
 from obspy import read_events
 from seismic.cluster.cluster import (process_event,
                                      read_stations,
@@ -42,8 +43,11 @@ def test_single_event_output(xml, random_filename):
                               s_writer=s_writer,
                               nx=1440, ny=720, dz=25.0,
                               wave_type='P S')
-    inputs = np.genfromtxt(saved_out, delimiter=',')
-    outputs = np.genfromtxt(p_file, delimiter=',')
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inputs = np.genfromtxt(saved_out, delimiter=',')
+        outputs = np.genfromtxt(p_file, delimiter=',')
+
     np.testing.assert_array_almost_equal(inputs, outputs)
 
     # s_file is created
@@ -70,8 +74,11 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                               s_writer=s_writer,
                               nx=1440, ny=720, dz=25.0,
                               wave_type=arr_type)
-    outputs_p = np.genfromtxt(p_file, delimiter=',')
-    outputs_s = np.genfromtxt(s_file, delimiter=',')
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        outputs_p = np.genfromtxt(p_file, delimiter=',')
+        outputs_s = np.genfromtxt(s_file, delimiter=',')
 
     stations = read_stations(open(stations_file, 'r'))
 
@@ -132,8 +139,9 @@ def test_multiple_event_output(random_filename):
         origin = e.preferred_origin()
         arrivals += origin.arrivals
 
-    p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
-    s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
+    with warnings.catch_warnings():
+        p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
+        s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
