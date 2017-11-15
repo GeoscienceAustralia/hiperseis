@@ -1,7 +1,7 @@
 import os
 import csv
 import glob
-import numpy
+import numpy as np
 import pytest
 from obspy import read_events
 from seismic.cluster.cluster import (process_event,
@@ -21,7 +21,7 @@ def event_xml(request):
     return request.param
 
 
-@pytest.fixture(params=['P S'])
+@pytest.fixture(params=['P S', 'p s', 'Pn Sn', 'Pg Sg'])
 def arr_type(request):
     return request.param
 
@@ -32,24 +32,26 @@ def test_single_event_output(xml, random_filename):
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     with open(stations_file, 'r') as sta_f:
-        with open(p_file, 'w') as p_writer:
-            with open(s_file, 'w') as s_writer:
-                p_writer = csv.writer(p_writer)
+        with open(p_file, 'w') as p_wrtr:
+            with open(s_file, 'w') as s_wrtr:
+                p_writer = csv.writer(p_wrtr)
+                s_writer = csv.writer(s_wrtr)
                 process_event(read_events(xml)[0],
                               stations=read_stations(sta_f),
                               p_writer=p_writer,
                               s_writer=s_writer,
                               nx=1440, ny=720, dz=25.0,
                               wave_type='P S')
-    inputs = numpy.genfromtxt(saved_out, delimiter=',')
-    outputs = numpy.genfromtxt(p_file, delimiter=',')
-    numpy.testing.assert_array_almost_equal(inputs, outputs)
+    inputs = np.genfromtxt(saved_out, delimiter=',')
+    outputs = np.genfromtxt(p_file, delimiter=',')
+    np.testing.assert_array_almost_equal(inputs, outputs)
 
     # s_file is created
     assert os.path.exists(s_file)
 
     # make sure number of arrivals match that of output lines
-    assert len(origin.arrivals) == len(outputs)  # no s arrivals for this event
+    # no s arrivals for this event
+    assert len(origin.arrivals) == outputs.shape[0]
 
 
 def test_single_event_arrivals(event_xml, random_filename, arr_type):
@@ -68,8 +70,8 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                               s_writer=s_writer,
                               nx=1440, ny=720, dz=25.0,
                               wave_type=arr_type)
-    outputs_p = numpy.genfromtxt(p_file, delimiter=',')
-    outputs_s = numpy.genfromtxt(s_file, delimiter=',')
+    outputs_p = np.genfromtxt(p_file, delimiter=',')
+    outputs_s = np.genfromtxt(s_file, delimiter=',')
 
     stations = read_stations(open(stations_file, 'r'))
 
@@ -85,9 +87,19 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
             if arr.phase == s:
                 s_arrivals.append(arr)
 
+    if len(outputs_p.shape) == 1 and outputs_p.shape[0]:
+        out_shape_p = 1
+    else:
+        out_shape_p = outputs_p.shape[0]
+
+    if len(outputs_s.shape) == 1 and outputs_s.shape[0]:
+        out_shape_s = 1
+    else:
+        out_shape_s = outputs_s.shape[0]
+
     # make sure number of arrivals match that of output lines
-    assert len(p_arrivals) == len(outputs_p)
-    assert len(s_arrivals) == len(outputs_s)
+    assert len(p_arrivals) == out_shape_p
+    assert len(s_arrivals) == out_shape_s
 
 
 def test_sorted():
@@ -120,8 +132,8 @@ def test_multiple_event_output(random_filename):
         origin = e.preferred_origin()
         arrivals += origin.arrivals
 
-    p_arr = numpy.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
-    s_arr = numpy.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
+    p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
+    s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
