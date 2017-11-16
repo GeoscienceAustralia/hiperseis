@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import warnings
 from obspy import read_events
+from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
                                      read_stations,
                                      process_many_events)
@@ -89,10 +90,15 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         sta_code = arr.pick_id.get_referred_object(
             ).waveform_id.station_code
         if sta_code in stations:
-            if arr.phase == p:
-                p_arrivals.append(arr)
-            if arr.phase == s:
-                s_arrivals.append(arr)
+            degrees_to_source = locations2degrees(
+                origin.latitude, origin.longitude,
+                float(stations[sta_code].latitude),
+                float(stations[sta_code].longitude))
+            if degrees_to_source < 90.0:
+                if arr.phase == p:
+                    p_arrivals.append(arr)
+                if arr.phase == s:
+                    s_arrivals.append(arr)
 
     if len(outputs_p.shape) == 1 and outputs_p.shape[0]:
         out_shape_p = 1
@@ -107,6 +113,23 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
     # make sure number of arrivals match that of output lines
     assert len(p_arrivals) == out_shape_p
     assert len(s_arrivals) == out_shape_s
+
+    # test that location2degress is never more than 90 degrees
+    # test last columns, i.e., wave type
+
+    if out_shape_p > 1:
+        assert max(abs(outputs_p[:, -2])) < 90.001
+        np.testing.assert_array_equal(outputs_p[:, -1], 1)
+    elif out_shape_p == 1:
+        assert abs(outputs_p[-2]) < 90.001
+        assert outputs_p[-1] == 1
+
+    if out_shape_s > 1:
+        assert max(abs(outputs_s[:, -2])) < 90.001
+        np.testing.assert_array_equal(outputs_s[:, -1], 2)
+    elif out_shape_s == 1:
+        assert abs(outputs_s[-2]) < 90.001
+        assert outputs_s[-1] == 2
 
 
 def test_sorted():
