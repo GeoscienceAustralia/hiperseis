@@ -140,6 +140,7 @@ def test_multiple_event_output(random_filename):
         arrivals += origin.arrivals
 
     with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
         p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
         s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
 

@@ -9,6 +9,7 @@ import csv
 from collections import namedtuple
 import pandas as pd
 from obspy import read_events
+from obspy.geodetics import locations2degrees
 from seismic import pslog
 
 
@@ -172,6 +173,15 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         if sta_code not in stations:
             continue
         sta = stations[sta_code]
+
+        degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
+                                              sta.latitude, sta.longitude)
+
+        # ignore stations more than 90 degrees from source
+        if degrees_to_source > 90.0:
+            log.info('Ignored this station arrival as distance from source '
+                     'is {} degrees'.format(degrees_to_source))
+            continue
 
         # TODO: use station.elevation information
         station_block = _find_block(dx, dy, dz, nx, ny,
