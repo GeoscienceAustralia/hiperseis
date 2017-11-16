@@ -21,8 +21,8 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
 column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
                 'source_longitude', 'source_latitude',
-                'source_depth', 'station_longitude',
-                'station_latitude', 'observed_tt', 'P_or_S']
+                'source_depth', 'station_longitude', 'station_latitude',
+                'observed_tt', 'locations2degrees', 'P_or_S']
 
 
 @click.group()
@@ -72,6 +72,7 @@ def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
     s_writer = csv.writer(s_handle)
     for e in events:
         process_event(e, stations, p_writer, s_writer, nx, ny, dz, wave_type)
+        log.debug('processed event {}'.format(e.par))
     p_handle.close()
     s_handle.close()
 
@@ -196,7 +197,8 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
                 ev_number, ev_longitude, ev_latitude, ev_depth,
                 sta.longitude, sta.latitude,
                 (arr.pick_id.get_referred_object().time.timestamp -
-                 origin.time.timestamp), 1 if arr.phase == p_type else 2
+                 origin.time.timestamp), degrees_to_source,
+                1 if arr.phase == p_type else 2
                 ])
         else:  # ignore the other phases
             pass
