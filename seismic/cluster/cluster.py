@@ -72,7 +72,7 @@ def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
     s_writer = csv.writer(s_handle)
     for e in events:
         process_event(e, stations, p_writer, s_writer, nx, ny, dz, wave_type)
-        log.debug('processed event {}'.format(e.par))
+        log.debug('processed event {}'.format(e.resource_id))
     p_handle.close()
     s_handle.close()
 
@@ -176,7 +176,8 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         sta = stations[sta_code]
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
-                                              sta.latitude, sta.longitude)
+                                              float(sta.latitude),
+                                              float(sta.longitude))
 
         # ignore stations more than 90 degrees from source
         if degrees_to_source > 90.0:
