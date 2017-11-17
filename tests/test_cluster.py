@@ -3,7 +3,6 @@ import csv
 import glob
 import numpy as np
 import pytest
-import warnings
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
@@ -28,6 +27,7 @@ def arr_type(request):
     return request.param
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_single_event_output(xml, random_filename):
     p_file = random_filename(ext='_p.csv')
     s_file = random_filename(ext='_s.csv')
@@ -44,10 +44,9 @@ def test_single_event_output(xml, random_filename):
                               s_writer=s_writer,
                               nx=1440, ny=720, dz=25.0,
                               wave_type='P S')
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        inputs = np.genfromtxt(saved_out, delimiter=',')
-        outputs = np.genfromtxt(p_file, delimiter=',')
+
+    inputs = np.genfromtxt(saved_out, delimiter=',')
+    outputs = np.genfromtxt(p_file, delimiter=',')
 
     np.testing.assert_array_almost_equal(inputs, outputs)
 
@@ -59,6 +58,7 @@ def test_single_event_output(xml, random_filename):
     assert len(origin.arrivals) == outputs.shape[0]
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_single_event_arrivals(event_xml, random_filename, arr_type):
     p_file = random_filename(ext='_p.csv')
     s_file = random_filename(ext='_s.csv')
@@ -76,10 +76,8 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                               nx=1440, ny=720, dz=25.0,
                               wave_type=arr_type)
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        outputs_p = np.genfromtxt(p_file, delimiter=',')
-        outputs_s = np.genfromtxt(s_file, delimiter=',')
+    outputs_p = np.genfromtxt(p_file, delimiter=',')
+    outputs_s = np.genfromtxt(s_file, delimiter=',')
 
     stations = read_stations(open(stations_file, 'r'))
 
@@ -140,6 +138,7 @@ def test_filtered():
     pass
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_multiple_event_output(random_filename):
 
     events = read_events(os.path.join(EVENTS, '*.xml')).events
@@ -162,10 +161,8 @@ def test_multiple_event_output(random_filename):
         origin = e.preferred_origin()
         arrivals += origin.arrivals
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
-        s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
+    p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
+    s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
