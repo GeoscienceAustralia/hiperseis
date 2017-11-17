@@ -55,7 +55,9 @@ def cli(verbosity):
               help='Wave type pair to generate inversion inputs')
 def gather(events_dir, station_metadata, output_file, nx, ny, dz,
            wave_type):
-
+    """
+    Gather all source-station block pairs for all events in a directory.
+    """
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
     stations = read_stations(station_metadata)
@@ -128,6 +130,13 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
         path to sorted P arrivals
     :param s_file: str
         path to sorted S arrivals
+    :param matched_p_file: str, optional
+        output p arrivals file with matched p and s arrivals source-block
+        combinations
+    :param matched_s_file: str, optional
+        output s arrivals file with matched p and s arrivals source-block
+        combinations
+
     :return:None
     """
     p_arr = pd.read_csv(p_file)
@@ -146,6 +155,23 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
 
 def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
+    """
+    :param event: obspy.core.event class instance
+    :param stations: dict
+        stations dict
+    :param p_writer: p_file handle
+    :param s_writer: s_file handle
+    :param nx: int
+        number of segments from 0 to 360 degrees for longitude
+    :param ny: int
+        number of segments from 0 to 180 degrees for latitude
+    :param dz: float
+        unit segment length of depth in meters
+    :param wave_type: str
+        Wave type pair to generate inversion inputs. See `gather` function.
+    :return: None
+
+    """
     p_type, s_type = wave_type.split()
 
     # use timestamp as the event number
