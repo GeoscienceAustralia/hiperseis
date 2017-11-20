@@ -56,8 +56,9 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    event_xmls = glob.glob(os.path.join(events_dir, '*.xml'))
+    event_xmls = glob.glob(os.path.join(events_dir, '8*.xml'))
 
+    # generate the stations dict
     stations = read_stations(station_metadata)
     isc_stations = gather_isc_stations()
     stations.update(isc_stations)
@@ -119,7 +120,7 @@ def sort(output_file, sorted_file):
     keep = []
     for _, group in groups:
         med = group['observed_tt'].median()
-        # if median is not a unique match keep only one row
+        # if median is not a unique match, keep only one row
         keep.append(group[group['observed_tt'] == med][:1])
 
     final_df = pd.concat(keep)
