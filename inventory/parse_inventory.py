@@ -4,11 +4,9 @@ import os
 import logging
 from collections import namedtuple
 from obspy import UTCDateTime
-from seismic import pslog
 
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 isc_format1 = '4s12s10s8s20s20s'
 isc_format2 = '4s12s10s8s20s'
@@ -104,13 +102,14 @@ def _read_sta_file(f, sta_dict):
                             log.debug(sta_tuple)
                         else:
                             raise
+                        sta = sta_tuple[0].strip()
 
                     if sta in sta_dict:
                         log.warning('Station {} already exists in the '
                                     'stations dict. '
                                     'Overwriting with most '
                                     'recent entry'.format(sta))
-                    sta_dict[sta] = Station(
+                    sta_dict[sta.decode()] = Station(
                         station_code=sta,
                         latitude=float(sta_tuple[1]),
                         longitude=float(sta_tuple[2]),
