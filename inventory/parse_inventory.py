@@ -2,10 +2,12 @@ from __future__ import absolute_import
 import struct
 import os
 import logging
+from collections import namedtuple
 from obspy import UTCDateTime
-from seismic.cluster.cluster import Station
+from seismic import pslog
 
-logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
 isc_format1 = '4s12s10s8s20s20s'
@@ -25,8 +27,11 @@ sta, network, location, channel and open date, close date and if we have it
 the sampling rates.
 """
 
-isc_file_1 = os.path.join('isc-inventory', 'ehb.stn')
-isc_file_2 = os.path.join('isc-inventory', 'iscehb.stn')
+isc_file_1 = os.path.join('inventory', 'ehb.stn')
+isc_file_2 = os.path.join('inventory', 'iscehb.stn')
+
+Station = namedtuple('Station', 'station_code, latitude, longitude, '
+                                'elevation, network_code')
 
 
 def gather_isc_stations():
@@ -55,7 +60,7 @@ def _read_sta_file(f, sta_dict):
                     isc_format = isc_format4
                 sta_tuple = struct.unpack(isc_format, line.encode())
 
-                # only select for valid station names
+                # only select if station name is not empty string
                 if sta_tuple[0].strip():
                     sta = sta_tuple[0].strip()
                     stations += 1
@@ -100,13 +105,13 @@ def _read_sta_file(f, sta_dict):
                         else:
                             raise
 
-                    if sta_tuple[0] in sta_dict:
-                        log.warning('This station already exists in the'
+                    if sta in sta_dict:
+                        log.warning('Station {} already exists in the '
                                     'stations dict. '
-                                    'Overwriting with newer station '
-                                    'with same station code')
-                    sta_dict[sta_tuple[0]] = Station(
-                        station_code=sta_tuple[0],
+                                    'Overwriting with most '
+                                    'recent entry'.format(sta))
+                    sta_dict[sta] = Station(
+                        station_code=sta,
                         latitude=float(sta_tuple[1]),
                         longitude=float(sta_tuple[2]),
                         elevation=float(sta_tuple[3]),

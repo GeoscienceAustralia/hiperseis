@@ -6,23 +6,22 @@ import os
 import click
 import logging
 import csv
-from collections import namedtuple
 import pandas as pd
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic import pslog
+from inventory.parse_inventory import gather_isc_stations, Station
 
 
 log = logging.getLogger(__name__)
-
-Station = namedtuple('Station', 'station_code, latitude, longitude, '
-                                'elevation, network_code')
 
 column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
                 'source_longitude', 'source_latitude',
                 'source_depth', 'station_longitude', 'station_latitude',
                 'observed_tt', 'locations2degrees', 'P_or_S']
+
+station_metadata = os.path.join('inventory', 'stations.csv')
 
 
 @click.group()
@@ -38,8 +37,6 @@ def cli(verbosity):
                 type=click.Path(exists=True, file_okay=False, dir_okay=True,
                                 writable=False, readable=True,
                                 resolve_path=True))
-@click.argument('station_metadata',
-                type=click.File(mode='r'))
 @click.option('-o', '--output_file',
               type=str, default='outfile',
               help='output arrivals file basename')
@@ -53,7 +50,7 @@ def cli(verbosity):
               type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
               default='P S',
               help='Wave type pair to generate inversion inputs')
-def gather(events_dir, station_metadata, output_file, nx, ny, dz,
+def gather(events_dir, output_file, nx, ny, dz,
            wave_type):
     """
     Gather all source-station block pairs for all events in a directory.
@@ -61,7 +58,8 @@ def gather(events_dir, station_metadata, output_file, nx, ny, dz,
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
     stations = read_stations(station_metadata)
-
+    isc_stations = gather_isc_stations()
+    stations.update(isc_stations)
     process_many_events(events, nx, ny, dz, output_file, stations, wave_type)
 
 
@@ -197,8 +195,11 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         # ENGDAHL/ISC events
         # TODO: remove this condition once all ISC/ENGDAHL stations are
         # available
-        if sta_code not in stations:
-            continue
+        # Actually it does not hurt retaining this if condition. In case,
+        # a station comes in which is not in the dict, the data prep will
+        # still work
+        # if sta_code not in stations:
+        #     continue
         sta = stations[sta_code]
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
@@ -241,17 +242,20 @@ def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
     return int(block_number)
 
 
-def read_stations(csv_file):
+def read_stations(station_file):
     """
     Read station location from a csv file.
-    :param csv_file: str
+    :param station_file: str
         csv stations file handle passed in by click
     :return: stations_dict: dict
         dict of stations indexed by station_code for quick lookup
     """
+    log.info('Reading seiscomp3 exported stations file')
     stations_dict = {}
-    reader = csv.reader(csv_file)
-    next(reader)  # skip header
-    for station in map(Station._make, reader):
-        stations_dict[station.station_code] = station
-    return stations_dict
+    with open(station_file, 'r') as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)  # skip header
+        for station in map(Station._make, reader):
+            stations_dict[station.station_code] = station
+        log.info('Done reading seiscomp3 station files')
+        return stations_dict
