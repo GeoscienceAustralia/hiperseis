@@ -56,35 +56,40 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    log.info('Reading events')
-    events = []
     event_xmls = glob.glob(os.path.join(events_dir, '*.xml'))
-    total_events = len(event_xmls)
-    log.info('Reading {} evnets'.format(total_events))
-    for i, xml in enumerate(event_xmls):
-        log.info('Reading event {i} of {events}: {xml}'.format(
-            i=i+1, events=total_events, xml=xml))
-        events += read_events(xml).events
-    log.info('Read all events')
+
     stations = read_stations(station_metadata)
     isc_stations = gather_isc_stations()
     stations.update(isc_stations)
-    process_many_events(events, nx, ny, dz, output_file, stations, wave_type)
+
+    process_many_events(event_xmls, nx, ny, dz, output_file,
+                        stations, wave_type)
     log.info('Gathered all arrivals and saved csv files')
 
 
-def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
+def process_many_events(event_xmls, nx, ny, dz, output_file, stations,
+                        wave_type):
+    total_events = len(event_xmls)
+    log.info('Processing {} events'.format(total_events))
     # Wave type pair to dump arrivals lists for
     p_type, s_type = wave_type.split()
     p_handle = open(output_file + '_' + p_type + '.csv', 'w')
     s_handle = open(output_file + '_' + s_type + '.csv', 'w')
     p_writer = csv.writer(p_handle)
     s_writer = csv.writer(s_handle)
-    for e in events:
-        process_event(e, stations, p_writer, s_writer, nx, ny, dz, wave_type)
-        log.debug('processed event {}'.format(e.resource_id))
+
+    for i, xml in enumerate(event_xmls):
+        log.info('Reading event {i} of {events}: {xml}'.format(
+            i=i+1, events=total_events, xml=xml))
+        # one event xml could contain multiple events
+        for e in read_events(xml).events:
+            process_event(e, stations, p_writer, s_writer, nx, ny, dz,
+                          wave_type)
+            log.debug('processed event {e} from {xml}'.format(e=e.resource_id,
+                                                              xml=xml))
     p_handle.close()
     s_handle.close()
+    log.info('Read all events')
 
 
 @cli.command()
