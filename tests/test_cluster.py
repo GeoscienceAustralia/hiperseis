@@ -34,17 +34,17 @@ def test_single_event_output(xml, random_filename):
     s_file = random_filename(ext='_s.csv')
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
-    with open(stations_file, 'r') as sta_f:
-        with open(p_file, 'w') as p_wrtr:
-            with open(s_file, 'w') as s_wrtr:
-                p_writer = csv.writer(p_wrtr)
-                s_writer = csv.writer(s_wrtr)
-                process_event(read_events(xml)[0],
-                              stations=read_stations(sta_f),
-                              p_writer=p_writer,
-                              s_writer=s_writer,
-                              nx=1440, ny=720, dz=25.0,
-                              wave_type='P S')
+
+    with open(p_file, 'w') as p_wrtr:
+        with open(s_file, 'w') as s_wrtr:
+            p_writer = csv.writer(p_wrtr)
+            s_writer = csv.writer(s_wrtr)
+            process_event(read_events(xml)[0],
+                          stations=read_stations(stations_file),
+                          p_writer=p_writer,
+                          s_writer=s_writer,
+                          nx=1440, ny=720, dz=25.0,
+                          wave_type='P S')
 
     inputs = np.genfromtxt(saved_out, delimiter=',')
     outputs = np.genfromtxt(p_file, delimiter=',')
@@ -65,22 +65,22 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
     s_file = random_filename(ext='_s.csv')
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
-    with open(stations_file, 'r') as sta_f:
-        with open(p_file, 'w') as p_wrt:
-            with open(s_file, 'w') as s_wrt:
-                p_writer = csv.writer(p_wrt)
-                s_writer = csv.writer(s_wrt)
-                process_event(read_events(event_xml)[0],
-                              stations=read_stations(sta_f),
-                              p_writer=p_writer,
-                              s_writer=s_writer,
-                              nx=1440, ny=720, dz=25.0,
-                              wave_type=arr_type)
+
+    with open(p_file, 'w') as p_wrt:
+        with open(s_file, 'w') as s_wrt:
+            p_writer = csv.writer(p_wrt)
+            s_writer = csv.writer(s_wrt)
+            process_event(read_events(event_xml)[0],
+                          stations=read_stations(stations_file),
+                          p_writer=p_writer,
+                          s_writer=s_writer,
+                          nx=1440, ny=720, dz=25.0,
+                          wave_type=arr_type)
 
     outputs_p = np.genfromtxt(p_file, delimiter=',')
     outputs_s = np.genfromtxt(s_file, delimiter=',')
 
-    stations = read_stations(open(stations_file, 'r'))
+    stations = read_stations(stations_file)
 
     p_arrivals = []
     s_arrivals = []
