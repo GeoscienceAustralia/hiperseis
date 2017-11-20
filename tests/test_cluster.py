@@ -10,10 +10,11 @@ from seismic.cluster.cluster import (process_event,
                                      process_many_events)
 
 TESTS = os.path.dirname(__file__)
+PASSIVE = os.path.dirname(TESTS)
 EVENTS = os.path.join(TESTS, 'mocks', 'events')
 xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
-stations_file = os.path.join(TESTS, 'mocks', 'inventory', 'stations.csv')
+stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 
 
