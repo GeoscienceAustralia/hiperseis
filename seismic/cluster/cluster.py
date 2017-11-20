@@ -6,6 +6,7 @@ import os
 import click
 import logging
 import csv
+import glob
 import pandas as pd
 from obspy import read_events
 from obspy.geodetics import locations2degrees
@@ -56,8 +57,12 @@ def gather(events_dir, output_file, nx, ny, dz,
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    events = read_events(os.path.join(events_dir, '*.xml')).events
-
+    log.info('Reading events')
+    events = []
+    for i, xml in enumerate(glob.glob(os.path.join(events_dir, '*.xml'))):
+        log.info('Read event {i}: {xml}'.format(i=i, xml=xml))
+        events += read_events(xml).events
+    log.info('Read all events')
     stations = read_stations(station_metadata)
     isc_stations = gather_isc_stations()
     stations.update(isc_stations)
