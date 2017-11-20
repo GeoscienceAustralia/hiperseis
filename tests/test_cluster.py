@@ -181,12 +181,11 @@ def test_multiple_event_output(random_filename):
     events = read_events(os.path.join(EVENTS, '*.xml')).events
     outfile = random_filename()
 
-    with open(stations_file, 'r') as sta_f:
-        process_many_events(events,
-                            stations=read_stations(sta_f),
-                            nx=1440, ny=720, dz=25.0,
-                            wave_type='P S',
-                            output_file=outfile)
+    process_many_events(glob.glob(os.path.join(EVENTS, '*.xml')),
+                        stations=read_stations(stations_file),
+                        nx=1440, ny=720, dz=25.0,
+                        wave_type='P S',
+                        output_file=outfile)
 
     # check files created
     assert os.path.exists(outfile + '_' + 'P' + '.csv')
