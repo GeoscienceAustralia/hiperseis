@@ -133,35 +133,46 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         assert outputs_s[-1] == 2
 
 
-def test_sorted(random_filename):
+def test_sorted_and_filtered(random_filename):
     """
     check cluster sort and filter operation
     """
     outfile = random_filename()
 
-    # gather
-    gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
-              '-o', outfile]
-    check_call(gather)
-
     # sort
-    sorted_p = outfile + '_sorted_' + 'P' + '.csv'
-    sorted_s = outfile + '_sorted_' + 'S' + '.csv'
-    sort_p = ['cluster', 'sort', outfile + '_' + 'P' + '.csv',
+    for pair_type in ['P S', 'Pn Sn']:
+        # gather
+        gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
+                  '-o', outfile, '-w', pair_type]
+        check_call(gather)
+
+        for wave_type in pair_type.split():  # check for both P and S
+            _test_sort_and_filtered(outfile, wave_type)
+
+
+def _test_sort_and_filtered(outfile, wave_type):
+    sorted_p = outfile + '_sorted_' + wave_type + '.csv'
+    sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
               '-s', sorted_p]
-    sort_s = ['cluster', 'sort', outfile + '_' + 'S' + '.csv',
-              '-s', sorted_s]
-
     check_call(sort_p)
-    check_call(sort_s)
-    assert os.path.exists(outfile + '_sorted_' + 'P' + '.csv')
-    assert os.path.exists(outfile + '_sorted_' + 'S' + '.csv')
+    assert os.path.exists(sorted_p)
     p_df = pd.read_csv(sorted_p)
-    s_df = pd.read_csv(sorted_s)
 
+    # tests for filter
 
-def test_filtered():
-    pass
+    # after sorting and filtering, every group should have one row
+    for _, group in p_df.groupby(by=['source_block', 'station_block']):
+        # one extra due to pandas created extra index
+        assert group.shape == (1, 13)
+
+    # essentially the same thing as before
+    assert len(p_df.groupby(by=['source_block', 'station_block'])) == \
+           p_df.shape[0]
+
+    # tests for sort
+    # sum of source_block + station_block should be strictly increasing
+    block_sum = p_df['source_block'].values + p_df['station_block'].values
+    assert all(np.diff(block_sum))
 
 
 @pytest.mark.filterwarnings("ignore")
