@@ -3,6 +3,8 @@ import csv
 import glob
 import numpy as np
 import pytest
+import pandas as pd
+from subprocess import check_call
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
@@ -131,8 +133,31 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         assert outputs_s[-1] == 2
 
 
-def test_sorted():
-    pass
+def test_sorted(random_filename):
+    """
+    check cluster sort and filter operation
+    """
+    outfile = random_filename()
+
+    # gather
+    gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
+              '-o', outfile]
+    check_call(gather)
+
+    # sort
+    sorted_p = outfile + '_sorted_' + 'P' + '.csv'
+    sorted_s = outfile + '_sorted_' + 'S' + '.csv'
+    sort_p = ['cluster', 'sort', outfile + '_' + 'P' + '.csv',
+              '-s', sorted_p]
+    sort_s = ['cluster', 'sort', outfile + '_' + 'S' + '.csv',
+              '-s', sorted_s]
+
+    check_call(sort_p)
+    check_call(sort_s)
+    assert os.path.exists(outfile + '_sorted_' + 'P' + '.csv')
+    assert os.path.exists(outfile + '_sorted_' + 'S' + '.csv')
+    p_df = pd.read_csv(sorted_p)
+    s_df = pd.read_csv(sorted_s)
 
 
 def test_filtered():

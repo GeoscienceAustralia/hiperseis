@@ -51,16 +51,19 @@ def cli(verbosity):
               type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
               default='P S',
               help='Wave type pair to generate inversion inputs')
-def gather(events_dir, output_file, nx, ny, dz,
-           wave_type):
+def gather(events_dir, output_file, nx, ny, dz, wave_type):
     """
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
     log.info('Reading events')
     events = []
-    for i, xml in enumerate(glob.glob(os.path.join(events_dir, '*.xml'))):
-        log.info('Read event {i}: {xml}'.format(i=i, xml=xml))
+    event_xmls = glob.glob(os.path.join(events_dir, '*.xml'))
+    total_events = len(event_xmls)
+    log.info('Reading {} evnets'.format(total_events))
+    for i, xml in enumerate(event_xmls):
+        log.info('Reading event {i} of {events}: {xml}'.format(
+            i=i+1, events=total_events, xml=xml))
         events += read_events(xml).events
     log.info('Read all events')
     stations = read_stations(station_metadata)
