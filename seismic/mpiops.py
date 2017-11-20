@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from mpi4py import MPI
 
 log = logging.getLogger(__name__)
@@ -26,3 +27,18 @@ def run_once(f, *args, **kwargs):
         f_result = None
     result = comm.bcast(f_result, root=0)
     return result
+
+
+def array_split(arr, process=None):
+    """
+    Convenience function for splitting array elements across MPI processes
+
+    :param ndarray arr: Numpy array
+    :param int process: Process for which array members are required.
+                If None, MPI.comm.rank is used instead. (optional)
+
+    :return List corresponding to array members in a process.
+    :rtype: list
+    """
+    r = process if process else rank
+    return np.array_split(arr, size)[r]

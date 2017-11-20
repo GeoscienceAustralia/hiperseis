@@ -11,6 +11,7 @@ import pandas as pd
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic import pslog
+from seismic import mpiops
 from inventory.parse_inventory import gather_isc_stations, Station
 
 
@@ -59,9 +60,13 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     event_xmls = glob.glob(os.path.join(events_dir, '8*.xml'))
 
     # generate the stations dict
-    stations = read_stations(station_metadata)
-    isc_stations = gather_isc_stations()
-    stations.update(isc_stations)
+    if mpiops.rank == 0:
+        stations = read_stations(station_metadata)
+        isc_stations = gather_isc_stations()
+        stations.update(isc_stations)
+    else:
+        stations = {}
+    stations = mpiops.comm.bcast(stations, root=0)
 
     process_many_events(event_xmls, nx, ny, dz, output_file,
                         stations, wave_type)
@@ -71,7 +76,11 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 def process_many_events(event_xmls, nx, ny, dz, output_file, stations,
                         wave_type):
     total_events = len(event_xmls)
-    log.info('Processing {} events'.format(total_events))
+    p_event_xmls = mpiops.array_split(event_xmls, mpiops.rank)
+    log.info('Processing {} events using {} processes'.format(total_events,
+                                                              mpiops.size))
+    log.info('Processing {} events using process {}'.format(
+        len(p_event_xmls), mpiops.rank))
     # Wave type pair to dump arrivals lists for
     p_type, s_type = wave_type.split()
     p_handle = open(output_file + '_' + p_type + '.csv', 'w')
@@ -80,8 +89,8 @@ def process_many_events(event_xmls, nx, ny, dz, output_file, stations,
     s_writer = csv.writer(s_handle)
 
     for i, xml in enumerate(event_xmls):
-        log.info('Reading event {i} of {events}: {xml}'.format(
-            i=i+1, events=total_events, xml=xml))
+        log.info('Reading event file {xml}: {i} of {files}'.format(
+            i=i+1, files=total_events, xml=xml))
         # one event xml could contain multiple events
         for e in read_events(xml).events:
             process_event(e, stations, p_writer, s_writer, nx, ny, dz,
@@ -250,6 +259,24 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
                 ])
         else:  # ignore the other phases
             pass
+
+
+class ArrivalWriter:
+
+    def __init__(self, p_file, s_file):
+        self.p_writer = csv.writer(open(p_file, 'w'))
+        self.s_writer = csv.writer(open(p_file, 'w'))
+
+    def write(self, cluster_info):
+        writer = self.p_writer if cluster_info[-1] == 1 else self.s_writer
+        mpiops.comm.barrier()
+        if mpiops.rank == 0:
+            cluster_info = mpiops.comm.recv(source=mpiops.rank) \
+                    if mpiops.rank != 0 else cluster_info
+            writer.writerow(cluster_info)
+        else:
+            mpiops.comm.send(cluster_info, dest=0)
+        mpiops.comm.barrier()
 
 
 def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
