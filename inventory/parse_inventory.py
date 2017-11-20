@@ -33,15 +33,18 @@ Station = namedtuple('Station', 'station_code, latitude, longitude, '
 
 
 def gather_isc_stations():
+    log.info('Gathering isc and engdahl stations')
     sta_dict = {}
     # don't change file order, ehb.stn should be older stations list and we
     # keep the more modern ones in the dict
     for f in [isc_file_1, isc_file_2]:
         sta_dict = _read_sta_file(f, sta_dict)
+    log.info('Gathered all stations')
     return sta_dict
 
 
 def _read_sta_file(f, sta_dict):
+    log.info('Gathering stations from {file}'.format(file=f))
     with open(f, 'r') as sta:
         stations = 0
         for l, line in enumerate(sta):

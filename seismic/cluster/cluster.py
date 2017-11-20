@@ -1,7 +1,7 @@
 """
 Clustering of events and station for 3d inversion input files.
 """
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
 import click
 import logging
@@ -55,12 +55,14 @@ def gather(events_dir, output_file, nx, ny, dz,
     """
     Gather all source-station block pairs for all events in a directory.
     """
+    log.info("Gathering all arrivals")
     events = read_events(os.path.join(events_dir, '*.xml')).events
 
     stations = read_stations(station_metadata)
     isc_stations = gather_isc_stations()
     stations.update(isc_stations)
     process_many_events(events, nx, ny, dz, output_file, stations, wave_type)
+    log.info('Gathered all arrivals and saved csv files')
 
 
 def process_many_events(events, nx, ny, dz, output_file, stations, wave_type):
@@ -91,7 +93,7 @@ def sort(output_file, sorted_file):
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observered travel time (observed_tt).
 
-    :param output_file: output file from the cluster stage
+    :param output_file: output file from the gather stage
     :return: None
 
     """
@@ -104,7 +106,8 @@ def sort(output_file, sorted_file):
     keep = []
     for _, group in groups:
         med = group['observed_tt'].median()
-        keep.append(group[group['observed_tt'] == med])
+        # if median is not a unique match keep only one row
+        keep.append(group[group['observed_tt'] == med][:1])
 
     final_df = pd.concat(keep)
     final_df.to_csv(sorted_file, header=True)
@@ -198,8 +201,11 @@ def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
         # Actually it does not hurt retaining this if condition. In case,
         # a station comes in which is not in the dict, the data prep will
         # still work
-        # if sta_code not in stations:
-        #     continue
+        # Note some stations are still missing even after taking into account
+        #  of all seiscomp3 stations, ISC and ENGDAHL stations
+        if sta_code not in stations:
+            log.warning('Station {} not found in inventory'.format(sta_code))
+            continue
         sta = stations[sta_code]
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
