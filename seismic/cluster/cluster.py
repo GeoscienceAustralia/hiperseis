@@ -130,19 +130,23 @@ def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
 
     for i, xml in enumerate(p_event_xmls):
         if xml is not None:
+            p_arr = []
+            s_arr = []
             log.info('Reading event file {xml}: {i} of {files} in process'
                      ' {process}'.format(i=i+1, files=len(p_event_xmls),
                                          xml=os.path.basename(xml),
                                          process=mpiops.rank))
             # one event xml could contain multiple events
-            # TODO: fix for one event xml containing multiple events
             for e in read_events(xml).events:
                 log.info('Reading {}'.format(xml))
-                p_arr, s_arr = process_event(e, stations, nx,
+                p_arr_t, s_arr_t = process_event(e, stations, nx,
                                              ny, dz, wave_type)
-                arrival_writer.write([p_arr, s_arr])
+                p_arr += p_arr_t
+                s_arr += s_arr_t
                 log.debug('processed event {e} from {xml}'.format(
                     e=e.resource_id, xml=xml))
+
+            arrival_writer.write([p_arr, s_arr])
         else:  # dummy's passed in for mpi comm to work on
             arrival_writer.write([[], []])
         log.info('Read all events in process {}'.format(mpiops.rank))

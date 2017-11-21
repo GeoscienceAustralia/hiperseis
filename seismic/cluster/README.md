@@ -31,7 +31,7 @@ Use help on each command like this on how to use each step:
 
     $ cluster gather --help
     
-    Usage: cluster gather [OPTIONS] EVENTS_DIR STATION_METADATA
+    Usage: cluster gather [OPTIONS] EVENTS_DIR
 
     Options:
       -o, --output_file TEXT          output arrivals file basename
@@ -45,3 +45,8 @@ Use help on each command like this on how to use each step:
                                       Wave type pair to generate
                                       inversion inputs
       --help                          Show this message and exit.
+
+
+## Example workflow
+
+    cluster gather tests/mocks/events/engdahl_sample
