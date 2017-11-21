@@ -99,23 +99,15 @@ class ArrivalWriter:
         log.info("Writing cluster info to output file in process {}".format(
             mpiops.rank))
 
-        mpiops.comm.barrier()
-        if mpiops.rank != 0:
-            mpiops.comm.send(cluster_info, dest=0)
-        else:
-            for r in range(mpiops.size):
-                cluster_info = mpiops.comm.recv(source=r) \
-                    if r != 0 else cluster_info
-                p_arr = cluster_info[0]
-                s_arr = cluster_info[1]
+        cluster_info = mpiops.comm.gather(cluster_info)
 
-                if p_arr is not None:
-                    for p in p_arr:
-                        self.p_writer.writerow(p)
-                if s_arr is not None:
-                    for s in s_arr:
-                        self.s_writer.writerow(s)
-        mpiops.comm.barrier()
+        if mpiops.rank == 0:
+            for r in range(mpiops.size):
+                p_arr, s_arr = cluster_info[r]
+                for p in p_arr:
+                    self.p_writer.writerow(p)
+                for s in s_arr:
+                    self.s_writer.writerow(s)
 
     def close(self):
         if mpiops.rank == 0:
@@ -152,7 +144,7 @@ def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
                 log.debug('processed event {e} from {xml}'.format(
                     e=e.resource_id, xml=xml))
         else:  # dummy's passed in for mpi comm to work on
-            arrival_writer.write([None, None])
+            arrival_writer.write([[], []])
         log.info('Read all events in process {}'.format(mpiops.rank))
 
 
