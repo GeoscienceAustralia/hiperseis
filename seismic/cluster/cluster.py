@@ -60,46 +60,221 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     event_xmls = glob.glob(os.path.join(events_dir, '8*.xml'))
 
     # generate the stations dict
-    if mpiops.rank == 0:
-        stations = read_stations(station_metadata)
-        isc_stations = gather_isc_stations()
-        stations.update(isc_stations)
-    else:
-        stations = {}
-    stations = mpiops.comm.bcast(stations, root=0)
+    stations = mpiops.run_once(_read_all_stations)
 
-    process_many_events(event_xmls, nx, ny, dz, output_file,
+    # arrival writer
+    arrival_writer = ArrivalWriter(wave_type, output_file)
+
+    process_many_events(event_xmls, nx, ny, dz, arrival_writer,
                         stations, wave_type)
-    log.info('Gathered all arrivals and saved csv files')
+
+    arrival_writer.close()
+    log.info('Gathered all arrivals in process {}'.format(mpiops.rank))
 
 
-def process_many_events(event_xmls, nx, ny, dz, output_file, stations,
+def _read_all_stations():
+    stations = read_stations(station_metadata)
+    isc_stations = gather_isc_stations()
+    stations.update(isc_stations)
+    return stations
+
+
+class ArrivalWriter:
+    """
+    Convenience class for writing arrival data
+    """
+
+    def __init__(self, wave_type, output_file):
+        p_type, s_type = wave_type.split()
+        p_file = output_file + '_' + p_type + '.csv'
+        s_file = output_file + '_' + s_type + '.csv'
+
+        if mpiops.rank == 0:
+            self.p_handle = open(p_file, 'w')
+            self.s_handle = open(s_file, 'w')
+            self.p_writer = csv.writer(self.p_handle)
+            self.s_writer = csv.writer(self.s_handle)
+
+    def write(self, cluster_info):
+        log.info("Writing cluster info to output file in process {}".format(
+            mpiops.rank))
+
+        mpiops.comm.barrier()
+        if mpiops.rank != 0:
+            mpiops.comm.send(cluster_info, dest=0)
+        else:
+            for r in range(mpiops.size):
+                cluster_info = mpiops.comm.recv(source=r) \
+                    if r != 0 else cluster_info
+                p_arr = cluster_info[0]
+                s_arr = cluster_info[1]
+
+                if p_arr is not None:
+                    for p in p_arr:
+                        self.p_writer.writerow(p)
+                if s_arr is not None:
+                    for s in s_arr:
+                        self.s_writer.writerow(s)
+        mpiops.comm.barrier()
+
+    def close(self):
+        if mpiops.rank == 0:
+            self.p_handle.close()
+            self.s_handle.close()
+
+
+def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
                         wave_type):
     total_events = len(event_xmls)
-    p_event_xmls = mpiops.array_split(event_xmls, mpiops.rank)
-    log.info('Processing {} events using {} processes'.format(total_events,
-                                                              mpiops.size))
-    log.info('Processing {} events using process {}'.format(
-        len(p_event_xmls), mpiops.rank))
-    # Wave type pair to dump arrivals lists for
-    p_type, s_type = wave_type.split()
-    p_handle = open(output_file + '_' + p_type + '.csv', 'w')
-    s_handle = open(output_file + '_' + s_type + '.csv', 'w')
-    p_writer = csv.writer(p_handle)
-    s_writer = csv.writer(s_handle)
 
-    for i, xml in enumerate(event_xmls):
-        log.info('Reading event file {xml}: {i} of {files}'.format(
-            i=i+1, files=total_events, xml=xml))
-        # one event xml could contain multiple events
-        for e in read_events(xml).events:
-            process_event(e, stations, p_writer, s_writer, nx, ny, dz,
-                          wave_type)
-            log.debug('processed event {e} from {xml}'.format(e=e.resource_id,
-                                                              xml=xml))
-    p_handle.close()
-    s_handle.close()
-    log.info('Read all events')
+    # pad number of xmls with None's for mpi comm working during writing
+    padded_xmls = event_xmls + \
+        [None]*(mpiops.size - total_events % mpiops.size)
+
+    p_event_xmls = mpiops.array_split(padded_xmls, mpiops.rank)
+
+    log.info('Processing {} events of total {} using process {}'.format(
+        len(p_event_xmls), total_events, mpiops.rank))
+
+    for i, xml in enumerate(p_event_xmls):
+        if xml is not None:
+            log.info('Reading event file {xml}: {i} of {files} in process'
+                     ' {process}'.format(i=i+1, files=len(p_event_xmls),
+                                         xml=os.path.basename(xml),
+                                         process=mpiops.rank))
+            # one event xml could contain multiple events
+            # TODO: fix for one event xml containing multiple events
+            for e in read_events(xml).events:
+                log.info('Reading {}'.format(xml))
+                p_arr, s_arr = process_event(e, stations, nx,
+                                             ny, dz, wave_type)
+                arrival_writer.write([p_arr, s_arr])
+                log.debug('processed event {e} from {xml}'.format(
+                    e=e.resource_id, xml=xml))
+        else:  # dummy's passed in for mpi comm to work on
+            arrival_writer.write([None, None])
+        log.info('Read all events in process {}'.format(mpiops.rank))
+
+
+def process_event(event, stations, nx, ny, dz, wave_type):
+    """
+    :param event: obspy.core.event class instance
+    :param stations: dict
+        stations dict
+    :param nx: int
+        number of segments from 0 to 360 degrees for longitude
+    :param ny: int
+        number of segments from 0 to 180 degrees for latitude
+    :param dz: float
+        unit segment length of depth in meters
+    :param wave_type: str
+        Wave type pair to generate inversion inputs. See `gather` function.
+    :return: None
+
+    """
+    p_type, s_type = wave_type.split()
+
+    # use timestamp as the event number
+    ev_number = int(event.creation_info.creation_time.timestamp * 1e6)
+    origin = event.preferred_origin()
+
+    # other event parameters we need
+    ev_latitude = origin.latitude
+    ev_longitude = origin.longitude
+    ev_depth = origin.depth
+
+    dx = 360. / nx
+    dy = 180. / ny
+    event_block = _find_block(dx, dy, dz, nx, ny,
+                              origin.latitude,
+                              origin.longitude,
+                              z=origin.depth)
+    p_arrivals = []
+    s_arrivals = []
+
+    for arr in origin.arrivals:
+        sta_code = arr.pick_id.get_referred_object(
+        ).waveform_id.station_code
+
+        # ignore arrivals not in stations dict, workaround for now for
+        # ENGDAHL/ISC events
+        # TODO: remove this condition once all ISC/ENGDAHL stations are
+        # available
+        # Actually it does not hurt retaining this if condition. In case,
+        # a station comes in which is not in the dict, the data prep will
+        # still work
+        # Note some stations are still missing even after taking into account
+        #  of all seiscomp3 stations, ISC and ENGDAHL stations
+        if sta_code not in stations:
+            log.warning('Station {} not found in inventory'.format(sta_code))
+            continue
+        sta = stations[sta_code]
+
+        degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
+                                              float(sta.latitude),
+                                              float(sta.longitude))
+
+        # ignore stations more than 90 degrees from source
+        if degrees_to_source > 90.0:
+            # log.info('Ignored this station arrival as distance from source '
+            #          'is {} degrees'.format(degrees_to_source))
+            continue
+
+        # TODO: use station.elevation information
+        station_block = _find_block(dx, dy, dz, nx, ny,
+                                    float(sta.latitude), float(sta.longitude),
+                                    z=0.0)
+
+        # phase_type == 1 if P and 2 if S
+        if arr.phase in wave_type.split():
+            if arr.phase == p_type:
+                p_arrivals.append([
+                    event_block, station_block, arr.time_residual,
+                    ev_number, ev_longitude, ev_latitude, ev_depth,
+                    sta.longitude, sta.latitude,
+                    (arr.pick_id.get_referred_object().time.timestamp -
+                     origin.time.timestamp), degrees_to_source, 1
+                ])
+            else:
+                s_arrivals.append([
+                    event_block, station_block, arr.time_residual,
+                    ev_number, ev_longitude, ev_latitude, ev_depth,
+                    sta.longitude, sta.latitude,
+                    (arr.pick_id.get_referred_object().time.timestamp -
+                     origin.time.timestamp), degrees_to_source, 2
+                ])
+        else:  # ignore the other phases
+            pass
+    return p_arrivals, s_arrivals
+
+
+def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
+    y = 90. - lat
+    x = lon if lon > 0 else lon + 360.0
+    i = round(x / dx) + 1
+    j = round(y / dy) + 1
+    k = round(z / dz) + 1
+    block_number = (k - 1) * nx * ny + (j - 1) * nx + i
+    return int(block_number)
+
+
+def read_stations(station_file):
+    """
+    Read station location from a csv file.
+    :param station_file: str
+        csv stations file handle passed in by click
+    :return: stations_dict: dict
+        dict of stations indexed by station_code for quick lookup
+    """
+    log.info('Reading seiscomp3 exported stations file')
+    stations_dict = {}
+    with open(station_file, 'r') as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)  # skip header
+        for station in map(Station._make, reader):
+            stations_dict[station.station_code] = station
+        log.info('Done reading seiscomp3 station files')
+        return stations_dict
 
 
 @cli.command()
@@ -176,133 +351,3 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
                          on=['source_block', 'station_block'])[column_names]
     matched_P.to_csv(matched_p_file, index=False, header=False)
     matched_S.to_csv(matched_s_file, index=False, header=False)
-
-
-def process_event(event, stations, p_writer, s_writer, nx, ny, dz, wave_type):
-    """
-    :param event: obspy.core.event class instance
-    :param stations: dict
-        stations dict
-    :param p_writer: p_file handle
-    :param s_writer: s_file handle
-    :param nx: int
-        number of segments from 0 to 360 degrees for longitude
-    :param ny: int
-        number of segments from 0 to 180 degrees for latitude
-    :param dz: float
-        unit segment length of depth in meters
-    :param wave_type: str
-        Wave type pair to generate inversion inputs. See `gather` function.
-    :return: None
-
-    """
-    p_type, s_type = wave_type.split()
-
-    # use timestamp as the event number
-    ev_number = int(event.creation_info.creation_time.timestamp * 1e6)
-    origin = event.preferred_origin()
-
-    # other event parameters we need
-    ev_latitude = origin.latitude
-    ev_longitude = origin.longitude
-    ev_depth = origin.depth
-
-    dx = 360. / nx
-    dy = 180. / ny
-    event_block = _find_block(dx, dy, dz, nx, ny,
-                              origin.latitude,
-                              origin.longitude,
-                              z=origin.depth)
-    for arr in origin.arrivals:
-        sta_code = arr.pick_id.get_referred_object(
-        ).waveform_id.station_code
-
-        # ignore arrivals not in stations dict, workaround for now for
-        # ENGDAHL/ISC events
-        # TODO: remove this condition once all ISC/ENGDAHL stations are
-        # available
-        # Actually it does not hurt retaining this if condition. In case,
-        # a station comes in which is not in the dict, the data prep will
-        # still work
-        # Note some stations are still missing even after taking into account
-        #  of all seiscomp3 stations, ISC and ENGDAHL stations
-        if sta_code not in stations:
-            log.warning('Station {} not found in inventory'.format(sta_code))
-            continue
-        sta = stations[sta_code]
-
-        degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
-                                              float(sta.latitude),
-                                              float(sta.longitude))
-
-        # ignore stations more than 90 degrees from source
-        if degrees_to_source > 90.0:
-            log.info('Ignored this station arrival as distance from source '
-                     'is {} degrees'.format(degrees_to_source))
-            continue
-
-        # TODO: use station.elevation information
-        station_block = _find_block(dx, dy, dz, nx, ny,
-                                    float(sta.latitude), float(sta.longitude),
-                                    z=0.0)
-
-        # phase_type == 1 if P and 2 if S
-        if arr.phase in wave_type.split():
-            writer = p_writer if arr.phase == p_type else s_writer
-            writer.writerow([
-                event_block, station_block, arr.time_residual,
-                ev_number, ev_longitude, ev_latitude, ev_depth,
-                sta.longitude, sta.latitude,
-                (arr.pick_id.get_referred_object().time.timestamp -
-                 origin.time.timestamp), degrees_to_source,
-                1 if arr.phase == p_type else 2
-                ])
-        else:  # ignore the other phases
-            pass
-
-
-class ArrivalWriter:
-
-    def __init__(self, p_file, s_file):
-        self.p_writer = csv.writer(open(p_file, 'w'))
-        self.s_writer = csv.writer(open(p_file, 'w'))
-
-    def write(self, cluster_info):
-        writer = self.p_writer if cluster_info[-1] == 1 else self.s_writer
-        mpiops.comm.barrier()
-        if mpiops.rank == 0:
-            cluster_info = mpiops.comm.recv(source=mpiops.rank) \
-                    if mpiops.rank != 0 else cluster_info
-            writer.writerow(cluster_info)
-        else:
-            mpiops.comm.send(cluster_info, dest=0)
-        mpiops.comm.barrier()
-
-
-def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
-    y = 90. - lat
-    x = lon if lon > 0 else lon + 360.0
-    i = round(x / dx) + 1
-    j = round(y / dy) + 1
-    k = round(z / dz) + 1
-    block_number = (k - 1) * nx * ny + (j - 1) * nx + i
-    return int(block_number)
-
-
-def read_stations(station_file):
-    """
-    Read station location from a csv file.
-    :param station_file: str
-        csv stations file handle passed in by click
-    :return: stations_dict: dict
-        dict of stations indexed by station_code for quick lookup
-    """
-    log.info('Reading seiscomp3 exported stations file')
-    stations_dict = {}
-    with open(station_file, 'r') as csv_file:
-        reader = csv.reader(csv_file)
-        next(reader)  # skip header
-        for station in map(Station._make, reader):
-            stations_dict[station.station_code] = station
-        log.info('Done reading seiscomp3 station files')
-        return stations_dict
