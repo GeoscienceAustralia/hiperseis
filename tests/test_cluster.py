@@ -1,5 +1,4 @@
 import os
-import csv
 import glob
 import numpy as np
 import pytest
@@ -113,8 +112,7 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         out_shape_s = outputs_s.shape[0]
 
     # make sure number of arrivals match that of output lines
-    assert len(p_arrivals) == out_shape_p
-    assert len(s_arrivals) == out_shape_s
+    assert len(p_arrivals) == out_shape_p and len(s_arrivals) == out_shape_s
 
     # test that location2degress is never more than 90 degrees
     # test last columns, i.e., wave type
@@ -134,7 +132,7 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         assert outputs_s[-1] == 2
 
 
-def test_sorted_and_filtered(random_filename):
+def test_sorted_filtered_matched(random_filename):
     """
     check cluster sort and filter operation
     """
@@ -150,14 +148,48 @@ def test_sorted_and_filtered(random_filename):
         for wave_type in pair_type.split():  # check for both P and S
             _test_sort_and_filtered(outfile, wave_type)
 
+        _test_matched(outfile, pair_type)
+
+
+def _test_matched(outfile, wave_type):
+    p, s = wave_type.split()
+    sorted_p = outfile + '_sorted_' + p + '.csv'
+    sorted_s = outfile + '_sorted_' + s + '.csv'
+
+    matched_p = outfile + '_matched_' + p + '.csv'
+    matched_s = outfile + '_matched_' + s + '.csv'
+
+    match = ['cluster', 'match', sorted_p, sorted_s,
+             '-p', matched_p, '-s', matched_s]
+    check_call(match)
+
+    # files created
+    assert os.path.exists(matched_p) and os.path.exists(matched_s)
+
+    pdf = pd.read_csv(matched_p, header=None)
+    sdf = pd.read_csv(matched_s, header=None)
+    outdf = pd.merge(pdf[[0, 1]],
+                     sdf[[0, 1]],
+                     how='inner',
+                     on=[0, 1])
+
+    # after inner join each df should have same number of rows
+    assert outdf.shape[0] == pdf.shape[0] == sdf.shape[0]
+
+    # make sure the arrays themselves match
+    np.testing.assert_array_equal(outdf[0].values, pdf[0].values)
+    np.testing.assert_array_equal(outdf[0].values, sdf[0].values)
+    np.testing.assert_array_equal(outdf[1].values, pdf[1].values)
+    np.testing.assert_array_equal(outdf[1].values, sdf[1].values)
+
 
 def _test_sort_and_filtered(outfile, wave_type):
-    sorted_p = outfile + '_sorted_' + wave_type + '.csv'
+    sorted_p_or_s = outfile + '_sorted_' + wave_type + '.csv'
     sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
-              '-s', sorted_p]
+              '-s', sorted_p_or_s]
     check_call(sort_p)
-    assert os.path.exists(sorted_p)
-    p_df = pd.read_csv(sorted_p)
+    assert os.path.exists(sorted_p_or_s)
+    p_df = pd.read_csv(sorted_p_or_s)
 
     # tests for filter
 
@@ -168,12 +200,12 @@ def _test_sort_and_filtered(outfile, wave_type):
 
     # essentially the same thing as before
     assert len(p_df.groupby(by=['source_block', 'station_block'])) == \
-           p_df.shape[0]
+        p_df.shape[0]
 
     # tests for sort
     # sum of source_block + station_block should be strictly increasing
     block_sum = p_df['source_block'].values + p_df['station_block'].values
-    assert all(np.diff(block_sum))
+    assert all(np.diff(block_sum) >= 1)
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -208,7 +240,3 @@ def test_multiple_event_output(random_filename):
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
-
-@pytest.mark.filterwarnings("ignore")
-def test_matched_files():
-    pass
