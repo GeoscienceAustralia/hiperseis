@@ -57,7 +57,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    event_xmls = glob.glob(os.path.join(events_dir, '8*.xml'))
+    event_xmls = glob.glob(os.path.join(events_dir, '*.xml'))
 
     # generate the stations dict
     stations = mpiops.run_once(_read_all_stations)
@@ -223,22 +223,15 @@ def process_event(event, stations, nx, ny, dz, wave_type):
 
         # phase_type == 1 if P and 2 if S
         if arr.phase in wave_type.split():
-            if arr.phase == p_type:
-                p_arrivals.append([
-                    event_block, station_block, arr.time_residual,
-                    ev_number, ev_longitude, ev_latitude, ev_depth,
-                    sta.longitude, sta.latitude,
-                    (arr.pick_id.get_referred_object().time.timestamp -
-                     origin.time.timestamp), degrees_to_source, 1
-                ])
-            else:
-                s_arrivals.append([
-                    event_block, station_block, arr.time_residual,
-                    ev_number, ev_longitude, ev_latitude, ev_depth,
-                    sta.longitude, sta.latitude,
-                    (arr.pick_id.get_referred_object().time.timestamp -
-                     origin.time.timestamp), degrees_to_source, 2
-                ])
+
+            t_list = [event_block, station_block, arr.time_residual,
+                      ev_number, ev_longitude, ev_latitude, ev_depth,
+                      sta.longitude, sta.latitude,
+                      (arr.pick_id.get_referred_object().time.timestamp -
+                       origin.time.timestamp), degrees_to_source]
+
+            p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
+                s_arrivals.append(t_list + [2])
         else:  # ignore the other phases
             pass
     return p_arrivals, s_arrivals
