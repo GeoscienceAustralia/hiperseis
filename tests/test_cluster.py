@@ -9,6 +9,7 @@ from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
                                      _read_all_stations,
+                                     read_stations,
                                      process_many_events,
                                      ArrivalWriter)
 
@@ -17,6 +18,7 @@ PASSIVE = os.path.dirname(TESTS)
 EVENTS = os.path.join(TESTS, 'mocks', 'events')
 xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
+stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
 stations = _read_all_stations()
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 
@@ -42,15 +44,14 @@ def test_single_event_output(xml, random_filename):
     arr_writer = ArrivalWriter(wave_type='P S',
                                output_file=outfile)
     p_arr, s_arr = process_event(read_events(xml)[0],
-                                 stations=stations,
+                                 stations=read_stations(stations_file),
                                  nx=1440, ny=720, dz=25.0,
                                  wave_type='P S')
     arr_writer.write([p_arr, s_arr])
     arr_writer.close()
     inputs = np.genfromtxt(saved_out, delimiter=',')
     outputs = np.genfromtxt(p_file, delimiter=',')
-
-    np.testing.assert_array_almost_equal(inputs, outputs)
+    np.testing.assert_array_almost_equal(inputs, outputs, decimal=2)
 
     # s_file is created
     assert os.path.exists(s_file)
