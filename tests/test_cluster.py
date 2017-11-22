@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import pandas as pd
 from subprocess import check_call
+from collections import Counter
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
@@ -138,7 +139,6 @@ def test_sorted_filtered_matched(random_filename):
     """
     outfile = random_filename()
 
-    # sort
     for pair_type in ['P S', 'Pn Sn']:
         # gather
         gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
@@ -240,3 +240,37 @@ def test_multiple_event_output(random_filename):
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
+
+@pytest.mark.filterwarning("ignore")
+def test_parallel_gather(random_filename):
+    outfile_s = random_filename()
+    outfile_p = random_filename()
+
+    for pair_type in ['P S', 'Pn Sn']:
+        # gather single process
+        gather_s = ['cluster', 'gather',
+                    os.path.join(EVENTS, 'engdahl_sample'),
+                    '-o', outfile_s, '-w', pair_type]
+        check_call(gather_s)
+
+        # gather multiple process
+        gather_p = ['mpirun', '-n', '4',
+                    'cluster', 'gather',
+                    os.path.join(EVENTS, 'engdahl_sample'),
+                    '-o', outfile_p, '-w', pair_type]
+        check_call(gather_p)
+
+        p, s = pair_type.split()
+        assert os.path.exists(outfile_s + '_' + p + '.csv')
+        assert os.path.exists(outfile_s + '_' + s + '.csv')
+        assert os.path.exists(outfile_p + '_' + p + '.csv')
+        assert os.path.exists(outfile_p + '_' + s + '.csv')
+        sdf_p = pd.read_csv(outfile_s + '_' + p + '.csv', header=None)
+        sdf_s = pd.read_csv(outfile_s + '_' + s + '.csv', header=None)
+        pdf_p = pd.read_csv(outfile_p + '_' + p + '.csv', header=None)
+        pdf_s = pd.read_csv(outfile_p + '_' + s + '.csv', header=None)
+
+        # assert
+        for c in sdf_p.columns:
+            assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
+            assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
