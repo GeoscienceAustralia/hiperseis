@@ -9,7 +9,8 @@ from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
                                      read_stations,
-                                     process_many_events)
+                                     process_many_events,
+                                     ArrivalWriter)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -32,22 +33,20 @@ def arr_type(request):
 
 @pytest.mark.filterwarnings("ignore")
 def test_single_event_output(xml, random_filename):
-    p_file = random_filename(ext='_p.csv')
-    s_file = random_filename(ext='_s.csv')
+    outfile = random_filename()
+    p_type, s_type = 'P S'.split()
+    p_file = outfile + '_' + p_type + '.csv'
+    s_file = outfile + '_' + s_type + '.csv'
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
-
-    with open(p_file, 'w') as p_wrtr:
-        with open(s_file, 'w') as s_wrtr:
-            p_writer = csv.writer(p_wrtr)
-            s_writer = csv.writer(s_wrtr)
-            process_event(read_events(xml)[0],
-                          stations=read_stations(stations_file),
-                          p_writer=p_writer,
-                          s_writer=s_writer,
-                          nx=1440, ny=720, dz=25.0,
-                          wave_type='P S')
-
+    arr_writer = ArrivalWriter(wave_type='P S',
+                               output_file=outfile)
+    p_arr, s_arr = process_event(read_events(xml)[0],
+                                 stations=read_stations(stations_file),
+                                 nx=1440, ny=720, dz=25.0,
+                                 wave_type='P S')
+    arr_writer.write([p_arr, s_arr])
+    arr_writer.close()
     inputs = np.genfromtxt(saved_out, delimiter=',')
     outputs = np.genfromtxt(p_file, delimiter=',')
 
