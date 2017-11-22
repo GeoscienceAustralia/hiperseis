@@ -274,15 +274,18 @@ def read_stations(station_file):
               help='output sorted and filter file.')
 def sort(output_file, sorted_file):
     """
+    Sort and filter the arrivals.
+
     Sort based on the source and station block number.
     Filter based on median of observed travel time.
 
     If there are multiple source and station block combinations, we keep the
-    row corresponding to the median observered travel time (observed_tt).
+    row corresponding to the median observed travel time (observed_tt).
 
     :param output_file: output file from the gather stage
+    :param sorted_file: str, optional
+        optional sorted output file path. Default: sorted.csv.
     :return: None
-
     """
 
     cluster_data = pd.read_csv(output_file, header=None,

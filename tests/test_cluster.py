@@ -34,7 +34,7 @@ def arr_type(request):
 
 
 @pytest.fixture(params=['P S', 'Pn Sn'])
-def pair_types(request):
+def pair_type(request):
     return request.param
 
 
