@@ -17,7 +17,7 @@ PASSIVE = os.path.dirname(TESTS)
 EVENTS = os.path.join(TESTS, 'mocks', 'events')
 xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
-stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
+stations = _read_all_stations()
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 
 
@@ -42,7 +42,7 @@ def test_single_event_output(xml, random_filename):
     arr_writer = ArrivalWriter(wave_type='P S',
                                output_file=outfile)
     p_arr, s_arr = process_event(read_events(xml)[0],
-                                 stations=_read_all_stations(),
+                                 stations=stations,
                                  nx=1440, ny=720, dz=25.0,
                                  wave_type='P S')
     arr_writer.write([p_arr, s_arr])
@@ -72,8 +72,6 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
 
     arr_writer = ArrivalWriter(wave_type=arr_type,
                                output_file=outfile)
-
-    stations = _read_all_stations()
 
     p_arr, s_arr = process_event(read_events(event_xml)[0],
                                  stations=stations,
@@ -183,11 +181,16 @@ def test_multiple_event_output(random_filename):
     events = read_events(os.path.join(EVENTS, '*.xml')).events
     outfile = random_filename()
 
+    arrival_writer = ArrivalWriter(wave_type='P S',
+                                   output_file=outfile)
+
     process_many_events(glob.glob(os.path.join(EVENTS, '*.xml')),
-                        stations=read_stations(stations_file),
+                        stations=stations,
                         nx=1440, ny=720, dz=25.0,
                         wave_type='P S',
-                        output_file=outfile)
+                        arrival_writer=arrival_writer)
+
+    arrival_writer.close()  # dump cache
 
     # check files created
     assert os.path.exists(outfile + '_' + 'P' + '.csv')
@@ -205,5 +208,6 @@ def test_multiple_event_output(random_filename):
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_matched_files():
     pass
