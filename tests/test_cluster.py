@@ -33,6 +33,11 @@ def arr_type(request):
     return request.param
 
 
+@pytest.fixture(params=['P S', 'Pn Sn'])
+def pair_types(request):
+    return request.param
+
+
 @pytest.mark.filterwarnings("ignore")
 def test_single_event_output(xml, random_filename):
     outfile = random_filename()
@@ -133,22 +138,21 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
         assert outputs_s[-1] == 2
 
 
-def test_sorted_filtered_matched(random_filename):
+def test_sorted_filtered_matched(pair_type, random_filename):
     """
     check cluster sort and filter operation
     """
     outfile = random_filename()
 
-    for pair_type in ['P S', 'Pn Sn']:
-        # gather
-        gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
-                  '-o', outfile, '-w', pair_type]
-        check_call(gather)
+    # gather
+    gather = ['cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
+              '-o', outfile, '-w', pair_type]
+    check_call(gather)
 
-        for wave_type in pair_type.split():  # check for both P and S
-            _test_sort_and_filtered(outfile, wave_type)
+    for wave_type in pair_type.split():  # check for both P and S
+        _test_sort_and_filtered(outfile, wave_type)
 
-        _test_matched(outfile, pair_type)
+    _test_matched(outfile, pair_type)
 
 
 def _test_matched(outfile, wave_type):
@@ -242,35 +246,34 @@ def test_multiple_event_output(random_filename):
 
 
 @pytest.mark.filterwarning("ignore")
-def test_parallel_gather(random_filename):
+def test_parallel_gather(pair_type, random_filename):
     outfile_s = random_filename()
     outfile_p = random_filename()
 
-    for pair_type in ['P S', 'Pn Sn']:
-        # gather single process
-        gather_s = ['cluster', 'gather',
-                    os.path.join(EVENTS, 'engdahl_sample'),
-                    '-o', outfile_s, '-w', pair_type]
-        check_call(gather_s)
+    # gather single process
+    gather_s = ['cluster', 'gather',
+                os.path.join(EVENTS, 'engdahl_sample'),
+                '-o', outfile_s, '-w', pair_type]
+    check_call(gather_s)
 
-        # gather multiple process
-        gather_p = ['mpirun', '-n', '4',
-                    'cluster', 'gather',
-                    os.path.join(EVENTS, 'engdahl_sample'),
-                    '-o', outfile_p, '-w', pair_type]
-        check_call(gather_p)
+    # gather multiple process
+    gather_p = ['mpirun', '-n', '4',
+                'cluster', 'gather',
+                os.path.join(EVENTS, 'engdahl_sample'),
+                '-o', outfile_p, '-w', pair_type]
+    check_call(gather_p)
 
-        p, s = pair_type.split()
-        assert os.path.exists(outfile_s + '_' + p + '.csv')
-        assert os.path.exists(outfile_s + '_' + s + '.csv')
-        assert os.path.exists(outfile_p + '_' + p + '.csv')
-        assert os.path.exists(outfile_p + '_' + s + '.csv')
-        sdf_p = pd.read_csv(outfile_s + '_' + p + '.csv', header=None)
-        sdf_s = pd.read_csv(outfile_s + '_' + s + '.csv', header=None)
-        pdf_p = pd.read_csv(outfile_p + '_' + p + '.csv', header=None)
-        pdf_s = pd.read_csv(outfile_p + '_' + s + '.csv', header=None)
+    p, s = pair_type.split()
+    assert os.path.exists(outfile_s + '_' + p + '.csv')
+    assert os.path.exists(outfile_s + '_' + s + '.csv')
+    assert os.path.exists(outfile_p + '_' + p + '.csv')
+    assert os.path.exists(outfile_p + '_' + s + '.csv')
+    sdf_p = pd.read_csv(outfile_s + '_' + p + '.csv', header=None)
+    sdf_s = pd.read_csv(outfile_s + '_' + s + '.csv', header=None)
+    pdf_p = pd.read_csv(outfile_p + '_' + p + '.csv', header=None)
+    pdf_s = pd.read_csv(outfile_p + '_' + s + '.csv', header=None)
 
-        # assert
-        for c in sdf_p.columns:
-            assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
-            assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
+    # assert all columns of both df's contain the same number of elements
+    for c in sdf_p.columns:
+        assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
+        assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
