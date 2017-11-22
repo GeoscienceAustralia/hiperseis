@@ -8,7 +8,7 @@ from subprocess import check_call
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic.cluster.cluster import (process_event,
-                                     read_stations,
+                                     _read_all_stations,
                                      process_many_events,
                                      ArrivalWriter)
 
@@ -42,7 +42,7 @@ def test_single_event_output(xml, random_filename):
     arr_writer = ArrivalWriter(wave_type='P S',
                                output_file=outfile)
     p_arr, s_arr = process_event(read_events(xml)[0],
-                                 stations=read_stations(stations_file),
+                                 stations=_read_all_stations(),
                                  nx=1440, ny=720, dz=25.0,
                                  wave_type='P S')
     arr_writer.write([p_arr, s_arr])
@@ -62,30 +62,33 @@ def test_single_event_output(xml, random_filename):
 
 @pytest.mark.filterwarnings("ignore")
 def test_single_event_arrivals(event_xml, random_filename, arr_type):
-    p_file = random_filename(ext='_p.csv')
-    s_file = random_filename(ext='_s.csv')
+    outfile = random_filename()
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
 
-    with open(p_file, 'w') as p_wrt:
-        with open(s_file, 'w') as s_wrt:
-            p_writer = csv.writer(p_wrt)
-            s_writer = csv.writer(s_wrt)
-            process_event(read_events(event_xml)[0],
-                          stations=read_stations(stations_file),
-                          p_writer=p_writer,
-                          s_writer=s_writer,
-                          nx=1440, ny=720, dz=25.0,
-                          wave_type=arr_type)
+    p_type, s_type = arr_type.split()
+    p_file = outfile + '_' + p_type + '.csv'
+    s_file = outfile + '_' + s_type + '.csv'
+
+    arr_writer = ArrivalWriter(wave_type=arr_type,
+                               output_file=outfile)
+
+    stations = _read_all_stations()
+
+    p_arr, s_arr = process_event(read_events(event_xml)[0],
+                                 stations=stations,
+                                 nx=1440, ny=720, dz=25.0,
+                                 wave_type=arr_type)
+
+    arr_writer.write([p_arr, s_arr])
+    arr_writer.close()
 
     outputs_p = np.genfromtxt(p_file, delimiter=',')
     outputs_s = np.genfromtxt(s_file, delimiter=',')
 
-    stations = read_stations(stations_file)
-
     p_arrivals = []
     s_arrivals = []
-    p, s = arr_type.split()
+
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
             ).waveform_id.station_code
@@ -95,9 +98,9 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                 float(stations[sta_code].latitude),
                 float(stations[sta_code].longitude))
             if degrees_to_source < 90.0:
-                if arr.phase == p:
+                if arr.phase == p_type:
                     p_arrivals.append(arr)
-                if arr.phase == s:
+                if arr.phase == s_type:
                     s_arrivals.append(arr)
 
     if len(outputs_p.shape) == 1 and outputs_p.shape[0]:
