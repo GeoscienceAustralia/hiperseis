@@ -83,7 +83,7 @@ setup(
         'PyYAML >= 3.11',
         'matplotlib >= 1.4.3',  # nci version with python=3.4
         'joblib',
-        'obspy >= 1.0.3',  # 1.0.3 does not have sc3ml read functionality
+        'obspy >= 1.1.0',  # 1.0.3 does not have sc3ml read functionality
         'h5py >= 2.6.0',
         'pyasdf',
         'pyqtgraph',
