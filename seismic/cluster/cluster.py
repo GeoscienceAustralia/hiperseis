@@ -294,10 +294,12 @@ def sort(output_file, sorted_file):
                              inplace=True)
     groups = cluster_data.groupby(by=['source_block', 'station_block'])
     keep = []
-    for _, group in groups:
+    for i, (_, group) in enumerate(groups):
         med = group['observed_tt'].median()
         # if median is not a unique match, keep only one row
         keep.append(group[group['observed_tt'] == med][:1])
+        if not i % 100:
+            log.info('Filtered {}th of {} groups'.format(i, len(groups)))
 
     final_df = pd.concat(keep)
     final_df.to_csv(sorted_file, header=True)
