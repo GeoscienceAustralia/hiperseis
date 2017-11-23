@@ -90,7 +90,6 @@ if [ -z ${CIRCLECI+x} ];
     mkvirtualenv --system-site-packages seismic && \
     # install python packages
     workon seismic && \
-    pip install git+https://github.com/obspy/obspy.git && \
     pip install --ignore-installed ipython && \
     export PATH=$HOME/.virtualenvs/seismic/bin/:$PATH && \
     env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev] && \
