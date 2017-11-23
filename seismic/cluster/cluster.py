@@ -6,7 +6,7 @@ import os
 import click
 import logging
 import csv
-import glob
+import fnmatch
 import pandas as pd
 from obspy import read_events
 from obspy.geodetics import locations2degrees
@@ -34,6 +34,17 @@ def cli(verbosity):
     pslog.configure(verbosity)
 
 
+def recursive_glob(dirname, ext='*.xml'):
+    """
+    source: https://stackoverflow.com/a/2186565/3321542
+    """
+    matches = []
+    for root, dirnames, filenames in os.walk(dirname):
+        for filename in fnmatch.filter(filenames, ext):
+            matches.append(os.path.join(root, filename))
+    return matches
+
+
 @cli.command()
 @click.argument('events_dir',
                 type=click.Path(exists=True, file_okay=False, dir_okay=True,
@@ -57,7 +68,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    event_xmls = glob.glob(os.path.join(events_dir, '*.xml'))
+    event_xmls = recursive_glob(events_dir, ext='*.xml')
 
     # generate the stations dict
     stations = mpiops.run_once(_read_all_stations)
