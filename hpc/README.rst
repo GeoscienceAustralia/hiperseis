@@ -44,7 +44,8 @@ of your choice:
    .. code:: bash
 
        $ module load python3/3.4.3 python3/3.4.3-matplotlib
-       $ module load hdf5/1.8.14p openmpi/1.8 mpi4py/2.0.0
+       $ module load hdf5/1.8.14p openmpi/1.8
+       $ module load geos/3.5.0 netcdf/4.4.1.1
 
    (Alternatively, you may wish to add the above lines to your
    ``~/.profile`` file)
@@ -105,6 +106,7 @@ Installation
    .. code:: bash
 
        $ cd ~/passive-seismic
+       $ export GEOS_DIR=$GEOS_BASE
        $ python setup.py install
 
 5. Once installation has completed, you can run the tests to verify
@@ -114,4 +116,3 @@ Installation
 
        $ pip install pytest
        $ pytest tests/
-
