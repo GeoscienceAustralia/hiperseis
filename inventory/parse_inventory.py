@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import struct
-import os
+from os.path import join, dirname
 import logging
 from collections import namedtuple
 from obspy import UTCDateTime
@@ -25,8 +25,10 @@ sta, network, location, channel and open date, close date and if we have it
 the sampling rates.
 """
 
-isc_file_1 = os.path.join('inventory', 'ehb.stn')
-isc_file_2 = os.path.join('inventory', 'iscehb.stn')
+PASSIVE = dirname(dirname(__file__))
+
+isc_file_1 = join(PASSIVE, 'inventory', 'ehb.stn')
+isc_file_2 = join(PASSIVE, 'inventory', 'iscehb.stn')
 
 Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
