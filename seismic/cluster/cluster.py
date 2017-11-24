@@ -158,7 +158,7 @@ def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
             for e in read_events(xml).events:
                 log.info('Reading {}'.format(xml))
                 p_arr_t, s_arr_t = process_event(e, stations, nx,
-                                             ny, dz, wave_type)
+                                                 ny, dz, wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
                 log.debug('processed event {e} from {xml}'.format(
@@ -193,19 +193,24 @@ def process_event(event, stations, nx, ny, dz, wave_type):
     origin = event.preferred_origin() or event.origins[0]
     ev_number = int(origin.time.timestamp * 1e6)
 
+    p_arrivals = []
+    s_arrivals = []
+
     # other event parameters we need
     ev_latitude = origin.latitude
     ev_longitude = origin.longitude
     ev_depth = origin.depth
 
+    if ev_latitude is None or ev_longitude is None or ev_depth is None:
+        return p_arrivals, s_arrivals
+
     dx = 360. / nx
     dy = 180. / ny
+
     event_block = _find_block(dx, dy, dz, nx, ny,
-                              origin.latitude,
-                              origin.longitude,
-                              z=origin.depth)
-    p_arrivals = []
-    s_arrivals = []
+                              ev_latitude,
+                              ev_longitude,
+                              z=ev_depth)
 
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
