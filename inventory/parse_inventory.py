@@ -7,6 +7,7 @@ from obspy import UTCDateTime
 
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 isc_format1 = '4s12s10s8s20s20s'
 isc_format2 = '4s12s10s8s20s'
