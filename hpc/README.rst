@@ -29,14 +29,14 @@ another directory of your choice:
 
        $ cd ~
        $ git clone https://github.com/GeoscienceAustralia/passive-seismic.git
+       $ module load git/2.9.5
+       $ /apps/git/2.9.5/bin/git submodule update --init --recursive --remote
 
 2. Unload the icc compiler and default openmpi from the terminal:
 
    .. code:: bash
 
-       $ module unload intel-cc
-       $ module unload intel-fc
-       $ module unload openmpi
+       $ module unload intel-cc intel-fc openmpi
 
 3. Load the modules required for installation and running:
 
