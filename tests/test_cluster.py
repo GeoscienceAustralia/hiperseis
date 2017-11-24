@@ -11,7 +11,8 @@ from seismic.cluster.cluster import (process_event,
                                      _read_all_stations,
                                      read_stations,
                                      process_many_events,
-                                     ArrivalWriter)
+                                     ArrivalWriter,
+                                     Grid)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -48,9 +49,10 @@ def test_single_event_output(xml, random_filename):
     origin = event.preferred_origin()
     arr_writer = ArrivalWriter(wave_type='P S',
                                output_file=outfile)
+    grid = Grid(nx=1440, ny=720, dz=25.0)
     p_arr, s_arr = process_event(read_events(xml)[0],
                                  stations=read_stations(stations_file),
-                                 nx=1440, ny=720, dz=25.0,
+                                 grid=grid,
                                  wave_type='P S')
     arr_writer.write([p_arr, s_arr])
     arr_writer.close()
@@ -78,10 +80,11 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
 
     arr_writer = ArrivalWriter(wave_type=arr_type,
                                output_file=outfile)
+    grid = Grid(nx=1440, ny=720, dz=25.0)
 
     p_arr, s_arr = process_event(read_events(event_xml)[0],
                                  stations=stations,
-                                 nx=1440, ny=720, dz=25.0,
+                                 grid=grid,
                                  wave_type=arr_type)
 
     arr_writer.write([p_arr, s_arr])
@@ -221,9 +224,10 @@ def test_multiple_event_output(random_filename):
     arrival_writer = ArrivalWriter(wave_type='P S',
                                    output_file=outfile)
 
+    grid = Grid(nx=1440, ny=720, dz=25.0)
     process_many_events(glob.glob(os.path.join(EVENTS, '*.xml')),
                         stations=stations,
-                        nx=1440, ny=720, dz=25.0,
+                        grid=grid,
                         wave_type='P S',
                         arrival_writer=arrival_writer)
 

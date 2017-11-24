@@ -29,6 +29,15 @@ PASSIVE = dirname(dirname(dirname(__file__)))
 station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 
 
+class Grid:
+    def __init__(self, nx, ny, dz):
+        self.nx = nx
+        self.ny = ny
+        self.dx = 360.0/nx
+        self.dy = 180.0/ny
+        self.dz = dz
+
+
 @click.group()
 @click.option('-v', '--verbosity',
               type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
@@ -77,13 +86,15 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     else:
         event_xmls = recursive_glob(events_dir, ext='*.xml')
 
+    grid = Grid(nx=nx, ny=ny, dz=dz)
+
     # generate the stations dict
     stations = mpiops.run_once(_read_all_stations)
 
     # arrival writer
     arrival_writer = ArrivalWriter(wave_type, output_file)
 
-    process_many_events(event_xmls, nx, ny, dz, arrival_writer,
+    process_many_events(event_xmls, grid, arrival_writer,
                         stations, wave_type)
 
     arrival_writer.close()
@@ -133,7 +144,7 @@ class ArrivalWriter:
             self.s_handle.close()
 
 
-def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
+def process_many_events(event_xmls, grid, arrival_writer, stations,
                         wave_type):
     total_events = len(event_xmls)
 
@@ -157,8 +168,7 @@ def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
             # one event xml could contain multiple events
             for e in read_events(xml).events:
                 log.info('Reading {}'.format(xml))
-                p_arr_t, s_arr_t = process_event(e, stations, nx,
-                                                 ny, dz, wave_type)
+                p_arr_t, s_arr_t = process_event(e, stations, grid, wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
                 log.debug('processed event {e} from {xml}'.format(
@@ -170,7 +180,7 @@ def process_many_events(event_xmls, nx, ny, dz, arrival_writer, stations,
         log.info('Read all events in process {}'.format(mpiops.rank))
 
 
-def process_event(event, stations, nx, ny, dz, wave_type):
+def process_event(event, stations, grid, wave_type):
     """
     :param event: obspy.core.event class instance
     :param stations: dict
@@ -204,13 +214,7 @@ def process_event(event, stations, nx, ny, dz, wave_type):
     if ev_latitude is None or ev_longitude is None or ev_depth is None:
         return p_arrivals, s_arrivals
 
-    dx = 360. / nx
-    dy = 180. / ny
-
-    event_block = _find_block(dx, dy, dz, nx, ny,
-                              ev_latitude,
-                              ev_longitude,
-                              z=ev_depth)
+    event_block = _find_block(grid, ev_latitude, ev_longitude, z=ev_depth)
 
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
@@ -241,7 +245,7 @@ def process_event(event, stations, nx, ny, dz, wave_type):
             continue
 
         # TODO: use station.elevation information
-        station_block = _find_block(dx, dy, dz, nx, ny,
+        station_block = _find_block(grid,
                                     float(sta.latitude), float(sta.longitude),
                                     z=0.0)
 
@@ -261,13 +265,13 @@ def process_event(event, stations, nx, ny, dz, wave_type):
     return p_arrivals, s_arrivals
 
 
-def _find_block(dx, dy, dz, nx, ny, lat, lon, z):
+def _find_block(grid, lat, lon, z):
     y = 90. - lat
     x = lon if lon > 0 else lon + 360.0
-    i = round(x / dx) + 1
-    j = round(y / dy) + 1
-    k = round(z / dz) + 1
-    block_number = (k - 1) * nx * ny + (j - 1) * nx + i
+    i = round(x / grid.dx) + 1
+    j = round(y / grid.dy) + 1
+    k = round(z / grid.dz) + 1
+    block_number = (k - 1) * grid.nx * grid.ny + (j - 1) * grid.nx + i
     return int(block_number)
 
 
