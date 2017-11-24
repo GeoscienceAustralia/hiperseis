@@ -5,14 +5,15 @@
 #PBS -l wd
 #PBS -j oe
 
-module load python3/3.4.3 python3/3.4.3-matplotlib
+module load python3/3.6.2
 module load hdf5/1.8.14p openmpi/1.8
 module load geos/3.5.0 netcdf/4.4.1.1
 
 # setup environment
 export PATH=$HOME/.local/bin:$PATH
-export PYTHONPATH=$HOME/.local/lib/python3.4/site-packages:$PYTHONPATH
-export VIRTUALENVWRAPPER_PYTHON=/apps/python3/3.4.3/bin/python3
+export PYTHONPATH=$HOME/.local/lib/python3.6/site-packages:$PYTHONPATH
+export VIRTUALENVWRAPPER_PYTHON=/apps/python3/3.6.2/bin/python3
+export LC_ALL=en_AU.UTF-8
 export LANG=en_AU.UTF-8
 source $HOME/.local/bin/virtualenvwrapper.sh
 
