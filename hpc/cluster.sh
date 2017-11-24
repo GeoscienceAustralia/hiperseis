@@ -21,7 +21,7 @@ source $HOME/.local/bin/virtualenvwrapper.sh
 workon seismic
 
 # gather
-mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/sudipta/event_xmls
+mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/sudipta/event_xmls -w "P S"
 
 
 # sort

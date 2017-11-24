@@ -188,9 +188,10 @@ def process_event(event, stations, nx, ny, dz, wave_type):
     """
     p_type, s_type = wave_type.split()
 
-    # use timestamp as the event number
-    ev_number = int(event.creation_info.creation_time.timestamp * 1e6)
-    origin = event.preferred_origin()
+    # use preferred origin timestamp as the event number
+    # if preferred origin is not populated, use the first origin timestamp
+    origin = event.preferred_origin() or event.origins[0]
+    ev_number = int(origin.time.timestamp * 1e6)
 
     # other event parameters we need
     ev_latitude = origin.latitude
