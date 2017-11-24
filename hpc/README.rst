@@ -23,8 +23,7 @@ Pre-installation
 Note: These instructions currently only work with gcc and not Intel compilers.
 
 1. Clone the ``passive-seismic`` repository into your home directory, or
-another directory
-of your choice:
+another directory of your choice:
 
    .. code:: bash
 
@@ -89,7 +88,13 @@ Installation
 
        $ workon seismic
 
-3. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
+3. Install ``mpi4py`` as required by ``h5py`` in the next step.
+
+   .. code:: bash
+
+       $ pip install mpi4py==3.0.0 --no-binary :all:
+
+4. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
 
    .. code:: bash
 
@@ -101,7 +106,7 @@ Installation
        $ python setup.py install
 
 
-4. Install ``passive-seismic``:
+5. Install ``passive-seismic``:
 
    .. code:: bash
 
@@ -109,7 +114,7 @@ Installation
        $ export GEOS_DIR=$GEOS_BASE
        $ python setup.py install
 
-5. Once installation has completed, you can run the tests to verify
+6. Once installation has completed, you can run the tests to verify
    everything has gone correctly:
 
    .. code:: bash

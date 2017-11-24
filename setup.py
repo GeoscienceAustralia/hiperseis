@@ -70,7 +70,7 @@ setup(
     # mpi4py  preinstall required due to h5py
     setup_requires=[
         NUMPY_VERSION,
-        'mpi4py==2.0.0',
+        'mpi4py==3.0.0',
         'decorator>=4.1.0',
         'setuptools>=36.2.1'
     ],
@@ -78,7 +78,7 @@ setup(
         'Click >= 6.0',
         NUMPY_VERSION,
         'Cython >= 0.22.1',
-        'mpi4py == 2.0.0',
+        'mpi4py == 3.0.0',
         'scipy >= 0.15.1',
         'PyYAML >= 3.11',
         'matplotlib >= 1.4.3',  # nci version with python=3.4
