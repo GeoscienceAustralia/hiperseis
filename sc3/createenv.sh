@@ -52,7 +52,7 @@ sudo yum install -y geos-devel python-pip openjpeg2-devel
 sudo pip install -U pip setuptools virtualenv virtualenvwrapper numpy
 
 # install mpi4py
-sudo env MPICC=/usr/lib64/openmpi/bin/mpicc pip install mpi4py==2.0.0
+sudo env MPICC=/usr/lib64/openmpi/bin/mpicc pip install mpi4py==3.0.0
 
 
 echo "Installing parallel hdf5...."
