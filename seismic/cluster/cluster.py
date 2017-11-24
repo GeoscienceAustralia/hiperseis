@@ -50,7 +50,7 @@ def recursive_glob(dirname, ext='*.xml'):
 
 @cli.command()
 @click.argument('events_dir',
-                type=click.Path(exists=True, file_okay=False, dir_okay=True,
+                type=click.Path(exists=True, file_okay=True, dir_okay=True,
                                 writable=False, readable=True,
                                 resolve_path=True))
 @click.option('-o', '--output_file',
@@ -71,7 +71,11 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     Gather all source-station block pairs for all events in a directory.
     """
     log.info("Gathering all arrivals")
-    event_xmls = recursive_glob(events_dir, ext='*.xml')
+
+    if os.path.isfile(events_dir):
+        event_xmls = [events_dir]
+    else:
+        event_xmls = recursive_glob(events_dir, ext='*.xml')
 
     # generate the stations dict
     stations = mpiops.run_once(_read_all_stations)
