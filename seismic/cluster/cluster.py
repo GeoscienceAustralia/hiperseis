@@ -3,6 +3,7 @@ Clustering of events and station for 3d inversion input files.
 """
 from __future__ import print_function, absolute_import
 import os
+from os.path import dirname, join
 import click
 import logging
 import csv
@@ -23,7 +24,9 @@ column_names = ['source_block', 'station_block',
                 'source_depth', 'station_longitude', 'station_latitude',
                 'observed_tt', 'locations2degrees', 'P_or_S']
 
-station_metadata = os.path.join('inventory', 'stations.csv')
+
+PASSIVE = dirname(dirname(dirname(__file__)))
+station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 
 
 @click.group()
