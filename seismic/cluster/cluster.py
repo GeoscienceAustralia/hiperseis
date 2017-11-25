@@ -167,7 +167,6 @@ def process_many_events(event_xmls, grid, arrival_writer, stations,
                                          process=mpiops.rank))
             # one event xml could contain multiple events
             for e in read_events(xml).events:
-                log.info('Reading {}'.format(xml))
                 p_arr_t, s_arr_t = process_event(e, stations, grid, wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
@@ -182,19 +181,12 @@ def process_many_events(event_xmls, grid, arrival_writer, stations,
 
 def process_event(event, stations, grid, wave_type):
     """
-    :param event: obspy.core.event class instance
+    :param event: obspy.core.event.Event class instance
     :param stations: dict
         stations dict
-    :param nx: int
-        number of segments from 0 to 360 degrees for longitude
-    :param ny: int
-        number of segments from 0 to 180 degrees for latitude
-    :param dz: float
-        unit segment length of depth in meters
+    :param grid: Grid class instance
     :param wave_type: str
         Wave type pair to generate inversion inputs. See `gather` function.
-    :return: None
-
     """
     p_type, s_type = wave_type.split()
 
