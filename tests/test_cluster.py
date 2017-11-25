@@ -47,25 +47,21 @@ def test_single_event_output(xml, random_filename):
     s_file = outfile + '_' + s_type + '.csv'
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
-    arr_writer = ArrivalWriter(wave_type='P S',
-                               output_file=outfile)
     grid = Grid(nx=1440, ny=720, dz=25.0)
     p_arr, s_arr = process_event(read_events(xml)[0],
                                  stations=read_stations(stations_file),
                                  grid=grid,
                                  wave_type='P S')
-    arr_writer.write([p_arr, s_arr])
-    arr_writer.close()
     inputs = np.genfromtxt(saved_out, delimiter=',')
-    outputs = np.genfromtxt(p_file, delimiter=',')
-    np.testing.assert_array_almost_equal(inputs, outputs, decimal=2)
+    np.testing.assert_array_almost_equal(inputs, np.array(p_arr, dtype=float),
+                                         decimal=2)
 
     # s_file is created
-    assert os.path.exists(s_file)
+    # assert os.path.exists(s_file)
 
     # make sure number of arrivals match that of output lines
     # no s arrivals for this event
-    assert len(origin.arrivals) == outputs.shape[0]
+    assert len(origin.arrivals) == len(p_arr)
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -78,8 +74,6 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
     p_file = outfile + '_' + p_type + '.csv'
     s_file = outfile + '_' + s_type + '.csv'
 
-    arr_writer = ArrivalWriter(wave_type=arr_type,
-                               output_file=outfile)
     grid = Grid(nx=1440, ny=720, dz=25.0)
 
     p_arr, s_arr = process_event(read_events(event_xml)[0],
@@ -87,11 +81,8 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                                  grid=grid,
                                  wave_type=arr_type)
 
-    arr_writer.write([p_arr, s_arr])
-    arr_writer.close()
-
-    outputs_p = np.genfromtxt(p_file, delimiter=',')
-    outputs_s = np.genfromtxt(s_file, delimiter=',')
+    outputs_p = np.array(p_arr, dtype=float)
+    outputs_s = np.array(s_arr, dtype=float)
 
     p_arrivals = []
     s_arrivals = []
@@ -221,17 +212,12 @@ def test_multiple_event_output(random_filename):
     events = read_events(os.path.join(EVENTS, '*.xml')).events
     outfile = random_filename()
 
-    arrival_writer = ArrivalWriter(wave_type='P S',
-                                   output_file=outfile)
-
     grid = Grid(nx=1440, ny=720, dz=25.0)
     process_many_events(glob.glob(os.path.join(EVENTS, '*.xml')),
                         stations=stations,
                         grid=grid,
                         wave_type='P S',
-                        arrival_writer=arrival_writer)
-
-    arrival_writer.close()  # dump cache
+                        output_file=outfile)
 
     # check files created
     assert os.path.exists(outfile + '_' + 'P' + '.csv')
