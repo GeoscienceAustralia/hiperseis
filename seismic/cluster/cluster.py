@@ -95,6 +95,31 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 
     log.info('Gathered all arrivals in process {}'.format(mpiops.rank))
 
+    mpiops.comm.barrier()
+
+    if mpiops.rank == 0:
+        log.info('Now joining all arrivals')
+        for t in wave_type.split():
+            _gather_all(output_file, t)
+
+
+def _gather_all(output_file, s_type):
+
+    final_s_file = output_file + '_' + s_type + '.csv'
+    s_arrs = []
+    for r in range(mpiops.size):
+        s_file = output_file + '_' + s_type + '_{}.csv'.format(r)
+        if os.stat(s_file).st_size:
+            s_arrs.append(pd.read_csv(s_file, header=None))
+        os.remove(s_file)
+
+    if len(s_arrs):
+        final_s_df = pd.concat(s_arrs)
+        final_s_df.to_csv(final_s_file, header=False, index=False)
+    else:
+        with open(final_s_file, 'w') as sf:  # just create empty file
+            pass
+
 
 def _read_all_stations():
     stations = read_stations(station_metadata)
