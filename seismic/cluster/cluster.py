@@ -91,13 +91,8 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     # generate the stations dict
     stations = mpiops.run_once(_read_all_stations)
 
-    # arrival writer
-    arrival_writer = ArrivalWriter(wave_type, output_file)
+    process_many_events(event_xmls, grid, stations, wave_type, output_file)
 
-    process_many_events(event_xmls, grid, arrival_writer,
-                        stations, wave_type)
-
-    arrival_writer.close()
     log.info('Gathered all arrivals in process {}'.format(mpiops.rank))
 
 
@@ -113,30 +108,25 @@ class ArrivalWriter:
     Convenience class for writing arrival data
     """
 
-    def __init__(self, wave_type, output_file):
+    def __init__(self, rank, wave_type, output_file):
         p_type, s_type = wave_type.split()
-        p_file = output_file + '_' + p_type + '.csv'
-        s_file = output_file + '_' + s_type + '.csv'
+        p_file = output_file + '_' + p_type + '_{}.csv'.format(rank)
+        s_file = output_file + '_' + s_type + '_{}.csv'.format(rank)
 
-        if mpiops.rank == 0:
-            self.p_handle = open(p_file, 'w')
-            self.s_handle = open(s_file, 'w')
-            self.p_writer = csv.writer(self.p_handle)
-            self.s_writer = csv.writer(self.s_handle)
+        self.p_handle = open(p_file, 'w')
+        self.s_handle = open(s_file, 'w')
+        self.p_writer = csv.writer(self.p_handle)
+        self.s_writer = csv.writer(self.s_handle)
 
     def write(self, cluster_info):
         log.info("Writing cluster info to output file in process {}".format(
             mpiops.rank))
 
-        cluster_info = mpiops.comm.gather(cluster_info)
-
-        if mpiops.rank == 0:
-            for r in range(mpiops.size):
-                p_arr, s_arr = cluster_info[r]
-                for p in p_arr:
-                    self.p_writer.writerow(p)
-                for s in s_arr:
-                    self.s_writer.writerow(s)
+        p_arr, s_arr = cluster_info
+        for p in p_arr:
+            self.p_writer.writerow(p)
+        for s in s_arr:
+            self.s_writer.writerow(s)
 
     def close(self):
         if mpiops.rank == 0:
@@ -144,8 +134,7 @@ class ArrivalWriter:
             self.s_handle.close()
 
 
-def process_many_events(event_xmls, grid, arrival_writer, stations,
-                        wave_type):
+def process_many_events(event_xmls, grid, stations, wave_type, output_file):
     total_events = len(event_xmls)
 
     # pad number of xmls with None's for mpi comm working during writing
@@ -156,6 +145,9 @@ def process_many_events(event_xmls, grid, arrival_writer, stations,
 
     log.info('Processing {} events of total {} using process {}'.format(
         len(p_event_xmls), total_events, mpiops.rank))
+
+    arrival_writer = ArrivalWriter(mpiops.rank, wave_type=wave_type,
+                                   output_file=output_file)
 
     for i, xml in enumerate(p_event_xmls):
         if xml is not None:
@@ -177,6 +169,7 @@ def process_many_events(event_xmls, grid, arrival_writer, stations,
         else:  # dummy's passed in for mpi comm to work on
             arrival_writer.write([[], []])
         log.info('Read all events in process {}'.format(mpiops.rank))
+    arrival_writer.close()
 
 
 def process_event(event, stations, grid, wave_type):
