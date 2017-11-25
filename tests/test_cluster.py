@@ -11,7 +11,6 @@ from seismic.cluster.cluster import (process_event,
                                      _read_all_stations,
                                      read_stations,
                                      process_many_events,
-                                     ArrivalWriter,
                                      Grid)
 
 TESTS = os.path.dirname(__file__)
@@ -40,11 +39,7 @@ def pair_type(request):
 
 
 @pytest.mark.filterwarnings("ignore")
-def test_single_event_output(xml, random_filename):
-    outfile = random_filename()
-    p_type, s_type = 'P S'.split()
-    p_file = outfile + '_' + p_type + '.csv'
-    s_file = outfile + '_' + s_type + '.csv'
+def test_single_event_output(xml):
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     grid = Grid(nx=1440, ny=720, dz=25.0)
@@ -56,23 +51,17 @@ def test_single_event_output(xml, random_filename):
     np.testing.assert_array_almost_equal(inputs, np.array(p_arr, dtype=float),
                                          decimal=2)
 
-    # s_file is created
-    # assert os.path.exists(s_file)
-
     # make sure number of arrivals match that of output lines
     # no s arrivals for this event
     assert len(origin.arrivals) == len(p_arr)
 
 
 @pytest.mark.filterwarnings("ignore")
-def test_single_event_arrivals(event_xml, random_filename, arr_type):
-    outfile = random_filename()
+def test_single_event_arrivals(event_xml, arr_type):
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
 
     p_type, s_type = arr_type.split()
-    p_file = outfile + '_' + p_type + '.csv'
-    s_file = outfile + '_' + s_type + '.csv'
 
     grid = Grid(nx=1440, ny=720, dz=25.0)
 
@@ -101,35 +90,26 @@ def test_single_event_arrivals(event_xml, random_filename, arr_type):
                 if arr.phase == s_type:
                     s_arrivals.append(arr)
 
-    if len(outputs_p.shape) == 1 and outputs_p.shape[0]:
-        out_shape_p = 1
-    else:
-        out_shape_p = outputs_p.shape[0]
-
-    if len(outputs_s.shape) == 1 and outputs_s.shape[0]:
-        out_shape_s = 1
-    else:
-        out_shape_s = outputs_s.shape[0]
-
     # make sure number of arrivals match that of output lines
-    assert len(p_arrivals) == out_shape_p and len(s_arrivals) == out_shape_s
+    assert len(p_arrivals) == len(outputs_p) and \
+           len(s_arrivals) == len(outputs_s)
 
     # test that location2degress is never more than 90 degrees
     # test last columns, i.e., wave type
 
-    if out_shape_p > 1:
+    if len(outputs_p) > 1:
         assert max(abs(outputs_p[:, -2])) < 90.001
         np.testing.assert_array_equal(outputs_p[:, -1], 1)
-    elif out_shape_p == 1:
-        assert abs(outputs_p[-2]) < 90.001
-        assert outputs_p[-1] == 1
+    elif len(outputs_p) == 1 and len(outputs_p[0]):
+        assert abs(outputs_p[0][-2]) < 90.001
+        assert outputs_p[0][-1] == 1
 
-    if out_shape_s > 1:
+    if len(outputs_s) > 1:
         assert max(abs(outputs_s[:, -2])) < 90.001
         np.testing.assert_array_equal(outputs_s[:, -1], 2)
-    elif out_shape_s == 1:
-        assert abs(outputs_s[-2]) < 90.001
-        assert outputs_s[-1] == 2
+    elif len(outputs_s) == 1 and len(outputs_s[0]):
+        assert abs(outputs_s[0][-2]) < 90.001
+        assert outputs_s[0][-1] == 2
 
 
 def test_sorted_filtered_matched(pair_type, random_filename):
@@ -220,8 +200,8 @@ def test_multiple_event_output(random_filename):
                         output_file=outfile)
 
     # check files created
-    assert os.path.exists(outfile + '_' + 'P' + '.csv')
-    assert os.path.exists(outfile + '_' + 'S' + '.csv')
+    assert os.path.exists(outfile + '_' + 'P_0' + '.csv')
+    assert os.path.exists(outfile + '_' + 'S_0' + '.csv')
 
     # check all arrivals are present
     arrivals = []
@@ -229,8 +209,8 @@ def test_multiple_event_output(random_filename):
         origin = e.preferred_origin()
         arrivals += origin.arrivals
 
-    p_arr = np.genfromtxt(outfile + '_' + 'P' + '.csv', delimiter=',')
-    s_arr = np.genfromtxt(outfile + '_' + 'S' + '.csv', delimiter=',')
+    p_arr = np.genfromtxt(outfile + '_' + 'P_0' + '.csv', delimiter=',')
+    s_arr = np.genfromtxt(outfile + '_' + 'S_0' + '.csv', delimiter=',')
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
 
