@@ -333,7 +333,8 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     cluster_data = pd.read_csv(output_file, header=None,
                                names=column_names)
-    cluster_data = cluster_data[cluster_data['residual'] < residual_cutoff]
+    cluster_data = cluster_data[abs(cluster_data['residual'])
+                                < residual_cutoff]
     cluster_data.sort_values(by=['source_block', 'station_block'],
                              inplace=True)
     groups = cluster_data.groupby(by=['source_block', 'station_block'])
