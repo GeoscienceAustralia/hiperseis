@@ -112,9 +112,10 @@ def test_single_event_arrivals(event_xml, arr_type):
         assert outputs_s[0][-1] == 2
 
 
-@pytest.fixture(params=[0, 1], name='residual_bool')
+# a very large residual allowed, imply we are not really using the filter
+@pytest.fixture(params=[1e6, 1], name='residual_bool')
 def res_bool(request):
-    if request.param == 0:
+    if request.param == 1e6:
         request.applymarker(pytest.mark.xfail)
     return request.param
 
@@ -170,7 +171,8 @@ def _test_matched(outfile, wave_type):
 
 def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     sorted_p_or_s = outfile + '_sorted_' + wave_type + '.csv'
-    residual = residual_bool*(5.0 if wave_type == 'P' or 'Pn' else 10.0)
+    p_s_res = 5.0 if wave_type == 'P' or 'Pn' else 10.0
+    residual = residual_bool*p_s_res
     sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
               str(residual), '-s', sorted_p_or_s]
     check_call(sort_p)
@@ -178,7 +180,7 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     p_df = pd.read_csv(sorted_p_or_s)
 
     # tests for residual filter
-    assert all(p_df['residual'].values <= residual)
+    assert all(abs(p_df['residual'].values) < p_s_res)
 
     # tests for median filter
     # after sorting and filtering, every group should have one row
