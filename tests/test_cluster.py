@@ -163,8 +163,9 @@ def _test_matched(outfile, wave_type):
 
 def _test_sort_and_filtered(outfile, wave_type):
     sorted_p_or_s = outfile + '_sorted_' + wave_type + '.csv'
+    residual = 5.0 if wave_type == 'P' or 'Pn' else 10.0
     sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
-              '-s', sorted_p_or_s]
+              residual, '-s', sorted_p_or_s]
     check_call(sort_p)
     assert os.path.exists(sorted_p_or_s)
     p_df = pd.read_csv(sorted_p_or_s)

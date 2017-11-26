@@ -307,15 +307,18 @@ def read_stations(station_file):
 @cli.command()
 @click.argument('output_file',
                 type=click.File(mode='r'))
+@click.argument('residual_cutoff', type=float)
 @click.option('-s', '--sorted_file',
               type=click.File(mode='w'), default='sorted.csv',
               help='output sorted and filter file.')
-def sort(output_file, sorted_file):
+def sort(output_file, sorted_file, residual_cutoff):
     """
     Sort and filter the arrivals.
 
     Sort based on the source and station block number.
-    Filter based on median of observed travel time.
+    There are two stages of filtering:
+    1. Filter based on the time residual
+    2. Filter based on median of observed travel time.
 
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observed travel time (observed_tt).
@@ -323,11 +326,14 @@ def sort(output_file, sorted_file):
     :param output_file: output file from the gather stage
     :param sorted_file: str, optional
         optional sorted output file path. Default: sorted.csv.
+    :param residual_cutoff: float
+        residual seconds above which arrivals are rejected.
     :return: None
     """
 
     cluster_data = pd.read_csv(output_file, header=None,
                                names=column_names)
+    cluster_data = cluster_data[cluster_data['residual'] < residual_cutoff]
     cluster_data.sort_values(by=['source_block', 'station_block'],
                              inplace=True)
     groups = cluster_data.groupby(by=['source_block', 'station_block'])
