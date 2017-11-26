@@ -23,18 +23,18 @@ stations = _read_all_stations()
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 
 
-@pytest.fixture(params=xmls + engdhal_xmls)
-def event_xml(request):
+@pytest.fixture(params=xmls + engdhal_xmls, name='event_xml')
+def ev_xml(request):
     return request.param
 
 
-@pytest.fixture(params=['P S', 'p s', 'Pn Sn', 'Pg Sg'])
-def arr_type(request):
+@pytest.fixture(params=['P S', 'p s', 'Pn Sn', 'Pg Sg'], name='arr_type')
+def support_arr_type(request):
     return request.param
 
 
-@pytest.fixture(params=['P S', 'Pn Sn'])
-def pair_type(request):
+@pytest.fixture(params=['P S', 'Pn Sn'], name='pair_type')
+def arrival_type(request):
     return request.param
 
 
@@ -112,7 +112,14 @@ def test_single_event_arrivals(event_xml, arr_type):
         assert outputs_s[0][-1] == 2
 
 
-def test_sorted_filtered_matched(pair_type, random_filename):
+@pytest.fixture(params=[0, 1], name='residual_bool')
+def res_bool(request):
+    if request.param == 0:
+        request.applymarker(pytest.mark.xfail)
+    return request.param
+
+
+def test_sorted_filtered_matched(residual_bool, pair_type, random_filename):
     """
     check cluster sort and filter operation
     """
@@ -124,7 +131,7 @@ def test_sorted_filtered_matched(pair_type, random_filename):
     check_call(gather)
 
     for wave_type in pair_type.split():  # check for both P and S
-        _test_sort_and_filtered(outfile, wave_type)
+        _test_sort_and_filtered(outfile, wave_type, residual_bool)
 
     _test_matched(outfile, pair_type)
 
@@ -154,27 +161,29 @@ def _test_matched(outfile, wave_type):
     # after inner join each df should have same number of rows
     assert outdf.shape[0] == pdf.shape[0] == sdf.shape[0]
 
-    # make sure the arrays themselves match
+    # make sure the block numbers for both sources and stations match
     np.testing.assert_array_equal(outdf[0].values, pdf[0].values)
     np.testing.assert_array_equal(outdf[0].values, sdf[0].values)
     np.testing.assert_array_equal(outdf[1].values, pdf[1].values)
     np.testing.assert_array_equal(outdf[1].values, sdf[1].values)
 
 
-def _test_sort_and_filtered(outfile, wave_type):
+def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     sorted_p_or_s = outfile + '_sorted_' + wave_type + '.csv'
-    residual = '5.0' if wave_type == 'P' or 'Pn' else '10.0'
+    residual = residual_bool*(5.0 if wave_type == 'P' or 'Pn' else 10.0)
     sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
-              residual, '-s', sorted_p_or_s]
+              str(residual), '-s', sorted_p_or_s]
     check_call(sort_p)
     assert os.path.exists(sorted_p_or_s)
     p_df = pd.read_csv(sorted_p_or_s)
 
-    # tests for filter
+    # tests for residual filter
+    assert all(p_df['residual'].values <= residual)
 
+    # tests for median filter
     # after sorting and filtering, every group should have one row
     for _, group in p_df.groupby(by=['source_block', 'station_block']):
-        # one extra due to pandas created extra index
+        # one extra due to pandas internally generated row index
         assert group.shape == (1, 13)
 
     # essentially the same thing as before
