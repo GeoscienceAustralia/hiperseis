@@ -185,8 +185,7 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     # tests for median filter
     # after sorting and filtering, every group should have one row
     for _, group in p_df.groupby(by=['source_block', 'station_block']):
-        # one extra due to pandas internally generated row index
-        assert group.shape == (1, 13)
+        assert group.shape == (1, 12)
 
     # essentially the same thing as before
     assert len(p_df.groupby(by=['source_block', 'station_block'])) == \
