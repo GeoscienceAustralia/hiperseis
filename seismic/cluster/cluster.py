@@ -346,7 +346,12 @@ def sort(output_file, sorted_file, residual_cutoff):
         'observed_tt'].quantile(q=.5, interpolation='lower').reset_index()
 
     final_df = pd.merge(cluster_data, med, how='right',
-                        on=['source_block', 'station_block', 'observed_tt'])
+                        on=['source_block', 'station_block', 'observed_tt'],
+                        sort=True)
+
+    # TODO: drop_duplicates required due to possibly duplicated picks
+    # refer to https://github.com/GeoscienceAustralia/passive-seismic/issues/51
+    final_df.drop_duplicates(subset=None, keep='first', inplace=True)
 
     final_df.to_csv(sorted_file, header=True, index=False)
 
