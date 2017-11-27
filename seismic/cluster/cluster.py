@@ -340,17 +340,15 @@ def sort(output_file, sorted_file, residual_cutoff):
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
 
-    groups = cluster_data.groupby(by=['source_block', 'station_block'])
-    keep = []
-    for i, (_, group) in enumerate(groups):
-        med = group['observed_tt'].median()
-        # if median is not a unique match, keep only one row
-        keep.append(group[group['observed_tt'] == med][:1])
-        if not i % 100:
-            log.info('Filtered {}th of {} groups'.format(i, len(groups)))
+    # groupby automatically sorts
+    med = cluster_data.groupby(by=['source_block',
+                                   'station_block'])[
+        'observed_tt'].quantile(q=.5, interpolation='lower').reset_index()
 
-    final_df = pd.concat(keep)
-    final_df.to_csv(sorted_file, header=True)
+    final_df = pd.merge(cluster_data, med, how='right',
+                        on=['source_block', 'station_block', 'observed_tt'])
+
+    final_df.to_csv(sorted_file, header=True, index=False)
 
 
 @cli.command()
