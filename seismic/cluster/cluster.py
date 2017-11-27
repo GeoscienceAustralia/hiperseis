@@ -347,11 +347,17 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     final_df = pd.merge(cluster_data, med, how='right',
                         on=['source_block', 'station_block', 'observed_tt'],
-                        sort=True)
+                        sort=True,
+                        right_index=True)
 
     # TODO: drop_duplicates required due to possibly duplicated picks
     # refer to https://github.com/GeoscienceAustralia/passive-seismic/issues/51
-    final_df.drop_duplicates(subset=None, keep='first', inplace=True)
+    # The subset is specified as we have some stations that are very close?
+    final_df.drop_duplicates(subset=['station_block', 'source_block',
+                                     'event_number', 'source_longitude',
+                                     'source_latitude', 'source_depth'],
+                             keep='first',
+                             inplace=True)
 
     final_df.to_csv(sorted_file, header=True, index=False)
 
