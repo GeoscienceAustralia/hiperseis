@@ -256,10 +256,7 @@ def test_parallel_gather(pair_type, random_filename):
     check_call(gather_p)
 
     p, s = pair_type.split()
-    assert os.path.exists(outfile_s + '_' + p + '.csv')
-    assert os.path.exists(outfile_s + '_' + s + '.csv')
-    assert os.path.exists(outfile_p + '_' + p + '.csv')
-    assert os.path.exists(outfile_p + '_' + s + '.csv')
+
     sdf_p = pd.read_csv(outfile_s + '_' + p + '.csv', header=None)
     sdf_s = pd.read_csv(outfile_s + '_' + s + '.csv', header=None)
     pdf_p = pd.read_csv(outfile_p + '_' + p + '.csv', header=None)
