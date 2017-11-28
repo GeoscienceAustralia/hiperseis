@@ -7,6 +7,7 @@ from os.path import dirname, join
 import random
 import logging
 import csv
+from collections import namedtuple
 import fnmatch
 import pandas as pd
 import click
@@ -419,16 +420,64 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
 @cli.command()
 @click.argument('region', nargs=4,
-                type=click.Tuple([float, float, float, float]),
+                type=float,
                 metavar='<upperlat, bottomlat, leftlon, rightlon>')
 @click.argument('matched_file', click.File(mode='r'),
                 metavar='cluster_matched_file')
-def zone(region, matched_file):
+@click.option('-r', '--region_file', type=click.File('w'),
+              default='region.csv',
+              help='Output region file name.')
+@click.option('-g', '--global_file', type=click.File('w'),
+              default='global.csv',
+              help='Output global file name.')
+@click.option('-c', '--cross_region_file', type=click.File('w'),
+              default='cross_region.csv',
+              help='Output region file name.')
+def zone(region, matched_file, region_file, global_file, cross_region_file):
     """
     `zone'ing the arrivals into three regions.
     """
 
-    upperlat, bottomlat, leftlon, rightlon = region
+    Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
+    region = Region(*region)
 
-    y = 90. - lat
-    x = lon if lon > 0 else lon + 360.0
+    matched = pd.read_csv(matched_file, header=None, names=column_names)
+
+    # if either the source or the station or both are inside region
+    # else global, unless we want a cross region
+
+    _in_region(region, matched, region_file=region_file,
+               global_file=global_file)
+
+
+def _in_region(region, df, region_file, global_file):
+
+    df_region = df[
+
+            (
+                (
+                    (region.leftlon < df['source_longitude']) &
+                    (df['source_longitude'] < region.rightlon)
+                )
+                &
+                (
+                    (region.bottomlat < df['source_latitude']) &
+                    (df['source_latitude'] < region.upperlat)
+                )
+            )
+            |
+            (
+                (
+                    (region.leftlon < df['station_longitude']) &
+                    (df['station_longitude'] < region.rightlon)
+                )
+                &
+                (
+                    (region.bottomlat < df['station_latitude']) &
+                    (df['station_latitude'] < region.upperlat)
+                )
+            )
+    ]
+    df.subtract(df_region).to_csv(global_file, index=False)
+
+    df_region.to_csv(region_file, index=False)
