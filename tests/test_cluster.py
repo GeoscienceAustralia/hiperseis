@@ -43,10 +43,10 @@ def test_single_event_output(xml):
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     grid = Grid(nx=1440, ny=720, dz=25.0)
-    p_arr, s_arr = process_event(read_events(xml)[0],
-                                 stations=read_stations(stations_file),
-                                 grid=grid,
-                                 wave_type='P S')
+    p_arr, s_arr, miss_sta = process_event(
+        read_events(xml)[0], stations=read_stations(stations_file),
+        grid=grid, wave_type='P S')
+
     inputs = np.genfromtxt(saved_out, delimiter=',')
     np.testing.assert_array_almost_equal(inputs, np.array(p_arr, dtype=float),
                                          decimal=2)

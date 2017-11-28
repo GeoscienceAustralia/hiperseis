@@ -99,7 +99,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 
     if mpiops.rank == 0:
         log.info('Now joining all arrivals')
-        for t in wave_type.split():
+        for t in wave_type.split() + ['missing_stations']:
             _gather_all(output_file, t)
 
 
@@ -137,36 +137,38 @@ class ArrivalWriter:
         p_type, s_type = wave_type.split()
         p_file = output_file + '_' + p_type + '_{}.csv'.format(rank)
         s_file = output_file + '_' + s_type + '_{}.csv'.format(rank)
+        st_file = output_file + '_missing_stations_{}.csv'.format(rank)
 
         self.p_handle = open(p_file, 'w')
         self.s_handle = open(s_file, 'w')
+        self.st_handle = open(st_file, 'w')
         self.p_writer = csv.writer(self.p_handle)
         self.s_writer = csv.writer(self.s_handle)
+        self.st_writer = csv.writer(self.st_handle)
 
     def write(self, cluster_info):
         log.info("Writing cluster info to output file in process {}".format(
             mpiops.rank))
 
-        p_arr, s_arr = cluster_info
+        p_arr, s_arr, missing_stations = cluster_info
         for p in p_arr:
             self.p_writer.writerow(p)
         for s in s_arr:
             self.s_writer.writerow(s)
+        for st in missing_stations:
+            self.st_writer.writerow([st])
 
     def close(self):
         if mpiops.rank == 0:
             self.p_handle.close()
             self.s_handle.close()
+            self.st_handle.close()
 
 
 def process_many_events(event_xmls, grid, stations, wave_type, output_file):
     total_events = len(event_xmls)
 
-    # pad number of xmls with None's for mpi comm working during writing
-    padded_xmls = event_xmls + \
-        [None]*(mpiops.size - total_events % mpiops.size)
-
-    p_event_xmls = mpiops.array_split(padded_xmls, mpiops.rank)
+    p_event_xmls = mpiops.array_split(event_xmls, mpiops.rank)
 
     log.info('Processing {} events of total {} using process {}'.format(
         len(p_event_xmls), total_events, mpiops.rank))
@@ -185,17 +187,16 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file):
                                          process=mpiops.rank))
             # one event xml could contain multiple events
             for e in read_events(xml).events:
-                p_arr_t, s_arr_t, m_s_t = process_event(e, stations, grid,
-                                                        wave_type)
+                p_arr_t, s_arr_t, m_st = process_event(e, stations, grid,
+                                                       wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
-                missing_stations += m_s_t
+                missing_stations += m_st
                 log.debug('processed event {e} from {xml}'.format(
                     e=e.resource_id, xml=xml))
 
-            arrival_writer.write([p_arr, s_arr])
-        else:  # dummy's passed in for mpi comm to work on
-            arrival_writer.write([[], []])
+            arrival_writer.write([p_arr, s_arr, missing_stations])
+
     log.info('Read all events in process {}'.format(mpiops.rank))
     arrival_writer.close()
 
@@ -245,7 +246,7 @@ def process_event(event, stations, grid, wave_type):
         #  of all seiscomp3 stations, ISC and ENGDAHL stations
         if sta_code not in stations:
             log.warning('Station {} not found in inventory'.format(sta_code))
-            missing_stations.append(sta_code)
+            missing_stations.append(str(sta_code))
             continue
         sta = stations[sta_code]
 
