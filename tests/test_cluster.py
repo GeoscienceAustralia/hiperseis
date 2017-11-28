@@ -266,3 +266,53 @@ def test_parallel_gather(pair_type, random_filename):
     for c in sdf_p.columns:
         assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
         assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
+
+
+def test_zones(random_filename, pair_type):
+    outfile = random_filename()
+
+    # gather single process
+    gather = ['cluster', 'gather',
+              os.path.join(EVENTS, 'engdahl_sample'),
+              '-o', outfile, '-w', pair_type]
+    check_call(gather)
+
+    p, s = pair_type.split()
+    sorted_p = outfile + '_sorted_' + p + '.csv'
+    sorted_s = outfile + '_sorted_' + s + '.csv'
+
+    sort_p = ['cluster', 'sort', outfile + '_' + p + '.csv',
+              str(5.0), '-s', sorted_p]
+
+    sort_s = ['cluster', 'sort', outfile + '_' + s + '.csv',
+              str(10.0), '-s', sorted_s]
+    check_call(sort_p)
+    check_call(sort_s)
+
+    matched_p = outfile + '_matched_' + p + '.csv'
+    matched_s = outfile + '_matched_' + s + '.csv'
+
+    match = ['cluster', 'match', sorted_p, sorted_s,
+             '-p', matched_p, '-s', matched_s]
+
+    check_call(match)
+
+    region = '0 -- -50.0 100 160'.split()
+
+    region_p = outfile + 'region_p.csv'
+    global_p = outfile + 'global_p.csv'
+    region_s = outfile + 'region_s.csv'
+    global_s = outfile + 'global_s.csv'
+
+    zone_p = ['cluster', 'zone'] + region + [matched_p,
+                                             '-r', region_p,
+                                             '-g', global_p]
+    zone_s = ['cluster', 'zone'] + region + [matched_s,
+                                             '-r', region_s,
+                                             '-g', global_s]
+
+    check_call(zone_p)
+    check_call(zone_s)
+
+    prdf = pd.read_csv(region_p)
+    pgdf = pd.read_csv(global_p)
