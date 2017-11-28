@@ -4,11 +4,12 @@ Clustering of events and station for 3d inversion input files.
 from __future__ import print_function, absolute_import
 import os
 from os.path import dirname, join
-import click
+import random
 import logging
 import csv
 import fnmatch
 import pandas as pd
+import click
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from seismic import pslog
@@ -165,9 +166,14 @@ class ArrivalWriter:
             self.st_handle.close()
 
 
-def process_many_events(event_xmls, grid, stations, wave_type, output_file):
+def process_many_events(event_xmls, grid, stations, wave_type, output_file,
+                        seed=1):
     total_events = len(event_xmls)
 
+    # when event xmls are of unequal complexity, this shuffle helps
+    # distribute the workload evenly amongst processes
+    random.seed(seed)
+    random.shuffle(event_xmls)
     p_event_xmls = mpiops.array_split(event_xmls, mpiops.rank)
 
     log.info('Processing {} events of total {} using process {}'.format(
@@ -409,3 +415,20 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
                          on=['source_block', 'station_block'])[column_names]
     matched_P.to_csv(matched_p_file, index=False, header=False)
     matched_S.to_csv(matched_s_file, index=False, header=False)
+
+
+@cli.command()
+@click.argument('region', nargs=4,
+                type=click.Tuple([float, float, float, float]),
+                metavar='<upperlat, bottomlat, leftlon, rightlon>')
+@click.argument('matched_file', click.File(mode='r'),
+                metavar='cluster_matched_file')
+def zone(region, matched_file):
+    """
+    `zone'ing the arrivals into three regions.
+    """
+
+    upperlat, bottomlat, leftlon, rightlon = region
+
+    y = 90. - lat
+    x = lon if lon > 0 else lon + 360.0
