@@ -227,7 +227,7 @@ def process_event(event, stations, grid, wave_type):
     ev_depth = origin.depth
 
     if ev_latitude is None or ev_longitude is None or ev_depth is None:
-        return p_arrivals, s_arrivals
+        return p_arrivals, s_arrivals, missing_stations
 
     event_block = _find_block(grid, ev_latitude, ev_longitude, z=ev_depth)
 
