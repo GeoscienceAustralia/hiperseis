@@ -178,22 +178,25 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file):
         if xml is not None:
             p_arr = []
             s_arr = []
+            missing_stations = []
             log.info('Reading event file {xml}: {i} of {files} in process'
                      ' {process}'.format(i=i+1, files=len(p_event_xmls),
                                          xml=os.path.basename(xml),
                                          process=mpiops.rank))
             # one event xml could contain multiple events
             for e in read_events(xml).events:
-                p_arr_t, s_arr_t = process_event(e, stations, grid, wave_type)
+                p_arr_t, s_arr_t, m_s_t = process_event(e, stations, grid,
+                                                        wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
+                missing_stations += m_s_t
                 log.debug('processed event {e} from {xml}'.format(
                     e=e.resource_id, xml=xml))
 
             arrival_writer.write([p_arr, s_arr])
         else:  # dummy's passed in for mpi comm to work on
             arrival_writer.write([[], []])
-        log.info('Read all events in process {}'.format(mpiops.rank))
+    log.info('Read all events in process {}'.format(mpiops.rank))
     arrival_writer.close()
 
 
@@ -215,6 +218,7 @@ def process_event(event, stations, grid, wave_type):
 
     p_arrivals = []
     s_arrivals = []
+    missing_stations = []
 
     # other event parameters we need
     ev_latitude = origin.latitude
@@ -241,6 +245,7 @@ def process_event(event, stations, grid, wave_type):
         #  of all seiscomp3 stations, ISC and ENGDAHL stations
         if sta_code not in stations:
             log.warning('Station {} not found in inventory'.format(sta_code))
+            missing_stations.append(sta_code)
             continue
         sta = stations[sta_code]
 
@@ -272,7 +277,7 @@ def process_event(event, stations, grid, wave_type):
                 s_arrivals.append(t_list + [2])
         else:  # ignore the other phases
             pass
-    return p_arrivals, s_arrivals
+    return p_arrivals, s_arrivals, missing_stations
 
 
 def _find_block(grid, lat, lon, z):
@@ -350,10 +355,11 @@ def sort(output_file, sorted_file, residual_cutoff):
                         sort=True,
                         right_index=True)
 
-    # TODO: drop_duplicates required due to possibly duplicated picks
-    # refer to https://github.com/GeoscienceAustralia/passive-seismic/issues/51
+    # Confirmed: drop_duplicates required due to possibly duplicated picks in
+    #  the original engdahl events
+    # refer: https://github.com/GeoscienceAustralia/passive-seismic/issues/51
     # The subset is specified as we have some stations that are very close?
-    final_df.drop_duplicates(subset=['station_block', 'source_block',
+    final_df.drop_duplicates(subset=['source_block', 'station_block',
                                      'event_number', 'source_longitude',
                                      'source_latitude', 'source_depth'],
                              keep='first',
