@@ -86,7 +86,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     if os.path.isfile(events_dir):
         event_xmls = [events_dir]
     else:
-        event_xmls = recursive_glob(events_dir, ext='*.xml')
+        event_xmls = recursive_glob(events_dir, ext='*.xml')[:4]
 
     grid = Grid(nx=nx, ny=ny, dz=dz)
 
@@ -419,25 +419,24 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
 
 @cli.command()
-@click.argument('region', nargs=4,
-                type=float,
-                metavar='<upperlat, bottomlat, leftlon, rightlon>')
+@click.argument('region', type=str,
+                metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
 @click.argument('matched_file', click.File(mode='r'),
                 metavar='cluster_matched_file')
 @click.option('-r', '--region_file', type=click.File('w'),
               default='region.csv',
-              help='Output region file name.')
+              help='region file name.')
 @click.option('-g', '--global_file', type=click.File('w'),
               default='global.csv',
-              help='Output global file name.')
+              help='global file name.')
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
-              help='Output region file name.')
+              help='cross region file name.')
 def zone(region, matched_file, region_file, global_file, cross_region_file):
     """
     `zone'ing the arrivals into three regions.
     """
-
+    region = [float(s) for s in region.split()]
     Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
     region = Region(*region)
 
