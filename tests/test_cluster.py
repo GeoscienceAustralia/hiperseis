@@ -54,6 +54,7 @@ def test_single_event_output(xml):
     # make sure number of arrivals match that of output lines
     # no s arrivals for this event
     assert len(origin.arrivals) == len(p_arr)
+    assert len(miss_sta) == 0
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -65,10 +66,10 @@ def test_single_event_arrivals(event_xml, arr_type):
 
     grid = Grid(nx=1440, ny=720, dz=25.0)
 
-    p_arr, s_arr = process_event(read_events(event_xml)[0],
-                                 stations=stations,
-                                 grid=grid,
-                                 wave_type=arr_type)
+    p_arr, s_arr, miss_sta = process_event(read_events(event_xml)[0],
+                                           stations=stations,
+                                           grid=grid,
+                                           wave_type=arr_type)
 
     outputs_p = np.array(p_arr, dtype=float)
     outputs_s = np.array(s_arr, dtype=float)
@@ -76,9 +77,12 @@ def test_single_event_arrivals(event_xml, arr_type):
     p_arrivals = []
     s_arrivals = []
 
+    station_not_found = []
+
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
             ).waveform_id.station_code
+
         if sta_code in stations:
             degrees_to_source = locations2degrees(
                 origin.latitude, origin.longitude,
@@ -89,6 +93,8 @@ def test_single_event_arrivals(event_xml, arr_type):
                     p_arrivals.append(arr)
                 if arr.phase == s_type:
                     s_arrivals.append(arr)
+        else:
+            station_not_found.append(sta_code)
 
     # make sure number of arrivals match that of output lines
     assert len(p_arrivals) == len(outputs_p) and \
@@ -110,6 +116,11 @@ def test_single_event_arrivals(event_xml, arr_type):
     elif len(outputs_s) == 1 and len(outputs_s[0]):
         assert abs(outputs_s[0][-2]) < 90.001
         assert outputs_s[0][-1] == 2
+
+    assert len(station_not_found) <= 1
+    if len(station_not_found):
+        # only stations not in dict of the test events is 'ISG
+        assert 'ISG' in station_not_found
 
 
 # a very large residual allowed, imply we are not really using the filter
