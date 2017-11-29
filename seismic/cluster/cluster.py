@@ -86,7 +86,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     if os.path.isfile(events_dir):
         event_xmls = [events_dir]
     else:
-        event_xmls = recursive_glob(events_dir, ext='*.xml')[:4]
+        event_xmls = recursive_glob(events_dir, ext='*.xml')
 
     grid = Grid(nx=nx, ny=ny, dz=dz)
 
@@ -477,6 +477,8 @@ def _in_region(region, df, region_file, global_file):
                 )
             )
     ]
-    df.subtract(df_region).to_csv(global_file, index=False)
 
-    df_region.to_csv(region_file, index=False)
+    df.iloc[df.index.difference(df_region.index)].to_csv(global_file,
+                                                         index=False,
+                                                         header=False)
+    df_region.to_csv(region_file, index=False, header=False)
