@@ -2,7 +2,6 @@ import os
 import glob
 import numpy as np
 import pytest
-from pytest import approx
 import pandas as pd
 from subprocess import check_call
 from collections import Counter
@@ -13,7 +12,8 @@ from seismic.cluster.cluster import (process_event,
                                      read_stations,
                                      process_many_events,
                                      Grid,
-                                     column_names)
+                                     column_names,
+                                     Region)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -180,10 +180,10 @@ def _test_zones(outfile, pair_type):
     check_call(zone_s)
 
     for w in pair_type.split():
-        _test_zone(outfile, w)
+        _test_zone(outfile, region, w)
 
 
-def _test_zone(outfile, wave_type):
+def _test_zone(outfile, region, wave_type='P_S'):
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
     matched_p = outfile + '_matched_' + wave_type + '.csv'
@@ -207,6 +207,26 @@ def _test_zone(outfile, wave_type):
     for c in column_names:
         set(prdf[c].values).issubset(set(m_pdf[c].values))
         set(pgdf[c].values).issubset(set(m_pdf[c].values))
+
+    region = [float(s) for s in region.split()]
+    region = Region(*region)
+
+    # check region bounds are satisfied
+    assert all(np.logical_or(
+        (prdf['source_latitude'].values < region.upperlat),
+        (prdf['station_latitude'].values < region.upperlat)))
+
+    assert all(np.logical_or(
+        (prdf['source_latitude'].values > region.bottomlat),
+        (prdf['station_latitude'].values > region.bottomlat)))
+
+    assert all(np.logical_or(
+        (prdf['source_longitude'].values < region.rightlon),
+        (prdf['station_longitude'].values < region.rightlon)))
+
+    assert all(np.logical_or(
+        (prdf['source_longitude'].values > region.leftlon),
+        (prdf['station_longitude'].values > region.leftlon)))
 
 
 def _test_matched(outfile, wave_type):
