@@ -187,7 +187,7 @@ def _add_dicts(x, y):
     return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
 
 
-def _test_zone(outfile, region, wave_type='P_S'):
+def _test_zone(outfile, region, wave_type):
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
     matched_p = outfile + '_matched_' + wave_type + '.csv'

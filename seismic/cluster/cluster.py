@@ -9,6 +9,7 @@ import logging
 import csv
 from collections import namedtuple
 import fnmatch
+import math
 import pandas as pd
 import click
 from obspy import read_events
@@ -30,6 +31,7 @@ column_names = ['source_block', 'station_block',
 PASSIVE = dirname(dirname(dirname(__file__)))
 station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
+
 
 class Grid:
     def __init__(self, nx, ny, dz):
@@ -429,6 +431,9 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-g', '--global_file', type=click.File('w'),
               default='global.csv',
               help='global file name.')
+@click.option('-s', '--grid_size', type=float,
+              default='0.3',
+              help='grid size in degrees in the region')
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
               help='cross region file name.')
@@ -449,6 +454,8 @@ def zone(region, matched_file, region_file, global_file, cross_region_file):
 
 
 def _in_region(region, df, region_file, global_file):
+
+    dpi = math.asin(1.0)/90.0
 
     df_region = df[
 
@@ -481,3 +488,7 @@ def _in_region(region, df, region_file, global_file):
                                                          index=False,
                                                          header=False)
     df_region.to_csv(region_file, index=False, header=False)
+
+
+def _intersect_region(df):
+    pass
