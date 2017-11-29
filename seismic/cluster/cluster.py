@@ -29,7 +29,7 @@ column_names = ['source_block', 'station_block',
 
 PASSIVE = dirname(dirname(dirname(__file__)))
 station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
-
+Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
 class Grid:
     def __init__(self, nx, ny, dz):
@@ -437,7 +437,6 @@ def zone(region, matched_file, region_file, global_file, cross_region_file):
     `zone'ing the arrivals into three regions.
     """
     region = [float(s) for s in region.split()]
-    Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
     region = Region(*region)
 
     matched = pd.read_csv(matched_file, header=None, names=column_names)
