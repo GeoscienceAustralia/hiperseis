@@ -183,6 +183,10 @@ def _test_zones(outfile, pair_type):
         _test_zone(outfile, region, w)
 
 
+def _add_dicts(x, y):
+    return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+
+
 def _test_zone(outfile, region, wave_type='P_S'):
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
@@ -204,9 +208,14 @@ def _test_zone(outfile, region, wave_type='P_S'):
     prdf_m_pdf = m_pdf.merge(prdf, how='inner',
                              on=['source_block', 'station_block'])
     assert prdf_m_pdf.shape[0] == prdf.shape[0]
-    for c in column_names:
+    for c in ['source_block', 'station_block', 'event_number', 'P_or_S']:
         set(prdf[c].values).issubset(set(m_pdf[c].values))
         set(pgdf[c].values).issubset(set(m_pdf[c].values))
+        c_prdf = Counter(prdf[c].values)
+        c_pgdf = Counter(pgdf[c].values)
+        c_mdf = Counter(m_pdf[c].values)
+
+        assert c_mdf == _add_dicts(c_pgdf, c_prdf)
 
     region = [float(s) for s in region.split()]
     region = Region(*region)
