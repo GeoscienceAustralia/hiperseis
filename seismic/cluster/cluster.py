@@ -9,7 +9,7 @@ import logging
 import csv
 from collections import namedtuple
 import fnmatch
-import math
+from math import asin, sin, acos, cos, sqrt
 import pandas as pd
 import click
 from obspy import read_events
@@ -18,6 +18,9 @@ from seismic import pslog
 from seismic import mpiops
 from inventory.parse_inventory import gather_isc_stations, Station
 
+DPI = asin(1.0)/90.0
+R2D = 90./asin(1.)
+RADIUS = 6371.0
 
 log = logging.getLogger(__name__)
 
@@ -455,8 +458,6 @@ def zone(region, matched_file, region_file, global_file, cross_region_file):
 
 def _in_region(region, df, region_file, global_file):
 
-    dpi = math.asin(1.0)/90.0
-
     df_region = df[
 
             (
@@ -490,5 +491,59 @@ def _in_region(region, df, region_file, global_file):
     df_region.to_csv(region_file, index=False, header=False)
 
 
-def _intersect_region(df):
-    pass
+def _intersect_region(df, region):
+    pe = df['source_latitude']
+    ps = df['station_latitude']
+    re = df['source_longitude']
+    rs = df['station_longitude']
+    delta = df['locations2degrees']
+
+    nms = int(delta/0.3)
+
+    ar = pe*DPI
+    ast = ps*DPI
+    br = re*DPI
+    bs = rs*DPI
+    x1 = RADIUS*sin(ar)*cos(br)
+    y1 = RADIUS*sin(ar)*sin(br)
+    z1 = RADIUS*cos(ar)
+    x2 = RADIUS*sin(ast)*cos(bs)
+    y2 = RADIUS*sin(ast)*sin(bs)
+    z2 = RADIUS*cos(ast)
+    dx = (x2-x1)/nms
+    dy = (y2-y1)/nms
+    dz = (z2-z1)/nms
+
+    for j in range(nms):
+
+        x = x1 + dx*j
+        y = y1 + dy*j
+        z = z1 + dz*j
+        r = sqrt(x**2 + y**2 + z**2)
+
+        acosa = z/r
+        if acosa < -1.:
+            acosa = -1.
+
+        if acosa > 1:
+            acosa = 1.
+
+        la = acos(acosa)*R2D
+
+        acosa = (x/r)/sin(la*DPI)
+
+        if acosa < -1.:
+            acosa = -1.
+
+        if acosa > 1.:
+            acosa = 1.
+
+        lo = acos(acosa)*R2D
+
+        if y < 0.00000:
+            lo = 360.00000 - lo
+
+        if (lo > region.leftlon) and (lo < region.rightlon):
+            if (la > region.bottomlat) and (la < region.upperlat):
+                if (RADIUS - r) < 1000.0:
+                    iok = 1
