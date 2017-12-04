@@ -435,9 +435,9 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-g', '--global_file', type=click.File('w'),
               default='global.csv',
               help='global file name.')
-@click.option('-s', '--grid_size', type=float,
-              default='0.3',
-              help='grid size in degrees in the region')
+@click.option('-s', '--grid_size', type=float, default=0.0,
+              help='grid size in degrees in the region. If grid size is '
+                   'provided, cross region file will be created.')
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
               help='cross region file name.')
@@ -455,43 +455,58 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
     # else global, unless we want a cross region
 
     _in_region(region, matched, region_file=region_file,
-               global_file=global_file, grid_size=grid_size)
+               global_file=global_file, grid_size=grid_size,
+               cross_region_file=cross_region_file)
 
 
-def _in_region(region, df, region_file, global_file, grid_size):
+def _in_region(region, df, region_file, global_file, grid_size,
+               cross_region_file):
 
-    df = _intersect_region(df, region, grid_size)
+    if grid_size > 0.0:
+        df = _intersect_region(df, region, grid_size)
 
-    df_region = df[
-
-            (
-                (
-                    (region.leftlon < df['source_longitude']) &
-                    (df['source_longitude'] < region.rightlon)
+    # row indices of all in region arrivals
+    in_region = ((
+                    (
+                        (region.leftlon < df['source_longitude']) &
+                        (df['source_longitude'] < region.rightlon)
+                    )
+                    &
+                    (
+                        (region.bottomlat < df['source_latitude']) &
+                        (df['source_latitude'] < region.upperlat)
+                    )
                 )
-                &
+                |
                 (
-                    (region.bottomlat < df['source_latitude']) &
-                    (df['source_latitude'] < region.upperlat)
+                    (
+                        (region.leftlon < df['station_longitude']) &
+                        (df['station_longitude'] < region.rightlon)
+                    )
+                    &
+                    (
+                        (region.bottomlat < df['station_latitude']) &
+                        (df['station_latitude'] < region.upperlat)
+                    )
                 )
             )
-            |
-            (
-                (
-                    (region.leftlon < df['station_longitude']) &
-                    (df['station_longitude'] < region.rightlon)
-                )
-                &
-                (
-                    (region.bottomlat < df['station_latitude']) &
-                    (df['station_latitude'] < region.upperlat)
-                )
-            )
-    ]
 
-    df.iloc[df.index.difference(df_region.index)].to_csv(global_file,
-                                                         index=False,
-                                                         header=False)
+    df_region = df[in_region][column_names]
+
+    # dataframe excluding in region arrivals
+    df_ex_region = df.iloc[df.index.difference(df_region.index)]
+
+    if grid_size > 0.0:
+        # cross region is the region that is ex-region and cross-region==True
+        df_ex_region[
+            df_ex_region['cross_region'] == True][column_names].to_csv(
+            cross_region_file, index=False, header=False)
+
+    # Global region contain the remaining arrivals
+    df_ex_region[df_ex_region['cross_region'] == False][
+        column_names].to_csv(
+            global_file, index=False, header=False)
+
     df_region.to_csv(region_file, index=False, header=False)
 
 
@@ -565,6 +580,6 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
         if (lon > region.leftlon) and (lon < region.rightlon):
             if (lat > region.bottomlat) and (lat < region.upperlat):
                 if (RADIUS - r) < 1000.0:
-                    return 1
-    return 0
+                    return True
+    return False
 
