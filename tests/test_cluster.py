@@ -1,4 +1,7 @@
 import os
+import shutil
+import random
+import string
 import glob
 import numpy as np
 import pytest
@@ -35,7 +38,7 @@ def support_arr_type(request):
     return request.param
 
 
-@pytest.fixture(params=['P S', 'Pn Sn'], name='pair_type')
+@pytest.fixture(params=['P S', 'Pn Sn'], name='pair_type', scope='module')
 def arrival_type(request):
     return request.param
 
@@ -133,21 +136,41 @@ def res_bool(request):
     return request.param
 
 
+@pytest.fixture(scope='module')
+def cluster_outfiles(request, tmpdir_factory):
+    print('In Setup')
+    dir = str(tmpdir_factory.mktemp('seismic').realpath())
+    outfiles = []
+    pair_types = ['P S', 'Pn Sn']
+
+    # gather
+    for p in pair_types:
+        fname = ''.join(random.choice(string.ascii_lowercase)
+                        for _ in range(10))
+        outfile_p = os.path.join(dir, fname)
+        gather = [
+                'mpirun', '--allow-run-as-root', '-n', '4',
+                'cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
+                '-o', outfile_p, '-w', p
+            ]
+        # import IPython; IPython.embed(); import sys; sys.exit()
+        outfiles.append(outfile_p)
+        check_call(gather)
+
+    def tear_down():
+        print('In tear down, removing dir: ', dir)
+        shutil.rmtree(dir)
+    request.addfinalizer(tear_down)
+    return outfiles
+
+
 def test_sorted_filtered_matched_zoned(residual_bool, pair_type,
-                                       random_filename):
+                                       cluster_outfiles):
     """
     check cluster sort and filter operation
     """
-    outfile = random_filename()
-
-    # gather
-    gather = [
-        'mpirun', '--allow-run-as-root', '-n', '4',
-        'cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
-        '-o', outfile, '-w', pair_type
-    ]
-    check_call(gather)
-
+    pair_types = ['P S', 'Pn Sn']
+    outfile = cluster_outfiles[pair_types.index(pair_type)]
     for wave_type in pair_type.split():  # check for both P and S
         _test_sort_and_filtered(outfile, wave_type, residual_bool)
 
