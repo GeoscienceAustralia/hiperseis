@@ -466,46 +466,47 @@ def _in_region(region, df, region_file, global_file, grid_size,
         df = _intersect_region(df, region, grid_size)
 
     # row indices of all in region arrivals
-    in_region = ((
-                    (
-                        (region.leftlon < df['source_longitude']) &
-                        (df['source_longitude'] < region.rightlon)
-                    )
-                    &
-                    (
-                        (region.bottomlat < df['source_latitude']) &
-                        (df['source_latitude'] < region.upperlat)
-                    )
-                )
-                |
+    df_region = df[
+            (
                 (
-                    (
-                        (region.leftlon < df['station_longitude']) &
-                        (df['station_longitude'] < region.rightlon)
-                    )
-                    &
-                    (
-                        (region.bottomlat < df['station_latitude']) &
-                        (df['station_latitude'] < region.upperlat)
-                    )
+                    (region.leftlon < df['source_longitude']) &
+                    (df['source_longitude'] < region.rightlon)
+                )
+                &
+                (
+                    (region.bottomlat < df['source_latitude']) &
+                    (df['source_latitude'] < region.upperlat)
                 )
             )
-
-    df_region = df[in_region][column_names]
+            |
+            (
+                (
+                    (region.leftlon < df['station_longitude']) &
+                    (df['station_longitude'] < region.rightlon)
+                )
+                &
+                (
+                    (region.bottomlat < df['station_latitude']) &
+                    (df['station_latitude'] < region.upperlat)
+                )
+            )
+    ][column_names]
 
     # dataframe excluding in region arrivals
     df_ex_region = df.iloc[df.index.difference(df_region.index)]
 
     if grid_size > 0.0:
-        # cross region is the region that is ex-region and cross-region==True
+        # cross region is in ex-region and cross-region==True
         df_ex_region[
             df_ex_region['cross_region'] == True][column_names].to_csv(
             cross_region_file, index=False, header=False)
+        global_df = df_ex_region[df_ex_region['cross_region'] == False][
+                    column_names]
+    else:
+        global_df = df_ex_region
 
     # Global region contain the remaining arrivals
-    df_ex_region[df_ex_region['cross_region'] == False][
-        column_names].to_csv(
-            global_file, index=False, header=False)
+    global_df.to_csv(global_file, index=False, header=False)
 
     df_region.to_csv(region_file, index=False, header=False)
 
