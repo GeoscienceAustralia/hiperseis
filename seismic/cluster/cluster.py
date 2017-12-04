@@ -542,6 +542,8 @@ def _intersect_region(df, region, grid_size):
     dz = (z2-z1)/nms
 
     in_cross = []
+
+    # TODO: vectorize this loop
     for i, n in enumerate(nms):
         in_cross.append(_in_cross_region(dx[i], dy[i], dz[i], n, region, x1[i],
                         y1[i], z1[i]))
@@ -550,6 +552,8 @@ def _intersect_region(df, region, grid_size):
 
 
 def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
+
+    # TODO: vectorize this loop
     for j in range(nms):
 
         x = x1 + dx * j
