@@ -14,13 +14,13 @@ import pandas as pd
 import click
 from obspy import read_events
 from obspy.geodetics import locations2degrees
+from obspy.geodetics.base import WGS84_A
 from seismic import pslog
 from seismic import mpiops
 from inventory.parse_inventory import gather_isc_stations, Station
 
 DPI = asin(1.0)/90.0
 R2D = 90./asin(1.)
-RADIUS = 6371.0
 
 log = logging.getLogger(__name__)
 
@@ -504,12 +504,12 @@ def _intersect_region(df, region):
     ast = ps*DPI
     br = re*DPI
     bs = rs*DPI
-    x1 = RADIUS*sin(ar)*cos(br)
-    y1 = RADIUS*sin(ar)*sin(br)
-    z1 = RADIUS*cos(ar)
-    x2 = RADIUS*sin(ast)*cos(bs)
-    y2 = RADIUS*sin(ast)*sin(bs)
-    z2 = RADIUS*cos(ast)
+    x1 = WGS84_A*sin(ar)*cos(br)
+    y1 = WGS84_A*sin(ar)*sin(br)
+    z1 = WGS84_A*cos(ar)
+    x2 = WGS84_A*sin(ast)*cos(bs)
+    y2 = WGS84_A*sin(ast)*sin(bs)
+    z2 = WGS84_A*cos(ast)
     dx = (x2-x1)/nms
     dy = (y2-y1)/nms
     dz = (z2-z1)/nms
@@ -545,5 +545,5 @@ def _intersect_region(df, region):
 
         if (lo > region.leftlon) and (lo < region.rightlon):
             if (la > region.bottomlat) and (la < region.upperlat):
-                if (RADIUS - r) < 1000.0:
+                if (WGS84_A - r) < 1000.0:
                     iok = 1
