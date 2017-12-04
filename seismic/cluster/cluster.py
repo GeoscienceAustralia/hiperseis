@@ -9,12 +9,13 @@ import logging
 import csv
 from collections import namedtuple
 import fnmatch
-from math import asin, sin, acos, cos, sqrt
+from math import asin, sin, acos, sqrt
+import numpy as np
 import pandas as pd
 import click
 from obspy import read_events
 from obspy.geodetics import locations2degrees
-from obspy.geodetics.base import WGS84_A
+from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
 from inventory.parse_inventory import gather_isc_stations, Station
@@ -440,7 +441,8 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
               help='cross region file name.')
-def zone(region, matched_file, region_file, global_file, cross_region_file):
+def zone(region, matched_file, region_file, global_file, cross_region_file,
+         grid_size):
     """
     `zone'ing the arrivals into three regions.
     """
@@ -453,10 +455,12 @@ def zone(region, matched_file, region_file, global_file, cross_region_file):
     # else global, unless we want a cross region
 
     _in_region(region, matched, region_file=region_file,
-               global_file=global_file)
+               global_file=global_file, grid_size=grid_size)
 
 
-def _in_region(region, df, region_file, global_file):
+def _in_region(region, df, region_file, global_file, grid_size):
+
+    df = _intersect_region(df, region, grid_size)
 
     df_region = df[
 
@@ -491,46 +495,61 @@ def _in_region(region, df, region_file, global_file):
     df_region.to_csv(region_file, index=False, header=False)
 
 
-def _intersect_region(df, region):
+def _intersect_region(df, region, grid_size):
+    """
+    Strategy to compute cross region: Intersect/cross region is computed first
+    which will contain the `region`. The final intersect region will be
+    be subtracted from the `region`.
+    """
+
     pe = df['source_latitude']
     ps = df['station_latitude']
     re = df['source_longitude']
     rs = df['station_longitude']
     delta = df['locations2degrees']
 
-    nms = int(delta/0.3)
-
+    # operations on pd.Series
+    nms = (delta/grid_size).astype(int)
     ar = pe*DPI
     ast = ps*DPI
     br = re*DPI
     bs = rs*DPI
-    x1 = WGS84_A*sin(ar)*cos(br)
-    y1 = WGS84_A*sin(ar)*sin(br)
-    z1 = WGS84_A*cos(ar)
-    x2 = WGS84_A*sin(ast)*cos(bs)
-    y2 = WGS84_A*sin(ast)*sin(bs)
-    z2 = WGS84_A*cos(ast)
+
+    x1 = RADIUS*np.sin(ar)*np.cos(br)
+    y1 = RADIUS*np.sin(ar)*np.sin(br)
+    z1 = RADIUS*np.cos(ar)
+    x2 = RADIUS*np.sin(ast)*np.cos(bs)
+    y2 = RADIUS*np.sin(ast)*np.sin(bs)
+    z2 = RADIUS*np.cos(ast)
     dx = (x2-x1)/nms
     dy = (y2-y1)/nms
     dz = (z2-z1)/nms
 
+    in_cross = []
+    for i, n in enumerate(nms):
+        in_cross.append(_in_cross_region(dx[i], dy[i], dz[i], n, region, x1[i],
+                        y1[i], z1[i]))
+    df['cross_region'] = pd.Series(in_cross)
+    return df
+
+
+def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
     for j in range(nms):
 
-        x = x1 + dx*j
-        y = y1 + dy*j
-        z = z1 + dz*j
-        r = sqrt(x**2 + y**2 + z**2)
-
-        acosa = z/r
+        x = x1 + dx * j
+        y = y1 + dy * j
+        z = z1 + dz * j
+        r = sqrt(x ** 2 + y ** 2 + z ** 2)
+        acosa = z / r
         if acosa < -1.:
             acosa = -1.
 
         if acosa > 1:
             acosa = 1.
 
-        la = acos(acosa)*R2D
+        lat = acos(acosa) * R2D
 
-        acosa = (x/r)/sin(la*DPI)
+        acosa = (x / r) / sin(lat * DPI)
 
         if acosa < -1.:
             acosa = -1.
@@ -538,12 +557,14 @@ def _intersect_region(df, region):
         if acosa > 1.:
             acosa = 1.
 
-        lo = acos(acosa)*R2D
+        lon = acos(acosa) * R2D
 
-        if y < 0.00000:
-            lo = 360.00000 - lo
+        if y < 0.0:
+            lon = 360.0 - lon
 
-        if (lo > region.leftlon) and (lo < region.rightlon):
-            if (la > region.bottomlat) and (la < region.upperlat):
-                if (WGS84_A - r) < 1000.0:
-                    iok = 1
+        if (lon > region.leftlon) and (lon < region.rightlon):
+            if (lat > region.bottomlat) and (lat < region.upperlat):
+                if (RADIUS - r) < 1000.0:
+                    return 1
+    return 0
+
