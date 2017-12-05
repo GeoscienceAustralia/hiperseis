@@ -554,6 +554,7 @@ def _intersect_region(df, region, grid_size):
 def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
 
     # TODO: vectorize this loop
+    # TODO: tests for cross region
     for j in range(nms):
 
         x = x1 + dx * j
@@ -587,4 +588,3 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
                 if (RADIUS - r) < 1000.0:
                     return True
     return False
-
