@@ -452,6 +452,10 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
 
     matched = pd.read_csv(matched_file, header=None, names=column_names)
 
+    # convert longitude to co-longitude
+    matched['source_longitude'] = matched['source_longitude'] % 360
+    matched['station_longitude'] = matched['station_longitude'] % 360
+
     # if either the source or the station or both are inside region
     # else global, unless we want a cross region
 
