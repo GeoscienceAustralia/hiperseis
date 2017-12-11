@@ -74,11 +74,11 @@ def recursive_glob(dirname, ext='*.xml'):
 @click.option('-o', '--output_file',
               type=str, default='outfile',
               help='output arrivals file basename')
-@click.option('-x', '--nx', type=int, default=720,
+@click.option('-x', '--nx', type=int, default=1440,
               help='number of segments from 0 to 360 degrees for longitude')
-@click.option('-y', '--ny', type=int, default=360,
+@click.option('-y', '--ny', type=int, default=720,
               help='number of segments from 0 to 180 degrees for latitude')
-@click.option('-z', '--dz', type=float, default=25000.0,
+@click.option('-z', '--dz', type=float, default=10000.0,
               help='unit segment length of depth in meters')
 @click.option('-w', '--wave_type',
               type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
