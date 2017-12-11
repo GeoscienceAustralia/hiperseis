@@ -229,7 +229,7 @@ def process_event(event, stations, grid, wave_type):
     # use preferred origin timestamp as the event number
     # if preferred origin is not populated, use the first origin timestamp
     origin = event.preferred_origin() or event.origins[0]
-    ev_number = int(origin.time.timestamp * 1e6)
+    ev_number = int(origin.time.timestamp)
 
     p_arrivals = []
     s_arrivals = []
