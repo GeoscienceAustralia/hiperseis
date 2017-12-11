@@ -5,6 +5,7 @@ import string
 import glob
 import numpy as np
 import pytest
+from pytest import approx
 import pandas as pd
 from subprocess import check_call
 from collections import Counter
@@ -53,9 +54,7 @@ def test_single_event_output(xml):
         grid=grid, wave_type='P S')
 
     inputs = np.genfromtxt(saved_out, delimiter=',')
-    np.testing.assert_array_almost_equal(inputs, np.array(p_arr, dtype=float),
-                                         decimal=2)
-
+    assert inputs == approx(np.array(p_arr, dtype=float), rel=1e-2)
     # make sure number of arrivals match that of output lines
     # no s arrivals for this event
     assert len(origin.arrivals) == len(p_arr)
