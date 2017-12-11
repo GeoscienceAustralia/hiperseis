@@ -214,8 +214,8 @@ def _test_zone(outfile, region, wave_type):
     global_p = outfile + 'global_{}.csv'.format(wave_type)
     matched_p = outfile + '_matched_' + wave_type + '.csv'
 
-    prdf = pd.read_csv(region_p, header=None, names=column_names)
-    pgdf = pd.read_csv(global_p, header=None, names=column_names)
+    prdf = pd.read_csv(region_p, header=None, names=column_names, sep=' ')
+    pgdf = pd.read_csv(global_p, header=None, names=column_names, sep=' ')
     # ensure there are no overlaps between the regional and global df's
     null_df = prdf.merge(pgdf, how='inner', on=['source_block',
                                                 'station_block'])
@@ -315,9 +315,8 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
         p_df.shape[0]
 
     # tests for sort
-    # sum of source_block + station_block should be strictly increasing
-    block_sum = p_df['source_block'].values + p_df['station_block'].values
-    assert all(np.diff(block_sum) >= 1)
+    # source_block should be increasing
+    assert all(np.diff(p_df['source_block'].values) >= 0)
 
 
 @pytest.mark.filterwarnings("ignore")
