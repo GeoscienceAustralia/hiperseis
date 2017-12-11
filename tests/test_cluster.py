@@ -259,6 +259,18 @@ def _test_zone(outfile, region, wave_type):
         (prdf['source_longitude'].values > region.leftlon),
         (prdf['station_longitude'].values > region.leftlon)))
 
+    _check_range(prdf, region)
+    _check_range(pgdf, region)
+
+
+def _check_range(prdf, region):
+
+    # check co-longitude range
+    assert all(prdf['source_longitude'].values >= 0)
+    assert all(prdf['station_longitude'].values >= 0)
+    assert all(prdf['source_longitude'].values <= 360)
+    assert all(prdf['station_longitude'].values <= 360)
+
 
 def _test_matched(outfile, wave_type):
     p, s = wave_type.split()
