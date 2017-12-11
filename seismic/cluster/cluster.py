@@ -22,6 +22,7 @@ from inventory.parse_inventory import gather_isc_stations, Station
 
 DPI = asin(1.0)/90.0
 R2D = 90./asin(1.)
+FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
 
@@ -73,11 +74,11 @@ def recursive_glob(dirname, ext='*.xml'):
 @click.option('-o', '--output_file',
               type=str, default='outfile',
               help='output arrivals file basename')
-@click.option('-x', '--nx', type=int, default=1440,
+@click.option('-x', '--nx', type=int, default=720,
               help='number of segments from 0 to 360 degrees for longitude')
-@click.option('-y', '--ny', type=int, default=720,
+@click.option('-y', '--ny', type=int, default=360,
               help='number of segments from 0 to 180 degrees for latitude')
-@click.option('-z', '--dz', type=float, default=25.0,
+@click.option('-z', '--dz', type=float, default=25000.0,
               help='unit segment length of depth in meters')
 @click.option('-w', '--wave_type',
               type=click.Choice(['P S', 'Pn Sn', 'Pg Sg', 'p s']),
@@ -499,16 +500,19 @@ def _in_region(region, df, region_file, global_file, grid_size,
         # cross region is in ex-region and cross-region==True
         df_ex_region[
             df_ex_region['cross_region'] == True][column_names].to_csv(
-            cross_region_file, index=False, header=False)
+            cross_region_file, index=False, header=False,
+            sep=' ', float_format=FLOAT_FORMAT)
         global_df = df_ex_region[df_ex_region['cross_region'] == False][
                     column_names]
     else:
         global_df = df_ex_region
 
     # Global region contain the remaining arrivals
-    global_df.to_csv(global_file, index=False, header=False)
+    global_df.to_csv(global_file, index=False, header=False,
+                     sep=' ', float_format=FLOAT_FORMAT)
 
-    df_region.to_csv(region_file, index=False, header=False)
+    df_region.to_csv(region_file, index=False, header=False,
+                     sep=' ', float_format=FLOAT_FORMAT)
 
 
 def _intersect_region(df, region, grid_size):
