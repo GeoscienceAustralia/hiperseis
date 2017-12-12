@@ -135,5 +135,5 @@ Use help on each command like this on how to use each step:
 When gathering a large number of arrivals, batch jobs can be utilised making use
  of the steps above. Example PBS scripts can be found [here for python3.4](../../hpc/cluster.sh) and 
 [here for python3.6](../../hpc/cluster36.sh). Instructions on how to setup hpc 
-environment on `raijn` like supercomputer can be found [here for python3.4](../../hpc/README.rst) and 
+environment on `raijin` like supercomputer can be found [here for python3.4](../../hpc/README.rst) and 
 [here for python3.6](../../hpc/READMEPY36.sh).
