@@ -32,5 +32,5 @@ cluster sort outfile_S.csv 10. -s sorted_S.csv
 cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
 
 # zones
-cluster zone matched_P.csv -r region_P.csv -g global_P.csv
-cluster zone matched_S.csv -r region_S.csv -g global_S.csv
+cluster zone '0 -50.0 100 190' matched_P.csv -r region_P.csv -g global_P.csv
+cluster zone '0 -50.0 100 190' matched_S.csv -r region_S.csv -g global_S.csv
