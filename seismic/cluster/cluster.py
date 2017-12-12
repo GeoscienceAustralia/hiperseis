@@ -12,6 +12,7 @@ import fnmatch
 from math import asin, sin, acos, sqrt
 import numpy as np
 import pandas as pd
+from matplotlib import pylab as plt
 import click
 from obspy import read_events
 from obspy.geodetics import locations2degrees
@@ -26,10 +27,15 @@ FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
 
+SOURCE_LATITUDE = 'source_latitude'
+SOURCE_LONGITUDE = 'source_longitude'
+STATION_LATITUDE = 'station_latitude'
+STATION_LONGITUDE = 'station_longitude'
+
 column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
-                'source_longitude', 'source_latitude',
-                'source_depth', 'station_longitude', 'station_latitude',
+                SOURCE_LONGITUDE, SOURCE_LATITUDE,
+                'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
                 'observed_tt', 'locations2degrees', 'P_or_S']
 
 
@@ -351,6 +357,8 @@ def sort(output_file, sorted_file, residual_cutoff):
     :return: None
     """
 
+    log.info('Filtering arrivals.')
+
     cluster_data = pd.read_csv(output_file, header=None,
                                names=column_names)
     cluster_data = cluster_data[abs(cluster_data['residual'])
@@ -359,6 +367,8 @@ def sort(output_file, sorted_file, residual_cutoff):
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
+
+    log.info('Sorting arrivals.')
 
     # groupby automatically sorts
     med = cluster_data.groupby(by=['source_block',
@@ -410,6 +420,9 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
     :return:None
     """
+
+    log.info('Matching p and s arrivals')
+
     p_arr = pd.read_csv(p_file)
     s_arr = pd.read_csv(s_file)
 
@@ -447,6 +460,7 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
     """
     `zone'ing the arrivals into three regions.
     """
+    log.info('Calculating zones')
     region = [float(s) for s in region.split()]
     region = Region(*region)
 
@@ -462,6 +476,47 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
     _in_region(region, matched, region_file=region_file,
                global_file=global_file, grid_size=grid_size,
                cross_region_file=cross_region_file)
+
+
+@cli.command()
+@click.argument('arrivals_file', type=click.File(mode='r'))
+@click.argument('region', type=str,
+                metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
+def plot(arrivals_file, region):
+    region = [float(s) for s in region.split()]
+    region = Region(*region)
+    arrivals = pd.read_csv(arrivals_file, header=None, names=column_names,
+                           sep=' ')
+    _source_or_stations_in_region(arrivals, region,
+                                  SOURCE_LATITUDE, SOURCE_LONGITUDE,
+                                  'sources_in_region.png')
+
+    _source_or_stations_in_region(arrivals, region,
+                                  STATION_LATITUDE, STATION_LONGITUDE,
+                                  'stations_in_region.png')
+
+
+def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
+                                  fig_name):
+    condition = (
+        (arrivals[lat_str] <= region.upperlat)
+        &
+        (arrivals[lat_str] >= region.bottomlat)
+        &
+        (arrivals[lon_str] <= region.rightlon)
+        &
+        (arrivals[lon_str] >= region.leftlon)
+    )
+
+    sources_in_region = arrivals[condition]
+
+    fig = plt.figure()
+    plt.plot(sources_in_region[lon_str],
+             sources_in_region[lat_str], '*')
+    plt.title(fig_name.split('.')[0])
+    plt.xlabel('Longitude (degrees)')
+    plt.ylabel('Latitude (degrees)')
+    fig.savefig(fig_name)
 
 
 def _in_region(region, df, region_file, global_file, grid_size,
