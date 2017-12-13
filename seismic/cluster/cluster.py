@@ -517,11 +517,14 @@ def plot(arrivals_file, region):
     sources_and_stations = arrivals[source & station]
 
     fig = plt.figure()
-    plt.plot(sources_and_stations[SOURCE_LONGITUDE],
-             sources_and_stations[SOURCE_LATITUDE], 'r*')
-    plt.plot(sources_and_stations[STATION_LONGITUDE],
-             sources_and_stations[STATION_LATITUDE], 'b^')
-    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k')
+
+    _plot_on_map(sources_and_stations,
+                 SOURCE_LONGITUDE, SOURCE_LATITUDE,
+                 marker='*', color='r')
+    _plot_on_map(sources_and_stations,
+                 STATION_LONGITUDE, STATION_LATITUDE,
+                 marker='^', color='b')
+
     plt.title('Sources and stations in \n region {}'.format(region))
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
@@ -531,19 +534,27 @@ def plot(arrivals_file, region):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    for arr in sources_and_stations.iterrows():
+    for i, arr in enumerate(sources_and_stations.iterrows()):
         dat = arr[1]
         ax.add_line(Line2D([dat[SOURCE_LONGITUDE], dat[STATION_LONGITUDE]],
                            [dat[SOURCE_LATITUDE], dat[STATION_LATITUDE]],
-                           color='b'))
-    AUSTRALIA.drawcoastlines(linewidth=2.0, color='r')
-    AUSTRALIA.drawmapboundary(fill_color='aqua')
+                           color='b', zorder=i))
+    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k',
+                             zorder=sources_and_stations.shape[0]+1)
     ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
     ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
     plt.title('Ray paths in \n region {}'.format(region))
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
     fig.savefig('rays_in_region.png')
+
+
+def _plot_on_map(sources_and_stations, lon_str, lat_str, marker, color):
+    lons = sources_and_stations[lon_str]
+    lats = sources_and_stations[lat_str]
+    x, y = AUSTRALIA(lons, lats)
+    AUSTRALIA.scatter(x, y, marker=marker, color=color)
+    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k')
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
@@ -569,9 +580,7 @@ def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_aspect('equal')
-    plt.plot(sources_in_region[lon_str],
-             sources_in_region[lat_str], '*')
-    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k')
+    _plot_on_map(sources_in_region, lon_str, lat_str, marker='*', color='b')
     plt.title(fig_name.split('.')[0])
     plt.xlabel('Longitude (degrees)')
     plt.ylabel('Latitude (degrees)')
