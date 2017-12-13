@@ -41,8 +41,8 @@ column_names = ['source_block', 'station_block',
                 'observed_tt', 'locations2degrees', 'P_or_S']
 
 # since we have Basemap in the virtualenv, let's just use that :)
-AUSTRALIA = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
-                    urcrnrlon=160.0, urcrnrlat=0.0)
+ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
+              urcrnrlon=190.0, urcrnrlat=0.0)
 
 PASSIVE = dirname(dirname(dirname(__file__)))
 station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
@@ -530,7 +530,7 @@ def plot(arrivals_file, region):
     plt.ylabel('Latitude')
     fig.savefig('sources_and_stations_in_region.png')
 
-    # rays
+    # rays originating and terminating in region
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -539,8 +539,8 @@ def plot(arrivals_file, region):
         ax.add_line(Line2D([dat[SOURCE_LONGITUDE], dat[STATION_LONGITUDE]],
                            [dat[SOURCE_LATITUDE], dat[STATION_LATITUDE]],
                            color='b', zorder=i))
-    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k',
-                             zorder=sources_and_stations.shape[0]+1)
+    ANZ.drawcoastlines(linewidth=2.0, color='k',
+                       zorder=sources_and_stations.shape[0]+1)
     ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
     ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
     plt.title('Ray paths in \n region {}'.format(region))
@@ -552,9 +552,9 @@ def plot(arrivals_file, region):
 def _plot_on_map(sources_and_stations, lon_str, lat_str, marker, color):
     lons = sources_and_stations[lon_str]
     lats = sources_and_stations[lat_str]
-    x, y = AUSTRALIA(lons, lats)
-    AUSTRALIA.scatter(x, y, marker=marker, color=color)
-    AUSTRALIA.drawcoastlines(linewidth=2.0, color='k')
+    x, y = ANZ(lons, lats)
+    ANZ.scatter(x, y, marker=marker, color=color)
+    ANZ.drawcoastlines(linewidth=2.0, color='k')
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
