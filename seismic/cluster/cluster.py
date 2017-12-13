@@ -483,17 +483,42 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
 @click.argument('region', type=str,
                 metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
 def plot(arrivals_file, region):
+    """
+    This command will output a `sources_in_region.png`, which will show all the
+    sources inside the `region` specified by the region string which can be
+    specified like '0 -50.0 100 160'. It will also output
+    a`stations_in_region.png` showing the stations where arrivals were
+    recorded within the `region`.
+    The `cluster plot` command further outputs a
+    `sources_and_stations_in_region.png` which should all sources and
+    stations in the same plot that is within `region`.
+
+    Note that `cluster plot` only accepts the final `zone` output files.
+    """
     region = [float(s) for s in region.split()]
-    region = Region(*region)
+    region_tuple = Region(*region)
     arrivals = pd.read_csv(arrivals_file, header=None, names=column_names,
                            sep=' ')
-    _source_or_stations_in_region(arrivals, region,
-                                  SOURCE_LATITUDE, SOURCE_LONGITUDE,
-                                  'sources_in_region.png')
+    source = _source_or_stations_in_region(
+        arrivals, region_tuple, SOURCE_LATITUDE, SOURCE_LONGITUDE,
+        'sources_in_region.png')
 
-    _source_or_stations_in_region(arrivals, region,
-                                  STATION_LATITUDE, STATION_LONGITUDE,
-                                  'stations_in_region.png')
+    station = _source_or_stations_in_region(
+        arrivals, region_tuple, STATION_LATITUDE, STATION_LONGITUDE,
+        'stations_in_region.png')
+
+    # sources and stations both in region
+    sources_and_stations = arrivals[source & station]
+
+    fig = plt.figure()
+    plt.plot(sources_and_stations[SOURCE_LONGITUDE],
+             sources_and_stations[SOURCE_LATITUDE], 'r*')
+    plt.plot(sources_and_stations[STATION_LONGITUDE],
+             sources_and_stations[STATION_LATITUDE], 'bd')
+    plt.title('Sources and stations in \n region {}'.format(region))
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    fig.savefig('sources_and_stations_in_region.png')
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
@@ -510,6 +535,12 @@ def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
 
     sources_in_region = arrivals[condition]
 
+    _plot_figure(fig_name, lat_str, lon_str, sources_in_region)
+
+    return condition
+
+
+def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
     fig = plt.figure()
     plt.plot(sources_in_region[lon_str],
              sources_in_region[lat_str], '*')
