@@ -19,7 +19,7 @@ This will create an executable `cluster`. Use `help` on how to use the
       sort    Sort based on the source and station block...
 
     
-## Three steps to travel time input files
+## Four steps to travel time input files
 
 There are three steps to the input file generation in the following sequence:
 
@@ -81,14 +81,6 @@ Use help on each command like this on how to use each step:
       Match source and station blocks and output files with matched source and
       station blocks.
     
-      :param p_file: str     path to sorted P arrivals :param s_file: str
-      path to sorted S arrivals :param matched_p_file: str, optional     output
-      p arrivals file with matched p and s arrivals source-block
-      combinations :param matched_s_file: str, optional     output s arrivals
-      file with matched p and s arrivals source-block     combinations
-    
-      :return:None
-    
     Options:
       -p, --matched_p_file FILENAME  output matched p file.
       -s, --matched_s_file FILENAME  output matched s file.
@@ -119,11 +111,11 @@ Use help on each command like this on how to use each step:
     # gather
     cluster gather /g/data/ha3/sudipta/event_xmls -w "P S"
     
-    # sort
+    # sort and filter
     cluster sort outfile_P.csv 5. -s sorted_P.csv
     cluster sort outfile_S.csv 10. -s sorted_S.csv
 
-    # match
+    # match `P` with `S` counterparts
     cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
 
     # zones
@@ -136,4 +128,24 @@ When gathering a large number of arrivals, batch jobs can be utilised making use
  of the steps above. Example PBS scripts can be found [here for python3.4](../../hpc/cluster.sh) and 
 [here for python3.6](../../hpc/cluster36.sh). Instructions on how to setup hpc 
 environment on `raijin` like supercomputer can be found [here for python3.4](../../hpc/README.rst) and 
-[here for python3.6](../../hpc/READMEPY36.sh).
+[here for python3.6](../../hpc/READMEPY36.sh)
+
+
+## Plot stations
+
+`cluster plot` can be used to generate and sanity check the inversion inputs. 
+
+    $ cluster plot --help
+    Usage: cluster plot [OPTIONS] ARRIVALS_FILE str 'upperlat, bottomlat, leftlon,
+                    rightlon'
+  
+    # cluster plot region_P.csv '0 -50.0 100 160'
+
+This command will output a `sources_in_region.png`, which will show all the 
+sources inside the `region` specified by the region string '0 -50.0 100 160'. 
+It will also output a`stations_in_region.png` showing the stations where 
+arrivals were recorded within the `region`. The `cluster plot` command 
+further outputs a `sources_and_stations_in_region.png` which should all 
+sources and stations in the same plot that is within `region`. 
+
+Note that `cluster plot` only accepts the final `zone` output files.       
