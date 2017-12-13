@@ -514,11 +514,28 @@ def plot(arrivals_file, region):
     plt.plot(sources_and_stations[SOURCE_LONGITUDE],
              sources_and_stations[SOURCE_LATITUDE], 'r*')
     plt.plot(sources_and_stations[STATION_LONGITUDE],
-             sources_and_stations[STATION_LATITUDE], 'bd')
+             sources_and_stations[STATION_LATITUDE], 'b^')
     plt.title('Sources and stations in \n region {}'.format(region))
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
     fig.savefig('sources_and_stations_in_region.png')
+    fig.clear()
+
+    # rays
+    ax = fig.add_subplot(111)
+    from matplotlib.lines import Line2D
+
+    for arr in sources_and_stations.iterrows():
+        dat = arr[1]
+        ax.add_line(Line2D([dat[SOURCE_LONGITUDE], dat[STATION_LONGITUDE]],
+                           [dat[SOURCE_LATITUDE], dat[STATION_LATITUDE]]))
+
+    ax.set_xlim(region_tuple.leftlon - 5, region_tuple.rightlon + 5)
+    ax.set_ylim(region_tuple.bottomlat - 5, region_tuple.upperlat + 5)
+    plt.title('Ray paths in \n region {}'.format(region))
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    fig.savefig('rays_in_region.png')
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
