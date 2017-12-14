@@ -395,7 +395,7 @@ def sort(output_file, sorted_file, residual_cutoff):
                              keep='first',
                              inplace=True)
 
-    final_df.to_csv(sorted_file, header=True, index=False)
+    final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
 
 
 @cli.command()
@@ -428,8 +428,8 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
     log.info('Matching p and s arrivals')
 
-    p_arr = pd.read_csv(p_file)
-    s_arr = pd.read_csv(s_file)
+    p_arr = pd.read_csv(p_file, header=None, names=column_names, sep=' ')
+    s_arr = pd.read_csv(s_file, header=None, names=column_names, sep=' ')
 
     blocks = pd.merge(p_arr[['source_block', 'station_block']],
                       s_arr[['source_block', 'station_block']],
@@ -439,8 +439,8 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
                          on=['source_block', 'station_block'])[column_names]
     matched_S = pd.merge(s_arr, blocks, how='inner',
                          on=['source_block', 'station_block'])[column_names]
-    matched_P.to_csv(matched_p_file, index=False, header=False)
-    matched_S.to_csv(matched_s_file, index=False, header=False)
+    matched_P.to_csv(matched_p_file, index=False, header=False, sep=' ')
+    matched_S.to_csv(matched_s_file, index=False, header=False, sep=' ')
 
 
 @cli.command()
@@ -469,7 +469,8 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
     region = [float(s) for s in region.split()]
     region = Region(*region)
 
-    matched = pd.read_csv(matched_file, header=None, names=column_names)
+    matched = pd.read_csv(matched_file, header=None, names=column_names,
+                          sep=' ')
 
     # convert longitude to co-longitude
     matched['source_longitude'] = matched['source_longitude'] % 360
@@ -585,6 +586,17 @@ def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
     plt.xlabel('Longitude (degrees)')
     plt.ylabel('Latitude (degrees)')
     fig.savefig(fig_name)
+
+
+def _draw_paras_merids(m):
+    # draw parallels and meridians.
+    # label parallels on right and top
+    # meridians on bottom and left
+    parallels = np.arange(-60., 0, 10.)
+    # labels = [left,right,top,bottom]
+    m.drawparallels(parallels, labels=[False, True, True, False])
+    meridians = np.arange(10., 351., 20.)
+    m.drawmeridians(meridians, labels=[True, False, False, True])
 
 
 def _in_region(region, df, region_file, global_file, grid_size,
