@@ -152,7 +152,6 @@ def cluster_outfiles(request, tmpdir_factory):
                 'cluster', 'gather', os.path.join(EVENTS, 'engdahl_sample'),
                 '-o', outfile_p, '-w', p
             ]
-        # import IPython; IPython.embed(); import sys; sys.exit()
         outfiles.append(outfile_p)
         check_call(gather)
 
@@ -222,7 +221,8 @@ def _test_zone(outfile, region, wave_type):
     assert null_df.shape[0] == 0
 
     # reconstruct the original matched files combining prdf an pgdf
-    m_pdf = pd.read_csv(matched_p, header=None, names=column_names)
+    m_pdf = pd.read_csv(matched_p, header=None, names=column_names, sep=' ')
+
     # shapes match
     assert m_pdf.shape[0] == prdf.shape[0] + pgdf.shape[0]
 
@@ -287,8 +287,8 @@ def _test_matched(outfile, wave_type):
     # files created
     assert os.path.exists(matched_p) and os.path.exists(matched_s)
 
-    pdf = pd.read_csv(matched_p, header=None)
-    sdf = pd.read_csv(matched_s, header=None)
+    pdf = pd.read_csv(matched_p, header=None, sep=' ')
+    sdf = pd.read_csv(matched_s, header=None, sep=' ')
     outdf = pd.merge(pdf[[0, 1]],
                      sdf[[0, 1]],
                      how='inner',
@@ -312,7 +312,7 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
               str(residual), '-s', sorted_p_or_s]
     check_call(sort_p)
     assert os.path.exists(sorted_p_or_s)
-    p_df = pd.read_csv(sorted_p_or_s)
+    p_df = pd.read_csv(sorted_p_or_s, header=None, names=column_names, sep=' ')
 
     # tests for residual filter
     assert all(abs(p_df['residual'].values) < p_s_res)
