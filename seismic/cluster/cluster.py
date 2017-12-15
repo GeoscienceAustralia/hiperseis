@@ -545,8 +545,8 @@ def plot(arrivals_file, region):
     ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
     ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
     plt.title('Ray paths in \n region {}'.format(region))
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
+    # plt.xlabel('Longitude')
+    # plt.ylabel('Latitude')
     fig.savefig('rays_in_region.png')
 
 
@@ -556,6 +556,7 @@ def _plot_on_map(sources_and_stations, lon_str, lat_str, marker, color):
     x, y = ANZ(lons, lats)
     ANZ.scatter(x, y, marker=marker, color=color)
     ANZ.drawcoastlines(linewidth=2.0, color='k')
+    _draw_paras_merids(ANZ)
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
@@ -583,8 +584,8 @@ def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
     ax.set_aspect('equal')
     _plot_on_map(sources_in_region, lon_str, lat_str, marker='*', color='b')
     plt.title(fig_name.split('.')[0])
-    plt.xlabel('Longitude (degrees)')
-    plt.ylabel('Latitude (degrees)')
+    # plt.xlabel('Longitude (degrees)')
+    # plt.ylabel('Latitude (degrees)')
     fig.savefig(fig_name)
 
 
