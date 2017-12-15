@@ -27,6 +27,7 @@ engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
 stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
 stations = _read_all_stations()
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
+INV_PARAM_FILE = os.path.join(PASSIVE, 'raytracer', 'params', 'param2x2')
 
 
 @pytest.fixture(params=xmls + engdhal_xmls, name='event_xml')
@@ -190,10 +191,10 @@ def _test_zones(outfile, pair_type):
     region_s = outfile + 'region_{}.csv'.format(s)
     global_s = outfile + 'global_{}.csv'.format(s)
 
-    zone_p = ['cluster', 'zone', region, matched_p,
+    zone_p = ['cluster', 'zone', '-z', region, matched_p,
               '-r', region_p,
               '-g', global_p]
-    zone_s = ['cluster', 'zone', region, matched_s,
+    zone_s = ['cluster', 'zone', '-z', region, matched_s,
               '-r', region_s,
               '-g', global_s]
 
