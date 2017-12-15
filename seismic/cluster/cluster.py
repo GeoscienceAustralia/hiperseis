@@ -48,6 +48,65 @@ PASSIVE = dirname(dirname(dirname(__file__)))
 station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
+PARAM_FILE_FORMAT = '''
+    An example parameter file is provided in `raytracer/params/param2x2`. 
+    A typical param file should have the following format:
+    
+    Global dataset following parameters:
+    72 36 16 5. 5.
+          0.
+        110.
+        280.
+        410.
+        660.
+        840.
+       1020.
+       1250.
+       1400.
+       1600.
+       1850.
+       2050.
+       2250.
+       2450.
+       2600.
+       2750.
+       2889.
+       
+    where 72 is number of cells in Lon, 36 number of cells in Lat, 
+    16 – number of layers, and 5 is size of the cell
+    
+    For local parameterisation:
+     
+     
+    100.  190.  -54.  0.  45 27  22
+          0.
+         35.
+         70.
+        110.
+        160.
+        210.
+        260.
+        310.
+        360.
+        410.
+        460.
+        510.
+        560.
+        610.
+        660.
+        710.
+        810.
+        910.
+       1010.
+       1110.
+       1250.
+       1400.
+       1600.
+     
+    where 100 – 190 minLon and maxlon, -54 - 0 are minlat and maxlat, 45 number 
+    of cells in Lon, 27 – number of cells in lat, 22 – number of layers
+   '''
+
 
 class Grid:
     def __init__(self, nx, ny, dz):
@@ -444,8 +503,10 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 
 
 @cli.command()
-@click.argument('region', type=str,
-                metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
+@click.option('-z', '--region', type=str, default='',
+              metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
+@click.option('-p', '--parameter_file', type=str, default='',
+              metavar="inversion_parameter_file")
 @click.argument('matched_file', click.File(mode='r'),
                 metavar='cluster_matched_file')
 @click.option('-r', '--region_file', type=click.File('w'),
@@ -460,14 +521,15 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
               help='cross region file name.')
-def zone(region, matched_file, region_file, global_file, cross_region_file,
-         grid_size):
+def zone(region, parameter_file, matched_file, region_file, global_file,
+         cross_region_file, grid_size):
     """
     `zone'ing the arrivals into three regions.
     """
+
     log.info('Calculating zones')
-    region = [float(s) for s in region.split()]
-    region = Region(*region)
+
+    region = Region(*_get_region_string(parameter_file, region))
 
     matched = pd.read_csv(matched_file, header=None, names=column_names,
                           sep=' ')
@@ -484,6 +546,47 @@ def zone(region, matched_file, region_file, global_file, cross_region_file,
                cross_region_file=cross_region_file)
 
 
+def _get_region_string(parameter_file, region):
+
+    if not (parameter_file or region):
+        raise ValueError('One of parameter file or region string need to be '
+                         'supplied')
+
+    if parameter_file and region:
+        log.info('Parameter file will be used for zoning and region string '
+                 'will be ignored')
+
+    if parameter_file:
+        error_str = 'Falling back on region as param file was not ' \
+                    'parsed properly. Check param file format. ' \
+                    'Here is some help: {}'.format(PARAM_FILE_FORMAT)
+        try:
+            region = _parse_parameter_file(parameter_file)
+        except ValueError:
+            raise ValueError(error_str)
+        except IndexError:
+            raise IndexError(error_str)
+        except Exception:
+            raise Exception('Some unknown parsing error. {}'.format(error_str))
+
+    else:
+        region = [float(s) for s in region.split()]
+
+    return region
+
+
+def _parse_parameter_file(param_file):
+
+    with open(param_file, 'r') as f:
+        lines = [l.strip() for l in f]
+
+    global_params = [int(float(l)) for l in lines[0].split()]
+
+    local_parms = [float(l) for l in lines[global_params[2] + 2].split()]
+
+    return [local_parms[3], local_parms[2], local_parms[0], local_parms[1]]
+
+
 @cli.command()
 @click.argument('arrivals_file', type=click.File(mode='r'))
 @click.argument('region', type=str,
@@ -492,7 +595,7 @@ def plot(arrivals_file, region):
     """
     This command will output a `sources_in_region.png`, which will show all the
     sources inside the `region` specified by the region string which can be
-    specified like '0 -50.0 100 160'. It will also output
+    specified like '0 -50.0 100 190'. It will also output
     a`stations_in_region.png` showing the stations where arrivals were
     recorded within the `region`.
     The `cluster plot` command further outputs a
