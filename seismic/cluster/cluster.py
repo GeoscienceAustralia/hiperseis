@@ -528,8 +528,8 @@ def plot(arrivals_file, region):
                  marker='^', color='b')
 
     plt.title('Sources and stations in \n region {}'.format(region))
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
+    # plt.xlabel('Longitude')
+    # plt.ylabel('Latitude')
     fig.savefig('sources_and_stations_in_region.png')
 
     # rays originating and terminating in region
