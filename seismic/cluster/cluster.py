@@ -499,7 +499,8 @@ def plot(arrivals_file, region):
     `sources_and_stations_in_region.png` which should all sources and
     stations in the same plot that is within `region`.
 
-    Note that `cluster plot` only accepts the final `zone` output files.
+    Output file from each other `cluster` `gather`, `sort`, `match` and `zone`
+    can be visualised using the `cluster plot` command.
     """
     region = [float(s) for s in region.split()]
     reg = Region(*region)
@@ -542,8 +543,10 @@ def plot(arrivals_file, region):
                            color='b', zorder=i))
     ANZ.drawcoastlines(linewidth=2.0, color='k',
                        zorder=sources_and_stations.shape[0]+1)
-    ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
-    ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
+
+    # ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
+    # ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
+    _draw_paras_merids(ANZ)
     plt.title('Ray paths in \n region {}'.format(region))
     # plt.xlabel('Longitude')
     # plt.ylabel('Latitude')
@@ -590,6 +593,9 @@ def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
 
 
 def _draw_paras_merids(m):
+    """
+    :param m: Basemap instance
+    """
     # draw parallels and meridians.
     # label parallels on right and top
     # meridians on bottom and left

@@ -146,6 +146,7 @@ sources inside the `region` specified by the region string '0 -50.0 100 160'.
 It will also output a`stations_in_region.png` showing the stations where 
 arrivals were recorded within the `region`. The `cluster plot` command 
 further outputs a `sources_and_stations_in_region.png` which should all 
-sources and stations in the same plot that is within `region`. 
+sources and stations in the same plot that is within `region`.
 
-Note that `cluster plot` only accepts the final `zone` output files.       
+Output file from each other `cluster` `gather`, `sort`, `match` and `zone`
+    can be visualised using the `cluster plot` command.
