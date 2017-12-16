@@ -216,31 +216,40 @@ class ArrivalWriter:
         p_type, s_type = wave_type.split()
         p_file = output_file + '_' + p_type + '_{}.csv'.format(rank)
         s_file = output_file + '_' + s_type + '_{}.csv'.format(rank)
-        st_file = output_file + '_missing_stations_{}.csv'.format(rank)
+        miss_st_file = output_file + '_missing_stations_{}.csv'.format(rank)
+        st_file = output_file + '_participating_stations_{}.csv'.format(rank)
 
         self.p_handle = open(p_file, 'w')
         self.s_handle = open(s_file, 'w')
+        self.miss_st_handle = open(miss_st_file, 'w')
         self.st_handle = open(st_file, 'w')
+
         self.p_writer = csv.writer(self.p_handle)
         self.s_writer = csv.writer(self.s_handle)
+        self.missing_st_writer = csv.writer(self.miss_st_handle)
         self.st_writer = csv.writer(self.st_handle)
 
     def write(self, cluster_info):
         log.info("Writing cluster info to output file in process {}".format(
             mpiops.rank))
 
-        p_arr, s_arr, missing_stations = cluster_info
+        p_arr, s_arr, missing_stations, arr_stations = cluster_info
         for p in p_arr:
             self.p_writer.writerow(p)
         for s in s_arr:
             self.s_writer.writerow(s)
+
         for st in missing_stations:
+            self.missing_st_writer.writerow([st])
+
+        for st in arr_stations:
             self.st_writer.writerow([st])
 
     def close(self):
         if mpiops.rank == 0:
             self.p_handle.close()
             self.s_handle.close()
+            self.miss_st_handle.close()
             self.st_handle.close()
 
 
@@ -271,8 +280,8 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
                                          process=mpiops.rank))
             # one event xml could contain multiple events
             for e in read_events(xml).events:
-                p_arr_t, s_arr_t, m_st = process_event(e, stations, grid,
-                                                       wave_type)
+                p_arr_t, s_arr_t, m_st, a_st = process_event(e, stations,
+                                                             grid, wave_type)
                 p_arr += p_arr_t
                 s_arr += s_arr_t
                 missing_stations += m_st
@@ -304,6 +313,7 @@ def process_event(event, stations, grid, wave_type):
     p_arrivals = []
     s_arrivals = []
     missing_stations = []
+    arrival_staions = []
 
     # other event parameters we need
     ev_latitude = origin.latitude
@@ -311,7 +321,7 @@ def process_event(event, stations, grid, wave_type):
     ev_depth = origin.depth
 
     if ev_latitude is None or ev_longitude is None or ev_depth is None:
-        return p_arrivals, s_arrivals, missing_stations
+        return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
     event_block = _find_block(grid, ev_latitude, ev_longitude, z=ev_depth)
 
@@ -333,6 +343,7 @@ def process_event(event, stations, grid, wave_type):
             missing_stations.append(str(sta_code))
             continue
         sta = stations[sta_code]
+        arrival_staions.append(sta)
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
                                               float(sta.latitude),
@@ -362,7 +373,7 @@ def process_event(event, stations, grid, wave_type):
                 s_arrivals.append(t_list + [2])
         else:  # ignore the other phases
             pass
-    return p_arrivals, s_arrivals, missing_stations
+    return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
 
 def _find_block(grid, lat, lon, z):
@@ -557,22 +568,20 @@ def _get_region_string(parameter_file, region):
                  'will be ignored')
 
     if parameter_file:
-        error_str = 'Falling back on region as param file was not ' \
-                    'parsed properly. Check param file format. ' \
+        error_str = 'Check param file format. \n ' \
                     'Here is some help: {}'.format(PARAM_FILE_FORMAT)
         try:
-            region = _parse_parameter_file(parameter_file)
+            return _parse_parameter_file(parameter_file)
         except ValueError:
             raise ValueError(error_str)
         except IndexError:
             raise IndexError(error_str)
         except Exception:
-            raise Exception('Some unknown parsing error. {}'.format(error_str))
+            raise Exception('Some unknown parsing error.\n {}'.format(
+                error_str))
 
     else:
-        region = [float(s) for s in region.split()]
-
-    return region
+        return [float(s) for s in region.split()]
 
 
 def _parse_parameter_file(param_file):
