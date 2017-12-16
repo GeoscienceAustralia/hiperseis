@@ -50,7 +50,7 @@ def test_single_event_output(xml):
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     grid = Grid(nx=1440, ny=720, dz=25.0)
-    p_arr, s_arr, miss_sta = process_event(
+    p_arr, s_arr, miss_sta, participating_sta = process_event(
         read_events(xml)[0], stations=read_stations(stations_file),
         grid=grid, wave_type='P S')
 
@@ -60,6 +60,7 @@ def test_single_event_output(xml):
     # no s arrivals for this event
     assert len(origin.arrivals) == len(p_arr)
     assert len(miss_sta) == 0
+    assert len(participating_sta) == 10
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -260,11 +261,24 @@ def _test_zone(outfile, region, wave_type):
         (prdf['source_longitude'].values > region.leftlon),
         (prdf['station_longitude'].values > region.leftlon)))
 
-    _check_range(prdf, region)
-    _check_range(pgdf, region)
+    _check_range(prdf)
+    _check_range(pgdf)
 
 
-def _check_range(prdf, region):
+def _test_output_stations_check(df):
+    """
+    This test checks that the stations in the output files are the same as
+    that of the arrivals recorded in the event xmls and can be found in the
+    `stations` dict.
+
+    Ref: https://github.com/GeoscienceAustralia/passive-seismic/issues/61
+
+    :param df: dataframe which will be checked for stations at any stage of
+    the processing
+    """
+
+
+def _check_range(prdf):
 
     # check co-longitude range
     assert all(prdf['source_longitude'].values >= 0)
