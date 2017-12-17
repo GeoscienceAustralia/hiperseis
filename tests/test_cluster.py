@@ -381,14 +381,25 @@ def test_multiple_event_output(random_filename):
 
     # check all arrivals are present
     arrivals = []
+    arriving_stations = []
     for e in events:
         origin = e.preferred_origin()
         arrivals += origin.arrivals
+        for a in arrivals:
+            arriving_stations.append(a.pick_id.get_referred_object(
+                ).waveform_id.station_code)
 
     p_arr = np.genfromtxt(outfile + '_' + 'P_0' + '.csv', delimiter=',')
     s_arr = np.genfromtxt(outfile + '_' + 'S_0' + '.csv', delimiter=',')
 
     assert len(arrivals) == len(p_arr) + len(s_arr)
+
+    assert len(arrivals) == len(arriving_stations)
+
+    output_arr_stations = set(pd.read_csv(
+        outfile + '_participating_stations_0' + '.csv', header=None)[0])
+
+    assert set(output_arr_stations) == set(arriving_stations)
 
 
 @pytest.mark.filterwarning("ignore")
@@ -402,7 +413,7 @@ def test_parallel_gather(pair_type, random_filename):
                 '-o', outfile_s, '-w', pair_type]
     check_call(gather_s)
 
-    # gather multiple process
+    # gather multip`le process
     gather_p = ['mpirun', '--allow-run-as-root', '-n', '4',
                 'cluster', 'gather',
                 os.path.join(EVENTS, 'engdahl_sample'),
