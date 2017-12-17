@@ -11,14 +11,17 @@ import pandas as pd
 from subprocess import check_call
 from collections import Counter
 from obspy import read_events
+from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
+from seismic.mpiops import rank
 from seismic.cluster.cluster import (process_event,
                                      _read_all_stations,
                                      read_stations,
                                      process_many_events,
                                      Grid,
                                      column_names,
-                                     Region)
+                                     Region,
+                                     recursive_glob)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -360,44 +363,70 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     assert all(np.diff(p_df['source_block'].values) >= 0)
 
 
+def recursive_read_events(xmls):
+    cat = Catalog()
+    for x in xmls:
+        cat.events += read_events(x).events
+    return cat.events
+
+
 @pytest.mark.filterwarnings("ignore")
-def test_multiple_event_output(random_filename):
-
-    events = read_events(os.path.join(EVENTS, '*.xml')).events
+def test_multiple_events_gather(random_filename):
+    xmls = recursive_glob(EVENTS, '*.xml')
+    events = recursive_read_events(xmls)
     outfile = random_filename()
-
     grid = Grid(nx=1440, ny=720, dz=25.0)
-    process_many_events(glob.glob(os.path.join(EVENTS, '*.xml')),
+    process_many_events(xmls,
                         stations=stations,
                         grid=grid,
                         wave_type='P S',
                         output_file=outfile)
 
     # check files created
-    assert os.path.exists(outfile + '_P_0' + '.csv')
-    assert os.path.exists(outfile + '_S_0' + '.csv')
-    assert os.path.exists(outfile + '_missing_stations_0' + '.csv')
-    assert os.path.exists(outfile + '_participating_stations_0' + '.csv')
+    assert exists(outfile + '_P_{}'.format(rank) + '.csv')
+    assert exists(outfile + '_S_{}'.format(rank) + '.csv')
+    assert exists(outfile + '_missing_stations_{}'.format(rank) + '.csv')
+    assert exists(outfile + '_participating_stations_{}'.format(rank) + '.csv')
 
     # check all arrivals are present
+    wave_types = 'P S'.split()
     arrivals = []
     arriving_stations = []
     for e in events:
-        origin = e.preferred_origin()
-        arrivals += origin.arrivals
-        for a in arrivals:
-            arriving_stations.append(a.pick_id.get_referred_object(
-                ).waveform_id.station_code)
+        origin = e.preferred_origin() or e.origins[0]
+        this_event_arrivals = origin.arrivals
+        if origin.latitude is None or origin.longitude is None or \
+                        origin.depth is None:
+            continue
 
-    p_arr = np.genfromtxt(outfile + '_' + 'P_0' + '.csv', delimiter=',')
-    s_arr = np.genfromtxt(outfile + '_' + 'S_0' + '.csv', delimiter=',')
+        for a in this_event_arrivals:
+            sta_code = a.pick_id.get_referred_object().waveform_id.station_code
+            if sta_code not in stations:
+                continue
+            sta = stations[sta_code]
+            degrees_to_source = locations2degrees(origin.latitude,
+                                                  origin.longitude,
+                                                  float(sta.latitude),
+                                                  float(sta.longitude))
 
-    assert len(arrivals) == len(p_arr) + len(s_arr)
+            # ignore stations more than 90 degrees from source
+            if degrees_to_source > 90.0:
+                continue
 
-    assert len(arrivals) == len(arriving_stations)
+            if a.phase in wave_types:
+                arrivals.append(a)
+                arriving_stations.append(sta_code)
+
+    p_arr = np.genfromtxt(outfile + '_' + 'P_{}'.format(rank) + '.csv',
+                          delimiter=',')
+    s_arr = np.genfromtxt(outfile + '_' + 'S_{}'.format(rank) + '.csv',
+                          delimiter=',')
+
+    assert len(arrivals) == len(p_arr) + len(s_arr) == len(arriving_stations)
 
     output_arr_stations = set(pd.read_csv(
-        outfile + '_participating_stations_0' + '.csv', header=None)[0])
+        outfile + '_participating_stations_{}'.format(rank) + '.csv',
+        header=None)[0])
 
     assert set(output_arr_stations) == set(arriving_stations)
 
