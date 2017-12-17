@@ -291,6 +291,7 @@ def _test_output_stations_check(df):
     """
 
 
+
 def _check_range(prdf):
 
     # check co-longitude range
@@ -373,8 +374,10 @@ def test_multiple_event_output(random_filename):
                         output_file=outfile)
 
     # check files created
-    assert os.path.exists(outfile + '_' + 'P_0' + '.csv')
-    assert os.path.exists(outfile + '_' + 'S_0' + '.csv')
+    assert os.path.exists(outfile + '_P_0' + '.csv')
+    assert os.path.exists(outfile + '_S_0' + '.csv')
+    assert os.path.exists(outfile + '_missing_stations_0' + '.csv')
+    assert os.path.exists(outfile + '_participating_stations_0' + '.csv')
 
     # check all arrivals are present
     arrivals = []
