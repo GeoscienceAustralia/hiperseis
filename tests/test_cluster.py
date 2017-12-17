@@ -1,3 +1,4 @@
+from __future__ import print_function, absolute_import
 import os
 from os.path import exists
 import shutil
@@ -21,7 +22,9 @@ from seismic.cluster.cluster import (process_event,
                                      Grid,
                                      column_names,
                                      Region,
-                                     recursive_glob)
+                                     recursive_glob,
+                                     STATION_LATITUDE,
+                                     STATION_LONGITUDE)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -96,16 +99,17 @@ def test_single_event_arrivals(event_xml, arr_type):
             ).waveform_id.station_code
 
         if sta_code in stations:
-            arrival_stations.append(sta_code)
             degrees_to_source = locations2degrees(
-                origin.latitude, origin.longitude,
-                float(stations[sta_code].latitude),
-                float(stations[sta_code].longitude))
+                    origin.latitude, origin.longitude,
+                    stations[sta_code].latitude,
+                    stations[sta_code].longitude)
             if degrees_to_source < 90.0:
                 if arr.phase == p_type:
                     p_arrivals.append(arr)
                 if arr.phase == s_type:
                     s_arrivals.append(arr)
+                if arr.phase in [p_type, s_type]:
+                    arrival_stations.append(sta_code)
         else:
             station_not_found.append(sta_code)
 
@@ -281,7 +285,7 @@ def _test_zone(outfile, region, wave_type):
     _check_range(pgdf)
 
 
-def _test_output_stations_check(df):
+def _test_output_stations_check(df, outfile):
     """
     This test checks that the stations in the output files are the same as
     that of the arrivals recorded in the event xmls and can be found in the
@@ -292,7 +296,22 @@ def _test_output_stations_check(df):
     :param df: dataframe which will be checked for stations at any stage of
     the processing
     """
+    lat_lon = [(lat, lon) for lat, lon
+               in zip(df[STATION_LATITUDE], df[STATION_LONGITUDE])]
+    arrival_station_codes = set(pd.read_csv(
+        outfile + '_participating_stations_{}'.format(rank) + '.csv',
+        header=None)[0])
 
+    compared = 0
+    for lat, lon in lat_lon:
+        for sta, des in stations.items():
+            print(lat, lon, des)
+            if abs(des.latitude - lat) < 1e-3 and \
+                    abs(des.longitude - lon) < 1e-3:
+                compared += 1
+                assert sta in arrival_station_codes
+
+    assert compared == len(lat_lon)
 
 
 def _check_range(prdf):
@@ -317,7 +336,7 @@ def _test_matched(outfile, wave_type):
     check_call(match)
 
     # files created
-    assert os.path.exists(matched_p) and os.path.exists(matched_s)
+    assert exists(matched_p) and exists(matched_s)
 
     pdf = pd.read_csv(matched_p, header=None, sep=' ')
     sdf = pd.read_csv(matched_s, header=None, sep=' ')
@@ -343,7 +362,7 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     sort_p = ['cluster', 'sort', outfile + '_' + wave_type + '.csv',
               str(residual), '-s', sorted_p_or_s]
     check_call(sort_p)
-    assert os.path.exists(sorted_p_or_s)
+    assert exists(sorted_p_or_s)
     p_df = pd.read_csv(sorted_p_or_s, header=None, names=column_names, sep=' ')
 
     # tests for residual filter
@@ -429,6 +448,9 @@ def test_multiple_events_gather(random_filename):
         header=None)[0])
 
     assert set(output_arr_stations) == set(arriving_stations)
+    df = pd.DataFrame(p_arr)
+    df.columns = column_names
+    _test_output_stations_check(pd.DataFrame(p_arr), outfile)
 
 
 @pytest.mark.filterwarning("ignore")
