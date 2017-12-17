@@ -350,8 +350,8 @@ def process_event(event, stations, grid, wave_type):
         sta = stations[sta_code]
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
-                                              float(sta.latitude),
-                                              float(sta.longitude))
+                                              sta.latitude,
+                                              sta.longitude)
 
         # ignore stations more than 90 degrees from source
         if degrees_to_source > 90.0:
@@ -361,7 +361,7 @@ def process_event(event, stations, grid, wave_type):
 
         # TODO: use station.elevation information
         station_block = _find_block(grid,
-                                    float(sta.latitude), float(sta.longitude),
+                                    sta.latitude, sta.longitude,
                                     z=0.0)
 
         # phase_type == 1 if P and 2 if S
@@ -403,8 +403,10 @@ def read_stations(station_file):
     with open(station_file, 'r') as csv_file:
         reader = csv.reader(csv_file)
         next(reader)  # skip header
-        for station in map(Station._make, reader):
-            stations_dict[station.station_code] = station
+        for sta in reader:
+            stations_dict[sta[0]] = Station(
+                sta[0], float(sta[1]), float(sta[2]), float(sta[3]), sta[4]
+            )
         log.info('Done reading seiscomp3 station files')
         return stations_dict
 
@@ -464,8 +466,8 @@ def sort(output_file, sorted_file, residual_cutoff):
     # refer: https://github.com/GeoscienceAustralia/passive-seismic/issues/51
     # The subset is specified as we have some stations that are very close?
     final_df.drop_duplicates(subset=['source_block', 'station_block',
-                                     'event_number', 'source_longitude',
-                                     'source_latitude', 'source_depth'],
+                                     'event_number', SOURCE_LONGITUDE,
+                                     SOURCE_LATITUDE, 'source_depth'],
                              keep='first',
                              inplace=True)
 
@@ -550,8 +552,8 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
                           sep=' ')
 
     # convert longitude to co-longitude
-    matched['source_longitude'] = matched['source_longitude'] % 360
-    matched['station_longitude'] = matched['station_longitude'] % 360
+    matched[SOURCE_LONGITUDE] = matched[SOURCE_LONGITUDE] % 360
+    matched[STATION_LONGITUDE] = matched[STATION_LONGITUDE] % 360
 
     # if either the source or the station or both are inside region
     # else global, unless we want a cross region
