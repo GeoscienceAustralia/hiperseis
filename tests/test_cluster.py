@@ -312,9 +312,12 @@ def _test_output_stations_check(df, outfile):
         row2 = set(st_df.index[st_df['longitude'] == lon].tolist())
         sta = row1.intersection(row2)
         assert len(sta) >= 1  # at least one match
+        # make sure station code can be found in arrivals stations list output
+        #  during gather operation
+        assert any([s in arrival_station_codes for s in sta])
 
     # make sure  all lat/lon/entire df was checked
-    assert compared == len(lat_lon)  == df.shape[0]
+    assert compared == len(lat_lon) == df.shape[0]
 
 
 def _check_range(prdf):
