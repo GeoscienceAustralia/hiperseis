@@ -283,9 +283,11 @@ def _test_zone(outfile, region, wave_type):
 
     _check_range(prdf)
     _check_range(pgdf)
+    _test_output_stations_check(prdf, outfile)
+    _test_output_stations_check(pgdf, outfile)
 
 
-def _test_output_stations_check(df, outfile):
+def _test_output_stations_check(df, outfile, co_latitude=True):
     """
     This test checks that the stations in the output files are the same as
     that of the arrivals recorded in the event xmls and can be found in the
@@ -295,21 +297,32 @@ def _test_output_stations_check(df, outfile):
 
     :param df: dataframe which will be checked for stations at any stage of
     the processing
+    :param outfile: base output filename
     """
     lat_lon = [(lat, lon) for lat, lon
                in zip(df[STATION_LATITUDE], df[STATION_LONGITUDE])]
 
     st_df = pd.DataFrame.from_dict(stations, orient='index')
 
+    gathered_stations_file =\
+        outfile + '_participating_stations_{}'.format(rank) + '.csv'
+
+    if not os.path.exists(gathered_stations_file):
+        gathered_stations_file = outfile + '_participating_stations.csv'
+
     arrival_station_codes = set(pd.read_csv(
-        outfile + '_participating_stations_{}'.format(rank) + '.csv',
-        header=None)[0])
+        gathered_stations_file, header=None)[0])
+
+    mod_base = 360 if co_latitude else 1
 
     compared = 0
     for lat, lon in lat_lon:
         compared += 1
-        row1 = set(st_df.index[st_df['latitude'] == lat].tolist())
-        row2 = set(st_df.index[st_df['longitude'] == lon].tolist())
+        # find row index of matching lat/lon
+        row1 = set(st_df.index[abs(st_df['latitude'] - lat) < 1e-3].tolist())
+        row2 = set(st_df.index[abs(st_df['longitude'] % mod_base -
+                               lon) < 1e-3].tolist())
+        # make sure that there row rows match for at least one station
         sta = row1.intersection(row2)
         assert len(sta) >= 1  # at least one match
         # make sure station code can be found in arrivals stations list output
@@ -456,7 +469,7 @@ def test_multiple_events_gather(random_filename):
     assert set(output_arr_stations) == set(arriving_stations)
     df = pd.DataFrame(p_arr)
     df.columns = column_names
-    _test_output_stations_check(df, outfile)
+    _test_output_stations_check(df, outfile, co_latitude=False)
 
 
 @pytest.mark.filterwarning("ignore")
