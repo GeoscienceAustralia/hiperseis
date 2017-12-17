@@ -49,7 +49,7 @@ station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
 PARAM_FILE_FORMAT = '''
-    An example parameter file is provided in `raytracer/params/param2x2`. 
+    An example parameter file is provided in raytracer/params/param2x2. 
     A typical param file should have the following format:
     
     Global dataset following parameters:
@@ -73,7 +73,7 @@ PARAM_FILE_FORMAT = '''
        2889.
        
     where 72 is number of cells in Lon, 36 number of cells in Lat, 
-    16 – number of layers, and 5 is size of the cell
+    16 is number of layers, and 5 is size of the cell
     
     For local parameterisation:
      
@@ -103,8 +103,9 @@ PARAM_FILE_FORMAT = '''
        1400.
        1600.
      
-    where 100 – 190 minLon and maxlon, -54 - 0 are minlat and maxlat, 45 number 
-    of cells in Lon, 27 – number of cells in lat, 22 – number of layers
+    where 100, 190 are minLon and maxLon, '-54' and '0' are minlat and maxlat, 
+    45 number of cells in Lon, 27 is the number of cells in lat, 22 
+    is the number of layers
    '''
 
 
