@@ -72,10 +72,11 @@ def test_single_event_arrivals(event_xml, arr_type):
 
     grid = Grid(nx=1440, ny=720, dz=25.0)
 
-    p_arr, s_arr, miss_sta = process_event(read_events(event_xml)[0],
-                                           stations=stations,
-                                           grid=grid,
-                                           wave_type=arr_type)
+    p_arr, s_arr, miss_sta, arr_sta = process_event(
+        read_events(event_xml)[0],
+        stations=stations,
+        grid=grid,
+        wave_type=arr_type)
 
     outputs_p = np.array(p_arr, dtype=float)
     outputs_s = np.array(s_arr, dtype=float)
@@ -84,12 +85,14 @@ def test_single_event_arrivals(event_xml, arr_type):
     s_arrivals = []
 
     station_not_found = []
+    arrival_stations = []
 
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
             ).waveform_id.station_code
 
         if sta_code in stations:
+            arrival_stations.append(sta_code)
             degrees_to_source = locations2degrees(
                 origin.latitude, origin.longitude,
                 float(stations[sta_code].latitude),
@@ -104,7 +107,7 @@ def test_single_event_arrivals(event_xml, arr_type):
 
     # make sure number of arrivals match that of output lines
     assert len(p_arrivals) == len(outputs_p) and \
-           len(s_arrivals) == len(outputs_s)
+        len(s_arrivals) == len(outputs_s)
 
     # test that location2degress is never more than 90 degrees
     # test last columns, i.e., wave type
@@ -127,6 +130,7 @@ def test_single_event_arrivals(event_xml, arr_type):
     if len(station_not_found):
         # only stations not in dict of the test events is 'ISG
         assert 'ISG' in station_not_found
+    assert set(arrival_stations) == set(arr_sta)
 
 
 # a very large residual allowed, imply we are not really using the filter
