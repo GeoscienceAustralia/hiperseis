@@ -359,8 +359,6 @@ def process_event(event, stations, grid, wave_type):
             #          'is {} degrees'.format(degrees_to_source))
             continue
 
-        arrival_staions.append(sta_code)
-
         # TODO: use station.elevation information
         station_block = _find_block(grid,
                                     float(sta.latitude), float(sta.longitude),
@@ -374,7 +372,7 @@ def process_event(event, stations, grid, wave_type):
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp -
                        origin.time.timestamp), degrees_to_source]
-
+            arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
                 s_arrivals.append(t_list + [2])
         else:  # ignore the other phases
