@@ -1,4 +1,5 @@
 import os
+from os.path import exists
 import shutil
 import random
 import string
@@ -159,7 +160,15 @@ def cluster_outfiles(request, tmpdir_factory):
                 '-o', outfile_p, '-w', p
             ]
         outfiles.append(outfile_p)
+        pp, ss = p.split()
         check_call(gather)
+        p_file = outfile_p + '_' + pp + '.csv'
+        s_file = outfile_p + '_' + ss + '.csv'
+        miss_st_file = outfile_p + '_missing_stations.csv'
+        st_file = outfile_p + '_participating_stations.csv'
+
+        assert exists(p_file) and exists(s_file) and exists(miss_st_file) and\
+            exists(st_file)
 
     def tear_down():
         print('In tear down, removing dir: ', dir)

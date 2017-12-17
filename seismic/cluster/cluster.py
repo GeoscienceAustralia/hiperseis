@@ -178,7 +178,8 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 
     if mpiops.rank == 0:
         log.info('Now joining all arrivals')
-        for t in wave_type.split() + ['missing_stations']:
+        for t in wave_type.split() + ['missing_stations',
+                                      'participating_stations']:
             _gather_all(output_file, t)
 
 
@@ -274,6 +275,7 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
             p_arr = []
             s_arr = []
             missing_stations = []
+            arriving_stations = []
             log.info('Reading event file {xml}: {i} of {files} in process'
                      ' {process}'.format(i=i+1, files=len(p_event_xmls),
                                          xml=os.path.basename(xml),
@@ -285,10 +287,13 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
                 p_arr += p_arr_t
                 s_arr += s_arr_t
                 missing_stations += m_st
+                arriving_stations += a_st
+
                 log.debug('processed event {e} from {xml}'.format(
                     e=e.resource_id, xml=xml))
 
-            arrival_writer.write([p_arr, s_arr, missing_stations])
+            arrival_writer.write([p_arr, s_arr, missing_stations,
+                                  arriving_stations])
 
     log.info('Read all events in process {}'.format(mpiops.rank))
     arrival_writer.close()
