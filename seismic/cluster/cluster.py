@@ -348,7 +348,6 @@ def process_event(event, stations, grid, wave_type):
             missing_stations.append(str(sta_code))
             continue
         sta = stations[sta_code]
-        arrival_staions.append(sta_code)
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
                                               float(sta.latitude),
@@ -359,6 +358,8 @@ def process_event(event, stations, grid, wave_type):
             # log.info('Ignored this station arrival as distance from source '
             #          'is {} degrees'.format(degrees_to_source))
             continue
+
+        arrival_staions.append(sta_code)
 
         # TODO: use station.elevation information
         station_block = _find_block(grid,
