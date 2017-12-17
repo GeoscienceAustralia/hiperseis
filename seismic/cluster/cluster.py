@@ -343,7 +343,7 @@ def process_event(event, stations, grid, wave_type):
             missing_stations.append(str(sta_code))
             continue
         sta = stations[sta_code]
-        arrival_staions.append(sta)
+        arrival_staions.append(sta_code)
 
         degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
                                               float(sta.latitude),
