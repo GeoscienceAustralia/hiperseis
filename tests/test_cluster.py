@@ -298,20 +298,23 @@ def _test_output_stations_check(df, outfile):
     """
     lat_lon = [(lat, lon) for lat, lon
                in zip(df[STATION_LATITUDE], df[STATION_LONGITUDE])]
+
+    st_df = pd.DataFrame.from_dict(stations, orient='index')
+
     arrival_station_codes = set(pd.read_csv(
         outfile + '_participating_stations_{}'.format(rank) + '.csv',
         header=None)[0])
 
     compared = 0
     for lat, lon in lat_lon:
-        for sta, des in stations.items():
-            print(lat, lon, des)
-            if abs(des.latitude - lat) < 1e-3 and \
-                    abs(des.longitude - lon) < 1e-3:
-                compared += 1
-                assert sta in arrival_station_codes
+        compared += 1
+        row1 = set(st_df.index[st_df['latitude'] == lat].tolist())
+        row2 = set(st_df.index[st_df['longitude'] == lon].tolist())
+        sta = row1.intersection(row2)
+        assert len(sta) >= 1  # at least one match
 
-    assert compared == len(lat_lon)
+    # make sure  all lat/lon/entire df was checked
+    assert compared == len(lat_lon)  == df.shape[0]
 
 
 def _check_range(prdf):
@@ -450,7 +453,7 @@ def test_multiple_events_gather(random_filename):
     assert set(output_arr_stations) == set(arriving_stations)
     df = pd.DataFrame(p_arr)
     df.columns = column_names
-    _test_output_stations_check(pd.DataFrame(p_arr), outfile)
+    _test_output_stations_check(df, outfile)
 
 
 @pytest.mark.filterwarning("ignore")
