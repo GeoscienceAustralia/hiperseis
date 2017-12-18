@@ -540,8 +540,10 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-c', '--cross_region_file', type=click.File('w'),
               default='cross_region.csv',
               help='cross region file name.')
+@click.option('-t', '--stats', type=bool, default=True,
+              help='Calculate station stats switch.')
 def zone(region, parameter_file, matched_file, region_file, global_file,
-         cross_region_file, grid_size):
+         cross_region_file, grid_size, stats):
     """
     `zone'ing the arrivals into three regions.
     Note: Arrivals don't have to be matched for `zone`ing. Sorted P/p and S/s
@@ -554,11 +556,16 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
 
     matched = pd.read_csv(matched_file, header=None, names=column_names,
                           sep=' ')
+    df_region, global_df, x_region_df = _in_region(region, matched, grid_size)
+
+    if stats:
+        for df, fname in zip(
+                [matched, df_region, global_df],
+                [matched_file, region_file.name, global_file.name]):
+            _write_stats(df, fname)
 
     # exclude station_code for final output files
     column_names.remove(STATION_CODE)
-
-    df_region, global_df, x_region_df = _in_region(region, matched, grid_size)
 
     global_df[column_names].to_csv(global_file, index=False, header=False,
                                    sep=' ', float_format=FLOAT_FORMAT)
@@ -572,15 +579,17 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
             sep=' ', float_format=FLOAT_FORMAT)
 
 
-@cli.command()
-@click.argument('region_file', type=click.File('r'))
-@click.argument('global_file', type=click.File('r'))
-@click.argument('stations_file', type=click.File('r'))
-def stats(region_file, global_file, stations_file):
-    """
-    stats on zone output files
-    """
-    arr_station_codes = set(pd.read_csv(stations_file, header=None)[0])
+def _write_stats(df, original_file):
+    matched_stats_file = os.path.splitext(original_file)[0] + '_stats.csv'
+    with open(matched_stats_file, 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow([STATION_CODE, STATION_LONGITUDE, STATION_LATITUDE,
+                         'frequency'])
+        for sta, grp in df.groupby(STATION_CODE):
+            writer.writerow([sta,
+                             grp.iloc[0][STATION_LONGITUDE],
+                             grp.iloc[0][STATION_LATITUDE],
+                             grp.shape[0]])
 
 
 def _get_region_string(parameter_file, region):
@@ -806,10 +815,10 @@ def _intersect_region(df, region, grid_size):  # pragma: no cover
     be subtracted from the `region`.
     """
 
-    pe = df['source_latitude']
-    ps = df['station_latitude']
-    re = df['source_longitude']
-    rs = df['station_longitude']
+    pe = df[SOURCE_LATITUDE]
+    ps = df[STATION_LATITUDE]
+    re = df[SOURCE_LONGITUDE]
+    rs = df[STATION_LONGITUDE]
     delta = df['locations2degrees']
 
     # operations on pd.Series

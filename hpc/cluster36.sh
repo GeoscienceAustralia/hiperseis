@@ -37,3 +37,8 @@ cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
 # matched_S.csv by sorted_P.csv
 cluster zone '0 -50.0 100 190' matched_P.csv -r region_P.csv -g global_P.csv
 cluster zone '0 -50.0 100 190' matched_S.csv -r region_S.csv -g global_S.csv
+
+
+# alternative zone command using the param2x2, the parameter file used during
+# inversion
+# cluster zone -p /path/to/param2x2 matched_S.csv -r region_S.csv -g global_S.csv
