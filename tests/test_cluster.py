@@ -204,34 +204,8 @@ def test_sorted_filtered_matched_zoned(residual_bool, pair_type,
 
     _test_matched(outfile, pair_type)
 
-    _test_zones(outfile, pair_type)
-
-
-def _test_zones(outfile, pair_type):
-    p, s = pair_type.split()
-
-    matched_p = outfile + '_matched_' + p + '.csv'
-    matched_s = outfile + '_matched_' + s + '.csv'
-
-    region = '0 -50.0 100 160'
-
-    region_p = outfile + 'region_{}.csv'.format(p)
-    global_p = outfile + 'global_{}.csv'.format(p)
-    region_s = outfile + 'region_{}.csv'.format(s)
-    global_s = outfile + 'global_{}.csv'.format(s)
-
-    zone_p = ['cluster', 'zone', '-z', region, matched_p,
-              '-r', region_p,
-              '-g', global_p]
-    zone_s = ['cluster', 'zone', '-z', region, matched_s,
-              '-r', region_s,
-              '-g', global_s]
-
-    check_call(zone_p)
-    check_call(zone_s)
-
     for w in pair_type.split():
-        _test_zone(outfile, region, w)
+        _test_zone(outfile, '0 -50.0 100 160', w)
 
 
 def _add_dicts(x, y):
@@ -240,11 +214,17 @@ def _add_dicts(x, y):
 
 def _test_zone(outfile, region, wave_type):
 
-    col_names = list(column_names)
-    col_names.remove(STATION_CODE)
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
     matched_p = outfile + '_matched_' + wave_type + '.csv'
+
+    zone_p = ['cluster', 'zone', '-z', region, matched_p,
+              '-r', region_p,
+              '-g', global_p]
+    check_call(zone_p)
+
+    col_names = list(column_names)
+    col_names.remove(STATION_CODE)
 
     prdf = pd.read_csv(region_p, header=None, names=col_names, sep=' ')
     pgdf = pd.read_csv(global_p, header=None, names=col_names, sep=' ')
