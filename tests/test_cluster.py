@@ -24,7 +24,8 @@ from seismic.cluster.cluster import (process_event,
                                      Region,
                                      recursive_glob,
                                      STATION_LATITUDE,
-                                     STATION_LONGITUDE)
+                                     STATION_LONGITUDE,
+                                     STATION_CODE)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -238,12 +239,16 @@ def _add_dicts(x, y):
 
 
 def _test_zone(outfile, region, wave_type):
+
+    col_names = list(column_names)
+    col_names.remove(STATION_CODE)
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
     matched_p = outfile + '_matched_' + wave_type + '.csv'
 
-    prdf = pd.read_csv(region_p, header=None, names=column_names, sep=' ')
-    pgdf = pd.read_csv(global_p, header=None, names=column_names, sep=' ')
+    prdf = pd.read_csv(region_p, header=None, names=col_names, sep=' ')
+    pgdf = pd.read_csv(global_p, header=None, names=col_names, sep=' ')
+
     # ensure there are no overlaps between the regional and global df's
     null_df = prdf.merge(pgdf, how='inner', on=['source_block',
                                                 'station_block'])
