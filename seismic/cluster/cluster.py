@@ -555,16 +555,21 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
     matched = pd.read_csv(matched_file, header=None, names=column_names,
                           sep=' ')
 
-    # convert longitude to co-longitude
-    matched[SOURCE_LONGITUDE] = matched[SOURCE_LONGITUDE] % 360
-    matched[STATION_LONGITUDE] = matched[STATION_LONGITUDE] % 360
+    # exclude station_code for final output files
+    column_names.remove(STATION_CODE)
 
-    # if either the source or the station or both are inside region
-    # else global, unless we want a cross region
+    df_region, global_df, x_region_df = _in_region(region, matched, grid_size)
 
-    _in_region(region, matched, region_file=region_file,
-               global_file=global_file, grid_size=grid_size,
-               cross_region_file=cross_region_file)
+    global_df[column_names].to_csv(global_file, index=False, header=False,
+                                   sep=' ', float_format=FLOAT_FORMAT)
+
+    df_region[column_names].to_csv(region_file, index=False, header=False,
+                                   sep=' ', float_format=FLOAT_FORMAT)
+
+    if x_region_df.shape[0]:  # create only if non empty df is returned
+        x_region_df[column_names].to_csv(
+            cross_region_file, index=False, header=False,
+            sep=' ', float_format=FLOAT_FORMAT)
 
 
 @cli.command()
@@ -739,65 +744,62 @@ def _draw_paras_merids(m):
     m.drawmeridians(meridians, labels=[True, False, False, True])
 
 
-def _in_region(region, df, region_file, global_file, grid_size,
-               cross_region_file):
+def _in_region(region, df, grid_size):
+
+    # convert longitude to co-longitude
+    df[SOURCE_LONGITUDE] = df[SOURCE_LONGITUDE] % 360
+    df[STATION_LONGITUDE] = df[STATION_LONGITUDE] % 360
 
     if grid_size > 0.0:
         df = _intersect_region(df, region, grid_size)
+
+    # if either the source or the station or both are inside region
+    # else global, unless we want a cross region
 
     # row indices of all in region arrivals
     df_region = df[
             (
                 (
-                    (region.leftlon < df['source_longitude']) &
-                    (df['source_longitude'] < region.rightlon)
+                    (region.leftlon < df[SOURCE_LONGITUDE]) &
+                    (df[SOURCE_LONGITUDE] < region.rightlon)
                 )
                 &
                 (
-                    (region.bottomlat < df['source_latitude']) &
-                    (df['source_latitude'] < region.upperlat)
+                    (region.bottomlat < df[SOURCE_LATITUDE]) &
+                    (df[SOURCE_LATITUDE] < region.upperlat)
                 )
             )
             |
             (
                 (
-                    (region.leftlon < df['station_longitude']) &
-                    (df['station_longitude'] < region.rightlon)
+                    (region.leftlon < df[STATION_LONGITUDE]) &
+                    (df[STATION_LONGITUDE] < region.rightlon)
                 )
                 &
                 (
-                    (region.bottomlat < df['station_latitude']) &
-                    (df['station_latitude'] < region.upperlat)
+                    (region.bottomlat < df[STATION_LATITUDE]) &
+                    (df[STATION_LATITUDE] < region.upperlat)
                 )
             )
-    ][column_names]
-
-    # exclude station_code for final output files
-    column_names.remove(STATION_CODE)
+    ]
 
     # dataframe excluding in region arrivals
     df_ex_region = df.iloc[df.index.difference(df_region.index)]
 
     if grid_size > 0.0:
         # cross region is in ex-region and cross-region==True
-        df_ex_region[
-            df_ex_region['cross_region'] == True][column_names].to_csv(
-            cross_region_file, index=False, header=False,
-            sep=' ', float_format=FLOAT_FORMAT)
-        global_df = df_ex_region[df_ex_region['cross_region'] == False][
-                    column_names]
+        x_region_df = df_ex_region[
+            df_ex_region['cross_region'] == True]
+
+        # Global region contain the remaining arrivals
+        global_df = df_ex_region[df_ex_region['cross_region'] == False]
+        return df_region, global_df, x_region_df
     else:
         global_df = df_ex_region
-
-    # Global region contain the remaining arrivals
-    global_df.to_csv(global_file, index=False, header=False,
-                     sep=' ', float_format=FLOAT_FORMAT)
-
-    df_region.to_csv(region_file, index=False, header=False,
-                     sep=' ', float_format=FLOAT_FORMAT)
+        return df_region, global_df, pd.DataFrame()
 
 
-def _intersect_region(df, region, grid_size):
+def _intersect_region(df, region, grid_size):  # pragma: no cover
     """
     Strategy to compute cross region: Intersect/cross region is computed first
     which will contain the `region`. The final intersect region will be
@@ -837,7 +839,7 @@ def _intersect_region(df, region, grid_size):
     return df
 
 
-def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):
+def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
 
     # TODO: vectorize this loop
     # TODO: tests for cross region
