@@ -34,6 +34,7 @@ SOURCE_LONGITUDE = 'source_longitude'
 STATION_LATITUDE = 'station_latitude'
 STATION_LONGITUDE = 'station_longitude'
 STATION_CODE = 'station_code'
+FREQUENCY = 'no_of_summary_rays'
 
 column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
@@ -584,7 +585,7 @@ def _write_stats(df, original_file):
     with open(matched_stats_file, 'w') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow([STATION_CODE, STATION_LONGITUDE, STATION_LATITUDE,
-                         'frequency'])
+                         FREQUENCY])
         for sta, grp in df.groupby(STATION_CODE):
             writer.writerow([sta,
                              grp.iloc[0][STATION_LONGITUDE],
