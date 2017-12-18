@@ -33,12 +33,13 @@ SOURCE_LATITUDE = 'source_latitude'
 SOURCE_LONGITUDE = 'source_longitude'
 STATION_LATITUDE = 'station_latitude'
 STATION_LONGITUDE = 'station_longitude'
+STATION_CODE = 'station_code'
 
 column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
                 SOURCE_LONGITUDE, SOURCE_LATITUDE,
                 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
-                'observed_tt', 'locations2degrees', 'P_or_S']
+                'observed_tt', 'locations2degrees', STATION_CODE, 'P_or_S']
 
 # since we have Basemap in the virtualenv, let's just use that :)
 ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
@@ -372,7 +373,7 @@ def process_event(event, stations, grid, wave_type):
                       ev_number, ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp -
-                       origin.time.timestamp), degrees_to_source]
+                       origin.time.timestamp), degrees_to_source, sta_code]
             arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
                 s_arrivals.append(t_list + [2])
@@ -526,7 +527,7 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
 @click.option('-p', '--parameter_file', type=str, default='',
               metavar="inversion_parameter_file")
 @click.argument('matched_file', click.File(mode='r'),
-                metavar='cluster_matched_file')
+                metavar='cluster_matched_or_sorted_file')
 @click.option('-r', '--region_file', type=click.File('w'),
               default='region.csv',
               help='region file name.')
@@ -543,6 +544,8 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
          cross_region_file, grid_size):
     """
     `zone'ing the arrivals into three regions.
+    Note: Arrivals don't have to be matched for `zone`ing. Sorted P/p and S/s
+    arrivals can also be matched.
     """
 
     log.info('Calculating zones')
@@ -572,6 +575,7 @@ def stats(region_file, global_file, stations_file):
     """
     stats on zone output files
     """
+    arr_station_codes = set(pd.read_csv(stations_file, header=None)[0])
 
 
 def _get_region_string(parameter_file, region):
@@ -767,6 +771,9 @@ def _in_region(region, df, region_file, global_file, grid_size,
                 )
             )
     ][column_names]
+
+    # exclude station_code for final output files
+    column_names.remove(STATION_CODE)
 
     # dataframe excluding in region arrivals
     df_ex_region = df.iloc[df.index.difference(df_region.index)]
