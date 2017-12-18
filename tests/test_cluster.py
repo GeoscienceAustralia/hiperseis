@@ -25,7 +25,8 @@ from seismic.cluster.cluster import (process_event,
                                      recursive_glob,
                                      STATION_LATITUDE,
                                      STATION_LONGITUDE,
-                                     STATION_CODE)
+                                     STATION_CODE,
+                                     FREQUENCY)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -288,10 +289,10 @@ def _test_zone(outfile, region, wave_type):
     glo = pd.read_csv(os.path.splitext(global_p)[0] + '_stats.csv')
     orig = pd.read_csv(os.path.splitext(matched_p)[0] + '_stats.csv')
 
-    # make sure frequencies of the orignal match that of global and regional
-    reg_d = {s: n for s, n in zip(reg[STATION_CODE], reg['frequency'])}
-    glo_d = {s: n for s, n in zip(glo[STATION_CODE], glo['frequency'])}
-    orig_d = {s: n for s, n in zip(orig[STATION_CODE], orig['frequency'])}
+    # make sure frequency of the original match that of global and regional
+    reg_d = {s: n for s, n in zip(reg[STATION_CODE], reg[FREQUENCY])}
+    glo_d = {s: n for s, n in zip(glo[STATION_CODE], glo[FREQUENCY])}
+    orig_d = {s: n for s, n in zip(orig[STATION_CODE], orig[FREQUENCY])}
     assert _add_dicts(reg_d, glo_d) == orig_d
 
 
