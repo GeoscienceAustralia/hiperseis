@@ -313,16 +313,15 @@ def _test_output_stations_check(df, outfile, co_latitude=True):
     arrival_station_codes = set(pd.read_csv(
         gathered_stations_file, header=None)[0])
 
-    mod_base = 360 if co_latitude else 1
-
     compared = 0
     for lat, lon in lat_lon:
         compared += 1
         # find row index of matching lat/lon
         row1 = set(st_df.index[abs(st_df['latitude'] - lat) < 1e-3].tolist())
-        row2 = set(st_df.index[abs(st_df['longitude'] % mod_base -
-                               lon) < 1e-3].tolist())
-        # make sure that there row rows match for at least one station
+        longs = st_df['longitude'] % 360 if co_latitude else \
+            st_df['longitude']
+        row2 = set(st_df.index[abs(longs - lon) < 1e-3].tolist())
+        # make sure that the rows match for at least one station
         sta = row1.intersection(row2)
         assert len(sta) >= 1  # at least one match
         # make sure station code can be found in arrivals stations list output

@@ -564,6 +564,16 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
                cross_region_file=cross_region_file)
 
 
+@cli.command()
+@click.argument('region_file', type=click.File('r'))
+@click.argument('global_file', type=click.File('r'))
+@click.argument('stations_file', type=click.File('r'))
+def stats(region_file, global_file, stations_file):
+    """
+    stats on zone output files
+    """
+
+
 def _get_region_string(parameter_file, region):
 
     if not (parameter_file or region):
