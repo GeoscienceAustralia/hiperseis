@@ -287,7 +287,7 @@ def _test_zone(outfile, region, wave_type):
     _test_output_stations_check(pgdf, outfile)
 
 
-def _test_output_stations_check(df, outfile, co_latitude=True):
+def _test_output_stations_check(df, outfile, co_longitude=True):
     """
     This test checks that the stations in the output files are the same as
     that of the arrivals recorded in the event xmls and can be found in the
@@ -318,7 +318,7 @@ def _test_output_stations_check(df, outfile, co_latitude=True):
         compared += 1
         # find row index of matching lat/lon
         row1 = set(st_df.index[abs(st_df['latitude'] - lat) < 1e-3].tolist())
-        longs = st_df['longitude'] % 360 if co_latitude else \
+        longs = st_df['longitude'] % 360 if co_longitude else \
             st_df['longitude']
         row2 = set(st_df.index[abs(longs - lon) < 1e-3].tolist())
         # make sure that the rows match for at least one station
@@ -468,7 +468,7 @@ def test_multiple_events_gather(random_filename):
     assert set(output_arr_stations) == set(arriving_stations)
     df = pd.DataFrame(p_arr)
     df.columns = column_names
-    _test_output_stations_check(df, outfile, co_latitude=False)
+    _test_output_stations_check(df, outfile, co_longitude=False)
 
 
 @pytest.mark.filterwarning("ignore")

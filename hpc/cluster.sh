@@ -28,8 +28,11 @@ cluster sort outfile_P.csv 5. -s sorted_P.csv
 cluster sort outfile_S.csv 10. -s sorted_S.csv
 
 # match
+# matching is an optional step as we can simply do P or S wave inversion
 cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
 
 # zones
+# if matching is not performed, replace matched_P.csv by sorted_P.csv and
+# matched_S.csv by sorted_P.csv
 cluster zone '0 -50.0 100 190' matched_P.csv -r region_P.csv -g global_P.csv
 cluster zone '0 -50.0 100 190' matched_S.csv -r region_S.csv -g global_S.csv
