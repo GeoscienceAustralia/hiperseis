@@ -278,6 +278,22 @@ def _test_zone(outfile, region, wave_type):
     _test_output_stations_check(prdf, outfile)
     _test_output_stations_check(pgdf, outfile)
 
+    # assert stats files created
+    for f in [matched_p, region_p, global_p]:
+        stats_file = os.path.splitext(f)[0] + '_stats.csv'
+        assert exists(stats_file)
+
+    # read arrivals
+    reg = pd.read_csv(os.path.splitext(region_p)[0] + '_stats.csv')
+    glo = pd.read_csv(os.path.splitext(global_p)[0] + '_stats.csv')
+    orig = pd.read_csv(os.path.splitext(matched_p)[0] + '_stats.csv')
+
+    # make sure frequencies of the orignal match that of global and regional
+    reg_d = {s: n for s, n in zip(reg[STATION_CODE], reg['frequency'])}
+    glo_d = {s: n for s, n in zip(glo[STATION_CODE], glo['frequency'])}
+    orig_d = {s: n for s, n in zip(orig[STATION_CODE], orig['frequency'])}
+    assert _add_dicts(reg_d, glo_d) == orig_d
+
 
 def _test_output_stations_check(df, outfile, co_longitude=True):
     """
