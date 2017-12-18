@@ -61,6 +61,9 @@ def test_single_event_output(xml):
         read_events(xml)[0], stations=read_stations(stations_file),
         grid=grid, wave_type='P S')
 
+    # clear the station_code
+    p_arr = [p[:11] + [p[12]] for p in p_arr]
+
     inputs = np.genfromtxt(saved_out, delimiter=',')
     assert inputs == approx(np.array(p_arr, dtype=float), rel=1e-2)
     # make sure number of arrivals match that of output lines
@@ -84,6 +87,10 @@ def test_single_event_arrivals(event_xml, arr_type):
         stations=stations,
         grid=grid,
         wave_type=arr_type)
+
+    # clear the station_code
+    p_arr = [p[:11] + [p[12]] for p in p_arr]
+    s_arr = [s[:11] + [s[12]] for s in s_arr]
 
     outputs_p = np.array(p_arr, dtype=float)
     outputs_s = np.array(s_arr, dtype=float)
@@ -389,7 +396,7 @@ def _test_sort_and_filtered(outfile, wave_type, residual_bool):
     # tests for median filter
     # after sorting and filtering, every group should have one row
     for _, group in p_df.groupby(by=['source_block', 'station_block']):
-        assert group.shape == (1, 12)
+        assert group.shape == (1, 13)
 
     # essentially the same thing as before
     assert len(p_df.groupby(by=['source_block', 'station_block'])) == \
