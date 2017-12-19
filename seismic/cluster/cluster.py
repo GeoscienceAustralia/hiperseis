@@ -565,10 +565,10 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
         reject_stations = pd.read_csv(reject_stations_file, header=None,
                                       names=[STATION_CODE])
         reject_stations_set = set(reject_stations[STATION_CODE].values)
-        r_rows = [True if (x not in reject_stations_set) else False for x
+        r_rows = [False if (x in reject_stations_set) else True for x
                   in df_region[STATION_CODE]]
         df_region = df_region[r_rows]
-        g_rows = [True if (x not in reject_stations_set) else False for x
+        g_rows = [False if (x in reject_stations_set) else True for x
                   in global_df[STATION_CODE]]
         global_df = global_df[g_rows]
 

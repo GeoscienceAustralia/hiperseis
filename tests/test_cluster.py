@@ -5,6 +5,7 @@ import shutil
 import random
 import string
 import glob
+import csv
 import numpy as np
 import pytest
 from pytest import approx
@@ -26,7 +27,8 @@ from seismic.cluster.cluster import (process_event,
                                      STATION_LATITUDE,
                                      STATION_LONGITUDE,
                                      STATION_CODE,
-                                     FREQUENCY)
+                                     FREQUENCY,
+                                     _in_region)
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -193,8 +195,26 @@ def cluster_outfiles(request, tmpdir_factory):
     return outfiles
 
 
+@pytest.fixture(params=[True, False], name='reject_stations')
+def rej_stas(request):
+    return request.param
+
+
+@pytest.fixture(name='reject_stations_file')
+def rej_sta_f(request, random_filename):
+    reject_stations_file = random_filename(ext='.csv')
+    stas = ['LRMC', 'MAT', 'MBWA', 'MDJ', 'MIR', 'MOO', 'MUN', 'NWAO']
+
+    with open(reject_stations_file, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        for s in stas:
+            writer.writerow([s])
+    return reject_stations_file
+
+
 def test_sorted_filtered_matched_zoned(residual_bool, pair_type,
-                                       cluster_outfiles):
+                                       cluster_outfiles, reject_stations,
+                                       reject_stations_file):
     """
     check cluster sort and filter operation
     """
@@ -206,14 +226,16 @@ def test_sorted_filtered_matched_zoned(residual_bool, pair_type,
     _test_matched(outfile, pair_type)
 
     for w in pair_type.split():
-        _test_zone(outfile, '0 -50.0 100 160', w)
+        _test_zone(outfile, '0 -50.0 100 160', w, reject_stations,
+                   reject_stations_file)
 
 
 def _add_dicts(x, y):
     return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
 
 
-def _test_zone(outfile, region, wave_type):
+def _test_zone(outfile, region, wave_type, reject_stations,
+               reject_stations_file):
 
     region_p = outfile + 'region_{}.csv'.format(wave_type)
     global_p = outfile + 'global_{}.csv'.format(wave_type)
@@ -222,6 +244,10 @@ def _test_zone(outfile, region, wave_type):
     zone_p = ['cluster', 'zone', '-z', region, matched_p,
               '-r', region_p,
               '-g', global_p]
+
+    if reject_stations:
+        zone_p += ['-j', reject_stations_file]
+
     check_call(zone_p)
 
     col_names = list(column_names)
@@ -238,12 +264,29 @@ def _test_zone(outfile, region, wave_type):
     # reconstruct the original matched files combining prdf an pgdf
     m_pdf = pd.read_csv(matched_p, header=None, names=column_names, sep=' ')
 
+    if reject_stations:
+        reg = Region(*[float(s) for s in region.split()])
+        df_region, global_df, x_region_df = _in_region(reg,
+                                                       m_pdf,
+                                                       grid_size=0.0)
+        rej_sta = pd.read_csv(reject_stations_file, header=None,
+                              names=[STATION_CODE])
+        r_region_df = df_region.merge(rej_sta, how='inner',
+                                      on=STATION_CODE)
+        r_global_df = global_df.merge(rej_sta, how='inner',
+                                      on=STATION_CODE)
+    else:
+        r_region_df = pd.DataFrame()
+        r_global_df = pd.DataFrame()
+
     # shapes match
-    assert m_pdf.shape[0] == prdf.shape[0] + pgdf.shape[0]
+    assert m_pdf.shape[0] == prdf.shape[0] + pgdf.shape[0] + \
+                             r_global_df.shape[0] + r_region_df.shape[0]
 
     # assert elements match
     prdf_m_pdf = m_pdf.merge(prdf, how='inner',
                              on=['source_block', 'station_block'])
+
     assert prdf_m_pdf.shape[0] == prdf.shape[0]
     for c in ['source_block', 'station_block', 'event_number', 'P_or_S']:
         set(prdf[c].values).issubset(set(m_pdf[c].values))
@@ -251,8 +294,15 @@ def _test_zone(outfile, region, wave_type):
         c_prdf = Counter(prdf[c].values)
         c_pgdf = Counter(pgdf[c].values)
         c_mdf = Counter(m_pdf[c].values)
+        if reject_stations:
+            c_r_prdf = Counter(r_region_df[c].values)
+            c_r_pgdf = Counter(r_global_df[c].values)
+        else:
+            c_r_pgdf = Counter()
+            c_r_prdf = Counter()
 
-        assert c_mdf == _add_dicts(c_pgdf, c_prdf)
+        assert c_mdf == _add_dicts(_add_dicts(_add_dicts(c_pgdf, c_prdf),
+                                              c_r_prdf), c_r_pgdf)
 
     region = [float(s) for s in region.split()]
     region = Region(*region)
@@ -293,6 +343,11 @@ def _test_zone(outfile, region, wave_type):
     reg_d = {s: n for s, n in zip(reg[STATION_CODE], reg[FREQUENCY])}
     glo_d = {s: n for s, n in zip(glo[STATION_CODE], glo[FREQUENCY])}
     orig_d = {s: n for s, n in zip(orig[STATION_CODE], orig[FREQUENCY])}
+
+    if reject_stations:
+        for k in rej_sta[STATION_CODE]:
+            orig_d.pop(k, None)
+
     assert _add_dicts(reg_d, glo_d) == orig_d
 
 
