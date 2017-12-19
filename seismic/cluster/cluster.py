@@ -543,8 +543,10 @@ def match(p_file, s_file, matched_p_file, matched_s_file):
               help='cross region file name.')
 @click.option('-t', '--stats', type=bool, default=True,
               help='Calculate station stats switch.')
+@click.option('-j', '--reject_stations_file', type=click.File('r'),
+              default=None, help='Calculate station stats switch.')
 def zone(region, parameter_file, matched_file, region_file, global_file,
-         cross_region_file, grid_size, stats):
+         cross_region_file, grid_size, stats, reject_stations_file):
     """
     `zone'ing the arrivals into three regions.
     Note: Arrivals don't have to be matched for `zone`ing. Sorted P/p and S/s
@@ -558,6 +560,14 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
     matched = pd.read_csv(matched_file, header=None, names=column_names,
                           sep=' ')
     df_region, global_df, x_region_df = _in_region(region, matched, grid_size)
+
+    if reject_stations_file is not None:
+        reject_stations = pd.read_csv(reject_stations_file, header=None,
+                                      names=[STATION_CODE])
+        reject_stations_set = set(reject_stations[STATION_CODE].values)
+        rows = [True if (x not in reject_stations_set) else False for x
+                     in df_region.station_code]
+        df_region = df_region[rows]
 
     if stats:
         for df, fname in zip(
