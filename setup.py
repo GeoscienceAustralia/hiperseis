@@ -137,3 +137,19 @@ setup(
         'test': PyTest,
     }
 )
+
+# Build the f2py fortran extension
+# --------------------------------
+from numpy.distutils.core import Extension
+from numpy.distutils.core import setup
+
+ellipcorr = Extension(
+    name='ellipcorr',
+    # add several modules files under the same extension
+    sources=['ellip-corr/ellip/ellipcorr.f']
+)
+
+setup(
+    name='ellipcorr',
+    ext_modules=[ellipcorr]
+    )
