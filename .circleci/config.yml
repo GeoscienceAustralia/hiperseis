@@ -28,6 +28,7 @@ jobs:
             mkdir -p test_output/pytest test_output/flake8 test_output/coverage
             export PATH=/usr/lib64/openmpi/bin:$PATH
             make coverage
+            export ELLIPCORR=$PWD/ellip-corr
             pytest ellip-corr/tests/
       - store_artifacts:
           path: test_output/coverage
