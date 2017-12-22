@@ -398,7 +398,7 @@ def process_event(event, stations, grid, wave_type):
 
 def _find_block(grid, lat, lon, z):
     y = 90. - lat
-    x = lon if lon > 0 else lon + 360.0
+    x = lon % 360
     i = round(x / grid.dx) + 1
     j = round(y / grid.dy) + 1
     k = round(z / grid.dz) + 1
