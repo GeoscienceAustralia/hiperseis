@@ -379,7 +379,7 @@ def process_event(event, stations, grid, wave_type):
                 # no `origin.latitude` bounds check in obspy
                 ecolat=90 - ev_latitude,  # conversion to co-latitude
                 azim=gps2dist_azimuth(ev_latitude, ev_longitude,
-                                      sta.latitude, sta.longitude)
+                                      sta.latitude, sta.longitude)[1]
             )
             t_list = [event_block, station_block, arr.time_residual,
                       ev_number, ev_longitude, ev_latitude, ev_depth,
