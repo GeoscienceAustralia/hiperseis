@@ -562,8 +562,8 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
          cross_region_file, grid_size, stats, reject_stations_file):
     """
     `zone'ing the arrivals into three regions.
-    Note: Arrivals don't have to be matched for `zone`ing. Sorted P/p and S/s
-    arrivals can also be matched.
+    Note: Arrivals don't have to be `match`ed for `zone`ing. Sorted P/p and S/s
+    arrivals can also be used for `zone`ing.
     """
 
     log.info('Calculating zones')
@@ -662,7 +662,7 @@ def _parse_parameter_file(param_file):
 @click.argument('arrivals_file', type=click.File(mode='r'))
 @click.argument('region', type=str,
                 metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
-def plot(arrivals_file, region):
+def plot(arrivals_file, region):  # pragma: no cover
     """
     This command will output a `sources_in_region.png`, which will show all the
     sources inside the `region` specified by the region string which can be
@@ -727,7 +727,8 @@ def plot(arrivals_file, region):
     fig.savefig('rays_in_region.png')
 
 
-def _plot_on_map(sources_and_stations, lon_str, lat_str, marker, color):
+def _plot_on_map(sources_and_stations, lon_str, lat_str,
+                 marker, color):  # pragma: no cover
     lons = sources_and_stations[lon_str]
     lats = sources_and_stations[lat_str]
     x, y = ANZ(lons, lats)
@@ -737,7 +738,7 @@ def _plot_on_map(sources_and_stations, lon_str, lat_str, marker, color):
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
-                                  fig_name):
+                                  fig_name):   # pragma: no cover
     condition = (
         (arrivals[lat_str] <= region.upperlat)
         &
@@ -755,7 +756,8 @@ def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
     return condition
 
 
-def _plot_figure(fig_name, lat_str, lon_str, sources_in_region):
+def _plot_figure(fig_name, lat_str, lon_str,
+                 sources_in_region):  # pragma: no cover
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_aspect('equal')
