@@ -546,7 +546,7 @@ def test_parallel_gather(pair_type, random_filename):
                 '-o', outfile_s, '-w', pair_type]
     check_call(gather_s)
 
-    # gather multip`le process
+    # gather multiple processes
     gather_p = ['mpirun', '--allow-run-as-root', '-n', '4',
                 'cluster', 'gather',
                 os.path.join(EVENTS, 'engdahl_sample'),

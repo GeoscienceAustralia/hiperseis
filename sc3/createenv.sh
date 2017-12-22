@@ -88,11 +88,11 @@ if [ -z ${CIRCLECI+x} ];
     source $HOME/.bashrc && \
     cd $HOME/passive-seismic && \
     mkvirtualenv --system-site-packages seismic && \
-    # install python packages
     workon seismic && \
     pip install --ignore-installed ipython && \
     export PATH=$HOME/.virtualenvs/seismic/bin/:$PATH && \
     export ELLIPCORR=$PWD/ellip-corr && \
+    python setup.py develop && \
     env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev] && \
     $HOME/passive-seismic/iloc_rstt/install_iloc_rstt.sh;  # install iloc and rstt
 fi
