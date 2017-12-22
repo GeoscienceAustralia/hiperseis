@@ -17,10 +17,11 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.basemap import Basemap
 import click
 from obspy import read_events
-from obspy.geodetics import locations2degrees
+from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
+import ellipcorr
 from inventory.parse_inventory import gather_isc_stations, Station
 
 DPI = asin(1.0)/90.0
@@ -367,14 +368,26 @@ def process_event(event, stations, grid, wave_type):
                                     sta.latitude, sta.longitude,
                                     z=0.0)
 
-        # phase_type == 1 if P and 2 if S
         if arr.phase in wave_type.split():
 
+            ellipticity_corr = ellipcorr.ellipticity_corr(
+                phase=arr.phase,
+                edist=degrees_to_source,
+                edepth=ev_depth/1000.0,
+                # TODO: check co-latitude definition
+                # no `ecolat` bounds check in fortran ellipcorr subroutine
+                # no `origin.latitude` bounds check in obspy
+                ecolat=90 - ev_latitude,  # conversion to co-latitude
+                azim=gps2dist_azimuth(ev_latitude, ev_longitude,
+                                      sta.latitude, sta.longitude)
+            )
             t_list = [event_block, station_block, arr.time_residual,
                       ev_number, ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp -
-                       origin.time.timestamp), degrees_to_source, sta_code]
+                       origin.time.timestamp) + ellipticity_corr,
+                      degrees_to_source,
+                      sta_code]
             arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
                 s_arrivals.append(t_list + [2])
