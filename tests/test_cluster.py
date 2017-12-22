@@ -69,7 +69,7 @@ def test_single_event_output(xml):
     p_arr = [p[:11] + [p[12]] for p in p_arr]
 
     inputs = np.genfromtxt(saved_out, delimiter=',')
-    assert inputs == approx(np.array(p_arr, dtype=float), rel=1e-2)
+    assert inputs == approx(np.array(p_arr, dtype=float), rel=1e-3)
     # make sure number of arrivals match that of output lines
     # no s arrivals for this event
     assert len(origin.arrivals) == len(p_arr)
