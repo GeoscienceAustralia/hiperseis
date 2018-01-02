@@ -21,6 +21,7 @@ jobs:
       - run:
           name: install python env and run tests
           command: |
+            export PYTHON_EGG_CACHE=/tmp
             export ELLIPCORR=$PWD/ellip-corr
             python setup.py develop
             env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev]
