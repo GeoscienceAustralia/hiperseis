@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: get submodules and prepare bash scripts
+          name: pull submodules and prepare bash scripts
           command: |
             git submodule update --init --recursive --remote
             sed -i 's/sudo//g' sc3/createenv.sh
@@ -21,9 +21,7 @@ jobs:
       - run:
           name: install python env and run tests
           command: |
-            export PYTHON_EGG_CACHE=/tmp
             export ELLIPCORR=$PWD/ellip-corr
-            python setup.py develop
             env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev]
             mkdir -p test_output/pytest test_output/flake8 test_output/coverage
             export PATH=/usr/lib64/openmpi/bin:$PATH
