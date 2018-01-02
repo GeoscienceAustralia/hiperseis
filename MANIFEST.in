@@ -1,10 +1,10 @@
 include HISTORY.rst
 include README.rst
-include inventory/stations.csv
-include inventory/*.stn
+recursive-include inventory *.csv *.stn
 
 recursive-include tests *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 
 recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
+recursive-include PhasePApy *.py
