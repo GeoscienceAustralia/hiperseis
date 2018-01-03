@@ -22,9 +22,9 @@ jobs:
           name: install python env and run tests
           command: |
             export ELLIPCORR=$PWD/ellip-corr
-            env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev]
-            mkdir -p test_output/pytest test_output/flake8 test_output/coverage
             export PATH=/usr/lib64/openmpi/bin:$PATH
+            env GEOS_DIR=/usr/include/ pip install --process-dependency-links -e .[dev]
+            mkdir -p test_output/pytest test_output/flake8 test_output/coverage
             make coverage
             pytest ellip-corr/tests/
       - store_artifacts:
