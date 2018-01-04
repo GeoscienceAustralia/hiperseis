@@ -33,6 +33,7 @@ lint:
 	    --flake8 -p no:regtest	--cache-clear seismic
 
 test: mpi
+	export ELLIPCORR=$PWD/ellip-corr
 	pytest --junit-xml=test_output/pytest/results.xml --cache-clear ./tests
 
 coverage: mpi
