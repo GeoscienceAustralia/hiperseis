@@ -681,13 +681,15 @@ def plot(arrivals_file, region):  # pragma: no cover
 
     arrivals = pd.read_csv(arrivals_file, header=None, names=column_names,
                            sep=' ')
+    arr_file_base = os.path.splitext(arrivals_file.name)[0]
+    # import IPython; IPython.embed(); import sys; sys.exit()
     source = _source_or_stations_in_region(
         arrivals, reg, SOURCE_LATITUDE, SOURCE_LONGITUDE,
-        'sources_in_region.png')
+        'sources_in_region_{}.png'.format(arr_file_base))
 
     station = _source_or_stations_in_region(
         arrivals, reg, STATION_LATITUDE, STATION_LONGITUDE,
-        'stations_in_region.png')
+        'stations_in_region_{}.png'.format(arr_file_base))
 
     # sources and stations both in region
     sources_and_stations = arrivals[source & station]
@@ -704,7 +706,7 @@ def plot(arrivals_file, region):  # pragma: no cover
     plt.title('Sources and stations in \n region {}'.format(region))
     # plt.xlabel('Longitude')
     # plt.ylabel('Latitude')
-    fig.savefig('sources_and_stations_in_region.png')
+    fig.savefig('sources_and_stations_in_region_{}.png'.format(arr_file_base))
 
     # rays originating and terminating in region
     fig = plt.figure()
@@ -724,7 +726,7 @@ def plot(arrivals_file, region):  # pragma: no cover
     plt.title('Ray paths in \n region {}'.format(region))
     # plt.xlabel('Longitude')
     # plt.ylabel('Latitude')
-    fig.savefig('rays_in_region.png')
+    fig.savefig('rays_in_region_{}.png'.format(arr_file_base))
 
 
 def _plot_on_map(sources_and_stations, lon_str, lat_str,
