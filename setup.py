@@ -5,12 +5,10 @@ from numpy.distutils.core import Extension, setup
 python_version = sys.version_info
 __version__ = "0.0.1"
 
-NUMPY_VERSION = 'numpy >= 1.9.2'
-
 
 class PyTest(TestCommand, object):
 
-    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
+    user_options = [('pytest-args=', 'a', "Arguments to pass to pytest")]
 
     def initialize_options(self):
         super(PyTest, self).initialize_options()
@@ -26,6 +24,7 @@ class PyTest(TestCommand, object):
         import pytest
         exit(pytest.main(self.pytest_args))
 
+
 readme = open('README.rst').read()
 
 doclink = """
@@ -37,6 +36,14 @@ The full documentation is at http://geoscienceaustralia.github.io/passive
 /."""
 history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
+
+# The f2py fortran extension
+# --------------------------
+ellipcorr = Extension(
+    name='ellipcorr',
+    # add several modules files under the same extension
+    sources=['ellip-corr/ellip/ellipcorr.f']
+)
 
 setup(
     name='Passive-Seismic',
@@ -65,18 +72,18 @@ setup(
             'cluster = seismic.cluster.cluster:cli',
         ]
     },
-
+    ext_modules=[ellipcorr],
     # numpy preinstall required due to obspy
     # mpi4py  preinstall required due to h5py
     setup_requires=[
-        NUMPY_VERSION,
+        'numpy >= 1.9.2',
         'mpi4py==3.0.0',
         'decorator>=4.1.0',
         'setuptools>=36.2.1'
     ],
     install_requires=[
         'Click >= 6.0',
-        NUMPY_VERSION,
+        'numpy >= 1.9.2',
         'Cython >= 0.22.1',
         'mpi4py == 3.0.0',
         'scipy >= 0.15.1',
@@ -138,17 +145,3 @@ setup(
         'test': PyTest,
     }
 )
-
-# Build the f2py fortran extension
-# --------------------------------
-
-ellipcorr = Extension(
-    name='ellipcorr',
-    # add several modules files under the same extension
-    sources=['ellip-corr/ellip/ellipcorr.f']
-)
-
-setup(
-    name='ellipcorr',
-    ext_modules=[ellipcorr]
-    )
