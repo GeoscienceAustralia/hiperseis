@@ -16,6 +16,9 @@ export VIRTUALENVWRAPPER_PYTHON=/apps/python3/3.4.3/bin/python3
 export LANG=en_AU.UTF-8
 source $HOME/.local/bin/virtualenvwrapper.sh
 
+# ELLIPCORR env variable should point to `passive-seismic/ellip-corr` dir
+export ELLIPCORR=$HOME/passive-seismic/ellip-corr
+
 # start the virtualenv
 workon seismic
 
