@@ -285,16 +285,24 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
                                          xml=os.path.basename(xml),
                                          process=mpiops.rank))
             # one event xml could contain multiple events
-            for e in read_events(xml).events:
-                p_arr_t, s_arr_t, m_st, a_st = process_event(e, stations,
-                                                             grid, wave_type)
-                p_arr += p_arr_t
-                s_arr += s_arr_t
-                missing_stations += m_st
-                arriving_stations += a_st
+            try:
+                for e in read_events(xml).events:
+                    p_arr_t, s_arr_t, m_st, a_st = process_event(
+                        e, stations, grid, wave_type)
+                    p_arr += p_arr_t
+                    s_arr += s_arr_t
+                    missing_stations += m_st
+                    arriving_stations += a_st
 
-                log.debug('processed event {e} from {xml}'.format(
-                    e=e.resource_id, xml=xml))
+                    log.debug('processed event {e} from {xml}'.format(
+                        e=e.resource_id, xml=xml))
+            except ValueError as e:
+                log.warning('ValueError in processing event {}'.format(xml))
+                log.warning(e)
+            except Exception as e:
+                log.warning('Unknown Exception in '
+                            'processing event {}'.format(xml))
+                log.warning(e)
 
             arrival_writer.write([p_arr, s_arr, missing_stations,
                                   arriving_stations])
