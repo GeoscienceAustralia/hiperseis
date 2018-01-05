@@ -112,8 +112,7 @@ Installation
 
        $ cd ~/passive-seismic
        $ export GEOS_DIR=$GEOS_BASE
-       $ pip install https://github.com/matplotlib/basemap/archive/v1.1.0.tar.gz --no-binary :all:
-       $ python setup.py install
+       $ pip install --process-dependency-links -e .[dev] --no-binary :all:
 
 6. Once installation has completed, you can run the tests to verify
    everything has gone correctly:
