@@ -1,6 +1,8 @@
 From Seiscomp3 events to location using iLoc
 ============================================
 
+## Using ISF file approach
+
 Our workflow contains the following steps:
 
 1. Export event xml from the seiscomp3 db. These events initially only have a 
@@ -41,10 +43,9 @@ procedure is as follows. We take a 50 seconds window (25 seconds either side)
  match that of from the observed waveforms at the stations. We have to run 
  our P wave detection algorithm first on a long time window. This process can
   produce multiple picks and we need a process to select/reject such picks. 
-  We can possibly follow a [`PhasePApy`](https://github
-  .com/GeoscienceAustralia/PhasePApy) style pick filtering approach. Once the
-   P wave is detected, we can follow the same approach as step 5 for the S 
-   wave detection. 
+  We can possibly follow a [`PhasePApy`](https://github.com/GeoscienceAustralia/PhasePApy) style pick filtering approach. 
+  Once the P wave is detected, we can follow the same approach as step 5 for 
+  the S wave detection. 
 
 7. We repeat step 6 for temporary station identified in step 3.
 
@@ -55,4 +56,19 @@ procedure is as follows. We take a 50 seconds window (25 seconds either side)
     
 When an arrival is added in the `ISF` file, and used in `iloc`, `iloc` 
 assumes that the arrival is associated with the event, and runs it's location
- algorithm on all the associated arrivals in the `ISF` file.  
+ algorithm on all the associated arrivals in the `ISF` file.
+ 
+## Alternative approach to ISF: Use iloc with seiscomp3 db
+
+According to the `iloc` manual, we can also use events directly from seiscomp3
+ db in the following manner:
+ 
+     ```bash
+     echo "event_id update_db=1 do_gridsearch=0 depth=5" | iloc sc3db
+     ```
+The rest of the workflow remains the same, except the following steps:
+ 
+1. we need to update the event xml with the additional picks,
+2. insert the updated event into the seiscomp3 db,
+3. use the iloc command on this updated event xml, and
+4. optionally, insert the updated event back into seiscomp3 db.
