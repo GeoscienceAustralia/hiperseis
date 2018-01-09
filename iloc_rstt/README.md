@@ -61,11 +61,11 @@ assumes that the arrival is associated with the event, and runs it's location
 ## Alternative approach to ISF: Use iloc with seiscomp3 db
 
 According to the `iloc` manual, we can also use events directly from seiscomp3
- db in the following manner:
- 
-     ```bash
-     echo "event_id update_db=1 do_gridsearch=0 depth=5" | iloc sc3db
-     ```
+ db in the following manner:   
+    ```bash
+    echo "event_id update_db=1 do_gridsearch=0 depth=5" | iloc sc3db
+    ```
+
 The rest of the workflow remains the same, except the following steps:
  
 1. we need to update the event xml with the additional picks,
