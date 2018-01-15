@@ -2,17 +2,17 @@
 Clustering of events and station for 3d inversion input files.
 """
 from __future__ import print_function, absolute_import
-import os
-from os.path import dirname, join
-import random
-import logging
+
 import csv
-from collections import namedtuple
 import fnmatch
+import logging
+import os
+import random
+from collections import namedtuple
 from math import asin, sin, acos, sqrt
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 # Force matplotlib to not use any Xwindows backend
 matplotlib.use('Agg')
 from matplotlib import pylab as plt
@@ -25,7 +25,7 @@ from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
 import ellipcorr
-from inventory.parse_inventory import gather_isc_stations, Station
+from inventory.parse_inventory import read_all_stations
 
 DPI = asin(1.0)/90.0
 R2D = 90./asin(1.)
@@ -50,8 +50,6 @@ column_names = ['source_block', 'station_block',
 ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
               urcrnrlon=190.0, urcrnrlat=0.0)
 
-PASSIVE = dirname(dirname(dirname(__file__)))
-station_metadata = join(PASSIVE, 'inventory', 'stations.csv')
 Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
 PARAM_FILE_FORMAT = '''
@@ -175,7 +173,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     grid = Grid(nx=nx, ny=ny, dz=dz)
 
     # generate the stations dict
-    stations = mpiops.run_once(_read_all_stations)
+    stations = mpiops.run_once(read_all_stations)
 
     process_many_events(event_xmls, grid, stations, wave_type, output_file)
 
@@ -206,13 +204,6 @@ def _gather_all(output_file, s_type):
     else:
         with open(final_s_file, 'w') as sf:  # just create empty file
             pass
-
-
-def _read_all_stations():
-    stations = read_stations(station_metadata)
-    isc_stations = gather_isc_stations()
-    stations.update(isc_stations)
-    return stations
 
 
 class ArrivalWriter:
@@ -415,27 +406,6 @@ def _find_block(grid, lat, lon, z):
     k = round(z / grid.dz) + 1
     block_number = (k - 1) * grid.nx * grid.ny + (j - 1) * grid.nx + i
     return int(block_number)
-
-
-def read_stations(station_file):
-    """
-    Read station location from a csv file.
-    :param station_file: str
-        csv stations file handle passed in by click
-    :return: stations_dict: dict
-        dict of stations indexed by station_code for quick lookup
-    """
-    log.info('Reading seiscomp3 exported stations file')
-    stations_dict = {}
-    with open(station_file, 'r') as csv_file:
-        reader = csv.reader(csv_file)
-        next(reader)  # skip header
-        for sta in reader:
-            stations_dict[sta[0]] = Station(
-                sta[0], float(sta[1]), float(sta[2]), float(sta[3]), sta[4]
-            )
-        log.info('Done reading seiscomp3 station files')
-        return stations_dict
 
 
 @cli.command()
