@@ -1,13 +1,12 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
+import csv
 import struct
 from os.path import join, dirname
 import logging
 from collections import namedtuple
 from obspy import UTCDateTime
 
-
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 isc_format1 = '4s12s10s8s20s20s'
 isc_format2 = '4s12s10s8s20s'
@@ -28,6 +27,7 @@ the sampling rates.
 
 PASSIVE = dirname(dirname(__file__))
 
+sc3_inventory = join(PASSIVE, 'inventory', 'stations.csv')
 isc_file_1 = join(PASSIVE, 'inventory', 'ehb.stn')
 isc_file_2 = join(PASSIVE, 'inventory', 'iscehb.stn')
 
@@ -127,6 +127,34 @@ def _read_sta_file(f, sta_dict):
                 assert line_length == 80 or line_length == 86 or \
                        line_length == 92
     return sta_dict
+
+
+def read_all_stations():
+    stations = read_stations(sc3_inventory)
+    isc_stations = gather_isc_stations()
+    stations.update(isc_stations)
+    return stations
+
+
+def read_stations(station_file):
+    """
+    Read station location from a csv file.
+    :param station_file: str
+        csv stations file handle passed in by click
+    :return: stations_dict: dict
+        dict of stations indexed by station_code for quick lookup
+    """
+    log.info('Reading seiscomp3 exported stations file')
+    stations_dict = {}
+    with open(station_file, 'r') as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)  # skip header
+        for sta in reader:
+            stations_dict[sta[0]] = Station(
+                sta[0], float(sta[1]), float(sta[2]), float(sta[3]), sta[4]
+            )
+        log.info('Done reading seiscomp3 station files')
+        return stations_dict
 
 
 if __name__ == "__main__":

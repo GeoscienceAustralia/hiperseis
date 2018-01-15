@@ -17,8 +17,6 @@ from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from seismic.mpiops import rank
 from seismic.cluster.cluster import (process_event,
-                                     _read_all_stations,
-                                     read_stations,
                                      process_many_events,
                                      Grid,
                                      column_names,
@@ -29,6 +27,7 @@ from seismic.cluster.cluster import (process_event,
                                      STATION_CODE,
                                      FREQUENCY,
                                      _in_region)
+from inventory.parse_inventory import read_all_stations, read_stations
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
@@ -36,7 +35,7 @@ EVENTS = os.path.join(TESTS, 'mocks', 'events')
 xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
 stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
-stations = _read_all_stations()
+stations = read_all_stations()
 saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
 INV_PARAM_FILE = os.path.join(PASSIVE, 'raytracer', 'params', 'param2x2')
 
