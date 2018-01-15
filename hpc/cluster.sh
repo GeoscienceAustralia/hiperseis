@@ -43,3 +43,9 @@ cluster zone matched_S.csv -z '0 -50.0 100 190' -r region_S.csv -g global_S.csv
 # alternative zone command using the param2x2, the parameter file used during
 # inversion
 # cluster zone -p /path/to/param2x2 matched_S.csv -r region_S.csv -g global_S.csv
+
+# cluster diagnostics plot
+cluster plot matched_P.csv '0 -50.0 100 190'
+cluster plot sorted_P.csv '0 -50.0 100 190'
+# cluster plot matched_S.csv '0 -50.0 100 190'
+# cluster plot sorted_S.csv '0 -50.0 100 190'
