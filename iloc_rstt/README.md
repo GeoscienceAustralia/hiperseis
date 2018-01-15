@@ -68,7 +68,7 @@ According to the `iloc` manual, we can also use events directly from seiscomp3
 
 The rest of the workflow remains the same, except the following steps:
  
-1. we need to update the event xml with the additional picks,
+1. we need to update the original event xml with the additional picks,
 2. insert the updated event into the seiscomp3 db,
 3. use the iloc command on this updated event xml, and
 4. optionally, insert the updated event back into seiscomp3 db.
