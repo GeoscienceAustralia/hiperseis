@@ -12,6 +12,9 @@ import fnmatch
 from math import asin, sin, acos, sqrt
 import numpy as np
 import pandas as pd
+import matplotlib
+# Force matplotlib to not use any Xwindows backend
+matplotlib.use('Agg')
 from matplotlib import pylab as plt
 from matplotlib.lines import Line2D
 from mpl_toolkits.basemap import Basemap
