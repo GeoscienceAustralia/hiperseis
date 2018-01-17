@@ -2,10 +2,11 @@ import pandas as pd
 from obspy.core.event import Event, Catalog, Origin, Comment, Pick
 from obspy import read_events
 from obspy.geodetics import locations2degrees
-from inventory.parse_inventory import read_all_stations, sc3_inventory
+from inventory.parse_inventory import read_stations, sc3_inventory
 from iloc_rstt.config import event_file
 
 stations = pd.read_csv(sc3_inventory)
+stations_dict = read_stations(sc3_inventory)
 DELTA = 'delta'  # distance in degrees between stations and source
 
 
@@ -37,7 +38,7 @@ class ILocEvent:
         else:
             return self.iloc_origin
 
-    def add_stations(self, range=120):
+    def add_stations(self, range=120.0):
         """
         :param range: percentage distance to scan for extra stations.
 
@@ -47,8 +48,8 @@ class ILocEvent:
 
         :return: list of stations that satisfy range criteria
         """
-        return self._add_primary_stations(range) + \
-               self._add_temporary_stations()
+        return pd.concat(self._add_primary_stations(range),
+                         self._add_temporary_stations())
 
     def _swap_preferred_origin_with_iloc(self):
         self.event.preferred_origin = self.add_origin()
@@ -59,13 +60,29 @@ class ILocEvent:
                                  origin.latitude, origin.longitude)
 
     def _add_primary_stations(self, range):
-        stations['delta'] = stations.apply(self._delta, axis=1,
-                                           origin=self.old_origin)
-        stations_in_range = []
-        pass
+        stations[DELTA] = stations.apply(self._delta, axis=1,
+                                         origin=self.old_origin)
+
+        return stations[stations[DELTA] < range/100 *
+                        self._farthest_station_dist()]
+
+    def _farthest_station_dist(self):
+        max_dist = -1.0
+        for arr in self.old_origin.arrivals:
+            sta = stations_dict[
+                arr.pick_id.get_referred_object().waveform_id.station_code
+            ]
+            dist = locations2degrees(self.old_origin.latitude,
+                                     self.old_origin.longitude,
+                                     sta.latitude, sta.longitude)
+            if dist > max_dist:
+                max_dist = dist
+
+
+        return max_dist
 
     def _add_temporary_stations(self):
-        return []
+        return pd.DataFrame()
 
 
 class ILocCatalog:
