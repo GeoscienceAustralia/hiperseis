@@ -110,6 +110,7 @@ setup(
             'codecov == 2.0.9',
             'tox',
             'pytest >= 3.1.0',
+            'pytest-lazy-fixture >= 0.4.0',
             'pytest-flake8 >= 0.8.1',
             'pytest-mock >= 1.6.0',
             'pytest-cov == 2.5.1',

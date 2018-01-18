@@ -36,13 +36,7 @@ xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
 stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
 stations = read_all_stations()
-saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
-INV_PARAM_FILE = os.path.join(PASSIVE, 'raytracer', 'params', 'param2x2')
 
-
-@pytest.fixture(params=xmls + engdhal_xmls, name='event_xml')
-def ev_xml(request):
-    return request.param
 
 
 @pytest.fixture(params=['P S', 'p s', 'Pn Sn', 'Pg Sg'], name='arr_type')
