@@ -19,10 +19,11 @@ class ILocEvent:
     Just a convenience class for event enhancement using iLoc
     """
     def __init__(self, event):
+        self.old_origin = event.preferred_origin() or \
+            event.origins[0]  # best guess origin
         self.event = event
         self.iloc_origin = None
-        self.old_origin = self.event.preferred_origin() or \
-            self.event.origins[0]  # best guess origin
+
         self.new_stations = None
 
     def __call__(self, *args, **kwargs):
@@ -106,8 +107,8 @@ class ILocCatalog(Catalog):
     def __init__(self, event_xml, **kwargs):
         self.event_xml = event_xml
         self.cat = read_events(event_xml)
-        self.events = self.cat.events
-        self.iloc_events = []
+        self.orig_events = self.cat.events
+        self.events = None
 
         new_comments = kwargs.get("comments", [])
         self.comments = new_comments + self.cat.comments
@@ -128,7 +129,7 @@ class ILocCatalog(Catalog):
         )
 
         super(ILocCatalog, self).__init__(
-            events=self.cat.events,
+            events=self.events,
             comments=self.comments,
             creation_info=self.creation_info,
             description=self.description,
@@ -136,13 +137,9 @@ class ILocCatalog(Catalog):
         )
 
     def update(self):
-        for e in self.events:
+        for e in self.orig_events:
             iloc_ev = ILocEvent(e)()
-            self.iloc_events.append(iloc_ev)
-
-    def write(self, filename, format, **kwargs):
-        # replace self.events by self.iloc_events
-        pass
+            self.events.append(iloc_ev)
 
 
 if __name__ == "__main__":

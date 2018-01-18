@@ -663,7 +663,6 @@ def plot(arrivals_file, region):  # pragma: no cover
     arrivals = pd.read_csv(arrivals_file, header=None, names=column_names,
                            sep=' ')
     arr_file_base = os.path.splitext(arrivals_file.name)[0]
-    # import IPython; IPython.embed(); import sys; sys.exit()
     source = _source_or_stations_in_region(
         arrivals, reg, SOURCE_LATITUDE, SOURCE_LONGITUDE,
         'sources_in_region_{}.png'.format(arr_file_base))

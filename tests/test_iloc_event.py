@@ -12,11 +12,11 @@ def one_event(request):
 
 def test_stations_in_range(one_event):
     cat = ILocCatalog(one_event)
-    assert len(cat.events) == 1  # there is only one event in the xml
+    assert len(cat.orig_events) == 1  # there is only one event in the xml
     cat.update()
-    assert len(cat.iloc_events) == 1  # should create only one iloc event
+    assert len(cat.events) == 1  # should create only one iloc event
 
-    for e_old, e_new in zip(cat.events, cat.iloc_events):
+    for e_old, e_new in zip(cat.orig_events, cat.events):
         max_dist, orig_stas = e_new._farthest_station_dist()
         assert all(e_new.new_stations[DELTA] < 1.2*max_dist)  # 120% is default
         orig_stations = stations[stations['station_code'].isin(orig_stas)]
