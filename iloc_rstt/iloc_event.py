@@ -3,7 +3,7 @@ from obspy.core.event import Event, Catalog, Origin, Comment, Pick
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from inventory.parse_inventory import read_stations, sc3_inventory
-from iloc_rstt.config import event_file
+from iloc_rstt.config import event_file, max_station_dist
 
 stations = pd.read_csv(sc3_inventory)
 stations_dict = read_stations(sc3_inventory)
@@ -25,7 +25,7 @@ class ILocEvent:
         self.event.origins += [self.add_origin()]
 
     def add_picks(self):
-        stations = self.add_stations()
+        stations_to_pick = self.add_stations()
         return [Pick()]
 
     def add_origin(self):
@@ -38,9 +38,9 @@ class ILocEvent:
         else:
             return self.iloc_origin
 
-    def add_stations(self, range=120.0):
+    def add_stations(self, max_station_dist=max_station_dist):
         """
-        :param range: percentage distance to scan for extra stations.
+        :param max_station_dist: percentage distance to scan for extra stations
 
         Distance is calculated as percentage of the farthest station from the
         original preferred origin. A value of 100 implies an euclidean
@@ -48,7 +48,7 @@ class ILocEvent:
 
         :return: list of stations that satisfy range criteria
         """
-        return pd.concat(self._add_primary_stations(range),
+        return pd.concat(self._add_primary_stations(max_station_dist),
                          self._add_temporary_stations())
 
     def _swap_preferred_origin_with_iloc(self):
@@ -62,12 +62,13 @@ class ILocEvent:
     def _add_primary_stations(self, range):
         stations[DELTA] = stations.apply(self._delta, axis=1,
                                          origin=self.old_origin)
-
-        return stations[stations[DELTA] < range/100 *
-                        self._farthest_station_dist()]
+        max_dist, orig_stas = self._farthest_station_dist()
+        new_stations = stations.loc[~stations['station_code'].isin(orig_stas)]
+        return new_stations[new_stations[DELTA] < range/100 * max_dist]
 
     def _farthest_station_dist(self):
         max_dist = -1.0
+        orig_stas_list = []
         for arr in self.old_origin.arrivals:
             sta = stations_dict[
                 arr.pick_id.get_referred_object().waveform_id.station_code
@@ -77,9 +78,9 @@ class ILocEvent:
                                      sta.latitude, sta.longitude)
             if dist > max_dist:
                 max_dist = dist
+            orig_stas_list.append(sta.station_code)
 
-
-        return max_dist
+        return max_dist, orig_stas_list
 
     def _add_temporary_stations(self):
         return pd.DataFrame()
