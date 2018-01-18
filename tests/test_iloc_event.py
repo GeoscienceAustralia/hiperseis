@@ -1,6 +1,6 @@
 import os
 import pytest
-from iloc_rstt.iloc_event import ILocCatalog, DELTA
+from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations
 
 
 @pytest.fixture
@@ -15,6 +15,9 @@ def test_stations_in_range(analyst_event):
     cat.update()
     assert len(cat.iloc_events) == 1  # should create only one iloc event
 
-    for e in cat.iloc_events:
-        assert all(e.new_stations[DELTA] < 120)
+    for e_old, e_new in zip(cat.events, cat.iloc_events):
+        max_dist, orig_stas = e_new._farthest_station_dist()
+        assert all(e_new.new_stations[DELTA] < 1.2*max_dist)
+        orig_stations = stations[stations['station_code'].isin(orig_stas)]
+        assert all(orig_stations[DELTA] <= 1.0*max_dist)
 
