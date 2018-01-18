@@ -23,15 +23,20 @@ class ILocEvent:
             self.event.origins[0]  # best guess origin
         self.new_stations = None
 
-    def update(self):
+    def __call__(self, *args, **kwargs):
         self.add_picks()
-        # self.event.picks += self.add_picks()
-        # self.event.origins += [self.add_origin()]
+        return self
 
     def add_picks(self):
         if self.new_stations is None:
             self.new_stations = self.add_stations()
         return self.new_stations
+        # mseed = self._get_miniseed()
+
+    def _get_miniseed(self):
+        # can make system call to seiscomp3 based on stations and event time
+        # return mseed
+        pass
 
     def add_origin(self):
         """
@@ -104,8 +109,7 @@ class ILocCatalog:
 
     def update(self):
         for e in self.events:
-            iloc_ev = ILocEvent(e)
-            iloc_ev.update()
+            iloc_ev = ILocEvent(e)()
             self.iloc_events.append(iloc_ev)
 
     def write(self, new_sc3ml):
