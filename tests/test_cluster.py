@@ -38,7 +38,6 @@ stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
 stations = read_all_stations()
 
 
-
 @pytest.fixture(params=['P S', 'p s', 'Pn Sn', 'Pg Sg'], name='arr_type')
 def support_arr_type(request):
     return request.param
@@ -60,7 +59,7 @@ def test_single_event_output(xml):
 
     # clear the station_code
     p_arr = [p[:11] + [p[12]] for p in p_arr]
-
+    saved_out = os.path.join(TESTS, 'mocks', 'events', 'ga2017qxlpiu.csv')
     inputs = np.genfromtxt(saved_out, delimiter=',')
     assert inputs == approx(np.array(p_arr, dtype=float), rel=1e-3)
     # make sure number of arrivals match that of output lines
