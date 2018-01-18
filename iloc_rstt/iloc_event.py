@@ -8,6 +8,8 @@ from iloc_rstt.config import event_file, max_station_dist
 stations = pd.read_csv(sc3_inventory)
 stations_dict = read_stations(sc3_inventory)
 DELTA = 'delta'  # distance in degrees between stations and source
+STATION_COLS = ['station_code', 'latitude', 'longitude',
+                'elevation', 'network_code']
 
 
 class ILocEvent:
@@ -19,14 +21,17 @@ class ILocEvent:
         self.iloc_origin = None
         self.old_origin = self.event.preferred_origin() or \
             self.event.origins[0]  # best guess origin
+        self.new_stations = None
 
     def update(self):
-        self.event.picks += self.add_picks()
-        self.event.origins += [self.add_origin()]
+        self.add_picks()
+        # self.event.picks += self.add_picks()
+        # self.event.origins += [self.add_origin()]
 
     def add_picks(self):
-        stations_to_pick = self.add_stations()
-        return [Pick()]
+        if self.new_stations is None:
+            self.new_stations = self.add_stations()
+        return self.new_stations
 
     def add_origin(self):
         """
@@ -46,10 +51,10 @@ class ILocEvent:
         original preferred origin. A value of 100 implies an euclidean
         distance same as the of the farthest arriving station will be used.
 
-        :return: list of stations that satisfy range criteria
+        :return: pd.DataFrame of stations that satisfy range criteria
         """
-        return pd.concat(self._add_primary_stations(max_station_dist),
-                         self._add_temporary_stations())
+        return pd.concat([self._add_primary_stations(max_station_dist),
+                          self._add_temporary_stations()])
 
     def _swap_preferred_origin_with_iloc(self):
         self.event.preferred_origin = self.add_origin()
@@ -59,12 +64,12 @@ class ILocEvent:
         return locations2degrees(x['latitude'], x['longitude'],
                                  origin.latitude, origin.longitude)
 
-    def _add_primary_stations(self, range):
+    def _add_primary_stations(self, max_range):
         stations[DELTA] = stations.apply(self._delta, axis=1,
                                          origin=self.old_origin)
         max_dist, orig_stas = self._farthest_station_dist()
         new_stations = stations.loc[~stations['station_code'].isin(orig_stas)]
-        return new_stations[new_stations[DELTA] < range/100 * max_dist]
+        return new_stations[new_stations[DELTA] < max_range / 100 * max_dist]
 
     def _farthest_station_dist(self):
         max_dist = -1.0
@@ -99,7 +104,9 @@ class ILocCatalog:
 
     def update(self):
         for e in self.events:
-            self.iloc_events.append(ILocEvent(e).update())
+            iloc_ev = ILocEvent(e)
+            iloc_ev.update()
+            self.iloc_events.append(iloc_ev)
 
     def write(self, new_sc3ml):
         self.cat.write(new_sc3ml, format='SC3ML')

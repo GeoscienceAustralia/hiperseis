@@ -1,6 +1,6 @@
 from os.path import join
 
-event_dir = join('iloc_rstt', 'mocks')
+event_dir = join('tests', 'mocks', 'events', 'analyst_event_samples')
 
 event_file = join(event_dir, '772009.xml')
 
