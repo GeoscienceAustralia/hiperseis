@@ -1,5 +1,7 @@
 import pandas as pd
+from obspy import UTCDateTime
 from obspy.core.event import Event, Catalog, Origin, Comment, Pick
+from obspy.core.event import CreationInfo
 from obspy import read_events
 from obspy.geodetics import locations2degrees
 from inventory.parse_inventory import read_stations, sc3_inventory
@@ -96,24 +98,48 @@ class ILocEvent:
         return pd.DataFrame()
 
 
-class ILocCatalog:
+class ILocCatalog(Catalog):
     """
     Class that supports event/catalog enhancement using iLoc.
     iLoc ref: http://www.seismology.hu/index.php/en/home/iloc
     """
-    def __init__(self, event_xml):
+    def __init__(self, event_xml, **kwargs):
         self.event_xml = event_xml
         self.cat = read_events(event_xml)
         self.events = self.cat.events
         self.iloc_events = []
 
+        new_comments = kwargs.get("comments", [])
+        self.comments = new_comments + self.cat.comments
+        self._set_resource_id(kwargs.get("resource_id", None))
+        new_description = kwargs.get("description", "ILocCatalog Modified")
+        self.description = (('orig_description: '
+                             + self.cat.description + '; ')
+                            if self.cat.description is not None else '') + \
+                           ('description: ' + new_description)
+        old_ci = self.cat.creation_info
+
+        self.creation_info = CreationInfo(
+            agency_id=old_ci.agency_id,
+            agency_uri=old_ci.agency_uri,
+            author=(('orig_author: ' + old_ci.author + '; ')
+                    if old_ci.author is not None else '') + 'PST ILocCatalog',
+            creation_info=UTCDateTime()
+        )
+        self._set_creation_info(kwargs.get("creation_info", ""))
+
+        super(ILocCatalog, self).__init__(
+            events=self.cat.events,
+            comments=self.comments,
+            creation_info=self.creation_info,
+            description=self.description,
+            resource_id=self.resource_id
+        )
+
     def update(self):
         for e in self.events:
             iloc_ev = ILocEvent(e)()
             self.iloc_events.append(iloc_ev)
-
-    def write(self, new_sc3ml):
-        self.cat.write(new_sc3ml, format='SC3ML')
 
 
 if __name__ == "__main__":
