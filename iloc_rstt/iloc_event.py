@@ -112,7 +112,7 @@ class ILocCatalog(Catalog):
         new_comments = kwargs.get("comments", [])
         self.comments = new_comments + self.cat.comments
         self._set_resource_id(kwargs.get("resource_id", None))
-        new_description = kwargs.get("description", "ILocCatalog Modified")
+        new_description = kwargs.get("description", "PST ILocCatalog Modified")
         self.description = (('orig_description: '
                              + self.cat.description + '; ')
                             if self.cat.description is not None else '') + \
@@ -126,7 +126,6 @@ class ILocCatalog(Catalog):
                     if old_ci.author is not None else '') + 'PST ILocCatalog',
             creation_info=UTCDateTime()
         )
-        self._set_creation_info(kwargs.get("creation_info", ""))
 
         super(ILocCatalog, self).__init__(
             events=self.cat.events,
@@ -140,6 +139,10 @@ class ILocCatalog(Catalog):
         for e in self.events:
             iloc_ev = ILocEvent(e)()
             self.iloc_events.append(iloc_ev)
+
+    def write(self, filename, format, **kwargs):
+        # replace self.events by self.iloc_events
+        pass
 
 
 if __name__ == "__main__":
