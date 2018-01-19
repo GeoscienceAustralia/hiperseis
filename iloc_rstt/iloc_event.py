@@ -24,7 +24,7 @@ class ILocEvent:
             event.origins[0]  # best guess origin
         self.event = event
         self.iloc_origin = None
-        self.new_stations = None
+        self.all_stations = None
         self.picks = event.picks
         self.magnitudes = event.magnitudes
         self.amplitudes = event.amplitudes
@@ -42,9 +42,9 @@ class ILocEvent:
         return self
 
     def add_picks(self):
-        if self.new_stations is None:
-            self.new_stations = self.add_stations()
-        return self.new_stations
+        if self.all_stations is None:
+            self.all_stations = self.add_stations()
+        return self.all_stations
         # mseed = self._get_miniseed()
 
     def add_magnitudes(self):
@@ -88,15 +88,17 @@ class ILocEvent:
 
     @staticmethod
     def _match_sta(x, sta_phs_dict):
-        return
+        return sta_phs_dict[x['station_code']] \
+            if x['station_code'] in sta_phs_dict else None
 
     def _add_primary_stations(self, max_range):
         stations[DELTA] = stations.apply(self._delta, axis=1,
                                          origin=self.old_origin)
         max_dist, sta_phs_dict = self._farthest_station_dist()
-        new_stations = stations.loc[
-            ~stations['station_code'].isin(sta_phs_dict)]
-        return new_stations[new_stations[DELTA] < max_range / 100 * max_dist]
+        stations[PHASEHINT] = stations.apply(self._match_sta, axis=1,
+                                             sta_phs_dict=sta_phs_dict)
+        sel_stations = stations[stations[DELTA] < max_range / 100 * max_dist]
+        return sel_stations
 
     def _farthest_station_dist(self):
         max_dist = -1.0
