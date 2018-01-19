@@ -12,6 +12,7 @@ stations_dict = read_stations(sc3_inventory)
 DELTA = 'delta'  # distance in degrees between stations and source
 STATION_COLS = ['station_code', 'latitude', 'longitude',
                 'elevation', 'network_code']
+PHASEHINT = 'phase_hint'
 
 
 class ILocEvent:
@@ -85,16 +86,22 @@ class ILocEvent:
         return locations2degrees(x['latitude'], x['longitude'],
                                  origin.latitude, origin.longitude)
 
+    @staticmethod
+    def _match_sta(x, sta_phs_dict):
+        return
+
     def _add_primary_stations(self, max_range):
         stations[DELTA] = stations.apply(self._delta, axis=1,
                                          origin=self.old_origin)
-        max_dist, orig_stas = self._farthest_station_dist()
-        new_stations = stations.loc[~stations['station_code'].isin(orig_stas)]
+        max_dist, sta_phs_dict = self._farthest_station_dist()
+        new_stations = stations.loc[
+            ~stations['station_code'].isin(sta_phs_dict)]
         return new_stations[new_stations[DELTA] < max_range / 100 * max_dist]
 
     def _farthest_station_dist(self):
         max_dist = -1.0
-        orig_stas_list = []
+        sta_phs_dict = {}
+
         for arr in self.old_origin.arrivals:
             sta = stations_dict[
                 arr.pick_id.get_referred_object().waveform_id.station_code
@@ -104,9 +111,9 @@ class ILocEvent:
                                      sta.latitude, sta.longitude)
             if dist > max_dist:
                 max_dist = dist
-            orig_stas_list.append(sta.station_code)
+            sta_phs_dict[sta.station_code] = arr.phase
 
-        return max_dist, orig_stas_list
+        return max_dist, sta_phs_dict
 
     def _add_temporary_stations(self):
         return pd.DataFrame()
