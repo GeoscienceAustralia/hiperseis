@@ -23,8 +23,18 @@ class ILocEvent:
             event.origins[0]  # best guess origin
         self.event = event
         self.iloc_origin = None
-
         self.new_stations = None
+        self.picks = event.picks
+        self.magnitudes = event.magnitudes
+        self.amplitudes = event.amplitudes
+        self.station_magnitudes = event.station_magnitudes
+        self.resource_id = event.resource_id
+        self.event_descriptions = event.event_descriptions
+        self.comments = event.comments
+        self.creation_info = event.creation_info
+        self.origins = event.origins
+        self.focal_mechanisms = event.focal_mechanisms
+        self.preferred_origin_id = self.old_origin.resource_id
 
     def __call__(self, *args, **kwargs):
         self.add_picks()
@@ -35,6 +45,9 @@ class ILocEvent:
             self.new_stations = self.add_stations()
         return self.new_stations
         # mseed = self._get_miniseed()
+
+    def add_magnitudes(self):
+        return
 
     def _get_miniseed(self):
         # can make system call to seiscomp3 based on stations and event time
@@ -47,9 +60,9 @@ class ILocEvent:
         """
         if self.iloc_origin is None:
             # run iloc and return iloc determined origin
-            return Origin()
+            return self.origins.append(Origin())
         else:
-            return self.iloc_origin
+            return self.origins
 
     def add_stations(self, max_station_dist=max_station_dist):
         """
