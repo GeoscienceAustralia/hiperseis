@@ -113,7 +113,12 @@ class ILocEvent:
                                      sta.latitude, sta.longitude)
             if dist > max_dist:
                 max_dist = dist
-            sta_phs_dict[sta.station_code] = arr.phase
+
+            if sta.station_code not in sta_phs_dict:
+                sta_phs_dict[sta.station_code] = arr.phase
+            else:
+                sta_phs_dict[sta.station_code] = sta_phs_dict[
+                    sta.station_code] + ' & ' + arr.phase
 
         return max_dist, sta_phs_dict
 
