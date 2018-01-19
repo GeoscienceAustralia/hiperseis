@@ -4,6 +4,7 @@ from obspy.geodetics import locations2degrees
 from obspy import read_events
 from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict
 
+
 @pytest.fixture(params=[
     pytest.lazy_fixture('xml'),
     pytest.lazy_fixture('analyst_event')
@@ -35,9 +36,15 @@ def test_stations_in_range(one_event):
             assert dis <= max_dist
 
 
-def test_iloc_catalog_write(random_filename, one_event):
-    catalog = ILocCatalog(one_event)
+def test_iloc_catalog_write(random_filename, analyst_event):
+    orig_cat = read_events(analyst_event)
+    catalog = ILocCatalog(analyst_event)
     xml = random_filename(ext='.xml')
+    catalog.update()
     catalog.write(xml, format='SC3ML', creation_info=catalog.creation_info)
     assert os.path.exists(xml)
     new_cat = read_events(xml, format='SC3ML')
+    assert len(new_cat.events) == 1
+    ev = new_cat.events[0]
+    assert len(ev.picks) <= len(orig_cat.events[0].picks)
+    assert len(ev.magnitudes) <= len(orig_cat.events[0].magnitudes)
