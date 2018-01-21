@@ -1,7 +1,7 @@
 import os
 import pytest
 from obspy.geodetics import locations2degrees
-from obspy import read_events
+from obspy import read_events, UTCDateTime
 from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict
 
 
@@ -35,6 +35,8 @@ def test_stations_in_range(one_event):
                                     origin.latitude, origin.longitude)
             assert dis <= max_dist
             assert a.phase in sta_phs_dict[sta]
+            pick = a.pick_id.get_referred_object()
+            assert pick.time == UTCDateTime(sta_phs_dict[sta][a.phase]['time'])
 
 
 def test_iloc_catalog_write(random_filename, analyst_event):

@@ -14,6 +14,7 @@ DELTA = 'delta'  # distance in degrees between stations and source
 STATION_COLS = ['station_code', 'latitude', 'longitude',
                 'elevation', 'network_code']
 PHASEHINT = 'phase_hint'
+ARRIVAL = 'arrival'
 
 
 class ILocEvent:
@@ -96,8 +97,8 @@ class ILocEvent:
         stations[DELTA] = stations.apply(self._delta, axis=1,
                                          origin=self.old_origin)
         max_dist, sta_phs_dict = self._farthest_station_dist()
-        stations[PHASEHINT] = stations.apply(self._match_sta, axis=1,
-                                             sta_phs_dict=sta_phs_dict)
+        stations[ARRIVAL] = stations.apply(self._match_sta, axis=1,
+                                           sta_phs_dict=sta_phs_dict)
         sel_stations = stations[stations[DELTA] < max_range / 100 * max_dist]
         return sel_stations
 
