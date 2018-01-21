@@ -1,4 +1,5 @@
 import pandas as pd
+from collections import defaultdict
 from obspy import UTCDateTime
 from obspy.core.event import Event, Catalog, Origin, Comment, Pick
 from obspy.core.event import CreationInfo
@@ -102,12 +103,12 @@ class ILocEvent:
 
     def _farthest_station_dist(self):
         max_dist = -1.0
-        sta_phs_dict = {}
+        sta_phs_dict = defaultdict(dict)
 
         for arr in self.old_origin.arrivals:
-            wav = arr.pick_id.get_referred_object().waveform_id
-            sta = stations_dict[wav.station_code]
-            cha = wav.channel_code
+            pick = arr.pick_id.get_referred_object()
+            sta = stations_dict[pick.waveform_id.station_code]
+            cha = pick.waveform_id.channel_code
             dist = locations2degrees(self.old_origin.latitude,
                                      self.old_origin.longitude,
                                      sta.latitude, sta.longitude)
@@ -116,10 +117,9 @@ class ILocEvent:
 
             # better to use phase as key than channel as same channel can be
             # picked for multiple phases
-            if sta.station_code not in sta_phs_dict:
-                sta_phs_dict[sta.station_code] = {arr.phase: cha}
-            else:
-                sta_phs_dict[sta.station_code].update({arr.phase: cha})
+            sta_phs_dict[sta.station_code].update(
+                    {arr.phase: {'channel': cha, 'time': pick.time}}
+            )
 
         return max_dist, sta_phs_dict
 
