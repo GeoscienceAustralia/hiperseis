@@ -105,20 +105,21 @@ class ILocEvent:
         sta_phs_dict = {}
 
         for arr in self.old_origin.arrivals:
-            sta = stations_dict[
-                arr.pick_id.get_referred_object().waveform_id.station_code
-            ]
+            wav = arr.pick_id.get_referred_object().waveform_id
+            sta = stations_dict[wav.station_code]
+            cha = wav.channel_code
             dist = locations2degrees(self.old_origin.latitude,
                                      self.old_origin.longitude,
                                      sta.latitude, sta.longitude)
             if dist > max_dist:
                 max_dist = dist
 
+            # better to use phase as key than channel as same channel can be
+            # picked for multiple phases
             if sta.station_code not in sta_phs_dict:
-                sta_phs_dict[sta.station_code] = arr.phase
+                sta_phs_dict[sta.station_code] = {arr.phase: cha}
             else:
-                sta_phs_dict[sta.station_code] = sta_phs_dict[
-                    sta.station_code] + ' & ' + arr.phase
+                sta_phs_dict[sta.station_code].update({arr.phase: cha})
 
         return max_dist, sta_phs_dict
 

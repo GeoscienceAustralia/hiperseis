@@ -34,7 +34,7 @@ def test_stations_in_range(one_event):
             dis = locations2degrees(station.latitude, station.longitude,
                                     origin.latitude, origin.longitude)
             assert dis <= max_dist
-            assert a.phase == sta_phs_dict[sta]
+            assert a.phase in sta_phs_dict[sta]
 
 
 def test_iloc_catalog_write(random_filename, analyst_event):
