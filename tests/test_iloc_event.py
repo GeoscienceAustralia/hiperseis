@@ -2,7 +2,8 @@ import os
 import pytest
 from obspy.geodetics import locations2degrees
 from obspy import read_events, UTCDateTime
-from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict
+from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict,\
+    ILocEvent
 
 
 @pytest.fixture(params=[
@@ -37,6 +38,8 @@ def test_stations_in_range(one_event):
             assert a.phase in sta_phs_dict[sta]
             pick = a.pick_id.get_referred_object()
             assert pick.time == UTCDateTime(sta_phs_dict[sta][a.phase]['time'])
+            assert pick.waveform_id.channel_code == \
+                   sta_phs_dict[sta][a.phase]['channel']
 
 
 def test_iloc_catalog_write(random_filename, analyst_event):
@@ -51,3 +54,18 @@ def test_iloc_catalog_write(random_filename, analyst_event):
     ev = new_cat.events[0]
     assert len(ev.picks) <= len(orig_cat.events[0].picks)
     assert len(ev.magnitudes) <= len(orig_cat.events[0].magnitudes)
+
+
+def test_write(random_filename, analyst_event):
+    orig_cat = read_events(analyst_event)
+    catalog = ILocCatalog(analyst_event)
+    xml = random_filename(ext='.xml')
+    catalog.update()
+    ev = catalog.events[0]
+    num_picks_b4 = len(ev.event.picks)
+    ev.add_dummy_picks()
+    print(len(ev.event.picks))
+    ev.event.write(xml, format='SC3ML', creation_info=catalog.creation_info)
+    assert os.path.exists(xml)
+    new_cat = read_events(xml, format='SC3ML')
+    assert num_picks_b4 + 5 == len(new_cat.events[0].picks)
