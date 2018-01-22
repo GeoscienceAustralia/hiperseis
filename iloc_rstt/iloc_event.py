@@ -28,11 +28,11 @@ class ILocEvent:
     Just a convenience class for event enhancement using iLoc
     """
     def __init__(self, event):
-        self.old_origin = event.preferred_origin() or \
-            event.origins[0]  # best guess origin
+        self._pref_origin = event.preferred_origin() or \
+                            event.origins[0]  # best guess origin
 
         # preferred_origin_id to point to old_origin
-        self.preferred_origin_id = self.old_origin.resource_id
+        self.preferred_origin_id = self._pref_origin.resource_id
         self.event = event
         self.iloc_origin = None
         self.picks = event.picks
@@ -45,36 +45,13 @@ class ILocEvent:
         self.creation_info = event.creation_info
         self.origins = event.origins
         self.focal_mechanisms = event.focal_mechanisms
-        self.preferred_origin_id = self.old_origin.resource_id
+        self.preferred_origin_id = self._pref_origin.resource_id
         self.max_stations_dist = max_station_dist
         self.__all_stations = None
 
     def __call__(self, *args, **kwargs):
         _ = self.all_stations
         return self
-
-    def add_dummy_picks(self):
-        """
-        Don't call this function for a real job
-        """
-        print('add dummy picks')
-        import random
-
-        for i, r in enumerate(self.all_stations.iterrows()):
-            d = r[1].to_dict()  # pandas series to dict
-            res = ResourceIdentifier('my_pick_res')
-
-            wav_id = WaveformStreamID(station_code=d[STATION_CODE],
-                                      network_code=d[NETWORK_CODE],
-                                      channel_code='BHN')
-            # randomly choose a time from the available picks
-            p = Pick(res, waveform_id=wav_id,
-                     phase_hint='S', time=random.choice(self.picks).time)
-            self.picks.append(p)  # add to picks list
-            a = Arrival(pick_id=res, phase='S')
-            self.old_origin.arrivals.append(a)
-            if i == 5:
-                break
 
     def add_picks(self):
         pass
@@ -132,7 +109,7 @@ class ILocEvent:
 
     def _add_primary_stations(self):
         stations[DELTA] = stations.apply(self._delta, axis=1,
-                                         origin=self.old_origin)
+                                         origin=self._pref_origin)
         max_dist, sta_phs_dict = self._farthest_station_dist()
         stations[ARRIVAL] = stations.apply(self._match_sta, axis=1,
                                            sta_phs_dict=sta_phs_dict)
@@ -144,12 +121,12 @@ class ILocEvent:
         max_dist = -1.0
         sta_phs_dict = defaultdict(dict)
 
-        for arr in self.old_origin.arrivals:
+        for arr in self._pref_origin.arrivals:
             pick = arr.pick_id.get_referred_object()
             sta = stations_dict[pick.waveform_id.station_code]
             cha = pick.waveform_id.channel_code
-            dist = locations2degrees(self.old_origin.latitude,
-                                     self.old_origin.longitude,
+            dist = locations2degrees(self._pref_origin.latitude,
+                                     self._pref_origin.longitude,
                                      sta.latitude, sta.longitude)
             if dist > max_dist:
                 max_dist = dist
