@@ -1,11 +1,20 @@
+from __future__ import absolute_import, print_function
 import os
+from subprocess import check_call
 import pytest
 from obspy.geodetics import locations2degrees
 from obspy import read_events, UTCDateTime
 from obspy.core.event import (ResourceIdentifier, WaveformStreamID, Pick,
                               Arrival)
 from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict,\
-    ILocEvent, STATION_CODE, NETWORK_CODE
+    ILocEvent, STATION_CODE, NETWORK_CODE, DBFLAG
+
+try:
+    cmd = 'seiscomp check'.split()
+    check_call(cmd)
+    SC3 = True
+except OSError:
+    SC3 = False
 
 
 @pytest.fixture(params=[
@@ -41,7 +50,7 @@ def test_stations_in_range(one_event):
             pick = a.pick_id.get_referred_object()
             assert pick.time == UTCDateTime(sta_phs_dict[sta][a.phase]['time'])
             assert pick.waveform_id.channel_code == \
-                   sta_phs_dict[sta][a.phase]['channel']
+                sta_phs_dict[sta][a.phase]['channel']
 
 
 class ILocEventDummy(ILocEvent):
@@ -105,3 +114,24 @@ def test_iloc_catalog_write(random_filename, analyst_event):
     assert len(orig_evt.picks) + 5 == len(new_evt.picks)
     assert len(new_evt.origins) == len(orig_evt.origins)
     assert len(new_evt.origins[0].arrivals) == len(new_evt.picks)
+
+
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
+def test_sc3_db_write(random_filename, analyst_event):
+    orig_cat = read_events(analyst_event)
+    orig_evt = orig_cat.events[0]
+    catalog = ILocCatalogDummy(analyst_event)
+    xml = random_filename(ext='.xml')
+    catalog.update()
+    ev = catalog.events[0]
+    ev.add_dummy_picks()
+    #
+    print(ev._event.resource_id)
+    catalog.write(xml, format='SC3ML', creation_info=catalog.creation_info)
+    ev = catalog.events[0]
+    # catalog.insert_into_sc3db()
+    cmd = 'scevtls -d'.split()
+    cmd.append(DBFLAG)
+
+    cmd += ('| grep {}'.format(ev._event.resource_id)).split()
+    check_call(cmd)
