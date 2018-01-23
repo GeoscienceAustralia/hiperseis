@@ -1,5 +1,6 @@
 import pandas as pd
 from collections import defaultdict
+from subprocess import check_call
 from obspy import UTCDateTime
 from obspy.core.event import (Event, Catalog, Origin, Comment, Pick, Arrival,
                               CreationInfo, ResourceIdentifier,
@@ -21,9 +22,10 @@ STATION_COLS = [STATION_CODE, LATITUDE , LONGITUDE,
                 ELEVATION, NETWORK_CODE]
 PHASEHINT = 'phase_hint'
 ARRIVAL = 'arrival'
+DBFLAG = "mysql://sysop:sysop@localhost/seiscomp3"
 
 
-class ILocEvent:
+class ILocEvent(object):
     """
     Just a convenience class for event enhancement using iLoc
     """
@@ -33,8 +35,8 @@ class ILocEvent:
 
         # preferred_origin_id to point to old_origin
         self.preferred_origin_id = self._pref_origin.resource_id
-        self.event = event
-        self.iloc_origin = None
+        self._event = event
+        self._iloc_origin = None
         self.picks = event.picks
         self.magnitudes = event.magnitudes
         self.amplitudes = event.amplitudes
@@ -45,8 +47,7 @@ class ILocEvent:
         self.creation_info = event.creation_info
         self.origins = event.origins
         self.focal_mechanisms = event.focal_mechanisms
-        self.preferred_origin_id = self._pref_origin.resource_id
-        self.max_stations_dist = max_station_dist
+        self._max_stations_dist = max_station_dist
         self.__all_stations = None
 
     def __call__(self, *args, **kwargs):
@@ -72,7 +73,7 @@ class ILocEvent:
         """
         Return the origin found by iLoc
         """
-        if self.iloc_origin is None:
+        if self._iloc_origin is None:
             # run iloc and return iloc determined origin
             return self.origins.append(Origin())
         else:
@@ -95,7 +96,7 @@ class ILocEvent:
         return self.__all_stations
 
     def _swap_preferred_origin_with_iloc(self):
-        self.event.preferred_origin = self.add_origin()
+        self._event.preferred_origin = self.add_origin()
 
     @staticmethod
     def _delta(x, origin):
@@ -114,7 +115,7 @@ class ILocEvent:
         stations[ARRIVAL] = stations.apply(self._match_sta, axis=1,
                                            sta_phs_dict=sta_phs_dict)
         sel_stations = stations[stations[DELTA] <
-                                self.max_stations_dist / 100 * max_dist]
+                                self._max_stations_dist / 100 * max_dist]
         return sel_stations
 
     def _farthest_station_dist(self):
@@ -179,6 +180,20 @@ class ILocCatalog(Catalog):
             description=self.description,
             resource_id=self.resource_id
         )
+
+    def insert_into_sc3db(self):
+        """
+        needs seiscomp3 installed.
+        """
+        cmd = 'scdb -i'.split()
+        cmd.append(self.event_xml)
+        cmd += ['-d', DBFLAG]
+
+        try:
+            print(cmd)
+            check_call(cmd)
+        except OSError:
+            raise OSError('seiscomp3 is not available in your system.')
 
     def update(self):
         for e in self.orig_events:
