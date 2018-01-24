@@ -181,13 +181,13 @@ class ILocCatalog(Catalog):
             resource_id=self.resource_id
         )
 
-    def insert_into_sc3db(self):
+    def insert_into_sc3db(self, dbflag=DBFLAG):
         """
         needs seiscomp3 installed.
         """
         cmd = 'scdb -i'.split()
         cmd.append(self.event_xml)
-        cmd += ['-d', DBFLAG]
+        cmd += ['-d', dbflag]
 
         try:
             check_call(cmd)
