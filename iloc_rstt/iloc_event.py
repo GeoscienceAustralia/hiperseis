@@ -181,14 +181,15 @@ class ILocCatalog(Catalog):
             resource_id=self.resource_id
         )
 
-    def insert_into_sc3db(self, dbflag=DBFLAG):
+    def insert_into_sc3db(self, dbflag=DBFLAG, plugins=None):
         """
         needs seiscomp3 installed.
         """
         cmd = 'scdb -i'.split()
         cmd.append(self.event_xml)
         cmd += ['-d', dbflag]
-
+        if plugins is not None:
+            cmd += ['--plugins', plugins]
         try:
             check_call(cmd)
         except OSError:
