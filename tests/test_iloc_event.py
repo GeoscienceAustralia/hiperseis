@@ -2,8 +2,7 @@ from __future__ import absolute_import, print_function
 import os
 from subprocess import check_call
 import pytest
-import random
-import string
+import shutil
 from obspy.geodetics import locations2degrees
 from obspy import read_events, UTCDateTime
 from obspy.core.event import (ResourceIdentifier, WaveformStreamID, Pick,
@@ -118,28 +117,48 @@ def test_iloc_catalog_write(random_filename, analyst_event):
     assert len(new_evt.origins[0].arrivals) == len(new_evt.picks)
 
 
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
-def test_sc3_db_write(random_filename, analyst_event, test_dir):
+@pytest.fixture(scope='module')
+def db_file(request, tmpdir_factory):
+    test_dir = os.path.dirname(__file__)
+    dir = str(tmpdir_factory.mktemp('events').realpath())
 
-    orig_cat = read_events(analyst_event)
-    orig_evt = orig_cat.events[0]
-    catalog = ILocCatalogDummy(analyst_event)
+    sqldb = os.path.join(dir, 'eventsqlite.db')  # sqlite db
+
+    check_call(['bash', os.path.join(test_dir, 'setupdb.sh'),
+                sqldb,
+                os.path.join(dir, 'inventory.xml'),  # inventory xml
+                os.path.join(dir, 'config.xml')  # config xml
+                ])
+
+    def tear_down():
+        print('In tear down, removing dir: ', dir)
+        shutil.rmtree(dir)
+
+    request.addfinalizer(tear_down)
+    return sqldb
+
+
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
+def test_sc3_db_write(one_event, db_file):
+    catalog = ILocCatalogDummy(one_event)
     catalog.update()
     ev = catalog.events[0]
     ev.add_dummy_picks()
     ev = catalog.events[0]
+    catalog.insert_into_sc3db(dbflag='sqlite3://' + db_file,
+                              plugins='dbsqlite3')
+    _check_event_in_db(db_file, ev._event.resource_id)
 
-    sqldb = 'sqlite3://' + random_filename(ext='.db')  # sqlite db
 
-    check_call(['bash', os.path.join(test_dir, 'setupdb.sh'),
-                sqldb,
-                random_filename(ext='.xml'),  # inventory xml
-                random_filename(ext='.xml')  # config xml
-                ])
+@pytest.mark.xfail(reason='event not in db sould fail')
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
+def test_event_not_in_db(db_file):
+    _check_event_in_db(db_file, 'resource_id_not_in_db')
 
-    catalog.insert_into_sc3db(dbflag=sqldb, plugins='dbsqlite3')
 
+def _check_event_in_db(db_file, event_res_id):
     cmd = 'scevtls -d'.split()
-    cmd.append(DBFLAG)
-    cmd += ('| grep {}'.format(ev._event.resource_id)).split()
+    cmd.append('sqlite3://' + db_file)
+    cmd += ['--plugins', 'dbsqlite3']
+    cmd += ('| grep {}'.format(event_res_id)).split()
     check_call(cmd)
