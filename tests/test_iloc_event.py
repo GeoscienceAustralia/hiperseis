@@ -2,6 +2,8 @@ from __future__ import absolute_import, print_function
 import os
 from subprocess import check_call
 import pytest
+import random
+import string
 from obspy.geodetics import locations2degrees
 from obspy import read_events, UTCDateTime
 from obspy.core.event import (ResourceIdentifier, WaveformStreamID, Pick,
@@ -121,17 +123,22 @@ def test_sc3_db_write(random_filename, analyst_event):
     orig_cat = read_events(analyst_event)
     orig_evt = orig_cat.events[0]
     catalog = ILocCatalogDummy(analyst_event)
-    xml = random_filename(ext='.xml')
     catalog.update()
     ev = catalog.events[0]
     ev.add_dummy_picks()
-    #
-    print(ev._event.resource_id)
-    catalog.write(xml, format='SC3ML', creation_info=catalog.creation_info)
     ev = catalog.events[0]
-    # catalog.insert_into_sc3db()
+    catalog.insert_into_sc3db()
     cmd = 'scevtls -d'.split()
     cmd.append(DBFLAG)
 
     cmd += ('| grep {}'.format(ev._event.resource_id)).split()
     check_call(cmd)
+
+
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
+def test_dummy(random_filename, test_dir):
+    SCRIPT = os.path.join(test_dir, 'setupdb.sh')
+    check_call(['bash', SCRIPT,
+                random_filename(ext='.db'),
+                random_filename(ext='.xml'),
+                random_filename(ext='.xml')])
