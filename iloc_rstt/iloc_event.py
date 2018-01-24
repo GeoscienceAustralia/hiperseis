@@ -190,7 +190,6 @@ class ILocCatalog(Catalog):
         cmd += ['-d', DBFLAG]
 
         try:
-            print(cmd)
             check_call(cmd)
         except OSError:
             raise OSError('seiscomp3 is not available in your system.')
