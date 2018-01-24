@@ -119,7 +119,8 @@ def test_iloc_catalog_write(random_filename, analyst_event):
 
 
 @pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
-def test_sc3_db_write(random_filename, analyst_event):
+def test_sc3_db_write(random_filename, analyst_event, test_dir):
+
     orig_cat = read_events(analyst_event)
     orig_evt = orig_cat.events[0]
     catalog = ILocCatalogDummy(analyst_event)
@@ -127,18 +128,17 @@ def test_sc3_db_write(random_filename, analyst_event):
     ev = catalog.events[0]
     ev.add_dummy_picks()
     ev = catalog.events[0]
-    catalog.insert_into_sc3db()
+
+    sqldb = random_filename(ext='.db')  # sqlite db
+
+    catalog.insert_into_sc3db(dbflag=sqldb)
+
+    check_call(['bash', os.path.join(test_dir, 'setupdb.sh'),
+                sqldb,
+                random_filename(ext='.xml'),  # inventory xml
+                random_filename(ext='.xml')])  # config xml
+
     cmd = 'scevtls -d'.split()
     cmd.append(DBFLAG)
-
     cmd += ('| grep {}'.format(ev._event.resource_id)).split()
     check_call(cmd)
-
-
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
-def test_dummy(random_filename, test_dir):
-    SCRIPT = os.path.join(test_dir, 'setupdb.sh')
-    check_call(['bash', SCRIPT,
-                random_filename(ext='.db'),
-                random_filename(ext='.xml'),
-                random_filename(ext='.xml')])
