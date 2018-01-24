@@ -8,7 +8,6 @@ SQLITEINIT=${SEISCOMP_ROOT}/share/db/sqlite3.sql
 PBDB=$1
 INVENTORY=$2
 CONFIG=$3
-EVENT=$4
 
 if [[ $# -lt 3 ]]; then
     echo $0: usage: ./setupdb.sh pbdb inventory config
