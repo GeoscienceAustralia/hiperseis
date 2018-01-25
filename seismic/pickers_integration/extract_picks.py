@@ -87,10 +87,13 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
     parrivals.sort(key=lambda x: x.time)
     sarrivals.sort(key=lambda x: x.time)
     mean_sarrival = np.mean([sarr.time for sarr in sarrivals])
+    mean_parrival = np.mean([parr.time for parr in parrivals])
     if len(sarrivals) > 0 and len(parrivals) > 0:
         try:
+            theoretical_ptime = prefor.time+mean_parrival
             trim_starttime = prefor.time+parrivals[0].time-plookback
             if not pickP and available_ptime:
+                theoretical_ptime = available_ptime
                 trim_starttime = available_ptime - plookback
             trim_endtime = prefor.time+sarrivals[-1].time+slookahead
             stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
@@ -112,7 +115,7 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
                 clean_trace(tr, trim_starttime, trim_endtime)
             ptime, stime = ar_pick(stz[0].data, stn[0].data, ste[0].data, samp_rate, f1, f2,
                                    lta_p, sta_p, lta_s, sta_s, m_p, m_s, l_p, l_s)
-            if ptime > 0 and stime > 0 and stime > ptime and abs(trim_starttime + ptime - available_ptime) < 10 and \
+            if ptime > 0 and stime > 0 and stime > ptime and abs(trim_starttime + ptime - theoretical_ptime) < 10 and \
                 abs(prefor.time + mean_sarrival - trim_starttime - stime) < 20:
                 az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
                 ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P')
