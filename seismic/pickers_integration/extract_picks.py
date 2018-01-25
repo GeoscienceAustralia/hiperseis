@@ -8,11 +8,15 @@ from obspy.signal.trigger import ar_pick, classic_sta_lta, trigger_onset
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier
 import glob
 
-sc3_host_ip='54.79.27.220'
-client = Client('http://'+sc3_host_ip+':8081')
+#sc3_host_ip='54.79.27.220'
+sc3_host_ip='test-elb-521962885.ap-southeast-2.elb.amazonaws.com'
+#client = Client('http://'+sc3_host_ip+':8081')
+client = Client('http://'+sc3_host_ip)
 model = TauPyModel(model='iasp91')
-lookback=50
-lookahead=50
+plookback=100
+plookahead=100
+slookback=100
+slookahead=100
 global p_pickCount
 p_pickCount = 1
 global s_pickCount
@@ -27,12 +31,12 @@ def s_phase_exists(evt, pick):
             break
     return exists
 
-def clean_trace(tr, t1, t2, d):
+def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     # add bandpass filtering sensitive to the distance d between source and receiver
     tr.trim(t1, t2)
     tr.detrend('linear')
-    tr.taper(0)
-    tr.filter('bandpass', freqmin=1.0, freqmax=4.9)
+    tr.taper(0.05)
+    tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
 
 def createPickObject(net, sta, cha, time, backaz, phasehint):
     global p_pickCount
@@ -64,8 +68,8 @@ def calc_distance(rec, src):
 def find_best_bounds(cft):
     bestupper = 1.5
     bestlower = 0.75
-    leasttrigs = len(trigger_onset(cft, 1.5, 0.75))
-    for upper in np.linspace(1.5, 2.5, 0.25):
+    leasttrigs = len(trigger_onset(cft, bestupper, bestlower))
+    for upper in np.linspace(1.5, 2.5, 5):
         for lower in [1.0, 0.75, 0.5]:
             t = trigger_onset(cft, upper, lower)
             if len(t) < leasttrigs and len(t) > 0:
@@ -82,11 +86,16 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
     sarrivals = [ar for ar in arrivals if ar.phase.name.lower() == 's']
     parrivals.sort(key=lambda x: x.time)
     sarrivals.sort(key=lambda x: x.time)
+    mean_sarrival = np.mean([sarr.time for sarr in sarrivals])
     if len(sarrivals) > 0 and len(parrivals) > 0:
         try:
-            stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', prefor.time+parrivals[0].time-lookback, prefor.time+sarrivals[-1].time+lookahead)
-            stn = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', prefor.time+parrivals[0].time-lookback, prefor.time+sarrivals[-1].time+lookahead)
-            ste = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', prefor.time+parrivals[0].time-lookback, prefor.time+sarrivals[-1].time+lookahead)
+            trim_starttime = prefor.time+parrivals[0].time-plookback
+            if not pickP and available_ptime:
+                trim_starttime = available_ptime - plookback
+            trim_endtime = prefor.time+sarrivals[-1].time+slookahead
+            stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
+            stn = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
+            ste = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
             stz_raw = stz.copy()
             stn_raw = stn.copy()
             ste_raw = ste.copy()
@@ -98,38 +107,43 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
                                    stn[0].stats.sampling_rate == ste[0].stats.sampling_rate:
             samp_rate, f1, f2, lta_p, sta_p, lta_s, sta_s, m_p, m_s, l_p, l_s = \
                 stz[0].stats.sampling_rate, 1.0, 4.9, 1.0, 0.1, 4.0, 1.0, 2, 8, 0.1, 0.2
-            for st in [stz, stn, ste]:
-                distance = calc_distance(prefor, station)
-                clean_trace(st[0], prefor.time+parrivals[0].time-lookback, prefor.time+sarrivals[-1].time+lookahead, distance)
+            distance = calc_distance(prefor, station)
+            for tr in [stz[0], stn[0], ste[0]]:
+                clean_trace(tr, trim_starttime, trim_endtime)
             ptime, stime = ar_pick(stz[0].data, stn[0].data, ste[0].data, samp_rate, f1, f2,
                                    lta_p, sta_p, lta_s, sta_s, m_p, m_s, l_p, l_s)
-            if ptime > 0 and stime > 0 and stime > ptime and abs(lookback - ptime) < 10 and \
-                abs(sarrivals[0].time - parrivals[0].time + lookback - stime) < 20:
+            if ptime > 0 and stime > 0 and stime > ptime and abs(trim_starttime + ptime - available_ptime) < 10 and \
+                abs(prefor.time + mean_sarrival - trim_starttime - stime) < 20:
                 az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
-                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, prefor.time+arrivals[0].time-lookback+ptime, az['backazimuth'] if az else None, 'P')
-                spick = createPickObject(network.code, station.code, stn[0].stats.channel, prefor.time+arrivals[0].time-lookback+stime, az['backazimuth'] if az else None, 'S')
-            elif (pickP and ptime > 0 and abs(parrivals[0].time - arrivals[0].time + lookback - ptime) < 10) or \
+                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P')
+                spick = createPickObject(network.code, station.code, stn[0].stats.channel, trim_starttime+stime, az['backazimuth'] if az else None, 'S')
+            elif (pickP and ptime > 0 and abs(trim_starttime + ptime - available_ptime) < 10) or \
                  (not pickP and available_ptime):
                 if not pickP and available_ptime:
-                    ptime = available_ptime
+                    ptime = available_ptime - trim_starttime
                 az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
-                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, prefor.time+arrivals[0].time-lookback+ptime, az['backazimuth'] if az else None, 'P')
+                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P')
+                trim_starttime = prefor.time+sarrivals[0].time-slookback
+                trim_endtime = prefor.time+sarrivals[-1].time+slookahead
+                stn_for_s = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
+                ste_for_s = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
                 trigs= []
-                for tr in [stn[0], ste[0]]:
-                    tr.trim(starttime=(prefor.time+parrivals[0].time-lookback+ptime))
-                    tr.taper(0)
+                if trim_starttime < available_ptime:
+                    trim_starttime = available_ptime
+                for tr in [stn_for_s[0], ste_for_s[0]]:
+                    clean_trace(tr, trim_starttime, trim_endtime, 0.5, 3)
                     cft = classic_sta_lta(tr.data, int(5*samp_rate), int(20*samp_rate))
                     upper, lower = find_best_bounds(cft)
                     trigs.extend(trigger_onset(cft, upper, lower))
-                trigs = [trig for trig in trigs if abs(sarrivals[0].time-arrivals[0].time+lookback-(trig[0]/samp_rate)) < 20]
+                trigs = [trig for trig in trigs if abs(prefor.time + mean_sarrival - trim_starttime - (trig[0]/samp_rate)) < 20]
                 if len(trigs) > 0:
-                    mintrigdiff = abs(sarrivals[0].time*samp_rate-trigs[0][0])
+                    mintrigdiff = abs(prefor.time + mean_sarrival - trim_starttime - trigs[0][0])
                     besttrig = trigs[0][0]
                     for trig in trigs:
-                        if abs(sarrivals[0].time*samp_rate-trig[0]) < mintrigdiff:
-                            mintrigdiff = abs(sarrivals[0].time*samp_rate-trig[0])
+                        if abs(prefor.time + mean_sarrival - trim_starttime - trig[0]) < mintrigdiff:
+                            mintrigdiff = abs(prefor.time + mean_sarrival - trim_starttime - trig[0])
                             besttrig = trig[0]
-                    spick = createPickObject(network.code, station.code, stn[0].stats.channel, prefor.time+arrivals[0].time-lookback+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S')
+                    spick = createPickObject(network.code, station.code, stn[0].stats.channel, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S')
             elif pickP and ptime <= 0:
                 # this needs to be thought through and implemented, dummy behavior for now
                 ppick = None
@@ -176,12 +190,13 @@ def pick_sphase(event):
                 s_phases.extend([p for p in pick_p_s_phases(sts.networks[0], sts.networks[0].stations[0], prefor, available_ptime=p.time) if p])
     return s_phases
 
-evtfiles = glob.glob('event_sc3mls/*.xml')
+#evtfiles = glob.glob('event_sc3mls/*.xml')
+evtfiles = glob.glob('event_sc3mls/978299.xml')
 for f in evtfiles:
     evts = read_events(f)
     if evts and evts[0]:
         prefor = evts[0].preferred_origin() or evts[0].origins[0]
         if prefor.time > UTCDateTime('2015-03-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2015-04-01T00:00:00.000000Z'):
-#            s_picks = pick_sphase(evts[0])
-            new_picks = pick_new_phases(evts[0])
+            s_picks = pick_sphase(evts[0])
+#            new_picks = pick_new_phases(evts[0])
 
