@@ -183,6 +183,14 @@ class ILocCatalog(Catalog):
 
     def insert_into_sc3db(self, dbflag=DBFLAG, plugins=None):
         """
+        Parameters
+        ----------
+        dbflag: seiscomp3 database location
+            example: 'sqlite3://' + sqllite_db_file
+            example: mysql://sysop:sysop@localhost/seiscomp3
+        plugins: additional db plugin
+            can be None for mysql, 'dbsqlite3' for sqlite.
+
         needs seiscomp3 installed.
         """
         cmd = 'scdb -i'.split()
