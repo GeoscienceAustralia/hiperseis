@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# originally copied from
+# inspired from
 # https://github.com/yannikbehr/sc3-playback/blob/master/playback.sh
 
 DBFLAG="mysql://sysop:sysop@localhost/seiscomp3"
