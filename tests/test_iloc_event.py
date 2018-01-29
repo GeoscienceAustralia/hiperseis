@@ -1,6 +1,6 @@
 from __future__ import absolute_import, print_function
 import os
-from subprocess import check_call
+from subprocess import check_call, check_output
 import pytest
 import shutil
 from obspy.geodetics import locations2degrees
@@ -120,19 +120,19 @@ def test_iloc_catalog_write(random_filename, analyst_event):
 @pytest.fixture(scope='module')
 def db_file(request, tmpdir_factory):
     test_dir = os.path.dirname(__file__)
-    dir = str(tmpdir_factory.mktemp('events').realpath())
+    evnets_dir = str(tmpdir_factory.mktemp('events').realpath())
 
-    sqldb = os.path.join(dir, 'eventsqlite.db')  # sqlite db
+    sqldb = os.path.join(evnets_dir, 'eventsqlite.db')  # sqlite db
 
     check_call(['bash', os.path.join(test_dir, 'setupdb.sh'),
                 sqldb,
-                os.path.join(dir, 'inventory.xml'),  # inventory xml
-                os.path.join(dir, 'config.xml')  # config xml
+                os.path.join(evnets_dir, 'inventory.xml'),  # inventory xml
+                os.path.join(evnets_dir, 'config.xml')  # config xml
                 ])
 
     def tear_down():
-        print('In tear down, removing dir: ', dir)
-        shutil.rmtree(dir)
+        print('In tear down, removing dir: ', evnets_dir)
+        shutil.rmtree(evnets_dir)
 
     request.addfinalizer(tear_down)
     return sqldb
@@ -147,18 +147,19 @@ def test_sc3_db_write(one_event, db_file):
     ev = catalog.events[0]
     catalog.insert_into_sc3db(dbflag='sqlite3://' + db_file,
                               plugins='dbsqlite3')
-    _check_event_in_db(db_file, ev._event.resource_id)
+    _check_event_in_db(db_file, ev._event.resource_id.id)
 
 
-@pytest.mark.xfail(reason='event not in db sould fail')
+@pytest.mark.xfail(reason='event not in db should fail')
 @pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
-def test_event_not_in_db(db_file):
+def test_event_not_in_db(db_file='dbfile'):
     _check_event_in_db(db_file, 'resource_id_not_in_db')
 
 
-def _check_event_in_db(db_file, event_res_id):
+def _check_event_in_db(db_file, event_res_id='whatever'):
     cmd = 'scevtls -d'.split()
     cmd.append('sqlite3://' + db_file)
     cmd += ['--plugins', 'dbsqlite3']
     cmd += ('| grep {}'.format(event_res_id)).split()
-    check_call(cmd)
+    event_id = check_output(cmd).split('\n')[0]
+    assert event_id in event_res_id
