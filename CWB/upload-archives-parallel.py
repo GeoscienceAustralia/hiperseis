@@ -22,8 +22,8 @@ def transfer_part(transfer_file, start, sz, upload_id, vault_name):
     # so have to create a local variable glacier_client
     glacier_client = boto3.client('glacier',
                                   region_name='ap-southeast-2',
-                                  aws_access_key_id='AKIAIXAWCBYQOMEMLSUQ',
-                                  aws_secret_access_key='EvTArDz30z6afGK5/jdkVRdE3l6fZFzgW90uYbH4')
+                                  aws_access_key_id='DUMMY_ID',
+                                  aws_secret_access_key='DUMMY_ACCESS')
 
     openfile = open(transfer_file, "rb")
     openfile.seek(start)
