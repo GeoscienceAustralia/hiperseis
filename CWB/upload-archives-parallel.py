@@ -54,8 +54,8 @@ def write_uploadid(file_name, uploadId):
 def upload_archive(transfer_file, vault_name):
     glacier_client = boto3.client('glacier',
                                   region_name='ap-southeast-2',
-                                  aws_access_key_id='AKIAIXAWCBYQOMEMLSUQ',
-                                  aws_secret_access_key='EvTArDz30z6afGK5/jdkVRdE3l6fZFzgW90uYbH4')
+                                  aws_access_key_id='DUMMY_ID',
+                                  aws_secret_access_key='DUMMY_ACCESS')
     total = os.path.getsize(transfer_file)
     size = ceiling_log(total/32, 2) # 32 cores on this NCI machine
 
@@ -103,8 +103,8 @@ def upload_archive(transfer_file, vault_name):
 def create_vault(year):
     glacier_client = boto3.client('glacier',
                                   region_name='ap-southeast-2',
-                                  aws_access_key_id='AKIAIXAWCBYQOMEMLSUQ',
-                                  aws_secret_access_key='EvTArDz30z6afGK5/jdkVRdE3l6fZFzgW90uYbH4')
+                                  aws_access_key_id='DUMMY_ID',
+                                  aws_secret_access_key='DUMMY_ACCESS')
     create_vault_resp = glacier_client.create_vault(vaultName=year)
     print create_vault_resp
 
