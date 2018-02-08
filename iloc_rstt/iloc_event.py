@@ -1,6 +1,7 @@
+import os
 import pandas as pd
 from collections import defaultdict
-from subprocess import check_call
+from subprocess import check_call, check_output
 from obspy import UTCDateTime
 from obspy.core.event import (Event, Catalog, Origin, Comment, Pick, Arrival,
                               CreationInfo, ResourceIdentifier,
@@ -18,7 +19,7 @@ LATITUDE = 'latitude'
 LONGITUDE = 'longitude'
 ELEVATION = 'elevation'
 NETWORK_CODE = 'network_code'
-STATION_COLS = [STATION_CODE, LATITUDE , LONGITUDE,
+STATION_COLS = [STATION_CODE, LATITUDE, LONGITUDE,
                 ELEVATION, NETWORK_CODE]
 PHASEHINT = 'phase_hint'
 ARRIVAL = 'arrival'
@@ -49,6 +50,7 @@ class ILocEvent(object):
         self.focal_mechanisms = event.focal_mechanisms
         self._max_stations_dist = max_station_dist
         self.__all_stations = None
+        self.__event_id = None
 
     def __call__(self, *args, **kwargs):
         _ = self.all_stations
@@ -60,6 +62,12 @@ class ILocEvent(object):
         #     self.all_stations = self.add_stations()
         # return self.all_stations
         # mseed = self._get_miniseed()
+ 
+    @property
+    def event_id(self):
+        if self.__event_id is None:
+            self.__event_id = os.path.basename(self.resource_id.id)
+        return self.__event_id
 
     def add_magnitudes(self):
         return
@@ -82,8 +90,6 @@ class ILocEvent(object):
     @property
     def all_stations(self):
         """
-        :param max_station_dist: percentage distance to scan for extra stations
-
         Distance is calculated as percentage of the farthest station from the
         original preferred origin. A value of 100 implies an euclidean
         distance same as the of the farthest arriving station will be used.
@@ -142,6 +148,15 @@ class ILocEvent(object):
 
     def _add_temporary_stations(self):
         return pd.DataFrame()
+
+    def run_iloc(self, event_id, **kwargs):
+        cmd = "echo \"{} ".format(event_id) \
+              + ' '.join(['{k}={v}'.format(k=k, v=v) for k, v in 
+                          kwargs.items()]) + "\"" \
+              + "| iloc sc3db"
+        iloc_out = check_output(cmd, shell=True)
+        with open('{}.log'.format(event_id).replace('/', '_'), 'w') as txt:
+            txt.write(iloc_out)
 
 
 class ILocCatalog(Catalog):
@@ -212,3 +227,4 @@ class ILocCatalog(Catalog):
 if __name__ == "__main__":
     cat = ILocCatalog(event_file)
     cat.update()
+
