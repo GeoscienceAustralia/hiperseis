@@ -78,7 +78,7 @@ class ILocEventDummy(ILocEvent):
             self.picks.append(p)  # add to picks list
             a = Arrival(pick_id=res, phase='S')
             self._pref_origin.arrivals.append(a)
-            if i == 4:
+            if i == 4:  # i.e., insert 4 random picks and arrivals
                 break
 
 
@@ -163,3 +163,16 @@ def _check_event_in_db(db_file, event_res_id='whatever'):
     cmd += ('| grep {}'.format(event_res_id)).split()
     event_id = check_output(cmd).split('\n')[0]
     assert event_id in event_res_id
+
+
+def test_run_iloc(one_event):
+    catalog = ILocCatalogDummy(one_event)
+    catalog.update()
+    ev = catalog.events[0]
+    ev.add_dummy_picks()
+    ev = catalog.events[0]
+    ev.run_iloc(ev.event_id, use_RSTT_PnSn=1, use_RSTT_PgLg=1,
+                verbose=5)
+    assert os.path.exists('{}.log'.format(ev.event_id))
+    os.remove('{}.log'.format(ev.event_id))  # clean up
+
