@@ -165,6 +165,7 @@ def _check_event_in_db(db_file, event_res_id='whatever'):
     assert event_id in event_res_id
 
 
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_run_iloc(one_event):
     catalog = ILocCatalogDummy(one_event)
     catalog.update()
