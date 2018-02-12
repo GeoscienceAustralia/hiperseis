@@ -64,7 +64,7 @@ class ILocEventDummy(ILocEvent):
         """
         Don't call this function for a real job
         """
-        import random
+        import random     
         for i, r in enumerate(self.all_stations.iterrows()):
             d = r[1].to_dict()  # pandas series to dict
             res = ResourceIdentifier('custom_pick_{}'.format(i))
@@ -78,7 +78,7 @@ class ILocEventDummy(ILocEvent):
             self.picks.append(p)  # add to picks list
             a = Arrival(pick_id=res, phase='S')
             self._pref_origin.arrivals.append(a)
-            if i == 4:  # i.e., insert 4 random picks and arrivals
+            if i == 4:  # i.e., insert 5 random picks and arrivals
                 break
 
 
@@ -88,9 +88,10 @@ class ILocCatalogDummy(ILocCatalog):
             event_xml=event_xml
         )
 
-    def update(self):
+    def update(self, *args, **kwargs):
         for e in self.orig_events:
             iloc_ev = ILocEventDummy(e)()
+            iloc_ev.run_iloc(iloc_ev.event_id, *args, **kwargs)
             self.events.append(iloc_ev)
 
 
@@ -156,24 +157,47 @@ def test_event_not_in_db(db_file='dbfile'):
     _check_event_in_db(db_file, 'resource_id_not_in_db')
 
 
-def _check_event_in_db(db_file, event_res_id='whatever'):
-    cmd = 'scevtls -d'.split()
-    cmd.append('sqlite3://' + db_file)
-    cmd += ['--plugins', 'dbsqlite3']
-    cmd += ('| grep {}'.format(event_res_id)).split()
-    event_id = check_output(cmd).split('\n')[0]
+def _check_event_in_db(db_file=None, event_res_id='whatever'):
+    cmd = 'scevtls -d '
+    if db_file is not None:
+        cmd += 'sqlite3://' + db_file
+        cmd += ' --plugins dbsqlite3'
+    else:
+        cmd += DBFLAG
+    cmd += ' | grep {}'.format(event_res_id)
+    event_id = check_output(cmd, shell=True).split('\n')[0]
     assert event_id in event_res_id
 
 
 @pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_run_iloc(one_event):
+    ev = _check_log_created(one_event)
+    os.remove('{}.log'.format(ev.event_id))  # clean up
+
+
+def _check_log_created(one_event):
     catalog = ILocCatalogDummy(one_event)
-    catalog.update()
+    catalog.update(use_RSTT_PnSn=1, use_RSTT_PgLg=1, verbose=1)
     ev = catalog.events[0]
     ev.add_dummy_picks()
     ev = catalog.events[0]
+    assert os.path.exists('{}.log'.format(ev.event_id))
+    return ev
+
+
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
+def test_insert_db_by_iloc(analyst_event):
+    catalog = ILocCatalogDummy(analyst_event)
+    catalog.update()
+    ev = catalog.events[0]
+    picks_before = len(ev.picks)
+    ev.add_dummy_picks()
+    picks_after = len(ev.picks)
+    assert picks_after == picks_before + 5  # we  inserted 5 dummy picks
+    ev = catalog.events[0]
     ev.run_iloc(ev.event_id, use_RSTT_PnSn=1, use_RSTT_PgLg=1,
-                verbose=5)
+                verbose=5, update_db=1)
     assert os.path.exists('{}.log'.format(ev.event_id))
     os.remove('{}.log'.format(ev.event_id))  # clean up
+    _check_event_in_db(event_res_id=ev._event.resource_id.id)
 

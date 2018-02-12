@@ -218,9 +218,10 @@ class ILocCatalog(Catalog):
         except OSError:
             raise OSError('seiscomp3 is not available in your system.')
 
-    def update(self):
+    def update(self, *args, **kwargs):
         for e in self.orig_events:
             iloc_ev = ILocEvent(e)()
+            iloc_ev.run_iloc(iloc_ev.event_id, *args, **kwargs)
             self.events.append(iloc_ev)
 
 
