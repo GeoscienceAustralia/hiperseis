@@ -1,6 +1,6 @@
 from __future__ import absolute_import, print_function
 import os
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, Popen, PIPE
 import pytest
 import shutil
 from obspy.geodetics import locations2degrees
@@ -153,19 +153,22 @@ def test_sc3_db_write(one_event, db_file):
 
 @pytest.mark.xfail(reason='event not in db should fail')
 @pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
-def test_event_not_in_db(db_file='dbfile'):
+def test_event_not_in_db(db_file=DBFLAG):
     _check_event_in_db(db_file, 'resource_id_not_in_db')
 
 
 def _check_event_in_db(db_file=None, event_res_id='whatever'):
-    cmd = 'scevtls -d '
+    cmd = 'scevtls -d'.split()
     if db_file is not None:
-        cmd += 'sqlite3://' + db_file
-        cmd += ' --plugins dbsqlite3'
+        cmd.append('sqlite3://' + db_file)
+        cmd += ['--plugins', 'dbsqlite3']
     else:
-        cmd += DBFLAG
-    cmd += ' | grep {}'.format(event_res_id)
-    event_id = check_output(cmd, shell=True).split('\n')[0]
+        cmd.append(DBFLAG)
+    p1 = Popen(cmd, stdout=PIPE)
+    p2 = Popen('grep {}'.format(event_res_id).split(), stdin=p1.stdout,
+               stdout=PIPE)
+    p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+    event_id = p2.communicate()[0].split('\n')[0]
     assert event_id in event_res_id
 
 
