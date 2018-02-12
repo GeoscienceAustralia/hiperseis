@@ -26,6 +26,7 @@ def one_event(request):
     return request.param
 
 
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_stations_in_range(one_event):
     catalog = ILocCatalog(one_event)
     assert len(catalog.orig_events) == 1  # there is only one event in the xml
@@ -95,6 +96,7 @@ class ILocCatalogDummy(ILocCatalog):
             self.events.append(iloc_ev)
 
 
+@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_iloc_catalog_write(random_filename, analyst_event):
     orig_cat = read_events(analyst_event)
     orig_evt = orig_cat.events[0]
