@@ -107,16 +107,38 @@ Use help on each command like this on how to use each step:
 
 
 ## Example workflow
+
+### Gather all arrivals
+
+The first step is to gather all arrivals from the events. `cluster gather` 
+operation is used here. The `gather` operation is `mpi` parallelised. 
     
-    # gather
-    cluster gather /g/data/ha3/sudipta/event_xmls -w "P S"
+    # gather using a single process
+    cluster gather /path/to/event_xmls -w "P S"
     
+    # gather using mpi
+    mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/sudipta/event_xmls -w "P S" 
+
+The command above will gather all arrivals for all events inside 
+`/path/to/event_xmls`.      
+    
+### Sorting and filtering of arrivals
+
+The gathered events are the sorted and filtered. 
+        
     # sort and filter
     cluster sort outfile_P.csv 5. -s sorted_P.csv
     cluster sort outfile_S.csv 10. -s sorted_S.csv
+    
+In the above the `P` arrivals are filtered for residuals less 5 seconds, and 
+`S` arrivals are filtered for residuals for less than 10 seconds. 
+
+### Match P and S arrivals
 
     # match `P` with `S` counterparts
     cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
+
+### Zone either the sorted or the matched arrivals
 
     # zones
     cluster zone '0 -50.0 100 190' matched_P.csv -r region_P.csv -g global_P.csv
