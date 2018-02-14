@@ -130,8 +130,12 @@ The gathered events are the sorted and filtered.
     cluster sort outfile_P.csv 5. -s sorted_P.csv
     cluster sort outfile_S.csv 10. -s sorted_S.csv
     
-In the above the `P` arrivals are filtered for residuals less 5 seconds, and 
-`S` arrivals are filtered for residuals for less than 10 seconds. 
+There are two stages of filtering:
+    1. Filter based on the time residual
+    2. Filter based on median of observed travel time.
+
+In the example above, the `P` arrivals are filtered for residuals 
+less 5 seconds, and `S` arrivals are filtered for residuals for less than 10 seconds. 
 
 ### Match P and S arrivals
 
