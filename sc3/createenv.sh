@@ -17,6 +17,7 @@ sudo yum install -y wget \
                     openmpi openmpi-devel \
                     git \
                     vim \
+                    screen \
                     libpng \
                     libpng-devel \
                     epel-release \
@@ -38,7 +39,12 @@ sudo yum install -y wget \
                     libxslt-devel \
                     python-devel \
                     netcdf-devel.x86_64 \
+                    cpan \
                     java-1.7.0-openjdk  # required due to cwbquery
+
+# perl stuff
+sudo perl -MCPAN -e 'my $c = "CPAN::HandleConfig"; $c->load(doit => 1, autoconfig => 1); $c->edit(prerequisites_policy => "follow"); $c->edit(build_requires_install_policy => "yes"); $c->commit'
+sudo cpan App::cpanminus && cpanm PDL
 
 # clone passive-seismic in home directory after git install
 if [ ! -d "$HOME/passive-seismic" ]; then
@@ -92,7 +98,6 @@ if [ -z ${CIRCLECI+x} ];
     pip install --ignore-installed ipython && \
     export PATH=$HOME/.virtualenvs/seismic/bin/:$PATH && \
     export ELLIPCORR=$PWD/ellip-corr && \
-    python setup.py develop && \
     env GEOS_DIR=/usr/include/ pip install --process-dependency-links .[dev] && \
     $HOME/passive-seismic/iloc_rstt/install_iloc_rstt.sh;  # install iloc and rstt
 fi
