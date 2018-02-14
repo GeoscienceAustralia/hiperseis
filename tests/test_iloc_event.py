@@ -17,6 +17,8 @@ try:
 except OSError:
     SC3 = False
 
+pytestmark = pytest.mark.skipif(not SC3,
+                                reason='Skipped as seiscomp3 is not installed')
 
 @pytest.fixture(params=[
     pytest.lazy_fixture('xml'),
@@ -26,7 +28,6 @@ def one_event(request):
     return request.param
 
 
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_stations_in_range(one_event):
     catalog = ILocCatalog(one_event)
     assert len(catalog.orig_events) == 1  # there is only one event in the xml
@@ -96,7 +97,6 @@ class ILocCatalogDummy(ILocCatalog):
             self.events.append(iloc_ev)
 
 
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_iloc_catalog_write(random_filename, analyst_event):
     orig_cat = read_events(analyst_event)
     orig_evt = orig_cat.events[0]
@@ -141,7 +141,6 @@ def db_file(request, tmpdir_factory):
     return sqldb
 
 
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_sc3_db_write(one_event, db_file):
     catalog = ILocCatalogDummy(one_event)
     catalog.update()
@@ -154,7 +153,6 @@ def test_sc3_db_write(one_event, db_file):
 
 
 @pytest.mark.xfail(reason='event not in db should fail')
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_event_not_in_db(db_file=DBFLAG):
     _check_event_in_db(db_file, 'resource_id_not_in_db')
 
@@ -174,7 +172,6 @@ def _check_event_in_db(db_file=None, event_res_id='whatever'):
     assert event_id in event_res_id
 
 
-@pytest.mark.skipif(not SC3, reason='Skipped as seiscomp3 is not installed')
 def test_run_iloc(one_event):
     ev = _check_log_created(one_event)
     os.remove('{}.log'.format(ev.event_id))  # clean up
@@ -205,4 +202,3 @@ def test_insert_db_by_iloc(analyst_event):
     assert os.path.exists('{}.log'.format(ev.event_id))
     os.remove('{}.log'.format(ev.event_id))  # clean up
     _check_event_in_db(event_res_id=ev._event.resource_id.id)
-
