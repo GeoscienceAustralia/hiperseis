@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: geoscienceaustralia/passive-seismic:latest
+      - image: geoscienceaustralia/passive-seismic:0.1
     working_directory: /root/passive-seismic
     steps:
       - checkout
@@ -16,7 +16,8 @@ jobs:
           name: run bash scripts
           command: |
             ./sc3/createenv.sh
-            ./iloc_rstt/install_iloc_rstt.sh
+          # not tested in CI as sc3 is unavailable
+          #./iloc_rstt/install_iloc_rstt.sh
       # - run: make lint
       - run:
           name: install python env and run tests
