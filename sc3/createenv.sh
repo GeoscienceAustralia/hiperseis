@@ -40,11 +40,32 @@ sudo yum install -y wget \
                     python-devel \
                     netcdf-devel.x86_64 \
                     cpan \
+                    evince \
+                    evince-nautilus \
                     java-1.7.0-openjdk  # required due to cwbquery
 
 # perl stuff
 sudo perl -MCPAN -e 'my $c = "CPAN::HandleConfig"; $c->load(doit => 1, autoconfig => 1); $c->edit(prerequisites_policy => "follow"); $c->edit(build_requires_install_policy => "yes"); $c->commit'
 sudo cpan App::cpanminus && cpanm PDL
+
+
+# Install GMP with mapproject from source, yum install does not bring
+# mapproject, required by Istvan's scripts
+cd $HOME && \
+    svn checkout svn://gmtserver.soest.hawaii.edu/gmt/trunk gmt-dev && \
+    wget ftp://ftp.star.nesdis.noaa.gov/pub/sod/lsa/gmt/gshhg-gmt-2.3.7.tar.gz && \
+    wget ftp://ftp.star.nesdis.noaa.gov/pub/sod/lsa/gmt/dcw-gmt-1.1.3.tar.gz && \
+    tar -xzf gshhg-gmt-2.3.7.tar.gz && \
+    tar -xzf dcw-gmt-1.1.3.tar.gz && \
+    rm -rf $HOME/dcw-gmt-1.1.3.tar.gz $HOME/gshhg-gmt-2.3.7.tar.gz
+
+cd $HOME/gmt-dev && \
+    cp cmake/ConfigUserTemplate.cmake cmake/ConfigUser.cmake && \
+    echo "set (CMAKE_INSTALL_PREFIX /usr/local/)" >> cmake/ConfigUser.cmake && \
+    echo "set (GSHHG_ROOT $HOME/gshhg-gmt-2.3.7)" >> cmake/ConfigUser.cmake && \
+    echo "set (DCW_ROOT $HOME/dcw-gmt-1.1.3)" >> cmake/ConfigUser.cmake &&
+    mkdir build && cd build && \
+    cmake .. && sudo make install
 
 # clone passive-seismic in home directory after git install
 if [ ! -d "$HOME/passive-seismic" ]; then
