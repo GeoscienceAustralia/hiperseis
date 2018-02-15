@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: geoscienceaustralia/passive-seismic:0.1
+      - image: geoscienceaustralia/passive-seismic:0.7
     working_directory: /root/passive-seismic
     steps:
       - checkout
