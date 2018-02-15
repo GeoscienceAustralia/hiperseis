@@ -35,13 +35,7 @@ RUN yum install -y wget \
                    cpan \
                    evince \
                    evince-nautilus \
-                   java-1.7.0-openjdk \
-                   cmake \
-                   libcurl-devel \
-                   netcdf-devel \
-                   gdal-devel \
-                   pcre-devel \
-                   fftw3-devel
+                   java-1.7.0-openjdk
 
 
 # manage envs
@@ -53,10 +47,10 @@ ENV PATH="/root/perl5/bin:$PATH"
 
 # install perl modules
 RUN perl -MCPAN -e 'my $c = "CPAN::HandleConfig"; $c->load(doit => 1, autoconfig => 1); $c->edit(prerequisites_policy => "follow"); $c->edit(build_requires_install_policy => "yes"); $c->commit'
-RUN cpan App::cpanminus
-RUN cpanm version
-RUN cpanm PDL
-
+RUN cpan App::cpanminus && \
+    cpanm version && \
+    cpanm PDL && \
+    rm -rf /root/.cpanm
 
 # Install GMP with mapproject from source, yum install does not bring
 # mapproject, required by Istvan's scripts
@@ -68,13 +62,12 @@ RUN cd $HOME && \
     tar -xzf dcw-gmt-1.1.3.tar.gz && \
     rm -rf $HOME/dcw-gmt-1.1.3.tar.gz $HOME/gshhg-gmt-2.3.7.tar.gz
 
-RUN yum -y install \
-        cmake \
-        libcurl-devel \
-        netcdf-devel \
-        gdal-devel \
-        pcre-devel \
-        fftw3-devel
+RUN yum -y install cmake \
+                   libcurl-devel \
+                   netcdf-devel \
+                   gdal-devel \
+                   pcre-devel \
+                   fftw3-devel
 
 RUN cd $HOME/gmt-dev && \
     cp cmake/ConfigUserTemplate.cmake cmake/ConfigUser.cmake && \
