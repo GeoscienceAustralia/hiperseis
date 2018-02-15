@@ -99,6 +99,7 @@ setup(
         'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
         'chardet == 3.0.4',
+        'lxml >= 3.3.5'
     ],
     extras_require={
         'dev': [
