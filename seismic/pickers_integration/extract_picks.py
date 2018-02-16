@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from obspy import UTCDateTime, read_events
 from obspy.clients.fdsn import Client
@@ -5,11 +6,11 @@ from obspy.clients.iris import Client as IrisClient
 from obspy.taup import TauPyModel
 from obspy.taup.taup_geo import calc_dist
 from obspy.signal.trigger import ar_pick, recursive_sta_lta, trigger_onset
-from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier
+from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival
 from multiprocessing import Pool
 import glob
 
-sc3_host_ip='54.79.27.220'
+sc3_host_ip='54.206.31.42'
 #sc3_host_ip='test-elb-521962885.ap-southeast-2.elb.amazonaws.com'
 client = Client('http://'+sc3_host_ip+':8081')
 #client = Client('http://'+sc3_host_ip)
@@ -41,7 +42,7 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     tr.taper(0.01)
     tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
 
-def createPickObject(net, sta, cha, time, backaz, phasehint):
+def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0):
     global p_pickCount
     global s_pickCount
     if phasehint == 'P':
@@ -50,16 +51,21 @@ def createPickObject(net, sta, cha, time, backaz, phasehint):
     else:
         count = s_pickCount
         s_pickCount += 1
-    return Pick(resource_id=ResourceIdentifier(id='smi:niket.picker.ga.gov.au/pick/'+str(count)),
-                time=time,
-                waveform_id=WaveformStreamID(network_code=net, station_code=sta, channel_code=cha),
-                methodID=ResourceIdentifier('obspy/stalta/arpicker'),
-                backazimuth=backaz,
-                phase_hint=phasehint,
-                evaluation_mode='automatic',
-                creation_info=CreationInfo(author='niket',
-                                creation_time=UTCDateTime(),
-                                agency_id='niket-ga-picker'))
+    return (Pick(resource_id=ResourceIdentifier(id='smi:niket.picker.ga.gov.au/pick/'+str(count)),
+                 time=time,
+                 waveform_id=WaveformStreamID(network_code=net, station_code=sta, channel_code=cha),
+                 methodID=ResourceIdentifier('obspy/stalta/arpicker'),
+                 backazimuth=backaz,
+                 phase_hint=phasehint,
+                 evaluation_mode='automatic',
+                 creation_info=CreationInfo(author='niket',
+                                 creation_time=UTCDateTime(),
+                                 agency_id='niket-ga-picker')),
+            res,
+            wt)
+
+def createArrivalObject(event, pick):
+    pass
 
 def get_backazimuth(stalat, stalon, evtlat, evtlon):
     client = IrisClient()
@@ -73,7 +79,7 @@ def find_best_bounds(cft, samp_rate):
     bestlower = 0.75
     max_margin = bestupper - bestlower
     leasttrigs = len(trigger_onset(cft, 1.5, 0.75, max_len=(60*samp_rate), max_len_delete=True))
-    for upper in np.linspace(1.5, 2.5, 5):
+    for upper in np.linspace(1.5, 5, 15):
         for lower in [0.875, 0.75, 0.625, 0.5, 0.375]:
             t = trigger_onset(cft, upper, lower, max_len=(60*samp_rate), max_len_delete=True)
             if len(t) > 0 and (upper - lower) > max_margin and len(t) <= leasttrigs:
@@ -123,14 +129,17 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
             if ptime > 0 and stime > 0 and stime > ptime and abs(trim_starttime + ptime - theoretical_ptime) < pphase_search_margin and \
                 abs(prefor.time + mean_sarrival - trim_starttime - stime) < sphase_search_margin:
                 az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
-                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P')
-                spick = createPickObject(network.code, station.code, stn[0].stats.channel, trim_starttime+stime, az['backazimuth'] if az else None, 'S')
+                p_res = trim_starttime + ptime - theoretical_ptime
+                s_res = trim_starttime + stime - prefor.time - mean_sarrival
+                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P', p_res)
+                spick = createPickObject(network.code, station.code, stn[0].stats.channel, trim_starttime+stime, az['backazimuth'] if az else None, 'S', s_res)
             elif (not pickP and available_ptime) or \
                  (pickP and ptime > 0 and abs(trim_starttime + ptime - available_ptime) < pphase_search_margin):
                 if not pickP and available_ptime:
                     ptime = available_ptime - trim_starttime
                 az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
-                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P')
+                p_res = trim_starttime + ptime - theoretical_ptime
+                ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P', p_res)
                 trim_starttime = prefor.time+sarrivals[0].time-slookback
                 trim_endtime = prefor.time+sarrivals[-1].time+slookahead
                 stz_for_s = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
@@ -141,22 +150,31 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
                     trim_starttime = available_ptime + 10
                 for tr in [stz_for_s[0], stn_for_s[0], ste_for_s[0]]:
                     # replace steps in this loop with a function that runs on 4 cores in parallel
-                    # with diffferent filter windows and returns best trigger for this trace
-                    clean_trace(tr, trim_starttime, trim_endtime, 0.5, 3)
-                    cft = recursive_sta_lta(tr.data, int(5*samp_rate), int(20*samp_rate))
-                    upper, lower = find_best_bounds(cft, tr.stats.sampling_rate)
-                    trigs.extend([(onset, tr.stats.channel) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr.stats.sampling_rate), max_len_delete=True)])
+                    # with different filter windows and returns best trigger for this trace
+                    for band in [(0.5, 3), (0.5, 2.5), (1, 3), (0.5, 2), (1, 2.5), (1.5, 3), (0.3, 2.0), (0.3, 1), (0.3, 0.7)]:
+                        tr_copy = tr.copy()
+                        clean_trace(tr_copy, trim_starttime, trim_endtime, band[0], band[1])
+                        cft = recursive_sta_lta(tr_copy.data, int(5*samp_rate), int(20*samp_rate))
+                        upper, lower = find_best_bounds(cft, tr_copy.stats.sampling_rate)
+                        trigs.extend([(onset, tr_copy.stats.channel, upper-lower, band) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr_copy.stats.sampling_rate), max_len_delete=True)])
                 trigs = [trig for trig in trigs if abs(prefor.time + mean_sarrival - trim_starttime - (trig[0][0]/samp_rate)) < sphase_search_margin]
                 if len(trigs) > 0:
                     mintrigdiff = abs(prefor.time + mean_sarrival - trim_starttime - trigs[0][0][0])
                     besttrig = trigs[0][0][0]
                     best_cha = trigs[0][1]
+                    best_trig_margin = trigs[0][2]
+                    best_band = trigs[0][3]
                     for trig in trigs:
-                        if abs(prefor.time + mean_sarrival - trim_starttime - trig[0][0]) < mintrigdiff:
+                        if abs(prefor.time + mean_sarrival - trim_starttime - trig[0][0]) < mintrigdiff and \
+                            trig[2] > best_trig_margin:
                             mintrigdiff = abs(prefor.time + mean_sarrival - trim_starttime - trig[0][0])
                             besttrig = trig[0][0]
                             best_cha = trig[1]
-                    spick = createPickObject(network.code, station.code, best_cha, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S')
+                            best_trig_margin = trig[2]
+                            best_band = trig[3]
+                    if best_trig_margin > 2:
+                        s_res = trim_starttime + (besttrig/samp_rate) - prefor.time - mean_sarrival
+                        spick = createPickObject(network.code, station.code, best_cha, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S', s_res)
             elif pickP and ptime <= 0:
                 # this needs to be thought through and implemented, dummy behavior for now
                 ppick = None
@@ -206,8 +224,38 @@ def pick_sphase(event):
                 s_phases.extend([p for p in pick_p_s_phases(sts.networks[0], sts.networks[0].stations[0], prefor, available_ptime=p.time) if p])
     return s_phases
 
-#evtfiles = glob.glob('event_sc3mls/*.xml')
-evtfiles = glob.glob('event_sc3mls/978299.xml')
+def add_picks_to_event(event, picks):
+    for pick in picks:
+        net = pick[0].waveform_id.network_code
+        sta = pick[0].waveform_id.station_code
+        try:
+            sts = client.get_stations(network=net, station=sta)
+        except Exception, e:
+            print ('FDSN client could not retrieve station details for net='+net+', sta='+sta)
+            print(str(e))
+            continue
+        stalat = sts.networks[0].stations[0].latitude
+        stalon = sts.networks[0].stations[0].longitude
+        prefor = evts[0].preferred_origin() or evts[0].origins[0]
+        evtlat = event.preferred_origin().latitude
+        evtlon = event.preferred_origin().longitude
+        az = get_backazimuth(stalat=stalat, stalon=stalon, evtlat=evtlat, evtlon=evtlon)
+        arr = Arrival(resource_id=ResourceIdentifier(id=pick[0].resource_id.id+"#"),
+                      pick_id=pick[0].resource_id,
+                      phase='S',
+                      azimuth=az['azimuth'],
+                      distance=az['distance'],
+                      time_residual=pick[1],
+                      time_weight=pick[2],
+                      earth_model_id=ResourceIdentifier('quakeml:niket.ga.gov.au/earthmodel/iasp91'),
+                      creation_info=CreationInfo(author='niket',
+                                creation_time=UTCDateTime(),
+                                agency_id='niket-ga-picker'))
+        event.picks.append(pick[0])
+        event.preferred_origin().arrivals.append(arr)
+
+evtfiles = glob.glob('event_xmls_sc3ml/976*.xml')
+outdir = 'event_xmls_sc3ml_out'
 for f in evtfiles:
     evts = read_events(f)
     if evts and evts[0]:
@@ -215,4 +263,6 @@ for f in evtfiles:
         if prefor.time > UTCDateTime('2015-03-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2015-04-01T00:00:00.000000Z'):
             s_picks = pick_sphase(evts[0])
 #            new_picks = pick_new_phases(evts[0])
-
+            if s_picks and len(s_picks) > 0:
+                add_picks_to_event(evts[0], s_picks)
+                evts[0].write(os.path.join(outdir, os.path.basename(f)), format='SC3ML')
