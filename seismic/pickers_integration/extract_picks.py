@@ -183,7 +183,7 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
                 return ppick, spick
             else:
                 return None, spick
-    return None
+    return None, None
 
 def find_trigger_parallel(trace, starttime, endtime):
     pass
