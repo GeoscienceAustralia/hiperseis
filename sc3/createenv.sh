@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
-# manage env variables
+# Setup virtualenv
+echo '' >> $HOME/.bashrc
+echo "source /usr/bin/virtualenvwrapper.sh" >> $HOME/.bashrc
+source $HOME/.bashrc
+
+# manage env variables, if ilocroot exists then skip
 if [ -z ${ILOCROOT+x} ]; then
     cat $HOME/passive-seismic/sc3/sc3_envs.txt >> $HOME/.bashrc;
     source $HOME/.bashrc
-    env
 fi
 
 # clone passive-seismic in home directory after git install
@@ -14,10 +18,6 @@ if [ ! -d "$HOME/passive-seismic" ]; then
 	git clone https://github.com/GeoscienceAustralia/passive-seismic.git
 	cd $CWD
 fi
-
-# Setup virtualenv
-echo '' >> $HOME/.bashrc
-echo "source /usr/bin/virtualenvwrapper.sh" >> $HOME/.bashrc
 
 echo "Installing passive seismic software....."
 
