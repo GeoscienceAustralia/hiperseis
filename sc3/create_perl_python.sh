@@ -45,7 +45,7 @@ perl -MCPAN -e 'my $c = "CPAN::HandleConfig"; $c->load(doit => 1, autoconfig => 
     cpan App::cpanminus && \
     cpanm version && \
     cpanm PDL && \
-    rm -rf /root/.cpanm
+    rm -rf $HOME/.cpanm
 
 # Install GMP with mapproject from source, yum install does not bring
 # mapproject, required by Istvan's scripts
@@ -102,4 +102,4 @@ cd $HOME && \
     export CC=/usr/lib64/openmpi/bin/mpicc && \
     python setup.py configure --mpi --hdf5=/usr/local/hdf5/ && \
     sudo python setup.py install && \
-    cd $HOME && rm -rf h5py
+    cd $HOME && sudo rm -rf h5py
