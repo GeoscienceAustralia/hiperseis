@@ -7,8 +7,8 @@ RUN yum update -y
 RUN yum groupinstall 'Development Tools' -y
 RUN yum install -y git
 
-RUN git clone https://github.com/GeoscienceAustralia/passive-seismic/
-RUN cd passive-seismic && git checkout -b perl_automation origin/perl_automation
+RUN git clone https://github.com/GeoscienceAustralia/passive-seismic/ && \
+    cd $HOME/passive-seismic && git submodule update --init --recursive --remote
 
 RUN sed -i 's/sudo //g' $HOME/passive-seismic/sc3/create_perl_python.sh
 RUN chmod +x $HOME/passive-seismic/sc3/create_perl_python.sh
