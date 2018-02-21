@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -e
+set -o pipefail
 sudo yum update -y
 sudo yum groupinstall 'Development Tools' -y
 sudo yum install -y wget \
