@@ -45,6 +45,7 @@ perl -MCPAN -e 'my $c = "CPAN::HandleConfig"; $c->load(doit => 1, autoconfig => 
     cpan App::cpanminus && \
     cpanm version && \
     cpanm PDL && \
+    cpanm DBI && \
     rm -rf $HOME/.cpanm
 
 # Install GMP with mapproject from source, yum install does not bring
