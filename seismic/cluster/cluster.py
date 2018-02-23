@@ -333,7 +333,7 @@ def process_event(event, stations, grid, wave_type, counter):
 
     # the following definition ensures a 8 digit event number that is also
     # unique
-    assert counter < 1000000, 'Counter must be less than 100000'
+    assert counter < 100000, 'Counter must be less than 100000'
     ev_number = int(str(counter) + '{0:0=3d}'.format(mpiops.rank))
 
     p_arrivals = []
