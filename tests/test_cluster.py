@@ -554,5 +554,7 @@ def test_parallel_gather(pair_type, random_filename):
 
     # assert all columns of both df's contain the same number of elements
     for c in sdf_p.columns:
+        if c == 3:  # c=3 is the event number which depends on the mpi rank
+            continue
         assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
         assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
