@@ -267,6 +267,7 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
 
     arrival_writer = ArrivalWriter(mpiops.rank, wave_type=wave_type,
                                    output_file=output_file)
+    process_event_counter = 0
 
     for i, xml in enumerate(p_event_xmls):
         if xml is not None:
@@ -281,8 +282,9 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
             # one event xml could contain multiple events
             try:
                 for e in read_events(xml).events:
+                    process_event_counter += 1
                     p_arr_t, s_arr_t, m_st, a_st = process_event(
-                        e, stations, grid, wave_type)
+                        e, stations, grid, wave_type, process_event_counter)
                     p_arr += p_arr_t
                     s_arr += s_arr_t
                     missing_stations += m_st
@@ -305,7 +307,7 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
     arrival_writer.close()
 
 
-def process_event(event, stations, grid, wave_type):
+def process_event(event, stations, grid, wave_type, counter):
     """
     :param event: obspy.core.event.Event class instance
     :param stations: dict
@@ -313,13 +315,26 @@ def process_event(event, stations, grid, wave_type):
     :param grid: Grid class instance
     :param wave_type: str
         Wave type pair to generate inversion inputs. See `gather` function.
+    :param counter: int
+        event counter in this process
     """
     p_type, s_type = wave_type.split()
 
     # use preferred origin timestamp as the event number
     # if preferred origin is not populated, use the first origin timestamp
     origin = event.preferred_origin() or event.origins[0]
-    ev_number = int(origin.time.timestamp)
+
+    # TODO: longer term uncomment the following line when fortran TT code is
+    # updated to use longer integers
+    # ev_number = int(origin.time.timestamp)
+
+    # TODO: delete this definition of ev_number when fortran code can use
+    # longer integers
+
+    # the following definition ensures a 8 digit event number that is also
+    # unique
+    assert counter < 1000000, 'Counter must be less than 100000'
+    ev_number = int(str(counter) + '{0:0=3d}'.format(mpiops.rank))
 
     p_arrivals = []
     s_arrivals = []
