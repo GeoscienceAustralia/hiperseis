@@ -55,7 +55,7 @@ def test_single_event_output(xml):
     grid = Grid(nx=1440, ny=720, dz=25.0)
     p_arr, s_arr, miss_sta, participating_sta = process_event(
         read_events(xml)[0], stations=read_stations(stations_file),
-        grid=grid, wave_type='P S')
+        grid=grid, wave_type='P S', counter=1)
 
     # clear the station_code
     p_arr = [p[:11] + [p[12]] for p in p_arr]
@@ -82,7 +82,7 @@ def test_single_event_arrivals(event_xml, arr_type):
         read_events(event_xml)[0],
         stations=stations,
         grid=grid,
-        wave_type=arr_type)
+        wave_type=arr_type, counter=1)
 
     # clear the station_code
     p_arr = [p[:11] + [p[12]] for p in p_arr]
