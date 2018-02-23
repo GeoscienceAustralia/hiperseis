@@ -37,6 +37,8 @@ cluster match sorted_P.csv sorted_S.csv -p matched_P.csv -s matched_S.csv
 # zones
 # if matching is not performed, replace matched_P.csv by sorted_P.csv and
 # matched_S.csv by sorted_P.csv
+cluster zone sorted_S.csv -z '0 -50.0 100 190' -r sorted_region_S.csv -g sorted_global_S.csv
+cluster zone sorted_P.csv -z '0 -50.0 100 190' -r sorted_region_P.csv -g sorted_global_P.csv
 cluster zone matched_P.csv -z '0 -50.0 100 190' -r region_P.csv -g global_P.csv
 cluster zone matched_S.csv -z '0 -50.0 100 190' -r region_S.csv -g global_S.csv
 
