@@ -456,7 +456,7 @@ def sort(output_file, sorted_file, residual_cutoff):
                                names=column_names)
     cluster_data = cluster_data[abs(cluster_data['residual'])
                                 < residual_cutoff]
-
+    cluster_data['source_depth'] = cluster_data['source_depth']/1000.0
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
