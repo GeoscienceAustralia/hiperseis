@@ -74,12 +74,16 @@ def get_backazimuth(stalat, stalon, evtlat, evtlon):
 def calc_distance(rec, src):
     return calc_dist(src.latitude, src.longitude, rec.latitude, rec.longitude, 6371, 0)
 
-def find_best_bounds(cft, samp_rate):
+def find_best_bounds(cft, samp_rate, phase='S'):
+    upper_limit = 5
     bestupper = 1.5
+    if phase == 'P':
+        upper_limit = 10
+        bestupper = 2.0
     bestlower = 0.75
     max_margin = bestupper - bestlower
-    leasttrigs = len(trigger_onset(cft, 1.5, 0.75, max_len=(60*samp_rate), max_len_delete=True))
-    for upper in np.linspace(1.5, 5, 15):
+    leasttrigs = len(trigger_onset(cft, bestupper, bestlower, max_len=(60*samp_rate), max_len_delete=True))
+    for upper in np.linspace(bestupper, upper_limit, 15):
         for lower in [0.875, 0.75, 0.625, 0.5, 0.375]:
             t = trigger_onset(cft, upper, lower, max_len=(60*samp_rate), max_len_delete=True)
             if len(t) > 0 and (upper - lower) > max_margin and len(t) <= leasttrigs:
@@ -142,9 +146,14 @@ def pick_p_s_phases(network, station, prefor, pickP=False, available_ptime=None)
                 ppick = createPickObject(network.code, station.code, stz[0].stats.channel, trim_starttime+ptime, az['backazimuth'] if az else None, 'P', p_res)
                 trim_starttime = prefor.time+sarrivals[0].time-slookback
                 trim_endtime = prefor.time+sarrivals[-1].time+slookahead
-                stz_for_s = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
-                stn_for_s = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
-                ste_for_s = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
+                try:
+                    stz_for_s = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
+                    stn_for_s = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
+                    ste_for_s = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
+                except Exception, e:
+                    print ('FDSN client could not retrieve waveform for net='+network.code+', sta='+station.code+' around time='+str(prefor.time+arrivals[0].time))
+                    print(str(e))
+                    return None, None
                 trigs= []
                 if trim_starttime < available_ptime:
                     trim_starttime = available_ptime + 10
