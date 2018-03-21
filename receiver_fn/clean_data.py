@@ -39,7 +39,8 @@ def extract_filter_params(trace):
     p_arrivals = model.get_travel_times_geo(trace.stats.event_depth, trace.stats.event_latitude,
                      trace.stats.event_longitude, trace.stats.station_latitude, trace.stats.station_longitude, phase_list=['P',])
     mean_parrival = np.mean([parr.time for parr in p_arrivals])
-    for band in [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9)]:
+    for band in [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9),
+                 (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5), (5.5, 6.5), (6.5, 7.5), (7.5, 8.5), (8.5, 9.5)]:
         tr_copy = trace.copy()
         clean_trace(tr_copy, tr_copy.stats.starttime, tr_copy.stats.endtime, freqmin=band[0], freqmax=band[1])
         cft = recursive_sta_lta(tr_copy.data, int(5*samp_rate), int(20*samp_rate))
@@ -63,7 +64,7 @@ def extract_filter_params(trace):
         return (best_band, best_trig_margin, best_upper)
     else:
         print ('Something went wrong ... ')
-    return None
+    return None, None, None
 
 in_streamfile = 'data/7X-rf_profile_data-15deg.h5'
 out_streamfile = 'data/7X-rf_profile_data-15deg-out.h5'
@@ -75,9 +76,15 @@ ste = [tr for tr in st if tr.stats.channel.endswith('E')]
 output_from_z = []
 for trz, trn, tre in zip(stz, stn, ste):
     band, margin, upper = extract_filter_params(trz)
-    for tr in [trz, trn, tre]:
-        clean_trace(tr, tr.stats.starttime, tr.stats.endtime, freqmin=band[0], freqmax=band[1])
-        print('Plot the cleaned trace here')
+    if band and margin and upper:
+        for tr in [trz, trn, tre]:
+            clean_trace(tr, tr.stats.starttime, tr.stats.endtime, freqmin=band[0], freqmax=band[1])
+            print('Plot the cleaned trace here')
+    else:
+        print('None of filters produced an acceptable p-pick. discarding the 3 traces whose z-comp has stats: '+str(trz.stats))
+        stz.remove(trz)
+        stn.remove(trn)
+        ste.remove(tre)
 
 st_out = stz + stn + ste
 st_out_rf = RFStream(st_out)
