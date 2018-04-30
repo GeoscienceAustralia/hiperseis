@@ -17,18 +17,19 @@ def create_chunk(trace, st_time, end_time, sta):
     dest_dir = os.path.join(out_dir, str(trace.stats.starttime.timetuple().tm_year), str(tr.stats.starttime.timetuple().tm_yday))
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
-    st_out.write(os.path.join(dest_dir, sta.code+'_'+str(st_time)+'_'+str(end_time)+'.ms'), format='MSEED')
+    st_out.write(os.path.join(dest_dir, sta.code+'_'+trace.stats.channel+'_'+str(st_time)+'_'+str(end_time)+'.ms'), format='MSEED')
 
 for sta in inv.networks[0].stations:
     if asdf.waveforms.__contains__(inv.networks[0].code+'.'+sta.code):
         for i in asdf.waveforms[inv.networks[0].code+'.'+sta.code].list():
-            start_time = UTC(i.split("__")[1])
-            st = asdf.waveforms[inv.networks[0].code+'.'+sta.code][i]
-            while (start_time+86400<UTC(i.split("__")[2])):
-                tr = st[0].copy()
-                create_chunk(tr, start_time, start_time+86400, sta)
-                start_time += 86400
-            if start_time < UTC(i.split("__")[2]):
-                tr=st[0].copy()
-                create_chunk(tr, start_time, UTC(i.split("__")[2]), sta)
+            if i.endswith('raw_recording'):
+                start_time = UTC(i.split("__")[1])
+                st = asdf.waveforms[inv.networks[0].code+'.'+sta.code][i]
+                while (start_time+86400<UTC(i.split("__")[2])):
+                    tr = st[0].copy()
+                    create_chunk(tr, start_time, start_time+86400, sta)
+                    start_time += 86400
+                if start_time < UTC(i.split("__")[2]):
+                    tr=st[0].copy()
+                    create_chunk(tr, start_time, UTC(i.split("__")[2]), sta)
 
