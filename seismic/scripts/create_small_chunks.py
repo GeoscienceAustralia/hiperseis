@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from obspy import read_inventory, Stream
 from obspy import UTCDateTime as UTC
 from pyasdf import ASDFDataSet
@@ -25,6 +26,12 @@ for sta in inv.networks[0].stations:
             if i.endswith('raw_recording'):
                 start_time = UTC(i.split("__")[1])
                 st = asdf.waveforms[inv.networks[0].code+'.'+sta.code][i]
+                medn = np.median(st[0].data)
+                while (abs(st[0].data[np.argmax(st[0].data)]) > 1e8 or abs(st[0].data[np.argmin(st[0].data)]) > 1e8):
+                    if abs(st[0].data[np.argmax(st[0].data)]) > 1e8:
+                        st[0].data[np.argmax(st[0].data)] = abs(medn) if st[0].data[np.argmax(st[0].data)] > 0 else -abs(medn)
+                    if abs(st[0].data[np.argmin(st[0].data)]) > 1e8:
+                        st[0].data[np.argmin(st[0].data)] = abs(medn) if st[0].data[np.argmin(st[0].data)] > 0 else -abs(medn)
                 while (start_time+86400<UTC(i.split("__")[2])):
                     tr = st[0].copy()
                     create_chunk(tr, start_time, start_time+86400, sta)
