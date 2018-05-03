@@ -101,7 +101,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
         try:
             trim_starttime = prefor.time+target_arrivals[0].time-lookback
             trim_endtime = prefor.time+target_arrivals[-1].time+lookahead
-            stz = client.get_waveforms('7X', station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
+            stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
             stz_raw = stz.copy()
             traces.append(stz[0])
             mult_const = 10
@@ -302,12 +302,16 @@ outdir = '/home/ubuntu/isc-out-final/2009'
 inv = read_inventory('/home/ubuntu/7X_SH.xml')
 for f in evtfiles:
     evts = read_events(f)
-    if evts and evts[0]:
-        prefor = evts[0].preferred_origin() or evts[0].origins[0]
-        if prefor.depth >= 0 and prefor.time > UTCDateTime('2009-06-15T00:00:00.000000Z') and prefor.time < UTCDateTime('2011-03-31T23:59:59.000000Z'):
-            print('Processing event => ' + str(evts[0]))
-            p_picks, s_picks = pick_phases(evts[0], inv)
-            evt_out = createEventObject(evts[0], p_picks, s_picks)
-            if evt_out:
-                evt_out.write(outdir+'/'+os.path.basename(f), format='SC3ML')
+    if evts:
+        count = 1
+        for evt in evts:
+            if evt:
+                prefor = evt.preferred_origin() or evt.origins[0]
+                if prefor.depth >= 0 and prefor.time > UTCDateTime('2009-06-15T00:00:00.000000Z') and prefor.time < UTCDateTime('2011-03-31T23:59:59.000000Z'):
+                    print('Processing event => ' + str(evt))
+                    p_picks, s_picks = pick_phases(evt, inv)
+                    evt_out = createEventObject(evt, p_picks, s_picks)
+                    if evt_out:
+                        evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
+            count += 1
 
