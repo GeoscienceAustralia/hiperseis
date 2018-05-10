@@ -1,29 +1,33 @@
 #!/usr/bin/env bash
 #PBS -P vy72
-#PBS -q normalbw
-#PBS -l walltime=2:00:00,mem=256GB,ncpus=56,jobfs=100GB
+#PBS -q express 
+###PBS -q normalbw
+#PBS -l walltime=2:00:00,mem=64GB,ncpus=32,jobfs=100GB
 #PBS -l wd
 #PBS -j oe
 
-module load python3/3.4.3 python3/3.4.3-matplotlib
+module load python3/3.6.2
 module load hdf5/1.8.14p openmpi/1.8
 module load geos/3.5.0 netcdf/4.4.1.1
 
 # setup environment
-export PATH=$HOME/.local/bin:$PATH
-export PYTHONPATH=$HOME/.local/lib/python3.4/site-packages:$PYTHONPATH
-export VIRTUALENVWRAPPER_PYTHON=/apps/python3/3.4.3/bin/python3
-export LANG=en_AU.UTF-8
-source $HOME/.local/bin/virtualenvwrapper.sh
+#export PYTHONPATH=$HOME/.local/lib/python3.6/site-packages:$PYTHONPATH
+#export LC_ALL=en_AU.UTF-8
+#export LANG=en_AU.UTF-8
+
+
+# User please modify the below INSTALL_DIR, where pstvenv is installed (see install_venv.sh) 
+INSTALL_DIR=/g/data/ha3/PST2
 
 # ELLIPCORR env variable should point to `passive-seismic/ellip-corr` dir
-export ELLIPCORR=$HOME/passive-seismic/ellip-corr
+export ELLIPCORR=$INSTALL_DIR/passive-seismic/ellip-corr
 
-# start the virtualenv
-workon seismic
+# start the virtualenv workon seismic
+source $INSTALL_DIR/pstvenv/bin/activate
 
 # gather
-mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/sudipta/event_xmls -w "P S"
+# mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/sudipta/event_xmls -w "P S"
+mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/events_xmls_sc3ml -w "P S"
 
 
 # sort
@@ -41,6 +45,7 @@ cluster zone sorted_S.csv -z '0 -50.0 100 190' -r sorted_region_S.csv -g sorted_
 cluster zone sorted_P.csv -z '0 -50.0 100 190' -r sorted_region_P.csv -g sorted_global_P.csv
 cluster zone matched_P.csv -z '0 -50.0 100 190' -r region_P.csv -g global_P.csv
 cluster zone matched_S.csv -z '0 -50.0 100 190' -r region_S.csv -g global_S.csv
+
 
 # alternative zone command using the param2x2, the parameter file used during
 # inversion
