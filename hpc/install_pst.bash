@@ -13,6 +13,7 @@ cd $INSTALL_DIR
 git clone https://github.com/GeoscienceAustralia/passive-seismic.git
 
 module load git/2.9.5
+cd passive-seismic
 /apps/git/2.9.5/bin/git submodule update --init --recursive --remote
 
 
@@ -60,6 +61,6 @@ pip3 install --process-dependency-links -e .[dev] --no-binary :all:
 
 # Once installation has completed, you can run the tests to verify everything has gone correctly:
 
-pip3 install pytest
+# pip3 install pytest
 
-pytest tests/
+# pytest tests/
