@@ -12,8 +12,8 @@ module load geos/3.5.0 netcdf/4.4.1.1
 
 # setup environment
 #export PYTHONPATH=$HOME/.local/lib/python3.6/site-packages:$PYTHONPATH
-#export LC_ALL=en_AU.UTF-8
-#export LANG=en_AU.UTF-8
+export LC_ALL=en_AU.UTF-8
+export LANG=en_AU.UTF-8
 
 
 # User please modify the below INSTALL_DIR, where pstvenv is installed (see install_venv.sh) 
