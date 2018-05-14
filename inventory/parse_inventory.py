@@ -158,4 +158,8 @@ def read_stations(station_file):
 
 
 if __name__ == "__main__":
-    gather_isc_stations()
+
+    #stations = gather_isc_stations()
+    stations =  read_all_stations()
+
+    print (len(stations.keys()))

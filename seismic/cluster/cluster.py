@@ -24,7 +24,7 @@ from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
-import ellipcorr
+#import ellipcorr
 from inventory.parse_inventory import read_all_stations
 
 DPI = asin(1.0)/90.0
@@ -911,3 +911,28 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
                 if (RADIUS - r) < 1000.0:
                     return True
     return False
+
+## ==========================Test the functions ==========================
+# cd into workdir
+# <fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/temp_works (master)
+# $ python2 ../seismic/cluster/cluster.py  ./events_xmls_test
+#
+# outputs ......some csv files?
+#
+#
+# <fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/temp_works (master)
+# $ ls -ltr
+# drwxr-sr-x 2 fzhang fzhang 20480 May 14 11:55 events_xmls_test
+# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_S.csv
+# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_P.csv
+# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_participating_stations.csv
+# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_missing_stations.csv
+
+## ======================================================================
+if __name__ == "__main__":
+    import sys
+
+    xmldir =sys.argv[1]
+    print("cluster.py ", xmldir)
+    events_dir=sys.argv[1]
+    gather()
