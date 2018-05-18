@@ -150,16 +150,22 @@ def recursive_glob2(dir_list, ext='*.xml'):
     return filelist
 
 
-def get_paths_from_file(csvfile):
+def get_paths_from_csv(csvfile):
     """
     Parse a text/csv file to extract a list of paths, where events xml files are stored, to be gathered.
     :param csvfile: csv file
     :return: list_of_paths
     """
 
-    #todo
+    paths=[] # ["/g/data/ha3/events_xmls_sc3ml/", "/g/data/ha3/fxz547/travel_time_tomography/new_events20180516/"]
 
-    paths=[ "/g/data/ha3/events_xmls_sc3ml/", "/g/data/ha3/fxz547/travel_time_tomography/new_events20180516/"]
+    with open(csvfile) as csvf:
+        reader = csv.reader(csvf)
+
+        for row in reader:
+            print(', '.join(row))
+
+            paths.extend(row)
 
     return paths
 
@@ -189,7 +195,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     log.info("Gathering all arrivals")
 
     if os.path.isfile(events_dir): # is a text csv file containing multiple dirs.
-        event_dirs= get_paths_from_file(events_dir)
+        event_dirs= get_paths_from_csv(events_dir)
         event_xmls = recursive_glob2(event_dirs)
     elif os.path.isdir(events_dir):
         event_xmls = recursive_glob(events_dir, ext='*.xml')
@@ -959,8 +965,12 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
 ## ======================================================================
 if __name__ == "__main__":
     import sys
+    #
+    # xmldir =sys.argv[1]
+    # print("cluster.py ", xmldir)
+    # events_dir=sys.argv[1]
+    # gather()
 
-    xmldir =sys.argv[1]
-    print("cluster.py ", xmldir)
-    events_dir=sys.argv[1]
-    gather()
+    # testing the get_paths_from_csv
+    ev_paths=get_paths_from_csv("/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/cluster/example_events_paths.csv")
+    print (ev_paths)
