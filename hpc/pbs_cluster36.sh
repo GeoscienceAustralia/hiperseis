@@ -20,7 +20,7 @@ export LANG=en_AU.UTF-8
 INSTALL_DIR=/g/data/ha3/PST2
 
 # ELLIPCORR env variable should point to `passive-seismic/ellip-corr` dir
-export ELLIPCORR=$INSTALL_DIR/passive-seismic/ellip-corr
+export ELLIPCORR=/g/data/ha3/fxz547/Githubz/passive-seismic/ellip-corr # check this dir is correct
 
 # start the virtualenv workon seismic
 source $INSTALL_DIR/pstvenv/bin/activate

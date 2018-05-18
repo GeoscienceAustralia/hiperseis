@@ -24,7 +24,7 @@ from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
-#import ellipcorr
+import ellipcorr
 from inventory.parse_inventory import read_all_stations
 
 DPI = asin(1.0)/90.0
@@ -140,6 +140,29 @@ def recursive_glob(dirname, ext='*.xml'):
             matches.append(os.path.join(root, filename))
     return matches
 
+def recursive_glob2(dir_list, ext='*.xml'):
+    """ get all the xml files from a dir list"""
+
+    filelist=[]
+    for adir in dir_list:
+        filelist.extend(recursive_glob(adir))
+
+    return filelist
+
+
+def get_paths_from_file(csvfile):
+    """
+    Parse a text/csv file to extract a list of paths, where events xml files are stored, to be gathered.
+    :param csvfile: csv file
+    :return: list_of_paths
+    """
+
+    #todo
+
+    paths=[ "/g/data/ha3/events_xmls_sc3ml/", "/g/data/ha3/fxz547/travel_time_tomography/new_events20180516/"]
+
+    return paths
+
 
 @cli.command()
 @click.argument('events_dir',
@@ -165,10 +188,15 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     """
     log.info("Gathering all arrivals")
 
-    if os.path.isfile(events_dir):
-        event_xmls = [events_dir]
-    else:
+    if os.path.isfile(events_dir): # is a text csv file containing multiple dirs.
+        event_dirs= get_paths_from_file(events_dir)
+        event_xmls = recursive_glob2(event_dirs)
+    elif os.path.isdir(events_dir):
         event_xmls = recursive_glob(events_dir, ext='*.xml')
+    else:
+        event_xmls=None
+        raise Exception("Invalid Input Events Dir")
+
 
     grid = Grid(nx=nx, ny=ny, dz=dz)
 
