@@ -1,3 +1,10 @@
+"""
+to run this test you may need to sudo pip2 install --upgrade pytest
+    pytest -v tests/test_event.py
+    pytest -v tests/test_cluster.py
+    pytest -v tests/test_config.py
+
+"""
 import os
 from obspy import read_events
 
