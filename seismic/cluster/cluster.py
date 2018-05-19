@@ -13,6 +13,7 @@ from math import asin, sin, acos, sqrt
 import matplotlib
 import numpy as np
 import pandas as pd
+
 # Force matplotlib to not use any Xwindows backend
 matplotlib.use('Agg')
 from matplotlib import pylab as plt
@@ -27,8 +28,8 @@ from seismic import mpiops
 import ellipcorr
 from inventory.parse_inventory import read_all_stations
 
-DPI = asin(1.0)/90.0
-R2D = 90./asin(1.)
+DPI = asin(1.0) / 90.0
+R2D = 90. / asin(1.)
 FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
@@ -117,8 +118,8 @@ class Grid:
     def __init__(self, nx, ny, dz):
         self.nx = nx
         self.ny = ny
-        self.dx = 360.0/nx
-        self.dy = 180.0/ny
+        self.dx = 360.0 / nx
+        self.dy = 180.0 / ny
         self.dz = dz
 
 
@@ -140,10 +141,11 @@ def recursive_glob(dirname, ext='*.xml'):
             matches.append(os.path.join(root, filename))
     return matches
 
+
 def recursive_glob2(dir_list, ext='*.xml'):
     """ get all the xml files from a dir list"""
 
-    filelist=[]
+    filelist = []
     for adir in dir_list:
         filelist.extend(recursive_glob(adir))
 
@@ -157,7 +159,7 @@ def get_paths_from_csv(csvfile):
     :return: list_of_paths
     """
 
-    paths=[] # ["/g/data/ha3/events_xmls_sc3ml/", "/g/data/ha3/fxz547/travel_time_tomography/new_events20180516/"]
+    paths = []  # ["/g/data/ha3/events_xmls_sc3ml/", "/g/data/ha3/fxz547/travel_time_tomography/new_events20180516/"]
 
     with open(csvfile) as csvf:
         reader = csv.reader(csvf)
@@ -194,15 +196,14 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
     """
     log.info("Gathering all arrivals")
 
-    if os.path.isfile(events_dir): # is a text csv file containing multiple dirs.
-        event_dirs= get_paths_from_csv(events_dir)
+    if os.path.isfile(events_dir):  # is a text csv file containing multiple dirs.
+        event_dirs = get_paths_from_csv(events_dir)
         event_xmls = recursive_glob2(event_dirs)
     elif os.path.isdir(events_dir):
         event_xmls = recursive_glob(events_dir, ext='*.xml')
     else:
-        event_xmls=None
+        event_xmls = None
         raise Exception("Invalid Input Events Dir")
-
 
     grid = Grid(nx=nx, ny=ny, dz=dz)
 
@@ -223,7 +224,6 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 
 
 def _gather_all(output_file, s_type):
-
     final_s_file = output_file + '_' + s_type + '.csv'
     s_arrs = []
     for r in range(mpiops.size):
@@ -310,7 +310,7 @@ def process_many_events(event_xmls, grid, stations, wave_type, output_file,
             missing_stations = []
             arriving_stations = []
             log.info('Reading event file {xml}: {i} of {files} in process'
-                     ' {process}'.format(i=i+1, files=len(p_event_xmls),
+                     ' {process}'.format(i=i + 1, files=len(p_event_xmls),
                                          xml=os.path.basename(xml),
                                          process=mpiops.rank))
             # one event xml could contain multiple events
@@ -424,7 +424,7 @@ def process_event(event, stations, grid, wave_type, counter):
             ellipticity_corr = ellipcorr.ellipticity_corr(
                 phase=arr.phase,
                 edist=degrees_to_source,
-                edepth=ev_depth/1000.0,
+                edepth=ev_depth / 1000.0,
                 # TODO: check co-latitude definition
                 # no `ecolat` bounds check in fortran ellipcorr subroutine
                 # no `origin.latitude` bounds check in obspy
@@ -490,7 +490,7 @@ def sort(output_file, sorted_file, residual_cutoff):
                                names=column_names)
     cluster_data = cluster_data[abs(cluster_data['residual'])
                                 < residual_cutoff]
-    cluster_data['source_depth'] = cluster_data['source_depth']/1000.0
+    cluster_data['source_depth'] = cluster_data['source_depth'] / 1000.0
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
@@ -650,7 +650,6 @@ def _write_stats(df, original_file):
 
 
 def _get_region_string(parameter_file, region):
-
     if not (parameter_file or region):
         raise ValueError('One of parameter file or region string need to be '
                          'supplied')
@@ -677,7 +676,6 @@ def _get_region_string(parameter_file, region):
 
 
 def _parse_parameter_file(param_file):
-
     with open(param_file, 'r') as f:
         lines = [l.strip() for l in f]
 
@@ -747,7 +745,7 @@ def plot(arrivals_file, region):  # pragma: no cover
                            [dat[SOURCE_LATITUDE], dat[STATION_LATITUDE]],
                            color='b', zorder=i))
     ANZ.drawcoastlines(linewidth=2.0, color='k',
-                       zorder=sources_and_stations.shape[0]+1)
+                       zorder=sources_and_stations.shape[0] + 1)
 
     # ax.set_xlim(reg.leftlon - 5, reg.rightlon + 5)
     # ax.set_ylim(reg.bottomlat - 5, reg.upperlat + 5)
@@ -769,7 +767,7 @@ def _plot_on_map(sources_and_stations, lon_str, lat_str,
 
 
 def _source_or_stations_in_region(arrivals, region, lat_str, lon_str,
-                                  fig_name):   # pragma: no cover
+                                  fig_name):  # pragma: no cover
     condition = (
         (arrivals[lat_str] <= region.upperlat)
         &
@@ -814,7 +812,6 @@ def _draw_paras_merids(m):
 
 
 def _in_region(region, df, grid_size):
-
     # convert longitude to co-longitude
     df[SOURCE_LONGITUDE] = df[SOURCE_LONGITUDE] % 360
     df[STATION_LONGITUDE] = df[STATION_LONGITUDE] % 360
@@ -827,30 +824,30 @@ def _in_region(region, df, grid_size):
 
     # row indices of all in region arrivals
     df_region = df[
+        (
             (
-                (
-                    (region.leftlon < df[SOURCE_LONGITUDE]) &
-                    (df[SOURCE_LONGITUDE] < region.rightlon)
-                )
-                &
-                (
-                    (region.bottomlat < df[SOURCE_LATITUDE]) &
-                    (df[SOURCE_LATITUDE] < region.upperlat)
-                )
+                (region.leftlon < df[SOURCE_LONGITUDE]) &
+                (df[SOURCE_LONGITUDE] < region.rightlon)
             )
-            |
+            &
             (
-                (
-                    (region.leftlon < df[STATION_LONGITUDE]) &
-                    (df[STATION_LONGITUDE] < region.rightlon)
-                )
-                &
-                (
-                    (region.bottomlat < df[STATION_LATITUDE]) &
-                    (df[STATION_LATITUDE] < region.upperlat)
-                )
+                (region.bottomlat < df[SOURCE_LATITUDE]) &
+                (df[SOURCE_LATITUDE] < region.upperlat)
             )
-    ]
+        )
+        |
+        (
+            (
+                (region.leftlon < df[STATION_LONGITUDE]) &
+                (df[STATION_LONGITUDE] < region.rightlon)
+            )
+            &
+            (
+                (region.bottomlat < df[STATION_LATITUDE]) &
+                (df[STATION_LATITUDE] < region.upperlat)
+            )
+        )
+        ]
 
     # dataframe excluding in region arrivals
     df_ex_region = df.iloc[df.index.difference(df_region.index)]
@@ -882,28 +879,28 @@ def _intersect_region(df, region, grid_size):  # pragma: no cover
     delta = df['locations2degrees']
 
     # operations on pd.Series
-    nms = (delta/grid_size).astype(int)
-    ar = pe*DPI
-    ast = ps*DPI
-    br = re*DPI
-    bs = rs*DPI
+    nms = (delta / grid_size).astype(int)
+    ar = pe * DPI
+    ast = ps * DPI
+    br = re * DPI
+    bs = rs * DPI
 
-    x1 = RADIUS*np.sin(ar)*np.cos(br)
-    y1 = RADIUS*np.sin(ar)*np.sin(br)
-    z1 = RADIUS*np.cos(ar)
-    x2 = RADIUS*np.sin(ast)*np.cos(bs)
-    y2 = RADIUS*np.sin(ast)*np.sin(bs)
-    z2 = RADIUS*np.cos(ast)
-    dx = (x2-x1)/nms
-    dy = (y2-y1)/nms
-    dz = (z2-z1)/nms
+    x1 = RADIUS * np.sin(ar) * np.cos(br)
+    y1 = RADIUS * np.sin(ar) * np.sin(br)
+    z1 = RADIUS * np.cos(ar)
+    x2 = RADIUS * np.sin(ast) * np.cos(bs)
+    y2 = RADIUS * np.sin(ast) * np.sin(bs)
+    z2 = RADIUS * np.cos(ast)
+    dx = (x2 - x1) / nms
+    dy = (y2 - y1) / nms
+    dz = (z2 - z1) / nms
 
     in_cross = []
 
     # TODO: vectorize this loop
     for i, n in enumerate(nms):
         in_cross.append(_in_cross_region(dx[i], dy[i], dz[i], n, region, x1[i],
-                        y1[i], z1[i]))
+                                         y1[i], z1[i]))
     df['cross_region'] = pd.Series(in_cross)
     return df
 
@@ -946,25 +943,13 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
                     return True
     return False
 
-## ==========================Test the functions ==========================
-# cd into workdir
-# <fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/temp_works (master)
-# $ python2 ../seismic/cluster/cluster.py  ./events_xmls_test
-#
-# outputs ......some csv files?
-#
-#
-# <fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/temp_works (master)
-# $ ls -ltr
-# drwxr-sr-x 2 fzhang fzhang 20480 May 14 11:55 events_xmls_test
-# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_S.csv
-# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_P.csv
-# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_participating_stations.csv
-# -rw-rw-r-- 1 fzhang fzhang     0 May 14 14:36 outfile_missing_stations.csv
 
+## ================= Quick Testings of the functions ====================
+# cd into passive-seismic
 ## ======================================================================
 if __name__ == "__main__":
     import sys
+
     #
     # xmldir =sys.argv[1]
     # print("cluster.py ", xmldir)
@@ -972,5 +957,11 @@ if __name__ == "__main__":
     # gather()
 
     # testing the get_paths_from_csv
-    ev_paths=get_paths_from_csv("/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/cluster/example_events_paths.csv")
-    print (ev_paths)
+    if len(sys.argv) > 1:
+        ev_paths_csv = sys.argv[1]
+    else:
+        dir_of_this_script = os.path.dirname(__file__)
+        input_csv = os.path.join(dir_of_this_script, "example_events_paths.csv")
+        ev_paths_csv = get_paths_from_csv(input_csv)
+
+    print(ev_paths_csv)

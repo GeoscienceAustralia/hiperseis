@@ -61,7 +61,9 @@ python setup.py install
 cd $INSTALL_DIR/passive-seismic
 export GEOS_DIR=$GEOS_BASE
 pip3 install --process-dependency-links -e .[dev] --no-binary :all:
-#pip3 install --process-dependency-links -e . --no-binary :all:
+
+# alternative install commands tested in ubnuntu python2
+#sudo pip2 install --process-dependency-links -e .[dev] --no-binary :all:
 
 # additional stuffs:
 pip3 install flake8
