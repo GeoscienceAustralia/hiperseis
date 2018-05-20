@@ -164,7 +164,7 @@ def read_stations(station_file):
 
 
 if __name__ == "__main__":
-#    gather_isc_stations()
-    inv = read_inventory('/home/ubuntu/7W.xml')
-    df = convert_inventory_to_df(inv)
-    df.to_csv('/home/ubuntu/7W.csv')
+    gather_isc_stations()
+#    inv = read_inventory('/home/ubuntu/7W.xml')
+#    df = convert_inventory_to_df(inv)
+#    df.to_csv('/home/ubuntu/7W.csv')
