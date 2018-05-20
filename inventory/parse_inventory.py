@@ -4,7 +4,8 @@ import struct
 from os.path import join, dirname
 import logging
 from collections import namedtuple
-from obspy import UTCDateTime
+from obspy import read_inventory, UTCDateTime
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +34,12 @@ isc_file_2 = join(PASSIVE, 'inventory', 'iscehb.stn')
 
 Station = namedtuple('Station', 'station_code, latitude, longitude, '
                                 'elevation, network_code')
-
+def convert_inventory_to_df(inv):
+    df = pd.DataFrame(columns=['station_code', 'latitude', 'longitude', 'elevation', 'network_code'])
+    if inv and len(inv.networks) and len(inv.networks[0].stations):
+        for i, st in enumerate(inv.networks[0].stations):
+            df.loc[i] = [st.code, st.latitude, st.longitude, st.elevation, inv.networks[0].code]
+    return df
 
 def gather_isc_stations():
     log.info('Gathering isc and engdahl stations')
@@ -158,4 +164,7 @@ def read_stations(station_file):
 
 
 if __name__ == "__main__":
-    gather_isc_stations()
+#    gather_isc_stations()
+    inv = read_inventory('/home/ubuntu/7W.xml')
+    df = convert_inventory_to_df(inv)
+    df.to_csv('/home/ubuntu/7W.csv')
