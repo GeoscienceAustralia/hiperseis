@@ -130,26 +130,27 @@ class Grid:
 def cli(verbosity):
     pslog.configure(verbosity)
 
-
 def recursive_glob(dirname, ext='*.xml'):
     """
-    source: https://stackoverflow.com/a/2186565/3321542
+    Under the dirname recursively find all files with extension ext.
+    Return a list of the full-path to the files of interest.
+    See: https://stackoverflow.com/a/2186565/3321542
+    :param dirname: a single dir OR a list of dirs.
+    :param ext: eg, ".xml"
+    :return: a list of path2files
     """
-    matches = []
-    for root, dirnames, filenames in os.walk(dirname):
-        for filename in fnmatch.filter(filenames, ext):
-            matches.append(os.path.join(root, filename))
-    return matches
 
-
-def recursive_glob2(dir_list, ext='*.xml'):
-    """ get all the xml files from a dir list"""
-
-    filelist = []
-    for adir in dir_list:
-        filelist.extend(recursive_glob(adir))
-
-    return filelist
+    if isinstance(dirname, (list,)): # a list of dir
+        filelist = []
+        for adir in dirname:
+            filelist.extend(recursive_glob(adir))
+        return filelist
+    else: # input variable is a single dir
+        matches = []
+        for root, dirnames, filenames in os.walk(dirname):
+            for filename in fnmatch.filter(filenames, ext):
+                matches.append(os.path.join(root, filename))
+        return matches
 
 
 def get_paths_from_csv(csvfile):
@@ -198,7 +199,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
 
     if os.path.isfile(events_dir):  # is a text csv file containing multiple dirs.
         event_dirs = get_paths_from_csv(events_dir)
-        event_xmls = recursive_glob2(event_dirs)
+        event_xmls = recursive_glob(event_dirs)
     elif os.path.isdir(events_dir):
         event_xmls = recursive_glob(events_dir, ext='*.xml')
     else:
