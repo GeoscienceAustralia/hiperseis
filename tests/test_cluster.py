@@ -1,3 +1,8 @@
+"""
+TODO:
+pytest -v tests/test_cluster.py   # this is not working
+
+"""
 from __future__ import print_function, absolute_import
 import os
 from os.path import exists
@@ -16,6 +21,7 @@ from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from seismic.mpiops import rank
+import seismic
 from seismic.cluster.cluster import (process_event,
                                      process_many_events,
                                      Grid,
@@ -32,6 +38,7 @@ from inventory.parse_inventory import read_all_stations, read_stations
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
 EVENTS = os.path.join(TESTS, 'mocks', 'events')
+MOCK_DATA=os.path.join(TESTS,'mocks','data')
 xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
 engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
 stations_file = os.path.join(PASSIVE, 'inventory', 'stations.csv')
@@ -48,8 +55,26 @@ def arrival_type(request):
     return request.param
 
 
-@pytest.mark.filterwarnings("ignore")
+def test_get_paths_from_csv(path2csv=None):
+    """
+    testing the get_paths_from_csv
+    :param  paths2csv: path2 a csv file
+    :return:
+    """
+
+    if path2csv is None:
+        my_csv = os.path.join(MOCK_DATA, "example_events_paths.csv")
+        ev_paths = seismic.cluster.cluster.get_paths_from_csv(my_csv)
+
+        print("A list of path_dirs: ", ev_paths)
+
+        assert len(ev_paths) == 4
+
+
+# @pytest.mark.filterwarnings("ignore")
+# ???? xml=xmls[0]
 def test_single_event_output(xml):
+
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     grid = Grid(nx=1440, ny=720, dz=25.0)
@@ -69,7 +94,7 @@ def test_single_event_output(xml):
     assert len(participating_sta) == 10
 
 
-@pytest.mark.filterwarnings("ignore")
+# @pytest.mark.filterwarnings("ignore")
 def test_single_event_arrivals(event_xml, arr_type):
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
@@ -558,3 +583,11 @@ def test_parallel_gather(pair_type, random_filename):
             continue
         assert Counter(sdf_p[c].values) == Counter(pdf_p[c].values)
         assert Counter(sdf_s[c].values) == Counter(pdf_s[c].values)
+
+
+########################################################################
+if __name__ == "__main__":
+
+    test_single_event_output(xmls[0])  # this is OK
+
+    test_get_paths_from_csv()

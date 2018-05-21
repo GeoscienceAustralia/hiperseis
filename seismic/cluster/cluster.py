@@ -959,10 +959,11 @@ if __name__ == "__main__":
 
     # testing the get_paths_from_csv
     if len(sys.argv) > 1:
-        ev_paths_csv = sys.argv[1]
+        input_csv = sys.argv[1]
     else:
         dir_of_this_script = os.path.dirname(__file__)
         input_csv = os.path.join(dir_of_this_script, "example_events_paths.csv")
-        ev_paths_csv = get_paths_from_csv(input_csv)
 
-    print(ev_paths_csv)
+    ev_paths = get_paths_from_csv(input_csv)
+
+    print("A list of path_dirs: ", ev_paths)

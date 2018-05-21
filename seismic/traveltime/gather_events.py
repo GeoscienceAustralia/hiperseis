@@ -2,7 +2,7 @@
 Parse multiple events xml files to gather all info about seismic events, picks, arrivals, etc.
 
 How to Run:
-python seismic/gather_events.py /g/data/ha3/events_xmls_test /g/data/ha3/fxz547/travel_time_tomography/new_events20180516
+python seismic/traveltime/gather_events.py /g/data/ha3/events_xmls_test /g/data/ha3/fxz547/travel_time_tomography/new_events20180516
 """
 import seismic.cluster.cluster as cluster
 import os
