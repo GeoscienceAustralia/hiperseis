@@ -29,6 +29,7 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+*cache/
 nosetests.xml
 coverage.xml
 *,cover
@@ -55,3 +56,4 @@ ENV/
 .gitignore
 .idea/
 xcorqc/run.sh
+tempworks/

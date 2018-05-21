@@ -193,7 +193,7 @@ def get_paths_from_csv(csvfile):
               help='Wave type pair to generate inversion inputs')
 def gather(events_dir, output_file, nx, ny, dz, wave_type):
     """
-    Gather all source-station block pairs for all events in a directory.
+    Gather all source-station block pairs for all events in a list of directory.
     """
     log.info("Gathering all arrivals")
 
@@ -945,25 +945,26 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
     return False
 
 
-## ================= Quick Testings of the functions ====================
-# cd into passive-seismic
-## ======================================================================
+# ================= Quick Testings of the functions ====================
+# cd  passive-seismic/
+# $ python seismic/cluster/cluster.py
+# Usage: cluster.py [OPTIONS] COMMAND [ARGS]...
+#
+# Options:
+#   -v, --verbosity [DEBUG|INFO|WARNING|ERROR]
+#                                   Level of logging
+#   --help                          Show this message and exit.
+#
+# Commands:
+#   gather  Gather all source-station block pairs for all...
+#   match   Match source and station blocks and output...
+#   plot    This command will output a...
+#   sort    Sort and filter the arrivals.
+#   zone    `zone'ing the arrivals into three regions.
+# to show help on subcommands:
+# $ python cluster/cluster.py gather --help
+# $ python cluster/cluster.py gather -o out /g/data/ha3/events_xmls_test
+# ======================================================================
 if __name__ == "__main__":
-    import sys
 
-    #
-    # xmldir =sys.argv[1]
-    # print("cluster.py ", xmldir)
-    # events_dir=sys.argv[1]
-    # gather()
-
-    # testing the get_paths_from_csv
-    if len(sys.argv) > 1:
-        input_csv = sys.argv[1]
-    else:
-        dir_of_this_script = os.path.dirname(__file__)
-        input_csv = os.path.join(dir_of_this_script, "example_events_paths.csv")
-
-    ev_paths = get_paths_from_csv(input_csv)
-
-    print("A list of path_dirs: ", ev_paths)
+    cli()
