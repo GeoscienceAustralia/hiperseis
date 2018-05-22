@@ -1,6 +1,6 @@
 """
-TODO:
-pytest -v tests/test_cluster.py   # this is not working
+export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
+pytest -v tests/test_cluster.py   # this is partially working. issue with mpirun version options.
 
 """
 from __future__ import print_function, absolute_import
@@ -71,7 +71,7 @@ def test_get_paths_from_csv(path2csv=None):
         assert len(ev_paths) == 4
 
 
-# @pytest.mark.filterwarnings("ignore")
+@pytest.mark.filterwarnings("ignore")
 # ???? xml=xmls[0]
 def test_single_event_output(xml):
 
@@ -94,7 +94,7 @@ def test_single_event_output(xml):
     assert len(participating_sta) == 10
 
 
-# @pytest.mark.filterwarnings("ignore")
+@pytest.mark.filterwarnings("ignore")
 def test_single_event_arrivals(event_xml, arr_type):
     event = read_events(event_xml).events[0]
     origin = event.preferred_origin()
@@ -588,6 +588,6 @@ def test_parallel_gather(pair_type, random_filename):
 ########################################################################
 if __name__ == "__main__":
 
-    test_single_event_output(xmls[0])  # this is OK
+    test_single_event_output(xmls[0])  # this is OK if xmls[0] point to the right file
 
     test_get_paths_from_csv()

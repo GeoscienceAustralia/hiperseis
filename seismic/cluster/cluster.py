@@ -963,7 +963,10 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
 #   zone    `zone'ing the arrivals into three regions.
 # to show help on subcommands:
 # $ python cluster/cluster.py gather --help
+# How to run this script?
+# $ export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
 # $ python cluster/cluster.py gather -o out /g/data/ha3/events_xmls_test
+# $ python ../seismic/cluster/cluster.py gather -o All2dirs /g/data/ha3/fxz547/travel_time_tomography/new_events20180516.run2/events_paths.csv &> ALL_2dirs.log &
 # ======================================================================
 if __name__ == "__main__":
 

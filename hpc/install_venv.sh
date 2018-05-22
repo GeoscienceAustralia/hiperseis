@@ -70,7 +70,7 @@ pip3 install flake8
 
 # Once installation has completed, you can run the tests to verify everything has gone correctly:
 
-# pip3 install pytest
+# pip3 install --upgrade pytest
 
 # pytest tests/test_cluster.py
 # pytest tests/
