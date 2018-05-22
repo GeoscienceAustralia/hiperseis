@@ -72,9 +72,8 @@ def test_get_paths_from_csv(path2csv=None):
 
 
 @pytest.mark.filterwarnings("ignore")
-# ???? xml=xmls[0]
 def test_single_event_output(xml):
-
+    # when run pytest, the xml will get automatically from conftest.py fixture
     event = read_events(xml).events[0]
     origin = event.preferred_origin()
     grid = Grid(nx=1440, ny=720, dz=25.0)
@@ -588,6 +587,7 @@ def test_parallel_gather(pair_type, random_filename):
 ########################################################################
 if __name__ == "__main__":
 
-    test_single_event_output(xmls[0])  # this is OK if xmls[0] point to the right file
+       test_get_paths_from_csv()
 
-    test_get_paths_from_csv()
+       test_single_event_output(xmls[0])  # this is OK if xmls[0] point to the right file
+
