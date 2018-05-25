@@ -4,6 +4,8 @@
 # module load gmt/4.5.11
 # ./australia.gmt
 
+module load gmt/4.5.11
+
 set gmtdir = '/g/data/ha3/fxz547/travel_time_tomography/inversion_P_wave'
 set cptdir = $gmtdir'/cpt'
 set psdir  = $gmtdir'/ps2'
@@ -48,7 +50,7 @@ grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$ami
 grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
 pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotation}f2nseW >>$psdir/$psfile
 psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
-awk '{print $5 " " $6}' < ../sorted_region_P.csv | sort -n | uniq > events.txt
+awk '{print $5 " " $6}' < ../region_P.csv | sort -n | uniq > events.txt
 psxy events.txt -R$omin/$omax/$amin/$amax -J$XCO  -O -K -B${annotation}f2nsew -Sc.01  >>$psdir/$psfile
 pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
 0.1 0.2  12 0. 4 5  $depth
@@ -205,4 +207,6 @@ END
 #0.1 0.2  12 0. 4 5 Stations
 #END
 #psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO  -O  -B${annotation}f2nSeW -St.1  >>$psdir/$psfile
+
+################## now view it on screen, may require X-windows and ghostscript
 gs $psdir/$psfile
