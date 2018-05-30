@@ -65,7 +65,12 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     tr.trim(t1, t2)
     tr.detrend('linear')
     tr.taper(0.01)
-    tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
+    # added try catch after script aborted due to the error below:
+    # ValueError: Selected corner frequency is above Nyquist.
+    try:
+        tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
+    except:
+        pass
 
 def find_best_bounds(cft, samp_rate):
     bestupper = 1.5
@@ -197,29 +202,37 @@ def calc_aic(tr):
 
     return np.array(aic), np.array(aic_deriv)
 
-def pick_phases(event, inventory):
+def pick_phases(event):
     if not event:
         return None, None
     prefor = event.preferred_origin() or event.origins[0]
 
     p_phases = []
-    for st in inventory.networks[0].stations:
-        p_pick = pick_phase(inventory.networks[0], st, prefor)
+    p_stations = []
+    for pick in [p for p in event.picks if p.phase_hint=='P']:
+        try:
+            pick_st = client.get_stations(network=pick.waveform_id.network_code, station=pick.waveform_id.station_code)
+        except:
+            print ('FDSN client could not retrieve station info for sta='+pick.waveform_id.station_code+' and netowrk='+pick.waveform_id.network_code)
+            continue
+        if not pick_st:
+            print ('FDSN client returned an empty response for station query for station='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
+            continue
+        p_stations.append((pick_st.networks[0], pick_st.networks[0].stations[0]))
+        p_pick = pick_phase(pick_st.networks[0], pick_st.networks[0].stations[0], prefor)
         if p_pick:
             p_phases.append(p_pick)
     s_phases = []
     for ppick in p_phases:
-        st = [s for s in inventory.networks[0].stations if s.code == ppick[0].waveform_id.station_code][0]
-        # pick_p_s_phases(sts.networks[0], sts.networks[0].stations[0], prefor, available_ptime=p.time)
-        s_pick = pick_phase(inventory.networks[0], st, prefor, phase='S', p_Pick=ppick[0])
-        #s_pick = pick_p_s_phases(inventory.networks[0], st, prefor, available_ptime=ppick[0].time)[1]
+        s_stn = [s for s in p_stations if s[1].code == ppick[0].waveform_id.station_code][0]
+        s_pick = pick_phase(s_stn[0], s_stn[1], prefor, phase='S', p_Pick=ppick[0])
         if s_pick:
             s_phases.append(s_pick)
-    return p_phases, s_phases
+    return p_phases, s_phases, p_stations
 
-def add_picks_to_event(event, picks):
+def add_picks_to_event(event, picks, stations):
     for pick in picks:
-        st = [s for s in inv.networks[0].stations if s.code == pick[0].waveform_id.station_code][0]
+        st = [s for s in stations if s[1].code == pick[0].waveform_id.station_code][0][1]
         stalat = st.latitude
         stalon = st.longitude
         prefor = event.preferred_origin() or event.origins[0]
@@ -240,7 +253,7 @@ def add_picks_to_event(event, picks):
         event.picks.append(pick[0])
         event.preferred_origin().arrivals.append(arr)
 
-def createEventObject(evt, p_picks, s_picks):
+def createEventObject(evt, p_picks, s_picks, stations):
     global event_Count
     global origin_Count
 
@@ -293,13 +306,12 @@ def createEventObject(evt, p_picks, s_picks):
 
     event.preferred_origin_id = origin.resource_id
 
-    add_picks_to_event(event, p_picks+s_picks)
+    add_picks_to_event(event, p_picks+s_picks, stations)
 
     return event
 
 evtfiles = glob.glob('/home/ubuntu/isc/2009/*.xml')
 outdir = '/home/ubuntu/isc-out-final/2009'
-inv = read_inventory('/home/ubuntu/7X_SH.xml')
 for f in evtfiles:
     evts = read_events(f)
     if evts:
@@ -309,9 +321,10 @@ for f in evtfiles:
                 prefor = evt.preferred_origin() or evt.origins[0]
                 if prefor.depth >= 0 and prefor.time > UTCDateTime('2009-06-15T00:00:00.000000Z') and prefor.time < UTCDateTime('2011-03-31T23:59:59.000000Z'):
                     print('Processing event => ' + str(evt))
-                    p_picks, s_picks = pick_phases(evt, inv)
-                    evt_out = createEventObject(evt, p_picks, s_picks)
+                    p_picks, s_picks, stations = pick_phases(evt)
+                    evt_out = createEventObject(evt, p_picks, s_picks, stations)
                     if evt_out:
                         evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
             count += 1
+
 
