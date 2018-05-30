@@ -8,7 +8,7 @@ from obspy.clients.fdsn import Client
 from obspy.taup import TauPyModel
 from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recursive_sta_lta, ar_pick
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
-    Origin, Arrival, OriginQuality, Magnitude
+    Origin, Arrival, OriginQuality, Magnitude, Comment
 import glob
 
 sc3_host_ip='13.236.167.35'
@@ -43,10 +43,15 @@ def get_backazimuth(stalat, stalon, evtlat, evtlon):
     client = IrisClient()
     return client.distaz(stalat=stalat, stalon=stalon, evtlat=evtlat, evtlon=evtlon)
 
-def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0):
+def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, comments_data=None):
     global pick_Count
     count = pick_Count
     pick_Count += 1
+    comments=[]
+    if comments_data:
+        comments.append(Comment(text='band = '+str(comments_data[0]), force_resource_id=False))
+        comments.append(Comment(text='upper = '+str(comments_data[1]), force_resource_id=False))
+        comments.append(Comment(text='margin = '+str(comments_data[2]), force_resource_id=False))
     return (Pick(resource_id=ResourceIdentifier(id='smi:bilby2008.picker.ga.gov.au/pick/'+str(count)),
                  time=time,
                  waveform_id=WaveformStreamID(network_code=net, station_code=sta, channel_code=cha),
@@ -54,6 +59,7 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0):
                  backazimuth=backaz,
                  phase_hint=phasehint,
                  evaluation_mode='automatic',
+                 comments=comments,
                  creation_info=CreationInfo(author='niket',
                                  creation_time=UTCDateTime(),
                                  agency_id='niket-ga-picker')),
@@ -163,6 +169,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         best_band = trig[3]
                         best_upper = trig[4]
 
+                comments_data=(best_band, best_upper, best_margin)
                 if phase=='P':
                     if best_upper > 1.5 and best_margin > 1.0:
                         tr_copy = stz[0].copy() if best_cha.endswith('Z') else (stn[0].copy() if best_cha.endswith('N') else ste[0].copy())
@@ -171,7 +178,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         pick_index = np.argmin(aic)
                         if abs(pick_index - besttrig)/samp_rate < search_margin/2:
                             res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
-                            return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'P', res)
+                            return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'P', res, comments_data=comments_data)
                             print('p-pick added')
                         else:
                             print('pick_index => ' + str(pick_index) + ' besttrig => ' + str(besttrig) + '. investigate waveforms!')
@@ -179,7 +186,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     # reduce best_upper below if not getting too many s-picks
                     if best_upper > 1.5 and best_margin > 2.0:
                         res = trim_starttime + (besttrig/samp_rate) - prefor.time - mean_target_arrival
-                        return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S', res)
+                        return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
                         print('s-pick added')
 
     return return_pick
