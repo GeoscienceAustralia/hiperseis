@@ -11,7 +11,7 @@ from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdent
     Origin, Arrival, OriginQuality, Magnitude
 import glob
 
-sc3_host_ip='54.252.244.17'
+sc3_host_ip='13.236.167.35'
 client = Client('http://'+sc3_host_ip+':8081')
 model = TauPyModel(model='iasp91')
 plookback=50
@@ -47,7 +47,7 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0):
     global pick_Count
     count = pick_Count
     pick_Count += 1
-    return (Pick(resource_id=ResourceIdentifier(id='smi:isc2009.picker.ga.gov.au/pick/'+str(count)),
+    return (Pick(resource_id=ResourceIdentifier(id='smi:bilby2008.picker.ga.gov.au/pick/'+str(count)),
                  time=time,
                  waveform_id=WaveformStreamID(network_code=net, station_code=sta, channel_code=cha),
                  methodID=ResourceIdentifier('obspy/rec-sta-lta/aic'),
@@ -137,6 +137,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
             bands = p_bands if phase == 'P' else s_bands
             for trace, band in itertools.product(traces, bands):
                 tr_copy = trace.copy()
+                if len(set(tr_copy.data)) == 1:
+                    continue
                 clean_trace(tr_copy, trim_starttime, trim_endtime, band[0], band[1])
                 print('band[0] => ' +str(band[0]) + ' band[1] => ' + str(band[1]))
                 cft = recursive_sta_lta(tr_copy.data, int(5*samp_rate), int(mult_const*samp_rate))
@@ -202,30 +204,43 @@ def calc_aic(tr):
 
     return np.array(aic), np.array(aic_deriv)
 
-def pick_phases(event):
+def pick_phases(event, inventory=None):
     if not event:
         return None, None
     prefor = event.preferred_origin() or event.origins[0]
 
     p_phases = []
     p_stations = []
-    for pick in [p for p in event.picks if p.phase_hint=='P']:
-        try:
-            pick_st = client.get_stations(network=pick.waveform_id.network_code, station=pick.waveform_id.station_code)
-        except:
-            print ('FDSN client could not retrieve station info for sta='+pick.waveform_id.station_code+' and netowrk='+pick.waveform_id.network_code)
-            continue
-        if not pick_st:
-            print ('FDSN client returned an empty response for station query for station='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
-            continue
-        p_stations.append((pick_st.networks[0], pick_st.networks[0].stations[0]))
-        p_pick = pick_phase(pick_st.networks[0], pick_st.networks[0].stations[0], prefor)
-        if p_pick:
-            p_phases.append(p_pick)
+    p_pick = None
+    if inventory:
+        for st in inventory.networks[0].stations:
+            p_stations.append((inventory.networks[0], st))
+            p_pick = pick_phase(inventory.networks[0], st, prefor)
+            if p_pick:
+                p_phases.append(p_pick)
+    else:
+        for pick in [p for p in event.picks if p.phase_hint=='P']:
+            try:
+                pick_st = client.get_stations(network=pick.waveform_id.network_code, station=pick.waveform_id.station_code)
+            except:
+                print ('FDSN client could not retrieve station info for sta='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
+                continue
+            if not pick_st:
+                print ('FDSN client returned an empty response for station query for station='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
+                continue
+            p_stations.append((pick_st.networks[0], pick_st.networks[0].stations[0]))
+            p_pick = pick_phase(pick_st.networks[0], pick_st.networks[0].stations[0], prefor)
+            if p_pick:
+                p_phases.append(p_pick)
     s_phases = []
+    s_pick = None
     for ppick in p_phases:
-        s_stn = [s for s in p_stations if s[1].code == ppick[0].waveform_id.station_code][0]
-        s_pick = pick_phase(s_stn[0], s_stn[1], prefor, phase='S', p_Pick=ppick[0])
+        if inventory:
+            st = [s for s in inventory.networks[0].stations if s.code == ppick[0].waveform_id.station_code][0]
+            s_pick = pick_phase(inventory.networks[0], st, prefor, phase='S', p_Pick=ppick[0])
+        else:
+            s_stn = [s for s in p_stations if s[1].code == ppick[0].waveform_id.station_code][0]
+            s_pick = pick_phase(s_stn[0], s_stn[1], prefor, phase='S', p_Pick=ppick[0])
         if s_pick:
             s_phases.append(s_pick)
     return p_phases, s_phases, p_stations
@@ -275,7 +290,7 @@ def createEventObject(evt, p_picks, s_picks, stations):
                                  agency_uri=ResourceIdentifier(id='smi:niket.ga.gov.au/ga-picker'),
                                  agency_id='ga')
 
-    origin = Origin(resource_id=ResourceIdentifier(id='smi:isc2009.ga.gov.au/origin/'+str(or_count)),
+    origin = Origin(resource_id=ResourceIdentifier(id='smi:bilby2008.ga.gov.au/origin/'+str(or_count)),
                     time=prefor.time,
                     longitude=prefor.longitude,
                     latitude=prefor.latitude,
@@ -289,13 +304,13 @@ def createEventObject(evt, p_picks, s_picks, stations):
 
     arrList = []
     if magPresent:
-        magnitude = Magnitude(resource_id=ResourceIdentifier(id='smi:isc2009.ga.gov.au/origin/'+str(or_count)+'#netMag.Mb'),
+        magnitude = Magnitude(resource_id=ResourceIdentifier(id='smi:bilby2008.ga.gov.au/origin/'+str(or_count)+'#netMag.Mb'),
                               mag=prefmag.mag,
                               magnitude_type=prefmag.magnitude_type,
-                              origin_id=ResourceIdentifier(id='smi:isc2009.ga.gov.au/origin/'+str(or_count)),
+                              origin_id=ResourceIdentifier(id='smi:bilby2008.ga.gov.au/origin/'+str(or_count)),
                               creation_info=creation_info)
 
-    event = Event(resource_id=ResourceIdentifier(id='smi:isc2009.picker.ga.gov.au/event/'+str(ev_count)),
+    event = Event(resource_id=ResourceIdentifier(id='smi:bilby2008.picker.ga.gov.au/event/'+str(ev_count)),
                   creation_info=creation_info,
                   event_type='earthquake')
 
@@ -310,8 +325,9 @@ def createEventObject(evt, p_picks, s_picks, stations):
 
     return event
 
-evtfiles = glob.glob('/home/ubuntu/isc/2009/*.xml')
-outdir = '/home/ubuntu/isc-out-final/2009'
+evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
+outdir = '/home/ubuntu/bilby-out-final/2008'
+inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
 for f in evtfiles:
     evts = read_events(f)
     if evts:
@@ -319,9 +335,9 @@ for f in evtfiles:
         for evt in evts:
             if evt:
                 prefor = evt.preferred_origin() or evt.origins[0]
-                if prefor.depth >= 0 and prefor.time > UTCDateTime('2009-06-15T00:00:00.000000Z') and prefor.time < UTCDateTime('2011-03-31T23:59:59.000000Z'):
+                if prefor.depth >= 0 and prefor.time > UTCDateTime('2008-08-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2008-12-31T23:59:59.000000Z'):
                     print('Processing event => ' + str(evt))
-                    p_picks, s_picks, stations = pick_phases(evt)
+                    p_picks, s_picks, stations = pick_phases(evt, inv)
                     evt_out = createEventObject(evt, p_picks, s_picks, stations)
                     if evt_out:
                         evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
