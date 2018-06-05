@@ -1,0 +1,205 @@
+#!/bin/csh
+
+module load gmt/4.5.11
+
+set gmtdir = '..'
+set cptdir = $gmtdir'/cpt'
+set psdir  = $gmtdir'/ps'
+set ddir   = $gmtdir'/DATA1x1'
+set bounf  = $gmtdir'/boundary'
+set fhead  = 'Plocsol.1x1.'
+set spacing = 2/2
+set psfile = 'TTT_Australia_P_1x1.ps'
+set amin   = -50.000
+set amax   =  10.00
+set omin   =  95.00
+set omax   = 190.0
+set XCO    = m.06
+set annotation = a20
+set annotationy = a20
+set amid   = 22.5
+set omid   = 130.000
+\rm $psdir/$psfile
+#**************************************************     Left Top     **
+set ifile  = $fhead'02'
+set depth  = '35-70'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -X1.5  -Y22 -K -V -P >$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -B${annotation}f2nseW -W0.5/80/255/0 -M >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+awk '{print $8 " " $9}' < ../region_P.csv | sort -n | uniq > stations.txt
+psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO  -O -K -B${annotation}f2nsew -St.1  >>$psdir/$psfile
+#**************************************************     Left Bottom     **
+set ifile  = $fhead'03'
+set depth  = '70-110'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotation}f2nseW >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+awk '{print $5 " " $6}' < ../region_P.csv | sort -n | uniq > events.txt
+psxy events.txt -R$omin/$omax/$amin/$amax -J$XCO  -O -K -B${annotation}f2nsew -Sc.01  >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#**************************************************     Middle Top     **
+set ifile  = $fhead'04'
+set depth  = '110-160'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotation}f2nseW >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'05'
+set depth  = '160-210'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nSeW >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'06'
+set depth  = '210-260'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y12.6 -X5.8 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'07'
+set depth  = '260-310'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+#***************************************************************
+set ifile  = $fhead'08'
+set depth  = '310-360'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+#***************************************************************
+set ifile  = $fhead'09'
+set depth  = '360-410'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nSew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+#***************************************************************
+set ifile  = $fhead'10'
+set depth  = '410-460'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y12.6 -X5.8 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'11'
+set depth  = '460-510'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'12'
+set depth  = '510-560'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nsew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psscale -C$cptdir/palT2.cpt -D6/-0.5/7/0.25h -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+set ifile  = $fhead'14'
+set depth  = '610-660'
+echo $ifile
+#............................................... make grid file.......
+xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -F -V -Ddegree/degree/%/1/1 -V
+grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -F -I0.1/0.1 -R$omin/$omax/$amin/$amax
+grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -Y-4.2 -O -K -V>>$psdir/$psfile
+pscoast -R -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nSew >>$psdir/$psfile
+psxy $bounf -R -J$XCO -O -K -W0.5/80/255/0 -M >>$psdir/$psfile
+#psxy $ddir/bl-f_14 -R -J$XCO -O -K -B${annotation}f2nseW -W0.5/80/255/0 -M >>$psdir/$psfile
+psscale -C$cptdir/palT2.cpt -D-3.0/-1.2/7/0.25h -Ba1 -O -K >>$psdir/$psfile
+pstext -R0/21/0/27 -Jx1 -G0 -O <<END >>$psdir/$psfile
+0.1 0.2  12 0. 4 5  $depth
+END
+#***************************************************************
+# We plot stations here
+#awk '{print $8 " " $9}' < ../sorted_region_P.csv | sort -n | uniq > stations.txt
+#pscoast -R$omin/$omax/$amin/$amax -J$XCO -O -K  -Dl -W -B${annotation}f2/${annotationy}f2nSew -Y-8 X-5 >>$psdir/$psfile
+#pstext -R0/21/0/27 -Jx1 -G0 -O -K  <<END >>$psdir/$psfile
+#0.1 0.2  12 0. 4 5 Stations
+#END
+#psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO  -O  -B${annotation}f2nSeW -St.1  >>$psdir/$psfile
+gs $psdir/$psfile
