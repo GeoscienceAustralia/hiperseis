@@ -1,0 +1,50 @@
+#!/bin/csh
+
+# This is gmt-version6 modern syntax. Not working for older gmt version 4 or 5
+
+gmt begin ttt_figure png,jpeg
+
+# gmt coast -R100/180/-50/0 -JM6i -B -W0.5p -Gchocolate 
+
+set gmtdir = '/g/data/ha3/fxz547/travel_time_tomography/inversion_S1x1'
+set cptdir = $gmtdir'/cpt'
+# set psdir  = $gmtdir'/ps2'
+set ddir   = $gmtdir'/DATA1x1'
+set bounf  = $gmtdir'/boundary'
+set fhead  = 'Plocsol.1x1.'
+set spacing = 2/2
+# set psfile = "TTT_Australia_P_1x1_$1.ps"
+set amin   = -50.000
+set amax   =  10.00
+set omin   =  95.00
+set omax   = 190.0
+set XCO    = m.20
+set annotation = a20
+set annotationy = a20
+set amid   = 22.5
+set omid   = 130.000
+#**************************************************     Left Top     **
+#set ifile  = $fhead'02'
+set ifile  = $fhead$1
+set depth  = "The $1 Horizontal Slice (?? KM)"
+echo $ifile
+#............................................... make grid file.......
+gmt xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -r -V -Ddegree/degree/%/1/1
+gmt grdsample $ddir/$ifile.bin -G$ddir/$ifile.grd -V -r -I0.1/0.1 -R$omin/$omax/$amin/$amax
+gmt grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.cpt -X1.5  -Y5 -V  
+gmt coast  -J$XCO  -Dl -W0.5p #-Gchocolate
+
+gmt plot $bounf -J$XCO  -B${annotation}f2nseW -W0.5/80/255/0
+gmt text -R0/21/0/27 -Jx1 -G0   <<TXTBLOCK
+0.1 0.2  12 0. 4 5  $depth
+TXTBLOCK
+#awk '{print $8 " " $9}' < $gmtdir/sorted_region_P.csv | sort -n | uniq > stations.txt
+#awk '{print $8 " " $9}' < $gmtdir/region_P.csv | sort -n | uniq > stations.txt
+#psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO  -O -K -B${annotation}f2nsew -St.1  
+
+#**************************************************  Left Bottom (next figure)    **
+
+gmt colorbar -C$cptdir/palT2.cpt -D-3.0/-1.2/7/0.25h -Ba1  
+
+
+gmt end
