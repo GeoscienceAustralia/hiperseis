@@ -33,9 +33,19 @@ omid=130.000
 
 ifile=$fhead$1
 
-#Layers 01--23: 
-#Depth KM: 5.0   22.5   52.5   90.0  135.0  185.0  235.0  285.0  335.0  385.0  435.0  485.0  535.0  585.0  635.0  685.0  760.0  860.0  960.0 1060.0 1180.0 1325.0 1500.0
-depth="Horizontal Slice at Depth 22KM"
+# Model Layers 01--23: 
+
+KM_DEPTH=('5.0' '22.5'  '52.5'  '90.0' '135.0' '185.0' '235.0'  '285.0' '335.0' '385.0' '435.0' '485.0' '535.0'  '585.0' '635.0'  '685.0'  '760.0' 
+ '860.0'  '960.0'  '1060.0'  '1180.0'  '1325.0'  '1500.0');
+
+index=$((10#$1 - 1))  #base 10 the number like 02, offset 1
+indepth=${KM_DEPTH[$index]}
+
+echo The index is $index at $indepth
+
+# user change the title lable S or P wvae?
+depth="S-Wave velocity profile at Depth $indepth KM"
+
 echo plotting the $ifile
 
 #............................................... make grid file.......
