@@ -2,7 +2,11 @@
 
 # This is gmt-version6 modern syntax. Not working for older gmt version 4 or 5
 
-gmt begin ttt_figure png,jpeg
+# Example Usage: ./make_aus_ttt.gmt6 02
+
+set ttt_figure = "ttt_plot_$1"
+
+gmt begin $ttt_figure png,jpeg
 
 # gmt coast -R100/180/-50/0 -JM6i -B -W0.5p -Gchocolate 
 
@@ -26,7 +30,7 @@ set omid   = 130.000
 #**************************************************     Left Top     **
 #set ifile  = $fhead'02'
 set ifile  = $fhead$1
-set depth  = "The $1 Horizontal Slice (?? KM)"
+set depth  = "The Horizontal Slice $1"
 echo $ifile
 #............................................... make grid file.......
 gmt xyz2grd $ddir/$ifile -G$ddir/$ifile.bin -I$spacing -R$omin/$omax/$amin/$amax -r -V -Ddegree/degree/%/1/1
@@ -35,16 +39,24 @@ gmt grdimage $ddir/$ifile.grd -R$omin/$omax/$amin/$amax -J$XCO -C$cptdir/palT2.c
 gmt coast  -J$XCO  -Dl -W0.5p #-Gchocolate
 
 gmt plot $bounf -J$XCO  -B${annotation}f2nseW -W0.5/80/255/0
-gmt text -R0/21/0/27 -Jx1 -G0   <<TXTBLOCK
+
+gmt text -R0/21/0/27 -Jx1   << EOF
+
 0.1 0.2  12 0. 4 5  $depth
-TXTBLOCK
+
+EOF
+
+
 #awk '{print $8 " " $9}' < $gmtdir/sorted_region_P.csv | sort -n | uniq > stations.txt
 #awk '{print $8 " " $9}' < $gmtdir/region_P.csv | sort -n | uniq > stations.txt
 #psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO  -O -K -B${annotation}f2nsew -St.1  
 
 #**************************************************  Left Bottom (next figure)    **
 
-gmt colorbar -C$cptdir/palT2.cpt -D-3.0/-1.2/7/0.25h -Ba1  
+# gmt colorbar -Ct.cpt -Dx8c/1c+w12c/0.5c+jTC+h -Bxaf+l"topography" -By+lkm
+
+
+gmt colorbar -C$cptdir/palT2.cpt -D5.0/-1.2/7/0.25h -Ba 
 
 
 gmt end
