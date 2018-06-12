@@ -4,13 +4,15 @@
 
 # Example Usage: ./make_aus_ttt.bash 02
 
-ttt_figure="australia_ttt_horizontal_slice_$1"
+P_S='P'
+
+ttt_figure="${P_S}_ttt_horizontal_slice_$1"
 
 gmt begin $ttt_figure png,jpeg
 
 # gmt coast -R100/180/-50/0 -JM6i -B -W0.5p -Gchocolate 
 
-gmtdir='/g/data/ha3/fxz547/travel_time_tomography/inversion_S1x1'
+gmtdir="/g/data/ha3/fxz547/travel_time_tomography/inversion_${P_S}1x1"
 cptdir=$gmtdir'/cpt'
 # set psdir  = $gmtdir'/ps2'
 ddir=$gmtdir'/DATA1x1'
@@ -44,7 +46,7 @@ indepth=${KM_DEPTH[$index]}
 echo The index is $index at $indepth
 
 # user change the title lable S or P wvae?
-depth="S-Wave velocity profile at Depth $indepth KM"
+depth="${P_S} - wave velocity profile  depth=$indepth KM"
 
 echo plotting the $ifile
 
