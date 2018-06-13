@@ -20,7 +20,9 @@ import numpy as np
 from scipy.spatial import cKDTree
 from scipy.interpolate import interp1d
 from pyevtk.hl import gridToVTK
-from multiprocessing import Pool
+from netCDF4 import Dataset
+import click
+import os.path as path
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -53,8 +55,6 @@ class Resample:
         """
         if not os.path.isfile(fname):
             raise RuntimeError('File %s not found..'%fname)
-        if(lonf < 1 or latf < 1 or zf < 1):
-            raise RuntimeError('Invalid sampling factor..')
 
         self.RADIUS = 6371
         self._fname = fname
@@ -162,7 +162,7 @@ class Resample:
         return self._nx, self._ny, self._nz
     # end func
 
-    def WriteVTK(self, fname):
+    def WriteVTK(self, fnamestem):
         """
 
         :return:
@@ -171,44 +171,152 @@ class Resample:
                                       self.RADIUS - self._rgridZ.flatten(), np.array(self._rgridXYZ[:, 0]), \
                                       np.array(self._rgridXYZ[:, 1]), np.array(self._rgridXYZ[:, 2])
 
-        cv = np.reshape(self._img, (self._rnx, self._rny, self._rnz), order='F')
-        cd = np.reshape(ds, (self._rnx, self._rny, self._rnz), order='F')
-        cv = (cv[1:, 1:, 1:] + cv[:-1, :-1, :-1]) / 2.
-        cd = (cd[1:, 1:, 1:] + cd[:-1, :-1, :-1]) / 2.
+        v = np.reshape(self._img, (self._rnx, self._rny, self._rnz), order='F')
+        d = np.reshape(ds, (self._rnx, self._rny, self._rnz), order='F')
+        cv = (v[1:, 1:, 1:] + v[:-1, :-1, :-1]) / 2.
+        cd = (d[1:, 1:, 1:] + d[:-1, :-1, :-1]) / 2.
 
         cv = np.reshape(cv, cv.shape, order='F')
         cd = np.reshape(cd, cd.shape, order='F')
 
-        gridToVTK(fname,
+        gridToVTK(fnamestem,
                   np.reshape(xs, (self._rnx, self._rny, self._rnz), order='F'),
                   np.reshape(ys, (self._rnx, self._rny, self._rnz), order='F'),
                   np.reshape(zs, (self._rnx, self._rny, self._rnz), order='F'),
-                  cellData={'Amplitude': cv, 'd': cd})
+                  cellData={'p': cv, 'Depth': cd})
+    # end func
 
-        # np.savetxt('/tmp/tomo.txt', np.array([lons, lats, zs, values]).T)
+    def WriteNetcdf(self, fnamestem):
+        """
+
+        :return:
+        """
+        lons, lats, ds, xs, ys, zs =  self._rgridLon.flatten(), self._rgridLat.flatten(), \
+                                      self.RADIUS - self._rgridZ.flatten(), np.array(self._rgridXYZ[:, 0]), \
+                                      np.array(self._rgridXYZ[:, 1]), np.array(self._rgridXYZ[:, 2])
+
+        lons = np.reshape(lons, (self._rnx, self._rny, self._rnz), order='F')
+        lats = np.reshape(lats, (self._rnx, self._rny, self._rnz), order='F')
+        d = np.reshape(ds, (self._rnx, self._rny, self._rnz), order='F')
+        v = np.reshape(self._img, (self._rnx, self._rny, self._rnz), order='F')
+
+        fn = fnamestem + '.nc'
+
+        root_grp = Dataset(fn, 'w', format='NETCDF4')
+        root_grp.description = path.basename(fnamestem)
+
+        # Dimensions
+        root_grp.createDimension('lon', self._rnx)
+        root_grp.createDimension('lat', self._rny)
+        root_grp.createDimension('depth', self._rnz)
+
+        # Variables
+        lon = root_grp.createVariable('lon', 'f4', ('lon',))
+        lat = root_grp.createVariable('lat', 'f4', ('lat',))
+        depth = root_grp.createVariable('depth', 'f4', ('depth',))
+        amplitude = root_grp.createVariable('p', 'f4', ('lon', 'lat', 'depth'))
+
+        lon[:] = lons[:, 0, 0]
+        lat[:] = lats[0, :, 0]
+        depth[:] = d[0, 0, :]
+        amplitude[:, :, :] = v
+
+        root_grp.close()
+    # end func
+
+    def WriteSGrid(self, fnamestem):
+        def write_header(hfn, dfn, mname):
+            hlines = [  'GOCAD SGrid 1',
+                        'HEADER {',
+                        'name:%s'%(mname),
+                        '*volume:true',
+                        'ascii:on',
+                        '*painted:on',
+                        '*painted*variable:p',
+                        'last_selected_folder:Volumes',
+                        '*volume*grid:true',
+                        '*volume*solid:true',
+                        '*cube*solid:false',
+                        '*cube*grid:false',
+                        '*volume*points:false',
+                        '}',
+                        'AXIS_N %d %d %d' % (self._rnx, self._rny, self._rnz),
+                        'PROP_ALIGNMENT POINTS',
+                        'ASCII_DATA_FILE %s' % path.basename(dfn),
+                        'PROPERTY 1 "p"',
+                        'PROPERTY_CLASS 1 "p"',
+                        'END]' ]
+
+            fo = open(hfn, 'w+')
+            for l in hlines: fo.write(l+'\n')
+            fo.close()
         # end func
+
+        def write_data(dfn):
+            lons, lats, ds = self._rgridLon.flatten(), self._rgridLat.flatten(), \
+                             self.RADIUS - self._rgridZ.flatten()
+
+            kxyz, jxyz, ixyz = np.meshgrid(np.arange(self._rnz), np.arange(self._rny),
+                                           np.arange(self._rnx), indexing='ij')
+
+            np.savetxt(dfn, np.array([lons, lats, ds*1e3, self._img,
+                                      ixyz.flatten(), jxyz.flatten(),
+                                      kxyz.flatten()]).T, fmt='%4.4f %4.4f %4.4f %5.7f %d %d %d')
+        # end func
+
+        hfn = fnamestem + '.sg'
+        dfn = fnamestem + '.ascii.txt'
+        modelname = path.basename(fnamestem)
+
+        write_header(hfn, dfn, modelname)
+        write_data(dfn)
+    # end func
 # end class
 
-def main():
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('input', required=True,
+                type=click.Path(exists=True))
+@click.option('--output-file-stem', default='none', type=str,
+              help="Stem of output file; the default, 'none', uses the input file name without the extension")
+@click.option('--output-type', default='sgrid', type=click.Choice(['sgrid', 'vtk', 'netcdf']),
+              help="Output file-type; default 'sgrid'")
+@click.option('--resampling-factors', default='5x5x5', type=str,
+              help="Resampling factors for the longitudinal, latitudinal and depth axes. The default value of "
+                   "'5x5x5' implies the output mesh will be 5 times denser in the longitudinal, latitudinal and "
+                   "depth directions, respectively")
+@click.option('--nearest-neighbours', default=50, type=int,
+              help="Number of nearest neighbours to include in Inverse-Distance-Weighted (IDW) interpolation.")
+@click.option('--power-parameter', default=0.5, type=float,
+              help="Power parameter, which determines the relative influence of near and far neighbours during "
+                   "interpolation.")
+def process(input, output_file_stem, output_type, resampling_factors,
+            nearest_neighbours, power_parameter):
     """
-    define main function
-    :return:
+    Script for super- or sub-sampling a 3D volume using inverse-distance-weighted interpolation.
+
+    INPUT: Path to xyz file, with nodal values on a regular 3D grid\n
+
+    Example Usage: python resample_volume.py P-wave_1x1.it3.xyz --resampling-factors 2x2x2 --output-file-stem /tmp/tomo
     """
+    try:
+        flon, flat, fz = np.float_(resampling_factors.lower().split('x'))
+    except:
+        raise RuntimeError('Invalid resampling factors')
+    # end try
 
-    flon = 5
-    flat = 5
-    fz = 5
+    if(output_file_stem=='none'): output_file_stem = path.splitext(input)[0]
 
-    rs = Resample('/home/rakib/work/pst/tomo/P-wave_1x1.it3.xyz', flon, flat, fz, nn=50, p=0.5)
-    rs.WriteVTK('/tmp/tomoRadVariableSmoothing')
+    rs = Resample(input, flon, flat, fz, nn=nearest_neighbours, p=power_parameter)
 
-    return
+    if(output_type=='sgrid'):
+        rs.WriteSGrid(output_file_stem)
+    elif(output_type=='vtk'):
+        rs.WriteVTK(output_file_stem)
+    else:
+        rs.WriteNetcdf(output_file_stem)
+    # end if
 # end func
 
-
-# =============================================
-# Quick test
-# =============================================
 if __name__ == "__main__":
-    # call main function
-    main()
+    process()
