@@ -20,6 +20,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from scipy.interpolate import interp1d
 from pyevtk.hl import gridToVTK
+from multiprocessing import Pool
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -84,9 +85,9 @@ class Resample:
         self._gridTree = cKDTree(self._gridXYZ)
 
         # create denser mesh
-        self._rnx = self._nx * self._lonf
-        self._rny = self._ny * self._latf
-        self._rnz = self._nz * self._zf
+        self._rnx = int(self._nx * self._lonf)
+        self._rny = int(self._ny * self._latf)
+        self._rnz = int(self._nz * self._zf)
 
         lono = self._gridLLZ[:self._nx, 0] # original lons
         lato = self._gridLLZ[:self._nx*self._ny:self._nx, 1] # original lats
@@ -116,30 +117,41 @@ class Resample:
         # Resample
         # query Kd-tree instance to retrieve distances and
         # indices of k nearest neighbours
-        d, l = self._gridTree.query(self._rgridXYZ, k=nn)
 
-        img = None
-        if (nn == 1):
-            # extract nearest neighbour values
-            img = self._values.flatten()[l]
-        else:
-            vals = self._values.flatten()
-            img = np.zeros((self._rgridXYZ.shape[0]))
+        img = []
+        vals = self._values.flatten()
 
-            # field values are directly assigned for coincident locations
-            coincidentValIndices = d[:, 0] == 0
-            img[coincidentValIndices] = vals[l[coincidentValIndices, 0]]
+        rg = np.reshape(self._rgridXYZ, (self._rnx, self._rny, self._rnz, 3))
 
-            # perform idw interpolation for non-coincident locations
-            idwIndices = d[:, 0] != 0
-            w = np.zeros(d.shape)
-            w[idwIndices, :] = 1. / np.power(d[idwIndices, :], p)
+        for iz in range(self._rnz):
 
-            img[idwIndices] = np.sum(w[idwIndices, :] * vals[l[idwIndices, :]], axis=1) / \
-                              np.sum(w[idwIndices, :], axis=1)
-        # end if
+            xyzs = rg[:, :, iz, :]
+            xyzs = xyzs.reshape(-1, xyzs.shape[-1])
 
-        self._img = img
+            d, l = self._gridTree.query(xyzs, k=nn)
+
+            if (nn == 1):
+                # extract nearest neighbour values
+                img.append(self._values.flatten()[l])
+            else:
+                result = np.zeros((self._rnx * self._rny))
+                # field values are directly assigned for coincident locations
+                coincidentValIndices = d[:, 0] == 0
+                result[coincidentValIndices] = vals[l[coincidentValIndices, 0]]
+
+                # perform idw interpolation for non-coincident locations
+                idwIndices = d[:, 0] != 0
+                w = np.zeros(d.shape)
+                w[idwIndices, :] = 1. / np.power(d[idwIndices, :], p)
+
+                result[idwIndices] = np.sum(w[idwIndices, :] * vals[l[idwIndices, :]], axis=1) / \
+                                     np.sum(w[idwIndices, :], axis=1)
+
+                img.append(result)
+            # end if
+        # end for
+
+        self._img = np.array(img).transpose(1, 0).flatten()
     # end func
 
     def GetOriginalResolution(self):
@@ -183,13 +195,12 @@ def main():
     :return:
     """
 
-    flon=4
-    flat=4
-    fz=4
+    flon = 5
+    flat = 5
+    fz = 5
 
-    rs = Resample('/home/rakib/work/pst/tomo/P-wave_1x1.it3.xyz', flon, flat, fz, nn=4, p=3)
-
-    rs.WriteVTK('/tmp/tomoRad')
+    rs = Resample('/home/rakib/work/pst/tomo/P-wave_1x1.it3.xyz', flon, flat, fz, nn=50, p=0.5)
+    rs.WriteVTK('/tmp/tomoRadVariableSmoothing')
 
     return
 # end func
