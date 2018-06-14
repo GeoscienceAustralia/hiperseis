@@ -7,6 +7,7 @@ from obspy.clients.iris import Client as IrisClient
 from obspy.clients.fdsn import Client
 from obspy.taup import TauPyModel
 from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recursive_sta_lta, ar_pick
+from obspy.signal.rotate import rotate_ne_rt
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
     Origin, Arrival, OriginQuality, Magnitude, Comment
 import glob
@@ -47,6 +48,11 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, co
     global pick_Count
     count = pick_Count
     pick_Count += 1
+    if phasehint == 'S':
+        if cha.endswith('N') or cha.endswith('1'):
+            cha = cha[0:-1]+'R'
+        elif cha.endswith('E') or cha.endswith('2'):
+            cha = cha[0:-1]+'T'
     comments=[]
     if comments_data:
         comments.append(Comment(text='band = '+str(comments_data[0]), force_resource_id=False))
@@ -96,7 +102,7 @@ def find_best_bounds(cft, samp_rate):
 def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     return_pick = None
     p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
-    s_bands = [(0.5, 3), (0.5, 2.5), (1, 3), (0.5, 2), (1, 2.5), (1.5, 3), (0.3, 2.0), (0.3, 1), (0.3, 0.7)]
+    s_bands = [(0.5, 2), (1, 2), (0.2, 1.5), (0.3, 2.0), (0.3, 1), (0.3, 0.7), (0.05, 0.3), (0.05, 1)]
     lookback = plookback if phase=='P' else slookback
     lookahead = plookahead if phase=='P' else slookahead
     arrivals = model.get_travel_times_geo(prefor.depth/1000, prefor.latitude,
@@ -119,6 +125,11 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
             if phase=='S':
                 stn = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
                 ste = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
+                stn.trim(trim_starttime, trim_endtime)
+                ste.trim(trim_starttime, trim_endtime)
+                r_t = rotate_ne_rt(stn[0].data, ste[0].data, az['backazimuth'])
+                stn[0].data = r_t[0]
+                ste[0].data = r_t[1]
                 stn_raw = stn.copy()
                 ste_raw = ste.copy()
                 traces.append(stn[0])
@@ -151,6 +162,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 upper, lower = find_best_bounds(cft, tr_copy.stats.sampling_rate)
                 trigs.extend([(onset, tr_copy.stats.channel, upper-lower, band, upper) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr_copy.stats.sampling_rate), max_len_delete=True)])
             search_margin = pphase_search_margin if phase == 'P' else sphase_search_margin
+            margin_threshold = 1.0 if phase == 'P' else 2.0
             trigs = [t for t in trigs if abs(prefor.time + mean_target_arrival - trim_starttime - (t[0][0]/samp_rate)) < search_margin]
             if len(trigs) > 0:
                 mintrigdiff = abs(prefor.time + mean_target_arrival - trim_starttime - (trigs[0][0][0]/samp_rate))
@@ -169,25 +181,40 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         best_band = trig[3]
                         best_upper = trig[4]
 
+                # add SNR to comments
                 comments_data=(best_band, best_upper, best_margin)
-                if phase=='P':
-                    if best_upper > 1.5 and best_margin > 1.0:
-                        tr_copy = stz[0].copy() if best_cha.endswith('Z') else (stn[0].copy() if best_cha.endswith('N') else ste[0].copy())
-                        clean_trace(tr_copy, trim_starttime, trim_endtime, best_band[0], best_band[1])
-                        aic, aic_deriv = calc_aic(tr_copy)
-                        pick_index = np.argmin(aic)
+                if best_upper > 1.5 and best_margin > margin_threshold:
+                    tr_copy = stz[0].copy() if best_cha.endswith('Z') else (stn[0].copy() if best_cha.endswith('N') else ste[0].copy())
+                    clean_trace(tr_copy, trim_starttime, trim_endtime, best_band[0], best_band[1])
+                    aic, aic_deriv = calc_aic(tr_copy)
+                    aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
+                    aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
+                    pick_index = np.argmin(aic)
+                    aic_deriv[0:int(10*samp_rate)]=0
+                    aic_deriv[-int(10*samp_rate):-1]=0
+                    pick_index_deriv = np.argmax(aic_deriv)
+                    if phase=='P':
                         if abs(pick_index - besttrig)/samp_rate < search_margin/2:
                             res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
                             return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'P', res, comments_data=comments_data)
                             print('p-pick added')
                         else:
-                            print('pick_index => ' + str(pick_index) + ' besttrig => ' + str(besttrig) + '. investigate waveforms!')
-                else:
-                    # reduce best_upper below if not getting too many s-picks
-                    if best_upper > 1.5 and best_margin > 2.0:
-                        res = trim_starttime + (besttrig/samp_rate) - prefor.time - mean_target_arrival
-                        return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(besttrig/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
-                        print('s-pick added')
+                            print('pick_index => ' + str(pick_index) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
+                    else:
+                        if distance > 30:
+                            if abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
+                                return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index_deriv/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
+                                print('s-pick added')
+                            else:
+                                print('pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
+                        else:
+                            if abs(pick_index - besttrig)/samp_rate < search_margin/2 and abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
+                                return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
+                                print('s-pick added')
+                            else:
+                                print('pick_index => ' + str(pick_index) + ' pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. investigate waveforms!')
 
     return return_pick
 
@@ -204,10 +231,10 @@ def calc_aic(tr):
     aic[-1] = aic[-2]
 
     aic_deriv = []
-    for i in range(npts-1):
-        b = np.abs(aic[i+1]-aic[i])
+    # assuming 5 second pick duration
+    for i in range(npts-int(5*tr.stats.sampling_rate)):
+        b = np.abs(aic[i+int(5*tr.stats.sampling_rate)]-aic[i])
         aic_deriv.append(b)
-        aic_deriv.insert(0,aic_deriv[0])
 
     return np.array(aic), np.array(aic_deriv)
 
