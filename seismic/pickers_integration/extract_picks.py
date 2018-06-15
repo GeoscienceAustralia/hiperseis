@@ -371,7 +371,7 @@ for f in evtfiles:
                 prefor = evt.preferred_origin() or evt.origins[0]
                 if prefor.depth >= 0 and prefor.time > UTCDateTime('2008-08-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2008-12-31T23:59:59.000000Z'):
                     print('Processing event => ' + str(evt))
-#                    p_picks, s_picks, stations = pick_phases(evt, inv)
+                    #p_picks, s_picks, stations = pick_phases(evt, inv)
                     p_picks, s_picks, stations = pick_phases(evt)
                     evt_out = createEventObject(evt, p_picks, s_picks, stations)
                     if evt_out:
