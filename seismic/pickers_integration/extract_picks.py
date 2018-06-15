@@ -58,6 +58,7 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, co
         comments.append(Comment(text='band = '+str(comments_data[0]), force_resource_id=False))
         comments.append(Comment(text='upper = '+str(comments_data[1]), force_resource_id=False))
         comments.append(Comment(text='margin = '+str(comments_data[2]), force_resource_id=False))
+        comments.append(Comment(text='snr = '+str(comments_data[3]), force_resource_id=False))
     return (Pick(resource_id=ResourceIdentifier(id='smi:bilby2008.picker.ga.gov.au/pick/'+str(count)),
                  time=time,
                  waveform_id=WaveformStreamID(network_code=net, station_code=sta, channel_code=cha),
@@ -101,6 +102,7 @@ def find_best_bounds(cft, samp_rate):
 
 def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     return_pick = None
+    snr = 0.0
     p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
     s_bands = [(0.5, 2), (1, 2), (0.2, 1.5), (0.3, 2.0), (0.3, 1), (0.3, 0.7), (0.05, 0.3), (0.05, 1)]
     lookback = plookback if phase=='P' else slookback
@@ -195,6 +197,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     pick_index_deriv = np.argmax(aic_deriv)
                     if phase=='P':
                         if abs(pick_index - besttrig)/samp_rate < search_margin/2:
+                            snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
+                            comments_data=comments_data+(snr,)
                             res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
                             return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'P', res, comments_data=comments_data)
                             print('p-pick added')
@@ -203,6 +207,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     else:
                         if distance > 30:
                             if abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
+                                comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
                                 return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index_deriv/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
                                 print('s-pick added')
@@ -210,13 +216,30 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                                 print('pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
                         else:
                             if abs(pick_index - besttrig)/samp_rate < search_margin/2 and abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
+                                comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
                                 return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
                                 print('s-pick added')
                             else:
                                 print('pick_index => ' + str(pick_index) + ' pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. investigate waveforms!')
-
+    if snr < 1.5:
+        print('The calculated SNR => ' + str(snr) + '. Discarding this pick!')
+        return None
     return return_pick
+
+def calc_snr(tr, time):
+    if not tr or not time:
+        print('Either of trace or the pick time are None.')
+        return -1
+    if time < tr.stats.starttime or time > tr.stats.endtime:
+        print('The pick time lies outside the trace times')
+        return -1
+    tr_left = tr.copy()
+    tr_right = tr.copy()
+    tr_left.trim(time - 5, time)
+    tr_right.trim(time, time + 5)
+    return np.std(tr_right.data)/np.std(tr_left.data)
 
 def calc_aic(tr):
     npts = tr.stats.npts
