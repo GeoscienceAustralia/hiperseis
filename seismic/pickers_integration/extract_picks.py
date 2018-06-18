@@ -240,7 +240,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         if distance > 30:
                             if abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
                                 # plot the onsets across different frequencies for validation
-                                plot_onsets(deriv=True)
+                                # plot_onsets(deriv=True)
                                 snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
                                 comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
@@ -251,7 +251,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         else:
                             if abs(pick_index - besttrig)/samp_rate < search_margin/2 and abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
                                 # plot the onsets across different frequencies for validation
-                                plot_onsets()
+                                # plot_onsets()
                                 snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
                                 comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
