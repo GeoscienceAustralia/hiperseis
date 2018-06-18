@@ -195,6 +195,38 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     aic_deriv[0:int(10*samp_rate)]=0
                     aic_deriv[-int(10*samp_rate):-1]=0
                     pick_index_deriv = np.argmax(aic_deriv)
+                    # internal plotting function to access the variables
+                    def plot_onsets(deriv=False):
+                        import matplotlib.pyplot as plt
+                        fig, axes = plt.subplots(nrows=len(s_bands)+1, ncols=2)
+                        tr_n = stn[0].copy()
+                        tr_e = ste[0].copy()
+                        tr_n.trim(trim_starttime, trim_endtime)
+                        tr_e.trim(trim_starttime, trim_endtime)
+                        axes[0, 0].plot(tr_n.data, color='grey')
+                        axes[0, 0].text(int(tr_n.stats.npts*0.5), int(max(tr_n.data)*0.7), network.code+' '+station.code+' R RAW')
+                        axes[0, 1].plot(tr_e.data, color='grey')
+                        axes[0, 1].text(int(tr_n.stats.npts*0.5), int(max(tr_n.data)*0.7), network.code+' '+station.code+' T RAW')
+                        for ind, band in enumerate(s_bands):
+                            for col_index, comp in enumerate(['r', 't']):
+                                tr_copy = stn[0].copy() if comp=='r' else ste[0].copy()
+                                tr_copy.trim(trim_starttime, trim_endtime)
+                                clean_trace(tr_copy, trim_starttime, trim_endtime, band[0], band[1])
+                                aic, aic_deriv = calc_aic(tr_copy)
+                                aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
+                                aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
+                                pick_index = np.argmin(aic)
+                                aic_deriv[0:int(10*samp_rate)]=0
+                                aic_deriv[-int(10*samp_rate):-1]=0
+                                pick_index_deriv = np.argmax(aic_deriv)
+                                index = pick_index_deriv if deriv else pick_index
+                                snr_plot = calc_snr(tr_copy, trim_starttime + (index/samp_rate))
+                                axes[ind+1, col_index].plot(range(int(index)), tr_copy.data[:int(index)], color='blue')
+                                axes[ind+1, col_index].plot(range(int(index), int(index)+20), tr_copy.data[int(index):int(index)+20], color='red')
+                                axes[ind+1, col_index].plot(range(int(index)+20, tr_copy.stats.npts), tr_copy.data[int(index)+20:tr_copy.stats.npts], color='blue')
+                                axes[ind+1, col_index].text(int(tr_copy.stats.npts*0.5), int(max(tr_copy.data)*0.7), network.code+' '+station.code+' '+comp.upper()+' ('+str(band[0])+'Hz - '+str(band[1])+'Hz) SNR='+str(int(snr_plot))+' pick_index = '+str(index))
+                        print('Break here while debugging and run plt.show()')
+
                     if phase=='P':
                         if abs(pick_index - besttrig)/samp_rate < search_margin/2:
                             snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
@@ -207,6 +239,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     else:
                         if distance > 30:
                             if abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                # plot the onsets across different frequencies for validation
+                                plot_onsets(deriv=True)
                                 snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
                                 comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
@@ -216,6 +250,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                                 print('pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
                         else:
                             if abs(pick_index - besttrig)/samp_rate < search_margin/2 and abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
+                                # plot the onsets across different frequencies for validation
+                                plot_onsets()
                                 snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
                                 comments_data=comments_data+(snr,)
                                 res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
