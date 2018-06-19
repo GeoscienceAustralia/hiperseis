@@ -103,8 +103,10 @@ def find_best_bounds(cft, samp_rate):
 def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     return_pick = None
     snr = 0.0
-    p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
-    s_bands = [(0.5, 2), (1, 2), (0.2, 1.5), (0.3, 2.0), (0.3, 1), (0.3, 0.7), (0.05, 0.3), (0.05, 1)]
+    #p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
+    #s_bands = [(0.5, 2), (1, 2), (0.2, 1.5), (0.3, 2.0), (0.3, 1), (0.3, 0.7), (0.05, 0.3), (0.05, 1)]
+    p_bands = [(0.5, 2.0), (0.8, 2.3)]
+    s_bands = [(0.05, 0.2), (0.05, 1.0)]
     lookback = plookback if phase=='P' else slookback
     lookahead = plookahead if phase=='P' else slookahead
     arrivals = model.get_travel_times_geo(prefor.depth/1000, prefor.latitude,
@@ -188,37 +190,41 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 if best_upper > 1.5 and best_margin > margin_threshold:
                     tr_copy = stz[0].copy() if best_cha.endswith('Z') else (stn[0].copy() if best_cha.endswith('N') else ste[0].copy())
                     clean_trace(tr_copy, trim_starttime, trim_endtime, best_band[0], best_band[1])
-                    aic, aic_deriv = calc_aic(tr_copy)
+                    aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy)
                     aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
                     aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
                     pick_index = np.argmin(aic)
-                    aic_deriv[0:int(10*samp_rate)]=0
-                    aic_deriv[-int(10*samp_rate):-1]=0
-                    pick_index_deriv = np.argmax(aic_deriv)
+                    aic_deriv_cleaned[0:int(10*samp_rate)]=0
+                    aic_deriv_cleaned[-int(10*samp_rate):-1]=0
+                    pick_index_deriv = np.argmax(aic_deriv_cleaned)
                     # internal plotting function to access the variables
                     def plot_onsets(deriv=False):
                         import matplotlib.pyplot as plt
-                        fig, axes = plt.subplots(nrows=len(s_bands)+1, ncols=2)
+                        fig, axes = plt.subplots(nrows=len(s_bands)+1, ncols=3)
                         tr_n = stn[0].copy()
                         tr_e = ste[0].copy()
+                        tr_z = stz[0].copy()
                         tr_n.trim(trim_starttime, trim_endtime)
                         tr_e.trim(trim_starttime, trim_endtime)
+                        tr_z.trim(trim_starttime, trim_endtime)
                         axes[0, 0].plot(tr_n.data, color='grey')
                         axes[0, 0].text(int(tr_n.stats.npts*0.5), int(max(tr_n.data)*0.7), network.code+' '+station.code+' R RAW')
                         axes[0, 1].plot(tr_e.data, color='grey')
                         axes[0, 1].text(int(tr_n.stats.npts*0.5), int(max(tr_n.data)*0.7), network.code+' '+station.code+' T RAW')
+                        axes[0, 2].plot(tr_z.data, color='grey')
+                        axes[0, 2].text(int(tr_z.stats.npts*0.5), int(max(tr_z.data)*0.7), network.code+' '+station.code+' Z RAW')
                         for ind, band in enumerate(s_bands):
-                            for col_index, comp in enumerate(['r', 't']):
-                                tr_copy = stn[0].copy() if comp=='r' else ste[0].copy()
+                            for col_index, comp in enumerate(['r', 't', 'z']):
+                                tr_copy = stn[0].copy() if comp=='r' else (ste[0].copy() if comp=='t' else stz[0].copy())
                                 tr_copy.trim(trim_starttime, trim_endtime)
                                 clean_trace(tr_copy, trim_starttime, trim_endtime, band[0], band[1])
-                                aic, aic_deriv = calc_aic(tr_copy)
+                                aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy)
                                 aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
                                 aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
                                 pick_index = np.argmin(aic)
-                                aic_deriv[0:int(10*samp_rate)]=0
-                                aic_deriv[-int(10*samp_rate):-1]=0
-                                pick_index_deriv = np.argmax(aic_deriv)
+                                aic_deriv_cleaned[0:int(10*samp_rate)]=0
+                                aic_deriv_cleaned[-int(10*samp_rate):-1]=0
+                                pick_index_deriv = np.argmax(aic_deriv_cleaned)
                                 index = pick_index_deriv if deriv else pick_index
                                 snr_plot = calc_snr(tr_copy, trim_starttime + (index/samp_rate))
                                 axes[ind+1, col_index].plot(range(int(index)), tr_copy.data[:int(index)], color='blue')
@@ -227,38 +233,17 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                                 axes[ind+1, col_index].text(int(tr_copy.stats.npts*0.5), int(max(tr_copy.data)*0.7), network.code+' '+station.code+' '+comp.upper()+' ('+str(band[0])+'Hz - '+str(band[1])+'Hz) SNR='+str(int(snr_plot))+' pick_index = '+str(index))
                         print('Break here while debugging and run plt.show()')
 
-                    if phase=='P':
-                        if abs(pick_index - besttrig)/samp_rate < search_margin/2:
-                            snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
-                            comments_data=comments_data+(snr,)
-                            res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
-                            return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'P', res, comments_data=comments_data)
-                            print('p-pick added')
-                        else:
-                            print('pick_index => ' + str(pick_index) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
+                    theoretical_trig = int((prefor.time + mean_target_arrival - trim_starttime)*samp_rate)
+                    if theoretical_trig > 0 and abs(pick_index_deriv - theoretical_trig)/samp_rate < search_margin/2:
+                        snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
+                        #plot_onsets(deriv=True)
+                        res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
+                        comments_data=comments_data+(snr,)
+                        return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index_deriv/samp_rate), az['backazimuth'] if az else None, phase, res, comments_data=comments_data)
+                        print(phase+'-pick added')
                     else:
-                        if distance > 30:
-                            if abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
-                                # plot the onsets across different frequencies for validation
-                                # plot_onsets(deriv=True)
-                                snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
-                                comments_data=comments_data+(snr,)
-                                res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
-                                return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index_deriv/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
-                                print('s-pick added')
-                            else:
-                                print('pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
-                        else:
-                            if abs(pick_index - besttrig)/samp_rate < search_margin/2 and abs(pick_index_deriv - besttrig)/samp_rate < search_margin/2:
-                                # plot the onsets across different frequencies for validation
-                                # plot_onsets()
-                                snr = calc_snr(tr_copy, trim_starttime + (pick_index/samp_rate))
-                                comments_data=comments_data+(snr,)
-                                res = trim_starttime + (pick_index/samp_rate) - prefor.time - mean_target_arrival
-                                return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index/samp_rate), az['backazimuth'] if az else None, 'S', res, comments_data=comments_data)
-                                print('s-pick added')
-                            else:
-                                print('pick_index => ' + str(pick_index) + ' pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. investigate waveforms!')
+                        print('theo_trig => '+str(theoretical_trig)+'pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
+
     if snr > 0 and snr < 1.5:
         print('The calculated SNR => ' + str(snr) + '. Discarding this pick!')
         return None
@@ -277,9 +262,13 @@ def calc_snr(tr, time):
     tr_right.trim(time, time + 5)
     return np.std(tr_right.data)/np.std(tr_left.data)
 
+def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
+    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
 def calc_aic(tr):
     npts = tr.stats.npts
     data = tr.data
+    margin = int(tr.stats.sampling_rate*5)
     aic = np.zeros(npts)
     for k in range(npts-2,0,-1):
         a = k*np.log10(np.std(data[:k])**2)+(npts-k-1)*np.log10(np.std(data[k:])**2)
@@ -290,12 +279,19 @@ def calc_aic(tr):
     aic[-1] = aic[-2]
 
     aic_deriv = []
-    # assuming 5 second pick duration
-    for i in range(npts-int(5*tr.stats.sampling_rate)):
-        b = np.abs(aic[i+int(5*tr.stats.sampling_rate)]-aic[i])
-        aic_deriv.append(b)
+    aic_deriv_cleaned = []
+    for i in range(npts-1):
+        aic_deriv.append(aic[i+1] - aic[i])
+        if i < margin or i >= (npts - margin):
+            aic_deriv_cleaned.append(0)
+        else:
+            if aic[i - margin] < aic[i] < aic[i + margin] or \
+                aic[i + margin] < aic[i] < aic[i - margin]:
+                aic_deriv_cleaned.append(0)
+            else:
+                aic_deriv_cleaned.append(aic[i+1] - aic[i])
 
-    return np.array(aic), np.array(aic_deriv)
+    return np.array(aic), np.array(aic_deriv), np.array(aic_deriv_cleaned)
 
 def pick_phases(event, inventory=None):
     if not event:
