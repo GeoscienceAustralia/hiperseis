@@ -269,7 +269,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     else:
                         print('theo_trig => '+str(theoretical_trig)+'pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
 
-    if snr > 0 and snr < 1.5:
+    if snr > 0 and snr < 1.0:
         print('The calculated SNR => ' + str(snr) + '. Discarding this pick!')
         return None
     return return_pick
