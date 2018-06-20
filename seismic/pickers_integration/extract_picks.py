@@ -198,6 +198,30 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     aic_deriv_cleaned[-int(10*samp_rate):-1]=0
                     pick_index_deriv = np.argmax(aic_deriv_cleaned)
                     # internal plotting function to access the variables
+                    def plot_aic(snr, theo_trig):
+                        import matplotlib.pyplot as plt
+                        fig, axes = plt.subplots(nrows=5, ncols=1, figsize=(30,15))
+                        tr.trim(trim_starttime, trim_endtime)
+                        axes[0].plot(tr.data, color='grey')
+                        replacement = 'T' if tr.stats.channel.endswith('E') else ('R' if tr.stats.channel.endswith('N') else 'Z')
+                        chan = tr.stats.channel[0:2]+replacement
+                        axes[0].text(0, int(min(tr.data)), network.code+' '+station.code+' '+chan+' '+phase+' RAW Distance='+str(distance), fontsize=12)
+                        axes[1].plot(range(theo_trig), tr_copy.data[:theo_trig], color='blue')
+                        #axes[1].plot(range(theo_trig, theo_trig+20), tr_copy.data[theo_trig:theo_trig+20], color='black')
+                        for xc in range(theo_trig, theo_trig+10):
+                            axes[1].axvline(x=xc, color='black')
+                        axes[1].plot(range(theo_trig+10, tr_copy.stats.npts), tr_copy.data[theo_trig+10:tr_copy.stats.npts], color='blue')
+                        axes[1].text(0, int(min(tr_copy.data)), 'Filtered band='+str(best_band)+' SNR='+str(snr)+' sampling_rate='+str(tr.stats.sampling_rate), fontsize=12)
+                        axes[1].text(theo_trig-100, int(min(tr_copy.data)), 'theoretical tt', fontsize=12)
+                        axes[2].plot(aic, color='green')
+                        axes[2].text(0, int(min(aic)), 'AIC', fontsize=12)
+                        axes[3].plot(aic_deriv, color='red')
+                        axes[3].text(0, int(min(aic_deriv)), 'AIC derivative', fontsize=12)
+                        axes[4].plot(aic_deriv_cleaned, color='magenta')
+                        axes[4].text(0, int(min(aic_deriv_cleaned)), 'AIC global minimum. residual = '+str((np.argmax(aic_deriv_cleaned)-theo_trig)/samp_rate), fontsize=12)
+                        plt.tight_layout()
+                        fig.savefig(network.code+'_'+station.code+'_'+tr.stats.channel+'_'+phase+'.png')
+                        plt.close('all')
                     def plot_onsets(deriv=False):
                         import matplotlib.pyplot as plt
                         fig, axes = plt.subplots(nrows=len(s_bands)+1, ncols=3)
@@ -237,6 +261,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     if theoretical_trig > 0 and abs(pick_index_deriv - theoretical_trig)/samp_rate < search_margin/2:
                         snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
                         #plot_onsets(deriv=True)
+                        #plot_aic(snr, theoretical_trig)
                         res = trim_starttime + (pick_index_deriv/samp_rate) - prefor.time - mean_target_arrival
                         comments_data=comments_data+(snr,)
                         return_pick = createPickObject(network.code, station.code, best_cha, trim_starttime+(pick_index_deriv/samp_rate), az['backazimuth'] if az else None, phase, res, comments_data=comments_data)
