@@ -81,7 +81,7 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     # added try catch after script aborted due to the error below:
     # ValueError: Selected corner frequency is above Nyquist.
     try:
-        tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
+        tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax, zerophase=True)
     except:
         pass
 
@@ -165,7 +165,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 cft = recursive_sta_lta(tr_copy.data, int(5*samp_rate), int(mult_const*samp_rate))
                 upper, lower = find_best_bounds(cft, tr_copy.stats.sampling_rate)
                 trigs.extend([(onset, tr_copy.stats.channel, upper-lower, band, upper) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr_copy.stats.sampling_rate), max_len_delete=True)])
-            search_margin = pphase_search_margin if phase == 'P' else sphase_search_margin
+            search_margin = (pphase_search_margin if distance < 10 else pphase_search_margin+5) if phase == 'P' else sphase_search_margin
             margin_threshold = 1.0 if phase == 'P' else 2.0
             trigs = [t for t in trigs if abs(prefor.time + mean_target_arrival - trim_starttime - (t[0][0]/samp_rate)) < search_margin]
             if len(trigs) > 0:
@@ -312,6 +312,8 @@ def calc_aic(tr):
         else:
             if aic[i - margin] < aic[i] < aic[i + margin] or \
                 aic[i + margin] < aic[i] < aic[i - margin]:
+                aic_deriv_cleaned.append(0)
+            elif aic[i] > aic[i - margin] and aic[i] > aic[i + margin]:
                 aic_deriv_cleaned.append(0)
             else:
                 aic_deriv_cleaned.append(aic[i+1] - aic[i])
