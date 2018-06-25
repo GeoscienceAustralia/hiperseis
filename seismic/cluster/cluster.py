@@ -115,7 +115,17 @@ PARAM_FILE_FORMAT = '''
 
 
 class Grid:
+    """
+    Encaptulate 3D cell properties grid sizes
+    """
+
     def __init__(self, nx, ny, dz):
+        """
+        constructor for Grid
+        :param nx: integer number of cells in longitude (360)
+        :param ny:
+        :param dz:
+        """
         self.nx = nx
         self.ny = ny
         self.dx = 360.0 / nx
@@ -128,6 +138,7 @@ class Grid:
               type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
               default='INFO', help='Level of logging')
 def cli(verbosity):
+
     pslog.configure(verbosity)
 
 def recursive_glob(dirname, ext='*.xml'):
@@ -945,9 +956,23 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
     return False
 
 
+@cli.command()
+@click.argument('arrivals_file', type=click.File(mode='r'))
+@click.argument('region', type=str,
+                metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
+def plotcmd(arrivals_file, region):
+    """
+    Another plot command
+    """
+    log.info('Begin plotcmd {}'.format(mpiops.rank))
+    log.debug("The input arrival file is %s", arrivals_file)
+
+    return
+
 # ================= Quick Testings of the functions ====================
 # cd  passive-seismic/
-# $ python seismic/cluster/cluster.py
+# python seismic/cluster/cluster.py
+#
 # Usage: cluster.py [OPTIONS] COMMAND [ARGS]...
 #
 # Options:
@@ -963,7 +988,11 @@ def _in_cross_region(dx, dy, dz, nms, region, x1, y1, z1):  # pragma: no cover
 #   zone    `zone'ing the arrivals into three regions.
 # to show help on subcommands:
 # $ python cluster/cluster.py gather --help
-# How to run this script?
+
+# How to run this script standalone?
+# $ python seismic/cluster/cluster.py plot region_P_1deg.csv '0 -50.0 100 190'
+# $ python seismic/cluster/cluster.py -v DEBUG plotcmd region_P_1deg.csv "ab cd"
+
 # $ export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
 # $ python cluster/cluster.py gather -o out /g/data/ha3/events_xmls_test
 # $ python ../seismic/cluster/cluster.py gather -o All2dirs /g/data/ha3/fxz547/travel_time_tomography/new_events20180516.run2/events_paths.csv &> ALL_2dirs.log &
