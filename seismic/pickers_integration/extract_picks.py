@@ -190,7 +190,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 if best_upper > 1.5 and best_margin > margin_threshold:
                     tr_copy = stz[0].copy() if best_cha.endswith('Z') else (stn[0].copy() if best_cha.endswith('N') else ste[0].copy())
                     clean_trace(tr_copy, trim_starttime, trim_endtime, best_band[0], best_band[1])
-                    aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy)
+                    aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy, phase)
                     aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
                     aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
                     pick_index = np.argmin(aic)
@@ -242,7 +242,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                                 tr_copy = stn[0].copy() if comp=='r' else (ste[0].copy() if comp=='t' else stz[0].copy())
                                 tr_copy.trim(trim_starttime, trim_endtime)
                                 clean_trace(tr_copy, trim_starttime, trim_endtime, band[0], band[1])
-                                aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy)
+                                aic, aic_deriv, aic_deriv_cleaned = calc_aic(tr_copy, phase)
                                 aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
                                 aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
                                 pick_index = np.argmin(aic)
@@ -258,7 +258,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                         print('Break here while debugging and run plt.show()')
 
                     theoretical_trig = int((prefor.time + mean_target_arrival - trim_starttime)*samp_rate)
-                    if theoretical_trig > 0 and abs(pick_index_deriv - theoretical_trig)/samp_rate < search_margin/2:
+                    if theoretical_trig > 0 and abs(pick_index_deriv - theoretical_trig)/samp_rate < search_margin:
                         snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
                         #plot_onsets(deriv=True)
                         #plot_aic(snr, theoretical_trig)
@@ -290,10 +290,10 @@ def calc_snr(tr, time):
 def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
-def calc_aic(tr):
+def calc_aic(tr, phase):
     npts = tr.stats.npts
     data = tr.data
-    margin = int(tr.stats.sampling_rate*5)
+    margin = int(tr.stats.sampling_rate*5) if phase=='P' else int(tr.stats.sampling_rate*10)
     aic = np.zeros(npts)
     for k in range(npts-2,0,-1):
         a = k*np.log10(np.std(data[:k])**2)+(npts-k-1)*np.log10(np.std(data[k:])**2)
@@ -308,13 +308,13 @@ def calc_aic(tr):
     for i in range(npts-1):
         aic_deriv.append(aic[i+1] - aic[i])
         if i < margin or i >= (npts - margin):
-            aic_deriv_cleaned.append(0)
+            aic_deriv_cleaned.append(min(aic_deriv))
         else:
             if aic[i - margin] < aic[i] < aic[i + margin] or \
                 aic[i + margin] < aic[i] < aic[i - margin]:
-                aic_deriv_cleaned.append(0)
+                aic_deriv_cleaned.append(min(aic_deriv))
             elif aic[i] > aic[i - margin] and aic[i] > aic[i + margin]:
-                aic_deriv_cleaned.append(0)
+                aic_deriv_cleaned.append(min(aic_deriv))
             else:
                 aic_deriv_cleaned.append(aic[i+1] - aic[i])
 
