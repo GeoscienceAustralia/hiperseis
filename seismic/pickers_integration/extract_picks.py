@@ -334,7 +334,7 @@ def createEventObject(evt, p_picks, s_picks, stations):
 
 evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
 outdir = '/home/ubuntu/bilby-out-final/2008'
-inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
+#inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
 for f in evtfiles:
     evts = read_events(f)
     if evts:
@@ -344,7 +344,8 @@ for f in evtfiles:
                 prefor = evt.preferred_origin() or evt.origins[0]
                 if prefor.depth >= 0 and prefor.time > UTCDateTime('2008-08-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2008-12-31T23:59:59.000000Z'):
                     print('Processing event => ' + str(evt))
-                    p_picks, s_picks, stations = pick_phases(evt, inv)
+#                    p_picks, s_picks, stations = pick_phases(evt, inv)
+                    p_picks, s_picks, stations = pick_phases(evt)
                     evt_out = createEventObject(evt, p_picks, s_picks, stations)
                     if evt_out:
                         evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
