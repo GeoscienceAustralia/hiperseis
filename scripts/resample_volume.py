@@ -259,7 +259,7 @@ class Resample:
             kxyz, jxyz, ixyz = np.meshgrid(np.arange(self._rnz), np.arange(self._rny),
                                            np.arange(self._rnx), indexing='ij')
 
-            np.savetxt(dfn, np.array([lons, lats, ds*1e3, self._img,
+            np.savetxt(dfn, np.array([lons, lats, -ds*1e3, self._img,
                                       ixyz.flatten(), jxyz.flatten(),
                                       kxyz.flatten()]).T, fmt='%4.4f %4.4f %4.4f %5.7f %d %d %d')
         # end func
