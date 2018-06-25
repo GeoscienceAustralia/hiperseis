@@ -15,6 +15,7 @@ Revision History:
 
 import shapefile
 import vtk
+import click
 import os
 import sys
 import math
@@ -34,10 +35,12 @@ def rtp2xyz(r, theta, phi):
     xout[1] = rst * math.sin(phi) 	    # y 
     xout[2] = r * math.cos(theta)       # z
 
-    return xout
+    return np.array(xout)
 #end
 
-def processFile(shpFileName):
+def processFile(shpFileName, outputFileStem=None,
+                min_lon=None, min_lat=None,
+                max_lon=None, max_lat=None):
     # Open the extracted islands
     r = shapefile.Reader(shpFileName)
     # Setup the world to pixels conversion
@@ -78,14 +81,23 @@ def processFile(shpFileName):
     for p in polygons:
         xyzPolygon=[]
         for pt in p:
-            r = 6371;
-            t = (90-pt[1])/180*math.pi
-            p = (360+pt[0])%360/180*math.pi
+            lon = pt[0]
+            lat = pt[1]
 
-            xyz=rtp2xyz(r,t,p)
+            if(min_lon!=None and min_lat!=None and max_lon!=None and max_lat!=None):
+                if (lon > max_lon or lon < min_lon): continue
+                if (lat > max_lat or lat < min_lat): continue
+            # end if
+            r = 6371 # Earth radius in km
+            t = np.radians(90-lat)
+            p = np.radians(lon)
+
+            xyz = rtp2xyz(r, t, p)
+
             xyzPolygon.append(xyz)
         #end for
-        xyzPolygons.append(xyzPolygon)
+        if(len(xyzPolygon)):
+            xyzPolygons.append(xyzPolygon)
     #end for
 
     #write VTK
@@ -150,23 +162,53 @@ def processFile(shpFileName):
     masterVTKPolygons.Update()
 
     writer = vtk.vtkXMLPolyDataWriter()
-    outFileName = os.path.splitext(shpFileName)[0]+'.vtp';
+
+    if(outputFileStem): outFileName = outputFileStem+'.vtp'
+    else: outFileName = os.path.splitext(shpFileName)[0]+'.vtp'
+
     writer.SetFileName(outFileName)
     writer.SetDataModeToAscii()
     o = masterVTKPolygons.GetOutput()
-    #print o
+
     writer.SetInputData(o)
     print ('Writing %s..') % (outFileName)
     writer.Write()
 #end function
 
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('input', required=True,
+                type=click.Path(exists=True))
+@click.option('--output-file-stem', default=None, type=str,
+              help="Stem of output file; the default, 'none', uses the input file name without the extension")
+@click.option('--min-lat', default=None, type=float,
+              help="Minimum latitude for clipping shape file")
+@click.option('--max-lat', default=None, type=float,
+              help="Minimum latitude for clipping shape file")
+@click.option('--min-lon', default=None, type=float,
+              help="Minimum longitude for clipping shape file")
+@click.option('--max-lon', default=None, type=float,
+              help="Maximum longitude for clipping shape file")
+def process(input, output_file_stem, min_lat, max_lat, min_lon, max_lon):
+    """
+    Script for converting a shapefile to VTK format
+
+    INPUT: Path to shapefile
+
+    Example Usage:
+        python shapefile_to_vtk.py sample.shp
+    Example Usage (clip geometry):
+        python shapefile_to_vtk.py sample.shp --min-lon 100.5 --min-lat -53.5 --max-lon 189.5 --max-lat -0.5
+    """
+    clip = np.array([min_lon, min_lat, max_lon, max_lat])
+    if(np.sum(clip==None)>0 and np.sum(clip==None)!=4):
+        raise RuntimeError('To clip geometry, all four parameters '
+                           '(minlon, minlat, maxlon, maxlat) must be passed in')
+    # end if
+
+    processFile(input, output_file_stem, min_lon, min_lat, max_lon, max_lat)
+# end func
+
 if __name__=="__main__":
-    if (len(sys.argv) != 2):
-        print msg
-        exit(0);
-    #end if
-
-    shpFileName = sys.argv[1];
-
-    processFile(shpFileName)
+    process()
 #end if
