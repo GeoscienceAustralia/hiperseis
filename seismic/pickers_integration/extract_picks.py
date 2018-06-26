@@ -82,6 +82,8 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     # ValueError: Selected corner frequency is above Nyquist.
     try:
         tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax, zerophase=True)
+        if not isclose(tr.stats.sampling_rate, 20.0):
+            tr.resample(20.0)
     except:
         pass
 
@@ -105,7 +107,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     snr = 0.0
     #p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
     #s_bands = [(0.5, 2), (1, 2), (0.2, 1.5), (0.3, 2.0), (0.3, 1), (0.3, 0.7), (0.05, 0.3), (0.05, 1)]
-    p_bands = [(0.5, 2.0), (0.8, 2.3)]
+    p_bands = [(0.5, 2.0), (0.3, 4.0)]
     s_bands = [(0.05, 0.2), (0.05, 1.0)]
     lookback = plookback if phase=='P' else slookback
     lookahead = plookahead if phase=='P' else slookahead
@@ -197,7 +199,29 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     aic_deriv_cleaned[0:int(10*samp_rate)]=0
                     aic_deriv_cleaned[-int(10*samp_rate):-1]=0
                     pick_index_deriv = np.argmax(aic_deriv_cleaned)
-                    # internal plotting function to access the variables
+                    # internal plotting functions to access the variables
+                    def plot_zerophase_compare():
+                        import matplotlib.pyplot as plt
+                        fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(30,15))
+                        start = 40 if phase == 'P' else (70 if distance > 10 else 50)
+                        end = 80 if phase == 'P' else 160
+                        tr_copy1=tr.copy()
+                        tr_copy2=tr.copy()
+                        tr_copy3=tr.copy()
+                        tr_copy1.trim(trim_starttime+start, trim_endtime-end)
+                        clean_trace(tr_copy2, trim_starttime+start, trim_endtime-end, best_band[0], best_band[1])
+                        clean_trace(tr_copy3, trim_starttime+start, trim_endtime-end, best_band[0], best_band[1], zerophase=True)
+                        axes.plot(tr_copy1, color='grey')
+                        axes.text(0, int(min(tr_copy1.data)), 'RAW, sampling_rate='+str(tr_copy1.stats.sampling_rate), fontsize=12, color='grey')
+                        axes.plot(tr_copy2, color='green')
+                        axes.text(0, int(min(tr_copy2.data)+20), 'single pass filter, band='+str(best_band), fontsize=12, color='green')
+                        axes.plot(tr_copy3, color='blue')
+                        axes.text(0, int(min(tr_copy3.data)+40), 'two pass filter(zero phase is True), band='+str(best_band), fontsize=12, color='blue')
+                        axes.legend()
+                        plt.tight_layout()
+                        fig.savefig('zerophase_'+network.code+'_'+station.code+'_'+tr.stats.channel+'_'+phase+'.png')
+                        plt.close('all')
+
                     def plot_aic(snr, theo_trig):
                         import matplotlib.pyplot as plt
                         fig, axes = plt.subplots(nrows=5, ncols=1, figsize=(30,15))
