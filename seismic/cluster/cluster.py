@@ -132,6 +132,23 @@ class Grid:
         self.dy = 180.0 / ny
         self.dz = dz
 
+    def find_block_number(self, lat, lon, z):
+        """
+        find the 3D-block number in this grid
+        :param lat: lattitude
+        :param lon: longitude
+        :param z: elevation
+        :return: int block number
+        """
+        y = 90. - lat
+        x = lon % 360
+        i = round(x / self.dx) + 1
+        j = round(y / self.dy) + 1
+        k = round(z / self.dz) + 1
+        block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
+
+        return int(block_number)
+
 
 @click.group()
 @click.option('-v', '--verbosity',
@@ -151,7 +168,7 @@ def recursive_glob(dirname, ext='*.xml'):
     :return: a list of path2files
     """
 
-    if isinstance(dirname, (list,)): # a list of dir
+    if isinstance(dirname, (list,)): # the input argument is a list of directory
         filelist = []
         for adir in dirname:
             filelist.extend(recursive_glob(adir))
@@ -395,7 +412,7 @@ def process_event(event, stations, grid, wave_type, counter):
     if ev_latitude is None or ev_longitude is None or ev_depth is None:
         return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
-    event_block = _find_block(grid, ev_latitude, ev_longitude, z=ev_depth)
+    event_block = grid.find_block_number(ev_latitude, ev_longitude, z=ev_depth)
 
     for arr in origin.arrivals:
         sta_code = arr.pick_id.get_referred_object(
@@ -427,9 +444,7 @@ def process_event(event, stations, grid, wave_type, counter):
             continue
 
         # TODO: use station.elevation information
-        station_block = _find_block(grid,
-                                    sta.latitude, sta.longitude,
-                                    z=0.0)
+        station_block = grid.find_block_number(sta.latitude, sta.longitude, z=0.0)
 
         if arr.phase in wave_type.split():
 
@@ -458,15 +473,15 @@ def process_event(event, stations, grid, wave_type, counter):
             pass
     return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
-
-def _find_block(grid, lat, lon, z):
-    y = 90. - lat
-    x = lon % 360
-    i = round(x / grid.dx) + 1
-    j = round(y / grid.dy) + 1
-    k = round(z / grid.dz) + 1
-    block_number = (k - 1) * grid.nx * grid.ny + (j - 1) * grid.nx + i
-    return int(block_number)
+# FZ: moved this function to the grid class
+# def _find_block(grid, lat, lon, z):
+#     y = 90. - lat
+#     x = lon % 360
+#     i = round(x / grid.dx) + 1
+#     j = round(y / grid.dy) + 1
+#     k = round(z / grid.dz) + 1
+#     block_number = (k - 1) * grid.nx * grid.ny + (j - 1) * grid.nx + i
+#     return int(block_number)
 
 
 @cli.command()
