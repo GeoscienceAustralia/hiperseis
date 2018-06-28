@@ -73,7 +73,7 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, co
             res,
             wt)
 
-def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
+def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9, zerophase=False):
     # add bandpass filtering sensitive to the distance d between source and receiver
     tr.trim(t1, t2)
     tr.detrend('linear')
@@ -81,9 +81,7 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     # added try catch after script aborted due to the error below:
     # ValueError: Selected corner frequency is above Nyquist.
     try:
-        tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax, zerophase=True)
-        if not isclose(tr.stats.sampling_rate, 20.0):
-            tr.resample(20.0)
+        tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax, zerophase=zerophase)
     except:
         pass
 
@@ -125,12 +123,17 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
             trim_starttime = prefor.time+target_arrivals[0].time-lookback
             trim_endtime = prefor.time+target_arrivals[-1].time+lookahead
             stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
+            if not isclose(stz[0].stats.sampling_rate, 20.0):
+                stz.resample(20.0)
             stz_raw = stz.copy()
             traces.append(stz[0])
             mult_const = 10
             if phase=='S':
                 stn = client.get_waveforms(network.code, station.code, '*', 'BHN,SHN,HHN,BH1,SH1', trim_starttime, trim_endtime)
                 ste = client.get_waveforms(network.code, station.code, '*', 'BHE,SHE,HHZ,BH2,SH2', trim_starttime, trim_endtime)
+                if not isclose(stn[0].stats.sampling_rate, 20.0) or not isclose(ste[0].stats.sampling_rate, 20.0):
+                    stn.resample(20.0)
+                    ste.resample(20.0)
                 stn.trim(trim_starttime, trim_endtime)
                 ste.trim(trim_starttime, trim_endtime)
                 r_t = rotate_ne_rt(stn[0].data, ste[0].data, az['backazimuth'])
