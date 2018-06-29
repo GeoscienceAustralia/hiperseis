@@ -1,26 +1,30 @@
 #!/bin/env bash
 
-# This is gmt-version6 modern syntax. Not for older gmt version 4 or 5
+# This is gmt-6 modern syntax.
+# NOT for older gmt version 4 or 5
+# can run in VDI if gmt6 installed
 
 # Example Usage: ./make_aus_ttt.bash 02
 
-P_S='P'
+# User set P or S wave
+P_S='S'
 
 ttt_figure="${P_S}_ttt_horizontal_slice_$1"
 
-gmt begin $ttt_figure png,jpeg
+# gmt begin $ttt_figure png,jpeg
+gmt begin $ttt_figure png
 
-# gmt coast -R100/180/-50/0 -JM6i -B -W0.5p -Gchocolate 
-
+# User set variables
 gmtdir="/g/data/ha3/fxz547/travel_time_tomography/inversion_${P_S}1x1"
+ddir=$gmtdir'/DATA'
+
 cptdir=$gmtdir'/cpt'
-# set psdir  = $gmtdir'/ps2'
-ddir=$gmtdir'/DATA1x1'
 bounf=$gmtdir'/boundary'
 
 fhead='Plocsol.1x1.'
-spacing=2/2
-# set psfile = "TTT_Australia_P_1x1_$1.ps"
+spacing=1/1
+#spacing=2/2
+
 amin=-50.000
 amax=10.00
 omin=95.00
@@ -32,6 +36,7 @@ amid=22.5
 omid=130.000
 
 #*********************************************
+# gmt coast -R100/180/-50/0 -JM6i -B -W0.5p -Gchocolate 
 
 ifile=$fhead$1
 
@@ -67,7 +72,7 @@ EOF
 
 #awk '{print $8 " " $9}' < $gmtdir/sorted_region_P.csv | sort -n | uniq > stations.txt
 #awk '{print $8 " " $9}' < $gmtdir/region_P.csv | sort -n | uniq > stations.txt
-gmt psxy stations4202.txt -R$omin/$omax/$amin/$amax -J$XCO -B${annotation}f2nsew -St.1  
+gmt psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO -B${annotation}f2nsew -St.1  
 
 #**************************************************  Left Bottom (next figure)    **
 
