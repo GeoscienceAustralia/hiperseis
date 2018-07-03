@@ -145,7 +145,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 traces.append(ste[0])
                 mult_const = 20
         except Exception, e:
-            print ('FDSN client could not retrieve waveform for sta='+station.code+' around time='+str(prefor.time+mean_target_arrival))
+            print ('FDSN client could not retrieve waveform for network='+str(network.code)+' and sta='+station.code+' around time='+str(prefor.time+mean_target_arrival))
             print(str(e))
             return None
         if phase == 'S':
@@ -356,11 +356,12 @@ def pick_phases(event, inventory=None):
     p_stations = []
     p_pick = None
     if inventory:
-        for st in inventory.networks[0].stations:
-            p_stations.append((inventory.networks[0], st))
-            p_pick = pick_phase(inventory.networks[0], st, prefor)
-            if p_pick:
-                p_phases.append(p_pick)
+        for net in inventory.networks:
+            for st in net.stations:
+                p_stations.append((net, st))
+                p_pick = pick_phase(net, st, prefor)
+                if p_pick:
+                    p_phases.append(p_pick)
     else:
         for pick in [p for p in event.picks if p.phase_hint=='P']:
             try:
@@ -377,10 +378,15 @@ def pick_phases(event, inventory=None):
                 p_phases.append(p_pick)
     s_phases = []
     s_pick = None
+    net_st_list = []
+    if inventory:
+        for n in inventory.networks:
+            for s in n.stations:
+                net_st_list.append((n, s))
     for ppick in p_phases:
         if inventory:
-            st = [s for s in inventory.networks[0].stations if s.code == ppick[0].waveform_id.station_code][0]
-            s_pick = pick_phase(inventory.networks[0], st, prefor, phase='S', p_Pick=ppick[0])
+            net, st = [(n, s) for (n, s) in net_st_list if s.code == ppick[0].waveform_id.station_code][0]
+            s_pick = pick_phase(net, st, prefor, phase='S', p_Pick=ppick[0])
         else:
             s_stn = [s for s in p_stations if s[1].code == ppick[0].waveform_id.station_code][0]
             s_pick = pick_phase(s_stn[0], s_stn[1], prefor, phase='S', p_Pick=ppick[0])
@@ -471,6 +477,12 @@ def createEventObject(evt, p_picks, s_picks, stations):
 evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
 outdir = '/home/ubuntu/bilby-out-final/2008'
 #inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
+try:
+    inv = client.get_stations(starttime=UTCDateTime('2008-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2008-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=30, level='channel')
+    print('len(inv)=>'+str(len(inv)))
+except:
+    print ('FDSN client could not retrieve inventory for start year=2008 and end year=2008')
+    sys.exit(1)
 for f in evtfiles:
     evts = read_events(f)
     if evts:
@@ -480,8 +492,8 @@ for f in evtfiles:
                 prefor = evt.preferred_origin() or evt.origins[0]
                 if prefor.depth >= 0 and prefor.time > UTCDateTime('2008-08-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2008-12-31T23:59:59.000000Z'):
                     print('Processing event => ' + str(evt))
-                    #p_picks, s_picks, stations = pick_phases(evt, inv)
-                    p_picks, s_picks, stations = pick_phases(evt)
+                    p_picks, s_picks, stations = pick_phases(evt, inv)
+                    #p_picks, s_picks, stations = pick_phases(evt)
                     evt_out = createEventObject(evt, p_picks, s_picks, stations)
                     if evt_out:
                         evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
