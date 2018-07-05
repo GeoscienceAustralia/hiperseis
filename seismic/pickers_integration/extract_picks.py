@@ -41,8 +41,13 @@ def calc_distance(rec, src):
     return calc_dist(src.latitude, src.longitude, rec.latitude, rec.longitude, 6371, 0)
 
 def get_backazimuth(stalat, stalon, evtlat, evtlon):
+    az = None
     client = IrisClient()
-    return client.distaz(stalat=stalat, stalon=stalon, evtlat=evtlat, evtlon=evtlon)
+    try:
+        az = client.distaz(stalat=stalat, stalon=stalon, evtlat=evtlat, evtlon=evtlon)
+    except:
+        print('IRISClient.distaz failed with error => '+str(e))
+    return az
 
 def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, comments_data=None):
     global pick_Count
@@ -116,6 +121,8 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     mean_target_arrival = np.mean([arr.time for arr in target_arrivals])
     distance = calc_distance(station, prefor)
     az = get_backazimuth(stalat=station.latitude, stalon=station.longitude, evtlat=prefor.latitude, evtlon=prefor.longitude)
+    if not az:
+        return None
     print ('station=> ' + str(station.code) + ' distance =>'+str(distance))
     traces = []
     if len(target_arrivals) > 0:
@@ -474,15 +481,31 @@ def createEventObject(evt, p_picks, s_picks, stations):
 
     return event
 
+def dedup(inventory):
+    net_sta_list_uniq = []
+    for net in inventory:
+        ind_list = []
+        for index, sta in enumerate(net):
+            if net.code+'.'+sta.code in net_sta_list_uniq:
+                ind_list.append(index)
+            else:
+                net_sta_list_uniq.append(net.code+'.'+sta.code)
+        ind_list.sort(reverse=True)
+        for ind in ind_list:
+            del net.stations[ind]
+
 evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
 outdir = '/home/ubuntu/bilby-out-final/2008'
 #inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
 try:
-    inv = client.get_stations(starttime=UTCDateTime('2008-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2008-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=30, level='channel')
+    inv = client.get_stations(starttime=UTCDateTime('2008-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2008-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=45, level='channel')
     print('len(inv)=>'+str(len(inv)))
 except:
     print ('FDSN client could not retrieve inventory for start year=2008 and end year=2008')
     sys.exit(1)
+
+dedup(inv)
+
 for f in evtfiles:
     evts = read_events(f)
     if evts:
