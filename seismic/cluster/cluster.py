@@ -503,7 +503,12 @@ def sort(output_file, sorted_file, residual_cutoff):
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observed travel time (observed_tt).
 
-    :param output_file: output file from the gather stage
+    cmdline usage:
+    cluster sort outfile_P.csv 5. -s sorted_P.csv
+    cluster sort outfile_S.csv 10. -s sorted_S.csv
+
+
+    :param output_file: output file from the gather stage (eg, outfile_P.csv)
     :param sorted_file: str, optional
         optional sorted output file path. Default: sorted.csv.
     :param residual_cutoff: float
