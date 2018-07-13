@@ -119,12 +119,12 @@ class Grid:
     Encaptulate 3D cell properties grid sizes
     """
 
-    def __init__(self, nx, ny, dz):
+    def __init__(self, nx=360, ny=180, dz=10000):
         """
         constructor for Grid
         :param nx: integer number of cells in longitude (360)
-        :param ny:
-        :param dz:
+        :param ny: lattitude cells (180)
+        :param dz: depth in meteres (def=10000
         """
         self.nx = nx
         self.ny = ny
