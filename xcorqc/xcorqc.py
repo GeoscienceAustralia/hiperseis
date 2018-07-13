@@ -463,8 +463,13 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                                     xcorrResultsDict[k][0].shape[1])
                 # end if
             else:
-                combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                       xcorrResultsDict[k][i]))
+                if (combinedXcorrResults.shape[1] == xcorrResultsDict[k][i].shape[1]):
+                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                           xcorrResultsDict[k][i]))
+                else:
+                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                           np.zeros(combinedXcorrResults.shape[1])))
+                # end if
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
                                                              windowCountResultsDict[k][i]))
                 combinedIntervalStartTimes = np.concatenate((combinedIntervalStartTimes,

@@ -205,7 +205,7 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
         if(nearest_neighbours != -1):
             if (data_source1==data_source2):
                 st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours+1))
-                st2list.remove(st1)
+                if (st1 in  st2list): st2list.remove(st1)
                 st2list = list(st2list)
             else:
                 st2list = ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours)
