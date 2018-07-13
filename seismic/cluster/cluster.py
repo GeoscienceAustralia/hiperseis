@@ -522,7 +522,7 @@ def sort(output_file, sorted_file, residual_cutoff):
                                names=column_names)
     cluster_data = cluster_data[abs(cluster_data['residual'])
                                 < residual_cutoff]
-    cluster_data['source_depth'] = cluster_data['source_depth'] / 1000.0
+    cluster_data['source_depth'] = cluster_data['source_depth'] / 1000.0  # scale meter to KM
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
@@ -536,8 +536,7 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     final_df = pd.merge(cluster_data, med, how='right',
                         on=['source_block', 'station_block', 'observed_tt'],
-                        sort=True,
-                        right_index=True)
+                        sort=True, right_index=True)
 
     # Confirmed: drop_duplicates required due to possibly duplicated picks in
     #  the original engdahl events
@@ -546,10 +545,11 @@ def sort(output_file, sorted_file, residual_cutoff):
     final_df.drop_duplicates(subset=['source_block', 'station_block',
                                      'event_number', SOURCE_LONGITUDE,
                                      SOURCE_LATITUDE, 'source_depth'],
-                             keep='first',
-                             inplace=True)
+                             keep='first', inplace=True)
+    # FZ: this drop_duplicate will still keep many identical duplicated rows with only event_number different
 
     final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
+
 
 
 @cli.command()
