@@ -468,7 +468,9 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                                                            xcorrResultsDict[k][i]))
                 else:
                     combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                           np.zeros(combinedXcorrResults.shape[1])))
+                                                           np.zeros((xcorrResultsDict[k][i].shape[0],
+                                                                     combinedXcorrResults.shape[1]))))
+                    logger.warn("\t\tVariable sample rates detected. Current station-pair: %s"%(k))
                 # end if
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
                                                              windowCountResultsDict[k][i]))
