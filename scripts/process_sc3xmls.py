@@ -1,5 +1,9 @@
-# fxz547@vdi-n20 /g/data/ha3/Passive/perm_stations/extracted_events/analyst-reviewed
-# $ cat xml_to_csv.py
+# infolder: Githubz/passive-seismic (master)
+# conda install obspy
+# conda install mpi4py
+# export PYTHONPATH=.:$PYTHONPATH
+# export ELLIPCORR=/Softlab/Githubz/passive-seismic/ellip-corr
+# python2 scripts/process_sc3xmls.py /Softlab/Data/PST/sc3xmls/events_xmls_sc3ml/
 
 import os
 import sys
@@ -17,6 +21,14 @@ from inventory.parse_inventory import read_all_stations
 log= logging.getLogger()
 
 def process_sc3xml_files(path2dir, output_csv):
+    """
+    Process a directory of sc3 xml files to get events attributes
+    Ref:/g/data/ha3/Passive/perm_stations/extracted_events/analyst-reviewed
+
+    :param path2dir:
+    :param output_csv:
+    :return:
+    """
     grid = Grid()
 
     stations = read_all_stations() # mpiops.run_once(read_all_stations)
@@ -150,9 +162,9 @@ def process_event(event, stations, grid, wave_type, counter):
             pass
     return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
-
+# ======================================================
+# python2 scripts/process_sc3xmls.py /Softlab/Data/PST/sc3xmls/events_xmls_sc3ml/
 if __name__ == "__main__":
-
     if len(sys.argv)>1:
         in_dir=sys.argv[1]
     else:
