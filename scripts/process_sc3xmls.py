@@ -45,9 +45,9 @@ def process_sc3xml_files(path2dir, output_csv):
 
                 p_arr, s_arr, missing_stations, arr_stations=process_event(evt, stations, grid, 'P S', 1000)
 
-                print (p_arr)
-                print(s_arr)
-                print(arr_stations)
+                print ("P arrivals: ", p_arr)
+                print("S arrivals: ", s_arr)
+                print("Stations: ",   arr_stations)
 
                 prefor = evt.preferred_origin() if evt.preferred_origin() else evt.origins[0]
                 magPresent = True
@@ -104,8 +104,11 @@ def process_event(event, stations, grid, wave_type, counter):
     event_block = grid.find_block_number(ev_latitude, ev_longitude, z=ev_depth)
 
     for arr in origin.arrivals:
-        sta_code = arr.pick_id.get_referred_object(
-        ).waveform_id.station_code
+
+        snr_value = getSNR(arr)
+        print("Arrival Pick SNR value: ", snr_value )
+
+        sta_code = arr.pick_id.get_referred_object().waveform_id.station_code
 
         # ignore arrivals not in stations dict, workaround for now for
         # ENGDAHL/ISC events
@@ -154,7 +157,8 @@ def process_event(event, stations, grid, wave_type, counter):
                       (arr.pick_id.get_referred_object().time.timestamp -
                        origin.time.timestamp) + ellipticity_corr,
                       degrees_to_source,
-                      sta_code]
+                      sta_code, snr_value]
+
             arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
                 s_arrivals.append(t_list + [2])
@@ -162,12 +166,26 @@ def process_event(event, stations, grid, wave_type, counter):
             pass
     return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
+def getSNR(arrival):
+    """
+    From the arrival get the SNR value.
+    This Algorithm depend how the snr value is wrapped in the xml file
+    :param arrival:
+    :return: a float value
+    """
+    snr_v = arrival.pick_id.get_referred_object().comments[3]  # Comment(text='snr = 10.7157568852')
+
+    snrlist = str(snr_v).split("snr =")
+    snrv = snrlist[-1][:-2]  # the last item of the split, trimming two chars ')
+
+    return float(snrv)
 # ======================================================
 # python2 scripts/process_sc3xmls.py /Softlab/Data/PST/sc3xmls/events_xmls_sc3ml/
 if __name__ == "__main__":
     if len(sys.argv)>1:
         in_dir=sys.argv[1]
     else:
-        in_dir="../tests/mocks/events/analyst_event_samples/"
+        in_dir="../testdata"
+        #in_dir="../tests/mocks/events/analyst_event_samples/"
 
     process_sc3xml_files(in_dir, "myoutput.csv")
