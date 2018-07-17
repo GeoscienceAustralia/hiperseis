@@ -39,29 +39,32 @@ class Client2ASDF(object):
             print(ref_inv)
 
         ref_st = Stream()
-        inv = []
 
         # go through inventory and request timeseries data
         for net in ref_inv:
             for stn in net:
-                try:
-                    ref_st += client.get_waveforms(network=net.code, station=stn.code,
-                                                   channel=chan, location='*',
-                                                   starttime=UTCDateTime(timeinterval[0]),
-                                                   endtime=UTCDateTime(timeinterval[1]))
-                except FDSNException:
-                    print('Data not available from Reference Station: ' + stn.code)
-
-                else:
-                    self.ref_stations.append(net.code + '.' + stn.code)
-                    # append the inv
-                    inv.append(ref_inv.select(station=stn.code))
-
-        # write ref traces into ASDF
-        for st_inv in inv:
-            query_ds.add_stationxml(st_inv)
-        for tr in ref_st:
-            query_ds.add_waveforms(tr, "reference_station", event_id=event_id)
+                stime = UTCDateTime(timeinterval[0])
+                etime = UTCDateTime(timeinterval[1])
+                step = 3600*24*10
+                while stime + step < etime:
+                    try:
+                        ref_st = client.get_waveforms(network=net.code, station=stn.code,
+                                                      channel=chan, location='*',
+                                                      starttime=stime,
+                                                      endtime=stime+step)
+                        print ref_st
+                        self.ref_stations.append(net.code + '.' + stn.code)
+                        st_inv = ref_inv.select(station=stn.code, channel=chan)
+                        
+                        query_ds.add_stationxml(st_inv)
+                        for tr in ref_st:
+                            query_ds.add_waveforms(tr, "reference_station")
+                    except FDSNException:
+                        print('Data not available from Reference Station: ' + stn.code)
+                    # end try
+                    stime += step
+                #wend
+        # end for
 
         #tr.write(os.path.join(os.path.dirname(outputFileName), tr.id + ".MSEED"),
         #         format="MSEED") # Don't write miniseed

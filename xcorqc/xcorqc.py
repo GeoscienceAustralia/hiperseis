@@ -173,6 +173,12 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
             if(logger): logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end fi
 
+        if(np.fabs(itr1e - itr1s) < sr1):
+            itr1s = itr1e
+            itr2s = itr2e
+            continue
+        # end if
+
         intervalStartSeconds.append(itr1s/sr1)
         intervalEndSeconds.append(itr1e/sr1)
         itr1s = itr1e
@@ -341,13 +347,10 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
             logger.info('Fetching data for station %s..' % (refStId))
 
             if(refds_db is not None):
-                if(tempds_db is not None):
-                    # Fetching data from a large ASDF file, as is the case with temporary
-                    # stations data, is significantly faster using a Json database.
-                    refSt = refds_db.fetchDataByTime(refds, refStId, channel_wildcard,
-                                                     cTime.timestamp,
-                                                     (cTime + cStep).timestamp,
-                                                     decimation_factor=tempst_dec_factor)
+                refSt = refds_db.fetchDataByTime(refds, refStId, channel_wildcard,
+                                                 cTime.timestamp,
+                                                 (cTime + cStep).timestamp,
+                                                 decimation_factor=tempst_dec_factor)
             else:
                 refSt = refds.get_waveforms("*", refStId, "*", channel_wildcard, cTime,
                                             cTime + cStep, '*')
@@ -435,6 +438,10 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
 
                 intervalStartTimes[stationPair].append(cTime.timestamp + intervalStartSeconds)
                 intervalEndTimes[stationPair].append(cTime.timestamp + intervalEndSeconds)
+
+                #for iss, ies in zip(intervalStartSeconds, intervalEndSeconds):
+                #    logger.warn('\t\t\t%d, %d, %d'%(iss, ies, ies-iss))
+                # end for
 
                 pairCount += 1
             # end for (loop over temporary stations)
