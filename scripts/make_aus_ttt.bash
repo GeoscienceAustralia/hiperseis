@@ -6,7 +6,7 @@
 
 # Example Usage: ./make_aus_ttt.bash 02
 
-# User set P or S wave
+# User, please set P or S wave below
 P_S='S'
 
 ttt_figure="${P_S}_ttt_horizontal_slice_$1"
@@ -22,8 +22,10 @@ cptdir=$gmtdir'/cpt'
 bounf=$gmtdir'/boundary'
 
 fhead='Plocsol.1x1.'
-spacing=1/1
-#spacing=2/2
+
+# spacing will affect images look
+#spacing=1/1
+spacing=2/2  # original 2/2 degree
 
 amin=-50.000
 amax=10.00
@@ -78,8 +80,8 @@ gmt psxy stations.txt -R$omin/$omax/$amin/$amax -J$XCO -B${annotation}f2nsew -St
 
 # gmt colorbar -Ct.cpt -Dx8c/1c+w12c/0.5c+jTC+h -Bxaf+l"topography" -By+lkm
 
-
-gmt colorbar -C$cptdir/palT2.cpt -D10.0/-1.2/7/0.25h -Ba 
+#gmt colorbar -C$cptdir/palT2.cpt -D10.0/-1.2/7/0.25h -Ba  # original
+gmt colorbar -C$cptdir/pal3-T2.cpt -D10.0/-1.2/7/0.25h -Ba  # [-3 +3]
 
 
 gmt end
