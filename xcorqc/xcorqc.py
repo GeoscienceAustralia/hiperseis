@@ -16,6 +16,9 @@ from fft import *
 from collections import defaultdict
 from netCDF4 import Dataset
 
+from obspy.signal.detrend import simple, spline
+from obspy.signal.filter import bandpass
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
@@ -29,34 +32,6 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.addHandler(handler)
     return logger
 # end func
-
-# Greatest common divisor of more than 2 numbers.
-def gcd(*numbers):
-    """Return the greatest common divisor of the given integers"""
-    from fractions import gcd
-    return reduce(gcd, numbers)
-
-
-# Assuming numbers are positive integers.
-
-def lcm(*numbers):
-    """Return lowest common multiple."""
-
-    def lcm(a, b):
-        return (a * b) // gcd(a, b)
-
-    return reduce(lcm, numbers, 1)
-
-
-def butterworthBPF(spectrum, samprate, f_lo, f_hi):
-    f = np.fft.fftfreq(spectrum.shape[0], 1.0 / samprate)
-    p = 4  # poles
-    gain_lpf = 1.0 / (1 + (f / f_hi) ** (2 * p))
-    gain_hpf = 1.0 / (1 + (f / f_lo) ** (2 * p))
-    gain_bpf = gain_lpf - gain_hpf
-    spectrum *= gain_bpf
-    return spectrum
-
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -81,15 +56,14 @@ def zeropad_ba_old(tr, padlen):
     return padded
 
 
-def taperDetrend(tr, taperlen):
+def taper(tr, taperlen):
     """ First detrend, then tapers signal"""
-    tr -= np.median(tr)
     tr[0:taperlen] *= 0.5 * (1 + np.cos(np.linspace(-math.pi, 0, taperlen)))
     tr[-taperlen:] *= 0.5 * (1 + np.cos(np.linspace(0, math.pi, taperlen)))
     return tr
+# end func
 
-
-def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
+def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
            flo=0.9, fhi=1.1, verbose=1, logger=None):
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
@@ -139,8 +113,32 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
-                tr1_d = taperDetrend(tr1_d, int(sr1 / flo))
-                tr2_d = taperDetrend(tr2_d, int(sr2 / flo))
+                # detrend
+                tr1_d = spline(tr1_d, 2, 1000)
+                tr2_d = spline(tr2_d, 2, 1000)
+
+                # zero-mean
+                tr1_d -= np.mean(tr1_d)
+                tr2_d -= np.mean(tr2_d)
+
+                # clip to 2*std
+                std_tr1 = np.std(tr1_d)
+                std_tr2 = np.std(tr2_d)
+                tr1_d[np.fabs(tr1_d) > 2 * std_tr1] = 2 * std_tr1
+                tr2_d[np.fabs(tr2_d) > 2 * std_tr2] = 2 * std_tr2
+
+                # apply zero-phase band-pass
+                tr1_d = bandpass(tr1_d, flo, fhi, sr1, zerophase=True)
+                tr2_d = bandpass(tr2_d, flo, fhi, sr2, zerophase=True)
+
+                # taper
+                #tr1_d = taper(tr1_d, int(sr1 / flo))
+                #tr2_d = taper(tr2_d, int(sr2 / flo))
+
+                # 1-bit normalization
+                tr1_d = np.sign(tr1_d)
+                tr2_d = np.sign(tr2_d)
+
                 if (sr1 < sr2):
                     fftlen2 = fftlen
                     fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
@@ -165,8 +163,9 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
                 resl.append(rf)
                 windowCount += 1
             # end if
-            wtr1s = wtr1e
-            wtr2s = wtr2e
+
+            wtr1s += int(window_samples_1 - window_samples_1 * window_overlap)
+            wtr2s += int(window_samples_2 - window_samples_2 * window_overlap)
         # end while (windows within interval)
 
         if (verbose > 1):
@@ -197,21 +196,11 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
 
         step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
         mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
-        mean = butterworthBPF(mean, sr, flo, fhi)
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
 
         # Compute magnitude of mean
         mean = np.abs(mean)
-
-        # mask out the zero line for the max
-        zerolower = int(xcorlen / 2 - sr / flo)
-        zeroupper = int(xcorlen / 2 + sr / flo)
-        maskmean = mean.view(np.ma.MaskedArray)
-        maskmean[zerolower:zeroupper] = np.ma.masked
-
-        #normFactor = np.ma.max(maskmean)
-        #normFactor = 3.0 * np.ma.std(maskmean)  # three sigma
         normFactor = np.max(mean)
 
         # mean can be 0 for a null result

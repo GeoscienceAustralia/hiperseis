@@ -135,8 +135,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('window-seconds', required=True,
                 type=int)
 
-@click.option('--ds1-dec-factor', default=5, help="Decimation factor for data-source-1")
-@click.option('--ds2-dec-factor', default=5, help="Decimation factor for data-source-2")
+@click.option('--ds1-dec-factor', default=1, help="Decimation factor for data-source-1")
+@click.option('--ds2-dec-factor', default=1, help="Decimation factor for data-source-2")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
                                                       " to correlate against a given station in data-source-1. If"
                                                       " set to -1, correlations for a cross-product of all stations"
