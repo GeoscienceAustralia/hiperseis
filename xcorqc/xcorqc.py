@@ -223,7 +223,8 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
 def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                        start_time, end_time,
                        ref_station_ids=None, temp_station_ids=None,
-                       channel_wildcard='*Z',
+                       ref_channel_wildcard='*Z',
+                       temp_channel_wildcard='*Z',
                        refst_dec_factor=None, tempst_dec_factor=None,
                        buffer_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, flo=0.9, fhi=1.1,
@@ -236,10 +237,8 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
     mandatory, data-access from large ASDF files will be slow without it.
 
     Station-ids to be processed from the two data-sources can be specified as lists of strings,
-    while wildcards can be used to process all stations. Only a single parameter (channel_wildcard)
-    is provided to pick a channel for the data sources, with the assumption that cross-correlations
-    are performed on the same component. Data is fetched from the sources in chunks to limit memory
-    usage and data-windows with gaps are discarded.
+    while wildcards can be used to process all stations. Data is fetched from the sources in chunks
+    to limit memory usage and data-windows with gaps are discarded.
 
     Cross-correlation results are written out for each station-pair, in the specified folder, as
     NETCDF4 files. Panoply (https://www.giss.nasa.gov/tools/panoply/), already installed on the
@@ -263,8 +262,10 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
     :type temp_station_ids: List of strings
     :param temp_station_ids: List of temporary station names to be used from the ASDFDataSet.  Use
                              ['*'] for all stations available.
-    :type channel_wildcard: str
-    :param channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
+    :type ref_channel_wildcard: str
+    :param ref_channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
+    :type temp_channel_wildcard: str
+    :param temp_channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
     :type refst_dec_factor: int
     :param refst_dec_factor: Decimation factor for reference station data
     :type tempst_dec_factor: int
@@ -336,12 +337,12 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
             logger.info('Fetching data for station %s..' % (refStId))
 
             if(refds_db is not None):
-                refSt = refds_db.fetchDataByTime(refds, refStId, channel_wildcard,
+                refSt = refds_db.fetchDataByTime(refds, refStId, ref_channel_wildcard,
                                                  cTime.timestamp,
                                                  (cTime + cStep).timestamp,
                                                  decimation_factor=tempst_dec_factor)
             else:
-                refSt = refds.get_waveforms("*", refStId, "*", channel_wildcard, cTime,
+                refSt = refds.get_waveforms("*", refStId, "*", ref_channel_wildcard, cTime,
                                             cTime + cStep, '*')
                 # Decimate traces if a decimation factor for reference station data has been
                 # specified.
@@ -377,13 +378,13 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 if(tempds_db is not None):
                     # Fetching data from a large ASDF file, as is the case with temporary
                     # stations data, is significantly faster using a Json database.
-                    tempSt = tempds_db.fetchDataByTime(tempds, tempStId, channel_wildcard,
+                    tempSt = tempds_db.fetchDataByTime(tempds, tempStId, temp_channel_wildcard,
                                                        cTime.timestamp,
                                                        (cTime + cStep).timestamp,
                                                        decimation_factor=tempst_dec_factor)
                 else:
                     # Otherwise fetch data using the pyasdf interface.
-                    tempSt = tempds.get_waveforms("*", tempStId, "*", channel_wildcard, cTime,
+                    tempSt = tempds.get_waveforms("*", tempStId, "*", temp_channel_wildcard, cTime,
                                                   cTime + cStep, '*')
 
                     # Decimate traces
@@ -391,7 +392,12 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                         tr.decimate(tempst_dec_factor)
 
                     # Merge traces, preserving data gaps (see above).
-                    tempSt.merge()
+                    try:
+                        tempSt.merge()
+                    except:
+                        logger.warn('\tFailed to merge traces..')
+                        tempSt = None
+                    # end try
                 #end if
 
                 if (tempSt is None):

@@ -217,11 +217,11 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
             endTime = UTCDateTime(end_time)
 
             x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.ds, ds1.ds_jason_db, ds2.ds, ds2.ds_jason_db, startTime,
-                                                            endTime, [st1], [st2], ds1.zchannel, ds1_dec_factor,
+                                                            endTime, [st1], [st2], ds1.zchannel, ds2.zchannel, ds1_dec_factor,
                                                             ds2_dec_factor, read_buffer_size, interval_seconds,
                                                             window_seconds, fmin, fmax, output_path, 2)
 
-            # end for
+        # end for
     # end for
 # end func
 
