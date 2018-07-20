@@ -321,8 +321,8 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
 
     xcorrResultsDict = defaultdict(list)  # Results dictionary indexed by station-pair string
     windowCountResultsDict = defaultdict(list)  # Window-count dictionary indexed by station-pair string
-    intervalStartTimes = defaultdict(list)
-    intervalEndTimes = defaultdict(list)
+    intervalStartTimesDict = defaultdict(list)
+    intervalEndTimesDict = defaultdict(list)
     while (cTime < endTime):
         cStep = buffer_seconds
 
@@ -431,8 +431,8 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 xcorrResultsDict[stationPair].append(xcl)
                 windowCountResultsDict[stationPair].append(winsPerInterval)
 
-                intervalStartTimes[stationPair].append(cTime.timestamp + intervalStartSeconds)
-                intervalEndTimes[stationPair].append(cTime.timestamp + intervalEndSeconds)
+                intervalStartTimesDict[stationPair].append(cTime.timestamp + intervalStartSeconds)
+                intervalEndTimesDict[stationPair].append(cTime.timestamp + intervalEndSeconds)
 
                 #for iss, ies in zip(intervalStartSeconds, intervalEndSeconds):
                 #    logger.warn('\t\t\t%d, %d, %d'%(iss, ies, ies-iss))
@@ -456,8 +456,8 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
             if (i == 0):
                 combinedXcorrResults = xcorrResultsDict[k][0]
                 combinedWindowCountResults = windowCountResultsDict[k][0]
-                combinedIntervalStartTimes = intervalStartTimes[k][0]
-                combinedIntervalEndTimes = intervalEndTimes[k][0]
+                combinedIntervalStartTimes = intervalStartTimesDict[k][0]
+                combinedIntervalEndTimes = intervalEndTimesDict[k][0]
 
                 # Generate time samples (only needs to be done once)
                 if (x is None):
@@ -477,17 +477,17 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
                                                              windowCountResultsDict[k][i]))
                 combinedIntervalStartTimes = np.concatenate((combinedIntervalStartTimes,
-                                                             intervalStartTimes[k][i]))
+                                                             intervalStartTimesDict[k][i]))
                 combinedIntervalEndTimes = np.concatenate((combinedIntervalEndTimes,
-                                                           intervalEndTimes[k][i]))
+                                                           intervalEndTimesDict[k][i]))
             # end if
         # end for
 
         # Replace lists with combined results
         xcorrResultsDict[k] = combinedXcorrResults
         windowCountResultsDict[k] = combinedWindowCountResults
-        intervalStartTimes[k] = combinedIntervalStartTimes
-        intervalEndTimes[k] = combinedIntervalEndTimes
+        intervalStartTimesDict[k] = combinedIntervalStartTimes
+        intervalEndTimesDict[k] = combinedIntervalEndTimes
     # end for
 
     # Save Results
@@ -513,9 +513,9 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
         interval[:] = np.arange(xcorrResultsDict[k].shape[0])
         lag[:] = x
         nsw[:] = windowCountResultsDict[k]
-        ist[:] = intervalStartTimes[k]
-        iet[:] = intervalEndTimes[k]
-        xc[:, :] = xcorrResultsDict[k][::-1, :]  # Flipping rows
+        ist[:] = intervalStartTimesDict[k]
+        iet[:] = intervalEndTimesDict[k]
+        xc[:, :] = xcorrResultsDict[k]
         root_grp.close()
     # end for
 
