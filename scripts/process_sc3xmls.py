@@ -14,11 +14,12 @@ from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from seismic import mpiops
 import ellipcorr
 
-from seismic.cluster.cluster import Grid
+from seismic.cluster.cluster import Grid, ArrivalWriter
 from inventory.parse_inventory import read_all_stations
 
 
-log= logging.getLogger()
+log=logging.getLogger()
+log.setLevel(logging.DEBUG)
 
 def process_sc3xml_files(path2dir, output_csv):
     """
@@ -31,6 +32,8 @@ def process_sc3xml_files(path2dir, output_csv):
     """
     grid = Grid()
 
+    arrive_writer = ArrivalWriter(0,'P S', output_csv)  # "seismic_events_arrivals"
+
     stations = read_all_stations() # mpiops.run_once(read_all_stations)
 
     xml_file_pattern=os.path.join(path2dir, '*.xml')
@@ -38,24 +41,30 @@ def process_sc3xml_files(path2dir, output_csv):
 
     with open(output_csv, 'w') as csv_out:
         for evt_file in evt_files:
-            print ("processing", evt_file)
+
             evts = read_events(evt_file)
+            csv_out.write("%s %s \n"%(evt_file, len(evts)))
+
             for evt in evts:
-                print(str(evt))
+                # print(str(evt))
 
                 p_arr, s_arr, missing_stations, arr_stations=process_event(evt, stations, grid, 'P S', 1000)
+                arrive_writer.write([p_arr, s_arr, missing_stations,arr_stations])
 
-                print ("P arrivals: ", p_arr)
-                print("S arrivals: ", s_arr)
-                print("Stations: ",   arr_stations)
+                # print ("P arrivals: ", p_arr)
+                # print("S arrivals: ", s_arr)
+                # print("Stations: ",   arr_stations)
+                #
+                # prefor = evt.preferred_origin() if evt.preferred_origin() else evt.origins[0]
+                # magPresent = True
+                # if evt.preferred_magnitude() or len(evt.magnitudes) > 0:
+                #     prefmag = evt.preferred_magnitude() or evt.magnitudes[0]
+                # else:
+                #     magPresent = False
+                # csv_out.write(str(prefor.latitude) + ',' + str(prefor.longitude) + ',' + str(prefor.depth/1000) + ',' + (str(prefmag.mag) if magPresent else '') + ',' + str(prefor.time) + '\n')
 
-                prefor = evt.preferred_origin() if evt.preferred_origin() else evt.origins[0]
-                magPresent = True
-                if evt.preferred_magnitude() or len(evt.magnitudes) > 0:
-                    prefmag = evt.preferred_magnitude() or evt.magnitudes[0]
-                else:
-                    magPresent = False
-                csv_out.write(str(prefor.latitude) + ',' + str(prefor.longitude) + ',' + str(prefor.depth/1000) + ',' + (str(prefmag.mag) if magPresent else '') + ',' + str(prefor.time) + '\n')
+
+    arrive_writer.close()
 
     return 0
 
@@ -106,7 +115,7 @@ def process_event(event, stations, grid, wave_type, counter):
     for arr in origin.arrivals:
 
         snr_value = getSNR(arr)
-        print("Arrival Pick SNR value: ", snr_value )
+        log.debug("Arrival Pick SNR value: %s", snr_value )
 
         sta_code = arr.pick_id.get_referred_object().waveform_id.station_code
 
@@ -181,6 +190,9 @@ def getSNR(arrival):
     return float(snrv)
 # ======================================================
 # python2 scripts/process_sc3xmls.py /Softlab/Data/PST/sc3xmls/events_xmls_sc3ml/
+# python scripts/process_sc3xmls.py testdata/
+# python scripts/process_sc3xmls.py /g/data/ha3/niket/mtIsa_rf/events_for_fei
+
 if __name__ == "__main__":
     if len(sys.argv)>1:
         in_dir=sys.argv[1]
