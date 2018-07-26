@@ -415,6 +415,10 @@ def process_event(event, stations, grid, wave_type, counter):
     event_block = grid.find_block_number(ev_latitude, ev_longitude, z=ev_depth)
 
     for arr in origin.arrivals:
+
+        snr_value = getSNR(arr)
+        log.debug("Arrival Pick SNR value: %s", snr_value)
+
         sta_code = arr.pick_id.get_referred_object(
         ).waveform_id.station_code
 
@@ -433,10 +437,17 @@ def process_event(event, stations, grid, wave_type, counter):
             continue
         sta = stations[sta_code]
 
-        degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
+        log.debug("events and station latlong: %s, %s, %s, %s", ev_latitude, ev_longitude,
+                                              sta.latitude, sta.longitude)
+
+        try:
+            degrees_to_source = locations2degrees(ev_latitude, ev_longitude,
                                               sta.latitude,
                                               sta.longitude)
+        except Exception as e:
+            log.warning("location to degree error %s", e )
 
+        log.debug("location to degree= %s", degrees_to_source)
         # ignore stations more than 90 degrees from source
         if degrees_to_source > 90.0:
             # log.info('Ignored this station arrival as distance from source '
@@ -447,6 +458,11 @@ def process_event(event, stations, grid, wave_type, counter):
         station_block = grid.find_block_number(sta.latitude, sta.longitude, z=0.0)
 
         if arr.phase in wave_type.split():
+            log.debug("Began ellipticity_corr ")
+
+            azim_v = gps2dist_azimuth(ev_latitude, ev_longitude, sta.latitude, sta.longitude)[1]
+
+            log.debug("Check input params to ellipticity_corr = %s, %s, %s, %s, %s", arr.phase, degrees_to_source, ev_depth, 90-ev_latitude, azim_v )
 
             ellipticity_corr = ellipcorr.ellipticity_corr(
                 phase=arr.phase,
@@ -456,16 +472,18 @@ def process_event(event, stations, grid, wave_type, counter):
                 # no `ecolat` bounds check in fortran ellipcorr subroutine
                 # no `origin.latitude` bounds check in obspy
                 ecolat=90 - ev_latitude,  # conversion to co-latitude
-                azim=gps2dist_azimuth(ev_latitude, ev_longitude,
-                                      sta.latitude, sta.longitude)[1]
+                azim= azim_v
             )
+
+            log.debug("ellipticity_corr = %s", ellipticity_corr)
+            
             t_list = [event_block, station_block, arr.time_residual,
                       ev_number, ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp -
                        origin.time.timestamp) + ellipticity_corr,
                       degrees_to_source,
-                      sta_code]
+                      sta_code, snr_value]
             arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
                 s_arrivals.append(t_list + [2])
@@ -483,6 +501,19 @@ def process_event(event, stations, grid, wave_type, counter):
 #     block_number = (k - 1) * grid.nx * grid.ny + (j - 1) * grid.nx + i
 #     return int(block_number)
 
+def getSNR(arrival):
+    """
+    From the arrival get the SNR value.
+    This algorithm depend on how the snr value is coded in the xml file
+    :param arrival:
+    :return: a float SNR value
+    """
+    snr_v = arrival.pick_id.get_referred_object().comments[3]  # Comment(text='snr = 10.7157568852')
+
+    snrlist = str(snr_v).split("snr =")
+    snrv = snrlist[-1][:-2]  # the last item of the split, trimming two chars ')
+
+    return float(snrv)
 
 @cli.command()
 @click.argument('output_file',
@@ -550,6 +581,79 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
 
+
+
+@cli.command()
+@click.argument('output_file',
+                type=click.File(mode='r'))
+@click.argument('residual_cutoff', type=float)
+@click.option('-s', '--sorted_file',
+              type=click.File(mode='w'), default='sorted2.csv',
+              help='output sorted and filter file.')
+def sort2(output_file, sorted_file, residual_cutoff):
+    """
+    Sort and filter the arrivals.
+
+    Sort based on the source and station block number.
+    There are two stages of filtering:
+    1. Filter based on the time residual
+    2. Filter based on best Signal_to_Noise-Ratio seismic wave: If there are multiple source and station block combinations, we keep the
+    row corresponding to the highest SNR value
+
+    cmdline usage:
+    cluster sort outfile_P.csv 5. -s sorted_P.csv
+    cluster sort outfile_S.csv 10. -s sorted_S.csv
+
+
+    :param output_file: output file from the gather stage (eg, outfile_P.csv)
+    :param sorted_file: str, optional
+        optional sorted output file path. Default: sorted.csv.
+    :param residual_cutoff: float
+        residual seconds above which arrivals are rejected.
+    :return: pandas_df
+    """
+
+    log.info('Filtering arrivals.')
+
+    cluster_data = pd.read_csv(output_file, header=None,
+                               names=column_names)
+
+    cluster_data = cluster_data[abs(cluster_data['residual'])
+                                < residual_cutoff]
+
+    cluster_data['source_depth'] = cluster_data['source_depth'] / 1000.0  # convert to KM?
+
+    # groupby sorts by default
+    # cluster_data.sort_values(by=['source_block', 'station_block'],
+    #                          inplace=True)
+
+    log.info('Sorting arrivals.')
+
+    # groupby automatically sorts
+    #     med = cluster_data.groupby(
+    #         by=['source_block', 'station_block']
+    #         )['observed_tt'].quantile(q=.5, interpolation='lower').reset_index() # use a seq index:0,1,2,....
+
+    #  SNR value max
+    med = cluster_data.groupby(by=['source_block', 'station_block'])['SNR'].max().reset_index()  # use a seq index:0,1,2,.
+
+    # med dataframe has three columns:  [source_block, station_block ,observed_tt]
+
+    final_df = pd.merge(cluster_data, med, how='right',
+                        on=['source_block', 'station_block', 'SNR'],
+                        sort=True,
+                        right_index=True)
+
+    # Confirmed: drop_duplicates required due to possibly duplicated picks in
+    #  the original engdahl events
+    # refer: https://github.com/GeoscienceAustralia/passive-seismic/issues/51
+    # The subset is specified as we have some stations that are very close?
+    final_df.drop_duplicates(subset=['source_block', 'station_block'],
+                             keep='first', inplace=True)
+
+    final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
+
+    return final_df
 
 
 @cli.command()
@@ -1016,6 +1120,9 @@ def plotcmd(arrivals_file, region):
 # $ export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
 # $ python cluster/cluster.py gather -o out /g/data/ha3/events_xmls_test
 # $ python ../seismic/cluster/cluster.py gather -o All2dirs /g/data/ha3/fxz547/travel_time_tomography/new_events20180516.run2/events_paths.csv &> ALL_2dirs.log &
+
+# python ../seismic/cluster/cluster.py -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/testdata/
+
 # ======================================================================
 if __name__ == "__main__":
 
