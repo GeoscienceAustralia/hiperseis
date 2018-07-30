@@ -1,3 +1,10 @@
+# Copyright
+'''
+This script accomplishes the task of picking the p-phase and s-phase arrival times
+for waveform data sets that have been ingested as miniseed data into a Seiscomp3 (SC3 
+for short) server SDS archive.
+'''
+
 import os
 import numpy as np
 import itertools
@@ -12,15 +19,30 @@ from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdent
     Origin, Arrival, OriginQuality, Magnitude, Comment
 import glob
 
+# the hostname/ipaddress of the Seiscomp3 machine on which the
+# waveforms to be picked are hosted underneath a FDSN web server
 sc3_host_ip='13.236.167.35'
 client = Client('http://'+sc3_host_ip+':8081')
+
+# the travel time velocity reference model object to be used
+# for fetching theoretical p and s phase arrivals
 model = TauPyModel(model='iasp91')
+
+# self explanatory variables. the p and s phase look-back and
+# look-ahead time windows for respective phases around the
+# theoretical onset time
 plookback=50
 plookahead=100
 slookback=100
 slookahead=200
+
+# the margin to allow for the p and s phase arrivals pick time
 pphase_search_margin=10
 sphase_search_margin=25
+
+# some global variables (Seiscomp3 ingestion requirement) to have
+# unique resource identifiers for picks, origins and events that
+# will comprise the generated xml files
 global pick_Count
 pick_Count = 1
 global event_Count
@@ -29,6 +51,18 @@ global origin_Count
 origin_Count = 1
 
 def s_phase_exists(evt, pick):
+    '''
+    Check if the given event contains the s-phase for a given
+    p-phase pick.
+
+    :type evt: class:`~obspy.core.event.event.Event`
+    :param evt: event object to search for s-pick in.
+    :type pick: obspy.core.event.Pick
+    :param pick: the p-pick for which the s-pick needs to be checked.
+
+    :rtype: bool
+    :return: True if s-pick exist otherwise False
+    '''
     exists=False
     filtered_picks = [p for p in evt.picks if p.waveform_id.station_code == pick.waveform_id.station_code]
     for p in filtered_picks:
@@ -38,9 +72,27 @@ def s_phase_exists(evt, pick):
     return exists
 
 def calc_distance(rec, src):
+    '''
+    Given the source and receiver location, calculate distance.
+    Refer: https://github.com/obspy/obspy/blob/master/obspy/taup/taup_geo.py
+    '''
     return calc_dist(src.latitude, src.longitude, rec.latitude, rec.longitude, 6371, 0)
 
 def get_backazimuth(stalat, stalon, evtlat, evtlon):
+    '''
+    get the backazimuth for a given station-event pair
+
+    :type stalat: float
+    :param stalat: station latitude in degrees
+    :type stalon: float
+    :param stalon: station longitude in degrees
+    :type evtlat: float
+    :param evtlat: event/origin latitude in degrees
+    :type evtlon: float
+    :param evtlon: event/origin latitude in degrees
+    :rtype: dict
+    :return: Dictionary containing values for azimuth, backazimuth and distance.
+    '''
     az = None
     client = IrisClient()
     try:
@@ -50,6 +102,31 @@ def get_backazimuth(stalat, stalon, evtlat, evtlon):
     return az
 
 def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, comments_data=None):
+    '''
+    create the Pick object from its elements i.e. network, station, channel, time, backazimuth,
+    phasehint(phase-type), residual, weight, text
+
+    :type net: str
+    :param net: Select the network code on which this pick was identified.
+    :type sta: str
+    :param sta: Select the station code on which this pick was identified.
+    :type cha: str
+    :param cha: Select the channel code on which this pick was identified.
+    :type time: class:`~obspy.core.utcdatetime.UTCDateTime`
+    :param time: The UTC timestamp for pick arrival
+    :type backaz: float
+    :param backaz: The angle from the event to the station.
+    :type phasehint: str
+    :param phasehint: Tentative phase identification as specified by the picker. e.g. 'P', 'S', etc
+    :type res: float, optional
+    :param res: Residual between observed and expected arrival time
+    :type wt: float, optional
+    :param float: Weight of the arrival time for computation of the associated Origin
+    :type comments_data: list of :class:`~obspy.core.event.base.Comment`, optional
+    :param comments_data: Additional comments.
+    :rtype: class:`~obspy.core.event.origin.Pick`
+    :return: the newly created Pick object, potentially to be part of the bigger Event object
+    '''
     global pick_Count
     count = pick_Count
     pick_Count += 1
@@ -78,9 +155,25 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, co
             res,
             wt)
 
-def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9, zerophase=False):
+def clean_trace(tr, trim_starttime, trim_endtime, freqmin=1.0, freqmax=4.9, zerophase=False):
+    '''
+    Clean the given trace for further processing (in-place)
+
+    :type tr: class`~obspy.core.trace.Trace`
+    :param tr: The given trace that needs to be cleaned
+    :type trim_starttime: class`~obspy.core.utcdatetime.UTCDateTime`
+    :param trim_starttime: The start of the trim window
+    :type trim_endtime: class`~obspy.core.utcdatetime.UTCDateTime`
+    :param trim_endtime: The end of the trim window
+    :type freqmin: float, optional
+    :param freqmin: Pass band low corner frequency
+    :type freqmax: float, optional
+    :param freqmax: Pass band high corner frequency
+    :type zerophase: bool
+    :param zerophase: If True, apply filter once forwards and once backwards.
+    '''
     # add bandpass filtering sensitive to the distance d between source and receiver
-    tr.trim(t1, t2)
+    tr.trim(trim_starttime, trim_endtime)
     tr.detrend('linear')
     tr.taper(0.01)
     # added try catch after script aborted due to the error below:
@@ -91,6 +184,20 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9, zerophase=False):
         pass
 
 def find_best_bounds(cft, samp_rate):
+    '''
+    Refer https://docs.obspy.org/tutorial/code_snippets/trigger_tutorial.html and
+    https://docs.obspy.org/packages/autogen/obspy.signal.trigger.trigger_onset.html
+    Iterate between different upper (thres1) and lower (thres2) threshold values
+    to arrive at the range that indicates the most definitive pick
+
+    :type cft: class:`numpy.ndarray`, dtype=float64
+    :param cft: the characteristic function representing the ratio of the STA and LTA
+    :type samp_rate: float
+    :param samp_rate: the sampling rate of the waveform data on which STA/LTA was done
+    :rtype: (float, float)
+    :return: the tuple (upper_threshold, lower_threshold) that represents best thresholds
+             that result in a definitive pick.
+    '''
     bestupper = 1.5
     bestlower = 0.75
     max_margin = bestupper - bestlower
@@ -106,6 +213,23 @@ def find_best_bounds(cft, samp_rate):
     return bestupper, bestlower
 
 def pick_phase(network, station, prefor, phase='P', p_Pick=None):
+    '''
+    Pick the given station for a given phase around the given preferred origin
+
+    :type network: class`~obspy.core.inventory.network.Network`
+    :param network: the network to which the given station belongs
+    :type station: class`~obspy.core.inventory.station.Station`
+    :param station: the station that needs to be picked
+    :type prefor: class`~obspy.core.event.origin.Origin`
+    :param prefor: the origin whose time needs to be taken as reference when
+        looking for the given phase arrival
+    :type phase: str, optional
+    :param phase: the phase that needs to be picked e.g. 'P', 'S', etc
+    :type p_Pick: class`~obspy.core.event.origin.Pick`
+    :param p_Pick: the p-phase arrival, if known, when searching for s-phase
+    :rtype: class`~obspy.core.event.origin.Pick`
+    :return: the extracted Pick object after identifying the phase arrival
+    '''
     return_pick = None
     snr = 0.0
     #p_bands = [(1, 6), (0.3, 2.3), (0.5, 2.5), (0.8, 2.8), (1, 3), (2, 4), (3, 5), (4, 6), (0.3, 1.3), (0.5, 1.5), (0.8, 1.8), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (1.5, 2.5), (2.5, 3.5), (3.5, 4.5), (4.5, 5.5)]
@@ -309,6 +433,16 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
     return return_pick
 
 def calc_snr(tr, time):
+    '''
+    Calculate the Signal-to-Noise ratio of the give trace around a given time
+
+    :type tr: class`~obspy.core.trace.Trace`
+    :param tr: the given trace for which the SNR is required
+    :type time: class:`~obspy.core.utcdatetime.UTCDateTime`
+    :param time: the timestamp in the input trace around with the SNR is required
+    :rtype: float
+    :return: the SNR
+    '''
     if not tr or not time:
         print('Either of trace or the pick time are None.')
         return -1
@@ -322,9 +456,27 @@ def calc_snr(tr, time):
     return np.std(tr_right.data)/np.std(tr_left.data)
 
 def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
+    '''
+    method to check if 2 float values are equal with a degree of tolerance
+
+    refer: https://stackoverflow.com/questions/5595425/what-is-the-best-way-to-compare-floats-for-almost-equality-in-python
+    '''
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 def calc_aic(tr, phase):
+    '''
+    Calculate the AIC output for the given trace for a given phase type
+
+    :type tr: class`~obspy.core.trace.Trace`
+    :param tr: the given trace for which AIC needs to be calculated
+    :type phase: str
+    :param phase: the phase for which AIC is required
+    :rtype: (np.array of float64, np.array of float64, np.array of float64)
+    :return: a 3-tuple of:
+        1. the AIC output
+        2. the first derivative of AIC output
+        3. the second derivative of AIC output
+    '''
     npts = tr.stats.npts
     data = tr.data
     margin = int(tr.stats.sampling_rate*5) if phase=='P' else int(tr.stats.sampling_rate*10)
@@ -355,6 +507,24 @@ def calc_aic(tr, phase):
     return np.array(aic), np.array(aic_deriv), np.array(aic_deriv_cleaned)
 
 def pick_phases(event, inventory=None):
+    '''
+    Pick the relevant stations for a given event for p-phase as well as s-phase arrivals
+
+    :type event: class`~obspy.core.event.event.Event`
+    :param event: the Event object which contains the preferred origin for which we want
+        relevant stations picked
+    :type inventory: class`~obspy.core.inventory.inventory.Inventory`, optional
+    :param inventory: the Inventory object that contains the stations to be picked for this
+        event. If not passed in, the stations that are part of the p-phase picks in the event
+        object are picked for p-phase arrivals and the successful stations ofr s-phase
+        arrivals.
+    :rtype: (list of obspy.core.event.origin.Pick, list of obspy.core.event.origin.Pick,
+        list of obspy.core.inventory.station.Station)
+    :return: tuple of 3 items:
+        1. list of the picked p-phase Pick objects
+        2. list of the picked s-phase Pick objects
+        3. list of Station objects relevant to this event's picking
+    '''
     if not event:
         return None, None
     prefor = event.preferred_origin() or event.origins[0]
@@ -402,6 +572,16 @@ def pick_phases(event, inventory=None):
     return p_phases, s_phases, p_stations
 
 def add_picks_to_event(event, picks, stations):
+    '''
+    Add the given picks to the given Event object (in-place)
+
+    :type event: class`~obspy.core.event.event.Event`
+    :param event: The event object to which the picks need to be added
+    :type picks: list of obspy.core.event.origin.Pick
+    :param picks: the list of p-phase Pick objects we want added to the Event object
+    :type stations: list of obspy.core.inventory.station.Station
+    :param stations: list of station objects for this event for ready reference
+    '''
     for pick in picks:
         st = [s for s in stations if s[1].code == pick[0].waveform_id.station_code][0][1]
         stalat = st.latitude
@@ -425,6 +605,20 @@ def add_picks_to_event(event, picks, stations):
         event.preferred_origin().arrivals.append(arr)
 
 def createEventObject(evt, p_picks, s_picks, stations):
+    '''
+    create the Event object from its elements i.e. the preferred origin, p-phase picks and s-phase picks.
+
+    :type evt: class`~obspy.core.event.event.Event`
+    :param evt: the reference event from which the preferred origin is used to create the new event
+    :type p_picks: list of obspy.core.event.origin.Pick
+    :param p_picks: the list of p-phase Pick objects we want added to the Event object being created
+    :type s_picks: list of obspy.core.event.origin.Pick
+    :param s_picks: the list of s-phase Pick objects we want added to the Event object being created
+    :type stations: list of obspy.core.inventory.station.Station
+    :param stations: list of station objects for this event for ready reference
+    :rtype: class`~obspy.core.event.event.Event`
+    :return: the newly created Event object containing the p-phase and s-phase picks
+    '''
     global event_Count
     global origin_Count
 
@@ -482,6 +676,12 @@ def createEventObject(evt, p_picks, s_picks, stations):
     return event
 
 def dedup(inventory):
+    '''
+    remove duplicate stations, if present, from an inventory object (in-place)
+
+    :type inventory: class`~obspy.core.inventory.inventory.Inventory`
+    :param inventory: the given inventory object
+    '''
     net_sta_list_uniq = []
     for net in inventory:
         ind_list = []
