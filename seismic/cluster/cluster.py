@@ -45,7 +45,7 @@ column_names = ['source_block', 'station_block',
                 'residual', 'event_number',
                 SOURCE_LONGITUDE, SOURCE_LATITUDE,
                 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
-                'observed_tt', 'locations2degrees', STATION_CODE, 'P_or_S']
+                'observed_tt', 'locations2degrees', STATION_CODE, 'SNR', 'P_or_S']
 
 # since we have Basemap in the virtualenv, let's just use that :)
 ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
@@ -759,6 +759,8 @@ def zone(region, parameter_file, matched_file, region_file, global_file,
 
     # exclude station_code for final output files
     column_names.remove(STATION_CODE)
+    column_names.remove('SNR')
+
 
     global_df[column_names].to_csv(global_file, index=False, header=False,
                                    sep=' ', float_format=FLOAT_FORMAT)
