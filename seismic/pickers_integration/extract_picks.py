@@ -40,6 +40,9 @@ slookahead=200
 pphase_search_margin=10
 sphase_search_margin=25
 
+# maximum allowed value for SNR
+snr_max=10000
+
 # some global variables (Seiscomp3 ingestion requirement) to have
 # unique resource identifiers for picks, origins and events that
 # will comprise the generated xml files
@@ -254,6 +257,11 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
             trim_starttime = prefor.time+target_arrivals[0].time-lookback
             trim_endtime = prefor.time+target_arrivals[-1].time+lookahead
             stz = client.get_waveforms(network.code, station.code, '*', 'BHZ,SHZ,HHZ', trim_starttime, trim_endtime)
+            if stz and stz[0]:
+                if trim_starttime < stz[0].stats.starttime:
+                    trim_starttime = stz[0].stats.starttime
+                if trim_endtime > stz[0].stats.endtime:
+                    trim_endtime = stz[0].stats.endtime
             if not isclose(stz[0].stats.sampling_rate, 20.0):
                 stz.resample(20.0)
             stz_raw = stz.copy()
@@ -427,7 +435,7 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     else:
                         print('theo_trig => '+str(theoretical_trig)+'pick_index_deriv => ' + str(pick_index_deriv) + ' besttrig => ' + str(besttrig) + '. Investigate waveforms!')
 
-    if snr > 0 and snr < 1.0:
+    if snr > 0 and (snr < 1.0 or snr > snr_max):
         print('The calculated SNR => ' + str(snr) + '. Discarding this pick!')
         return None
     return return_pick
