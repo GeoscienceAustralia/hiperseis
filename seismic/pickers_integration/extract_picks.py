@@ -41,7 +41,7 @@ pphase_search_margin=10
 sphase_search_margin=25
 
 # maximum allowed value for SNR
-snr_max=10000
+snr_max=3000
 
 # some global variables (Seiscomp3 ingestion requirement) to have
 # unique resource identifiers for picks, origins and events that
