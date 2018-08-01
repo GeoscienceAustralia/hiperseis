@@ -72,6 +72,9 @@ class Dataset:
         self.stations = []
         self.stations_metadata = defaultdict(list)
         zchannels = set()
+        nchannels = set()
+        echannels = set()
+
         rtps = []
         for station in self.ds.waveforms:
             sn = station._station_name.split('.')[1]
@@ -89,7 +92,12 @@ class Dataset:
             for nw in station.StationXML:
                 for st in nw:
                     for ch in st:
-                        if 'Z' in ch.code: zchannels.add(ch.code)
+                        if 'Z' in ch.code or 'z' in ch.code: zchannels.add(ch.code)
+                        if 'N' in ch.code or 'n' in ch.code: nchannels.add(ch.code)
+                        if 'E' in ch.code or 'e' in ch.code: echannels.add(ch.code)
+                    # end for
+                # end for
+            # end for
         # end for
 
         rtps = np.array(rtps)
@@ -101,8 +109,13 @@ class Dataset:
             self._cart_location[s] = xyzs[i, :]
         # end for
 
-        assert len(zchannels)==1, 'Multiple z-channels found %s'%(zchannels)
+        assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
+        assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
+        assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
+
         self.zchannel = zchannels.pop()
+        self.nchannel = nchannels.pop()
+        self.echannel = echannels.pop()
     # end func
 
     def get_closest_stations(self, station_name, other_dataset, nn=1):
