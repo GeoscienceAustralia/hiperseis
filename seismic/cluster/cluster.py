@@ -116,7 +116,7 @@ PARAM_FILE_FORMAT = '''
 
 class Grid:
     """
-    Encaptulate 3D cell properties. uniform grid
+    Encaptulate 3D cell properties in Uniform grid
     """
 
     def __init__(self, nx=360, ny=180, dz=10000):
@@ -172,41 +172,48 @@ class Grid2:
         self.LAT=(-54, 0)
 
         # region grid size in lat-long plane
-        self.nx = 4 * 90  # 1/4 degree
-        self.ny = 4 * 54  # 1/4 degree
+        self.nx = 4 * 90  # 1/4 degree cell size in LONG
+        self.ny = 4 * 54  # 1/4 degree cell size in LAT
         self.dx = (self.LON[1]-self.LON[0]) / self.nx  # 1/4 degree
         self.dy = (self.LAT[1]-self.LAT[0]) / self.ny  # 1/4 degree
 
-        # Region's depths in KM
-        self.zlist=(0, 10,  35,  70,  110,  160,  210,  260,  310,  360,  410,  460, 510,  560,
-                    610,  660,  710,  810,  910,  1010,  1110,  1250,  1400,  1600)
-        self.dz=5  # inside ANZ zone 5KM
+        # Region's depths in KM according to Fortran param1x1
+        self.rdepth=(0, 10, 35, 70, 110, 160, 210, 260, 310, 360, 410, 460, 510, 560,
+                     610, 660, 710, 810, 910, 1010, 1110, 1250, 1400, 1600)
+
+        # Region Depth in meters
+        self.rmeters=1000*np.array(self.rdepth)
+        self.dz=5000  # inside the ANZ zone 5KM uniform cellsize in depth
 
 
         # global grid model params (outside the region)
-
         self.gnx = 288
         self.gny = 144
-        self.gdx = 5 * self.dx  # 360/self.gnx=1.25;  5 times as big as the regional grid size
-        self.gdy = 5 * self.dy  # 180/self.gny=1.25;  5 times as big as the regional grid size
+        self.gdx = 5 * self.dx  # =360/self.gnx;  5 times as big as the regional grid size
+        self.gdy = 5 * self.dy  # =180/self.gny;  5 times as big as the regional grid size
 
-        self.gzlist=(0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
-        self.gdz=20  # outside the ANZ zone 20KM
+        self.gdepth=(0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
+        # Region Depth in meters
+        self.gmeters = 1000 * np.array(self.gdepth)
+        self.gdz=20000  # outside the ANZ zone 20KM uniform cellsize in depth
 
 
-        self.REG_MAX_BN = self._get_reg_max_bn()
+        self.REGION_MAX_BN = self._get_max_region_block_number()
+
 
         return
 
-    def _get_reg_max_bn(self):
+    def _get_max_region_block_number(self):
         """
-        Compute the MAX BLOCK NUMBER
-        :return:
+        Compute the MAX BLOCK NUMBER for a point in the region box, with a fine grid,
+        assuming the event's max depth is 2000KM
+        :return: int max_nb
         """
-        i = round(360 / self.dx) + 1
-        j = round(180 / self.dy) + 1
 
-        k = round(3000 / self.dz) + 1  # assume 3000KM max depth
+        i = round(90 / self.dx) + 1
+        j = round(54 / self.dy) + 1
+
+        k = round(2000000 / self.dz) + 1  # assume 2000KM max depth
         bn = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
 
         log.info("The REG_MAX_BN = %s", bn)
@@ -232,17 +239,16 @@ class Grid2:
     def find_block_number(self, lat, lon, z):
         """
         find the index-number of an events/station in a non-uniform grid
-        each spatial point (lat, lon, z) is mapped to a uniq number.
+        each spatial point (lat, lon, z) is mapped to a uniq block_number.
         :param lat: latitude
         :param lon: longitude
         :param z: depth
         :return: int block number
         """
+        x = lon % 360  # convert lon into x which must be in [0,360)
+        y = 90. - lat  # convert lat into y which will be in [0,180)
 
         if self.is_point_in_region(lat,lon) is True:
-
-            x = lon % 360   # x must be in [0,360)
-            y = 90. - lat   # y will be in [0,180)
 
             i = round(x / self.dx) + 1
             j = round(y / self.dy) + 1
@@ -251,8 +257,6 @@ class Grid2:
             block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
 
         else:
-            x = lon % 360  # x must be in [0,360)
-            y = 90. - lat  # y will be in [0,180)
 
             i = round(x / self.gdx) + 1
             j = round(y / self.gdy) + 1
@@ -261,7 +265,7 @@ class Grid2:
 
             g_block_number = (k - 1) * self.gnx * self.gny + (j - 1) * self.gnx + i
 
-            block_number = g_block_number + self.REG_MAX_BN  # offset by region max block number
+            block_number = g_block_number + self.REGION_MAX_BN  # offset by the region max block number
 
 
         return int(block_number)
@@ -351,7 +355,7 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
         event_xmls = None
         raise Exception("Invalid Input Events Dir")
 
-    grid = Grid(nx=nx, ny=ny, dz=dz)  # original uniform grid
+    # grid = Grid(nx=nx, ny=ny, dz=dz)  # original uniform grid
     grid = Grid2( )  # use a non-uniform Grid construction
 
     # generate the stations dict
