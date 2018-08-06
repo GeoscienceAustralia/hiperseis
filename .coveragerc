@@ -35,6 +35,7 @@ exclude_lines =
     except IndexError
     raise ImportError
     except ImportError
+    except Exception
     raise ConfigException
 
     # Don't complain if non-runnable code isn't run:

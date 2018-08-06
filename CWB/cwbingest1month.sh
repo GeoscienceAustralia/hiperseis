@@ -5,10 +5,9 @@ CURRENT_DIR=`pwd`
 WORKING_DIR=~/CWBQuery-$(date +"%m-%d-%y-%H-%M-%S-%N")
 sleep 1
 TEMPDIR=$WORKING_DIR/tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
-START_TIME="2015/03/01 00:00:00"
 SEISCOMP3_ARCHIVE=/opt/seiscomp3/var/lib/archive
 CWB_QUERY_JAR_FILE=$WORKING_DIR/CWBQuery.jar
-CWB_QUERY_SERVER_IP=54.153.144.205
+CWB_QUERY_SERVER_IP=13.211.112.68
 TARBALL_FILE=EdgeCWBRelease.tar.gz
 COUNTER_LOCATION=$WORKING_DIR/counter
 MS_STATUS_LOCATION=$WORKING_DIR/mseedStatus
@@ -48,66 +47,85 @@ if [ -z "${JARS// }" ]; then
         rm -rf $TEMPDIR
 fi
 
+declare -a time_array=("2000/01/01 00:00:00,31d"
+                       "2000/02/01 00:00:00,29d"
+                       "2000/03/01 00:00:00,31d"
+                       "2000/04/01 00:00:00,30d"
+                       "2000/05/01 00:00:00,31d"
+                       "2000/06/01 00:00:00,30d"
+                       "2000/07/01 00:00:00,31d"
+                       "2000/08/01 00:00:00,31d"
+                       "2000/09/01 00:00:00,30d"
+                       "2000/10/01 00:00:00,31d"
+                       "2000/11/01 00:00:00,30d"
+                       "2000/12/01 00:00:00,31d")
+
 while IFS= read -r net_sta_cha_expr
 do
-        echo 0 > $MS_STATUS_LOCATION
-        TEMPDIR=$WORKING_DIR/$net_sta_cha_expr-tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
-        echo "Creating temporary directory $TEMPDIR for generating the miniseed files..."
-        mkdir $TEMPDIR
-        echo "cd-ing into temporary directory $TEMPDIR ..."
-        cd $TEMPDIR
+        for timings in "${time_array[@]}"
+	do
+                time_stamp=$(echo "$timings" | cut -f1 -d',')
+                duration=$(echo "$timings" | cut -f2 -d',')
+                echo "$d"
+	        echo 0 > $MS_STATUS_LOCATION
+	        TEMPDIR=$WORKING_DIR/$net_sta_cha_expr-tempDir-$(date +"%m-%d-%y-%H-%M-%S-%N")
+	        echo "Creating temporary directory $TEMPDIR for generating the miniseed files..."
+	        mkdir $TEMPDIR
+	        echo "cd-ing into temporary directory $TEMPDIR ..."
+	        cd $TEMPDIR
 
-        JAVA_CMD="java -jar -Xmx1600m $CWB_QUERY_JAR_FILE -h $CWB_QUERY_SERVER_IP -t dcc512 -s \"$net_sta_cha_expr\" -b \"2015/03/01 00:00:00\" -d 31d -nonice > /tmp/$net_sta_cha_expr-cwbquery-log.out 2>/tmp/$net_sta_cha_expr-cwbquery-log.err"
-        echo "Executing the command $JAVA_CMD ... "
+	        JAVA_CMD="java -jar -Xmx1600m $CWB_QUERY_JAR_FILE -h $CWB_QUERY_SERVER_IP -t dcc512 -s \"$net_sta_cha_expr\" -b \"$time_stamp\" -d $duration -nonice > /tmp/$net_sta_cha_expr-cwbquery-log.out 2>/tmp/$net_sta_cha_expr-cwbquery-log.err"
+	        echo "Executing the command $JAVA_CMD ... "
 
-        eval $JAVA_CMD &
-        child_pid=$!
-        echo "The pid of the java command process just spawned is $child_pid ... "
-	echo 0 > $COUNTER_LOCATION
-        while : ; do
-		echo "Checking with kill -0 ..."
-                kill -0 $child_pid
-		retCode=$?
-		echo "return code of kill -0 = $retCode ..."
-                if [ $retCode -ne 0 ]; then
-                        echo "Miniseed generation succeeded"
-                        echo 1 > $MS_STATUS_LOCATION
-                        break
-                fi
-                sleep 30
-                size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.' | cut -f1 -d"."`
-                unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
-                if [[ ($unit == *"G"* && $size -gt 5) || `cat $COUNTER_LOCATION` -gt 30 ]]; then
-			child_procs=`pgrep -P $child_pid | xargs`
-			echo "Killing pid $child_pid and its children $child_procs with kill -9 ..."
-                        kill -9 $child_pid $child_procs
-                        break
-                fi
-		count=$(expr `cat $COUNTER_LOCATION` + 1)
-		echo "count = $count ..."
-		echo $count > $COUNTER_LOCATION
-        done
+	        eval $JAVA_CMD &
+	        child_pid=$!
+	        echo "The pid of the java command process just spawned is $child_pid ... "
+		echo 0 > $COUNTER_LOCATION
+	        while : ; do
+			echo "Checking with kill -0 ..."
+	                kill -0 $child_pid
+			retCode=$?
+			echo "return code of kill -0 = $retCode ..."
+	                if [ $retCode -ne 0 ]; then
+	                        echo "Miniseed generation succeeded"
+	                        echo 1 > $MS_STATUS_LOCATION
+	                        break
+	                fi
+	                sleep 30
+	                size=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -dc '0-9.' | cut -f1 -d"."`
+	                unit=`du -h $TEMPDIR | xargs | cut -d" " -f1 | tr -d '0-9.'`
+	                if [[ ($unit == *"G"* && $size -gt 5) || `cat $COUNTER_LOCATION` -gt 30 ]]; then
+				child_procs=`pgrep -P $child_pid | xargs`
+				echo "Killing pid $child_pid and its children $child_procs with kill -9 ..."
+	                        kill -9 $child_pid $child_procs
+	                        break
+	                fi
+			count=$(expr `cat $COUNTER_LOCATION` + 1)
+			echo "count = $count ..."
+			echo $count > $COUNTER_LOCATION
+	        done
 
-	MS_FILES=`ls *.msd | xargs`
-        if [[ $(expr `cat $MS_STATUS_LOCATION`) -eq 1 || ! -z "${MS_FILES// }" ]]; then
-                for ms_file in `ls *.msd | xargs`; do
-                        if [ -f ${ms_file} ]; then
-                                SCART_CMD="scart -I ${ms_file} $SEISCOMP3_ARCHIVE"
-                                echo "Executing the command $SCART_CMD ..."
-                                eval $SCART_CMD
-                                if [ $? -ne 0 ]; then
-                                        echo "The ingesting of the miniseed file ${ms_file} did not succeed! Aborting."
-                                        exit 1
-                                fi
-                        fi
-                echo "Finished ingesting the miniseeds for $net_sta_cha_expr"
-                done
-        fi
+		MS_FILES=`ls *.msd | xargs`
+	        if [[ $(expr `cat $MS_STATUS_LOCATION`) -eq 1 || ! -z "${MS_FILES// }" ]]; then
+	                for ms_file in `ls *.msd | xargs`; do
+	                        if [ -f ${ms_file} ]; then
+	                                SCART_CMD="scart -I ${ms_file} $SEISCOMP3_ARCHIVE"
+	                                echo "Executing the command $SCART_CMD ..."
+	                                eval $SCART_CMD
+	                                if [ $? -ne 0 ]; then
+	                                        echo "The ingesting of the miniseed file ${ms_file} did not succeed! Aborting."
+	                                        exit 1
+	                                fi
+	                        fi
+	                echo "Finished ingesting the miniseeds for $net_sta_cha_expr"
+	                done
+	        fi
 
-        echo "Returning to working directory..."
-        cd $WORKING_DIR
-        echo "Deleting the temporary directory that was created for generating miniseed file..."
-        rm -rf $TEMPDIR
+	        echo "Returning to working directory..."
+	        cd $WORKING_DIR
+	        echo "Deleting the temporary directory that was created for generating miniseed file..."
+	        rm -rf $TEMPDIR
+	done
 done < $1
 
 cd $CURRENT_DIR

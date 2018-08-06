@@ -2,3 +2,4 @@ export ILOCROOT=$HOME/iLocRelease1.60
 export SLBMROOT=$HOME/SLBM_Root.3.0.5.Linux
 export LD_LIBRARY_PATH=$HOME/lib:$SLBMROOT/lib:/opt/seiscomp3/lib:/usr/lib64/openmpi/lib
 export PATH=$HOME/.virtualenvs/seismic/bin/:$PATH:$HOME/bin:$SLBMROOT/bin:/usr/lib64/openmpi/bin
+export PYTHONPATH=/usr/lib64/python2.7/plat-linux2:$PYTHONPATH

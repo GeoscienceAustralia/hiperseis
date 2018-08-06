@@ -23,28 +23,28 @@ Pre-installation
 Note: These instructions currently only work with gcc and not Intel compilers.
 
 1. Clone the ``passive-seismic`` repository into your home directory, or
-another directory
-of your choice:
+another directory of your choice:
 
    .. code:: bash
 
        $ cd ~
        $ git clone https://github.com/GeoscienceAustralia/passive-seismic.git
+       $ module load git/2.9.5
+       $ /apps/git/2.9.5/bin/git submodule update --init --recursive --remote
 
 2. Unload the icc compiler and default openmpi from the terminal:
 
    .. code:: bash
 
-       $ module unload intel-cc
-       $ module unload intel-fc
-       $ module unload openmpi
+       $ module unload intel-cc intel-fc openmpi
 
 3. Load the modules required for installation and running:
 
    .. code:: bash
 
        $ module load python3/3.4.3 python3/3.4.3-matplotlib
-       $ module load hdf5/1.8.14p openmpi/1.8 mpi4py/2.0.0
+       $ module load hdf5/1.8.14p openmpi/1.8
+       $ module load geos/3.5.0 netcdf/4.4.1.1
 
    (Alternatively, you may wish to add the above lines to your
    ``~/.profile`` file)
@@ -88,7 +88,13 @@ Installation
 
        $ workon seismic
 
-3. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
+3. Install ``mpi4py`` as required by ``h5py`` in the next step.
+
+   .. code:: bash
+
+       $ pip install mpi4py==3.0.0 --no-binary :all:
+
+4. Clone ``h5py`` from ``https://github.com/basaks/h5py.git``:
 
    .. code:: bash
 
@@ -100,18 +106,18 @@ Installation
        $ python setup.py install
 
 
-4. Install ``passive-seismic``:
+5. Install ``passive-seismic``:
 
    .. code:: bash
 
        $ cd ~/passive-seismic
-       $ python setup.py install
+       $ export GEOS_DIR=$GEOS_BASE
+       $ pip install --process-dependency-links -e .[dev] --no-binary :all:
 
-5. Once installation has completed, you can run the tests to verify
+6. Once installation has completed, you can run the tests to verify
    everything has gone correctly:
 
    .. code:: bash
 
        $ pip install pytest
        $ pytest tests/
-

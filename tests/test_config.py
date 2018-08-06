@@ -1,3 +1,7 @@
+"""
+to run this test you may need to [ sudo pip2 install --upgrade pytest  ]
+$ pytest -vs tests/test_config.py
+"""
 import pytest
 import datetime
 import yaml
@@ -6,6 +10,21 @@ from seismic import config
 
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
+
+def test_fixture_params(xml,test_dir,data_dir):
+    """
+    print parameters defined in the conftest.py
+    pytest -sv tests/test_config.py
+    :return:
+    """
+    print(".......")
+    print("xml=", xml)
+    print("test_dir=", test_dir)
+    print("data_dir=", data_dir)
+
+    assert os.path.isfile(xml)
+    assert os.path.isdir(test_dir)
+    assert os.path.isdir(data_dir)
 
 
 @pytest.fixture(params=['miniseeds', 'events', 'times'])

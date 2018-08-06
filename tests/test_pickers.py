@@ -4,11 +4,6 @@ from obspy.core import read as obspy_read, Stream
 # from obspy.core.event import Event, read_events
 from seismic.pickers import pickermaps
 
-TESTS = os.path.dirname(__file__)
-MOCKS = os.path.join(TESTS, 'mocks')
-mseed = os.path.join(MOCKS, 'ga2017qxlpiu_short.mseed')
-xml = os.path.join(MOCKS, 'ga2017qxlpiu.xml')
-
 algos = list(pickermaps.keys())
 
 
@@ -27,7 +22,7 @@ def algorithm(request):
 #         picker.picks(s)
 
 
-def test_pick_amplitude_assocs(miniseed_conf, algorithm):
+def test_pick_amplitude_assocs(miniseed_conf, algorithm, mseed):
     picker = pickermaps[algorithm]()
     st = obspy_read(mseed)
     st2 = Stream(st[0:1])

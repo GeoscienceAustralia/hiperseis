@@ -1,3 +1,6 @@
 [submodule "PhasePApy"]
 	path = PhasePApy
 	url = https://github.com/GeoscienceAustralia/PhasePApy
+[submodule "ellip-corr"]
+	path = ellip-corr
+	url = https://github.com/GeoscienceAustralia/ellip-corr

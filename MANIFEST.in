@@ -1,0 +1,8 @@
+include HISTORY.rst
+include README.rst
+
+recursive-include inventory *.csv *.stn
+recursive-include tests *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-include PhasePApy *.py

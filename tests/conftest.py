@@ -3,6 +3,7 @@ import yaml
 import random
 import string
 import os.path
+import glob
 import pytest
 import datetime
 
@@ -11,10 +12,39 @@ from seismic import config
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
 
+TESTS = os.path.dirname(__file__)
+MOCKS = os.path.join(TESTS, 'mocks')
+
+PASSIVE = os.path.dirname(TESTS)
+EVENTS = os.path.join(TESTS, 'mocks', 'events')
+xmls = glob.glob(os.path.join(EVENTS, '*.xml'))
+engdhal_xmls = glob.glob(os.path.join(EVENTS, 'engdahl_sample', '*.xml'))
+
+
+@pytest.fixture(params=xmls + engdhal_xmls, name='event_xml')
+def ev_xml(request):
+    return request.param
+
+
+@pytest.fixture
+def mseed():
+    return os.path.join(MOCKS, 'ga2017qxlpiu_short.mseed')
+
+
+@pytest.fixture
+def xml():
+    return os.path.join(MOCKS, 'events', 'ga2017qxlpiu.xml')
+
 
 @pytest.fixture
 def test_dir():
     return TESTS
+
+
+@pytest.fixture
+def analyst_event():
+    return os.path.join(TESTS, 'mocks', 'events',
+                        'analyst_event_samples', '772009.xml')
 
 
 @pytest.fixture

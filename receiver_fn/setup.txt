@@ -1,0 +1,19 @@
+sudo apt-get update
+sudo apt-get -y install python-pip
+sudo apt-get install libgeos-dev gfortran libhdf5-dev python-tk wget
+wget http://download.osgeo.org/proj/proj-4.9.2.tar.gz
+tar xzvf proj-4.9.2.tar.gz
+cd proj-4.9.2 \
+    ./configure && \
+    make && \
+    sudo make install && \
+    cd .. && sudo rm -rf proj-4.9.2 proj-4.9.2.tar.gz
+sudo pip install numpy
+sudo pip install git+https://github.com/obspy/obspy.git
+sudo pip install shapely
+sudo pip install geographiclib
+sudo pip install cartopy
+sudo pip install tqdm
+sudo pip install toeplitz
+sudo pip install obspyh5
+sudo pip install rf
