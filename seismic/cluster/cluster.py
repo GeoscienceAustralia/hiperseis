@@ -168,8 +168,8 @@ class Grid2:
         """
 
         # Region bounadry definition
-        self.LON=(100, 190)
-        self.LAT=(-54, 0)
+        self.LON=(100.0, 190.0)
+        self.LAT=(-54.0, 0.0)
 
         # region grid size in lat-long plane
         self.nx = 4 * 90  # 1/4 degree cell size in LONG
@@ -210,10 +210,10 @@ class Grid2:
         :return: int max_nb
         """
 
-        i = round(90 / self.dx) + 1
-        j = round(54 / self.dy) + 1
+        i = round(90.0 / self.dx) + 1
+        j = round(54.0 / self.dy) + 1
 
-        k = round(2000000 / self.dz) + 1  # assume 2000KM max depth
+        k = round(2000000.0 / self.dz) + 1  # assume 2000KM max depth
         bn = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
 
         log.info("The REG_MAX_BN = %s", bn)
@@ -227,8 +227,10 @@ class Grid2:
         :param lon:
         :return: T/F
         """
+        x = lon % 360  # convert lon into x which must be in [0,360)
+        #y = 90. - lat  # convert lat into y which will be in [0,180)
 
-        if (lat < self.LAT[1] and lat > self.LAT[0] and lon < self.LON[1] and lon > self.LON[0]):
+        if (lat <= self.LAT[1] and lat >= self.LAT[0] and x <= self.LON[1] and x >= self.LON[0]):
             log.debug("Point in the region = (%s, %s)", lat, lon)
             return True
         else:
