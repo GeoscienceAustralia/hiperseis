@@ -64,7 +64,8 @@ def taper(tr, taperlen):
 # end func
 
 def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
-           flo=0.9, fhi=1.1, verbose=1, logger=None):
+           flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
+           verbose=1, logger=None):
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
     tr1_d_all = tr1.data  # refstn
@@ -121,11 +122,13 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
                 tr1_d -= np.mean(tr1_d)
                 tr2_d -= np.mean(tr2_d)
 
-                # clip to 2*std
-                std_tr1 = np.std(tr1_d)
-                std_tr2 = np.std(tr2_d)
-                tr1_d[np.fabs(tr1_d) > 2 * std_tr1] = 2 * std_tr1
-                tr2_d[np.fabs(tr2_d) > 2 * std_tr2] = 2 * std_tr2
+                # clip to +/- 2*std
+                if(clip_to_2std):
+                    std_tr1 = np.std(tr1_d)
+                    std_tr2 = np.std(tr2_d)
+                    tr1_d[np.fabs(tr1_d) > 2 * std_tr1] = 2 * std_tr1 * np.sign(tr1_d)
+                    tr2_d[np.fabs(tr2_d) > 2 * std_tr2] = 2 * std_tr2 * np.sign(tr2_d)
+                # end if
 
                 # apply zero-phase band-pass
                 tr1_d = bandpass(tr1_d, flo, fhi, sr1, zerophase=True)
@@ -136,8 +139,10 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
                 #tr2_d = taper(tr2_d, int(sr2 / flo))
 
                 # 1-bit normalization
-                tr1_d = np.sign(tr1_d)
-                tr2_d = np.sign(tr2_d)
+                if(one_bit_normalize):
+                    tr1_d = np.sign(tr1_d)
+                    tr2_d = np.sign(tr2_d)
+                # end if
 
                 if (sr1 < sr2):
                     fftlen2 = fftlen
@@ -228,6 +233,7 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                        refst_dec_factor=None, tempst_dec_factor=None,
                        buffer_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, flo=0.9, fhi=1.1,
+                       clip_to_2std=False, one_bit_normalize=False,
                        outputPath='/tmp', verbose=1):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
@@ -284,6 +290,10 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
     :param flo: Lower frequency for Butterworth bandpass filter
     :type fhi: float
     :param fhi: Upper frequency for Butterworth bandpass filter
+    :type clip_to_2std: bool
+    :param clip_to_2std: Clip data in each window to +/- 2 standard deviations
+    :type one_bit_normalize: bool
+    :param one_bit_normalize: Apply one-bit normalization to data in each window
     :type verbose: int
     :param verbose: Verbosity of printouts. Default is 1; maximum is 3.
     :type outputPath: str
@@ -367,6 +377,9 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
             elif (len(refSt) == 0):
                 logger.info('Data source exhausted. Skipping time interval [%s - %s]' % (str(cTime), str(cTime + cStep)))
                 continue
+            else:
+                pass
+                #print refSt
             # end for
 
             for tempStId in temp_station_ids:
@@ -406,6 +419,9 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 elif (len(tempSt) == 0):
                     logger.info('Data source exhausted. Skipping time interval [%s - %s]' % (str(cTime), str(cTime + cStep)))
                     continue
+                else:
+                    pass
+                    #print tempSt
                 # end for
 
                 if (verbose > 2):
@@ -419,7 +435,10 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 intervalStartSeconds, intervalEndSeconds = \
                     xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
                                               interval_seconds=interval_seconds,
-                                              flo=flo, fhi=fhi, verbose=verbose, logger=logger)
+                                              flo=flo, fhi=fhi,
+                                              clip_to_2std=clip_to_2std,
+                                              one_bit_normalize=one_bit_normalize,
+                                              verbose=verbose, logger=logger)
 
                 # Continue if no results were returned due to data-gaps
                 if (xcl is None):

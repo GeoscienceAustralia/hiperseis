@@ -109,13 +109,13 @@ class Dataset:
             self._cart_location[s] = xyzs[i, :]
         # end for
 
-        assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
-        assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
-        assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
+        if len(zchannels): assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
+        if len(nchannels): assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
+        if len(echannels): assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
 
-        self.zchannel = zchannels.pop()
-        self.nchannel = nchannels.pop()
-        self.echannel = echannels.pop()
+        self.zchannel = zchannels.pop() if len(zchannels) else None
+        self.nchannel = nchannels.pop() if len(nchannels) else None
+        self.echannel = echannels.pop() if len(echannels) else None
     # end func
 
     def get_closest_stations(self, station_name, other_dataset, nn=1):
@@ -167,13 +167,19 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--end-time', default='2100-01-01T00:00:00',
               type=str,
               help="Date and time (in UTC format) to stop at; default is year 2100.")
+@click.option('--clip-to-2std', default=False,
+              type=bool,
+              help="Clip data in each window to +/- 2 standard deviations")
+@click.option('--one-bit-normalize', default=False,
+              type=bool,
+              help="Apply one-bit normalization to data in each window")
 @click.option('--read-buffer-size', default=10,
               type=int,
               help="Data read buffer size; default is 10 x 'interval_seconds'. This parameter allows fetching data in bulk,"
                    " which can improve efficiency, but has no effect on the results produced")
 def process(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
             ds2_dec_factor, nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, read_buffer_size):
+            end_time, clip_to_2std, one_bit_normalize, read_buffer_size):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -196,8 +202,38 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
     ds2 = Dataset(data_source2, station_names2)
 
     if(rank == 0):
-        # split work over stations in ds1 for the time being
+        def outputConfigParameters():
+            # output config parameters
+            fn = 'correlator.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
+            fn = os.path.join(output_path, fn)
 
+            f = open(fn, 'w+')
+            f.write('Parameters Values:\n\n')
+            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
+            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
+            f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
+            f.write('%25s\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+
+            f.write('%25s\t\t: %s\n' % ('--ds1-dec-factor', ds1_dec_factor))
+            f.write('%25s\t\t: %s\n' % ('--ds2-dec-factor', ds2_dec_factor))
+            f.write('%25s\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
+            f.write('%25s\t\t: %s\n' % ('--fmin', fmin))
+            f.write('%25s\t\t: %s\n' % ('--fmax', fmax))
+            f.write('%25s\t\t: %s\n' % ('--station-names1', station_names1))
+            f.write('%25s\t\t: %s\n' % ('--station-names2', station_names2))
+            f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
+            f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
+            f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+
+            f.close()
+        # end func
+
+        outputConfigParameters()
+
+        # split work over stations in ds1 for the time being
         count = 0
         for iproc in np.arange(nproc):
             for istation in np.arange(np.divide(len(ds1.stations), nproc)):
@@ -232,8 +268,8 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
             x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.ds, ds1.ds_jason_db, ds2.ds, ds2.ds_jason_db, startTime,
                                                             endTime, [st1], [st2], ds1.zchannel, ds2.zchannel, ds1_dec_factor,
                                                             ds2_dec_factor, read_buffer_size, interval_seconds,
-                                                            window_seconds, fmin, fmax, output_path, 2)
-
+                                                            window_seconds, fmin, fmax, clip_to_2std, one_bit_normalize,
+                                                            output_path, 2)
         # end for
     # end for
 # end func
