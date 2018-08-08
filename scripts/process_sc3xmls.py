@@ -63,7 +63,6 @@ def process_sc3xml_files(path2dir, output_csv):
                 #     magPresent = False
                 # csv_out.write(str(prefor.latitude) + ',' + str(prefor.longitude) + ',' + str(prefor.depth/1000) + ',' + (str(prefmag.mag) if magPresent else '') + ',' + str(prefor.time) + '\n')
 
-
     arrive_writer.close()
 
     return 0
@@ -163,8 +162,7 @@ def process_event(event, stations, grid, wave_type, counter):
             t_list = [event_block, station_block, arr.time_residual,
                       ev_number, ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
-                      (arr.pick_id.get_referred_object().time.timestamp -
-                       origin.time.timestamp) + ellipticity_corr,
+                      arr.pick_id.get_referred_object().time, origin.time, ellipticity_corr,
                       degrees_to_source,
                       sta_code, snr_value]
 

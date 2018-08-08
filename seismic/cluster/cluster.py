@@ -205,16 +205,15 @@ class Grid2:
 
     def _get_max_region_block_number(self):
         """
-        Compute the MAX BLOCK NUMBER for a point in the region box, with a fine grid,
+        Compute the MAX BLOCK NUMBER for a point in the region box (with a finer grid)
+        This max block number is used to offset bn for points in the global zone.
         assuming the event's max depth is 2000KM
+
         :return: int max_nb
         """
-
-        i = round(90.0 / self.dx) + 1
-        j = round(54.0 / self.dy) + 1
-
-        k = round(2000000.0 / self.dz) + 1  # assume 2000KM max depth
-        bn = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
+        # assume 2000KM max depth, compute the z-layers
+        k = round(2000000.0 / self.dz) + 1
+        bn = k * self.nx * self.ny + 1  # must make sure this number is big enough, to separate region|global
 
         log.info("The REG_MAX_BN = %s", bn)
 
@@ -222,19 +221,23 @@ class Grid2:
 
     def is_point_in_region(self, lat, lon):
         """
-        test if the event  or station point in the region box?
+        test if the event or station point is in the region box?
         :param lat:
         :param lon:
         :return: T/F
         """
-        x = lon % 360  # convert lon into x which must be in [0,360)
+
+        if (abs(lat) >90):
+            log.error("wrong lattitude value %s", lat)
         #y = 90. - lat  # convert lat into y which will be in [0,180)
 
+        x = lon % 360  # convert longitude into x which must be in [0,360)
+
         if (lat <= self.LAT[1] and lat >= self.LAT[0] and x <= self.LON[1] and x >= self.LON[0]):
-            log.debug("Point in the region = (%s, %s)", lat, lon)
+            log.debug("(%s, %s) in the region", lat, lon)
             return True
         else:
-            log.debug("Point not in the region, = (%s, %s)", lat, lon)
+            log.debug("(%s, %s) NOT in the region ", lat, lon)
             return False
 
 
@@ -602,10 +605,11 @@ def process_event(event, stations, grid, wave_type, counter):
             log.debug("ellipticity_corr = %s", ellipticity_corr)
             
             t_list = [event_block, station_block, arr.time_residual,
-                      ev_number, ev_longitude, ev_latitude, ev_depth,
+                      int(origin.time.timestamp), # ev_number,
+                      ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
-                      (arr.pick_id.get_referred_object().time.timestamp -
-                       origin.time.timestamp) + ellipticity_corr,
+                      #(arr.pick_id.get_referred_object().time.timestamp - origin.time.timestamp) + ellipticity_corr,
+                      arr.pick_id.get_referred_object().time,  origin.time,  ellipticity_corr,
                       degrees_to_source,
                       sta_code, snr_value]
             arrival_staions.append(sta_code)
