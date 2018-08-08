@@ -126,8 +126,11 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
                 if(clip_to_2std):
                     std_tr1 = np.std(tr1_d)
                     std_tr2 = np.std(tr2_d)
-                    tr1_d[np.fabs(tr1_d) > 2 * std_tr1] = 2 * std_tr1 * np.sign(tr1_d)
-                    tr2_d[np.fabs(tr2_d) > 2 * std_tr2] = 2 * std_tr2 * np.sign(tr2_d)
+                    clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
+                    clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
+
+                    tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
+                    tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
                 # end if
 
                 # apply zero-phase band-pass
