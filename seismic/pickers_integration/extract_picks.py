@@ -1,7 +1,7 @@
 # Copyright
 '''
 This script accomplishes the task of picking the p-phase and s-phase arrival times
-for waveform data sets that have been ingested as miniseed data into a Seiscomp3 (SC3 
+for waveform data sets that have been ingested as miniseed data into a Seiscomp3 (SC3
 for short) server SDS archive.
 '''
 
@@ -17,11 +17,9 @@ from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recur
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
     Origin, Arrival, OriginQuality, Magnitude, Comment
+from mpi4py import MPI
 import glob
-from joblib import Parallel, delayed
-import multiprocessing
 import time
-import fcntl
 
 def s_phase_exists(evt, pick):
     '''
@@ -97,8 +95,9 @@ def createPickObject(net, sta, cha, time, backaz, phasehint, res=0.0, wt=1.0, co
     :param float: Weight of the arrival time for computation of the associated Origin
     :type comments_data: list of :class:`~obspy.core.event.base.Comment`, optional
     :param comments_data: Additional comments.
-    :rtype: class:`~obspy.core.event.origin.Pick`
-    :return: the newly created Pick object, potentially to be part of the bigger Event object
+    :rtype: (class:`~obspy.core.event.origin.Pick`, float, float)
+    :return: a 3-tuple of the newly created Pick object, the residual and the weight that will potentially
+        to be part of the bigger Event object
     '''
     if phasehint == 'S':
         if cha.endswith('N') or cha.endswith('1'):
@@ -481,7 +480,7 @@ def calc_aic(tr, phase):
 
     return np.array(aic), np.array(aic_deriv), np.array(aic_deriv_cleaned)
 
-def pick_p_phase(network, prefor, station=None, pick=None):
+def pick_p_phase(prefor, network=None, station=None, pick=None):
     '''
     A p-phase specific wrapper function around the generic pick_phase function
 
@@ -494,14 +493,15 @@ def pick_p_phase(network, prefor, station=None, pick=None):
     :param station: the station that needs to be picked
     :type pick: class`~obspy.core.event.origin.Pick`, optional
     :param phase: the pick whose station needs to be picked
-    :rtype: class`~obspy.core.event.origin.Pick`
-    :return: the extracted p-Pick object after identifying the phase arrival
+    :rtype: ((class`~obspy.core.event.origin.Pick`, float, float), class`Network`, class`Station`)
+    :return: 3-tuple of the extracted p-Pick tuple, the residual and the weight
+        after identifying the phase arrival
     '''
     p_pick = None
     if station and pick:
         print('Only one of station or pick needs to be passed in; not both.')
         return None
-    if station:
+    if station and network:
         p_pick = pick_phase(network, station, prefor)
         if p_pick:
             return (p_pick, network, station)
@@ -535,8 +535,9 @@ def pick_s_phase(p_phase, net_st_list, prefor):
     :type prefor: class`~obspy.core.event.origin.Origin`
     :param prefor: the origin whose time needs to be taken as reference when
         looking for the given p-phase arrival
-    :rtype: class`~obspy.core.event.origin.Pick`
-    :return: the extracted s-Pick object after identifying the phase arrival
+    :rtype: ((class`~obspy.core.event.origin.Pick`, float, float), class`Network`, class`Station`)
+    :return: 3-tuple of the extracted s-Pick tuple, the network and the station after
+        identifying the phase arrival
     '''
     if not p_phase or not p_phase[0] or len(net_st_list) < 1:
         return None
@@ -570,39 +571,62 @@ def pick_phases_parallel(event, inventory=None):
         2. list of the picked s-phase Pick objects
         3. list of Station objects relevant to this event's picking
     '''
-    num_cores = multiprocessing.cpu_count()
     if not event:
         return None, None
     prefor = event.preferred_origin() or event.origins[0]
 
     p_phases = []
     p_stations = []
+    nets = []
+    stas = []
     p_pick = None
+    requests = []
+    count = 0
     pick_station_tuple_arr = []
     start_time = time.time()
     if inventory:
         for net in inventory.networks:
-            pick_station_tuple_arr.extend(Parallel(n_jobs=num_cores*2)(delayed(pick_p_phase)(net, prefor, st) for st in net.stations))
+            for st in net.stations:
+                requests.append(comm.isend((prefor, net, st, None), dest=count%(size-1)+1))
+                count += 1
     else:
-        pick_station_tuple_arr.extend(Parallel(n_jobs=num_cores*2)(delayed(pick_p_phase)(net, prefor, pick) for pick in event.picks if p.phase_hint=='P'))
+        for pick in event.picks:
+            if pick.phase == 'P':
+                requests.append(comm.isend((prefor, None, None, pick), dest=count%(size-1)+1))
+                count += 1
+    MPI.Request.Waitall(requests)
+    for i in range(count):
+        pick_station_tuple_arr.append(comm.recv(source=i%count+1))
     print(("--- time taken to run p-picking in parallel %s seconds ---" % (time.time() - start_time)))
     pick_station_tuple_arr = [x for x in pick_station_tuple_arr if x]
-    p_phases, nets, stas = list(zip(*pick_station_tuple_arr))
-    p_stations = list(zip(nets, stas))
+    if len(pick_station_tuple_arr) > 0:
+        p_phases, nets, stas = list(zip(*pick_station_tuple_arr))
+        p_phases = list(p_phases)
+        nets = list(nets)
+        stas = list(stas)
+        p_stations = list(zip(nets, stas))
 
     s_phases = []
     s_pick = None
-    net_st_list = []
+    count = 0
+    requests = []
     if inventory:
         for n in inventory.networks:
             for s in n.stations:
                 p_stations.append((n, s))
     pick_station_tuple_arr = []
     start_time = time.time()
-    pick_station_tuple_arr.extend(Parallel(n_jobs=num_cores*2)(delayed(pick_s_phase)(ppick, p_stations, prefor) for ppick in p_phases))
+    for ppick in p_phases:
+        requests.append(comm.isend((ppick, p_stations, prefor), dest=count%(size-1)+1))
+        count += 1
+    MPI.Request.Waitall(requests)
+    for i in range(count):
+        pick_station_tuple_arr.append(comm.recv(source=i%count+1))
     print(("--- time taken to run s-picking in parallel %s seconds ---" % (time.time() - start_time)))
     pick_station_tuple_arr = [x for x in pick_station_tuple_arr if x]
-    s_phases, nets, stas = list(zip(*pick_station_tuple_arr))
+    if len(pick_station_tuple_arr) > 0:
+        s_phases, nets, stas = list(zip(*pick_station_tuple_arr))
+        s_phases = list(s_phases)
 
     return p_phases, s_phases, p_stations
 
@@ -748,10 +772,15 @@ def dedup(inventory):
             del net.stations[ind]
 
 if __name__ == '__main__':
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
     # the hostname/ipaddress of the Seiscomp3 machine on which the
     # waveforms to be picked are hosted underneath a FDSN web server
-    sc3_host_ip='13.211.209.88'
-    client = Client('http://'+sc3_host_ip+':8081')
+    #sc3_host_ip='13.211.209.88'
+    sc3_host='test-elb-521962885.ap-southeast-2.elb.amazonaws.com'
+    #client = Client('http://'+sc3_host_ip+':8081')
+    client = Client('http://'+sc3_host)
     # the travel time velocity reference model object to be used
     # for fetching theoretical p and s phase arrivals
     model = TauPyModel(model='iasp91')
@@ -779,26 +808,47 @@ if __name__ == '__main__':
     evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
     outdir = '/home/ubuntu/bilby-out-final/2008'
     #inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
-    try:
-        inv = client.get_stations(starttime=UTCDateTime('2008-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2008-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=45, level='channel')
-        print(('len(inv)=>'+str(len(inv))))
-    except:
-        print ('FDSN client could not retrieve inventory for start year=2008 and end year=2008')
-        sys.exit(1)
+    if rank == 0:
+        try:
+            inv = client.get_stations(starttime=UTCDateTime('2014-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2014-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=45, level='channel')
+            print(('len(inv)=>'+str(len(inv))))
+        except:
+            print ('FDSN client could not retrieve inventory for start year=2014 and end year=2014')
+            sys.exit(1)
 
-    dedup(inv)
-    for f in evtfiles:
-        evts = read_events(f)
-        if evts:
-            count = 1
-            for evt in evts:
-                if evt:
-                    prefor = evt.preferred_origin() or evt.origins[0]
-                    if prefor.depth >= 0 and prefor.time > UTCDateTime('2008-08-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2008-12-31T23:59:59.000000Z'):
-                        print(('Processing event => ' + str(evt)))
-                        p_picks, s_picks, stations = pick_phases_parallel(evt, inv)
-                        evt_out = createEventObject(evt, p_picks, s_picks, stations)
-                        if evt_out:
-                            evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
-                count += 1
+        dedup(inv)
+        for f in evtfiles:
+            evts = read_events(f)
+            if evts:
+                count = 1
+                for evt in evts:
+                    if evt:
+                        prefor = evt.preferred_origin() or evt.origins[0]
+                        if prefor.depth >= 0 and prefor.time > UTCDateTime('2014-01-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2014-12-31T23:59:59.000000Z'):
+                            print(('Processing event => ' + str(evt)))
+                            p_picks, s_picks, stations = pick_phases_parallel(evt, inv)
+                            evt_out = createEventObject(evt, p_picks, s_picks, stations)
+                            if evt_out:
+                                evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
+                    count += 1
+    else:
+        prefor_net_st = None
+        while True:
+            time.sleep(0.5)
+            prefor_net_st_pick = comm.recv(source = 0)
+            pick_station_tuple = None
+            if len(prefor_net_st_pick) == 4 and isinstance(prefor_net_st_pick[0], Origin):
+                pick_station_tuple = pick_p_phase(prefor_net_st_pick[0],
+                                                  prefor_net_st_pick[1],
+                                                  prefor_net_st_pick[2],
+                                                  prefor_net_st_pick[3])
+            elif len(prefor_net_st_pick) == 3 and isinstance(prefor_net_st_pick[0][0], Pick):
+                pick_station_tuple = pick_s_phase(prefor_net_st_pick[0],
+                                                  prefor_net_st_pick[1],
+                                                  prefor_net_st_pick[2])
+            else:
+                print('The passed in arguments match neither for p-picking nor s-picking')
+            req = comm.isend(pick_station_tuple, dest = 0)
+            req.wait()
+
 
