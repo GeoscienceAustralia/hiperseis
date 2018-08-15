@@ -5,6 +5,7 @@ for waveform data sets that have been ingested as miniseed data into a Seiscomp3
 for short) server SDS archive.
 '''
 
+import click
 import os
 import numpy as np
 import itertools
@@ -17,7 +18,6 @@ from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recur
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
     Origin, Arrival, OriginQuality, Magnitude, Comment
-from mpi4py import MPI
 import glob
 import time
 
@@ -551,6 +551,70 @@ def pick_s_phase(p_phase, net_st_list, prefor):
     else:
         return None
 
+def pick_phases(event, inventory=None):
+    '''
+    Pick the relevant stations for a given event for p-phase as well as s-phase arrivals
+    :type event: class`~obspy.core.event.event.Event`
+    :param event: the Event object which contains the preferred origin for which we want
+        relevant stations picked
+    :type inventory: class`~obspy.core.inventory.inventory.Inventory`, optional
+    :param inventory: the Inventory object that contains the stations to be picked for this
+        event. If not passed in, the stations that are part of the p-phase picks in the event
+        object are picked for p-phase arrivals and the successful stations ofr s-phase
+        arrivals.
+    :rtype: (list of obspy.core.event.origin.Pick, list of obspy.core.event.origin.Pick,
+        list of obspy.core.inventory.station.Station)
+    :return: tuple of 3 items:
+        1. list of the picked p-phase Pick objects
+        2. list of the picked s-phase Pick objects
+        3. list of Station objects relevant to this event's picking
+    '''
+    if not event:
+        return None, None
+    prefor = event.preferred_origin() or event.origins[0]
+
+    p_phases = []
+    p_stations = []
+    p_pick = None
+    if inventory:
+        for net in inventory.networks:
+            for st in net.stations:
+                p_stations.append((net, st))
+                p_pick = pick_phase(net, st, prefor)
+                if p_pick:
+                    p_phases.append(p_pick)
+    else:
+        for pick in [p for p in event.picks if p.phase_hint=='P']:
+            try:
+                pick_st = client.get_stations(network=pick.waveform_id.network_code, station=pick.waveform_id.station_code)
+            except:
+                print ('FDSN client could not retrieve station info for sta='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
+                continue
+            if not pick_st:
+                print ('FDSN client returned an empty response for station query for station='+pick.waveform_id.station_code+' and network='+pick.waveform_id.network_code)
+                continue
+            p_stations.append((pick_st.networks[0], pick_st.networks[0].stations[0]))
+            p_pick = pick_phase(pick_st.networks[0], pick_st.networks[0].stations[0], prefor)
+            if p_pick:
+                p_phases.append(p_pick)
+    s_phases = []
+    s_pick = None
+    net_st_list = []
+    if inventory:
+        for n in inventory.networks:
+            for s in n.stations:
+                net_st_list.append((n, s))
+    for ppick in p_phases:
+        if inventory:
+            net, st = [(n, s) for (n, s) in net_st_list if s.code == ppick[0].waveform_id.station_code][0]
+            s_pick = pick_phase(net, st, prefor, phase='S', p_Pick=ppick[0])
+        else:
+            s_stn = [s for s in p_stations if s[1].code == ppick[0].waveform_id.station_code][0]
+            s_pick = pick_phase(s_stn[0], s_stn[1], prefor, phase='S', p_Pick=ppick[0])
+        if s_pick:
+            s_phases.append(s_pick)
+    return p_phases, s_phases, p_stations
+
 def pick_phases_parallel(event, inventory=None):
     '''
     Pick the relevant stations for a given event for p-phase as well as s-phase arrivals.
@@ -771,16 +835,92 @@ def dedup(inventory):
         for ind in ind_list:
             del net.stations[ind]
 
+@click.command()
+@click.argument('sc3_host')
+@click.argument('year')
+@click.option('--input_folder', default=os.getcwd(), help='The input folder where ISC event catalog xml input files are kept.')
+@click.option('--output_folder', default=os.getcwd(), help='The output folder where generated xml files are generated.')
+@click.option('--parallel', is_flag=True, default=False, help='Needs to be run in conjunction with MPI.(DO NOT USE. NOT TESTED.)')
+def main(sc3_host, year, input_folder, output_folder, parallel):
+    '''
+    This script accomplishes the task of picking the p-phase and s-phase arrival times for given set of events and waveform data sets that have been ingested as miniseed data into a Seiscomp3 (SC3 for short) server SDS archive.
+
+Arguments:\n
+    SC3_HOST	: the SC3 FDSN server where the permanent station waveform data is hosted\n
+    YEAR	: the year to which the input event catalog corresponds
+    '''
+    global comm
+    global size
+    global rank
+    global client
+    if parallel:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    client = Client('http://'+sc3_host)
+    #evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
+    evtfiles = glob.glob(os.path.join(input_folder, '*.xml'))
+    #outdir = '/home/ubuntu/bilby-out-final/2008'
+    #inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
+    if rank and rank > 0:
+        prefor_net_st = None
+        while True:
+            time.sleep(0.5)
+            prefor_net_st_pick = comm.recv(source = 0)
+            pick_station_tuple = None
+            if len(prefor_net_st_pick) == 4 and isinstance(prefor_net_st_pick[0], Origin):
+                pick_station_tuple = pick_p_phase(prefor_net_st_pick[0],
+                                                  prefor_net_st_pick[1],
+                                                  prefor_net_st_pick[2],
+                                                  prefor_net_st_pick[3])
+            elif len(prefor_net_st_pick) == 3 and isinstance(prefor_net_st_pick[0][0], Pick):
+                pick_station_tuple = pick_s_phase(prefor_net_st_pick[0],
+                                                  prefor_net_st_pick[1],
+                                                  prefor_net_st_pick[2])
+            else:
+                print('The passed in arguments match neither for p-picking nor s-picking')
+            req = comm.isend(pick_station_tuple, dest = 0)
+            req.wait()
+    else:
+        try:
+            inv = client.get_stations(starttime=UTCDateTime(year+'-01-01T00:00:00.000000Z'), endtime=UTCDateTime(year+'-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=45, level='channel')
+            print(('len(inv)=>'+str(len(inv))))
+        except:
+            print(('FDSN client could not retrieve inventory for start year='+year+' and end year='+year))
+            sys.exit(1)
+
+        dedup(inv)
+        for f in evtfiles:
+            evts = read_events(f)
+            if evts:
+                count = 1
+                for evt in evts:
+                    if evt:
+                        prefor = evt.preferred_origin() or evt.origins[0]
+                        if prefor.depth >= 0 and prefor.time > UTCDateTime(year+'-01-01T00:00:00.000000Z') and prefor.time < UTCDateTime(year+'-12-31T23:59:59.000000Z'):
+                            print(('Processing event => ' + str(evt)))
+                            if parallel:
+                                p_picks, s_picks, stations = pick_phases_parallel(evt, inv)
+                            else:
+                                p_picks, s_picks, stations = pick_phases(evt, inv)
+                            evt_out = createEventObject(evt, p_picks, s_picks, stations)
+                            if evt_out:
+                                #evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
+                                evt_out.write(output_folder+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
+                    count += 1
+
 if __name__ == '__main__':
-    comm = MPI.COMM_WORLD
-    size = comm.Get_size()
-    rank = comm.Get_rank()
+    rank = None
+    size = None
+    comm = None
+    client = None
     # the hostname/ipaddress of the Seiscomp3 machine on which the
     # waveforms to be picked are hosted underneath a FDSN web server
     #sc3_host_ip='13.211.209.88'
-    sc3_host='test-elb-521962885.ap-southeast-2.elb.amazonaws.com'
+    #sc3_host='test-elb-521962885.ap-southeast-2.elb.amazonaws.com'
     #client = Client('http://'+sc3_host_ip+':8081')
-    client = Client('http://'+sc3_host)
+    #client = Client('http://'+sc3_host)
     # the travel time velocity reference model object to be used
     # for fetching theoretical p and s phase arrivals
     model = TauPyModel(model='iasp91')
@@ -804,51 +944,5 @@ if __name__ == '__main__':
     pick_Count = 1
     origin_Count = 1
     event_Count = 1
-
-    evtfiles = glob.glob('/home/ubuntu/engdahl/*.xml')
-    outdir = '/home/ubuntu/bilby-out-final/2008'
-    #inv = read_inventory('/home/ubuntu/7W_dummy_resp.xml')
-    if rank == 0:
-        try:
-            inv = client.get_stations(starttime=UTCDateTime('2014-01-01T00:00:00.000000Z'), endtime=UTCDateTime('2014-12-31T23:59:59.000000Z'), latitude=-22.5, longitude=127.5, maxradius=45, level='channel')
-            print(('len(inv)=>'+str(len(inv))))
-        except:
-            print ('FDSN client could not retrieve inventory for start year=2014 and end year=2014')
-            sys.exit(1)
-
-        dedup(inv)
-        for f in evtfiles:
-            evts = read_events(f)
-            if evts:
-                count = 1
-                for evt in evts:
-                    if evt:
-                        prefor = evt.preferred_origin() or evt.origins[0]
-                        if prefor.depth >= 0 and prefor.time > UTCDateTime('2014-01-01T00:00:00.000000Z') and prefor.time < UTCDateTime('2014-12-31T23:59:59.000000Z'):
-                            print(('Processing event => ' + str(evt)))
-                            p_picks, s_picks, stations = pick_phases_parallel(evt, inv)
-                            evt_out = createEventObject(evt, p_picks, s_picks, stations)
-                            if evt_out:
-                                evt_out.write(outdir+'/'+os.path.splitext(os.path.basename(f))[0]+'-'+str(count)+os.path.splitext(os.path.basename(f))[1], format='SC3ML')
-                    count += 1
-    else:
-        prefor_net_st = None
-        while True:
-            time.sleep(0.5)
-            prefor_net_st_pick = comm.recv(source = 0)
-            pick_station_tuple = None
-            if len(prefor_net_st_pick) == 4 and isinstance(prefor_net_st_pick[0], Origin):
-                pick_station_tuple = pick_p_phase(prefor_net_st_pick[0],
-                                                  prefor_net_st_pick[1],
-                                                  prefor_net_st_pick[2],
-                                                  prefor_net_st_pick[3])
-            elif len(prefor_net_st_pick) == 3 and isinstance(prefor_net_st_pick[0][0], Pick):
-                pick_station_tuple = pick_s_phase(prefor_net_st_pick[0],
-                                                  prefor_net_st_pick[1],
-                                                  prefor_net_st_pick[2])
-            else:
-                print('The passed in arguments match neither for p-picking nor s-picking')
-            req = comm.isend(pick_station_tuple, dest = 0)
-            req.wait()
-
+    main()
 
