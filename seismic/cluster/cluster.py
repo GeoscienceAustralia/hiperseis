@@ -1,5 +1,9 @@
 """
-Clustering of events and station for 3d inversion input files.
+Clustering of events and stations to produce input data CSV files for traveltime tomography 3D-inversion program
+
+This program was initially developed by Sudipta and later handover to team for operation and extension etc
+
+It is too long, and better split into standalone functional modules: gather, cluster_sort, zone, (match), plot
 """
 from __future__ import print_function, absolute_import
 
@@ -159,12 +163,14 @@ class Grid2:
 
     """
 
-    def __init__(self, nx=360, ny=180, dz=10000):
+    #def __init__(self, nx=360, ny=180, dz=10000):
+    def __init__(self):
         """
-        constructor for a non-uniform Grid
-        :param nx: integer number of cells in longitude (360)
-        :param ny: lattitude cells (180)
-        :param dz: depth in meteres (def=10000
+        constructor for a non-uniform Grid.
+        Please modify the parameters in this method according to your desired Grid attributes.
+        # :param nx: integer number of cells in longitude (360)
+        # :param ny: lattitude cells (180)
+        # :param dz: depth in meteres (def=10000 )
         """
 
         # Region bounadry definition
