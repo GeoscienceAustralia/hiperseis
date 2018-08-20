@@ -136,9 +136,15 @@ def _read_sta_file(f, sta_dict):
 
 
 def read_all_stations():
-    stations = read_stations(sc3_inventory)
-    isc_stations = gather_isc_stations()
-    stations.update(isc_stations)
+    # this original program logic had issu of overriding data of the stations.txt for repeated stations like MY/KUM
+    # stations = read_stations(sc3_inventory)
+    # isc_stations = gather_isc_stations()
+    # stations.update(isc_stations)
+
+    stations = gather_isc_stations()
+    ga_stations=read_stations(sc3_inventory)
+    stations.update(ga_stations)  # assume ga_stations.txt is more reliable!
+
     return stations
 
 
@@ -162,12 +168,15 @@ def read_stations(station_file):
         log.info('Done reading seiscomp3 station files')
         return stations_dict
 
-
+# =====================================================
+# How to test run python inventory/parse_inventory.py
 if __name__ == "__main__":
-    #stations = gather_isc_stations()
+
+    # stations = gather_isc_stations()
     stations =  read_all_stations()
 
     print (len(stations.keys()))
+    print (stations["KUM"])
 #    inv = read_inventory('/home/ubuntu/7W.xml')
 #    df = convert_inventory_to_df(inv)
 #    df.to_csv('/home/ubuntu/7W.csv', index=False)
