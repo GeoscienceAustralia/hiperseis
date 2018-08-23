@@ -167,9 +167,9 @@ def find_best_bounds(cft, samp_rate):
     :return: the tuple (upper_threshold, lower_threshold) that represents best thresholds
              that result in a definitive pick.
     '''
-    bestupper = 1.5
-    bestlower = 0.75
-    max_margin = bestupper - bestlower
+    bestupper = None
+    bestlower = None
+    max_margin = 0
     leasttrigs = len(trigger_onset(cft, 1.5, 0.75, max_len=(60*samp_rate), max_len_delete=True))
     for upper in np.linspace(1.5, 8, 20):
         for lower in [0.875, 0.75, 0.625, 0.5, 0.375, 0.25]:
@@ -274,8 +274,9 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                 print(('band[0] => ' +str(band[0]) + ' band[1] => ' + str(band[1])))
                 cft = recursive_sta_lta(tr_copy.data, int(5*samp_rate), int(mult_const*samp_rate))
                 upper, lower = find_best_bounds(cft, tr_copy.stats.sampling_rate)
-                trigs.extend([(onset, tr_copy.stats.channel, upper-lower, band, upper) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr_copy.stats.sampling_rate), max_len_delete=True)])
-            search_margin = (pphase_search_margin if distance < 10 else pphase_search_margin+5) if phase == 'P' else sphase_search_margin
+                if upper and upper > 0 and lower and lower > 0:
+                    trigs.extend([(onset, tr_copy.stats.channel, upper-lower, band, upper) for onset in trigger_onset(cft, upper, lower, max_len=(60*tr_copy.stats.sampling_rate), max_len_delete=True)])
+            search_margin = pphase_search_margin if phase == 'P' else sphase_search_margin
             margin_threshold = 1.0 if phase == 'P' else 2.0
             trigs = [t for t in trigs if abs(prefor.time + mean_target_arrival - trim_starttime - (t[0][0]/samp_rate)) < search_margin]
             if len(trigs) > 0:
@@ -304,8 +305,9 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                     aic[0:int(10*samp_rate)]=aic[np.argmax(aic)]
                     aic[-int(10*samp_rate):-1]=aic[np.argmax(aic)]
                     pick_index = np.argmin(aic)
-                    aic_deriv_cleaned[0:int(10*samp_rate)]=0
-                    aic_deriv_cleaned[-int(10*samp_rate):-1]=0
+                    theoretical_trig = int((prefor.time + mean_target_arrival - trim_starttime)*samp_rate)
+                    aic_deriv_cleaned[0:int(theoretical_trig-(samp_rate*search_margin))]=aic_deriv_cleaned[np.argmin(aic_deriv_cleaned)]
+                    aic_deriv_cleaned[int(theoretical_trig+(samp_rate*search_margin)):-1]=aic_deriv_cleaned[np.argmin(aic_deriv_cleaned)]
                     pick_index_deriv = np.argmax(aic_deriv_cleaned)
                     # internal plotting functions to access the variables
                     def plot_zerophase_compare():
@@ -389,7 +391,6 @@ def pick_phase(network, station, prefor, phase='P', p_Pick=None):
                                 axes[ind+1, col_index].text(int(tr_copy.stats.npts*0.5), int(max(tr_copy.data)*0.7), network.code+' '+station.code+' '+comp.upper()+' ('+str(band[0])+'Hz - '+str(band[1])+'Hz) SNR='+str(int(snr_plot))+' pick_index = '+str(index))
                         print('Break here while debugging and run plt.show()')
 
-                    theoretical_trig = int((prefor.time + mean_target_arrival - trim_starttime)*samp_rate)
                     if theoretical_trig > 0 and abs(pick_index_deriv - theoretical_trig)/samp_rate < search_margin:
                         snr = calc_snr(tr_copy, trim_starttime + (pick_index_deriv/samp_rate))
                         #plot_onsets(deriv=True)
@@ -453,7 +454,7 @@ def calc_aic(tr, phase):
     '''
     npts = tr.stats.npts
     data = tr.data
-    margin = int(tr.stats.sampling_rate*5) if phase=='P' else int(tr.stats.sampling_rate*10)
+    margin = int(tr.stats.sampling_rate*1) if phase=='P' else int(tr.stats.sampling_rate*2)
     aic = np.zeros(npts)
     for k in range(npts-2,0,-1):
         a = k*np.log10(np.std(data[:k])**2)+(npts-k-1)*np.log10(np.std(data[k:])**2)
@@ -467,6 +468,8 @@ def calc_aic(tr, phase):
     aic_deriv_cleaned = []
     for i in range(npts-1):
         aic_deriv.append(aic[i+1] - aic[i])
+
+    for i in range(npts-1):
         if i < margin or i >= (npts - margin):
             aic_deriv_cleaned.append(min(aic_deriv))
         else:
@@ -476,7 +479,7 @@ def calc_aic(tr, phase):
             elif aic[i] > aic[i - margin] and aic[i] > aic[i + margin]:
                 aic_deriv_cleaned.append(min(aic_deriv))
             else:
-                aic_deriv_cleaned.append(aic[i+1] - aic[i])
+                aic_deriv_cleaned.append(aic_deriv[i])
 
     return np.array(aic), np.array(aic_deriv), np.array(aic_deriv_cleaned)
 
@@ -932,8 +935,8 @@ if __name__ == '__main__':
     slookback=100
     slookahead=200
     # the margin to allow for the p and s phase arrivals pick time
-    pphase_search_margin=10
-    sphase_search_margin=25
+    pphase_search_margin=7
+    sphase_search_margin=20
 
     # maximum allowed value for SNR
     snr_max=3000
