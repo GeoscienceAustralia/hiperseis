@@ -39,7 +39,7 @@ def xyz2rtp(x, y, z):
 # end func
 
 class Dataset:
-    def __init__(self, asdf_file_name, station_names = '*'):
+    def __init__(self, asdf_file_name, station_names = '*', ignore_json_db=False, zchan=None, nchan=None, echan=None):
 
         self._data_path = asdf_file_name
         self.ds = None
@@ -53,19 +53,21 @@ class Dataset:
             raise NameError('Error reading file : %s'%(self._data_path))
         # end try
 
-        # look for json db
-        files = glob.glob(os.path.dirname(self._data_path) + '/*.json')
-        for f in files:
-            if(os.path.splitext(os.path.basename(self._data_path))[0] in f):
-                try:
-                    self.ds_jason_db = SeisDB(f)
-                    self.has_jason_db = True
-                except:
-                    raise RuntimeError('Failed to load json file:%s' % (f))
-                #end try
-                break
-            # end if
-        # end for
+        if(not ignore_json_db):
+            # look for json db
+            files = glob.glob(os.path.dirname(self._data_path) + '/*.json')
+            for f in files:
+                if(os.path.splitext(os.path.basename(self._data_path))[0] in f):
+                    try:
+                        self.ds_jason_db = SeisDB(f)
+                        self.has_jason_db = True
+                    except:
+                        raise RuntimeError('Failed to load json file:%s' % (f))
+                    #end try
+                    break
+                # end if
+            # end for
+        # end if
 
         # Gather station metadata
         station_subset = set(station_names.split(' ')) if station_names != '*' else station_names
@@ -109,9 +111,20 @@ class Dataset:
             self._cart_location[s] = xyzs[i, :]
         # end for
 
-        if len(zchannels): assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
-        if len(nchannels): assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
-        if len(echannels): assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
+        if len(zchannels):
+            if(zchan is None): assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
+            else: zchannels = set([zchan]) if zchan in zchannels else None
+            if(zchannels is None): assert 0, 'Invalid z-channel name'
+
+        if len(nchannels):
+            if(nchan is None): assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
+            else: nchannels = set([nchan]) if nchan in nchannels else None
+            if(nchannels is None): assert 0, 'Invalid n-channel name'
+
+        if len(echannels):
+            if(echan is None): assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
+            else: echannels = set([echan]) if echan in echannels else None
+            if(echannels is None): assert 0, 'Invalid e-channel name'
 
         self.zchannel = zchannels.pop() if len(zchannels) else None
         self.nchannel = nchannels.pop() if len(nchannels) else None
@@ -177,9 +190,35 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               type=int,
               help="Data read buffer size; default is 10 x 'interval_seconds'. This parameter allows fetching data in bulk,"
                    " which can improve efficiency, but has no effect on the results produced")
+@click.option('--ds1-zchan', default=None,
+              type=str,
+              help="Name of z-channel for data-source-1. This parameter and the ones following are only required when "
+                   "channel names are ambiguous, e.g. ['HHZ', u'HYZ', u'HNZ', u'MFZ']")
+@click.option('--ds1-nchan', default=None,
+              type=str,
+              help="Name of n-channel for data-source-1")
+@click.option('--ds1-echan', default=None,
+              type=str,
+              help="Name of e-channel for data-source-1")
+@click.option('--ds2-zchan', default=None,
+              type=str,
+              help="Name of z-channel for data-source-2")
+@click.option('--ds2-nchan', default=None,
+              type=str,
+              help="Name of n-channel for data-source-2")
+@click.option('--ds2-echan', default=None,
+              type=str,
+              help="Name of e-channel for data-source-2")
+@click.option('--ignore-ds1-json-db', is_flag=True,
+              help="Ignore json db for data-source-1, if found")
+@click.option('--ignore-ds2-json-db', is_flag=True,
+              help="Ignore json db for data-source-2, if found")
 def process(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
             ds2_dec_factor, nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, clip_to_2std, one_bit_normalize, read_buffer_size):
+            end_time, clip_to_2std, one_bit_normalize, read_buffer_size,
+
+            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
+            ignore_ds1_json_db, ignore_ds2_json_db):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -198,8 +237,8 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
     rank = comm.Get_rank()
     proc_stations = defaultdict(list)
 
-    ds1 = Dataset(data_source1, station_names1)
-    ds2 = Dataset(data_source2, station_names2)
+    ds1 = Dataset(data_source1, station_names1, ignore_ds1_json_db, ds1_zchan, ds1_nchan, ds1_echan)
+    ds2 = Dataset(data_source2, station_names2, ignore_ds2_json_db, ds2_zchan, ds2_nchan, ds2_echan)
 
     if(rank == 0):
         def outputConfigParameters():

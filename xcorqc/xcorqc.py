@@ -349,30 +349,35 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
             logger.info('====Time range  [%s - %s]====' % (str(cTime), str(cTime + cStep)))
             logger.info('Fetching data for station %s..' % (refStId))
 
-            if(refds_db is not None):
-                refSt = refds_db.fetchDataByTime(refds, refStId, ref_channel_wildcard,
-                                                 cTime.timestamp,
-                                                 (cTime + cStep).timestamp,
-                                                 decimation_factor=tempst_dec_factor)
-            else:
-                refSt = refds.get_waveforms("*", refStId, "*", ref_channel_wildcard, cTime,
-                                            cTime + cStep, '*')
-                # Decimate traces if a decimation factor for reference station data has been
-                # specified.
-                if (refst_dec_factor is not None):
-                    for tr in refSt:
-                        tr.decimate(refst_dec_factor)
+            refSt = None
+            try:
+                if(refds_db is not None):
+                    refSt = refds_db.fetchDataByTime(refds, refStId, ref_channel_wildcard,
+                                                     cTime.timestamp,
+                                                     (cTime + cStep).timestamp,
+                                                     decimation_factor=refst_dec_factor)
+                else:
+                    refSt = refds.get_waveforms("*", refStId, "*", ref_channel_wildcard, cTime,
+                                                cTime + cStep, '*')
+                    # Decimate traces if a decimation factor for reference station data has been
+                    # specified.
+                    if (refst_dec_factor is not None):
+                        for tr in refSt:
+                            tr.decimate(refst_dec_factor)
 
-                if (verbose > 2):
-                    logger.debug('\t\tData Gaps:')
-                    refSt.print_gaps() # output sent to stdout; fix this
-                    print ("\n")
+                    if (verbose > 2):
+                        logger.debug('\t\tData Gaps:')
+                        refSt.print_gaps() # output sent to stdout; fix this
+                        print ("\n")
+                    # end if
+                    # Merge reference station data. Note that we don't want to fill gaps; the
+                    # default merge() operation creates masked numpy arrays, which we can use
+                    # to detect and ignore windows that have gaps in their data.
+                    refSt.merge()
                 # end if
-                # Merge reference station data. Note that we don't want to fill gaps; the
-                # default merge() operation creates masked numpy arrays, which we can use
-                # to detect and ignore windows that have gaps in their data.
-                refSt.merge()
-            # end if
+            except:
+                logger.warn('\tError encountered while fetching data. Skipping along..')
+            # end try
 
             if (refSt is None):
                 logger.info('Failed to fetch data..')
@@ -389,32 +394,36 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 stationPair = refStId + '.' + tempStId
 
                 logger.info('\tFetching data for station %s..' % (tempStId))
+
                 tempSt = None
+                try:
+                    if(tempds_db is not None):
+                        # Fetching data from a large ASDF file, as is the case with temporary
+                        # stations data, is significantly faster using a Json database.
+                        tempSt = tempds_db.fetchDataByTime(tempds, tempStId, temp_channel_wildcard,
+                                                           cTime.timestamp,
+                                                           (cTime + cStep).timestamp,
+                                                           decimation_factor=tempst_dec_factor)
+                    else:
+                        # Otherwise fetch data using the pyasdf interface.
+                        tempSt = tempds.get_waveforms("*", tempStId, "*", temp_channel_wildcard, cTime,
+                                                      cTime + cStep, '*')
 
-                if(tempds_db is not None):
-                    # Fetching data from a large ASDF file, as is the case with temporary
-                    # stations data, is significantly faster using a Json database.
-                    tempSt = tempds_db.fetchDataByTime(tempds, tempStId, temp_channel_wildcard,
-                                                       cTime.timestamp,
-                                                       (cTime + cStep).timestamp,
-                                                       decimation_factor=tempst_dec_factor)
-                else:
-                    # Otherwise fetch data using the pyasdf interface.
-                    tempSt = tempds.get_waveforms("*", tempStId, "*", temp_channel_wildcard, cTime,
-                                                  cTime + cStep, '*')
+                        # Decimate traces
+                        for tr in tempSt:
+                            tr.decimate(tempst_dec_factor)
 
-                    # Decimate traces
-                    for tr in tempSt:
-                        tr.decimate(tempst_dec_factor)
-
-                    # Merge traces, preserving data gaps (see above).
-                    try:
-                        tempSt.merge()
-                    except:
-                        logger.warn('\tFailed to merge traces..')
-                        tempSt = None
-                    # end try
-                #end if
+                        # Merge traces, preserving data gaps (see above).
+                        try:
+                            tempSt.merge()
+                        except:
+                            logger.warn('\tFailed to merge traces..')
+                            tempSt = None
+                        # end try
+                    #end if
+                except:
+                    logger.warn('\tError encountered while fetching data. Skipping along..')
+                # end try
 
                 if (tempSt is None):
                     logger.info('Failed to fetch data..')
