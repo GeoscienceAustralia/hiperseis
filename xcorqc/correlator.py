@@ -140,7 +140,12 @@ class Dataset:
 
         d, l = other_dataset._tree.query(self._cart_location[station_name], nn)
 
+        if(type(l) == int): l = [l]
+
         l = l[l<len(other_dataset.stations)]
+
+        if(type(l) == int): l = [l]
+
         assert len(l), 'No stations found..'
 
         return list(np.array(other_dataset.stations)[l])
