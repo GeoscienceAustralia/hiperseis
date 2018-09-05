@@ -16,7 +16,6 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.basemap import Basemap
 import click
 from seismic import pslog
-from seismic import mpiops
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
@@ -38,8 +37,8 @@ column_names = ['source_block', 'station_block',
                 'observed_tt', 'locations2degrees', STATION_CODE, 'SNR', 'P_or_S']
 
 # since we have Basemap in the virtualenv, let's just use that :)
-ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,
-              urcrnrlon=190.0, urcrnrlat=0.0)
+ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0, urcrnrlon=190.0, urcrnrlat=0.0) # original small region.
+ANZ = Basemap(llcrnrlon=50.0, llcrnrlat=-70.0, urcrnrlon=200.0, urcrnrlat=30.0)
 
 Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
@@ -185,6 +184,7 @@ def plotcmd(arrivals_file, region):
     """
     Another plot command
     """
+    from seismic import mpiops
     log.info('Begin plotcmd {}'.format(mpiops.rank))
     log.debug("The input arrival file is %s", arrivals_file)
 
