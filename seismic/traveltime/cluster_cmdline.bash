@@ -35,7 +35,7 @@ source $INSTALL_DIR/pstvenv/bin/activate
 # mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data/ha3/events_xmls_sc3ml -w "P S"
 #mpirun --mca mpi_warn_on_fork 0 cluster gather /g/data1a/ha3/fxz547/travel_time_tomography/run4_events/pbs_events_paths.txt  -w "P S"
 
-# re-hash into required csv file
+# re-hash into a csv file with the right columns for sorting
 # cat outfile_P_header.csv | cut -d , -f 1-10,14-17 >  P_out.csv
 # cat outfile_S_header.csv | cut -d , -f 1-10,14-17 >  S_out.csv
 
