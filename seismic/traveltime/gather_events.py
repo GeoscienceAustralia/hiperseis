@@ -1,12 +1,20 @@
 """
-Parse multiple events xml files to gather all info about seismic events-arrivals
+Parse multiple events xml files to gather all seismic events-arrivals
 (Refactored From the original seismic.cluster.cluster.py)
+output CSV files containing the following columns:
+['source_block', 'station_block', 'residual', 'event_number',
+SOURCE_LONGITUDE, SOURCE_LATITUDE, 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
+'observed_tt', 'calculated_locations2degrees', xml_distance, STATION_CODE, 'SNR', 'P_or_S']
 
 How to Run:
 export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
 cd  passive-seismic/tempworks
 # python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/testdata/
 # python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/some_events_xml/
+#  OR
+#<fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/tempworks (master)
+# $ python2 ../seismic/traveltime/gather_events.py  -v DEBUG gather ./events_xmls_test
+
 """
 
 from __future__ import print_function, absolute_import
@@ -349,7 +357,7 @@ def get_paths_from_csv(csvfile):
               help='Wave type pair to generate inversion inputs')
 def gather(events_dir, output_file, nx, ny, dz, wave_type):
     """
-    Gather all source-station block pairs for all events in a list of directory.
+    Gather all source-station arrivals for all events xml files in a list of directory.
     """
     log.info("Gathering all arrivals")
 
@@ -362,8 +370,10 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
         event_xmls = None
         raise Exception("Invalid Input Events Dir")
 
+
+    # grid definition is needed for clustering purpose, not in gather events
     # grid = Grid(nx=nx, ny=ny, dz=dz)  # original uniform grid
-    grid = Grid2()  # use a non-uniform Grid construction
+    grid = None # Grid2()  # use a non-uniform Grid construction
 
     # generate the stations dict
     stations = mpiops.run_once(read_all_stations)
@@ -504,29 +514,26 @@ def process_event(event, stations, grid, wave_type, counter):
     :param event: obspy.core.event.Event class instance
     :param stations: dict
         stations dict
-    :param grid: Grid class instance
+    :param grid: can be None; Grid class instance
     :param wave_type: str
-        Wave type pair to generate inversion inputs. See `gather` function.
+        Wave type to generate inversion inputs. See `gather` function.
     :param counter: int
         event counter in this process
     """
-    p_type, s_type = wave_type.split()
+    p_type, s_type = wave_type.split()  # ('P', 'S')
 
     # use preferred origin timestamp as the event number
     # if preferred origin is not populated, use the first origin timestamp
     origin = event.preferred_origin() or event.origins[0]
 
-    # TODO: longer term uncomment the following line when fortran TT code is
-    # updated to use longer integers
-    # ev_number = int(origin.time.timestamp)
+    # Use the following line when fortran TT code is able to use longer integers
+    ev_number = int(origin.time.timestamp)
 
-    # TODO: delete this definition of ev_number when fortran code can use
-    # longer integers
 
-    # the following definition ensures a 8 digit event number that is also
-    # unique
-    assert counter < 100000, 'Counter must be less than 100000'
-    ev_number = int(str(counter) + '{0:0=3d}'.format(mpiops.rank))
+    # the following definition ensures a 8 digit event number that is also unique
+    # delete this definition of ev_number when fortran code can use longer integers
+    # assert counter < 100000, 'Counter must be less than 100000'
+    # ev_number = int(str(counter) + '{0:0=3d}'.format(mpiops.rank))
 
     p_arrivals = []
     s_arrivals = []
@@ -541,7 +548,10 @@ def process_event(event, stations, grid, wave_type, counter):
     if ev_latitude is None or ev_longitude is None or ev_depth is None:
         return p_arrivals, s_arrivals, missing_stations, arrival_staions
 
-    event_block = grid.find_block_number(ev_latitude, ev_longitude, z=ev_depth)
+    if grid is None:
+        event_block = 0
+    else:
+        event_block = grid.find_block_number(ev_latitude, ev_longitude, z=ev_depth)
 
     for arr in origin.arrivals:
 
@@ -583,8 +593,11 @@ def process_event(event, stations, grid, wave_type, counter):
             #          'is {} degrees'.format(degrees_to_source))
             continue
 
-        # TODO: use station.elevation information
-        station_block = grid.find_block_number(sta.latitude, sta.longitude, z=0.0)
+        if grid is None:
+            station_block = -1
+        else:
+            # TODO: use station.elevation information
+            station_block = grid.find_block_number(sta.latitude, sta.longitude, z=0.0)
 
         if arr.phase in wave_type.split():
             log.debug("Began ellipticity_corr ")
@@ -608,12 +621,12 @@ def process_event(event, stations, grid, wave_type, counter):
             log.debug("ellipticity_corr = %s", ellipticity_corr)
 
             t_list = [event_block, station_block, arr.time_residual,
-                      int(origin.time.timestamp),  # ev_number,
+                      ev_number,
                       ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp - origin.time.timestamp) + ellipticity_corr,
                       arr.pick_id.get_referred_object().time, origin.time, ellipticity_corr, # line for debug
-                      degrees_to_source,
+                      degrees_to_source, arr.distance,
                       sta_code, snr_value]
             arrival_staions.append(sta_code)
             p_arrivals.append(t_list + [1]) if arr.phase == p_type else \
@@ -640,10 +653,15 @@ def getSNR(arrival):
     :param arrival:
     :return: a float SNR value
     """
-    snr_v = arrival.pick_id.get_referred_object().comments[3]  # Comment(text='snr = 10.7157568852')
 
-    snrlist = str(snr_v).split("snr =")
-    snrv = snrlist[-1][:-2]  # the last item of the split, trimming two chars ')
+    try:
+        snr_v = arrival.pick_id.get_referred_object().comments[3]  # Comment(text='snr = 10.7157568852')
+
+        snrlist = str(snr_v).split("snr =")
+        snrv = snrlist[-1][:-2]  # the last item of the split, trimming two chars ')
+    except Exception as ex:
+        log.warning("could not get SNR value becuase %s. Use artificial snrv = 0.0", ex.message)
+        snrv = 0.0
 
     return float(snrv)
 

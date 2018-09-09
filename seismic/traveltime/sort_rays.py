@@ -75,7 +75,7 @@ def sort(output_file, sorted_file, residual_cutoff):
     :return: None
     """
 
-    log.info('Filtering arrivals.')
+    log.info('Reading in and Filtering arrivals.')
 
     cluster_data = pd.read_csv(output_file, header=None,
                                names=column_names)
@@ -85,6 +85,10 @@ def sort(output_file, sorted_file, residual_cutoff):
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
+
+    log.info('Use grid model to cluster the rays.')
+
+    # define the source_block and station_block
 
     log.info('Sorting arrivals.')
 
@@ -110,13 +114,13 @@ def sort(output_file, sorted_file, residual_cutoff):
     final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
 
 
-@cli.command()
-@click.argument('output_file',
-                type=click.File(mode='r'))
-@click.argument('residual_cutoff', type=float)
-@click.option('-s', '--sorted_file',
-              type=click.File(mode='w'), default='sorted2.csv',
-              help='output sorted and filter file.')
+# @cli.command()
+# @click.argument('output_file',
+#                 type=click.File(mode='r'))
+# @click.argument('residual_cutoff', type=float)
+# @click.option('-s', '--sorted_file',
+#               type=click.File(mode='w'), default='sorted2.csv',
+#               help='output sorted and filter file.')
 def sort2(output_file, sorted_file, residual_cutoff):
     """
     Sort and filter the arrivals.
