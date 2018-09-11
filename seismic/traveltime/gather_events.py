@@ -20,23 +20,24 @@ cd  passive-seismic/tempworks
 from __future__ import print_function, absolute_import
 
 import csv
+import ellipcorr
 import fnmatch
 import logging
 import os
 import random
-from collections import namedtuple
 from math import asin
 
-import numpy as np
-import pandas as pd
-
 import click
+import pandas as pd
 from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
-from seismic import pslog
-from seismic import mpiops
-import ellipcorr
+
 from inventory.parse_inventory import read_all_stations
+from seismic import mpiops
+from seismic import pslog
+
+# Only If this gather_events will do computation of the block numbers in a grid
+# from seismic.traveltime.cluster_grid import Grid2
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
@@ -44,243 +45,24 @@ FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
 
-SOURCE_LATITUDE = 'source_latitude'
-SOURCE_LONGITUDE = 'source_longitude'
-STATION_LATITUDE = 'station_latitude'
-STATION_LONGITUDE = 'station_longitude'
-STATION_CODE = 'station_code'
-FREQUENCY = 'no_of_summary_rays'
 
-column_names = ['source_block', 'station_block',
-                'residual', 'event_number',
-                SOURCE_LONGITUDE, SOURCE_LATITUDE,
-                'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
-                'observed_tt', 'locations2degrees', STATION_CODE, 'SNR', 'P_or_S']
-
-# since we have Basemap in the virtualenv, let's just use that :)
-# ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,  urcrnrlon=190.0, urcrnrlat=0.0)
-
-Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
-
-PARAM_FILE_FORMAT = '''
-    An example parameter file is provided in raytracer/params/param2x2. 
-    A typical param file should have the following format:
-
-    Global dataset following parameters:
-    72 36 16 5. 5.
-          0.
-        110.
-        280.
-        410.
-        660.
-        840.
-       1020.
-       1250.
-       1400.
-       1600.
-       1850.
-       2050.
-       2250.
-       2450.
-       2600.
-       2750.
-       2889.
-
-    where 72 is number of cells in Lon, 36 number of cells in Lat, 
-    16 is number of layers, and 5 is size of the cell
-
-    For local parameterisation:
-
-
-    100.  190.  -54.  0.  45 27  22
-          0.
-         35.
-         70.
-        110.
-        160.
-        210.
-        260.
-        310.
-        360.
-        410.
-        460.
-        510.
-        560.
-        610.
-        660.
-        710.
-        810.
-        910.
-       1010.
-       1110.
-       1250.
-       1400.
-       1600.
-
-    where 100, 190 are minLon and maxLon, '-54' and '0' are minlat and maxlat, 
-    45 number of cells in Lon, 27 is the number of cells in lat, 22 
-    is the number of layers
-   '''
-
-
-class Grid:
-    """
-    Original (simple) uniform grid definition
-    """
-
-    def __init__(self, nx=360, ny=180, dz=10000):
-        """
-        constructor for Grid. Define 3D cell properties
-        :param nx: integer number of cells in longitude (360)
-        :param ny: lattitude cells (180)
-        :param dz: depth in meteres (default=10KM)
-        """
-        self.nx = nx
-        self.ny = ny
-        self.dx = 360.0 / nx
-        self.dy = 180.0 / ny
-        self.dz = dz
-
-    def find_block_number(self, lat, lon, z):
-        """
-        find the 3D-block number in this grid
-        :param lat: lattitude
-        :param lon: longitude
-        :param z: elevation
-        :return: int block number
-        """
-        y = 90. - lat
-        x = lon % 360
-        i = round(x / self.dx) + 1
-        j = round(y / self.dy) + 1
-        k = round(z / self.dz) + 1
-        block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
-
-        return int(block_number)
-
-
-class Grid2:
-    """
-    A non-uniform Grid Model for source->events rays clustering and sorting.
-    according to the inversion Fortran code model (file param1x1)
-    72 36 16 5. 5.  (5x5degree global + a list of 1+16 depths)
-
-    100. 190. -54. 0. 90 54  23  (1x1 degree in ANZ region)  + a list of 1+23 depths
-
-    """
-
-    # def __init__(self, nx=360, ny=180, dz=10000):
-    def __init__(self):
-        """
-        constructor for a non-uniform Grid.
-        Please modify the parameters in this method according to your desired Grid attributes.
-        # :param nx: integer number of cells in longitude (360)
-        # :param ny: lattitude cells (180)
-        # :param dz: depth in meteres (def=10000 )
-        """
-
-        # Region bounadry definition
-        self.LON = (100.0, 190.0)
-        self.LAT = (-54.0, 0.0)
-
-        # region grid size in lat-long plane
-        self.nx = 4 * 90  # 1/4 degree cell size in LONG
-        self.ny = 4 * 54  # 1/4 degree cell size in LAT
-        self.dx = (self.LON[1] - self.LON[0]) / self.nx  # 1/4 degree
-        self.dy = (self.LAT[1] - self.LAT[0]) / self.ny  # 1/4 degree
-
-        # Region's depths in KM according to Fortran param1x1
-        self.rdepth = (0, 10, 35, 70, 110, 160, 210, 260, 310, 360, 410, 460, 510, 560,
-                       610, 660, 710, 810, 910, 1010, 1110, 1250, 1400, 1600)
-
-        # Region Depth in meters
-        self.rmeters = 1000 * np.array(self.rdepth)
-        self.dz = 5000  # inside the ANZ zone 5KM uniform cellsize in depth
-
-        # global grid model params (outside the region)
-        self.gnx = 288
-        self.gny = 144
-        self.gdx = 5 * self.dx  # =360/self.gnx;  5 times as big as the regional grid size
-        self.gdy = 5 * self.dy  # =180/self.gny;  5 times as big as the regional grid size
-
-        self.gdepth = (0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
-
-        self.gmeters = 1000 * np.array(self.gdepth)  # Region Depth in meters
-        self.gdz = 20000  # global outside the ANZ zone 20KM uniform cellsize in depth
-
-        self.REGION_MAX_BN = self._get_max_region_block_number()
-
-        return
-
-    def _get_max_region_block_number(self):
-        """
-        Compute the MAX BLOCK NUMBER for a point in the region box (with a finer grid)
-        This max block number is used to offset bn for points in the global zone.
-        assuming the event's max depth is 2000KM
-
-        :return: int max_nb
-        """
-        # assume 2000KM max depth, compute the z-layers
-        k = round(2000000.0 / self.dz) + 1
-        bn = k * self.nx * self.ny + 1  # must make sure this number is big enough, to separate region|global
-
-        log.info("The REG_MAX_BN = %s", bn)
-
-        return bn
-
-    def is_point_in_region(self, lat, lon):
-        """
-        test if the event or station point is in the region box?
-        :param lat:
-        :param lon:
-        :return: T/F
-        """
-
-        if (abs(lat) > 90):
-            log.error("wrong lattitude value %s", lat)
-        # y = 90. - lat  # convert lat into y which will be in [0,180)
-
-        x = lon % 360  # convert longitude into x which must be in [0,360)
-
-        if (lat <= self.LAT[1] and lat >= self.LAT[0] and x <= self.LON[1] and x >= self.LON[0]):
-            log.debug("(%s, %s) in the region", lat, lon)
-            return True
-        else:
-            log.debug("(%s, %s) NOT in the region ", lat, lon)
-            return False
-
-    def find_block_number(self, lat, lon, z):
-        """
-        find the index-number of an events/station in a non-uniform grid
-        each spatial point (lat, lon, z) is mapped to a uniq block_number.
-        :param lat: latitude
-        :param lon: longitude
-        :param z: depth
-        :return: int block number
-        """
-        x = lon % 360  # convert lon into x which must be in [0,360)
-        y = 90. - lat  # convert lat into y which will be in [0,180)
-
-        if self.is_point_in_region(lat, lon) is True:
-
-            i = round(x / self.dx) + 1
-            j = round(y / self.dy) + 1
-
-            k = round(z / self.dz) + 1
-            block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
-
-        else:
-
-            i = round(x / self.gdx) + 1
-            j = round(y / self.gdy) + 1
-
-            k = round(z / self.gdz) + 1
-
-            g_block_number = (k - 1) * self.gnx * self.gny + (j - 1) * self.gnx + i
-
-            block_number = g_block_number + self.REGION_MAX_BN  # offset by the region max block number
-
-        return int(block_number)
+# SOURCE_LATITUDE = 'source_latitude'
+# SOURCE_LONGITUDE = 'source_longitude'
+# STATION_LATITUDE = 'station_latitude'
+# STATION_LONGITUDE = 'station_longitude'
+# STATION_CODE = 'station_code'
+# FREQUENCY = 'no_of_summary_rays'
+#
+# column_names = ['source_block', 'station_block',
+#                 'residual', 'event_number',
+#                 SOURCE_LONGITUDE, SOURCE_LATITUDE,
+#                 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
+#                 'observed_tt', 'locations2degrees', STATION_CODE, 'SNR', 'P_or_S']
+#
+# # since we have Basemap in the virtualenv, let's just use that :)
+# # ANZ = Basemap(llcrnrlon=100.0, llcrnrlat=-50.0,  urcrnrlon=190.0, urcrnrlat=0.0)
+#
+# Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
 
 @click.group()
@@ -330,7 +112,7 @@ def get_paths_from_csv(csvfile):
             row = arow.strip()  # remove the write spaces \t \n  to have correct linux path
 
             if row.startswith("#"):
-                pass # comment line
+                pass  # comment line
             else:
                 paths.extend(row)
 
@@ -370,10 +152,9 @@ def gather(events_dir, output_file, nx, ny, dz, wave_type):
         event_xmls = None
         raise Exception("Invalid Input Events Dir")
 
-
     # grid definition is needed for clustering purpose, not in gather events
     # grid = Grid(nx=nx, ny=ny, dz=dz)  # original uniform grid
-    grid = None # Grid2()  # use a non-uniform Grid construction
+    grid = None  # Grid2()  # use a non-uniform Grid construction
 
     # generate the stations dict
     stations = mpiops.run_once(read_all_stations)
@@ -529,7 +310,6 @@ def process_event(event, stations, grid, wave_type, counter):
     # Use the following line when fortran TT code is able to use longer integers
     ev_number = int(origin.time.timestamp)
 
-
     # the following definition ensures a 8 digit event number that is also unique
     # delete this definition of ev_number when fortran code can use longer integers
     # assert counter < 100000, 'Counter must be less than 100000'
@@ -625,7 +405,7 @@ def process_event(event, stations, grid, wave_type, counter):
                       ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp - origin.time.timestamp) + ellipticity_corr,
-                      arr.pick_id.get_referred_object().time, origin.time, ellipticity_corr, # line for debug
+                      arr.pick_id.get_referred_object().time, origin.time, ellipticity_corr,  # line for debug
                       degrees_to_source, arr.distance,
                       sta_code, snr_value]
             arrival_staions.append(sta_code)
@@ -660,11 +440,10 @@ def getSNR(arrival):
         snrlist = str(snr_v).split("snr =")
         snrv = snrlist[-1][:-2]  # the last item of the split, trimming two chars ')
     except Exception as ex:
-        log.warning("could not get SNR value becuase %s. Use artificial snrv = 0.0", ex.message)
+        log.warning("could not get SNR value becuase %s. Use artificial snrv = 0.0", str(ex))
         snrv = 0.0
 
     return float(snrv)
-
 
 
 # ================= Quick Testings of the functions ====================
@@ -692,5 +471,4 @@ def getSNR(arrival):
 
 # ======================================================================
 if __name__ == "__main__":
-
     cli()

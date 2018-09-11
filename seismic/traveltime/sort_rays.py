@@ -12,6 +12,7 @@ import click
 import pandas as pd
 
 from seismic import pslog
+from seismic.traveltime.cluster_grid import Grid, Grid2
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
@@ -43,13 +44,13 @@ def cli(verbosity):
     pslog.configure(verbosity)
 
 
-@cli.command()
-@click.argument('output_file',
-                type=click.File(mode='r'))
-@click.argument('residual_cutoff', type=float)
-@click.option('-s', '--sorted_file',
-              type=click.File(mode='w'), default='sorted.csv',
-              help='output sorted and filter file.')
+# @cli.command()
+# @click.argument('output_file',
+#                 type=click.File(mode='r'))
+# @click.argument('residual_cutoff', type=float)
+# @click.option('-s', '--sorted_file',
+#               type=click.File(mode='w'), default='sorted.csv',
+#               help='output sorted and filter file.')
 def sort(output_file, sorted_file, residual_cutoff):
     """
     Sort and filter the arrivals.
@@ -81,14 +82,22 @@ def sort(output_file, sorted_file, residual_cutoff):
                                names=column_names)
     cluster_data = cluster_data[abs(cluster_data['residual'])
                                 < residual_cutoff]
-    cluster_data['source_depth'] = cluster_data['source_depth'] / 1000.0  # scale meter to KM
+
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
     #                          inplace=True)
 
-    log.info('Use grid model to cluster the rays.')
+    log.info('Apply a grid model to cluster the rays.')
+    # mygrid = Grid(nx=36, ny=18, dz=10000) # use a new grid model
+    mygrid = Grid2() # use a new grid model
 
-    # define the source_block and station_block
+    # Re-define the source_block and station_block number according to the mygrid model
+    cluster_data['source_block'] = cluster_data.apply(
+        lambda x: mygrid.find_block_number(x.source_latitude,x.source_longitude, x.source_depth), axis=1
+    )
+    cluster_data['station_block'] = cluster_data.apply(
+        lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0), axis=1)
+
 
     log.info('Sorting arrivals.')
 
@@ -105,13 +114,20 @@ def sort(output_file, sorted_file, residual_cutoff):
     #  the original engdahl events
     # refer: https://github.com/GeoscienceAustralia/passive-seismic/issues/51
     # The subset is specified as we have some stations that are very close?
-    final_df.drop_duplicates(subset=['source_block', 'station_block',
-                                     'event_number', SOURCE_LONGITUDE,
-                                     SOURCE_LATITUDE, 'source_depth'],
-                             keep='first', inplace=True)
+    # final_df.drop_duplicates(subset=['source_block', 'station_block',
+    #                                  'event_number', SOURCE_LONGITUDE,
+    #                                  SOURCE_LATITUDE, 'source_depth'],
+    #                          keep='first', inplace=True)
     # FZ: this drop_duplicate will still keep many identical duplicated rows with only event_number different
 
+    # use the following to keep only unique  prim_key: ['source_block', 'station_block']
+    final_df.drop_duplicates(subset=['source_block', 'station_block'],
+                             keep='first', inplace=True)
+
+    final_df['source_depth'] = final_df['source_depth'] / 1000.0  # scale meter to KM before wrting to csv
     final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
+
+    return final_df
 
 
 # @cli.command()
@@ -187,6 +203,51 @@ def sort2(output_file, sorted_file, residual_cutoff):
 
     return final_df
 
+def translate_csv(in_csvfile, out_csvfile):
+    """
+    Read in a csv file, and translate it into another csv file with re-calculated columns
+    :param in_csvfile: path to an input csv file
+    :param out_csvfile: path to an output csv file
+    :return: out_csvfile
+    """
+
+    log.info('Reading in an input CSV files.')
+
+    incsv = pd.read_csv(in_csvfile, header=None, names=column_names) # tweek if needed according to input file format
+
+    # groupby sorts by default
+    # cluster_data.sort_values(by=['source_block', 'station_block'],
+    #                          inplace=True)
+
+    log.info('Apply a grid model to cluster the rays.')
+    # mygrid = Grid(nx=36, ny=18, dz=10000) # use a new grid model
+    mygrid = Grid2() # use a new grid model
+
+    # Re-define the source_block and station_block number according to the mygrid model
+    incsv['source_block'] = incsv.apply(
+        lambda x: mygrid.find_block_number(x.source_latitude,x.source_longitude, x.source_depth)[0], axis=1)
+
+
+    incsv['source_xc'] = incsv.apply(lambda x: mygrid.find_block_number(x.source_latitude, x.source_longitude, x.source_depth)[1], axis=1)
+    incsv['source_yc'] = incsv.apply(lambda x: mygrid.find_block_number(x.source_latitude, x.source_longitude, x.source_depth)[2], axis=1)
+    incsv['source_zc'] = incsv.apply(lambda x: mygrid.find_block_number(x.source_latitude, x.source_longitude, x.source_depth)[3], axis=1)/1000.0 # KM
+
+    incsv['station_block'] = incsv.apply(
+        lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0)[0], axis=1)
+
+    incsv['station_xc'] = incsv.apply(lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0)[1], axis=1)
+    incsv['station_yc'] = incsv.apply(lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0)[2], axis=1)
+    incsv['station_zc'] = incsv.apply(lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0)[3], axis=1)/1000.0
+
+    incsv['source_depth'] = incsv['source_depth'] / 1000.0  # ?? scale meter to KM before wrting to csv
+
+    # write out csv file as you want.
+    #incsv.to_csv(out_csvfile, header=False, index=False, sep=' ')
+    incsv.to_csv(out_csvfile, header=True, index=False, sep=',')
+
+    return out_csvfile
+
+
 # ================= Quick Testings of the functions ====================
 # cd  passive-seismic/
 # export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
@@ -196,4 +257,9 @@ def sort2(output_file, sorted_file, residual_cutoff):
 #$ python /g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/sort_rays.py sort2 S_out.csv 10. -s sorted_S.csv
 # ======================================================================
 if __name__ == "__main__":
-    cli()
+    # cli()   # This is click API command entry point
+
+    import sys
+    inf = sys.argv[1]
+    outf= sys.argv[2]
+    translate_csv(inf, outf)
