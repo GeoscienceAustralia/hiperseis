@@ -93,10 +93,10 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     # Re-define the source_block and station_block number according to the mygrid model
     cluster_data['source_block'] = cluster_data.apply(
-        lambda x: mygrid.find_block_number(x.source_latitude,x.source_longitude, x.source_depth), axis=1
-    )
+        lambda x: mygrid.find_block_number(x.source_latitude,x.source_longitude, x.source_depth)[0], axis=1)
+
     cluster_data['station_block'] = cluster_data.apply(
-        lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0), axis=1)
+        lambda x: mygrid.find_block_number(x.station_latitude, x.station_longitude, 0.0)[0], axis=1)
 
 
     log.info('Sorting arrivals.')

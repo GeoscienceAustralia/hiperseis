@@ -116,41 +116,42 @@ class Grid2:
     """
 
     # def __init__(self, nx=360, ny=180, dz=10000):
-    def __init__(self):
+    def __init__(self, ndis=2):
         """
         constructor for a non-uniform Grid.
         Please modify the parameters in this method according to your desired Grid attributes.
-        # :param nx: integer number of cells in longitude (360)
-        # :param ny: lattitude cells (180)
-        # :param dz: depth in meteres (def=10000 )
+        :param ndis: 2, 4
+
         """
+        self.ndis= ndis
 
         # Region bounadry definition
         self.LON = (100.0, 190.0)
         self.LAT = (-54.0, 0.0)
 
         # region grid size in lat-long plane
-        self.nx = 4 * 90  # 1/4 degree cell size in LONG
-        self.ny = 4 * 54  # 1/4 degree cell size in LAT
-        self.dx = (self.LON[1] - self.LON[0]) / self.nx  # 1/4 degree
-        self.dy = (self.LAT[1] - self.LAT[0]) / self.ny  # 1/4 degree
+        self.nx = ndis * 90  # 1/4 degree cell size in LONG
+        self.ny = ndis * 54  # 1/4 degree cell size in LAT
+        self.dx = (self.LON[1] - self.LON[0]) / self.nx  # 1/ndis degree
+        self.dy = (self.LAT[1] - self.LAT[0]) / self.ny  # 1/ndis degree
 
-        # Region's depths in KM according to Fortran param1x1
+        # Region's depths in KM according to Fortran param1x1 (read in from file)
         self.rdepth = (0, 10, 35, 70, 110, 160, 210, 260, 310, 360, 410, 460, 510, 560,
                        610, 660, 710, 810, 910, 1010, 1110, 1250, 1400, 1600)
 
         # Region Depth in meters
         self.rmeters = 1000 * np.array(self.rdepth)
 
-        self.dz = 5000  # inside the ANZ zone 5KM uniform cellsize in depth
-        self.refrmeters= self._refine_depth(self.rmeters)
+        self.dz = 5000  # assumed uniform cellsize in depth inside the ANZ zone 5KM
+        self.refrmeters= self._refine_depth(self.rmeters, ndis=self.ndis)
 
 
         # global grid model params (outside the region)
-        self.gnx = 288
-        self.gny = 144
         self.gdx = 5 * self.dx  # =360/self.gnx;  5 times as big as the regional grid size
         self.gdy = 5 * self.dy  # =180/self.gny;  5 times as big as the regional grid size
+
+        self.gnx = int(360 / self.gdx)  # 360/2.5 =144
+        self.gny = self.gnx/2         # =77
 
         # Global's depths in KM according to Fortran param1x1
         self.gdepth = (0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
@@ -164,7 +165,7 @@ class Grid2:
 
         return
 
-    def _refine_depth(self, dep_meters, ndis=4):
+    def _refine_depth(self, dep_meters, ndis=2):
         """
         define a refined depths discretization, 1/ndis size of the depth steps of input np array dep_meters
         :param dep_meters: numpy array listing of the dpeth in inversion model
@@ -172,14 +173,13 @@ class Grid2:
         :return: an np array of depths
         """
 
-
         refdepth = np.arange((dep_meters.size - 1) * ndis + 1)
         #print(refdepth)
         for i in range(refdepth.size - 1):
-            i0 = int(i / 4)
-            i1 = i % 4
+            i0 = int(i / ndis)
+            i1 = i % ndis
             #print(i0, i1)
-            refdepth[i] = dep_meters[i0] + 0.25 * (dep_meters[i0 + 1] - dep_meters[i0]) * i1
+            refdepth[i] = dep_meters[i0] + (dep_meters[i0 + 1] - dep_meters[i0])*i1*(1.0/ndis)
 
         refdepth[-1] = dep_meters[-1]  # last depth is same
 
@@ -293,24 +293,41 @@ class Grid2:
 
         return (k, zcm)
 
+    def show_properties(self):
+        """
+        print the properties of the grid definition
+        :return:
+        """
+
+        print("The refined discretization divide = ", self.ndis)
+        print("Reginal grid prop= ", self.dx, self.dy, self.nx, self.ny)
+        print("Gloabl grid prop= ", self.gdx, self.gdy, self.gnx,self.gny)
+
+        return
 
 # ========================================================
-# quick test run
+# quick test run to see if the Grid definition is right??
+# ========================================================
 if __name__ == "__main__":
-    grid = Grid2()
-    print("The maxi BLOCK Number inside ANZ region", grid.REGION_MAX_BN)
 
-    print("The refined regional depth steps and size:", grid.refrmeters, grid.refrmeters.size)
-    print("The refined global depth steps and size:", grid.refgmeters, grid.refgmeters.size)
+    #my_grid = Grid2(ndis=4)
+    my_grid = Grid2(ndis=2)
+
+    print("The maxi BLOCK Number inside ANZ region", my_grid.REGION_MAX_BN)
+
+    print("The refined regional depth steps and size:", my_grid.refrmeters, my_grid.refrmeters.size)
+    print("The refined global depth steps and size:", my_grid.refgmeters, my_grid.refgmeters.size)
 
     dmeters=10000  # an event depth in meters
-    dmeters=10001  # an event depth in meters; +1 for boundary depths
-    k,zcm= grid.get_depth_index(dmeters, grid.refrmeters)
+    dmeters=10001  #  +1 in event depth to cross cell boundary |
+    k,zcm= my_grid.get_depth_index(dmeters, my_grid.refrmeters)
 
-    print("The k index = %s"% k )
-    print("The zcm  = %s"% zcm )
+    print("Regional: The k index = %s"% k )
+    print("Regional: The zcm  = %s"% zcm )
 
-    k,zcm= grid.get_depth_index(dmeters, grid.refgmeters)
+    k,zcm= my_grid.get_depth_index(dmeters, my_grid.refgmeters)
 
-    print("The k index = %s"% k )
-    print("The zcm  = %s"% zcm )
+    print("Global: The k index = %s"% k )
+    print("Global: The zcm  = %s"% zcm )
+
+    my_grid.show_properties()
