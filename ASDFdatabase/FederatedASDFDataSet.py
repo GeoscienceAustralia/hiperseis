@@ -1,6 +1,6 @@
 """
 Description:
-    Class for providing accessing to data contained in set of ASDF files
+    Class for providing fast access to data contained within a set of ASDF files
 
 References:
 
@@ -17,6 +17,7 @@ import os
 import glob
 import atexit
 import logging
+import pickle
 
 from obspy.core import Stream, UTCDateTime
 from obspy import read, Trace
@@ -40,6 +41,24 @@ def setup_logger(name, log_file, level=logging.INFO):
 # end func
 
 class FederatedASDFDataSet():
+    @staticmethod
+    def hasOverlap(stime1, etime1, stime2, etime2):
+        result = 0
+
+        if (etime1 is None): etime1 = UTCDateTime.now()
+        if (etime2 is None): etime2 = UTCDateTime.now()
+
+        if (stime2 >= stime1 and stime2 <= etime1):
+            result = 1
+        elif (etime2 >= stime1 and etime2 <= etime1):
+            result = 1
+        elif (stime2 <= stime1 and etime2 >= etime1):
+            result = 1
+
+        return result
+
+    # end func
+
     def __init__(self, asdf_source, logger=None):
         """
 
@@ -58,6 +77,7 @@ class FederatedASDFDataSet():
         self.asdf_tags = []
         self.tree_list = []
         self.asdf_tags_list = []
+        self.asdf_station_coordinates = []
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -96,7 +116,9 @@ class FederatedASDFDataSet():
             if logger:logger.info('Opening ASDF file %s..'%(fn))
 
             if(os.path.exists(fn)):
-                self.asdf_datasets.append(pyasdf.ASDFDataSet(fn, mode='r'))
+                ds = pyasdf.ASDFDataSet(fn, mode='r')
+                self.asdf_datasets.append(ds)
+                self.asdf_station_coordinates.append(ds.get_all_coordinates())
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
@@ -112,7 +134,6 @@ class FederatedASDFDataSet():
         def tree():
             def the_tree():
                 return defaultdict(the_tree)
-
             # end func
             return the_tree()
         # end func
@@ -158,28 +179,85 @@ class FederatedASDFDataSet():
         # end for
     # end func
 
+    def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
+        starttime = UTCDateTime(starttime)
+        endtime = UTCDateTime(endtime)
+        # create a list of asdf datasets that may contain queried data
+        dslistIndices = []
+        for i, (stime, etime) in enumerate(zip(self.asdf_start_times, self.asdf_end_times)):
+            if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
+                dslistIndices.append(i)
+            # end for
+        # end for
+
+        results = defaultdict(list)
+        for i in dslistIndices:
+            print 'Accessing file: %s'%(self.asdf_file_names[i])
+
+            ds = self.asdf_datasets[i]
+
+            val = self.tree_list[i]
+            if(val): # has json db
+                for (nk, nv) in val.iteritems():
+                    if(network):
+                        nk = network
+                        nv = val[nk]
+                    # end if
+                    for (sk, sv) in nv.iteritems():
+                        if (station):
+                            sk = station
+                            sv = nv[sk]
+                        # end if
+                        for (lk, lv) in sv.iteritems():
+                            if (location):
+                                lk = location
+                                lv = sv[lk]
+                            # end if
+                            for (ck, cv) in lv.iteritems():
+                                if (channel):
+                                    ck = channel
+                                    cv = lv[ck]
+                                # end if
+
+                                if (type(cv) == index.Index):
+                                    tag_indices = list(cv.intersection((starttime.timestamp, 1,
+                                                                        endtime.timestamp, 1)))
+
+                                    if(len(tag_indices)):
+                                        rk = '%s.%s.%s.%s'%(nk, sk, lk, ck)
+                                        rv = [self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['longitude'],
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['latitude']]
+                                        results[rk] = rv
+                                # end if
+                                if(channel): break
+                            # end for
+                            if(location): break
+                        # end for
+                        if(station): break
+                    # end for
+                    if(network): break
+                # end for
+            else: # no json db
+                '''
+                TODO:
+                Gather results based on ifilter interface of pyasdf -- it's quite slow btw.                
+                '''
+                pass
+            # end if
+        # end for
+
+        return results
+    # end func
+
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, tag, automerge=False):
-
-        def hasOverlap(stime1, etime1, stime2, etime2):
-            result = 0
-
-            if (etime1 is None): etime1 = UTCDateTime.now()
-            if (etime2 is None): etime2 = UTCDateTime.now()
-
-            if   (stime2 >= stime1 and stime2 <= etime1): result = 1
-            elif (etime2 >= stime1 and etime2 <= etime1): result = 1
-            elif (stime2 <= stime1 and etime2 >= etime1): result = 1
-
-            return result
-        # end func
 
         starttime = UTCDateTime(starttime)
         endtime = UTCDateTime(endtime)
         # create a list of asdf datasets that may contain queried data
         dslistIndices = []
         for i, (stime, etime) in enumerate(zip(self.asdf_start_times, self.asdf_end_times)):
-            if(hasOverlap(starttime, endtime, stime, etime)):
+            if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
                 dslistIndices.append(i)
             # end for
         # end for
