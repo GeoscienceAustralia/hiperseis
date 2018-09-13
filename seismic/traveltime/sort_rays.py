@@ -67,6 +67,10 @@ def sort(output_file, sorted_file, residual_cutoff):
     cluster sort outfile_P.csv 5. -s sorted_P.csv
     cluster sort outfile_S.csv 10. -s sorted_S.csv
 
+    input file header:
+    col_names=['source_block', 'station_block', 'residual', 'event_number',
+            'source_longitude','source_latitude','source_depth',
+            'station_longitude','station_latitude', 'observed_tt', 'locations2degrees', 'station_code','SNR', 'P_or_S']
 
     :param output_file: output file from the gather stage (eg, outfile_P.csv)
     :param sorted_file: str, optional
@@ -78,10 +82,10 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     log.info('Reading in and Filtering arrivals.')
 
-    cluster_data = pd.read_csv(output_file, header=None,
-                               names=column_names)
-    cluster_data = cluster_data[abs(cluster_data['residual'])
-                                < residual_cutoff]
+    #cluster_data = pd.read_csv(output_file, header=None,  names=column_names)
+    cluster_data = pd.read_csv(output_file) # if input file has correct header line
+
+    cluster_data = cluster_data[abs(cluster_data['residual']) < residual_cutoff]
 
     # groupby sorts by default
     # cluster_data.sort_values(by=['source_block', 'station_block'],
@@ -89,7 +93,7 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     log.info('Apply a grid model to cluster the rays.')
     # mygrid = Grid(nx=36, ny=18, dz=10000) # use a new grid model
-    mygrid = Grid2() # use a new grid model
+    mygrid = Grid2(ndis=2) # use a new grid model: default ndis=2
 
     # Re-define the source_block and station_block number according to the mygrid model
     cluster_data['source_block'] = cluster_data.apply(
@@ -121,8 +125,9 @@ def sort(output_file, sorted_file, residual_cutoff):
     # FZ: this drop_duplicate will still keep many identical duplicated rows with only event_number different
 
     # use the following to keep only unique  prim_key: ['source_block', 'station_block']
-    final_df.drop_duplicates(subset=['source_block', 'station_block'],
-                             keep='first', inplace=True)
+    #final_df.drop_duplicates(subset=['source_block', 'station_block'],keep='first', inplace=True)
+    # keep all station_code. Note that some near-by stations may be cluster into one station_block_number
+    final_df.drop_duplicates(subset=['source_block', 'station_block', 'station_code'],keep='first', inplace=True)
 
     final_df['source_depth'] = final_df['source_depth'] / 1000.0  # scale meter to KM before wrting to csv
     final_df.to_csv(sorted_file, header=False, index=False, sep=' ')
@@ -205,7 +210,7 @@ def sort2(output_file, sorted_file, residual_cutoff):
 
 def translate_csv(in_csvfile, out_csvfile):
     """
-    Read in a csv file, and translate it into another csv file with re-calculated columns
+    Read in a csv file, and translate it into another csv file with re-calculated and new columns
     :param in_csvfile: path to an input csv file
     :param out_csvfile: path to an output csv file
     :return: out_csvfile

@@ -315,6 +315,14 @@ def process_event(event, stations, grid, wave_type, counter):
     # assert counter < 100000, 'Counter must be less than 100000'
     # ev_number = int(str(counter) + '{0:0=3d}'.format(mpiops.rank))
 
+    # what columns will be writing out in the gather process??
+    col_names = ['source_block', 'station_block', 'residual', 'event_number',
+                 'source_longitude', 'source_latitude', 'source_depth',
+                 'station_longitude', 'station_latitude', 'observed_tt',
+                 'ARRIVAL_TIME', 'ORIGIN_TIME', 'ELLIPTICITY_CORR',  # line for debug
+                 'locations2degrees',  'ARRIVAL_DISTANCE','station_code', 'SNR',
+                 'P_or_S']
+
     p_arrivals = []
     s_arrivals = []
     missing_stations = []
@@ -400,8 +408,7 @@ def process_event(event, stations, grid, wave_type, counter):
 
             log.debug("ellipticity_corr = %s", ellipticity_corr)
 
-            t_list = [event_block, station_block, arr.time_residual,
-                      ev_number,
+            t_list = [event_block, station_block, arr.time_residual, ev_number,
                       ev_longitude, ev_latitude, ev_depth,
                       sta.longitude, sta.latitude,
                       (arr.pick_id.get_referred_object().time.timestamp - origin.time.timestamp) + ellipticity_corr,
