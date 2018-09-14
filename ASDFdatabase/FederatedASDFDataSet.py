@@ -22,7 +22,7 @@ import pickle
 from obspy.core import Stream, UTCDateTime
 from obspy import read, Trace
 import pyasdf
-import json
+import ujson as json
 from collections import defaultdict
 from rtree import index
 
@@ -68,7 +68,7 @@ class FederatedASDFDataSet():
                3. End-time (in UTCDateTime format) of data in the ASDF file (used for speeding up data access)
                Entries can be commented out with '#'
         """
-
+        self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
         self.asdf_start_times = []
@@ -113,7 +113,7 @@ class FederatedASDFDataSet():
 
         self.asdf_datasets = []
         for fn in self.asdf_file_names:
-            if logger:logger.info('Opening ASDF file %s..'%(fn))
+            if self.logger:self.logger.info('Opening ASDF file %s..'%(fn))
 
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
@@ -190,9 +190,9 @@ class FederatedASDFDataSet():
             # end for
         # end for
 
-        results = defaultdict(list)
+        results = []
         for i in dslistIndices:
-            print 'Accessing file: %s'%(self.asdf_file_names[i])
+            #print 'Accessing file: %s'%(self.asdf_file_names[i])
 
             ds = self.asdf_datasets[i]
 
@@ -224,10 +224,10 @@ class FederatedASDFDataSet():
                                                                         endtime.timestamp, 1)))
 
                                     if(len(tag_indices)):
-                                        rk = '%s.%s.%s.%s'%(nk, sk, lk, ck)
-                                        rv = [self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['longitude'],
+                                        rv = [nk, sk, lk, ck,
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['longitude'],
                                               self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['latitude']]
-                                        results[rk] = rv
+                                        results.append(rv)
                                 # end if
                                 if(channel): break
                             # end for
@@ -264,7 +264,7 @@ class FederatedASDFDataSet():
 
         s = Stream()
         for i in dslistIndices:
-            print 'Accessing file: %s'%(self.asdf_file_names[i])
+            #print 'Accessing file: %s'%(self.asdf_file_names[i])
 
             ds = self.asdf_datasets[i]
 
@@ -299,7 +299,7 @@ class FederatedASDFDataSet():
 
     def cleanup(self):
         for i, ds in enumerate(self.asdf_datasets):
-            if(logger): logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
+            if(self.logger): self.logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
             del ds
         # end for
     # end func

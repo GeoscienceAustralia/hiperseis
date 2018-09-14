@@ -1,3 +1,17 @@
+#!/bin/env python
+"""
+Description:
+    Generates cross-correlations for data from staion-pairs in parallel
+References:
+
+CreationDate:   11/07/18
+Developer:      rakib.hassan@ga.gov.au
+
+Revision History:
+    LastUpdate:     11/07/18   RH
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
+"""
+
 from mpi4py import MPI
 import glob, os, sys
 from os.path import join, exists
