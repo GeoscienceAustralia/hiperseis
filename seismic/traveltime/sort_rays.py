@@ -82,8 +82,8 @@ def sort(output_file, sorted_file, residual_cutoff):
 
     log.info('Reading in and Filtering arrivals.')
 
-    #cluster_data = pd.read_csv(output_file, header=None,  names=column_names)
-    cluster_data = pd.read_csv(output_file) # if input file has correct header line
+    #cluster_data = pd.read_csv(output_file, header=None,  names=column_names) # original fixed header
+    cluster_data = pd.read_csv(output_file,  header='infer') # if input file has correct header line
 
     cluster_data = cluster_data[abs(cluster_data['residual']) < residual_cutoff]
 
