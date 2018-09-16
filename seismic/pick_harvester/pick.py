@@ -53,7 +53,10 @@ def recursive_glob(treeroot, pattern):
 # end func
 
 def split_list(lst, npartitions):
-    result = defaultdict(list)
+    result = []
+    for i in np.arange(npartitions):
+        result.append([])
+    # end for
     count = 0
     for iproc in np.arange(npartitions):
         for i in np.arange(np.divide(len(lst), npartitions)):
@@ -119,35 +122,66 @@ def process(asdf_source, event_folder, output_path):
     fds = FederatedASDFDataSet(asdf_source, logger=None)
     # Magic numbers
     six_mins = 360
-    proc_events_stations = []
-    for fn in proc_workload[rank]:
+    proc_events_stations = defaultdict(list)
+    for ifn, fn in enumerate(proc_workload[rank]):
         es = EventParser(fn).getEvents()
+        stationCount = 0
         for i, (eid, e) in enumerate(es.iteritems()):
             po = e.preferred_origin
+            if(not (po.depthkm >= 0)): continue
 
             otime = po.utctime
             stations = fds.get_stations(otime - six_mins, otime + six_mins)
             stations_zch = [s for s in stations if 'Z' in s[3]] # only Z channels
 
-            print 'Rank: %d, Event: %d: Found %d stations'%(rank, i, len(stations_zch))
+            proc_events_stations[po] = stations_zch
+            stationCount += len(stations_zch)
+        # end for
+        print 'Rank :%d file no: %d station count: %d'%(rank, ifn, stationCount)
+    # end for
 
-            for s in stations_zch:
-                proc_events_stations.append([[po] + s])
+    proc_events_stations = comm.allgather(proc_events_stations)
+
+    idxList = []
+    idx = 0
+    for iproc in np.arange(nproc):
+        for po, codes_list in proc_events_stations[iproc].iteritems():
+            for codes in codes_list:
+                idxList.append(idx)
+                idx += 1
+            # end for
+        # end for
+    # end for
+    idxList = split_list(idxList, nproc)
+
+    print 'Event-stations count on rank %d: %d'%(rank, len(idxList[rank]))
+
+    tracesFetched = 0
+    idx = 0
+    myIdx = 0
+    for iproc in np.arange(nproc):
+        for po, codes_list in proc_events_stations[iproc].iteritems():
+            for codes in codes_list:
+
+                if(myIdx >= len(idxList[rank])): break
+                if(idx == idxList[rank][myIdx]):
+                    otime = po.utctime
+                    st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
+                                           otime-100,
+                                           otime+100, tag='raw_recording')
+
+                    if(len(st)): tracesFetched += 1
+                    myIdx += 1
+
+                    if(np.mod(tracesFetched, 100) == 0):
+                        print 'Number of traces fetched on rank %d: %d' % (rank, tracesFetched)
+                    # end if
+                # end if
+                idx += 1
+            # end for
         # end for
     # end for
 
-    proc_events_stations = comm.gather(proc_events_stations, root=0)
-
-    if(rank==0):
-        proc_events_stations_all = []
-        [proc_events_stations_all.extend(el) for el in proc_events_stations]
-
-        proc_events_stations = split_list(proc_events_stations_all, nproc)
-    # end if
-
-    proc_events_stations = comm.bcast(proc_events_stations, root=0)
-
-    print 'Event-stations count on rank %d: %d'%(rank, len(proc_events_stations[rank]))
     del fds
 # end func
 

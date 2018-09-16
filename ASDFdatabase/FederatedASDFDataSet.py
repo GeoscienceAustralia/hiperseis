@@ -18,6 +18,7 @@ import glob
 import atexit
 import logging
 import pickle
+import numpy as np
 
 from obspy.core import Stream, UTCDateTime
 from obspy import read, Trace
@@ -68,6 +69,10 @@ class FederatedASDFDataSet():
                3. End-time (in UTCDateTime format) of data in the ASDF file (used for speeding up data access)
                Entries can be commented out with '#'
         """
+        self.comm = MPI.COMM_WORLD
+        self.nproc = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
+
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
@@ -145,6 +150,7 @@ class FederatedASDFDataSet():
 
                 t = tree()
                 fieldMap = None
+                indices = []
                 for ki, (k, v) in enumerate(d.iteritems()):
 
                     if (fieldMap == None):
@@ -152,14 +158,21 @@ class FederatedASDFDataSet():
                         for i, sk in enumerate(v.keys()):
                             fieldMap[sk] = i
                         # end for
+                        indices = [fieldMap['new_network'],
+                                   fieldMap['new_station'],
+                                   fieldMap['new_channel'],
+                                   fieldMap['new_location'],
+                                   fieldMap['tr_starttime'],
+                                   fieldMap['tr_endtime']]
                     # end if
 
-                    network = v.values()[fieldMap['new_network']]
-                    station = v.values()[fieldMap['new_station']]
-                    channel = v.values()[fieldMap['new_channel']]
-                    location = v.values()[fieldMap['new_location']]
-                    tr_st = v.values()[fieldMap['tr_starttime']]
-                    tr_et = v.values()[fieldMap['tr_endtime']]
+                    values = v.values()
+                    network = values[indices[0]]
+                    station = values[indices[1]]
+                    channel = values[indices[2]]
+                    location = values[indices[3]]
+                    tr_st = values[indices[4]]
+                    tr_et = values[indices[5]]
 
                     if (type(t[network][station][location][channel]) == defaultdict):
                         t[network][station][location][channel] = index.Index()
@@ -276,7 +289,11 @@ class FederatedASDFDataSet():
                                                          endtime.timestamp, 1)))
                     station_data = ds.waveforms['%s.%s'%(network, station)]
                     for ti in tag_indices:
-                        cs += station_data[self.asdf_tags_list[i][ti]]
+                        try:
+                            cs += station_data[self.asdf_tags_list[i][ti]]
+                        except:
+                            pass
+                        # end try
                     # end for
                 # end if
 
