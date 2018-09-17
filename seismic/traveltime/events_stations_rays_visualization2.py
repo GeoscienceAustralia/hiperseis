@@ -60,24 +60,31 @@ def read_csv2pdf(csvfile):
 
 
 def sort_plus(inputcsv=None):
-    # P wave
-    # inputcsv='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic_events_arrivals_P_0.csv'
-    # inputcsv='/g/data/ha3/fxz547/Githubz/passive-seismic/tempworks/outfile_P.csv'
-    inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/P_out.csv'
-    inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/P_out_translated.csv'
-    # inputcsv='/Softlab/travel_time_tomography/PST/CSV_New_FZ01-pst-cluster2_run3/P_out.csv'
-    residual_cutoff = 5.0  # cutoff value for P is 5s
-    sortedfile = 'sortedfile_P.csv'
-    sortedfile2 = 'sortedfile2_P.csv'
 
-    # S wave
-    # inputcsv = '/g/data1a/ha3/fxz547/travel_time_tomography/run5_events_1deg/outfile_S.csv'
-    # inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/S_out.csv'
-    # residual_cutoff = 10.0
-    # sortedfile = 'sortedfile_S.csv'
-    # sortedfile2 = 'sortedfile2_S.csv'
+    if inputcsv is None:
+        # P wave
+        # inputcsv='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic_events_arrivals_P_0.csv'
+        # inputcsv='/g/data/ha3/fxz547/Githubz/passive-seismic/tempworks/outfile_P.csv'
+        inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/P_out.csv'
+        inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/P_out_translated.csv'
+        # inputcsv='/Softlab/travel_time_tomography/PST/CSV_New_FZ01-pst-cluster2_run3/P_out.csv'
 
-    mypdf = sort(inputcsv, sortedfile, residual_cutoff)  # select the median travel time
+        sortedfile = 'sortedfile_P.csv'
+        sortedfile2 = 'sortedfile2_P.csv'
+
+        # S wave
+        # inputcsv = '/g/data1a/ha3/fxz547/travel_time_tomography/run5_events_1deg/outfile_S.csv'
+        # inputcsv = '/g/data/ha3/fxz547/travel_time_tomography/CSV_NewFormatAug10/FZ01-pst-cluster2/run3/S_out.csv'
+        # residual_cutoff = 10.0
+        # sortedfile = 'sortedfile_S.csv'
+        # sortedfile2 = 'sortedfile2_S.csv'
+    else:
+        pass
+
+    residual_cutoff = 5.0  # cutoff value is 5s for P; for 10s S
+
+    mypdf = sort(inputcsv, "sortedfile.csv", residual_cutoff)  # select the median travel time
+
     # finalpdf2 = sort2(inputcsv,sortedfile,residual_cutoff)  # select the best SNR ray
 
     # show property of mypdf
@@ -255,7 +262,13 @@ def plot_rays(mypdf):
 
 
 if __name__ == "__main__":
-    newpdf = sort_plus()
+    import sys
+    if len(sys.argv)>1:
+        csvfile = sys.argv[1]
+    else:
+        csvfile=None
+
+    newpdf = sort_plus(inputcsv=csvfile)
 
     #plot1(newpdf)
 
