@@ -41,6 +41,13 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger
 # end func
 
+def tree():
+    def the_tree():
+        return defaultdict(the_tree)
+    # end func
+    return the_tree()
+# end func
+
 class FederatedASDFDataSet():
     @staticmethod
     def hasOverlap(stime1, etime1, stime2, etime2):
@@ -79,10 +86,11 @@ class FederatedASDFDataSet():
         self.asdf_start_times = []
         self.asdf_end_times = []
         self.json_db_file_names = []
-        self.asdf_tags = []
         self.tree_list = []
         self.asdf_tags_list = []
         self.asdf_station_coordinates = []
+        self.net_sta_start_time = tree()
+        self.net_sta_end_time = tree()
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -117,7 +125,7 @@ class FederatedASDFDataSet():
         # end if
 
         self.asdf_datasets = []
-        for fn in self.asdf_file_names:
+        for ifn, fn in enumerate(self.asdf_file_names):
             if self.logger:self.logger.info('Opening ASDF file %s..'%(fn))
 
             if(os.path.exists(fn)):
@@ -127,23 +135,20 @@ class FederatedASDFDataSet():
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
+
+            self.asdf_tags_list.append([])
+            self.tree_list.append(None)
         # end func
 
         # Create indices
-        self.create_indices()
+        #self.create_indices()
+        self.create_index()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
     # end func
 
     def create_indices(self):
-        def tree():
-            def the_tree():
-                return defaultdict(the_tree)
-            # end func
-            return the_tree()
-        # end func
-
-        for fn in self.json_db_file_names:
+        for ifn, fn in enumerate(self.json_db_file_names):
             if(fn):
                 print 'Creating index for %s..'%(fn)
                 d = json.load(open(fn, 'r'))
@@ -179,16 +184,86 @@ class FederatedASDFDataSet():
                     else:
                         t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
                     # end if
+
+                    if(type(self.net_sta_start_time[network][station]) == defaultdict):
+                        self.net_sta_start_time[network][station] = 1e32
+                    if(type(self.net_sta_end_time[network][station]) == defaultdict):
+                        self.net_sta_end_time[network][station] = -1e32
+
+                    if(self.net_sta_start_time[network][station] > tr_st):
+                        self.net_sta_start_time[network][station] = tr_st
+                    if(self.net_sta_end_time[network][station] < tr_et):
+                        self.net_sta_end_time[network][station] = tr_et
                 # end for
 
-                self.tree_list.append(t)
-                self.asdf_tags_list.append(d.keys())
+                self.tree_list[ifn] = t
+                self.asdf_tags_list[ifn] = d.keys()
 
                 del d
-            else:
-                self.tree_list.append(None)
-                self.asdf_tags_list.append(None)
             # end if
+        # end for
+    # end func
+
+    def create_index(self): #, network_code, station_code):
+        def decode_tag(tag, type='raw_recording'):
+            if (type not in tag): return None
+            try:
+                tokens = tag.split('.')
+                nc, sc, lc = tokens[0], tokens[1], tokens[2]
+
+                tokens = tokens[3].split('__')
+                cc = tokens[0]
+                starttime = UTCDateTime(tokens[1]).timestamp
+                endttime  = UTCDateTime(tokens[2]).timestamp
+
+                return nc, sc, lc, cc, starttime, endttime
+            except:
+                return None
+            # end func
+        # end func
+
+        #code = '%s.%s'%(network_code, station_code)
+        for ids, ds in enumerate(self.asdf_datasets):
+            print 'Creating index for %s..' % (self.asdf_file_names[ids])
+
+            keys = ds.get_all_coordinates().keys()
+
+            t = tree()
+            tags_list = []
+            ki = 0
+            #print 'Found %d keys'%(len(keys))
+            for ikey, key in enumerate(keys):
+                sta = ds.waveforms[key]
+                #print 'Loading key number %d: %s'%(ikey, key)
+                for tag in sta.list():
+
+                    result = decode_tag(tag)
+                    if (result):
+                        network, station, location, channel, tr_st, tr_et = result
+
+                        if (type(self.net_sta_start_time[network][station]) == defaultdict):
+                            self.net_sta_start_time[network][station] = 1e32
+                        if (type(self.net_sta_end_time[network][station]) == defaultdict):
+                            self.net_sta_end_time[network][station] = -1e32
+
+                        if (self.net_sta_start_time[network][station] > tr_st):
+                            self.net_sta_start_time[network][station] = tr_st
+                        if (self.net_sta_end_time[network][station] < tr_et):
+                            self.net_sta_end_time[network][station] = tr_et
+
+                        if (type(t[network][station][location][channel]) == defaultdict):
+                            t[network][station][location][channel] = index.Index()
+                        else:
+                            t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
+                        # end if
+
+                        tags_list.append(tag)
+                        ki += 1
+                    # end if
+                # end for
+            # end for
+            self.asdf_tags_list[ids] = tags_list
+            self.tree_list[ids] = t
         # end for
     # end func
 
