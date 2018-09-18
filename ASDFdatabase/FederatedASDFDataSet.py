@@ -48,6 +48,25 @@ def tree():
     return the_tree()
 # end func
 
+def split_list(lst, npartitions):
+    result = []
+    for i in np.arange(npartitions):
+        result.append([])
+    # end for
+    count = 0
+    for iproc in np.arange(npartitions):
+        for i in np.arange(np.divide(len(lst), npartitions)):
+            result[iproc].append(lst[count])
+            count += 1
+    # end for
+    for iproc in np.arange(np.mod(len(lst), npartitions)):
+        result[iproc].append(lst[count])
+        count += 1
+    # end for
+
+    return result
+# end func
+
 class FederatedASDFDataSet():
     @staticmethod
     def hasOverlap(stime1, etime1, stime2, etime2):
@@ -227,12 +246,11 @@ class FederatedASDFDataSet():
             print 'Creating index for %s..' % (self.asdf_file_names[ids])
 
             keys = ds.get_all_coordinates().keys()
+            keys = split_list(keys, self.nproc)
 
-            t = tree()
-            tags_list = []
-            ki = 0
+            data = []
             #print 'Found %d keys'%(len(keys))
-            for ikey, key in enumerate(keys):
+            for ikey, key in enumerate(keys[self.rank]):
                 sta = ds.waveforms[key]
                 #print 'Loading key number %d: %s'%(ikey, key)
                 for tag in sta.list():
@@ -240,30 +258,34 @@ class FederatedASDFDataSet():
                     result = decode_tag(tag)
                     if (result):
                         network, station, location, channel, tr_st, tr_et = result
-
-                        if (type(self.net_sta_start_time[network][station]) == defaultdict):
-                            self.net_sta_start_time[network][station] = 1e32
-                        if (type(self.net_sta_end_time[network][station]) == defaultdict):
-                            self.net_sta_end_time[network][station] = -1e32
-
-                        if (self.net_sta_start_time[network][station] > tr_st):
-                            self.net_sta_start_time[network][station] = tr_st
-                        if (self.net_sta_end_time[network][station] < tr_et):
-                            self.net_sta_end_time[network][station] = tr_et
-
-                        if (type(t[network][station][location][channel]) == defaultdict):
-                            t[network][station][location][channel] = index.Index()
-                        else:
-                            t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
-                        # end if
-
-                        tags_list.append(tag)
-                        ki += 1
+                        data.append([network, station, location, channel, tr_st, tr_et, tag])
                     # end if
                 # end for
             # end for
-            self.asdf_tags_list[ids] = tags_list
+
+            #print 'all-gathering'
+            #data = self.comm.allgather(data)
+            print 'done'
+            ki = 0
+            tags_list = []
+            t = tree()
+            for row in data:
+                network, station, location, channel, tr_st, tr_et, tag = row
+
+                if (type(t[network][station][location][channel]) == defaultdict):
+                    t[network][station][location][channel] = index.Index()
+                else:
+                    t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
+                # end if
+
+                tags_list.append(tag)
+                ki += 1
+            # end for
+
             self.tree_list[ids] = t
+            self.asdf_tags_list[ids] = tags_list
+
+            print 'done creating index'
         # end for
     # end func
 
