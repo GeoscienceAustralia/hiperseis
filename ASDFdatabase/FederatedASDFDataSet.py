@@ -72,8 +72,10 @@ class FederatedASDFDataSet():
     def hasOverlap(stime1, etime1, stime2, etime2):
         result = 0
 
-        if (etime1 is None): etime1 = UTCDateTime.now()
-        if (etime2 is None): etime2 = UTCDateTime.now()
+        #print stime1, etime1, stime2, etime2
+
+        if (etime1 is None): etime1 = UTCDateTime.now().timestamp
+        if (etime2 is None): etime2 = UTCDateTime.now().timestamp
 
         if (stime2 >= stime1 and stime2 <= etime1):
             result = 1
@@ -86,7 +88,7 @@ class FederatedASDFDataSet():
 
     # end func
 
-    def __init__(self, asdf_source, logger=None):
+    def __init__(self, asdf_source, use_json_db=False, logger=None):
         """
 
         :param asdf_source: path to a text file containing three space-delimited columns:
@@ -99,6 +101,7 @@ class FederatedASDFDataSet():
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
+        self.use_json_db = use_json_db
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
@@ -110,6 +113,8 @@ class FederatedASDFDataSet():
         self.asdf_station_coordinates = []
         self.net_sta_start_time = tree()
         self.net_sta_end_time = tree()
+        self.waveform_start_time_list = []
+        self.waveform_end_time_list = []
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -157,16 +162,59 @@ class FederatedASDFDataSet():
 
             self.asdf_tags_list.append([])
             self.tree_list.append(None)
+            self.waveform_start_time_list.append(None)
+            self.waveform_end_time_list.append(None)
         # end func
 
         # Create indices
-        #self.create_indices()
-        self.create_index()
+        if(self.use_json_db): self.create_index()
+        else: self.create_sparse_index()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
     # end func
 
-    def create_indices(self):
+    def extract_time_ranges(self):
+        print 'Extracting time ranges on rank %d'%(self.rank)
+        for it, val in enumerate(self.tree_list):
+            if(val):
+                min = []
+                max = []
+                for (nk, nv) in val.iteritems():
+                    for (sk, sv) in nv.iteritems():
+
+                        if (type(self.net_sta_start_time[nk][sk]) == defaultdict):
+                            self.net_sta_start_time[nk][sk] = 1e32
+                        # end if
+                        if (type(self.net_sta_end_time[nk][sk]) == defaultdict):
+                            self.net_sta_end_time[nk][sk] = -1e32
+                        # end if
+
+                        for (lk, lv) in sv.iteritems():
+                            for (ck, cv) in lv.iteritems():
+                                if (type(cv) == index.Index):
+                                    if (len(cv.leaves()[0][1])==0): continue
+
+                                    bounds = cv.bounds
+
+                                    if(self.net_sta_start_time[nk][sk] > bounds[0]):
+                                        self.net_sta_start_time[nk][sk] = bounds[0]
+                                    if(self.net_sta_end_time[nk][sk] < bounds[2]):
+                                        self.net_sta_end_time[nk][sk] = bounds[2]
+
+                                    min.append(bounds[0])
+                                    max.append(bounds[2])
+                                # end if
+                            # end for
+                        # end for
+                    # end for
+                # end for
+                self.waveform_start_time_list[it] = np.min(np.array(min))
+                self.waveform_end_time_list[it] = np.max(np.array(max))
+            # end if
+        # end for
+    # end func
+
+    def create_index(self):
         for ifn, fn in enumerate(self.json_db_file_names):
             if(fn):
                 print 'Creating index for %s..'%(fn)
@@ -200,30 +248,22 @@ class FederatedASDFDataSet():
 
                     if (type(t[network][station][location][channel]) == defaultdict):
                         t[network][station][location][channel] = index.Index()
-                    else:
-                        t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
                     # end if
 
-                    if(type(self.net_sta_start_time[network][station]) == defaultdict):
-                        self.net_sta_start_time[network][station] = 1e32
-                    if(type(self.net_sta_end_time[network][station]) == defaultdict):
-                        self.net_sta_end_time[network][station] = -1e32
-
-                    if(self.net_sta_start_time[network][station] > tr_st):
-                        self.net_sta_start_time[network][station] = tr_st
-                    if(self.net_sta_end_time[network][station] < tr_et):
-                        self.net_sta_end_time[network][station] = tr_et
+                    t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
                 # end for
 
                 self.tree_list[ifn] = t
                 self.asdf_tags_list[ifn] = d.keys()
 
                 del d
+                print 'Done creating index'
             # end if
         # end for
+        self.extract_time_ranges()
     # end func
 
-    def create_index(self): #, network_code, station_code):
+    def create_sparse_index(self):
         def decode_tag(tag, type='raw_recording'):
             if (type not in tag): return None
             try:
@@ -241,7 +281,6 @@ class FederatedASDFDataSet():
             # end func
         # end func
 
-        #code = '%s.%s'%(network_code, station_code)
         for ids, ds in enumerate(self.asdf_datasets):
             print 'Creating index for %s..' % (self.asdf_file_names[ids])
 
@@ -263,9 +302,6 @@ class FederatedASDFDataSet():
                 # end for
             # end for
 
-            #print 'all-gathering'
-            #data = self.comm.allgather(data)
-            print 'done'
             ki = 0
             tags_list = []
             t = tree()
@@ -274,9 +310,9 @@ class FederatedASDFDataSet():
 
                 if (type(t[network][station][location][channel]) == defaultdict):
                     t[network][station][location][channel] = index.Index()
-                else:
-                    t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
                 # end if
+
+                t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
 
                 tags_list.append(tag)
                 ki += 1
@@ -285,19 +321,22 @@ class FederatedASDFDataSet():
             self.tree_list[ids] = t
             self.asdf_tags_list[ids] = tags_list
 
-            print 'done creating index'
+            print 'Done creating sparse index on rank %d'%(self.rank)
         # end for
+        self.extract_time_ranges()
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
-        starttime = UTCDateTime(starttime)
-        endtime = UTCDateTime(endtime)
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
         # create a list of asdf datasets that may contain queried data
         dslistIndices = []
-        for i, (stime, etime) in enumerate(zip(self.asdf_start_times, self.asdf_end_times)):
+        for i, (stime, etime) in enumerate(zip(self.waveform_start_time_list,
+                                               self.waveform_end_time_list)):
+            if(stime==None or etime==None): continue
             if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
                 dslistIndices.append(i)
-            # end for
+            # end if
         # end for
 
         results = []
@@ -330,8 +369,8 @@ class FederatedASDFDataSet():
                                 # end if
 
                                 if (type(cv) == index.Index):
-                                    tag_indices = list(cv.intersection((starttime.timestamp, 1,
-                                                                        endtime.timestamp, 1)))
+                                    tag_indices = list(cv.intersection((starttime, 1,
+                                                                        endtime, 1)))
 
                                     if(len(tag_indices)):
                                         rv = [nk, sk, lk, ck,
@@ -362,11 +401,14 @@ class FederatedASDFDataSet():
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, tag, automerge=False):
 
-        starttime = UTCDateTime(starttime)
-        endtime = UTCDateTime(endtime)
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
         # create a list of asdf datasets that may contain queried data
         dslistIndices = []
-        for i, (stime, etime) in enumerate(zip(self.asdf_start_times, self.asdf_end_times)):
+
+        for i, (stime, etime) in enumerate(zip(self.waveform_start_time_list,
+                                               self.waveform_end_time_list)):
+            if(stime==None or etime==None): continue
             if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
                 dslistIndices.append(i)
             # end for
@@ -382,8 +424,8 @@ class FederatedASDFDataSet():
             if(self.tree_list[i]):
                 val = self.tree_list[i][network][station][location][channel]
                 if(type(val) == index.Index):
-                    tag_indices = list(val.intersection((starttime.timestamp, 1,
-                                                         endtime.timestamp, 1)))
+                    tag_indices = list(val.intersection((starttime, 1,
+                                                         endtime, 1)))
                     station_data = ds.waveforms['%s.%s'%(network, station)]
                     for ti in tag_indices:
                         try:
@@ -409,6 +451,20 @@ class FederatedASDFDataSet():
         # end for
 
         return s
+    # end func
+
+    def local_net_sta_list(self):
+        for it, val in enumerate(self.tree_list):
+            if(val):
+                for (nk, nv) in val.iteritems():
+                    for (sk, sv) in nv.iteritems():
+                        yield nk, sk, \
+                              UTCDateTime(self.net_sta_start_time[nk][sk]), \
+                              UTCDateTime(self.net_sta_end_time[nk][sk])
+                    # end for
+                # end for
+            # end if
+        # end for
     # end func
 
     def cleanup(self):
