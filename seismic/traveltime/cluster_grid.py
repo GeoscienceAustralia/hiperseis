@@ -95,7 +95,7 @@ class Grid:
         :param z: elevation
         :return: int block number
         """
-        y = 90. - lat
+        y = 90. - lat  # should be +lat
         x = lon % 360
         i = round(x / self.dx) + 1
         j = round(y / self.dy) + 1
@@ -212,7 +212,7 @@ class Grid2:
 
         if (abs(lat) > 90):
             log.error("wrong lattitude value %s", lat)
-        # y = 90. - lat  # convert lat into y which will be in [0,180)
+        # y = 90. + lat  # convert lat into y which will be in [0,180)
 
         x = lon % 360  # convert longitude into x which must be in [0,360)
 
@@ -233,7 +233,7 @@ class Grid2:
         :return: int block number AND (xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
-        y = 90. - lat  # convert lat into y which will be in [0,180)
+        y = lat +90.0  # convert lat into y which will be in [0,180)
 
         if self.is_point_in_region(lat, lon) is True:
 
@@ -247,6 +247,9 @@ class Grid2:
 
             xc = ((i - 1) + 0.5) * self.dx  # cell block center longitude in deg
             yc = ((j - 1) + 0.5) * self.dy  # cell block centre lattitude in deg
+
+            # xc = (i + 0.5) * self.dx  # cell block center longitude in deg
+            # yc = (j + 0.5) * self.dy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
         else:
@@ -261,11 +264,13 @@ class Grid2:
 
             xc = ((i - 1) + 0.5) * self.gdx  # cell block center longitude in deg
             yc = ((j - 1) + 0.5) * self.gdy  # cell block centre lattitude in deg
+            # xc = (i  + 0.5) * self.gdx  # cell block center longitude in deg
+            # yc = (j  + 0.5) * self.gdy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
-        yc = 90 - yc  # Lattitude back to [-90,90)
+        yc = yc -90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
         # return int(block_number)
-        return (int(block_number), xc,yc,zc) # return block_number and the block's centre coordinate
+        return (int(block_number), xc,yc,zc) # return block_number and the block's centre coordinate 9xc,yc,zc)
 
     def get_depth_index(self, z, dep_meters):
         """
@@ -305,6 +310,32 @@ class Grid2:
 
         return
 
+
+    def generate_latlong_grid(self, depthmeters=0.0):
+        """
+        create a csv file containing: (block_number, lat,long, depthm=0, xc,yc,zc)
+        :return:
+        """
+        import pandas as pd
+
+        mygrid = []
+        for x in xrange(0, 3600, 1):
+            xin= 0.1*x
+            for y in xrange(-900, 900, 1):
+                yin=0.1*y
+
+                (bn, xc,yc, zc) =self.find_block_number(yin, xin,depthmeters)
+                arow = (bn, xc,yc,zc, xin, yin, depthmeters)
+                mygrid.append(arow)
+
+        mypdf = pd.DataFrame(mygrid, index=None, columns=['blockn', 'xc', 'yc', 'zc', 'long', 'lat', 'depthmeter'])
+
+        mypdf.to_csv("/tmp/whole_grid.csv")
+
+        return mypdf
+
+
+
 # ========================================================
 # quick test run to see if the Grid definition is right??
 # ========================================================
@@ -319,7 +350,9 @@ if __name__ == "__main__":
     print("The refined global depth steps and size:", my_grid.refgmeters, my_grid.refgmeters.size)
 
     dmeters=10000  # an event depth in meters
-    dmeters=10001  #  +1 in event depth to cross cell boundary |
+    dmeters=10001  #  +1 in event depth to cross cell boundary|
+    dmeters =0
+
     k,zcm= my_grid.get_depth_index(dmeters, my_grid.refrmeters)
 
     print("Regional: The k index = %s"% k )
@@ -331,3 +364,16 @@ if __name__ == "__main__":
     print("Global: The zcm  = %s"% zcm )
 
     my_grid.show_properties()
+
+    print(my_grid.find_block_number(-90,0,1))
+    print(my_grid.find_block_number(-89,0,1))
+
+
+    print("regional:", my_grid.find_block_number(-1, 101, 1))
+    print("regional:", my_grid.find_block_number(-2, 102, 1))
+
+    # Generate the whole grid:
+
+    mypdf = my_grid.generate_latlong_grid()
+
+    print (mypdf.head())
