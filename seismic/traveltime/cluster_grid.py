@@ -64,6 +64,7 @@ Define a grid of the Earth in (long, lat, depth_km), for ray-clustering purpose
 
 import logging
 import numpy as np
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class Grid2:
         :param ndis: 2, 4
 
         """
-        self.ndis= ndis
+        self.ndis = ndis
 
         # Region bounadry definition
         self.LON = (100.0, 190.0)
@@ -143,15 +144,14 @@ class Grid2:
         self.rmeters = 1000 * np.array(self.rdepth)
 
         self.dz = 5000  # assumed uniform cellsize in depth inside the ANZ zone 5KM
-        self.refrmeters= self._refine_depth(self.rmeters, ndis=self.ndis)
-
+        self.refrmeters = self._refine_depth(self.rmeters, ndis=self.ndis)
 
         # global grid model params (outside the region)
         self.gdx = 5 * self.dx  # =360/self.gnx;  5 times as big as the regional grid size
         self.gdy = 5 * self.dy  # =180/self.gny;  5 times as big as the regional grid size
 
         self.gnx = int(360 / self.gdx)  # 360/2.5 =144
-        self.gny = self.gnx/2         # =77
+        self.gny = self.gnx / 2  # =77
 
         # Global's depths in KM according to Fortran param1x1
         self.gdepth = (0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
@@ -174,16 +174,16 @@ class Grid2:
         """
 
         refdepth = np.arange((dep_meters.size - 1) * ndis + 1)
-        #print(refdepth)
+        # print(refdepth)
         for i in range(refdepth.size - 1):
             i0 = int(i / ndis)
             i1 = i % ndis
-            #print(i0, i1)
-            refdepth[i] = dep_meters[i0] + (dep_meters[i0 + 1] - dep_meters[i0])*i1*(1.0/ndis)
+            # print(i0, i1)
+            refdepth[i] = dep_meters[i0] + (dep_meters[i0 + 1] - dep_meters[i0]) * i1 * (1.0 / ndis)
 
         refdepth[-1] = dep_meters[-1]  # last depth is same
 
-        #print(refdepth)  # check the smaller-step discretization of depth
+        # print(refdepth)  # check the smaller-step discretization of depth
         return refdepth
 
     def _get_max_region_block_number(self):
@@ -233,7 +233,7 @@ class Grid2:
         :return: int block number AND (xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
-        y = lat +90.0  # convert lat into y which will be in [0,180)
+        y = lat + 90.0  # convert lat into y which will be in [0,180)
 
         if self.is_point_in_region(lat, lon) is True:
 
@@ -268,9 +268,9 @@ class Grid2:
             # yc = (j  + 0.5) * self.gdy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
-        yc = yc -90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
+        yc = yc - 90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
         # return int(block_number)
-        return (int(block_number), xc,yc,zc) # return block_number and the block's centre coordinate 9xc,yc,zc)
+        return (int(block_number), xc, yc, zc)  # return block_number and the block's centre coordinate 9xc,yc,zc)
 
     def get_depth_index(self, z, dep_meters):
         """
@@ -283,18 +283,18 @@ class Grid2:
 
         diff_refdepth = dep_meters - z
 
-        #print (diff_refdepth)
-        kindex= np.where(diff_refdepth>0)[0]
+        # print (diff_refdepth)
+        kindex = np.where(diff_refdepth > 0)[0]
 
-        if kindex.size >0 :
-            #print ("the max kindex is %s with positive diff value %s" % (kindex[0], diff_refdepth[kindex[0]]))
-            k=kindex[0]
+        if kindex.size > 0:
+            # print ("the max kindex is %s with positive diff value %s" % (kindex[0], diff_refdepth[kindex[0]]))
+            k = kindex[0]
         else:
-            k= diff_refdepth.size -1  # the last index
+            k = diff_refdepth.size - 1  # the last index
 
-        zcm = (dep_meters[k] +dep_meters[k-1])/2.0
+        zcm = (dep_meters[k] + dep_meters[k - 1]) / 2.0
 
-        assert k>=1  # k should be 1, 2,...
+        assert k >= 1  # k should be 1, 2,...
 
         return (k, zcm)
 
@@ -306,42 +306,60 @@ class Grid2:
 
         print("The refined discretization divide = ", self.ndis)
         print("Reginal grid prop= ", self.dx, self.dy, self.nx, self.ny)
-        print("Gloabl grid prop= ", self.gdx, self.gdy, self.gnx,self.gny)
+        print("Gloabl grid prop= ", self.gdx, self.gdy, self.gnx, self.gny)
 
         return
-
 
     def generate_latlong_grid(self, depthmeters=0.0):
         """
         create a csv file containing: (block_number, lat,long, depthm=0, xc,yc,zc)
         :return:
         """
-        import pandas as pd
 
         mygrid = []
-        for x in xrange(0, 3600, 1):
-            xin= 0.1*x
-            for y in xrange(-900, 900, 1):
-                yin=0.1*y
+        for x in range(0, 1800, 1):
+            xin = 0.2 * x
+            for y in range(-450, 450, 1):
+                yin = 0.2 * y
 
-                (bn, xc,yc, zc) =self.find_block_number(yin, xin,depthmeters)
-                arow = (bn, xc,yc,zc, xin, yin, depthmeters)
+                (bn, xc, yc, zc) = self.find_block_number(yin, xin, depthmeters)
+                arow = (bn, xc, yc, zc, xin, yin, depthmeters)
                 mygrid.append(arow)
 
-        mypdf = pd.DataFrame(mygrid, index=None, columns=['blockn', 'xc', 'yc', 'zc', 'long', 'lat', 'depthmeter'])
+        mypdf = pd.DataFrame(mygrid, columns=['blockn', 'xc', 'yc', 'zc', 'long', 'lat', 'depthmeter'])
 
-        mypdf.to_csv("/tmp/whole_grid.csv")
+        # mypdf.to_csv("/tmp/whole_grid.csv", index=False) # write CSV without the sequence index column 01,2,3,
 
-        return mypdf
+        final_pdf = mypdf.drop_duplicates(subset=['blockn'], keep='first', inplace=False)
 
+        return final_pdf
+
+    def generate_grid3D(self):
+
+        pdf3d = self.generate_latlong_grid()
+        for adepth in self.refrmeters[1:10]:
+            print("Making grid at depth:", adepth)
+            apdf = self.generate_latlong_grid(depthmeters=adepth)
+            pdf3d = pdf3d.append(apdf)
+            print("The size of the csv=", pdf3d.shape)
+
+        for adepth in self.refgmeters[:10]:
+            print("Making grid at depth:", adepth)
+            apdf = self.generate_latlong_grid(depthmeters=adepth)
+            pdf3d = pdf3d.append(apdf)
+            print("The size of the csv=", pdf3d.shape)
+
+        print("The final size of the pandas dataframe to be saved into CSV file: ", pdf3d.shape)
+        pdf3d.to_csv("/tmp/cluster_grid_3d.csv", index=False)
+
+        return pdf3d
 
 
 # ========================================================
 # quick test run to see if the Grid definition is right??
 # ========================================================
 if __name__ == "__main__":
-
-    #my_grid = Grid2(ndis=4)
+    # my_grid = Grid2(ndis=4)
     my_grid = Grid2(ndis=2)
 
     print("The maxi BLOCK Number inside ANZ region", my_grid.REGION_MAX_BN)
@@ -349,31 +367,32 @@ if __name__ == "__main__":
     print("The refined regional depth steps and size:", my_grid.refrmeters, my_grid.refrmeters.size)
     print("The refined global depth steps and size:", my_grid.refgmeters, my_grid.refgmeters.size)
 
-    dmeters=10000  # an event depth in meters
-    dmeters=10001  #  +1 in event depth to cross cell boundary|
-    dmeters =0
+    dmeters = 10000  # an event depth in meters
+    dmeters = 10001  # +1 in event depth to cross cell boundary|
+    dmeters = 0
 
-    k,zcm= my_grid.get_depth_index(dmeters, my_grid.refrmeters)
+    k, zcm = my_grid.get_depth_index(dmeters, my_grid.refrmeters)
 
-    print("Regional: The k index = %s"% k )
-    print("Regional: The zcm  = %s"% zcm )
+    print("Regional: The k index = %s" % k)
+    print("Regional: The zcm  = %s" % zcm)
 
-    k,zcm= my_grid.get_depth_index(dmeters, my_grid.refgmeters)
+    k, zcm = my_grid.get_depth_index(dmeters, my_grid.refgmeters)
 
-    print("Global: The k index = %s"% k )
-    print("Global: The zcm  = %s"% zcm )
+    print("Global: The k index = %s" % k)
+    print("Global: The zcm  = %s" % zcm)
 
     my_grid.show_properties()
 
-    print(my_grid.find_block_number(-90,0,1))
-    print(my_grid.find_block_number(-89,0,1))
-
+    print(my_grid.find_block_number(-90, 0, 1))
+    print(my_grid.find_block_number(-89, 0, 1))
 
     print("regional:", my_grid.find_block_number(-1, 101, 1))
     print("regional:", my_grid.find_block_number(-2, 102, 1))
 
     # Generate the whole grid:
 
-    mypdf = my_grid.generate_latlong_grid()
+    # mypdf = my_grid.generate_latlong_grid()
+    # print (mypdf.head())
 
-    print (mypdf.head())
+    my3dgrid = my_grid.generate_grid3D()
+    print("size of the grid", my3dgrid.shape)
