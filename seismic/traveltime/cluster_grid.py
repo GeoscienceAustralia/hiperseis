@@ -96,7 +96,8 @@ class Grid:
         :param z: elevation
         :return: int block number
         """
-        y = 90. - lat  # should be +lat
+        #y = 90. - lat  # original wrong
+        y = (lat + 90)%180   # y will be in (0,180)
         x = lon % 360
         i = round(x / self.dx) + 1
         j = round(y / self.dy) + 1
@@ -210,9 +211,10 @@ class Grid2:
         :return: T/F
         """
 
-        if (abs(lat) > 90):
-            log.error("wrong lattitude value %s", lat)
-        # y = 90. + lat  # convert lat into y which will be in [0,180)
+        #if (abs(lat) > 90):
+        #    log.error("wrong lattitude value %s", lat)
+        
+        y = (lat+90)%180 - 90.0  # convert lat into y which will be in [0,180) then to (-90,90])
 
         x = lon % 360  # convert longitude into x which must be in [0,360)
 
@@ -227,13 +229,13 @@ class Grid2:
         """
         find the index-number of an events/station in a non-uniform grid
         each spatial point (lat, lon, z) is mapped to a uniq block_number.
-        :param lat: latitude
-        :param lon: longitude
+        :param lat: latitude (-90,90)
+        :param lon: longitude (0,180)
         :param z: depth
         :return: int block number AND (xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
-        y = lat + 90.0  # convert lat into y which will be in [0,180)
+        y = (lat + 90.0)%180  # convert lat into y which will be in [0,180)
 
         if self.is_point_in_region(lat, lon) is True:
 
@@ -268,7 +270,9 @@ class Grid2:
             # yc = (j  + 0.5) * self.gdy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
-        yc = yc - 90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
+        yc = yc%180 - 90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
+        xc = xc%360         # map xc back to the {0,360)
+
         # return int(block_number)
         return (int(block_number), xc, yc, zc)  # return block_number and the block's centre coordinate 9xc,yc,zc)
 
@@ -337,19 +341,20 @@ class Grid2:
     def generate_grid3D(self):
 
         pdf3d = self.generate_latlong_grid()
-        for adepth in self.refrmeters[1:10]:
+        for adepth in self.refrmeters[1:3]:
             print("Making grid at depth:", adepth)
             apdf = self.generate_latlong_grid(depthmeters=adepth)
             pdf3d = pdf3d.append(apdf)
             print("The size of the csv=", pdf3d.shape)
 
-        for adepth in self.refgmeters[:10]:
+        for adepth in self.refgmeters[1:3]:
             print("Making grid at depth:", adepth)
             apdf = self.generate_latlong_grid(depthmeters=adepth)
             pdf3d = pdf3d.append(apdf)
             print("The size of the csv=", pdf3d.shape)
 
         print("The final size of the pandas dataframe to be saved into CSV file: ", pdf3d.shape)
+
         pdf3d.to_csv("/tmp/cluster_grid_3d.csv", index=False)
 
         return pdf3d
