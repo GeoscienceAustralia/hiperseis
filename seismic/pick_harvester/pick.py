@@ -28,7 +28,7 @@ import pyasdf
 import json
 import fnmatch
 import operator
-
+from datetime import datetime
 from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
@@ -159,6 +159,7 @@ def process(asdf_source, event_folder, output_path):
     tracesFetched = 0
     idx = 0
     myIdx = 0
+    sw_start = datetime.now()
     for iproc in np.arange(nproc):
         for po, codes_list in proc_events_stations[iproc].iteritems():
             for codes in codes_list:
@@ -174,8 +175,11 @@ def process(asdf_source, event_folder, output_path):
                     myIdx += 1
 
                     if(np.mod(tracesFetched, 100) == 0):
-                        print 'Number of traces fetched on rank %d: %d' % (rank, tracesFetched)
-                    # end if
+                        sw_stop = datetime.now()
+                        print 'Number of traces fetched on rank %d: %d in %f seconds' % \
+                              (rank, tracesFetched, (sw_stop-sw_start).total_seconds())
+                        sw_start = datetime.now()
+                        # end if
                 # end if
                 idx += 1
             # end for
