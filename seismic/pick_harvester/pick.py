@@ -32,6 +32,7 @@ from datetime import datetime
 from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
+from random import shuffle
 from obspy import UTCDateTime, read_events, read_inventory
 from obspy.taup.taup_geo import calc_dist
 from obspy.clients.iris import Client as IrisClient
@@ -42,7 +43,7 @@ from obspy.signal.rotate import rotate_ne_rt
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
      Origin, Arrival, OriginQuality, Magnitude, Comment
 
-from utils import EventParser
+from utils import EventParser, DistAz
 
 def recursive_glob(treeroot, pattern):
     results = []
@@ -107,10 +108,9 @@ def process(asdf_source, event_folder, output_path):
         # end func
 
         outputConfigParameters()
-
         # retrieve list of all event xml files
         xml_files = recursive_glob(event_folder, '*.xml')
-
+        shuffle(xml_files) # shuffle to avoid concentration of large files
         proc_workload = split_list(xml_files, nproc)
     # end if
 
@@ -119,71 +119,82 @@ def process(asdf_source, event_folder, output_path):
 
     print 'Rank %d: processing %d files'%(rank, len(proc_workload[rank]))
 
-    fds = FederatedASDFDataSet(asdf_source, logger=None)
-    # Magic numbers
-    six_mins = 360
-    proc_events_stations = defaultdict(list)
+    eventList = []
+    poTimestamps =[]
     for ifn, fn in enumerate(proc_workload[rank]):
         es = EventParser(fn).getEvents()
-        stationCount = 0
         for i, (eid, e) in enumerate(es.iteritems()):
             po = e.preferred_origin
             if(not (po.depthkm >= 0)): continue
 
-            otime = po.utctime
-            stations = fds.get_stations(otime - six_mins, otime + six_mins)
-            stations_zch = [s for s in stations if 'Z' in s[3]] # only Z channels
-
-            proc_events_stations[po] = stations_zch
-            stationCount += len(stations_zch)
-        # end for
-        print 'Rank :%d file no: %d station count: %d'%(rank, ifn, stationCount)
-    # end for
-
-    proc_events_stations = comm.allgather(proc_events_stations)
-
-    idxList = []
-    idx = 0
-    for iproc in np.arange(nproc):
-        for po, codes_list in proc_events_stations[iproc].iteritems():
-            for codes in codes_list:
-                idxList.append(idx)
-                idx += 1
-            # end for
+            eventList.append(e)
+            poTimestamps.append(po.utctime.timestamp)
         # end for
     # end for
-    idxList = split_list(idxList, nproc)
 
-    print 'Event-stations count on rank %d: %d'%(rank, len(idxList[rank]))
+    eventList = comm.allgather(eventList)
+    poTimestamps = comm.allgather(poTimestamps)
 
-    tracesFetched = 0
-    idx = 0
-    myIdx = 0
-    sw_start = datetime.now()
+    allEventList = []
+    allPOTimestamps = []
+
     for iproc in np.arange(nproc):
-        for po, codes_list in proc_events_stations[iproc].iteritems():
-            for codes in codes_list:
+        for i, e in enumerate(eventList[iproc]):
+            allEventList.append(e)
+            allPOTimestamps.append(poTimestamps[iproc][i])
+        # end for
+    # end for
+    allPOTimestamps = np.array(allPOTimestamps)
 
-                if(myIdx >= len(idxList[rank])): break
-                if(idx == idxList[rank][myIdx]):
-                    otime = po.utctime
+    if(rank==0):
+        print 'Collected %d event origins'%(len(allEventList))
+
+        hasPM = 0
+        hasMultipleMags = 0
+        for e in allEventList:
+            o = e.preferred_origin
+            if(e.preferred_magnitude): hasPM += 1
+            if(len(o.magnitude_list)): hasMultipleMags += 1
+        # end for
+
+        print '%d preferred origins have a preferred magnitude'%(hasPM)
+        print '%d preferred origins have at least one magnitude'%(hasMultipleMags)
+    # end if
+
+    # ==========================================
+    fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
+    for nc, sc, start_time, end_time in fds.local_net_sta_list():
+        day = 24 * 3600
+        dayCount = 0
+        curr = start_time
+        sw_start = datetime.now()
+        traceCount = 0
+        while (curr < end_time):
+            eventIndices = (np.where((allPOTimestamps >= curr.timestamp) & \
+                                     (allPOTimestamps <= (curr + day).timestamp)))[0]
+
+            if(eventIndices.shape[0]>0):
+                stations = fds.get_stations(curr, curr + day, network=nc, station=sc)
+                stations_zch = [s for s in stations if 'Z' in s[3]]  # only Z channels
+
+                #print 'Found %d events to process on rank %d for day: [%f, %f]' % \
+                #      (eventIndices.shape[0], rank, curr.timestamp, (curr + day).timestamp)
+
+                for codes in stations_zch:
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
-                                           otime-100,
-                                           otime+100, tag='raw_recording')
+                                           curr,
+                                           curr+day, tag='raw_recording', automerge=True)
+                    traceCount += len(st)
+                # end for
+            # end if
+            curr += day
+            dayCount += 1
+        # wend
+        sw_stop = datetime.now()
+        totalTime = (sw_stop - sw_start).total_seconds()
 
-                    if(len(st)): tracesFetched += 1
-                    myIdx += 1
-
-                    if(np.mod(tracesFetched, 100) == 0):
-                        sw_stop = datetime.now()
-                        print 'Number of traces fetched on rank %d: %d in %f seconds' % \
-                              (rank, tracesFetched, (sw_stop-sw_start).total_seconds())
-                        sw_start = datetime.now()
-                        # end if
-                # end if
-                idx += 1
-            # end for
-        # end for
+        print 'Read %d traces on rank %d for network %s station %s in %f seconds'%\
+              (traceCount, rank, nc, sc, totalTime), start_time, end_time
     # end for
 
     del fds
