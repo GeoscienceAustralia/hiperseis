@@ -210,7 +210,8 @@ def sort2(output_file, sorted_file, residual_cutoff):
 
 def translate_csv(in_csvfile, out_csvfile):
     """
-    Read in a csv file, and translate it into another csv file with re-calculated and new columns
+    Read in a csv file, re-grid each row according to a new Grid model.
+    Write into another csv file with re-calculated block_numbers and six new columns of Grid cell centers
     :param in_csvfile: path to an input csv file
     :param out_csvfile: path to an output csv file
     :return: out_csvfile

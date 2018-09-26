@@ -96,8 +96,8 @@ class Grid:
         :param z: elevation
         :return: int block number
         """
-        #y = 90. - lat  # original wrong
-        y = (lat + 90)%180   # y will be in (0,180)
+        # y = 90. - lat  # original wrong
+        y = (lat + 90) % 180  # y will be in (0,180)
         x = lon % 360
         i = round(x / self.dx) + 1
         j = round(y / self.dy) + 1
@@ -211,10 +211,10 @@ class Grid2:
         :return: T/F
         """
 
-        #if (abs(lat) > 90):
+        # if (abs(lat) > 90):
         #    log.error("wrong lattitude value %s", lat)
-        
-        y = (lat+90)%180 - 90.0  # convert lat into y which will be in [0,180) then to (-90,90])
+
+        y = (lat + 90) % 180 - 90.0  # convert lat into y which will be in [0,180) then to (-90,90])
 
         x = lon % 360  # convert longitude into x which must be in [0,360)
 
@@ -235,7 +235,7 @@ class Grid2:
         :return: int block number AND (xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
-        y = (lat + 90.0)%180  # convert lat into y which will be in [0,180)
+        y = (lat + 90.0) % 180  # convert lat into y which will be in [0,180)
 
         if self.is_point_in_region(lat, lon) is True:
 
@@ -254,15 +254,16 @@ class Grid2:
             # yc = (j + 0.5) * self.dy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
-        else:
+        else:  # point NOT in ANZ region, but in the global
 
             i = round(x / self.gdx) + 1
             j = round(y / self.gdy) + 1
 
-            # k = round(z / self.gdz) + 1 # this is constant steps
+            # k = round(z / self.gdz) + 1 # this is a constant steps
             (k, zcm) = self.get_depth_index(z, self.refgmeters)
             g_block_number = (k - 1) * self.gnx * self.gny + (j - 1) * self.gnx + i
-            block_number = g_block_number + self.REGION_MAX_BN  # offset by the region max block number
+            block_number = g_block_number + self.REGION_MAX_BN
+            # global block_number is offset by the regional max block number, to ensure uniqueness
 
             xc = ((i - 1) + 0.5) * self.gdx  # cell block center longitude in deg
             yc = ((j - 1) + 0.5) * self.gdy  # cell block centre lattitude in deg
@@ -270,11 +271,11 @@ class Grid2:
             # yc = (j  + 0.5) * self.gdy  # cell block centre lattitude in deg
             zc = zcm  # cell block centre depth in meters
 
-        yc = yc%180 - 90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
-        xc = xc%360         # map xc back to the {0,360)
+        yc = yc % 180 - 90.0  # Lattitude from (0,180) back to [-90,90) could be 91.25 => -88.75
+        xc = xc % 360  # map the longitude xc to the [0,360)
 
         # return int(block_number)
-        return (int(block_number), xc, yc, zc)  # return block_number and the block's centre coordinate 9xc,yc,zc)
+        return (int(block_number), xc, yc, zc)  # return block_number and the block's centre coordinate xc,yc,zc)
 
     def get_depth_index(self, z, dep_meters):
         """
@@ -312,6 +313,32 @@ class Grid2:
         print("Reginal grid prop= ", self.dx, self.dy, self.nx, self.ny)
         print("Gloabl grid prop= ", self.gdx, self.gdy, self.gnx, self.gny)
 
+        print("The MAX BLOCK Number inside ANZ region", self.REGION_MAX_BN)
+
+        print("The refined regional depth steps and size:", self.refrmeters, self.refrmeters.size)
+        print("The refined global depth steps and size:", self.refgmeters, self.refgmeters.size)
+
+        dmeters = 10000  # an event depth in meters
+        dmeters = 10001  # +1 in event depth to cross cell boundary|
+        dmeters = 0
+
+        k, zcm = self.get_depth_index(dmeters, self.refrmeters)
+
+        print("Regional: The k index = %s" % k)
+        print("Regional: The zcm  = %s" % zcm)
+
+        k, zcm = self.get_depth_index(dmeters, self.refgmeters)
+
+        print("Global: The k index = %s" % k)
+        print("Global: The zcm  = %s" % zcm)
+
+        # Test some special border points
+        print("Global:", self.find_block_number(-90, 0, 1))
+        print("Global:", self.find_block_number(-89, 0, 1))
+
+        print("regional:", self.find_block_number(-1, 101, 1))
+        print("regional:", self.find_block_number(-2, 102, 1))
+
         return
 
     def generate_latlong_grid(self, depthmeters=0.0):
@@ -320,11 +347,14 @@ class Grid2:
         :return:
         """
 
+        # how many points per degree in lat and lon respectively
+        per_degree = 10 # 5 means 0.2 degree cell size
+        latgrid = np.linspace(-90, 90, num=180*per_degree+1)
+        longrid = np.linspace(0, 360,  num=360*per_degree+1)
+
         mygrid = []
-        for x in range(0, 1800, 1):
-            xin = 0.2 * x
-            for y in range(-450, 450, 1):
-                yin = 0.2 * y
+        for xin in longrid:
+            for yin in latgrid:
 
                 (bn, xc, yc, zc) = self.find_block_number(yin, xin, depthmeters)
                 arow = (bn, xc, yc, zc, xin, yin, depthmeters)
@@ -339,15 +369,20 @@ class Grid2:
         return final_pdf
 
     def generate_grid3D(self):
+        """
+        loop over all the reference depths, both regional and global depth list.
+        :return:
+        """
 
         pdf3d = self.generate_latlong_grid()
-        for adepth in self.refrmeters[1:3]:
+
+        for adepth in self.refrmeters[1:10]:
             print("Making grid at depth:", adepth)
             apdf = self.generate_latlong_grid(depthmeters=adepth)
             pdf3d = pdf3d.append(apdf)
             print("The size of the csv=", pdf3d.shape)
 
-        for adepth in self.refgmeters[1:3]:
+        for adepth in self.refgmeters[1:]:
             print("Making grid at depth:", adepth)
             apdf = self.generate_latlong_grid(depthmeters=adepth)
             pdf3d = pdf3d.append(apdf)
@@ -364,35 +399,9 @@ class Grid2:
 # quick test run to see if the Grid definition is right??
 # ========================================================
 if __name__ == "__main__":
+
     # my_grid = Grid2(ndis=4)
     my_grid = Grid2(ndis=2)
-
-    print("The maxi BLOCK Number inside ANZ region", my_grid.REGION_MAX_BN)
-
-    print("The refined regional depth steps and size:", my_grid.refrmeters, my_grid.refrmeters.size)
-    print("The refined global depth steps and size:", my_grid.refgmeters, my_grid.refgmeters.size)
-
-    dmeters = 10000  # an event depth in meters
-    dmeters = 10001  # +1 in event depth to cross cell boundary|
-    dmeters = 0
-
-    k, zcm = my_grid.get_depth_index(dmeters, my_grid.refrmeters)
-
-    print("Regional: The k index = %s" % k)
-    print("Regional: The zcm  = %s" % zcm)
-
-    k, zcm = my_grid.get_depth_index(dmeters, my_grid.refgmeters)
-
-    print("Global: The k index = %s" % k)
-    print("Global: The zcm  = %s" % zcm)
-
-    my_grid.show_properties()
-
-    print(my_grid.find_block_number(-90, 0, 1))
-    print(my_grid.find_block_number(-89, 0, 1))
-
-    print("regional:", my_grid.find_block_number(-1, 101, 1))
-    print("regional:", my_grid.find_block_number(-2, 102, 1))
 
     # Generate the whole grid:
 
@@ -400,4 +409,5 @@ if __name__ == "__main__":
     # print (mypdf.head())
 
     my3dgrid = my_grid.generate_grid3D()
-    print("size of the grid", my3dgrid.shape)
+
+    print("Final size of the 3D grid", my3dgrid.shape)
