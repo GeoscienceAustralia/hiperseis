@@ -105,8 +105,6 @@ class FederatedASDFDataSet():
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
-        self.asdf_start_times = []
-        self.asdf_end_times = []
         self.json_db_file_names = []
         self.tree_list = []
         self.asdf_tags_list = []
@@ -125,18 +123,14 @@ class FederatedASDFDataSet():
             for i in range(len(fileContents)):
                 if(fileContents[i][0]=='#'): continue # filter commented lines
 
-                cols = fileContents[i].split(' ')
-                assert len(cols) == 3, 'Invalid entries in file %s..' % (self.asdf_source)
-
-                self.asdf_file_names.append(cols[0])
-                self.asdf_start_times.append(UTCDateTime(cols[1]))
-                self.asdf_end_times.append(UTCDateTime(cols[2]))
+                fn = fileContents[i].strip(' \t\n\r\n')
+                self.asdf_file_names.append(fn)
 
                 # look for json db
-                files = glob.glob(os.path.dirname(cols[0]) + '/*.json')
+                files = glob.glob(os.path.dirname(fn) + '/*.json')
                 found_json_db = False
                 for f in files:
-                    if (os.path.splitext(os.path.basename(cols[0]))[0] in f):
+                    if (os.path.splitext(os.path.basename(fn))[0] in f):
                         found_json_db = True
                         self.json_db_file_names.append(f)
                         break
@@ -436,7 +430,13 @@ class FederatedASDFDataSet():
                     # end for
                 # end if
 
-                if(automerge): cs.merge(method=-1)
+                if(automerge):
+                    try:
+                        cs.merge(method=-1)
+                    except:
+                        pass
+                    # end try
+                # end if
             else:
                 cs = ds.get_waveforms(network, station, location, channel, starttime,
                                       endtime, tag, automerge)
