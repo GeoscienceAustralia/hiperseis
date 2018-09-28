@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from obspy import UTCDateTime
 import numpy as np
+import math
 
 def recursive_glob(treeroot, pattern):
     results = []
