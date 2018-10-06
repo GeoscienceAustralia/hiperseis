@@ -257,7 +257,7 @@ class FederatedASDFDataSet():
         self.extract_time_ranges()
     # end func
 
-    def create_sparse_index(self):
+    def create_sparse_index(self, balance_by_tags=True):
         def decode_tag(tag, type='raw_recording'):
             if (type not in tag): return None
             try:
@@ -275,6 +275,7 @@ class FederatedASDFDataSet():
             # end func
         # end func
 
+        tagsCount = 0
         for ids, ds in enumerate(self.asdf_datasets):
             print 'Creating index for %s..' % (self.asdf_file_names[ids])
 
@@ -296,6 +297,13 @@ class FederatedASDFDataSet():
                 # end for
             # end for
 
+            if(balance_by_tags):
+                data = self.comm.allgather(data)
+                data = [item for sublist in data for item in sublist]
+                data = split_list(data, self.nproc)
+                data = data[self.rank]
+            # end if
+
             ki = 0
             tags_list = []
             t = tree()
@@ -315,8 +323,10 @@ class FederatedASDFDataSet():
             self.tree_list[ids] = t
             self.asdf_tags_list[ids] = tags_list
 
-            print 'Done creating sparse index on rank %d'%(self.rank)
+            tagsCount += len(data)
         # end for
+        print 'Created sparse indices on rank %d for %d waveforms' % (self.rank, tagsCount)
+
         self.extract_time_ranges()
     # end func
 
