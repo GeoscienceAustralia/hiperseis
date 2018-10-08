@@ -69,9 +69,8 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
     tat = atimes[0].time # theoretical arrival time
 
     try:
-        st = st.slice(po.utctime + tat + win_start*1.25, po.utctime + tat + win_end*1.25)
-        st.resample(resample_hz)
         st = st.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
+        st.resample(resample_hz)
     except:
         return None
     # end try
@@ -84,6 +83,7 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
 
         bp_freqmins = [0.5, 2., 5.]
         bp_freqmaxs = [5, 9.9, 9.95]
+
         margin = 10
         pickslist = []
         snrlist = []
@@ -123,8 +123,12 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
         if (len(pickslist)):
             optimal_pick_idx = np.argmax(np.array(snrlist))
 
-            return pickslist[optimal_pick_idx], residuallist[optimal_pick_idx], \
-                   snrlist[optimal_pick_idx]
+            da = DistAz(po.lat, po.lon, station_latitude, station_longitude)
+
+            return event.public_id, po.lon, po.lat, da.getBaz(), \
+                    da.degreesToKilometers(da.getDelta()), \
+                    pickslist[optimal_pick_idx], residuallist[optimal_pick_idx], \
+                    snrlist[optimal_pick_idx]
         # end if
     # end if
 
@@ -228,6 +232,8 @@ def process(asdf_source, event_folder, output_path):
 
     taupyModel = TauPyModel(model='iasp91')
     fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
+
+    totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.local_net_sta_list():
         ofn = os.path.join(output_path, '%s.%s.%d.txt'%(nc, sc, rank))
         of = open(ofn, 'w+')
@@ -242,12 +248,12 @@ def process(asdf_source, event_folder, output_path):
             eventIndices = (np.where((allPOTimestamps >= curr.timestamp) & \
                                      (allPOTimestamps <= (curr + day).timestamp)))[0]
 
-            if(eventIndices.shape[0]>0):
+            if(eventIndices.shape[0]>0): totalTraceCount += 1
+            if(eventIndices.shape[0]>0 and 0): ##########################
                 stations = fds.get_stations(curr, curr + day, network=nc, station=sc)
                 stations_zch = [s for s in stations if 'Z' in s[3]]  # only Z channels
 
                 for codes in stations_zch:
-
                     #if (codes[0] != 'AU'): continue
                     #if (codes[1] != 'PTPS' or codes[1] != 'AS07'): continue
 
@@ -267,11 +273,14 @@ def process(asdf_source, event_folder, output_path):
                             po = event.preferred_origin
                             da = DistAz(po.lat, po.lon, slat, slon)
 
-                            pick, residual, snr = result
-                            #print residual, snr
-                            line = '%s %s %s %s %s %f %f %f\n' % (event.public_id, codes[0],
-                                                                  codes[1], codes[3], str(pick.time),
-                                                                  da.getBaz(), residual, snr)
+                            epid, polon, polat, baz, distkm, pick, residual, snr = result
+                            line = '%s %f %f ' \
+                                   '%s %s %s %f %f ' \
+                                   '%f %f ' \
+                                   '%s %f %f\n' % (epid, polon, polat,
+                                                   codes[0], codes[1], codes[3], slon, slat,
+                                                   baz, distkm,
+                                                   str(pick), residual, snr)
                             of.write(line)
                             pickCount += 1
                         # end if
@@ -290,6 +299,8 @@ def process(asdf_source, event_folder, output_path):
               (traceCount, pickCount, rank, nc, sc, totalTime), start_time, end_time
         of.close()
     # end for
+
+    print 'Need to process %d traces on rank %d'%(totalTraceCount, rank)
 
     del fds
 # end func

@@ -1,10 +1,18 @@
+from mpi4py import MPI
 from lxml import etree as ET
-import os, glob, fnmatch
+from os.path import join, exists
+import os, glob, fnmatch, sys
 import re
 from collections import defaultdict
 from obspy import UTCDateTime
 import numpy as np
 import math
+
+from math import radians, cos, sin, asin, sqrt
+import numpy as np
+import scipy
+from scipy.spatial import cKDTree
+from random import shuffle
 
 def recursive_glob(treeroot, pattern):
     results = []
@@ -362,5 +370,79 @@ class DistAz:
 
     def kilometersToDegrees(self, kilometers):
         return kilometers / 111.19
+    # end func
+# end class
+
+class Catalog():
+    def __init__(self, event_folder):
+        self.event_folder = event_folder
+        self.comm = MPI.COMM_WORLD
+        self.nproc = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
+
+        # retrieve list of all event xml files
+        self.xml_files = recursive_glob(self.event_folder, '*.xml')
+        shuffle(self.xml_files) # shuffle to avoid concentration of large files
+        self.proc_workload = split_list(self.xml_files, self.nproc)
+
+        # broadcast workload to all procs
+        self.proc_workload = self.comm.bcast(self.proc_workload, root=0)
+
+        print 'Rank %d: processing %d files' % (self.rank, len(self.proc_workload[self.rank]))
+
+        self._load_events()
+    # end func
+
+    def _load_events(self):
+        eventList = []
+        poTimestamps = []
+        for ifn, fn in enumerate(self.proc_workload[self.rank]):
+            es = EventParser(fn).getEvents()
+            for i, (eid, e) in enumerate(es.iteritems()):
+                po = e.preferred_origin
+                if (not (po.depthkm >= 0)): continue
+
+                eventList.append(e)
+                poTimestamps.append(po.utctime.timestamp)
+                # end for
+        # end for
+
+        eventList = self.comm.allgather(eventList)
+        poTimestamps = self.comm.allgather(poTimestamps)
+
+        allEventList = []
+        allPOTimestamps = []
+        for iproc in np.arange(self.nproc):
+            for i, e in enumerate(eventList[iproc]):
+                allEventList.append(e)
+                allPOTimestamps.append(poTimestamps[iproc][i])
+            # end for
+        # end for
+
+        self.allPOTimestamps = np.array(allPOTimestamps)
+        self.allEventList = allEventList
+
+        if (self.rank == 0):
+            print 'Collected %d event origins' % (len(self.allEventList))
+
+            hasPM = 0
+            hasMultipleMags = 0
+            for e in self.allEventList:
+                o = e.preferred_origin
+                if (e.preferred_magnitude): hasPM += 1
+                if (len(o.magnitude_list)): hasMultipleMags += 1
+            # end for
+
+            print '%d preferred origins have a preferred magnitude' % (hasPM)
+            print '%d preferred origins have at least one magnitude' % (hasMultipleMags)
+        # end if
+    # end func
+
+    def get_events(self):
+        return self.allEventList
+    # end func
+
+    def get_preferred_origin_timestamps(self):
+        return self.allPOTimestamps
     # end func
 # end class
