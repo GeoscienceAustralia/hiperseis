@@ -300,7 +300,7 @@ def process(asdf_source, event_folder, output_path):
 
     totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.local_net_sta_list():
-        header = '#eventID originTimestamp originLon originLat net sta cha pickTimestamp stationLon stationLat baz distKm ttResidual snr bandIndex\n'
+        header = '#eventID originTimestamp originLon originLat cha pickTimestamp stationLon stationLat baz distKm ttResidual snr bandIndex\n'
         ofnp = os.path.join(output_path, '%s.%s.p.%d.txt'%(nc, sc, rank))
         ofp = open(ofnp, 'w+')
         ofns = os.path.join(output_path, '%s.%s.s.%d.txt'%(nc, sc, rank))
@@ -348,10 +348,10 @@ def process(asdf_source, event_folder, output_path):
                             pick, residual, snr, bi = result
 
                             line = '%s %f, %f %f ' \
-                                   '%s %s %s %f, %f %f ' \
+                                   '%s %f, %f %f ' \
                                    '%f %f ' \
                                    '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                   codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                   codes[3], pick.timestamp, slon, slat,
                                                    da.getBaz(), da.degreesToKilometers(da.getDelta()),
                                                    residual, snr, bi)
                             ofp.write(line)
@@ -364,10 +364,10 @@ def process(asdf_source, event_folder, output_path):
                                 pick, residual, snr, bi = result
 
                                 line = '%s %f, %f %f ' \
-                                       '%s %s %s %f, %f %f ' \
+                                       '%s %f, %f %f ' \
                                        '%f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                       codes[3], pick.timestamp, slon, slat,
                                                        da.getBaz(), da.degreesToKilometers(da.getDelta()),
                                                        residual, snr, bi)
                                 ofs.write(line)
@@ -379,46 +379,46 @@ def process(asdf_source, event_folder, output_path):
                     traceCountP += len(st)
                 # end for
 
-                if(len(stations_nch) != len(stations_ech)): continue
-                for codesn, codese in zip(stations_nch, stations_ech):
-                    stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
-                                           curr,
-                                           curr + day, tag='raw_recording', automerge=True)
-                    ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
-                                           curr,
-                                           curr + day, tag='raw_recording', automerge=True)
+                if(len(stations_nch)>0 and len(stations_nch) == len(stations_ech)):
+                    for codesn, codese in zip(stations_nch, stations_ech):
+                        stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
+                                               curr,
+                                               curr + day, tag='raw_recording', automerge=True)
+                        ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
+                                               curr,
+                                               curr + day, tag='raw_recording', automerge=True)
 
-                    if (len(stn) == 0): continue  # no data found or likely merge failed
-                    if (len(ste) == 0): continue  # no data found or likely merge failed
-                    if (stn[0].stats.sampling_rate < 1): continue  # likely corrupt data
-                    if (ste[0].stats.sampling_rate < 1): continue  # likely corrupt data
+                        if (len(stn) == 0): continue  # no data found or likely merge failed
+                        if (len(ste) == 0): continue  # no data found or likely merge failed
+                        if (stn[0].stats.sampling_rate < 1): continue  # likely corrupt data
+                        if (ste[0].stats.sampling_rate < 1): continue  # likely corrupt data
 
-                    slon, slat = codesn[4], codesn[5]
+                        slon, slat = codesn[4], codesn[5]
 
-                    for ei in eventIndices:
-                        event = events[ei]
-                        po = event.preferred_origin
-                        da = DistAz(po.lat, po.lon, slat, slon)
+                        for ei in eventIndices:
+                            event = events[ei]
+                            po = event.preferred_origin
+                            da = DistAz(po.lat, po.lon, slat, slon)
 
-                        result = extract_s(taupyModel, picker, event, slon, slat, stn, ste, da.getBaz())
-                        if (result):
-                            pick, residual, snr, bi = result
+                            result = extract_s(taupyModel, picker, event, slon, slat, stn, ste, da.getBaz())
+                            if (result):
+                                pick, residual, snr, bi = result
 
-                            line = '%s %f, %f %f ' \
-                                   '%s %s %s %f, %f %f ' \
-                                   '%f %f ' \
-                                   '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                   codesn[0], codesn[1], '..T', pick.timestamp, slon, slat,
-                                                   da.getBaz(), da.degreesToKilometers(da.getDelta()),
-                                                   residual, snr, bi)
-                            ofs.write(line)
-                            pickCountS += 1
-                        # end if
+                                line = '%s %f, %f %f ' \
+                                       '%s %f, %f %f ' \
+                                       '%f %f ' \
+                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
+                                                       '..T', pick.timestamp, slon, slat,
+                                                       da.getBaz(), da.degreesToKilometers(da.getDelta()),
+                                                       residual, snr, bi)
+                                ofs.write(line)
+                                pickCountS += 1
+                            # end if
+                        # end for
+
+                        traceCountS += (len(stn) + len(ste))
                     # end for
-
-                    traceCountS += (len(stn) + len(ste))
-                # end for
-
+                # end if
             # end if
             curr += day
             dayCount += 1
@@ -426,14 +426,16 @@ def process(asdf_source, event_folder, output_path):
         sw_stop = datetime.now()
         totalTime = (sw_stop - sw_start).total_seconds()
 
-        print '(%5.2f%%) Read %d traces and found %d p-arrivals and %d s-arrivals on rank %d for ' \
+        print '(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
               'network %s station %s in %f s'%\
-              ((float(totalTraceCount)/float(workload)*100) if workload>0 else 100,
-               traceCountP+traceCountS, pickCountP, pickCountS, rank, nc, sc, totalTime)
+              (rank, (float(totalTraceCount)/float(workload)*100) if workload>0 else 100, totalTraceCount, workload,
+               traceCountP+traceCountS, pickCountP, pickCountS, nc, sc, totalTime)
 
         ofp.close()
         ofs.close()
     # end for
+
+    print 'Processing complete on rank %d'%(rank)
 
     del fds
 # end func
