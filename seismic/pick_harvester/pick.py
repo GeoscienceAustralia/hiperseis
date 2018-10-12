@@ -298,17 +298,16 @@ def process(asdf_source, event_folder, output_path):
     fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
     workload = getWorkloadEstimate(fds, originTimestamps)
 
+    header = '#eventID originTimestamp originLon originLat net sta cha pickTimestamp stationLon stationLat baz distKm ttResidual snr bandIndex\n'
+    ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
+    ofp = open(ofnp, 'w+')
+    ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
+    ofs = open(ofns, 'w+')
+    ofp.write(header)
+    ofs.write(header)
+
     totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.local_net_sta_list():
-        header = '#eventID originTimestamp originLon originLat cha pickTimestamp stationLon stationLat baz distKm ttResidual snr bandIndex\n'
-        ofnp = os.path.join(output_path, '%s.%s.p.%d.txt'%(nc, sc, rank))
-        ofp = open(ofnp, 'w+')
-        ofns = os.path.join(output_path, '%s.%s.s.%d.txt'%(nc, sc, rank))
-        ofs = open(ofns, 'w+')
-
-        ofp.write(header)
-        ofs.write(header)
-
         day = 24 * 3600
         dayCount = 0
         curr = start_time
@@ -348,10 +347,10 @@ def process(asdf_source, event_folder, output_path):
                             pick, residual, snr, bi = result
 
                             line = '%s %f, %f %f ' \
-                                   '%s %f, %f %f ' \
+                                   '%s %s %s %f, %f %f ' \
                                    '%f %f ' \
                                    '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                   codes[3], pick.timestamp, slon, slat,
+                                                   codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                    da.getBaz(), da.degreesToKilometers(da.getDelta()),
                                                    residual, snr, bi)
                             ofp.write(line)
@@ -364,10 +363,10 @@ def process(asdf_source, event_folder, output_path):
                                 pick, residual, snr, bi = result
 
                                 line = '%s %f, %f %f ' \
-                                       '%s %f, %f %f ' \
+                                       '%s %s %s %f, %f %f ' \
                                        '%f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                       codes[3], pick.timestamp, slon, slat,
+                                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                        da.getBaz(), da.degreesToKilometers(da.getDelta()),
                                                        residual, snr, bi)
                                 ofs.write(line)
@@ -405,10 +404,10 @@ def process(asdf_source, event_folder, output_path):
                                 pick, residual, snr, bi = result
 
                                 line = '%s %f, %f %f ' \
-                                       '%s %f, %f %f ' \
+                                       '%s %s %s %f, %f %f ' \
                                        '%f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
-                                                       '..T', pick.timestamp, slon, slat,
+                                                       codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
                                                        da.getBaz(), da.degreesToKilometers(da.getDelta()),
                                                        residual, snr, bi)
                                 ofs.write(line)
@@ -430,10 +429,9 @@ def process(asdf_source, event_folder, output_path):
               'network %s station %s in %f s'%\
               (rank, (float(totalTraceCount)/float(workload)*100) if workload>0 else 100, totalTraceCount, workload,
                traceCountP+traceCountS, pickCountP, pickCountS, nc, sc, totalTime)
-
-        ofp.close()
-        ofs.close()
     # end for
+    ofp.close()
+    ofs.close()
 
     print 'Processing complete on rank %d'%(rank)
 

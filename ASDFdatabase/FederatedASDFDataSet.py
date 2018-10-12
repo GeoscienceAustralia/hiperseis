@@ -109,8 +109,8 @@ class FederatedASDFDataSet():
         self.tree_list = []
         self.asdf_tags_list = []
         self.asdf_station_coordinates = []
-        self.net_sta_start_time = tree()
-        self.net_sta_end_time = tree()
+        self.net_sta_start_time = []
+        self.net_sta_end_time = []
         self.waveform_start_time_list = []
         self.waveform_end_time_list = []
 
@@ -156,6 +156,8 @@ class FederatedASDFDataSet():
 
             self.asdf_tags_list.append([])
             self.tree_list.append(None)
+            self.net_sta_start_time.append(None)
+            self.net_sta_end_time.append(None)
             self.waveform_start_time_list.append(None)
             self.waveform_end_time_list.append(None)
         # end func
@@ -171,16 +173,18 @@ class FederatedASDFDataSet():
         print 'Extracting time ranges on rank %d'%(self.rank)
         for it, val in enumerate(self.tree_list):
             if(val):
+                self.net_sta_start_time[it] = tree()
+                self.net_sta_end_time[it] = tree()
                 min = []
                 max = []
                 for (nk, nv) in val.iteritems():
                     for (sk, sv) in nv.iteritems():
 
-                        if (type(self.net_sta_start_time[nk][sk]) == defaultdict):
-                            self.net_sta_start_time[nk][sk] = 1e32
+                        if (type(self.net_sta_start_time[it][nk][sk]) == defaultdict):
+                            self.net_sta_start_time[it][nk][sk] = 1e32
                         # end if
-                        if (type(self.net_sta_end_time[nk][sk]) == defaultdict):
-                            self.net_sta_end_time[nk][sk] = -1e32
+                        if (type(self.net_sta_end_time[it][nk][sk]) == defaultdict):
+                            self.net_sta_end_time[it][nk][sk] = -1e32
                         # end if
 
                         for (lk, lv) in sv.iteritems():
@@ -190,10 +194,10 @@ class FederatedASDFDataSet():
 
                                     bounds = cv.bounds
 
-                                    if(self.net_sta_start_time[nk][sk] > bounds[0]):
-                                        self.net_sta_start_time[nk][sk] = bounds[0]
-                                    if(self.net_sta_end_time[nk][sk] < bounds[2]):
-                                        self.net_sta_end_time[nk][sk] = bounds[2]
+                                    if(self.net_sta_start_time[it][nk][sk] > bounds[0]):
+                                        self.net_sta_start_time[it][nk][sk] = bounds[0]
+                                    if(self.net_sta_end_time[it][nk][sk] < bounds[2]):
+                                        self.net_sta_end_time[it][nk][sk] = bounds[2]
 
                                     min.append(bounds[0])
                                     max.append(bounds[2])
@@ -468,9 +472,16 @@ class FederatedASDFDataSet():
             if(val):
                 for (nk, nv) in val.iteritems():
                     for (sk, sv) in nv.iteritems():
-                        yield nk, sk, \
-                              UTCDateTime(self.net_sta_start_time[nk][sk]), \
-                              UTCDateTime(self.net_sta_end_time[nk][sk])
+                        start_time = None
+                        end_time = None
+                        try:
+                            start_time = UTCDateTime(self.net_sta_start_time[it][nk][sk])
+                            end_time = UTCDateTime(self.net_sta_end_time[it][nk][sk])
+                        except:
+                            continue
+                        # end try
+
+                        yield nk, sk, start_time, end_time
                     # end for
                 # end for
             # end if
