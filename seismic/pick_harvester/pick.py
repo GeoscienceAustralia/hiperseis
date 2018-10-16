@@ -209,6 +209,7 @@ def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
                         #summary = fbpicker.FBSummary(picker, trc)
                         #summary = aicdpicker.AICDSummary(picker, trc)
                         #outputPath = '/home/rakib/work/pst/picking/sarr'
+                        #outputPath = '/g/data1a/ha3/rakib/seismic/pst/tests/plots/new'
                         #ofn = '%s/%s.%s_%f_%d.s.png' % (outputPath, scnl, str(po.utctime), snr[0], i)
                         #summary.plot_picks(show=False, savefn=ofn)
                     # end if
@@ -244,6 +245,12 @@ def getWorkloadEstimate(fds, originTimestamps):
         # wend
     # end for
     return totalTraceCount
+# end func
+
+def dropBogusTraces(st, sampling_rate_cutoff=5):
+    badTraces = [tr for tr in st if tr.stats.sampling_rate < sampling_rate_cutoff]
+
+    for tr in badTraces: st.remove(tr)
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -291,7 +298,9 @@ def process(asdf_source, event_folder, output_path):
     # ==========================================
     #picker = fbpicker.FBPicker(t_long=5, freqmin=0.1, mode='std', t_ma=20, nsigma=8, \
     #                           t_up=1, nr_len=5, nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
-    picker = aicdpicker.AICDPicker(t_ma=5, nsigma=8, t_up=1, nr_len=5,
+    picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=8, t_up=1, nr_len=5,
+                                   nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+    picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=8, t_up=1, nr_len=5,
                                    nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
 
     taupyModel = TauPyModel(model='iasp91')
@@ -333,8 +342,8 @@ def process(asdf_source, event_folder, output_path):
                                            curr,
                                            curr+day, tag='raw_recording', automerge=True)
 
-                    if (len(st) == 0): continue # no data found or likely merge failed
-                    if (st[0].stats.sampling_rate < 1): continue # likely corrupt data
+                    dropBogusTraces(st)
+                    if (len(st) == 0): continue
 
                     slon, slat = codes[4], codes[5]
                     for ei in eventIndices:
@@ -342,7 +351,7 @@ def process(asdf_source, event_folder, output_path):
                         po = event.preferred_origin
                         da = DistAz(po.lat, po.lon, slat, slon)
 
-                        result = extract_p(taupyModel, picker, event, slon, slat, st)
+                        result = extract_p(taupyModel, picker_p, event, slon, slat, st)
                         if(result):
                             pick, residual, snr, bi = result
 
@@ -351,14 +360,14 @@ def process(asdf_source, event_folder, output_path):
                                    '%f %f ' \
                                    '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                   da.getBaz(), da.degreesToKilometers(da.getDelta()),
+                                                   da.getBaz(), da.getDelta(),
                                                    residual, snr, bi)
                             ofp.write(line)
                             pickCountP += 1
                         # end if
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
-                            result = extract_s(taupyModel, picker, event, slon, slat, st, None, da.getBaz())
+                            result = extract_s(taupyModel, picker_s, event, slon, slat, st, None, da.getBaz())
                             if (result):
                                 pick, residual, snr, bi = result
 
@@ -367,7 +376,7 @@ def process(asdf_source, event_folder, output_path):
                                        '%f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                       da.getBaz(), da.degreesToKilometers(da.getDelta()),
+                                                       da.getBaz(), da.getDelta(),
                                                        residual, snr, bi)
                                 ofs.write(line)
                                 pickCountS += 1
@@ -387,10 +396,11 @@ def process(asdf_source, event_folder, output_path):
                                                curr,
                                                curr + day, tag='raw_recording', automerge=True)
 
-                        if (len(stn) == 0): continue  # no data found or likely merge failed
-                        if (len(ste) == 0): continue  # no data found or likely merge failed
-                        if (stn[0].stats.sampling_rate < 1): continue  # likely corrupt data
-                        if (ste[0].stats.sampling_rate < 1): continue  # likely corrupt data
+                        dropBogusTraces(stn)
+                        dropBogusTraces(ste)
+
+                        if (len(stn) == 0): continue
+                        if (len(ste) == 0): continue
 
                         slon, slat = codesn[4], codesn[5]
 
@@ -399,7 +409,7 @@ def process(asdf_source, event_folder, output_path):
                             po = event.preferred_origin
                             da = DistAz(po.lat, po.lon, slat, slon)
 
-                            result = extract_s(taupyModel, picker, event, slon, slat, stn, ste, da.getBaz())
+                            result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da.getBaz())
                             if (result):
                                 pick, residual, snr, bi = result
 
@@ -408,7 +418,7 @@ def process(asdf_source, event_folder, output_path):
                                        '%f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
-                                                       da.getBaz(), da.degreesToKilometers(da.getDelta()),
+                                                       da.getBaz(), da.getDelta(),
                                                        residual, snr, bi)
                                 ofs.write(line)
                                 pickCountS += 1
