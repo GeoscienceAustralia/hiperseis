@@ -307,7 +307,7 @@ def process(asdf_source, event_folder, output_path):
     fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
     workload = getWorkloadEstimate(fds, originTimestamps)
 
-    header = '#eventID originTimestamp originLon originLat net sta cha pickTimestamp stationLon stationLat baz distKm ttResidual snr bandIndex\n'
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat baz distance ttResidual snr bandIndex\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofp = open(ofnp, 'w+')
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
@@ -350,15 +350,18 @@ def process(asdf_source, event_folder, output_path):
                         event = events[ei]
                         po = event.preferred_origin
                         da = DistAz(po.lat, po.lon, slat, slon)
+                        mag = np.NaN
+                        if(event.preferred_magnitude): mag = event.preferred_magnitude.magnitude_value
+                        elif(len(po.magnitude_list)): mag = po.magnitude_list[0].magnitude_value
 
                         result = extract_p(taupyModel, picker_p, event, slon, slat, st)
                         if(result):
                             pick, residual, snr, bi = result
 
-                            line = '%s %f, %f %f ' \
-                                   '%s %s %s %f, %f %f ' \
+                            line = '%s %f %f %f %f %f ' \
+                                   '%s %s %s %f %f %f ' \
                                    '%f %f ' \
-                                   '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
+                                   '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                    da.getBaz(), da.getDelta(),
                                                    residual, snr, bi)
@@ -371,10 +374,10 @@ def process(asdf_source, event_folder, output_path):
                             if (result):
                                 pick, residual, snr, bi = result
 
-                                line = '%s %f, %f %f ' \
-                                       '%s %s %s %f, %f %f ' \
+                                line = '%s %f %f %f %f %f ' \
+                                       '%s %s %s %f %f %f ' \
                                        '%f %f ' \
-                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
+                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                        da.getBaz(), da.getDelta(),
                                                        residual, snr, bi)
@@ -408,15 +411,20 @@ def process(asdf_source, event_folder, output_path):
                             event = events[ei]
                             po = event.preferred_origin
                             da = DistAz(po.lat, po.lon, slat, slon)
+                            mag = np.NaN
+                            if (event.preferred_magnitude):
+                                mag = event.preferred_magnitude.magnitude_value
+                            elif (len(po.magnitude_list)):
+                                mag = po.magnitude_list[0].magnitude_value
 
                             result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da.getBaz())
                             if (result):
                                 pick, residual, snr, bi = result
 
-                                line = '%s %f, %f %f ' \
-                                       '%s %s %s %f, %f %f ' \
+                                line = '%s %f %f %f %f %f ' \
+                                       '%s %s %s %f %f %f ' \
                                        '%f %f ' \
-                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, po.lon, po.lat,
+                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
                                                        da.getBaz(), da.getDelta(),
                                                        residual, snr, bi)

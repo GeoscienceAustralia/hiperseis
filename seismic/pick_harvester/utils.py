@@ -169,7 +169,7 @@ class EventParser:
             elif ('depth' in element.tag):
                 for subelement in element:
                     if ('value' in subelement.tag):
-                        depthkm = float(subelement.text) / 1e3
+                        depthkm = float(subelement.text)
                     # end if
                 # end for
             elif ('magnitude' in element.tag and \
