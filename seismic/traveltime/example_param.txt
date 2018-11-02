@@ -41,3 +41,61 @@
 1250.
 1400.
 1600.
+# The end of data section
+########################################################################################
+#  This is an example parameter file, which are used by inversion program (raytracer/params/param2x2)
+#  The above parameters define a grid of the Earth in (long, lat, depth_km), for ray-clustering purpose
+#
+#  Global parameters:
+#     72 36 16 5. 5.
+#           0.
+#         110.
+#         280.
+#         410.
+#         660.
+#         840.
+#        1020.
+#        1250.
+#        1400.
+#        1600.
+#        1850.
+#        2050.
+#        2250.
+#        2450.
+#        2600.
+#        2750.
+#        2889.
+#
+#     where 72 is number of cells in Lon, 36 number of cells in Lat,
+#     16 is number of layers, and 5 is size of the cell
+#
+#  Local parameterisation:
+#     100. 190. -54. 0. 90 54 23
+#         0.
+#         10.
+#         35.
+#         70.
+#         110.
+#         160.
+#         210.
+#         260.
+#         310.
+#         360.
+#         410.
+#         460.
+#         510.
+#         560.
+#         610.
+#         660.
+#         710.
+#         810.
+#         910.
+#         1010.
+#         1110.
+#         1250.
+#         1400.
+#         1600.
+#     where 100, 190 are minLon and maxLon, '-54' and '0' are minlat and maxlat,
+#     45 number of cells in Lon, 27 is the number of cells in lat.
+#     23 is the number of vertical layers
+####################################################################################

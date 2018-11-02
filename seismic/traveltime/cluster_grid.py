@@ -1,110 +1,22 @@
+#! /usr/bin/env python
 """
-Define a grid of the Earth in (long, lat, depth_km), for ray-clustering purpose
+Description:
+    Define a 3D grid discretization of the Earth
 
-# PARAM_FILE_FORMAT = '''
-#     An example parameter file is provided in raytracer/params/param2x2.
-#     A typical param file should have the following format:
-#
-#     Global dataset following parameters:
-#     72 36 16 5. 5.
-#           0.
-#         110.
-#         280.
-#         410.
-#         660.
-#         840.
-#        1020.
-#        1250.
-#        1400.
-#        1600.
-#        1850.
-#        2050.
-#        2250.
-#        2450.
-#        2600.
-#        2750.
-#        2889.
-#
-#     where 72 is number of cells in Lon, 36 number of cells in Lat,
-#     16 is number of layers, and 5 is size of the cell
-#
-#     For local parameterisation:
-#
-#
-#     100.  190.  -54.  0.  45 27  22
-#           0.
-#          35.
-#          70.
-#         110.
-#         160.
-#         210.
-#         260.
-#         310.
-#         360.
-#         410.
-#         460.
-#         510.
-#         560.
-#         610.
-#         660.
-#         710.
-#         810.
-#         910.
-#        1010.
-#        1110.
-#        1250.
-#        1400.
-#        1600.
-#
-#     where 100, 190 are minLon and maxLon, '-54' and '0' are minlat and maxlat,
-#     45 number of cells in Lon, 27 is the number of cells in lat, 22
-#     is the number of layers
-#    '''
+CreationDate:   2/09/2018
+Developer:      fei.zhang@ga.gov.au
+
+Revision History:
+    LastUpdate:     2/11/2018   clean up refactoring
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
+import os
 import logging
 import numpy as np
 import pandas as pd
 
 log = logging.getLogger(__name__)
-
-
-class Grid:
-    """
-    The original (simple) uniform grid model definition.
-    Note: this class is replaced by Grid2 below.
-    """
-
-    def __init__(self, nx=360, ny=180, dz=10000):
-        """
-        constructor for Grid. Define 3D cell properties
-        :param nx: integer number of cells in longitude (360)
-        :param ny: lattitude cells (180)
-        :param dz: depth in meteres (default=10KM)
-        """
-        self.nx = nx
-        self.ny = ny
-        self.dx = 360.0 / nx
-        self.dy = 180.0 / ny
-        self.dz = dz
-
-    def find_block_number(self, lat, lon, z):
-        """
-        find the 3D-block number in this grid
-        :param lat: lattitude
-        :param lon: longitude
-        :param z: elevation
-        :return: int block number
-        """
-        # y = 90. - lat  # original wrong
-        y = (lat + 90) % 180  # y will be in (0,180)
-        x = lon % 360
-        i = round(x / self.dx) + 1
-        j = round(y / self.dy) + 1
-        k = round(z / self.dz) + 1
-        block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
-
-        return int(block_number)
 
 
 class Grid2:
@@ -114,26 +26,59 @@ class Grid2:
     Reference to the inversion Fortran code model (file param1x1):
     Global: 72 36 16 5. 5.               (5x5d egree + a list of 1+16 depths)
     Region: 100. 190. -54. 0. 90 54  23  (1x1 degree  + a list of 1+23 depths
-
     """
 
     # def __init__(self, nx=360, ny=180, dz=10000):
-    def __init__(self, ndis=2):
+    def __init__(self, ndis=2, param_file=None):
         """
         constructor for a non-uniform Grid.
         Please modify the parameters in this method according to your desired Grid attributes.
-        :param ndis: 2, 4
-
+        :param ndis: 2, 4 (define the ref discretization by 2 or 4)
         """
         self.ndis = ndis
+
+        if param_file is None:
+            print("Use the default harded-coded Grid parameters in ", __file__)
+            self._define_params()
+            # self.show_properties()
+        else:
+            # get params from a file
+            self._parse_parametrisation(param_file)
+
+            # Further re-scaling definition
+            self.dx = self.dx / self.ndis
+            self.dy = self.dy / self.ndis
+            self.gdx = self.gdx / self.ndis
+            self.gdy = self.gdy / self.ndis
+
+            self.nx = self.nx * self.ndis
+            self.ny = self.ny * self.ndis
+            self.gnx = self.gnx * self.ndis
+            self.gny = self.gny * self.ndis
+
+            self.refrmeters = self._refine_depth(self.rmeters, ndis=self.ndis)
+
+            self.refgmeters = self._refine_depth(self.gmeters, ndis=self.ndis)
+
+            self.REGION_MAX_BN = self._get_max_region_block_number()
+
+
+        return
+
+    def _define_params(self):
+        """
+        define the grid parameters
+        :param ndis:
+        :return:
+        """
 
         # Region bounadry definition
         self.LON = (100.0, 190.0)
         self.LAT = (-54.0, 0.0)
 
         # region grid size in lat-long plane
-        self.nx = ndis * 90  # 1/4 degree cell size in LONG
-        self.ny = ndis * 54  # 1/4 degree cell size in LAT
+        self.nx = self.ndis * 90  # 1/4 degree cell size in LONG
+        self.ny = self.ndis * 54  # 1/4 degree cell size in LAT
         self.dx = (self.LON[1] - self.LON[0]) / self.nx  # 1/ndis degree
         self.dy = (self.LAT[1] - self.LAT[0]) / self.ny  # 1/ndis degree
 
@@ -141,10 +86,11 @@ class Grid2:
         self.rdepth = (0, 10, 35, 70, 110, 160, 210, 260, 310, 360, 410, 460, 510, 560,
                        610, 660, 710, 810, 910, 1010, 1110, 1250, 1400, 1600)
 
+        self.nz = len(self.rdepth) -1
+
         # Region Depth in meters
         self.rmeters = 1000 * np.array(self.rdepth)
 
-        self.dz = 5000  # assumed uniform cellsize in depth inside the ANZ zone 5KM
         self.refrmeters = self._refine_depth(self.rmeters, ndis=self.ndis)
 
         # global grid model params (outside the region)
@@ -156,6 +102,7 @@ class Grid2:
 
         # Global's depths in KM according to Fortran param1x1
         self.gdepth = (0, 110, 280, 410, 660, 840, 1020, 1250, 1400, 1600, 1850, 2050, 2250, 2450, 2600, 2750, 2889)
+        self.gnz = len(self.gdepth) -1
 
         self.gmeters = 1000 * np.array(self.gdepth)  # Region Depth in meters
 
@@ -165,6 +112,87 @@ class Grid2:
         self.REGION_MAX_BN = self._get_max_region_block_number()
 
         return
+
+    def _parse_parametrisation(self, param_file):
+        """
+        Reads in the local and global grid parameters from an external
+        parametrisation file (by default we load  param_file='./example_param.txt')
+        """
+
+        with open(param_file, 'r') as F:
+            # Rewind to file beginning
+            F.seek(0)
+
+            ## PART 1 - GLOBAL GRID
+            # Read-in the global grid (number of cells and resolution)
+            gnx, gny, gnz, gdx, gdy = F.readline().strip('\n').split(' ')
+            self.gnx = int(gnx)
+            self.gny = int(gny)
+            self.gnz = int(gnz)
+            self.gdx = float(gdx)
+            self.gdy = float(gdy)
+
+            # There is currently no option to reduce the coverage of the global
+            # grid, so resolution information is a little redundant. Nevertheless,
+            # let's perform a sanity test.
+            assert (360. / self.gdx) == self.gnx
+            assert (180. / self.gdy) == self.gny
+
+            # Load global depth nodes
+            self.gdepth = np.zeros(self.gnz + 1)
+            for i in range(self.gnz + 1):
+                try:
+                    depth = float(F.readline().strip('\n'))
+                except ValueError as err:
+                    print(('There appear to be less global depth levels than ' + \
+                           'was indicated! The header suggested %d levels, but ' + \
+                           'I can only parse %d. Please check the param file.') % (self.gnz + 1, i))
+                    raise err
+                self.gdepth[i] = depth
+
+            # Global depth in meters
+            self.gmeters = 1000. * self.gdepth
+
+            ## PART 2 - LOCAL GRID
+            # Read-in the local grid (extent and number of cells)
+            try:
+                LON_min, LON_max, LAT_min, LAT_max, nx, ny, nz = F.readline().strip('\n').split(' ')
+                LON_min = float(LON_min)
+                LON_max = float(LON_max)
+                LAT_min = float(LAT_min)
+                LAT_max = float(LAT_max)
+                self.LON = (LON_min, LON_max)
+                self.LAT = (LAT_min, LAT_max)
+                self.nx = int(nx)
+                self.ny = int(ny)
+                self.nz = int(nz)
+            except ValueError as err:
+                print(('There appear to be more global depth levels than ' + \
+                       'was indicated! The header suggested %d levels; ' + \
+                       'please check the param file.') % (self.nz + 1))
+                raise err
+
+            # Local grid resolution
+            self.dx = (self.LON[1] - self.LON[0]) / self.nx
+            self.dy = (self.LAT[1] - self.LAT[0]) / self.ny
+
+            # Load local depth nodes
+            self.rdepth = np.zeros(self.nz + 1)
+            for i in range(self.nz + 1):
+                try:
+                    depth = float(F.readline().strip('\n'))
+                except ValueError as err:
+                    print(('There appear to be less local depth levels than ' + \
+                           'was indicated! The header suggested %d levels, but ' + \
+                           'I can only parse %d. Please check the param file.') % (self.nz + 1, i))
+                    raise err
+                self.rdepth[i] = depth
+
+            # Local depth in meters
+            self.rmeters = 1000. * self.rdepth
+
+            #print(self.rdepth)
+            return
 
     def _refine_depth(self, dep_meters, ndis=2):
         """
@@ -195,8 +223,9 @@ class Grid2:
 
         :return: int max_nb
         """
-        # assume 2000KM max depth, compute the z-layers
-        k = round(2000000.0 / self.dz) + 1
+        # assume 2000KM max depth, compute the z-layers layer_depth
+        layer_depth = 5000
+        k = round(2000000.0 / layer_depth) + 1
         bn = k * self.nx * self.ny + 1  # must make sure this number is big enough, to separate region|global
 
         log.info("The REG_MAX_BN = %s", bn)
@@ -303,13 +332,34 @@ class Grid2:
 
         return (k, zcm)
 
+    def __str__(self):
+        """
+        String representaiton of the object
+        https://stackoverflow.com/questions/4932438/how-to-create-a-custom-string-representation-for-a-class-object
+        :return:
+        """
+        print("****** Show all attributes of the Grid instance:  ******* ")
+        mykeys = self.__dict__.keys()
+
+        sorted_keys = sorted(mykeys)
+
+        mylist=[]
+        for k in sorted_keys:
+            #print('%-10s' % (str(k)) + ':', my_grid.__dict__[k])
+            mylist.append("%s : %s "%(str(k), my_grid.__dict__[k]))
+
+        return str(mylist)
+
     def show_properties(self):
         """
         print the properties of the grid definition
         :return:
         """
 
-        print("The refined discretization divide = ", self.ndis)
+        print(str(self))
+
+        print("**********************************")
+        print("The refined discretization divided by = ", self.ndis)
         print("Reginal grid prop= ", self.dx, self.dy, self.nx, self.ny)
         print("Gloabl grid prop= ", self.gdx, self.gdy, self.gnx, self.gny)
 
@@ -348,14 +398,13 @@ class Grid2:
         """
 
         # how many points per degree in lat and lon respectively
-        per_degree = 10 # 5 means 0.2 degree cell size
-        latgrid = np.linspace(-90, 90, num=180*per_degree+1)
-        longrid = np.linspace(0, 360,  num=360*per_degree+1)
+        per_degree = 10  # 5 means 0.2 degree cell size
+        latgrid = np.linspace(-90, 90, num=180 * per_degree + 1)
+        longrid = np.linspace(0, 360, num=360 * per_degree + 1)
 
         mygrid = []
         for xin in longrid:
             for yin in latgrid:
-
                 (bn, xc, yc, zc) = self.find_block_number(yin, xin, depthmeters)
                 arow = (bn, xc, yc, zc, xin, yin, depthmeters)
                 mygrid.append(arow)
@@ -395,19 +444,57 @@ class Grid2:
         return pdf3d
 
 
+class UniformGrid:
+    """
+    The original (simple) uniform grid model definition.
+    Note: this class is replaced by a more generic non-uniform Grid2
+    """
+
+    def __init__(self, nx=360, ny=180, dz=10000):
+        """
+        constructor for Grid. Define 3D cell properties
+        :param nx: integer number of cells in longitude (360)
+        :param ny: lattitude cells (180)
+        :param dz: depth in meteres (default=10KM)
+        """
+        self.nx = nx
+        self.ny = ny
+        self.dx = 360.0 / nx
+        self.dy = 180.0 / ny
+        self.dz = dz
+
+    def find_block_number(self, lat, lon, z):
+        """
+        find the 3D-block number in this grid - Not thorougly tested!
+        :param lat: lattitude
+        :param lon: longitude
+        :param z: elevation
+        :return: int block number
+        """
+        # y = 90. - lat  # original wrong
+        y = (lat + 90) % 180  # y will be in (0,180)
+        x = lon % 360
+        i = round(x / self.dx) + 1
+        j = round(y / self.dy) + 1
+        k = round(z / self.dz) + 1
+        block_number = (k - 1) * self.nx * self.ny + (j - 1) * self.nx + i
+
+        return int(block_number)
+
+
 # ========================================================
 # quick test run to see if the Grid definition is right??
 # ========================================================
 if __name__ == "__main__":
 
     # my_grid = Grid2(ndis=4)
-    my_grid = Grid2(ndis=2)
+    my_grid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/example_param.txt')
+    #my_grid = Grid2()
+    my_grid.show_properties()
 
     # Generate the whole grid:
-
     # mypdf = my_grid.generate_latlong_grid()
     # print (mypdf.head())
 
-    my3dgrid = my_grid.generate_grid3D()
-
-    print("Final size of the 3D grid", my3dgrid.shape)
+    # my3dgrid = my_grid.generate_grid3D()  # this may take a long time
+    # print("Final size of the 3D grid", my3dgrid.shape)

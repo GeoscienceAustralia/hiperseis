@@ -21,12 +21,12 @@ class grid3():
 #
 #        return
     
-    def parse_parametrisation(self, filepath='./param'):
+    def parse_parametrisation(self, param_file='./example_param.txt'):
         """
         Reads in the local and global grid parameters from an external 
         parametrisation file (by default we load './param')
         """
-        with open(filepath, 'r') as F:
+        with open(param_file, 'r') as F:
             # Rewind to file beginning
             F.seek(0)
             
@@ -97,12 +97,15 @@ class grid3():
             
             # Local depth in meters
             self.rmeters = 1000. * self.rdepth
+
+            print(self.rdepth)
     
 
 if __name__=='__main__':
     G = grid3()
-    L = G.__dict__.keys()
-    L.sort()
-    for k in L:
+    keys = G.__dict__.keys()
+
+    sorted_keys= sorted(keys)
+
+    for k in sorted_keys:
         print('%-10s' % (str(k)) + ':', G.__dict__[k])
-    
