@@ -350,9 +350,10 @@ def process(asdf_source, event_folder, output_path):
                         event = events[ei]
                         po = event.preferred_origin
                         da = DistAz(po.lat, po.lon, slat, slon)
-                        mag = np.NaN
+                        mag = None
                         if(event.preferred_magnitude): mag = event.preferred_magnitude.magnitude_value
                         elif(len(po.magnitude_list)): mag = po.magnitude_list[0].magnitude_value
+                        if(mag == None): mag = np.NaN
 
                         result = extract_p(taupyModel, picker_p, event, slon, slat, st)
                         if(result):
@@ -411,11 +412,12 @@ def process(asdf_source, event_folder, output_path):
                             event = events[ei]
                             po = event.preferred_origin
                             da = DistAz(po.lat, po.lon, slat, slon)
-                            mag = np.NaN
+                            mag = None
                             if (event.preferred_magnitude):
                                 mag = event.preferred_magnitude.magnitude_value
                             elif (len(po.magnitude_list)):
                                 mag = po.magnitude_list[0].magnitude_value
+                            if (mag == None): mag = np.NaN
 
                             result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da.getBaz())
                             if (result):
