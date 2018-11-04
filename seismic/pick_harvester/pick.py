@@ -49,6 +49,8 @@ from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
 from utils import EventParser, DistAz, Catalog
+import psutil
+import gc
 
 def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
@@ -445,10 +447,12 @@ def process(asdf_source, event_folder, output_path):
         sw_stop = datetime.now()
         totalTime = (sw_stop - sw_start).total_seconds()
 
+        gc.collect()
         print '(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
-              'network %s station %s in %f s'%\
-              (rank, (float(totalTraceCount)/float(workload)*100) if workload>0 else 100, totalTraceCount, workload,
-               traceCountP+traceCountS, pickCountP, pickCountS, nc, sc, totalTime)
+              'network %s station %s in %f s. Memory usage: %5.2f MB.' % \
+              (rank, (float(totalTraceCount) / float(workload) * 100) if workload > 0 else 100, totalTraceCount, workload,
+               traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime,
+               round(psutil.Process().memory_info().rss / 1024. / 1024., 2))
     # end for
     ofp.close()
     ofs.close()
