@@ -12,7 +12,7 @@ import click
 import pandas as pd
 
 from seismic import pslog
-from seismic.traveltime.cluster_grid import Grid, Grid2
+from seismic.traveltime.cluster_grid import UniformGrid, Grid2
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
