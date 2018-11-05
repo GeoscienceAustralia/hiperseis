@@ -264,7 +264,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-def process(asdf_source, event_folder, output_path):
+@click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
+def process(asdf_source, event_folder, output_path, min_magnitude):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
@@ -357,6 +358,8 @@ def process(asdf_source, event_folder, output_path):
                         elif(len(po.magnitude_list)): mag = po.magnitude_list[0].magnitude_value
                         if(mag == None): mag = np.NaN
 
+                        if(np.isnan(mag) or mag < min_magnitude): continue
+
                         result = extract_p(taupyModel, picker_p, event, slon, slat, st)
                         if(result):
                             pick, residual, snr, bi = result
@@ -420,6 +423,8 @@ def process(asdf_source, event_folder, output_path):
                             elif (len(po.magnitude_list)):
                                 mag = po.magnitude_list[0].magnitude_value
                             if (mag == None): mag = np.NaN
+
+                            if (np.isnan(mag) or mag < min_magnitude): continue
 
                             result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da.getBaz())
                             if (result):
