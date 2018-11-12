@@ -406,7 +406,7 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
 
     pdf4inv = final_df[required_columns]
 
-    inv_txt = "%s.inv_txt" % outputcsv
+    inv_txt = "%s_inv.txt" % outputcsv
     pdf4inv.to_csv(inv_txt,header=False, index=False, sep=' ')  # space delimitted txt file
 
     return outputcsv
