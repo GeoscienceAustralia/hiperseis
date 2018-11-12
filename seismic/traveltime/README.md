@@ -15,7 +15,7 @@ Assume this data is obtained from upstream pipeline modules: phase-picking progr
     
     $ export PSTHOME=/g/data/ha3/fxz547/Githubz/passive-seismic/
     
-     $ export ELLIPCORR=$PSTHOME/ellip-corr/
+    $ export ELLIPCORR=$PSTHOME/ellip-corr/
     
     $ python $PSTHOME/seismic/traveltime/sort_rays.py /path2/p_arrivals.txt  p_arrivals_sorted1x1.csv P $PSTHOME/seismic/traveltime/param1x1 $PSTHOME/seismic/traveltime/csv_columns.json
     
