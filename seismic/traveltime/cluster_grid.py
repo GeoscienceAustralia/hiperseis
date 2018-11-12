@@ -62,8 +62,8 @@ class Grid2:
 
             self.REGION_MAX_BN = self._get_max_region_block_number()
 
-
         return
+
 
     def _define_params(self):
         """
@@ -356,7 +356,7 @@ class Grid2:
         :return:
         """
 
-        print(str(self))
+        print(str(self))  # print a string representation of this object
 
         print("**********************************")
         print("The refined discretization divided by = ", self.ndis)
@@ -488,8 +488,10 @@ class UniformGrid:
 if __name__ == "__main__":
 
     # my_grid = Grid2(ndis=4)
-    my_grid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/example_param.txt')
-    #my_grid = Grid2()
+    # my_grid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/example_param.txt')
+    my_grid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/param1x1')
+    # my_grid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/param2x2')
+    # my_grid = Grid2()
     my_grid.show_properties()
 
     # Generate the whole grid:
