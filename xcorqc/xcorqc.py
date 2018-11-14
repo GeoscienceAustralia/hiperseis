@@ -7,7 +7,7 @@ from obspy import read, Trace
 from obspy.signal.cross_correlation import xcorr
 import numpy as np
 import matplotlib
-
+import logging
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy
@@ -16,34 +16,22 @@ from fft import *
 from collections import defaultdict
 from netCDF4 import Dataset
 
+from obspy.signal.detrend import simple, spline
+from obspy.signal.filter import bandpass
 
-# Greatest common divisor of more than 2 numbers.
-def gcd(*numbers):
-    """Return the greatest common divisor of the given integers"""
-    from fractions import gcd
-    return reduce(gcd, numbers)
+def setup_logger(name, log_file, level=logging.INFO):
+    """
+    Function to setup a logger; adapted from stackoverflow
+    """
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler(log_file, mode='w')
+    handler.setFormatter(formatter)
 
-
-# Assuming numbers are positive integers.
-
-def lcm(*numbers):
-    """Return lowest common multiple."""
-
-    def lcm(a, b):
-        return (a * b) // gcd(a, b)
-
-    return reduce(lcm, numbers, 1)
-
-
-def butterworthBPF(spectrum, samprate, f_lo, f_hi):
-    f = np.fft.fftfreq(spectrum.shape[0], 1.0 / samprate)
-    p = 4  # poles
-    gain_lpf = 1.0 / (1 + (f / f_hi) ** (2 * p))
-    gain_hpf = 1.0 / (1 + (f / f_lo) ** (2 * p))
-    gain_bpf = gain_lpf - gain_hpf
-    spectrum *= gain_bpf
-    return spectrum
-
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    return logger
+# end func
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -68,16 +56,16 @@ def zeropad_ba_old(tr, padlen):
     return padded
 
 
-def taperDetrend(tr, taperlen):
+def taper(tr, taperlen):
     """ First detrend, then tapers signal"""
-    tr -= np.median(tr)
     tr[0:taperlen] *= 0.5 * (1 + np.cos(np.linspace(-math.pi, 0, taperlen)))
     tr[-taperlen:] *= 0.5 * (1 + np.cos(np.linspace(0, math.pi, taperlen)))
     return tr
+# end func
 
-
-def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
-           flo=0.9, fhi=1.1, verbose=1):
+def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
+           flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
+           verbose=1, logger=None):
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
     tr1_d_all = tr1.data  # refstn
@@ -94,7 +82,8 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
 
     intervalCount = 0
     windowsPerInterval = []  # Stores the number of windows processed per interval
-
+    intervalStartSeconds = []
+    intervalEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
@@ -125,8 +114,39 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
-                tr1_d = taperDetrend(tr1_d, int(sr1 / flo))
-                tr2_d = taperDetrend(tr2_d, int(sr2 / flo))
+                # detrend
+                tr1_d = spline(tr1_d, 2, 1000)
+                tr2_d = spline(tr2_d, 2, 1000)
+
+                # zero-mean
+                tr1_d -= np.mean(tr1_d)
+                tr2_d -= np.mean(tr2_d)
+
+                # clip to +/- 2*std
+                if(clip_to_2std):
+                    std_tr1 = np.std(tr1_d)
+                    std_tr2 = np.std(tr2_d)
+                    clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
+                    clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
+
+                    tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
+                    tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
+                # end if
+
+                # apply zero-phase band-pass
+                tr1_d = bandpass(tr1_d, flo, fhi, sr1, zerophase=True)
+                tr2_d = bandpass(tr2_d, flo, fhi, sr2, zerophase=True)
+
+                # taper
+                #tr1_d = taper(tr1_d, int(sr1 / flo))
+                #tr2_d = taper(tr2_d, int(sr2 / flo))
+
+                # 1-bit normalization
+                if(one_bit_normalize):
+                    tr1_d = np.sign(tr1_d)
+                    tr2_d = np.sign(tr2_d)
+                # end if
+
                 if (sr1 < sr2):
                     fftlen2 = fftlen
                     fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
@@ -151,14 +171,23 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
                 resl.append(rf)
                 windowCount += 1
             # end if
-            wtr1s = wtr1e
-            wtr2s = wtr2e
+
+            wtr1s += int(window_samples_1 - window_samples_1 * window_overlap)
+            wtr2s += int(window_samples_2 - window_samples_2 * window_overlap)
         # end while (windows within interval)
 
         if (verbose > 1):
-            print '\t\t\tProcessed %d windows in interval %d' % (windowCount, intervalCount)
+            if(logger): logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end fi
 
+        if(np.fabs(itr1e - itr1s) < sr1):
+            itr1s = itr1e
+            itr2s = itr2e
+            continue
+        # end if
+
+        intervalStartSeconds.append(itr1s/sr1)
+        intervalEndSeconds.append(itr1e/sr1)
         itr1s = itr1e
         itr2s = itr2e
         intervalCount += 1
@@ -167,7 +196,7 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
         if (windowCount == 0):
             resl.append(np.zeros(fftlen))
             if (verbose == 1):
-                print('\t\t\tWarning: No windows processed due to gaps in data in current interval')
+                if(logger): logger.info('\tWarning: No windows processed due to gaps in data in current interval')
             # end if
         # end if
 
@@ -175,21 +204,11 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
 
         step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
         mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
-        mean = butterworthBPF(mean, sr, flo, fhi)
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
 
         # Compute magnitude of mean
         mean = np.abs(mean)
-
-        # mask out the zero line for the max
-        zerolower = int(xcorlen / 2 - sr / flo)
-        zeroupper = int(xcorlen / 2 + sr / flo)
-        maskmean = mean.view(np.ma.MaskedArray)
-        maskmean[zerolower:zeroupper] = np.ma.masked
-
-        #normFactor = np.ma.max(maskmean)
-        #normFactor = 3.0 * np.ma.std(maskmean)  # three sigma
         normFactor = np.max(mean)
 
         # mean can be 0 for a null result
@@ -201,34 +220,34 @@ def xcorr2(tr1, tr2, window_seconds=3600, interval_seconds=86400,
     # end while (iteration over intervals)
 
     if (len(resll)):
-        return np.array(resll), np.array(windowsPerInterval)
+        return np.array(resll), np.array(windowsPerInterval), \
+               np.array(intervalStartSeconds, dtype='i8'), \
+               np.array(intervalEndSeconds, dtype='i8')
     else:
-        return None, None
+        return None, None, None, None
     # end if
 # end func
 
-def IntervalStackXCorr(refds, tempds, tempds_db,
+def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                        start_time, end_time,
                        ref_station_ids=None, temp_station_ids=None,
-                       channel_wildcard='*Z',
+                       ref_channel_wildcard='*Z',
+                       temp_channel_wildcard='*Z',
                        refst_dec_factor=None, tempst_dec_factor=None,
                        buffer_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, flo=0.9, fhi=1.1,
+                       clip_to_2std=False, one_bit_normalize=False,
                        outputPath='/tmp', verbose=1):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
-    waveforms from all possible station-pairs from the two data sets. An implicit assumption is
-    made that the first data-source contains a relatively small amount of reference-station data
-    compared to the voluminous temporary stations data. To allow efficient, random data access
-    from the temporary stations data source, an instance of a SeisDB object, instantiated from
+    waveforms from all possible station-pairs from the two data sets. To allow efficient, random
+    data access asdf data sources, an instance of a SeisDB object, instantiated from
     the corresponding Json database is passed in (tempds_db) -- although this parameter is not
     mandatory, data-access from large ASDF files will be slow without it.
 
     Station-ids to be processed from the two data-sources can be specified as lists of strings,
-    while wildcards can be used to process all stations. Only a single parameter (channel_wildcard)
-    is provided to pick a channel for the data sources, with the assumption that cross-correlations
-    are performed on the same component. Data is fetched from the sources in chunks to limit memory
-    usage and data-windows with gaps are discarded.
+    while wildcards can be used to process all stations. Data is fetched from the sources in chunks
+    to limit memory usage and data-windows with gaps are discarded.
 
     Cross-correlation results are written out for each station-pair, in the specified folder, as
     NETCDF4 files. Panoply (https://www.giss.nasa.gov/tools/panoply/), already installed on the
@@ -236,6 +255,8 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
 
     :type refds: ASDFDataSet
     :param refds: ASDFDataSet containing reference-station data
+    :type refds_db: SeisDB
+    :param refds_db: Json database corresponding to the reference-stations ASDFDataSet.
     :type tempds: ASDFDataSet
     :param tempds: ASDFDataSet containing temporary-stations data
     :type tempds_db: SeisDB
@@ -250,8 +271,10 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
     :type temp_station_ids: List of strings
     :param temp_station_ids: List of temporary station names to be used from the ASDFDataSet.  Use
                              ['*'] for all stations available.
-    :type channel_wildcard: str
-    :param channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
+    :type ref_channel_wildcard: str
+    :param ref_channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
+    :type temp_channel_wildcard: str
+    :param temp_channel_wildcard: Wildcard to be used to filter channels. Default is '*Z'
     :type refst_dec_factor: int
     :param refst_dec_factor: Decimation factor for reference station data
     :type tempst_dec_factor: int
@@ -270,6 +293,10 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
     :param flo: Lower frequency for Butterworth bandpass filter
     :type fhi: float
     :param fhi: Upper frequency for Butterworth bandpass filter
+    :type clip_to_2std: bool
+    :param clip_to_2std: Clip data in each window to +/- 2 standard deviations
+    :type one_bit_normalize: bool
+    :param one_bit_normalize: Apply one-bit normalization to data in each window
     :type verbose: int
     :param verbose: Verbosity of printouts. Default is 1; maximum is 3.
     :type outputPath: str
@@ -290,6 +317,16 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
         # Fetch station names if a wildcard was passed
         temp_station_ids = [x.split('.')[1] for x in tempds.waveforms.list()]
 
+    #setup loggers
+    loggers = []
+    for rs in ref_station_ids:
+        for ts in temp_station_ids:
+            fn = os.path.join(outputPath, '%s.%s.log'%(rs, ts))
+            logger = setup_logger('%s.%s'%(rs, ts), fn)
+            loggers.append(logger)
+        # end for
+    # end for
+
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
 
@@ -297,155 +334,219 @@ def IntervalStackXCorr(refds, tempds, tempds_db,
 
     xcorrResultsDict = defaultdict(list)  # Results dictionary indexed by station-pair string
     windowCountResultsDict = defaultdict(list)  # Window-count dictionary indexed by station-pair string
+    intervalStartTimesDict = defaultdict(list)
+    intervalEndTimesDict = defaultdict(list)
     while (cTime < endTime):
         cStep = buffer_seconds
 
         if (cTime + cStep > endTime):
             cStep = endTime - cTime
 
-        print('=== Time Range: [%s - %s] ===' % (str(cTime), str(cTime + cStep)))
+        pairCount = 0
         for refStId in ref_station_ids:
-            print('\tFetching data for Ref. Station %s..' % (refStId))
-            refSt = refds.get_waveforms("*", refStId, "*", channel_wildcard, cTime,
-                                        cTime + cStep, '*')
+            logger = loggers[pairCount]
+
+            logger.info('====Time range  [%s - %s]====' % (str(cTime), str(cTime + cStep)))
+            logger.info('Fetching data for station %s..' % (refStId))
+
+            refSt = None
+            try:
+                if(refds_db is not None):
+                    refSt = refds_db.fetchDataByTime(refds, refStId, ref_channel_wildcard,
+                                                     cTime.timestamp,
+                                                     (cTime + cStep).timestamp,
+                                                     decimation_factor=refst_dec_factor)
+                else:
+                    refSt = refds.get_waveforms("*", refStId, "*", ref_channel_wildcard, cTime,
+                                                cTime + cStep, '*')
+                    # Decimate traces if a decimation factor for reference station data has been
+                    # specified.
+                    if (refst_dec_factor is not None):
+                        for tr in refSt:
+                            tr.decimate(refst_dec_factor)
+
+                    if (verbose > 2):
+                        logger.debug('\t\tData Gaps:')
+                        refSt.print_gaps() # output sent to stdout; fix this
+                        print ("\n")
+                    # end if
+                    # Merge reference station data. Note that we don't want to fill gaps; the
+                    # default merge() operation creates masked numpy arrays, which we can use
+                    # to detect and ignore windows that have gaps in their data.
+                    refSt.merge()
+                # end if
+            except:
+                logger.warn('\tError encountered while fetching data. Skipping along..')
+            # end try
+
             if (refSt is None):
-                print('\t\tFailed to fetch Ref. Station data. Skipping time interval..')
+                logger.info('Failed to fetch data..')
                 continue
             elif (len(refSt) == 0):
-                print('\t\tRef. Station data source exhausted. Skipping time interval..')
+                logger.info('Data source exhausted. Skipping time interval [%s - %s]' % (str(cTime), str(cTime + cStep)))
                 continue
+            else:
+                pass
+                #print refSt
             # end for
-
-            # Decimate traces if a decimation factor for reference station data has been
-            # specified.
-            if (refst_dec_factor is not None):
-                for tr in refSt:
-                    tr.decimate(refst_dec_factor)
-
-            if (verbose > 2):
-                print('\t\tData Gaps:')
-                refSt.print_gaps()
-                print ("\n")
-            # end if
-            # Merge reference station data. Note that we don't want to fill gaps; the
-            # default merge() operation creates masked numpy arrays, which we can use
-            # to detect and ignore windows that have gaps in their data.
-            refSt.merge()
 
             for tempStId in temp_station_ids:
                 stationPair = refStId + '.' + tempStId
 
-                print('\tFetching data for Tmp. Station %s..' % (tempStId))
+                logger.info('\tFetching data for station %s..' % (tempStId))
+
                 tempSt = None
+                try:
+                    if(tempds_db is not None):
+                        # Fetching data from a large ASDF file, as is the case with temporary
+                        # stations data, is significantly faster using a Json database.
+                        tempSt = tempds_db.fetchDataByTime(tempds, tempStId, temp_channel_wildcard,
+                                                           cTime.timestamp,
+                                                           (cTime + cStep).timestamp,
+                                                           decimation_factor=tempst_dec_factor)
+                    else:
+                        # Otherwise fetch data using the pyasdf interface.
+                        tempSt = tempds.get_waveforms("*", tempStId, "*", temp_channel_wildcard, cTime,
+                                                      cTime + cStep, '*')
 
-                if(tempds_db is not None):
-                    # Fetching data from a large ASDF file, as is the case with temporary
-                    # stations data, is significantly faster using a Json database.
-                    tempSt = tempds_db.fetchDataByTime(tempds, tempStId, channel_wildcard,
-                                                       cTime.timestamp,
-                                                       (cTime + cStep).timestamp,
-                                                       decimation_factor=tempst_dec_factor)
-                else:
-                    # Otherwise fetch data using the pyasdf interface.
-                    tempSt = tempds.get_waveforms("*", tempStId, "*", channel_wildcard, cTime,
-                                                  cTime + cStep, '*')
+                        # Decimate traces
+                        for tr in tempSt:
+                            tr.decimate(tempst_dec_factor)
 
-                    # Decimate traces
-                    for tr in tempSt:
-                        tr.decimate(tempst_dec_factor)
-
-                    # Merge traces, preserving data gaps (see above).
-                    tempSt.merge()
-                #end if
+                        # Merge traces, preserving data gaps (see above).
+                        try:
+                            tempSt.merge()
+                        except:
+                            logger.warn('\tFailed to merge traces..')
+                            tempSt = None
+                        # end try
+                    #end if
+                except:
+                    logger.warn('\tError encountered while fetching data. Skipping along..')
+                # end try
 
                 if (tempSt is None):
-                    print('\t\tFailed to fetch Tmp. Station data. Skipping station..')
+                    logger.info('Failed to fetch data..')
                     continue
                 elif (len(tempSt) == 0):
-                    print('\t\tTmp. Station data source exhausted. Skipping time interval..')
+                    logger.info('Data source exhausted. Skipping time interval [%s - %s]' % (str(cTime), str(cTime + cStep)))
                     continue
+                else:
+                    pass
+                    #print tempSt
                 # end for
 
                 if (verbose > 2):
-                    print('\t\t\tData Gaps:')
-                    tempSt.print_gaps()
+                    logger.debug('\t\tData Gaps:')
+                    tempSt.print_gaps() # output sent to stdout; fix this
                     print ("\n")
                 # end if
 
-                print('\t\tCross-correlating station-pair: %s' % (stationPair))
-                xcl, winsPerInterval = xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
+                logger.info('\tCross-correlating station-pair: %s' % (stationPair))
+                xcl, winsPerInterval, \
+                intervalStartSeconds, intervalEndSeconds = \
+                    xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
                                               interval_seconds=interval_seconds,
-                                              flo=flo, fhi=fhi, verbose=verbose)
+                                              flo=flo, fhi=fhi,
+                                              clip_to_2std=clip_to_2std,
+                                              one_bit_normalize=one_bit_normalize,
+                                              verbose=verbose, logger=logger)
 
                 # Continue if no results were returned due to data-gaps
                 if (xcl is None):
-                    print("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
+                    logger.warn("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
                           (stationPair) + " due to gaps in data.")
                     continue
                 # end if
 
                 xcorrResultsDict[stationPair].append(xcl)
                 windowCountResultsDict[stationPair].append(winsPerInterval)
-                # end for (loop over temporary stations)
+
+                intervalStartTimesDict[stationPair].append(cTime.timestamp + intervalStartSeconds)
+                intervalEndTimesDict[stationPair].append(cTime.timestamp + intervalEndSeconds)
+
+                #for iss, ies in zip(intervalStartSeconds, intervalEndSeconds):
+                #    logger.warn('\t\t\t%d, %d, %d'%(iss, ies, ies-iss))
+                # end for
+
+                pairCount += 1
+            # end for (loop over temporary stations)
         # end for (loop over reference stations)
 
         cTime += cStep
-        print "\n"
     # wend (loop over time range)
 
-    print('=== Collating Results ===')
     x = None
     # Concatenate results
     for k in xcorrResultsDict.keys():
         combinedXcorrResults = None
         combinedWindowCountResults = None
-
+        combinedIntervalStartTimes = None
+        combinedIntervalEndTimes = None
         for i in np.arange(len(xcorrResultsDict[k])):
             if (i == 0):
                 combinedXcorrResults = xcorrResultsDict[k][0]
                 combinedWindowCountResults = windowCountResultsDict[k][0]
+                combinedIntervalStartTimes = intervalStartTimesDict[k][0]
+                combinedIntervalEndTimes = intervalEndTimesDict[k][0]
 
                 # Generate time samples (only needs to be done once)
                 if (x is None):
                     x = np.linspace(-window_seconds, window_seconds,
                                     xcorrResultsDict[k][0].shape[1])
-                    # end if
+                # end if
             else:
-                combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                       xcorrResultsDict[k][i]))
+                if (combinedXcorrResults.shape[1] == xcorrResultsDict[k][i].shape[1]):
+                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                           xcorrResultsDict[k][i]))
+                else:
+                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                           np.zeros((xcorrResultsDict[k][i].shape[0],
+                                                                     combinedXcorrResults.shape[1]))))
+                    logger.warn("\t\tVariable sample rates detected. Current station-pair: %s"%(k))
+                # end if
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
                                                              windowCountResultsDict[k][i]))
-                # end if
+                combinedIntervalStartTimes = np.concatenate((combinedIntervalStartTimes,
+                                                             intervalStartTimesDict[k][i]))
+                combinedIntervalEndTimes = np.concatenate((combinedIntervalEndTimes,
+                                                           intervalEndTimesDict[k][i]))
+            # end if
         # end for
 
         # Replace lists with combined results
         xcorrResultsDict[k] = combinedXcorrResults
         windowCountResultsDict[k] = combinedWindowCountResults
+        intervalStartTimesDict[k] = combinedIntervalStartTimes
+        intervalEndTimesDict[k] = combinedIntervalEndTimes
     # end for
 
     # Save Results
     for i, k in enumerate(xcorrResultsDict.keys()):
         fn = os.path.join(outputPath, '%s.nc'%(k))
-        print('\t Writing: %s'%(fn))
 
         root_grp = Dataset(fn, 'w', format='NETCDF4')
         root_grp.description = 'Cross-correlation results for station-pair: %s' % (k)
 
         # Dimensions
-        root_grp.createDimension('time', xcorrResultsDict[k].shape[0])
+        root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
         root_grp.createDimension('lag', xcorrResultsDict[k].shape[1])
 
         # Variables
-        time = root_grp.createVariable('time', 'f4', ('time',))
+        interval = root_grp.createVariable('interval', 'f4', ('interval',))
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
-        nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('time',))
-        xc = root_grp.createVariable('xcorr', 'f4', ('time', 'lag',))
+        nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
+        ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
+        iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
+        xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',))
 
         # Populate variables
-        time[:] = np.arange(xcorrResultsDict[k].shape[0])
+        interval[:] = np.arange(xcorrResultsDict[k].shape[0])
         lag[:] = x
         nsw[:] = windowCountResultsDict[k]
-        xc[:, :] = xcorrResultsDict[k][::-1, :]  # Flipping rows
+        ist[:] = intervalStartTimesDict[k]
+        iet[:] = intervalEndTimesDict[k]
+        xc[:, :] = xcorrResultsDict[k]
         root_grp.close()
     # end for
 
