@@ -42,13 +42,13 @@ from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recur
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
      Origin, Arrival, OriginQuality, Magnitude, Comment
-
+from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 import pywt
 from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, DistAz, Catalog
+from utils import EventParser, Catalog
 import psutil
 import gc
 
@@ -310,7 +310,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
     fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
     workload = getWorkloadEstimate(fds, originTimestamps)
 
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat baz distance ttResidual snr bandIndex\n'
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr bandIndex\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofp = open(ofnp, 'w+')
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
@@ -352,7 +352,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                     for ei in eventIndices:
                         event = events[ei]
                         po = event.preferred_origin
-                        da = DistAz(po.lat, po.lon, slat, slon)
+                        da = gps2dist_azimuth(po.lat, po.lon, slat, slon)
                         mag = None
                         if(event.preferred_magnitude): mag = event.preferred_magnitude.magnitude_value
                         elif(len(po.magnitude_list)): mag = po.magnitude_list[0].magnitude_value
@@ -366,26 +366,26 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                             line = '%s %f %f %f %f %f ' \
                                    '%s %s %s %f %f %f ' \
-                                   '%f %f ' \
+                                   '%f %f %f ' \
                                    '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                   da.getBaz(), da.getDelta(),
+                                                   da[1], da[2], kilometers2degrees(da[0]/1e3),
                                                    residual, snr, bi)
                             ofp.write(line)
                             pickCountP += 1
                         # end if
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
-                            result = extract_s(taupyModel, picker_s, event, slon, slat, st, None, da.getBaz())
+                            result = extract_s(taupyModel, picker_s, event, slon, slat, st, None, da[2])
                             if (result):
                                 pick, residual, snr, bi = result
 
                                 line = '%s %f %f %f %f %f ' \
                                        '%s %s %s %f %f %f ' \
-                                       '%f %f ' \
+                                       '%f %f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                       da.getBaz(), da.getDelta(),
+                                                       da[1], da[2], kilometers2degrees(da[0] / 1e3),
                                                        residual, snr, bi)
                                 ofs.write(line)
                                 pickCountS += 1
@@ -416,7 +416,8 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                         for ei in eventIndices:
                             event = events[ei]
                             po = event.preferred_origin
-                            da = DistAz(po.lat, po.lon, slat, slon)
+                            da = gps2dist_azimuth(po.lat, po.lon, slat, slon)
+
                             mag = None
                             if (event.preferred_magnitude):
                                 mag = event.preferred_magnitude.magnitude_value
@@ -426,16 +427,16 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                             if (np.isnan(mag) or mag < min_magnitude): continue
 
-                            result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da.getBaz())
+                            result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da[2])
                             if (result):
                                 pick, residual, snr, bi = result
 
                                 line = '%s %f %f %f %f %f ' \
                                        '%s %s %s %f %f %f ' \
-                                       '%f %f ' \
+                                       '%f %f %f ' \
                                        '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
-                                                       da.getBaz(), da.getDelta(),
+                                                       da[1], da[2], kilometers2degrees(da[0] / 1e3),
                                                        residual, snr, bi)
                                 ofs.write(line)
                                 pickCountS += 1
