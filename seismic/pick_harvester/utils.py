@@ -245,7 +245,7 @@ class Catalog():
 
                 eventList.append(e)
                 poTimestamps.append(po.utctime.timestamp)
-                # end for
+            # end for
         # end for
 
         eventList = self.comm.allgather(eventList)
@@ -291,20 +291,91 @@ class Catalog():
 class CatalogCSV:
     def __init__(self, event_folder):
         self.event_folder = event_folder
+        self.comm = MPI.COMM_WORLD
+        self.nproc = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
+
+        self.event_folder = event_folder
 
         # retrieve list of all csv files
-        self.csv_files = recursive_glob(self.event_folder, '*.csv')
+        self.csv_files = sorted(recursive_glob(self.event_folder, '*.csv'))
         self._load_events()
     # end func
 
     def _load_events(self):
         eventList = []
         poTimestamps = []
-        for ifn, fn in enumerate(self.csv_files):
-            for line in open(fn, 'r'):
-                pass
+
+        if(self.rank==0):
+            eventid = 1e6 + 1
+            for ifn, fn in enumerate(self.csv_files):
+                print 'Reading %s' % (fn)
+
+                for line in open(fn, 'r'):
+                    if('#' in line):
+                        items = line.split(',')
+                        vals = map(float, items[1:])
+
+                        year = int(vals[0])
+                        month = int(vals[1])
+                        day = int(vals[2])
+                        hour = int(vals[3] if vals[3] >=0 else 0)
+                        minute = int(vals[4] if vals[4] >=0 else 0)
+                        second = vals[5] if vals[5] >=0 else 0
+
+                        lon = vals[6]
+                        lat = vals[7]
+                        if (lon <- 180 or lon > 180): continue
+                        if (lat <- 90 or lat > 90): continue
+
+                        depth = vals[8] if vals[8] >=0 else 0
+
+                        mb = vals[10]
+                        ms = vals[11]
+                        mi = vals[12]
+                        mw = vals[13]
+                        mag = 0
+                        magtype='mw'
+                        if(mw>0):
+                            mag = mw
+                            magtype='mw'
+                        elif(ms>0):
+                            mag = ms
+                            magtype = 'ms'
+                        elif(mb>0):
+                            mag = mb
+                            magtype = 'mb'
+                        elif(mi>0):
+                            mag = mi
+                            magtype = 'mi'
+                        # end if
+
+                        utctime = None
+                        try:
+                            utctime = UTCDateTime(year, month, day,
+                                                  hour, minute, second)
+                        except:
+                            continue
+                        # end try
+
+                        origin = Origin(utctime, lat, lon, depth)
+                        event = Event()
+                        event.public_id = eventid
+                        event.preferred_origin = origin
+                        event.preferred_magnitude = Magnitude(mag, magtype)
+
+                        eventList.append(event)
+                        poTimestamps.append(origin.utctime.timestamp)
+
+                        eventid += 1
+                    # end if
+                # end for
             # end for
-        # end for
+        # end if
+
+        self.allEventList = self.comm.bcast(eventList, root=0)
+        self.allPOTimestamps = self.comm.bcast(poTimestamps, root=0)
+        self.allPOTimestamps = np.array(self.allPOTimestamps)
     # end func
 
     def get_events(self):

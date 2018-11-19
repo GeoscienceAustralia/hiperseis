@@ -48,7 +48,7 @@ from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, Catalog
+from utils import EventParser, Catalog, CatalogCSV
 import psutil
 import gc
 
@@ -104,7 +104,7 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
 
                 for ipick, pick in enumerate(picks):
                     actualArrival = pick - po.utctime
-                    residual = tat - actualArrival
+                    residual = actualArrival - tat
 
                     if (np.fabs(residual) < margin):
                         pickslist.append(pick)
@@ -201,7 +201,7 @@ def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
 
                 for ipick, pick in enumerate(picks):
                     actualArrival = pick - po.utctime
-                    residual = tat - actualArrival
+                    residual = actualArrival - tat
 
                     if (np.fabs(residual) < margin):
                         pickslist.append(pick)
@@ -294,7 +294,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
         outputConfigParameters()
     # end if
 
-    cat = Catalog(event_folder)
+    cat = CatalogCSV(event_folder)
     events = cat.get_events()
     originTimestamps = cat.get_preferred_origin_timestamps()
 
