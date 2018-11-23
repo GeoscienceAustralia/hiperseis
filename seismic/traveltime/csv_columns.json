@@ -1,0 +1,8 @@
+{
+    "originLon": "source_lon",
+    "originLat": "source_lat",
+    "originDepthKm":"source_depth_km",
+    "stationLon": "station_lon",
+    "stationLat": "station_lat",
+    "ttResidual":  "tt_residual"
+}
