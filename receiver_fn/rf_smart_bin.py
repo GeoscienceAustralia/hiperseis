@@ -141,26 +141,21 @@ if __name__=='__main__':
     3. knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique
     '''
 
-    stream=rf.read_rf('rf_pt15_to5Hz.h5','H5')
+    print "Reading the input file..."
+    # Input file
+    stream=rf.read_rf('DATA/7X-rf_qlt.h5','H5')
+
+    print "Reading is done..."
 
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     o_stream=stream.select(component='Q')
     q_stream=o_stream.copy()
     # Filter specified below is only for data analysis and not applied to output data
-    q_stream=q_stream.filter('bandpass',freqmin=0.05,freqmax=1.).resample(5)
+    q_stream=q_stream.filter('bandpass',freqmin=0.05,freqmax=1.).interpolate(5)
 
-    # original stream will be resampled to lowest existing sampling rate
-    min_sample=10e10
-    min_time= UTCDateTime(100*60)
 
-    for trace in o_stream:
-        if trace.stats.sampling_rate < min_sample:
-            min_sample=trace.stats.sampling_rate
-
-    print "Minimum sampling rate: ",min_sample
-
-    o_stream=o_stream.resample(min_sample).trim2(-5,60,'onset')
-
+    # original file will be interpolated to 100Hz
+    o_stream=o_stream.interpolate(100).trim2(-5,60,'onset')
 
 
     station_list=[]
@@ -206,18 +201,30 @@ if __name__=='__main__':
         for k in xrange(num_group+1):
             # average can use weights and mean can work on masked arrays
             stacked=np.average(o_swipe[ind==k,:],axis=0)
-            # here we make a trick - coherent signal comes from different directions or segments. Therefore we assign stacked RF back to its original azimuths and angle of incidence
+
+            # we choose only traces that belong to detected group
+
+            for j in xrange(len(o_traces)):
+                if ind[j]==k:
+                   out_file.append(o_traces[j])
+
+            '''
+            # or here we can make a trick - coherent signal comes from different directions or segments. Therefore we assign stacked RF back to its original azimuths and angle of incidence
             for j in xrange(len(o_traces)):
                 if ind[j]==k:
                     # here we replace original data by stacked rays. However original RFs with assigned groups can be used as well and stacked later using migration image
                     # this option can be more favourable to highlight small signals. Comment out one line below to avoid stacking
                     o_traces[j].data=stacked.copy()
                     out_file.append(o_traces[j])
+i           '''
 
+    ''' Some plots if required
     ppoints = out_file.ppoints(70)
     boxes = get_profile_boxes((-18.4, 139.1), 135, np.linspace(0, 440, 80), width=500)
     pstream = profile(out_file, boxes)
     pstream.plot_profile(scale=1.5,top='hist')
     plt.show()
+    '''
 
-    out_file.write('stacked_rf.h5','H5')
+    # Output file
+    out_file.write('DATA/7X-rf_qlt_cleaned.h5','H5')
