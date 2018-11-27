@@ -143,7 +143,7 @@ if __name__=='__main__':
 
     print "Reading the input file..."
     # Input file
-    stream=rf.read_rf('DATA/7X-rf_qlt.h5','H5')
+    stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
 
     print "Reading is done..."
 
@@ -227,4 +227,4 @@ i           '''
     '''
 
     # Output file
-    out_file.write('DATA/7X-rf_qlt_cleaned.h5','H5')
+    out_file.write('DATA/7X-rf_zrt_cleaned.h5','H5')
