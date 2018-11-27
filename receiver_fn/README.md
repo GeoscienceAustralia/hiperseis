@@ -30,6 +30,9 @@ The parameters to specify are:
 
 There is a work-around to preserve H5 header information due to the obspy library bug. It was reported and will be fixed soon.
 
+The parallelized version of the same program is **generate_rf_parallel.py** 
+
+
 ## Filtering and removing bad RF
 
 There are number of ways to select good results and remove bad ones. 
