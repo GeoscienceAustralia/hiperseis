@@ -73,7 +73,7 @@ def rf_group_by_similarity(swipe):
     '''
     # map is very slow and must be replaced by proper parallelisation
 #   distance=map(compare_pairs,iter.combinations(swipe,2))
-    distance=Parallel(n_jobs=30,verbose=1)(map(delayed(compare_pairs), iter.combinations(swipe,2)))
+    distance=Parallel(n_jobs=-1,verbose=1)(map(delayed(compare_pairs), iter.combinations(swipe,2)))
     index=list((i,j) for ((i,_),(j,_)) in iter.combinations(enumerate(swipe),2))
 #   for i in xrange(len(index)):
 #         print index[i],distance[i]
