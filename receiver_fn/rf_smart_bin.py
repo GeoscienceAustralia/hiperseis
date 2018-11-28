@@ -144,11 +144,21 @@ if __name__=='__main__':
     print "Reading the input file..."
     # Input file
     stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
-
     print "Reading is done..."
+    # output file naming look at the end of the code
+
+    rf_type='LQT-Q '
+    o_stream=stream.select(component='Q')
+    if len(o_stream)<=0:
+       rf_type=ZRT-R '
+       o_stream=stream.select(component='R')
+    if len(o_stream)<=0:
+       print "Tried Q and R components, nothing found, quitting..."
+       exit(0)
+
+    net=o_stream[i].stats.network.encode('utf-8')
 
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
-    o_stream=stream.select(component='Q')
     q_stream=o_stream.copy()
     # Filter specified below is only for data analysis and not applied to output data
     q_stream=q_stream.filter('bandpass',freqmin=0.05,freqmax=1.).interpolate(5)
@@ -227,4 +237,5 @@ i           '''
     '''
 
     # Output file
-    out_file.write('DATA/7X-rf_zrt_cleaned.h5','H5')
+    ofile='DATA/'+net+'-'+rf_type.strip()+'-cleaned.h5'
+    out_file.write(ofile,'H5')
