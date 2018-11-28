@@ -6,7 +6,7 @@ def do_rf(stream3c):
 
     stream3c.detrend('linear').resample(100)
     stream3c.taper(0.01)
-    stream3c.filter('bandpass', freqmin=0.01, freqmax=15)
+    stream3c.filter('bandpass', freqmin=0.01, freqmax=15,corners=2,zerophase=True)
     if len(stream3c) != 3:
        return RFStream()
     a1=stream3c[0].stats['asdf']
