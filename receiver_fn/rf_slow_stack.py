@@ -46,6 +46,14 @@ vp=np.array([5.8 ,6.5 ,8.04,8.17])
 vs=np.array([3.5,3.9,4.48,4.51])
 simple_model=rf.simple_model.SimpleModel(z,vp,vs)
 
+# For sake of simplicity we will generate separate model for sedimentary basin 
+zb=np.array( [0,   5,   5,   300])
+vp=np.array([4.5 ,4.5,6.5 , 8.17])
+vs=np.array([2.5, 2.5,3.5,  4.51])
+basin_model=rf.simple_model.SimpleModel(zb,vp,vs)
+
+
+
 # its not advised to use standard models because they create large number of conversions at each layer
 #simple_model=rf.simple_model.load_model(fname='iasp91')
 
@@ -62,22 +70,22 @@ if __name__=='__main__':
         output - PDF files to print
 
         Dependencies - rf and obspy packages beside other standard python packages
-        The image is composed using triangulation. It gives good results but median or mean filter must be implemented at some stage.
+        The image is composed using triangulation. It gives good results but block median or mean must be implemented at some stage to reduce size of PDF.
     '''
 
-    stream=rf.read_rf('DATA/7X-rf_qlt.h5','H5')
+    stream=rf.read_rf('DATA/7X-rf_zrt_cleaned.h5','H5')
     rf_type='LQT-Q '
     filter_type='bandpass'
     freqmin=0.03
     freqmax=0.5
-
+#we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
 # Lets assume we have LQT orientation
-    selected_stream=stream.select(component='Q').interpolate(100).filter(filter_type, freqmin=freqmin, freqmax=freqmax)
+    selected_stream=stream.select(component='Q').filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
 
 
 # if none lets try ZRT
     if len(selected_stream)<=0:
-         selected_stream=stream.select(component='R').interpolate(100).filter(filter_type, freqmin=freqmin, freqmax=freqmax)
+         selected_stream=stream.select(component='R').filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
 
          rf_type='ZRT-R '
 
@@ -94,13 +102,13 @@ if __name__=='__main__':
          station_list.append(selected_stream[i].stats.station.encode('utf-8'))
          net=selected_stream[i].stats.network.encode('utf-8')
 
-    pdffile=net+'-rf-vespagrams.pdf'
+    pdffile=net+'-'+rf_type.strip()+'-rf-vespagrams.pdf'
 
     exists=os.path.isfile(pdffile)
 
     if exists:
          # we add the time stamp to identify the file that can be read in linux command line as date -d @number (date -d @1542926631)
-         pdffile=net+'-'+str(int(UTC.now()._get_timestamp()))+'-rf-vespagrams.pdf'
+         pdffile=net+'-'+rf_type.strip()+'-'+str(int(UTC.now()._get_timestamp()))+'-rf-vespagrams.pdf'
        
     pdf=PdfPages(pdffile)
     pdf.attach_note(rf_type+filter_type+' '+str(freqmin)+'-'+str(freqmax)+' Hz') 
@@ -144,6 +152,7 @@ if __name__=='__main__':
 #                  print 'altered'
 #                  data=tr.data.copy()
 #                  print data.shape,tr.stats.delta
+#                  500 below corresponds to 0 with sampling rate of 100Hz
 #                  data[500:800]=1.
 #                  moved.append(data)
 #               else:
@@ -175,6 +184,9 @@ if __name__=='__main__':
          phase_PpPmS=[]
          phase_PpSmS=[]
          phase_slow=[]
+         # basin part
+         phase_Pbs=[]
+         phase_PpPbs=[]
 
          for j in xrange(slow.shape[0]):
                 y[j,:]=y[j,:]*slow[j]
@@ -183,6 +195,12 @@ if __name__=='__main__':
                 phase_PpPmS.append(simple_model.calculate_delay_times(slow[j],phase='PpPmS'))
                 phase_PpSmS.append(simple_model.calculate_delay_times(slow[j],phase='PpSmS'))
                 phase_slow.append(np.ones(phase_Ps[-1].shape[0])*slow[j])
+
+                # basin, we will use reflection at the top layer only
+                if len(zb)>0:
+                   phase_Pbs.append(basin_model.calculate_delay_times(slow[j],phase='PS'))
+                   phase_PpPbs.append(basin_model.calculate_delay_times(slow[j],phase='PpPmS'))
+                   
 
          xi = np.linspace(-5,20,200)
          yi = np.linspace(0,9,400)
@@ -215,6 +233,12 @@ if __name__=='__main__':
          ax1.annotate('Ps LAB', xy=(phase_Ps[-1][-1],9.1),xycoords='data',ha='center', va='bottom', \
                 rotation=0.,annotation_clip=False,fontsize=7)
 
+         if len(phase_Pbs)>0:
+                ax1.annotate('Pbs', xy=(phase_Pbs[-1][0],9.1),xycoords='data',ha='center', va='bottom', \
+                rotation=0.,annotation_clip=False,fontsize=7)
+                ax1.plot(phase_Pbs,slow,color='black')
+                ax1.plot(phase_PpPbs,slow,color='crimson')
+            
 
 
          ax1.spines['bottom'].set_visible(False)
@@ -256,6 +280,13 @@ if __name__=='__main__':
          ax2.annotate('-PpSms', xy=(phase_PpSmS[-1][0],-9.1),xycoords='data',ha='center', va='top', \
                 rotation=0., annotation_clip=False,fontsize=7,color='purple')
 
+         if len(phase_PpPbs)>0:
+                ax2.annotate('+PpPbs', xy=(phase_PpPbs[-1][0],-9.1),xycoords='data',ha='center', va='top', \
+                rotation=0., annotation_clip=False,fontsize=7,color='crimson')
+                
+                ax2.plot(phase_PpPbs,-slow,color='crimson')
+                ax2.plot(phase_Pbs,-slow,color='black')
+
 
 
          for label in ylabels:
@@ -294,26 +325,20 @@ if __name__=='__main__':
          print 'frame',frame
          if frame >= rows*columns:
             cb_ax=fig.add_axes([0.25,0.95,0.5 ,0.02])
-#           cb_ax.axis["left"].toggle(all=False)
-#           cb_ax.axis["right"].toggle(ticks=False)
             labels=fig.colorbar(cs,cax=cb_ax,ticks=[-1,0,1],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
             labels.ax.set_xticklabels(['-','0','+',''])
-#           fig.savefig('page-'+str(figure)+'-sloweness.pdf')
             pdf.savefig()
-            plt.close()
             figure=figure+1
             frame=0
             printed=True
+            plt.close()
 #           plt.show()
 
 if not printed:
 
          cb_ax=fig.add_axes([0.25,0.95,0.5 ,0.02])
-#        cb_ax.axis["left"].toggle(all=False)
-#        cb_ax.axis["right"].toggle(ticks=False)
          labels=fig.colorbar(cs,cax=cb_ax,ticks=[-1,0,1],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
          labels.ax.set_xticklabels(['-','0','+',''])
-#        fig.savefig('page-'+str(figure)+'-sloweness.pdf')
          pdf.savefig()
          plt.close()
 
