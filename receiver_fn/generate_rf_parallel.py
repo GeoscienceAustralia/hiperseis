@@ -19,7 +19,7 @@ def do_rf(stream3c):
     # LQT receiver functions are default
 #   stream3c.rf()
     # ZRT receiver functions must be specified
-    stream3c.rf(rotate='ZNE->LQT')
+    stream3c.rf(rotate='NE->RT')
 
     stream3c[0].stats['asdf']=a1
     stream3c[1].stats['asdf']=a2
