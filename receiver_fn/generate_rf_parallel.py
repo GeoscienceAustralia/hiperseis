@@ -39,12 +39,13 @@ data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set a
 
 stream = RFStream()
 
-rf_streams=Parallel(n_jobs=30,verbose=1)(map(delayed(do_rf),IterMultipleComponents(data, 'onset', 3)))
+rf_streams=Parallel(n_jobs=-1,verbose=1)(map(delayed(do_rf),IterMultipleComponents(data, 'onset', 3)))
 
 for i,rf in enumerate(rf_streams):
-    event_id={'eventid':0}
-    event_id['eventid']=i
-    rf.stats.update(event_id)
+    event_id={'event_id':0}
+    event_id['event_id']=i
+    for tr in rf:
+        tr.stats.update(event_id)
     stream.extend(rf)
 
 stream.write('DATA/7X-rf_zrt', 'H5')
