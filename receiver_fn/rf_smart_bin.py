@@ -149,12 +149,17 @@ if __name__=='__main__':
 
     rf_type='LQT-Q '
     o_stream=stream.select(component='Q')
+
     if len(o_stream)<=0:
-       rf_type=ZRT-R '
+       rf_type='ZRT-R '
        o_stream=stream.select(component='R')
+
     if len(o_stream)<=0:
        print "Tried Q and R components, nothing found, quitting..."
        exit(0)
+    
+
+    t_stream=stream.select(component='T')
 
     net=o_stream[i].stats.network.encode('utf-8')
 
@@ -165,7 +170,7 @@ if __name__=='__main__':
 
 
     # original file will be interpolated to 100Hz
-    o_stream=o_stream.interpolate(100).trim2(-5,60,'onset')
+    o_stream=o_stream.trim2(-5,60,'onset')
 
 
     station_list=[]
@@ -217,6 +222,9 @@ if __name__=='__main__':
             for j in xrange(len(o_traces)):
                 if ind[j]==k:
                    out_file.append(o_traces[j])
+                   for tr in t_traces:
+                        if tr.stats.event_id==o_traces[j].stats.event_id
+                           out_file.append(tr)
 
             '''
             # or here we can make a trick - coherent signal comes from different directions or segments. Therefore we assign stacked RF back to its original azimuths and angle of incidence
