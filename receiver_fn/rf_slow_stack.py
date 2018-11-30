@@ -22,7 +22,6 @@ from obspy.core.inventory.station import Station
 from obspy.core.util import AttribDict
 
 from rf.profile import profile
-from tqdm import tqdm
 from rf.imaging import plot_profile_map
 from rf import get_profile_boxes, iter_event_data, IterMultipleComponents
 from obspy.signal.array_analysis import array_processing
@@ -73,11 +72,12 @@ if __name__=='__main__':
         The image is composed using triangulation. It gives good results but block median or mean must be implemented at some stage to reduce size of PDF.
     '''
 
-    stream=rf.read_rf('DATA/7X-rf_zrt_cleaned.h5','H5')
+    stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
     rf_type='LQT-Q '
     filter_type='bandpass'
     freqmin=0.03
     freqmax=0.5
+
 #we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
 # Lets assume we have LQT orientation
     selected_stream=stream.select(component='Q').filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
@@ -173,7 +173,37 @@ if __name__=='__main__':
          moved=np.nan_to_num(np.array(moved))
 #        moved=np.array(moved)
          slow=slow[idx]
-         z=moved[idx,:]
+         moved=moved[idx,:]
+         z=moved.copy()
+
+#        Some simple stacking to reduce data size on the image, this block can be safely commented out
+         idx=[]
+         idx.append(True) # first row with zeroes
+         slo_cum=0.
+         elements=1
+         for j in xrange(1,slow.shape[0]-2):
+            if np.abs(slow[j+1]-slow[j]) < 0.1 and slo_cum<0.2:
+                slow[j+1]=(slow[j]+slow[j+1])/2.
+                moved[j,:]=moved[j,:]*elements
+                moved[j+1,:]=np.sum(moved[j:j+2,:],axis=0)/(elements+1)
+                elements=elements+1
+                idx.append(False)
+                slo_cum=slo_cum+np.abs(slow[j+1]-slow[j])
+            else:
+                idx.append(True)
+                slo_cum=0
+                elements=1
+
+         idx.append(True) # before last
+         idx.append(True) # last row with zeroes
+         idx=np.array(idx)
+         print idx.shape,slow.shape,moved.shape
+
+         slow=slow[idx]
+         moved=moved[idx,:]
+         z=moved.copy()
+# ------------------------------ end of stacking ------------------------
+
 #        print 'minmax',np.min(z),np.max(z)
          x=np.array(list(range(moved.shape[1])))*traces[0].stats.delta-5.
          x=np.repeat([x],moved.shape[0],axis=0)
@@ -324,9 +354,13 @@ if __name__=='__main__':
          frame=frame+1
          print 'frame',frame
          if frame >= rows*columns:
-            cb_ax=fig.add_axes([0.25,0.95,0.5 ,0.02])
-            labels=fig.colorbar(cs,cax=cb_ax,ticks=[-1,0,1],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
-            labels.ax.set_xticklabels(['-','0','+',''])
+            cb_ax=fig.add_axes([0.25,0.98,0.5 ,0.02])
+            labels=fig.colorbar(cs,cax=cb_ax,ticks=[np.min(zi),0,np.max(zi)],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
+#           labels.set_ticks([np.min(zi),0,np.max(zi)])
+#           labels.set_ticklabels(['-','0','+'])
+            cb_ax.set_xticks([np.min(zi),0,np.max(zi)])
+            cb_ax.set_xticklabels(['-','0','+'])
+#           labels.ax.set_yticklabels(['-','0','+'])
             pdf.savefig()
             figure=figure+1
             frame=0
