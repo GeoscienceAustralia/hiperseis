@@ -307,12 +307,11 @@ class CatalogCSV:
         poTimestamps = []
 
         if(self.rank==0):
-            eventid = 1e6 + 1
             for ifn, fn in enumerate(self.csv_files):
                 print 'Reading %s' % (fn)
 
                 for line in open(fn, 'r'):
-                    if('#' in line):
+                    if(line[0]=='#'):
                         items = line.split(',')
                         vals = map(float, items[1:])
 
@@ -350,6 +349,8 @@ class CatalogCSV:
                             magtype = 'mi'
                         # end if
 
+                        eventid = vals[-1]
+
                         utctime = None
                         try:
                             utctime = UTCDateTime(year, month, day,
@@ -366,8 +367,6 @@ class CatalogCSV:
 
                         eventList.append(event)
                         poTimestamps.append(origin.utctime.timestamp)
-
-                        eventid += 1
                     # end if
                 # end for
             # end for
