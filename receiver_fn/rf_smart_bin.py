@@ -143,7 +143,7 @@ if __name__=='__main__':
 
     print "Reading the input file..."
     # Input file
-    stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
+    stream=rf.read_rf('DATA/7X-rf_qlt_cleaned.h5','H5')
     print "Reading is done..."
     # output file naming look at the end of the code
 
@@ -160,8 +160,9 @@ if __name__=='__main__':
     
 
     t_stream=stream.select(component='T')
+    z_stream=stream.select(component='Z')
 
-    net=o_stream[i].stats.network.encode('utf-8')
+    net=o_stream[0].stats.network.encode('utf-8')
 
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     q_stream=o_stream.copy()
@@ -222,8 +223,11 @@ if __name__=='__main__':
             for j in xrange(len(o_traces)):
                 if ind[j]==k:
                    out_file.append(o_traces[j])
-                   for tr in t_traces:
-                        if tr.stats.event_id==o_traces[j].stats.event_id
+                   for tr in t_stream:
+                        if tr.stats.event_id==o_traces[j].stats.event_id:
+                           out_file.append(tr)
+                   for tr in z_stream:
+                        if tr.stats.event_id==o_traces[j].stats.event_id:
                            out_file.append(tr)
 
             '''
