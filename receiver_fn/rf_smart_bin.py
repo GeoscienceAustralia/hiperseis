@@ -128,6 +128,16 @@ def knive(swipe,k_level1,sn_level2):
     sn=np.array(sn)
     return knive<k_level,sn>sn_level
 
+def remove_small_s2n(stream,ratio):
+    noise=stream.slice2(-5,-2,'onset')
+    signal=stream.slice2(-1,2,'onset')
+    newstream=rf.RFStream()
+    for i in xrange(len(stream)):
+        rms =np.sqrt(np.mean(np.square(signal[i].data)))/np.sqrt(np.mean(np.square(noise[i].data)))
+        if rms > ratio:
+           newstream.append(stream[i])
+    return newstream
+
 
 #-------------Main---------------------------------
 
@@ -158,6 +168,12 @@ if __name__=='__main__':
        print "Tried Q and R components, nothing found, quitting..."
        exit(0)
     
+    # first lets just remove plainly bad data 
+    print "Number of traces before S/N cut out is: ",len(o_stream)
+    o_stream=remove_small_s2n(o_stream,2.)
+    print "Number of traces after S/N cut out is: ",len(o_stream)
+
+    # then accumulate secondary components
 
     t_stream=stream.select(component='T')
     z_stream=stream.select(component='Z')
@@ -190,6 +206,8 @@ if __name__=='__main__':
     for i in xrange(station_list.shape[0]):
         print "Station ",station_list[i],i+1," of ",station_list.shape[0]
         traces=q_stream.select(station=station_list[i])
+
+        
         # we choose short RF to simplify and speed up the processing
         traces=traces.trim2(-5,20,'onset')
 
