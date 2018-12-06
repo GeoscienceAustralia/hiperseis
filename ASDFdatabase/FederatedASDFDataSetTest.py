@@ -50,6 +50,26 @@ def split_list(lst, npartitions):
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
 # end func
 
+def split_list_by_timespan(l, n):
+    lmin = np.min(l[:, 1])
+    lmax = np.max(l[:, 1])
+
+    span = float(lmax - lmin) / n
+
+    result = [[] for i in range(n)]
+    s = lmin
+    for i in range(n):
+        e = s + span
+        indices = np.where((l[:, 1] >= s) & (l[:, 1] <= e))
+        result[i] = l[indices]
+        s = e
+
+        if(len(result[i]) == len(l)): break
+    # end for
+
+    return result
+# end func
+
 class FederatedASDFDataSetTest():
     def __init__(self, asdf_source, use_json_db=False, logger=None):
         self.comm = MPI.COMM_WORLD
@@ -202,7 +222,7 @@ class FederatedASDFDataSetTest():
     # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, automerge=False):
+                      endtime, automerge=False, trace_count_threshold=200):
 
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
@@ -214,6 +234,14 @@ class FederatedASDFDataSetTest():
 
         rows = self.conn.execute(query).fetchall()
         s = Stream()
+
+        if(len(rows) > trace_count_threshold): return s
+
+        #print 'rank: %d net: %s sta: %s loc:%s cha:%s ntraces: %d'%(self.rank,
+        #                                                           network, station,
+        #                                                           location, channel, len(rows))
+        #return s
+
         for row in rows:
             ds_id, net, sta, loc, cha, st, et, tag = row
             station_data = self.asdf_datasets[ds_id].waveforms['%s.%s'%(net, sta)]
@@ -256,10 +284,14 @@ class FederatedASDFDataSetTest():
                 for sta in stas:
                     sta = sta[0]
 
-                    tbounds = self.conn.execute("select st, et from wdb where net='%s' and sta='%s'"
+                    tbounds = self.conn.execute("select st, et from wdb where net='%s' and sta='%s' order by et"
                                                 %(net, sta)).fetchall()
 
+                    if(len(tbounds)==0): continue
+                    #tbounds = np.array(tbounds)
+                    #tbounds = split_list_by_timespan(tbounds, self.nproc)
                     tbounds = split_list(tbounds, self.nproc)
+
                     for iproc in np.arange(self.nproc):
                         if (len(tbounds[iproc])):
                             arr = np.array(tbounds[iproc])
