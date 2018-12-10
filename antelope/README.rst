@@ -2,7 +2,7 @@ Creating a Python virtualenv on ANTELOPE for exporting events XML
 =================================================================
 
 This is a quick guide to exporting the GA ANTELOPE database events
-information into QuakeML. These instructions are tailored to the GA ANTILOPE
+information into QuakeML. These instructions are tailored to the GA ANTELOPE
 dev system and may need further tuning on the prod system.
 
 These instructions assume you are using bash shell.
