@@ -30,7 +30,7 @@ from FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
 from FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
 
 class FederatedASDFDataSet():
-    def __init__(self, asdf_source, variant='mem', use_json_db=False, logger=None):
+    def __init__(self, asdf_source, variant='db', use_json_db=False, logger=None):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'

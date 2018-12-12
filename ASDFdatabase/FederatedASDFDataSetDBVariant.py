@@ -1,7 +1,7 @@
 """
 Description:
     Class for providing fast access to data contained within a set of ASDF files
-
+    A reusable sqlite database is created for fast access to waveform data
 References:
 
 CreationDate:   03/09/18
@@ -70,13 +70,18 @@ def split_list_by_timespan(l, n):
     return result
 # end func
 
-class FederatedASDFDataSetTest():
-    def __init__(self, asdf_source, use_json_db=False, logger=None):
+class FederatedASDFDataSetDBVariant():
+    def __init__(self, asdf_source, logger=None):
+        """
+        :param asdf_source: path to a text file containing a list of ASDF files:
+               Entries can be commented out with '#'
+        :param logger: logger instance
+        """
+
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
-        self.use_json_db = use_json_db
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []

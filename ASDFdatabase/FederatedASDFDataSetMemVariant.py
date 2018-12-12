@@ -1,7 +1,7 @@
 """
 Description:
     Class for providing fast access to data contained within a set of ASDF files
-
+    In-memory nested dictionaries are used to build up a fast index to waveform data
 References:
 
 CreationDate:   03/09/18
@@ -67,7 +67,7 @@ def split_list(lst, npartitions):
     return result
 # end func
 
-class FederatedASDFDataSet():
+class FederatedASDFDataSetMemVariant():
     @staticmethod
     def hasOverlap(stime1, etime1, stime2, etime2):
         result = 0
@@ -90,12 +90,11 @@ class FederatedASDFDataSet():
 
     def __init__(self, asdf_source, use_json_db=False, logger=None):
         """
-
-        :param asdf_source: path to a text file containing three space-delimited columns:
-               1. path to an ASDF file
-               2. Start-time (in UTCDateTime format) of data in the ASDF file (used for speeding up data access)
-               3. End-time (in UTCDateTime format) of data in the ASDF file (used for speeding up data access)
+        :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
+        :param use_json_db: whether to use json db if available
+        :param logger: logger instance
+
         """
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()
@@ -342,7 +341,7 @@ class FederatedASDFDataSet():
         for i, (stime, etime) in enumerate(zip(self.waveform_start_time_list,
                                                self.waveform_end_time_list)):
             if(stime==None or etime==None): continue
-            if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
+            if(FederatedASDFDataSetMemVariant.hasOverlap(starttime, endtime, stime, etime)):
                 dslistIndices.append(i)
             # end if
         # end for
@@ -407,7 +406,7 @@ class FederatedASDFDataSet():
     # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, tag, automerge=False):
+                      endtime, automerge=False, trace_count_threshold=200):
 
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
@@ -417,7 +416,7 @@ class FederatedASDFDataSet():
         for i, (stime, etime) in enumerate(zip(self.waveform_start_time_list,
                                                self.waveform_end_time_list)):
             if(stime==None or etime==None): continue
-            if(FederatedASDFDataSet.hasOverlap(starttime, endtime, stime, etime)):
+            if(FederatedASDFDataSetMemVariant.hasOverlap(starttime, endtime, stime, etime)):
                 dslistIndices.append(i)
             # end for
         # end for
@@ -434,6 +433,9 @@ class FederatedASDFDataSet():
                 if(type(val) == index.Index):
                     tag_indices = list(val.intersection((starttime, 1,
                                                          endtime, 1)))
+
+                    if (len(tag_indices) > trace_count_threshold): return cs
+
                     station_data = ds.waveforms['%s.%s'%(network, station)]
                     for ti in tag_indices:
                         try:
@@ -452,8 +454,11 @@ class FederatedASDFDataSet():
                     # end try
                 # end if
             else:
-                cs = ds.get_waveforms(network, station, location, channel, starttime,
-                                      endtime, tag, automerge)
+                pass
+                # disable accessing waveforms through the ASDFDataset interface
+                # for the time being
+                #cs = ds.get_waveforms(network, station, location, channel, starttime,
+                #                      endtime, 'raw_recording', automerge)
             # end if
 
             # Trim traces

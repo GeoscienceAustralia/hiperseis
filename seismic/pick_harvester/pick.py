@@ -238,12 +238,17 @@ def getWorkloadEstimate(fds, originTimestamps):
 
         day = 24 * 3600
         curr = start_time
+        step = day
         while (curr < end_time):
+            if (curr + step > end_time):
+                step = end_time - curr
+            # end if
+
             eventIndices = (np.where((originTimestamps >= curr.timestamp) & \
                                      (originTimestamps <= (curr + day).timestamp)))[0]
 
             if(eventIndices.shape[0]>0): totalTraceCount += 1
-            curr += day
+            curr += step
         # wend
     # end for
     return totalTraceCount
@@ -328,7 +333,11 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
         traceCountS = 0
         pickCountS = 0
         sw_start = datetime.now()
+        step = day
         while (curr < end_time):
+            if (curr + step > end_time):
+                step = end_time - curr
+            # end if
 
             eventIndices = (np.where((originTimestamps >= curr.timestamp) & \
                                      (originTimestamps <= (curr + day).timestamp)))[0]
@@ -343,10 +352,12 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                 for codes in stations_zch:
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
-                                           curr+day, tag='raw_recording', automerge=True)
+                                           curr + step,
+                                           automerge=True,
+                                           trace_count_threshold=200)
 
-                    dropBogusTraces(st)
                     if (len(st) == 0): continue
+                    dropBogusTraces(st)
 
                     slon, slat = codes[4], codes[5]
                     for ei in eventIndices:
@@ -400,10 +411,14 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                     for codesn, codese in zip(stations_nch, stations_ech):
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                                curr,
-                                               curr + day, tag='raw_recording', automerge=True)
+                                               curr + step,
+                                               automerge=True,
+                                               trace_count_threshold=200)
                         ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
                                                curr,
-                                               curr + day, tag='raw_recording', automerge=True)
+                                               curr + step,
+                                               automerge=True,
+                                               trace_count_threshold=200)
 
                         dropBogusTraces(stn)
                         dropBogusTraces(ste)
@@ -447,7 +462,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                     # end for
                 # end if
             # end if
-            curr += day
+            curr += step
             dayCount += 1
         # wend
         sw_stop = datetime.now()
