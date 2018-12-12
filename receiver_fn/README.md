@@ -77,4 +77,6 @@ $ date -d @1542926631
 Fri Nov 23 09:43:51 AEDT 2018
 ```
 
+## Plotting station map and the ray piercing points
 
+The **plot_map.py** draws a station map and piercing points of the receiver functions. It is highly adaptable plotting routine with use of high-resolution topography and automatic adjustment of the station name positions. It requires installation of `https://github.com/Phlya/adjustText` for better results.
