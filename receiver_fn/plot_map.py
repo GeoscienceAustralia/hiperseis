@@ -1,9 +1,13 @@
+#!/usr/bin/env python
 from netCDF4 import Dataset as NetCDFFile
 from matplotlib.colors import LightSource
 import matplotlib as mpl
+mpl.use('Agg')
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 #from mpl_toolkits.basemap import Basemap
+# below is work around of NCI python Basemap configuration problem, use line above for normal setup
 from mympl_toolkits.basemap import Basemap
 
 def gmtColormap(fileName):
@@ -93,13 +97,13 @@ def plot_map(data):
     
     ax = fig.add_subplot(111)
     data=np.array(data)
-    lon_min=min(data[:,0])-1.
-    lon_max=max(data[:,0])+1.
+    lon_min=min(data[:,1])-1.
+    lon_max=max(data[:,1])+1.
 
-    lat_1=min(data[:,1])-1.
-    lat_2=min(data[:,1])
-    lat_min=min(data[:,1])-1.
-    lat_max=max(data[:,1])+1.
+    lat_1=min(data[:,0])-1.
+    lat_2=min(data[:,0])
+    lat_min=min(data[:,0])-1.
+    lat_max=max(data[:,0])+1.
     
     lat_0=(lat_max+lat_min)/2.
     lon_0=(lon_max+lon_min)/2.
@@ -117,8 +121,10 @@ def plot_map(data):
     m.drawmeridians(np.arange(0.,360.,1.), labels=[0,0,0,1], fontsize=14, dashes=[2, 2], color='0.5', linewidth=0.75)
 
     
-    
+#  ne below can draw scale but must be adjusted 
 #   m.drawmapscale(lon_min, lat_max, lon_max, lat_min, 400, fontsize = 16, barstyle='fancy', zorder=100)
+
+    # Loading topography
     nc = NetCDFFile('/g/data/ha3/Passive/SHARED_DATA/GEBCO/au_gebco.nc')
     
     zscale =20. #gray
@@ -145,13 +151,62 @@ def plot_map(data):
     im = m.imshow(rgb)
     return m
 
+def get_stations(stream):
+    stations=[]
+    for station in stream:
+        stations.append([station.stats.station.encode('utf-8'),station.stats.station_longitude,station.stats.station_latitude])
+    return np.unique(np.array(stations),axis=0)
 
-""" It is an example of how to plot nice maps """
+    
+#-------------Main---------------------------------
 
-data=[[144,-34.8],[146,-38.5]]
-data=np.array(data)
-m=plot_map(data)
-lon,lat=m(data[:,0],data[:,1])
-plt.plot(lon,lat,'yo',markeredgecolor='k', markeredgewidth=0.5, \
-          markersize=10.0,  alpha=0.7)
-plt.show()
+if __name__=='__main__':
+    
+    
+    """ It is an example of how to plot nice maps """
+
+    import rf
+    streams=rf.read_rf('DATA/7X-LQT-Q-cleaned.h5','H5')
+    # Lets see intersection of rays at 50km depth
+    ppoints=streams.ppoints(50.)
+    
+    # initialization of map
+    m=plot_map(ppoints)
+    
+    # RF package uses lat,lon meanwhile others use lon,lat notion
+    
+    lon,lat=m(ppoints[:,1],ppoints[:,0])
+    plt.plot(lon,lat,'bx',markersize=5,markeredgewidth=0.1)
+    
+    # Now lets plot stations
+    coordinates=get_stations(streams)
+
+    if coordinates.ndim==1:
+       lon,lat=m(np.float(coordinates[1]),np.float(coordinates[2]))
+       names=coordinates[0]
+    else:
+       lon,lat=m(coordinates[:,1].astype(np.float),coordinates[:,2].astype(np.float))
+       names=coordinates[:,0]
+    
+    markers=plt.plot(lon,lat,'y^',markeredgecolor='k', markeredgewidth=0.5, \
+              markersize=10.0,  alpha=0.7)
+    labels=[]
+    for name, x, y in zip(names,lon,lat): 
+        '''
+        text=plt.annotate(
+        name,
+        xy=(x, y), xytext=(-1, -20),
+        textcoords='offset points', ha='right', va='bottom')
+        '''
+        
+        labels.append(plt.text(x,y,name))
+
+    from adjustText import adjust_text
+    adjust_text(labels,add_object=markers,ha='center',va='bottom')
+
+    net=streams[0].stats.network.encode('utf-8')
+
+    pdffile=net+'-map.pdf'
+    pdf=PdfPages(pdffile)
+    pdf.savefig()
+    pdf.close()
