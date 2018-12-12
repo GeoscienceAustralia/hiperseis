@@ -57,3 +57,4 @@ ENV/
 .idea/
 xcorqc/run.sh
 tempworks/
+.vscode/
