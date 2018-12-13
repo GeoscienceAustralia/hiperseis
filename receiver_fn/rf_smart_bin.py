@@ -153,7 +153,7 @@ if __name__=='__main__':
 
     print "Reading the input file..."
     # Input file
-    stream=rf.read_rf('DATA/7X-rf_qlt_cleaned.h5','H5')
+    stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
     print "Reading is done..."
     # output file naming look at the end of the code
 
@@ -239,13 +239,17 @@ if __name__=='__main__':
             # we choose only traces that belong to detected group
 
             for j in xrange(len(o_traces)):
+                rf_group={'rf_group':k}
                 if ind[j]==k:
+                   o_traces[j].stats.update(rf_group) 
                    out_file.append(o_traces[j])
                    for tr in t_stream:
                         if tr.stats.event_id==o_traces[j].stats.event_id:
+                           tr.stats.update(rf_group)
                            out_file.append(tr)
                    for tr in z_stream:
                         if tr.stats.event_id==o_traces[j].stats.event_id:
+                           tr.stats.update(rf_group)
                            out_file.append(tr)
 
             '''
