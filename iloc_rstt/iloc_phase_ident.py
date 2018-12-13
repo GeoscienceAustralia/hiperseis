@@ -22,6 +22,7 @@ from tqdm import tqdm
 from mpi4py import MPI
 from collections import defaultdict 
 import numpy as np
+from random import shuffle
 
 def split_list(lst, npartitions):
     result = []
@@ -88,45 +89,53 @@ def process(start_time, end_time, output_path, update_db, limit_events):
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
-    # Fetch event-ids
-    cmd = ['scevtls -d mysql://sysop:sysop@localhost/seiscomp3 --begin "%s" --end "%s"'% 
-            (start_time.replace('T', ' '), end_time.replace('T', ' '))]
-    rc, eventIds = runprocess(cmd, get_results=True)
+    # Fetch and distribute event-ids
+    eventIds = []
+    if (rank==0):
+        cmd = ['scevtls -d mysql://sysop:sysop@localhost/seiscomp3 --begin "%s" --end "%s"'% 
+                (start_time.replace('T', ' '), end_time.replace('T', ' '))]
+        rc, eventIds = runprocess(cmd, get_results=True)
+        if(rc==0):
+            shuffle(eventIds)
+            eventIds = split_list(eventIds, nproc)
+        # end if
+    # end if
+
+    eventIds = comm.scatter(eventIds, root=0)
     
     convergedCount = 0
-    if(rc==0):
-        # create output files for each rank
-        f = open('%s/proc.%d.txt'%(output_path, rank), 'w+')
-        f.write('{0:50}{1}\n'.format('#EventID', 'Converged'))
+    # create output files for each rank
+    f = open('%s/proc.%d.txt'%(output_path, rank), 'w+')
+    f.write('{0:50}{1}\n'.format('#EventID', 'Converged'))
+    
+    # apply 'limit_events'
+    if(limit_events>0): eventIds = eventIds[:limit_events]
+    i = 0
+    for eventId in tqdm(eventIds):
+        converged = False
+        cmd = ['echo "%s update_db=%d do_gridsearch=0 use_RSTT_PnSn=1 use_RSTT_PgLg=1 verbose=1" | iloc sc3db' % 
+                (eventId, update_db)]
         
-        # create sublist of events for each rank and apply 'limit_events'
-        eventIds = split_list(eventIds, nproc)[rank]
-        if(limit_events>0): eventIds = eventIds[:limit_events]
-        i = 0
-        for eventId in tqdm(eventIds):
-            converged = False
-            cmd = ['echo "%s update_db=%d do_gridsearch=0 use_RSTT_PnSn=1 use_RSTT_PgLg=1 verbose=1" | iloc sc3db' % 
-                    (eventId, update_db)]
-            
-            rc, results = runprocess(cmd, get_results=True)
-            if(rc): 
-                print 'Event: %s has encountered errors'%(eventId)
-            else:
-                for r in results: 
-                    if ('unexpected number' in r): print 'Event: %s has missing stations [%s]'%(eventId, r)
-                    elif('converged: 1' in r): 
-                        print 'Event: %s converged [%s]'%(eventId, r)
-                        convergedCount += 1
-                        converged = True
-                    elif('no phases found' in r): print 'Event: %s no phases found'%(eventId)
-                # end for
-            # end if
-            i+=1
-            f.write('{0:50}{1}\n'.format(eventId, int(converged)))
-        # end for
-        print 'rank: %d #events: %d converged: %d'%(rank, len(eventIds), convergedCount)
-        f.close()
-    # end if
+        rc, results = runprocess(cmd, get_results=True)
+        if(rc): 
+            print 'Event: %s has encountered errors'%(eventId)
+            print results
+        else:
+            for r in results: 
+                if ('unexpected number' in r): print 'Event: %s has missing stations [%s]'%(eventId, r)
+                elif('converged: 1' in r): 
+                    print 'Event: %s converged [%s]'%(eventId, r)
+                    convergedCount += 1
+                    converged = True
+                elif('no phases found' in r): print 'Event: %s no phases found'%(eventId)
+            # end for
+            print results
+        # end if
+        i+=1
+        f.write('{0:50}{1}\n'.format(eventId, int(converged)))
+    # end for
+    print 'rank: %d #events: %d converged: %d'%(rank, len(eventIds), convergedCount)
+    f.close()
 # end func
 
 if __name__=="__main__":
