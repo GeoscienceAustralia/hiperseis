@@ -146,7 +146,7 @@ def read_isc(fname):
                     netcode = 'IR'
                     hdr['ChannelStart'] = pd.NaT
                     hdr['ChannelEnd'] = pd.NaT
-                    hdr['ChannelCode'] = ''
+                    hdr['ChannelCode'] = 'SHZ'
                     hdr = hdr[station_columns]
                     network_df = pd.concat([hdr], keys=[netcode], names=['NetworkCode'])
                 df_list.append(network_df)
@@ -170,27 +170,29 @@ def read_isc(fname):
 
 def main(argv):
     # Read IRIS station database. Stations from STN files which exist here will 
+    IRIS_all_file = "IRIS-ALL.xml"
+    print("Reading " + IRIS_all_file)
     if USE_PICKLE:
-        if os.path.exists("IRIS-ALL.pkl"): # doesn't work reliably on EC2 CentOS instance for some reason
-            with open('IRIS-ALL.pkl', 'rb') as f:
+        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+        if os.path.exists(IRIS_all_pkl_file): # doesn't work reliably on EC2 CentOS instance for some reason
+            with open(IRIS_all_pkl_file, 'rb') as f:
                 import cPickle as pkl
                 inv = pkl.load(f)
         else:
-            with open("IRIS-ALL.xml", 'r', buffering=1024*1024) as f:
+            with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
                 inv = read_inventory(f)
-            with open('IRIS-ALL.pkl', 'wb') as f:
+            with open(IRIS_all_pkl_file, 'wb') as f:
                 import cPickle as pkl
                 pkl.dump(inv, f, pkl.HIGHEST_PROTOCOL)
     else:
-        with open("IRIS-ALL.xml", 'r', buffering=1024*1024) as f:
+        with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
             inv = read_inventory(f)
 
+    # Read station database from ad-hoc formats
     ehb_data_bmg = read_eng('BMG.STN')
     ehb_data_isc = read_eng('ISC.STN')
-
     isc1 = read_isc('ehb.stn')
     isc2 = read_isc('iscehb.stn')
-    pass
 
 if __name__ == "__main__":
     main(sys.argv)
