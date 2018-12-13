@@ -15,7 +15,8 @@ from obspy.core.util.obspy_types import (ComplexWithUncertainties,
                                          ObsPyException,
                                          ZeroSamplingRate)
 from collections import defaultdict
-import uuid
+
+import pathlib2 as pathlib
 
 def read_eng(fname):
     ''' We read Engdahl file in this subroutine
@@ -53,31 +54,39 @@ def read_isc(fname):
               10        20        30        40        50        60        70        80
 
     '''
+    # Target format for each row of isc_inv is:
+    #   [STA, NET, LAT, LONG, ELE, CHA, START, END]
     isc_inv = []
     with open(fname) as stations:
         for string in stations:
             if len(string[0:5].strip()) > 2:
+                # Station code is valid. Treat this as the beginning of a new station record.
                 header = True
+                #           STA     LAT      LON       ELE       START      END
                 columns = ((0, 5), (7, 16), (17, 26), (27, 34), (35, 54,), (55, 74))
                 dataline = [string[c[0]:c[1]] for c in columns]
                 lon = (dataline[2])
                 lat = (dataline[1])
                 ele = (dataline[3])
                 stn = dataline[0].strip()
-                dataline.insert(1, 'IR')
-                dataline.insert(5, 'SHZ')
+                dataline.insert(1, 'IR')    # default Network Code
+                dataline.insert(5, 'SHZ')   # default Channel Code
                 clean = [x.strip(' ') for x in dataline]
                 isc_inv.append(clean)
             else:
+                # No valid station code. This row is interpreted as channel information.
+                #           STA       NET       CHA       START     END
                 columns = ((17, 22), (23, 27), (30, 34), (35, 54), (55, 74))
                 dataline = [string[c[0]:c[1]] for c in columns]
                 if header:
-                    #                   print "replaced"
+                    # Replace header default Network Code with actual Network Code
                     isc_inv[-1][1] = dataline[1].strip()
+                    # Replace default Channel Code with actual Channel Code
                     isc_inv[-1][5] = dataline[2].strip()
                     header = False
-                #               if dataline[0].strip() != stn:
-                #                   print dataline, " Station header mismatch"
+                # if dataline[0].strip() != stn:
+                #     print dataline, " Station header mismatch"
+                # Insert (lat, long, elevation) data for this stage
                 dataline.insert(2, ele)
                 dataline.insert(2, lon)
                 dataline.insert(2, lat)
@@ -118,7 +127,8 @@ def extract_unique_sensors_responses(inv):
 # end func
 
 def main(argv):
-    inv = read_inventory("IRIS-ALL.xml")
+    with open("IRIS-ALL.xml", 'r', buffering=1024*1024) as f:
+        inv = read_inventory(f)
     # if os.path.exists("IRIS-ALL.pkl"): # doesn't work on CentOS for some reason
     #     with open('IRIS-ALL.pkl', 'rb') as f:
     #         import cPickle as pkl
@@ -285,9 +295,15 @@ def main(argv):
     our_xml = Inventory(networks=netDict.values(), source='EHB')
 
     print 'Writing output files..'
+    pathlib.Path("output").mkdir(exist_ok=True)
     for inet, net in enumerate(our_xml.networks):
         currInv = Inventory(networks=[net], source='EHB')
-        currInv.write("output/station.%d.xml" % (inet), format="stationxml", validate=True)
+        fname = "station.%d.xml" % (inet)
+        try:
+            currInv.write(os.path.join("output", fname), format="stationxml", validate=True)
+        except Exception as e:
+            print("FAILED writing file {0} for network {1}, continuing".format(fname, net.code))
+            continue
 
     # our_xml.write("station.xml",format="stationxml", validate=True)
     our_xml.write("station.txt", format="stationtxt")
