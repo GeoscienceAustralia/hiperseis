@@ -53,19 +53,51 @@ class FederatedASDFDataSet():
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
+        """
+        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param network: network code (optional)
+        :param station: station code (optional)
+        :param location: location code (optional)
+        :param channel: channel code (optional)
+
+        :return: a list containing [net, sta, loc, cha, lon, lat] in each row
+        """
         results = self.fds.get_stations(starttime, endtime, network, station, location, channel)
         return results
     # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, automerge=False, trace_count_threshold=200):
-
+        """
+        :param network: network code
+        :param station: station code
+        :param location: location code
+        :param channel: channel code
+        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param automerge: merge traces (default False)
+        :param trace_count_threshold: returns an empty Stream if the number of traces within the time-rage provided
+                                      exceeds the threshold (default 200). This is particularly useful for filtering
+                                      out data from bad stations, e.g. those from the AU.Schools network
+        :return: an Obspy Stream containing waveform data over the time-rage provided
+        """
         s = self.fds.get_waveforms(network, station, location, channel, starttime,
                               endtime, automerge, trace_count_threshold)
         return s
     # end func
 
     def local_net_sta_list(self):
+        """
+        This function provides an iterator over the entire data volume contained in all the ASDF files listed in the
+        text file during instantiation. When FederatedASDFDataSet is instantiated in an MPI-parallel environment,
+        meta-data for the entire data volume are equally partitioned over all processors -- in such instances, this
+        function provides an iterator over the data allocated to a given processor. This functionality underpins
+        parallel operations, e.g. picking arrivals.
+
+        :return: tuples containing [net, sta, start_time, end_time]; start- and end-times are instances of Obspy
+                 UTCDateTime
+        """
         for item in self.fds.local_net_sta_list():
             yield item
         # end for
