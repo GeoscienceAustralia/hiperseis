@@ -29,7 +29,6 @@ import sqlite3
 import psutil
 import hashlib
 from functools import partial
-from intervaltree import Interval, IntervalTree
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
