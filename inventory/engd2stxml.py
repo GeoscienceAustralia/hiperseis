@@ -27,6 +27,7 @@ from collections import defaultdict
 
 station_columns = ['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
 
+
 def read_eng(fname):
     ''' We read Engdahl file in this function which parses the following format of fixed width formatted columns:
 
@@ -59,6 +60,7 @@ def read_eng(fname):
     num_dupes = len(data_frame) - len(data_frame.index.unique())
     print("{0}: {1} stations found with {2} duplicates".format(fname, len(data_frame), num_dupes))
     return data_frame
+
 
 def read_isc(fname):
     # Engdahl file is imported and stored, now lets find appropriate network codes based on coordinates
@@ -169,38 +171,107 @@ def read_isc(fname):
     reportStationCount(df_all)
     return df_all
 
+
+def flagStationNonconformingNames(df):
+    import re
+    pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-\*]{1,4}$")
+    for (netcode, statcode), _ in df.groupby(level=['NetworkCode', 'StationCode']):
+        if not pattern.match(statcode):
+            print("Illegal Station Code: {0}.{1}".format(netcode, statcode))
+        if statcode[-1] == '*':
+            print("Deviant Station Code: {0}.{1}".format(netcode, statcode))
+
+
+def cleanupStationLatLong(df):
+    pass
+
+
+def cleanupStationElevations(df):
+    for (netcode, statcode), data in df.groupby(level=['NetworkCode', 'StationCode']):
+        if len(data) <= 1:
+            continue
+        elev = data['Elevation']
+        if np.sum((elev == 0)) > 0 and np.sum((elev > 0)):
+            non_zero_elev = elev[(elev > 0)]
+            if len(non_zero_elev.unique()) > 1:
+                print("Warning: multiple elevations detected for {0}.{1}, choosing min of {2}".format(netcode, statcode, non_zero_elev.values))
+            assumed_elevation = np.min(non_zero_elev)
+            mask = (elev == 0)
+            df.loc[(netcode, statcode), "Elevation"].loc[mask.values] = assumed_elevation
+    
+
+def flagDuplicateStations(df):
+    pass
+    
+
+def cleanupStationDates(df):
+    pass
+    
+
+def cleanupDatabase(df):
+    '''The following filters and fixes are applied to clean up the data:
+
+        H1. Station codes and coordinates
+        * Flag station codes whose characters are not alphanumeric.
+        * For a given station code, irrespective of network code, stations which
+          are close enough together get the same, identical coordinates.
+        * For a given station code, if the network code is the same, and there are
+          some stations with zero elevation and some with non-zero, the zeros are
+          replaced with assumed actual elevation.
+        * Coordinates that closely match another station and are suspected of being
+          the same station with different network and/or station codes are logged.
+        * Station codes with an asterisk in the name are... what?
+
+        H1. Station dates
+        * Station start and end dates are extended to cover the stage dates of all channels.
+        * 
+    '''
+    flagStationNonconformingNames(df)
+    cleanupStationLatLong(df)
+    cleanupStationElevations(df)
+    flagDuplicateStations(df)
+    cleanupStationDates(df)
+    pass
+
+
 def main(argv):
     # Read IRIS station database. Stations from STN files which exist here will 
-    IRIS_all_file = "IRIS-ALL.xml"
-    print("Reading " + IRIS_all_file)
-    if USE_PICKLE:
-        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
-        if os.path.exists(IRIS_all_pkl_file): # doesn't work reliably on EC2 CentOS instance for some reason
-            with open(IRIS_all_pkl_file, 'rb') as f:
-                import cPickle as pkl
-                inv = pkl.load(f)
-        else:
-            with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
-                inv = read_inventory(f)
-            with open(IRIS_all_pkl_file, 'wb') as f:
-                import cPickle as pkl
-                pkl.dump(inv, f, pkl.HIGHEST_PROTOCOL)
-    else:
-        with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
-            inv = read_inventory(f)
+    # IRIS_all_file = "IRIS-ALL.xml"
+    # print("Reading " + IRIS_all_file)
+    # if USE_PICKLE:
+    #     IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+    #     if os.path.exists(IRIS_all_pkl_file): # doesn't work reliably on EC2 CentOS instance for some reason
+    #         with open(IRIS_all_pkl_file, 'rb') as f:
+    #             import cPickle as pkl
+    #             inv = pkl.load(f)
+    #     else:
+    #         with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
+    #             inv = read_inventory(f)
+    #         with open(IRIS_all_pkl_file, 'wb') as f:
+    #             import cPickle as pkl
+    #             pkl.dump(inv, f, pkl.HIGHEST_PROTOCOL)
+    # else:
+    #     with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
+    #         inv = read_inventory(f)
 
     # Read station database from ad-hoc formats
     ehb_data_bmg = read_eng('BMG.STN')
     ehb_data_isc = read_eng('ISC.STN')
-    ehb_eng = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
-    ehb_eng.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+    ehb = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
+    ehb.sort_values(['NetworkCode', 'StationCode'], inplace=True)
 
     isc1 = read_isc('ehb.stn')
     isc2 = read_isc('iscehb.stn')
     # isc1 = read_isc(os.path.join('test', 'ehb_test.stn'))
     # isc2 = read_isc(os.path.join('test', 'iscehb_test.stn'))
-    ehb_isc = pd.concat([isc1, isc2], sort=False)
-    ehb_isc.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+    isc = pd.concat([isc1, isc2], sort=False)
+    isc.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+
+    # Q: Why do we keep ehb and isc databases here separate?
+
+    # Perform cleanup on each database
+    cleanupDatabase(ehb)
+    cleanupDatabase(isc)
 
     pass
 
