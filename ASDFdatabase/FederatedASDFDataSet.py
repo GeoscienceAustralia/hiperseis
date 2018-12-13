@@ -24,10 +24,15 @@ from obspy import read, Trace
 import pyasdf
 import ujson as json
 from collections import defaultdict
-from rtree import index
 
-from FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
 from FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
+
+HAS_RTREE = True
+try:
+    from FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
+except:
+    HAS_RTREE = False
+# end if
 
 class FederatedASDFDataSet():
     def __init__(self, asdf_source, variant='db', use_json_db=False, logger=None):
@@ -44,7 +49,11 @@ class FederatedASDFDataSet():
         self.asdf_source = asdf_source
 
         if(self.variant == 'mem'):
-            self.fds = FederatedASDFDataSetMemVariant(asdf_source, use_json_db, logger)
+            if(HAS_RTREE):
+                self.fds = FederatedASDFDataSetMemVariant(asdf_source, use_json_db, logger)
+            else:
+                raise Exception("'mem' variant cannot be used, because package rtree is missing")
+            # end if
         elif(self.variant == 'db'):
             self.fds = FederatedASDFDataSetDBVariant(asdf_source, logger)
         else:
