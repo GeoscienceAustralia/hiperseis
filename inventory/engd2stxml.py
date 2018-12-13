@@ -7,6 +7,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.width', 240)
@@ -89,8 +90,9 @@ def read_isc(fname):
     '''
 
     def reportStationCount(df):
-        num_unique_stations = len(df.index.get_level_values('StationCode').unique())
-        print("{0}: {1} unique stations codes found".format(fname, num_unique_stations))
+        num_unique_networks = len(df.index.levels[0])
+        num_unique_stations = len(df.index.levels[1])
+        print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks, num_unique_stations))
 
     if USE_PICKLE:
         pkl_name = fname + ".pkl"
@@ -130,9 +132,8 @@ def read_isc(fname):
                     pbar.update(len(line))
             if hdr is not None:
                 # Combine header and channel data. 
-                # ch_all = pd.concat(channels, ignore_index=True)
                 if channels:
-                    ch_all = pd.concat(channels)
+                    ch_all = pd.concat(channels, sort=False)
                     netcode = ch_all.iloc[0]['NetworkCode']
                     ch_all.drop('FDSN', axis=1, inplace=True)
                     # TODO: Add warning here if there is more than one network code. Only the first will be respected.
@@ -191,8 +192,17 @@ def main(argv):
     # Read station database from ad-hoc formats
     ehb_data_bmg = read_eng('BMG.STN')
     ehb_data_isc = read_eng('ISC.STN')
+    ehb_eng = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
+    ehb_eng.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+
     isc1 = read_isc('ehb.stn')
     isc2 = read_isc('iscehb.stn')
+    # isc1 = read_isc(os.path.join('test', 'ehb_test.stn'))
+    # isc2 = read_isc(os.path.join('test', 'iscehb_test.stn'))
+    ehb_isc = pd.concat([isc1, isc2], sort=False)
+    ehb_isc.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+
+    pass
 
 if __name__ == "__main__":
     main(sys.argv)
