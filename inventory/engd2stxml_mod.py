@@ -176,13 +176,13 @@ def main(argv):
         xstn_found = inv.select(station=ehb[i, 0], channel="*HZ")
 
         if len(stn_found) == 0 and len(xstn_found) == 0:
-            # we filed to find station anywhere and assign dummy values
+            # we failed to find station anywhere and assign dummy values
             record = [ehb[i, 0], default_net, ehb[i, 1], ehb[i, 2], ehb[i, 3], 'SHZ', '1964-1-1 00:00:00',
                       '2599-12-31 23:59:59']
             min_dist = 0.
             filed = True
         else:
-            # if station is found somehwere we try to iterate and see if XML has data giving it preference through adding extra value to min_dist found in ISC
+            # if station is found somewhere we try to iterate and see if XML has data giving it preference through adding extra value to min_dist found in ISC
             if len(xstn_found) > 0:
                 #                        print "----------",len(xstn_found)
                 #                        print xstn_found[0][0].latitude
