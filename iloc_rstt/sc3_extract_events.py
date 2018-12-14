@@ -1,7 +1,7 @@
 #!/usr/env python
 """
 Description:
-    This script runs reads output files produced by 'iloc_phase_ident.py',
+    This script reads output files produced by 'iloc_phase_ident.py',
     dumps out sc3ml files from the Seiscomp3 database, reads them in and generates
     an ensemble text file containing picks that can be used as input for a
     tomographic inversion
