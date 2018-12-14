@@ -209,7 +209,7 @@ def main(argv):
 
                 if len(record[7]) < 5:
                     record[7] = '2599-12-31 23:59:59'
-                catalogue.append(record)
+                catalogue.append(record) # Alexei: should be extend, not append
 
             else:
 
@@ -219,7 +219,7 @@ def main(argv):
                     net = Network(code=stn_found[k, 1], stations=[], description=' ')
                     if len(stn_found[k, 7]) < 5:
                         stn_found[k, 7] = '2599-12-31 23:59:59'
-                    catalogue.append(stn_found[k, :])
+                    catalogue.append(stn_found[k, :]) # Alexei: should be extend, not append
 
     stn_found = np.unique(np.array(catalogue), axis=0)
     if len(stn_found[stn_found == '']) > 0 or len(stn_found[stn_found == ' ']) > 0:
