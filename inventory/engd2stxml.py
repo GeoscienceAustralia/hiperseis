@@ -23,10 +23,12 @@ USE_PICKLE = True
 
 from obspy import read_inventory
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
+from obspy.geodetics.base import locations2degrees
 from collections import defaultdict
 
 station_columns = ['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
 
+NOMINAL_EARTH_RADIUS_KM = 6378.1370
 
 def read_eng(fname):
     ''' We read Engdahl file in this function which parses the following format of fixed width formatted columns:
@@ -182,21 +184,57 @@ def flagStationNonconformingNames(df):
             print("Deviant Station Code: {0}.{1}".format(netcode, statcode))
 
 
-def cleanupStationLatLong(df):
-    pass
-
+def removeIrisDuplicates(df, iris_inv):
+    '''Remove stations from df which are present in the global IRIS inventory, in cases
+       where the station codes match and the distance from the IRIS station is within threshold.
+    '''
+    DIST_TOLERANCE_KM = 0.5
+    DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM/NOMINAL_EARTH_RADIUS_KM
+    COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
+    # vf = np.vectorize(locations2degrees)
+    for statcode, data in df.groupby(level=["StationCode"]):
+        iris_result = iris_inv.select(station=statcode, channel="*HZ")
+        if len(iris_result) <= 0:
+            continue
+        assert len(iris_result.networks) == 1
+        iris_net = iris_result.networks[0]
+        assert len(iris_net.stations) > 0
+        iris_sta = iris_net.stations[0]
+        iris_stations_dist = [np.deg2rad(locations2degrees(iris_sta.latitude, iris_sta.longitude, s.latitude, s.longitude))*NOMINAL_EARTH_RADIUS_KM
+                                for s in iris_net.stations]
+        if not np.all(np.array(iris_stations_dist) < DIST_TOLERANCE_KM):
+            print("WARNING: Not all stations localized for {0}. Distances(km)={1}".format(statcode, iris_stations_dist))
+        ref_latlong = np.deg2rad(np.array([iris_sta.latitude, iris_sta.longitude]))
+        stations_latlong = np.deg2rad(data[["Latitude", "Longitude"]].values)
+        ref_polar = np.array([np.sin(ref_latlong[0])*np.cos(ref_latlong[1]), np.sin(ref_latlong[0])*np.sin(ref_latlong[1]), np.cos(ref_latlong[0])]).T
+        stations_polar = np.array([
+            np.sin(stations_latlong[:,0])*np.cos(stations_latlong[:,1]), 
+            np.sin(stations_latlong[:,0])*np.sin(stations_latlong[:,1]), 
+            np.cos(stations_latlong[:,0])]).T
+        cosine_dist = np.dot(stations_polar, ref_polar)
+        mask = (cosine_dist >= COSINE_DIST_TOLERANCE)
+        # Since this line doesn't work, we drop the station only if ALL stations are close to the IRIS reference
+        # TODO: Make this inplace dropping work
+        # df.loc[df.index.get_level_values('StationCode') == statcode].iloc[mask].drop(statcode, level=1, inplace=True)
+        # WORKAROUND:
+        if np.all(mask):
+            df.drop(statcode, level=1, inplace=True)
+        else:
+            our_distances = np.arccos(np.minimum(cosine_dist, 1))*NOMINAL_EARTH_RADIUS_KM
+            print("WARNING: Not all stations within distance tolerance of IRIS for {0}, not dropping. Distances(km)={1}".format(statcode, our_distances))
 
 def cleanupStationElevations(df):
     for (netcode, statcode), data in df.groupby(level=['NetworkCode', 'StationCode']):
         if len(data) <= 1:
             continue
         elev = data['Elevation']
-        if np.sum((elev == 0)) > 0 and np.sum((elev > 0)):
+        zero_and_nonzero_elevations = np.sum((elev == 0)) > 0 and np.sum((elev > 0))
+        if zero_and_nonzero_elevations:
             non_zero_elev = elev[(elev > 0)]
             if len(non_zero_elev.unique()) > 1:
                 print("Warning: multiple elevations detected for {0}.{1}, choosing min of {2}".format(netcode, statcode, non_zero_elev.values))
             assumed_elevation = np.min(non_zero_elev)
-            mask = (elev == 0)
+            mask = (elev != assumed_elevation)
             df.loc[(netcode, statcode), "Elevation"].loc[mask.values] = assumed_elevation
     
 
@@ -208,8 +246,10 @@ def cleanupStationDates(df):
     pass
     
 
-def cleanupDatabase(df):
+def cleanupDatabase(df, iris_inv):
     '''The following filters and fixes are applied to clean up the data:
+
+        TODO: REVIEW THIS DOCUMENTATION
 
         H1. Station codes and coordinates
         * Flag station codes whose characters are not alphanumeric.
@@ -226,33 +266,38 @@ def cleanupDatabase(df):
         * Station start and end dates are extended to cover the stage dates of all channels.
         * 
     '''
-    flagStationNonconformingNames(df)
-    cleanupStationLatLong(df)
+#    flagStationNonconformingNames(df)
+    num_before = len(df)
+    print("Removing stations which replicate IRIS...")
+    removeIrisDuplicates(df, iris_inv)
+    if len(df) < num_before:
+        print("Removed {0}/{1} stations because they exist in IRIS".format(num_before - len(df), num_before))
     cleanupStationElevations(df)
     flagDuplicateStations(df)
     cleanupStationDates(df)
+    # TODO: Add dropping of duplicates
     pass
 
 
 def main(argv):
     # Read IRIS station database. Stations from STN files which exist here will 
-    # IRIS_all_file = "IRIS-ALL.xml"
-    # print("Reading " + IRIS_all_file)
-    # if USE_PICKLE:
-    #     IRIS_all_pkl_file = IRIS_all_file + ".pkl"
-    #     if os.path.exists(IRIS_all_pkl_file): # doesn't work reliably on EC2 CentOS instance for some reason
-    #         with open(IRIS_all_pkl_file, 'rb') as f:
-    #             import cPickle as pkl
-    #             inv = pkl.load(f)
-    #     else:
-    #         with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
-    #             inv = read_inventory(f)
-    #         with open(IRIS_all_pkl_file, 'wb') as f:
-    #             import cPickle as pkl
-    #             pkl.dump(inv, f, pkl.HIGHEST_PROTOCOL)
-    # else:
-    #     with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
-    #         inv = read_inventory(f)
+    IRIS_all_file = "IRIS-ALL.xml"
+    print("Reading " + IRIS_all_file)
+    if USE_PICKLE:
+        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+        if os.path.exists(IRIS_all_pkl_file): # doesn't work reliably on EC2 CentOS instance for some reason
+            with open(IRIS_all_pkl_file, 'rb') as f:
+                import cPickle as pkl
+                iris_inv = pkl.load(f)
+        else:
+            with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
+                iris_inv = read_inventory(f)
+            with open(IRIS_all_pkl_file, 'wb') as f:
+                import cPickle as pkl
+                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
+    else:
+        with open(IRIS_all_file, 'r', buffering=1024*1024) as f:
+            iris_inv = read_inventory(f)
 
     # Read station database from ad-hoc formats
     ehb_data_bmg = read_eng('BMG.STN')
@@ -267,11 +312,11 @@ def main(argv):
     isc = pd.concat([isc1, isc2], sort=False)
     isc.sort_values(['NetworkCode', 'StationCode'], inplace=True)
 
-    # Q: Why do we keep ehb and isc databases here separate?
+    # Q: Why do we keep ehb and isc databases here separate? We need to merge them and de-duplicate across the merged database.
 
     # Perform cleanup on each database
-    cleanupDatabase(ehb)
-    cleanupDatabase(isc)
+    cleanupDatabase(ehb, iris_inv)
+    cleanupDatabase(isc, iris_inv)
 
     pass
 
