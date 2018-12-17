@@ -6,6 +6,7 @@ import os
 import sys
 
 import numpy as np
+import scipy as sp
 import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
@@ -21,6 +22,8 @@ except:
 
 USE_PICKLE = True
 
+TEST_MODE = True
+
 from obspy import read_inventory
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.geodetics.base import locations2degrees
@@ -29,6 +32,9 @@ from collections import defaultdict
 station_columns = ['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
 
 NOMINAL_EARTH_RADIUS_KM = 6378.1370
+DIST_TOLERANCE_KM = 0.5
+DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM/NOMINAL_EARTH_RADIUS_KM
+COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
 def read_eng(fname):
     ''' We read Engdahl file in this function which parses the following format of fixed width formatted columns:
@@ -184,13 +190,35 @@ def flagStationNonconformingNames(df):
             print("Deviant Station Code: {0}.{1}".format(netcode, statcode))
 
 
+def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
+    '''Compute the approximate cosine distance between each station of 2 sets, each specified
+       as a numpy column vector of [latitude, longitude] positions in degrees.
+    '''
+    # If input is 1D, convert to 2D for consistency of matrix orientations.
+    if len(latlong_deg_set1.shape) == 1:
+        latlong_deg_set1 = np.reshape(latlong_deg_set1, (1, -1))
+    if len(latlong_deg_set2.shape) == 1:
+        latlong_deg_set2 = np.reshape(latlong_deg_set2, (1, -1))
+    set1_latlong_rad = np.deg2rad(latlong_deg_set1)
+    set2_latlong_rad = np.deg2rad(latlong_deg_set2)
+    set1_polar = np.column_stack((
+        np.sin(set1_latlong_rad[:,0])*np.cos(set1_latlong_rad[:,1]), 
+        np.sin(set1_latlong_rad[:,0])*np.sin(set1_latlong_rad[:,1]), 
+        np.cos(set1_latlong_rad[:,0])))
+    set2_polar = np.column_stack((
+        np.sin(set2_latlong_rad[:,0])*np.cos(set2_latlong_rad[:,1]), 
+        np.sin(set2_latlong_rad[:,0])*np.sin(set2_latlong_rad[:,1]), 
+        np.cos(set2_latlong_rad[:,0]))).T
+    cosine_dist = np.dot(set1_polar, set2_polar)
+    # Collapse result to minimum number of dimensions necessary
+    return np.squeeze(cosine_dist)
+
+
+#@profile
 def removeIrisDuplicates(df, iris_inv):
     '''Remove stations from df which are present in the global IRIS inventory, in cases
        where the station codes match and the distance from the IRIS station is within threshold.
     '''
-    DIST_TOLERANCE_KM = 0.5
-    DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM/NOMINAL_EARTH_RADIUS_KM
-    COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
     # vf = np.vectorize(locations2degrees)
     for statcode, data in df.groupby(level=["StationCode"]):
         iris_result = iris_inv.select(station=statcode, channel="*HZ")
@@ -200,29 +228,28 @@ def removeIrisDuplicates(df, iris_inv):
         iris_net = iris_result.networks[0]
         assert len(iris_net.stations) > 0
         iris_sta = iris_net.stations[0]
+        # Check that the set of stations from IRIS are themselves within the distance tolerance of one another.
         iris_stations_dist = [np.deg2rad(locations2degrees(iris_sta.latitude, iris_sta.longitude, s.latitude, s.longitude))*NOMINAL_EARTH_RADIUS_KM
                                 for s in iris_net.stations]
         if not np.all(np.array(iris_stations_dist) < DIST_TOLERANCE_KM):
             print("WARNING: Not all stations localized for {0}. Distances(km)={1}".format(statcode, iris_stations_dist))
-        ref_latlong = np.deg2rad(np.array([iris_sta.latitude, iris_sta.longitude]))
-        stations_latlong = np.deg2rad(data[["Latitude", "Longitude"]].values)
-        ref_polar = np.array([np.sin(ref_latlong[0])*np.cos(ref_latlong[1]), np.sin(ref_latlong[0])*np.sin(ref_latlong[1]), np.cos(ref_latlong[0])]).T
-        stations_polar = np.array([
-            np.sin(stations_latlong[:,0])*np.cos(stations_latlong[:,1]), 
-            np.sin(stations_latlong[:,0])*np.sin(stations_latlong[:,1]), 
-            np.cos(stations_latlong[:,0])]).T
-        cosine_dist = np.dot(stations_polar, ref_polar)
+        # Compute cosine distances between this group's set of stations and the IRIS station locagtion.
+        stations_latlong = data[["Latitude", "Longitude"]].values
+        ref_latlong = np.array([iris_sta.latitude, iris_sta.longitude])
+        cosine_dist = latLong2CosineDistance(stations_latlong, ref_latlong)
         mask = (cosine_dist >= COSINE_DIST_TOLERANCE)
-        # Since this line doesn't work, we drop the station only if ALL stations are close to the IRIS reference
-        # TODO: Make this inplace dropping work
-        # df.loc[df.index.get_level_values('StationCode') == statcode].iloc[mask].drop(statcode, level=1, inplace=True)
-        # WORKAROUND:
+        # We would like to drop only the stations which are close to the IRIS reference, and keep those that are not.
+        # However this requires some more investigation on how to apply the mask to remove only the desired rows.
         if np.all(mask):
-            df.drop(statcode, level=1, inplace=True)
+            df.drop(np.unique(data.index.values[mask]), inplace=True)
+            # df.drop(statcode, level=1, inplace=True)
         else:
             our_distances = np.arccos(np.minimum(cosine_dist, 1))*NOMINAL_EARTH_RADIUS_KM
-            print("WARNING: Not all stations within distance tolerance of IRIS for {0}, not dropping. Distances(km)={1}".format(statcode, our_distances))
+            print("WARNING: Not all stations within distance tolerance of IRIS for {0}, not dropping. "
+                  "Possible issues with station date ranges? Distances(km)={1}".format(statcode, our_distances))
 
+
+#@profile
 def cleanupStationElevations(df):
     for (netcode, statcode), data in df.groupby(level=['NetworkCode', 'StationCode']):
         if len(data) <= 1:
@@ -238,14 +265,72 @@ def cleanupStationElevations(df):
             df.loc[(netcode, statcode), "Elevation"].loc[mask.values] = assumed_elevation
     
 
-def flagDuplicateStations(df):
-    pass
+#@profile
+def computeNeighboringStationMatrix(df):
+    self_latlong = df[["Latitude", "Longitude"]].values
+    cos_dist = latLong2CosineDistance(self_latlong, self_latlong)
+    cos_dist = (cos_dist >= COSINE_DIST_TOLERANCE)
+    return sp.sparse.csr_matrix(cos_dist)
+
+
+#@profile
+def cleanupStationDates(df, neighbor_matrix):
+    '''For stations with the same station code which are close together on the Earth's surface, 
+       make the station dates consistent by setting to the maximum extent of the time intervals 
+       for station start and end date.
+    '''
+    assert len(df) == neighbor_matrix.shape[0]
+    assert neighbor_matrix.shape[0] == neighbor_matrix.shape[1]
+    num_stations = len(df)
+    for i in xrange(num_stations):
+        key = df.index.values[i]
+        if len(df.loc[key]) <= 1:
+            continue
+        row = neighbor_matrix.getrow(i)
+        neighbors = row.nonzero()[1]
+        if len(neighbors) <= 1:
+            continue
+        # We put [key] inside square brackets here to ensure it always returns a DataFrame
+        min_date = np.nanmin(np.nanmin(df.iloc[neighbors].loc[[key], ["StationStart", "ChannelStart"]]))
+        max_date = np.nanmax(np.nanmax(df.iloc[neighbors].loc[[key], ["StationEnd", "ChannelEnd"]]))
+        df.iloc[neighbors].loc[key, "StationStart"] = min_date
+        df.iloc[neighbors].loc[key, "StationEnd"] = max_date
+
+
+#@profile
+def removeDuplicateStations(df, neighbor_matrix):
+    '''Look for duplicated stations in df based on station code and coordinates. If coordinates are close
+       enough, remove duplicate.
+       Look for stations that are close based on coordinates, IRRESPECTIVE of the station code. Flag them
+       with a warning message to the user.
+    '''
+    assert len(df) == neighbor_matrix.shape[0]
+    assert neighbor_matrix.shape[0] == neighbor_matrix.shape[1]
+    num_stations = len(df)
+    removal_rows = []
+    for i in xrange(num_stations):
+        row = neighbor_matrix.getrow(i)
+        neighbors = row.nonzero()[1]
+        # Only consider upper diagonal so that we don't doubly register duplicates
+        neighbors = neighbors[neighbors > i]
+        if len(neighbors) < 1:
+            continue
+        key = df.index.values[i]
+        stations_match = np.array([k == key for k in df.iloc[neighbors].index.values])
+        if not np.all(stations_match):
+            # Stations with different station codes matched by position
+            mismatched_codes = df.iloc[neighbors].index.values[~stations_match]
+            print("WARNING: Stations with apparent duplicate positions have different codes: expected{0}, found {1}".format(key, mismatched_codes))
+            print("         Apparent duplicates not removed!")
+        removal_rows.extend(neighbors[stations_match].tolist())
+    removal_rows = np.array(removal_rows)
+    row_mask = np.array([True]*len(df))
+    row_mask[removal_rows] = False
+    df = df[row_mask]
+    return df
     
 
-def cleanupStationDates(df):
-    pass
-    
-
+#@profile
 def cleanupDatabase(df, iris_inv):
     '''The following filters and fixes are applied to clean up the data:
 
@@ -272,11 +357,15 @@ def cleanupDatabase(df, iris_inv):
     removeIrisDuplicates(df, iris_inv)
     if len(df) < num_before:
         print("Removed {0}/{1} stations because they exist in IRIS".format(num_before - len(df), num_before))
+    print("Cleaning up station elevations...")
     cleanupStationElevations(df)
-    flagDuplicateStations(df)
-    cleanupStationDates(df)
-    # TODO: Add dropping of duplicates
-    pass
+    neighbor_matrix = computeNeighboringStationMatrix(df)
+    print("Cleaning up station start/end dates...")
+    # We do this before removing duplicates, so that it doesn't matter which duplicate we remove.
+    cleanupStationDates(df, neighbor_matrix)
+    print("Cleaning up station duplicates...")
+    df = removeDuplicateStations(df, neighbor_matrix)
+    return df
 
 
 def main(argv):
@@ -300,25 +389,33 @@ def main(argv):
             iris_inv = read_inventory(f)
 
     # Read station database from ad-hoc formats
-    ehb_data_bmg = read_eng('BMG.STN')
-    ehb_data_isc = read_eng('ISC.STN')
+    if not TEST_MODE:
+        ehb_data_bmg = read_eng('BMG.STN')
+        ehb_data_isc = read_eng('ISC.STN')
+    else:
+        ehb_data_bmg = read_eng(os.path.join('test', 'BMG_test.STN'))
+        ehb_data_isc = read_eng(os.path.join('test', 'ISC_test.STN'))
     ehb = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
     ehb.sort_values(['NetworkCode', 'StationCode'], inplace=True)
 
-    isc1 = read_isc('ehb.stn')
-    isc2 = read_isc('iscehb.stn')
-    # isc1 = read_isc(os.path.join('test', 'ehb_test.stn'))
-    # isc2 = read_isc(os.path.join('test', 'iscehb_test.stn'))
+    if not TEST_MODE:
+        isc1 = read_isc('ehb.stn')
+        isc2 = read_isc('iscehb.stn')
+    else:
+        isc1 = read_isc(os.path.join('test', 'ehb_test.stn'))
+        isc2 = read_isc(os.path.join('test', 'iscehb_test.stn'))
     isc = pd.concat([isc1, isc2], sort=False)
     isc.sort_values(['NetworkCode', 'StationCode'], inplace=True)
 
     # Q: Why do we keep ehb and isc databases here separate? We need to merge them and de-duplicate across the merged database.
 
     # Perform cleanup on each database
-    cleanupDatabase(ehb, iris_inv)
-    cleanupDatabase(isc, iris_inv)
+    ehb = cleanupDatabase(ehb, iris_inv)
+#    isc = cleanupDatabase(isc, iris_inv)
 
     pass
 
 if __name__ == "__main__":
+    # import cProfile as prof
+    # prof.run('main(sys.argv)')
     main(sys.argv)
