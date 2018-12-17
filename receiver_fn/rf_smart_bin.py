@@ -170,7 +170,7 @@ if __name__=='__main__':
     
     # first lets just remove plainly bad data 
     print "Number of traces before S/N cut out is: ",len(o_stream)
-    o_stream=remove_small_s2n(o_stream,2.)
+    o_stream=remove_small_s2n(o_stream,1.5)
     print "Number of traces after S/N cut out is: ",len(o_stream)
 
     # then accumulate secondary components
@@ -227,7 +227,12 @@ if __name__=='__main__':
 
         print "Processing ",swipe.shape[0], " events"
         # we sue clustering technique to find similar signals
-        ind=rf_group_by_similarity(swipe)
+        if swipe.shape[0]>1:
+           ind=rf_group_by_similarity(swipe)
+        else:
+           ind=np.array([0])
+           print station_list[i],' has only one trace'
+ 
         num_group=np.amax(ind)
 
 # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
@@ -260,7 +265,7 @@ if __name__=='__main__':
                     # this option can be more favourable to highlight small signals. Comment out one line below to avoid stacking
                     o_traces[j].data=stacked.copy()
                     out_file.append(o_traces[j])
-i           '''
+            '''
 
     ''' Some plots if required
     ppoints = out_file.ppoints(70)
