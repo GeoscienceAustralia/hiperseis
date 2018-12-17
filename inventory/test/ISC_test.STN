@@ -1,0 +1,677 @@
+ AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
+ BANI  GEOFON Station BanIndonesia                          -4.5224  129.9045      0.0   2005001  2286324  I
+ BJI                                                        -7.3329  109.7096      0.0   2005001  2286324  I
+ KHK                                                        -8.3640  115.6096      0.0   2005001  2286324  I
+ KOM                                                         1.7922  103.8467      0.0   2005001  2286324  I
+ KOMI                                                        1.7922  103.8467      0.0   2005001  2286324  I
+ KRK                                                        -8.1521  112.4506      0.0   2005001  2286324  I
+ BCH   Branch Mountain                                      35.1850 -120.0840   1140.0   1976214  2286324  L
+ BCHG  Becho                                                43.0332   42.5784   1345.0   1983001  2286324  L
+ BCHM  Black Canyon North                                   36.0543 -117.7280   1265.0   1975269  1978001  L
+ BCI   Bajram Curri                                         42.3666   20.0675    500.0                      
+ BCIP  Isla Barro Colorado                                   9.1665  -79.8373     61.0   2006335  2286324  L
+ BCK   Bucak                                                37.4608   30.5890    860.0   1971135  2286324  L
+ BCKR  Birch Creek                                          37.6975 -118.3720   1634.0   1984257  2286324  L
+ BCL   Casitas Lake                                         34.4125 -119.3610    177.0   1969262  1971217  L
+ BCLA  Clavier                                              50.4196    5.3029    235.0   1991302  2286324  L
+ BCLQ  Boischatel                                           46.9262  -71.1728    180.7   2007306  2286324  L
+ BCM   Basin Creek                                          45.8355 -112.5150   1975.0   1980298  1981283  L
+ BCN   Boulder City                                         35.9808 -114.8340    776.0   1938032  1975181  L
+ BCO   Cerro Blanco                                        -31.4878  -68.8104   1059.0                      
+ BCP   Baguio City                                          16.4180  120.6100   1500.0            2000091  L
+ BCPH  Baguio City Dairy Farm                               16.3810  120.5810   1500.0   1994015  2286324  L
+ BCPM  Bancas Point                                         59.9533 -139.6350    396.0   1979188  2286324  L
+ BCR   Bucaramanga                                           7.0194  -73.1764    750.0   1972285  1980366  L
+ BCRT  Bacon Ridge                                          35.7660  -84.5760    409.0   2004001  2286324  L
+ BCS   Baptist College of Charleston                        32.9797  -80.0653      9.0   1976091  1998091  L
+ BCS*  Brasilia Array                                      -15.7660  -48.0387   1255.0   1966321  1970355  L
+ BCSO  Bloom-Carroll                                        39.7940  -82.6980    256.0                      
+ BCT   Brookfield                                           41.4933  -73.3839     69.0   1975161  2286324  L
+ BCU   Bear Canyon                                          39.5983 -110.3710   2438.0   1962001  1977060  L
+ BCUT  Brigham City                                         41.5123 -111.9822   1676.0   2001239  2286324  L
+ BCVB  Bac Can                                              21.8848  105.7725     51.0                      
+ BCW   Bitter Crk WRge                                      34.9401 -119.4131   1101.0   2008099  2286324  L
+ BCWM  Chews Ridge                                          36.3067 -121.5660   1518.0   1985193  2286324  L
+ BCX   Boston College                                       42.3350  -71.1705     61.0   1996001  2286324  L
+ BCYI  Bear Canyon                                          44.3108 -113.4050   2194.0   1992001  2286324  L
+ BCZ   Braida Crags                                        -46.0067  167.8400    120.0   1990147  2286324  L
+ BD-   Bedford                                              40.1333  -78.5078    366.0   1962356  1963080  L
+ BD-PA Bedford                                              40.1333  -78.5078    366.0   1962356  1963080  L
+ BD01  Bergheim Laurentius Kirche                           50.9593    6.6355     78.0   2001001  2286324  L
+ BD02  Tagebau Bergheim                                     50.9679    6.6743    115.0   2001001  2007241  L
+ BD03  Millendorf                                           50.9917    6.5570     70.0   2001001  2286324  L
+ BD04  Gut Margarthenhoehe                                  50.9151    6.5986     80.0   2001001  2286324  L
+ BD05  Hambach                                              50.9366    6.4832     90.0   2001001  2286324  L
+ BD07  Roetschberg                                          50.9433    6.6740     74.0   2001001  2286324  L
+ BD08  Hambach Funkstation                                  50.8842    6.5017    114.0   2001001  2286324  L
+ EP-TX El Paso                                              31.9328 -105.9667   1615.0   1962015  1962124  L
+ EPA   Esparza                                               9.9877  -84.5965    310.0   1984077  2286324  L
+ EPAB  San Pablo                                            39.5449   -4.3499    946.0   2000304  2286324  L
+ EPALM Reventador volcano                                   -0.2133  -77.7292   1761.0   2002325  2286324  L
+ EPAP  Piano d'Api                                          37.6363   15.1415    295.0   1994274  2286324  L
+ EPCH                                                       -6.0090  -79.6850    720.0                      
+ EPDN  Pizzo Deneri                                         37.7670   15.0173   2820.0   1989213  2286324  L
+ EPET  Petrulli                                             37.7037   15.1202    630.0   1994274  2286324  L
+ EPF   Esparros                                             43.0308    0.3400    750.0   1977188  2286324  L
+ EPH   Ephrata                                              47.3536 -119.5960    628.0   1983060  2286324  L
+ EPI   Epi                                                 -16.6950  168.1160      0.0                      
+ ER210 Early Rise 210                                       48.3447  -71.1464    152.0   1966184  1966210  L
+ ER211 Early Rise 211                                       48.2758  -70.7978    274.0   1966184  1966210  L
+ ER212 Early Rise 212                                       48.1725  -70.2931    183.0   1966184  1966210  L
+ ER213 Early Rise 213                                       48.0150  -70.0728    244.0   1966184  1966210  L
+ ER215 Early Rise 215                                       47.8044  -69.4230    152.0   1966184  1966210  L
+ ER216 Early Rise 216                                       47.6272  -69.0097    290.0   1966184  1966210  L
+ ER217 Early Rise 217                                       47.4864  -68.6633    366.0   1966184  1966210  L
+ ER225 Early Rise 225                                       46.5383  -65.8464     31.0   1966184  1966210  L
+ FL14  Flin Flon Array Site 14                              54.6925 -102.0241    289.9 L 1986091  2286324  L
+ FL15  Flin Flon Array Site 15                              54.7126 -102.0421    288.8 L 1986091  2286324  L
+ FL16  Flin Flon Array Site 16                              54.7361 -102.0558    300.3 L 1986091  2286324  L
+ FL17  Flin Flon Array Site 17                              54.7481 -102.0301    314.6 L 1986091  2286324  L
+ FL18  Flin Flon Array Site 18                              54.7599 -101.9958    312.1 L 1986091  2286324  L
+ FL2   Flat Top 2                                           46.1964 -122.3500   1378.0   1984216  2286324  L
+ FL31  Flin Flon Array Site 31                              54.7189 -101.9950    229.0   1986091  2286324  L
+ FLA   Flat                                                 39.4700 -110.4380   1670.0   1962001  1977060  L
+ FLACH Flaach                                               47.5720    8.5676    370.0   2003240  2286324  L
+ FLAG  Flagstaff                                            35.1667 -111.6430   2115.0   1977121  2286324  L
+ FLAR  Flin Flon Array Beam Reference Point                 54.7188 -101.9950    229.0   1963256  2286324  L
+ FLAS  Fullerton Airport                                    33.8713 -117.9750   -400.0   1986255  2286324  L
+ FLE   Fletcher                                             44.7227  -72.9517      0.0                      
+ FLET  Fletcher                                             44.7227  -72.9517    366.0   1977220  2286324  L
+ FLFR  Flavio Alfaro                                        -0.3574  -79.8427    399.0                      
+ FLG   Flagstaff                                            35.2932 -111.7020   2445.0   1966284  1972245  L
+ FLK   Falkland Islands                                    -51.8365  -58.4465     10.0   1992311  2286324  L
+ FLKY  Flemingsburg                                         38.4260  -83.7510    280.0   1989046  2286324  L
+ FLLB  Fletcher Lake Big Creek, BC                          51.7390 -123.1059   1189.0   2006236  2008162  L
+ FLN   La Foliniere                                         48.7625   -0.4819    240.0                      
+ FLO   Florissant                                           38.8017  -90.3700    160.0   1928001  1971243  L
+ FLOC  Florencia                                             1.5137  -75.6326    364.0   1994001  2286324  L
+ FLOM  Florida                                              17.2255 -100.3887    840.0            1999305  L
+ FLOR  Flores Is                                            39.4347  -31.1921    605.0   1991252  2286324  L
+ FLOS  Flostrand                                            66.3365   13.3647     20.0   2005121  2286324  L
+ FLP   Featherly Pass                                       57.7117 -156.2650    485.0   1975274  2286324  L
+ FLPT  Flippin                                              36.4094  -89.3206    131.0   1999121  2286324  L
+ FLR   Fall River                                           41.7167  -71.1215     52.0   1975083  1992366  L
+ FLS   Las Flores                                           13.8943  -90.0658    180.0   1981305  2286324  L
+ FLSC  Flash Two Peak                                       34.9704 -117.0391    990.0   1979152  2286324  L
+ FLT   Fleetwood                                            33.2580  -87.4095    128.0   1971009  2286324  L
+ FLU   Fool Peak                                            39.3782 -112.1710   1950.0   1981244  2286324  L
+ FLV                                                        37.8100 -117.9100   1689.0 L 1983274  2286324  L
+ FLW   Foulwind                                            -41.7522  171.5000     20.0   1968145  2286324  L
+ FLWY  Flagg Ranch                                          44.0827 -110.6993   2078.0   2005213  2286324  L
+ FLYU  Flymyra                                              60.1282   17.8846    100.0   2002013  2286324  L
+ FM-   Fillmore                                             39.2183 -112.2069   1890.0   1961280  1966071  L
+ FM-UT Fillmore                                             39.2183 -112.2069   1890.0   1966061  1966071  L
+ FMA   Fort MacArthur                                       33.7125 -118.2850     15.0                      
+ FMC   Four Mile Canyon                                     45.6244 -120.0280    305.0   1975305  2286324  L
+ FMF   Francis Marion National Forest                       32.9540  -79.8410      0.0   1973059  1973275  L
+ FMKY  Fulgham                                              36.6640  -88.9090    152.0   1986303  2286324  L
+ FMON  Montousse                                            43.0634    0.4164    647.0                      
+ FMP   Fort Macarthur Park                                  33.7126 -118.2938     89.0   2000243  2286324  L
+ FMPA  Franklin College                                     40.0478  -76.3208    121.0   2005053  2286324  L
+ FMT   Funeral Mountains                                    36.6375 -116.7826   1079.0   1978332  2286324  L
+ FMTX  Flower Mountain                                      31.7720  -94.8050    220.0            1998001  L
+ FMW   Mount Fremont                                        46.9317 -121.6720   1890.0   1972248  2286324  L
+ FN-   Franklin                                             38.5494  -79.5131    910.0   1964125  1975292  L
+ FN-WV Franklin                                             38.5494  -79.5131    910.0   1965154  1975292  L
+ FNA   Florina                                              40.7838   21.3762    750.0   1989333  2286324  L
+ FNBB  Fort Nelson                                          58.8904 -123.0097    618.0   1999297  2286324  L
+ FNBC  Fort Nelson                                          58.8418 -122.5737    380.0   1998040  2286324  L
+ FNC   Finlay Fork                                          55.9917 -123.2500      0.0 T 1969182  1970274  L
+ FNDO  Fernando de Noronha                                  -3.8333  -32.4167      0.0                      
+ FNEB  Nebias                                               42.9042    2.1079    578.0                      
+ FNG   Fond-Bernard                                         16.0603  -61.6867    825.0   2000001  2286324  L
+ FNN   Franconia Notch                                      44.1600  -71.6817   1060.0   1967001  1975001  L
+ FNO   Franklin                                             35.2571  -97.4006    357.0   1992119  2286324  L
+ FNT   Hobart                                              -42.9265  147.3540    184.0   1957001  1962001  L
+ FNVD  Fontana Vidola                                       44.1678   11.1229    950.0   2003295  2286324  L
+ FO-   Fort Stockton                                        30.9017 -102.6978    880.0   1964173  1965102  L
+ FO-TX Fort Stockton                                        30.9017 -102.6978    880.0   1964173  1965102  L
+ FOA   Forni Avoltri                                        46.5867   12.7750    880.0   1982157  1988001  L
+ FOC   Focsani                                              45.6950   27.1833     61.0   1942193  2286324  L
+ FODE  Fodele                                               35.3797   24.9576     50.0   2000102  2003274  L
+ JTN   Tanegashima 3                                        30.6543  130.9797    240.0                      
+ JTO   Tosashimizu                                          32.8597  132.8022    180.0   1994283  2286324  L
+ JTR   Joshua Tree Park                                     33.8140 -115.9002   1372.0   1981152  2286324  L
+ JTRM  Los Trancos Road                                     37.3522 -122.1980    251.0   1988265  1990284  L
+ JTS   JuntasAbangares                                      10.2908  -84.9525    340.0   1988153  2286324  L
+ JTSN  Tsuno                                                32.2455  131.5045    130.0   1997060  2286324  L
+ JTSR  Tashiro 2                                            31.1663  130.9217    430.0   1997060  2286324  L
+ JTT   Ttatey                                               36.6050  137.3333    236.0                      
+ JTU   Tsushima                                             34.5243  129.3987     70.0   1994275  2286324  L
+ JTY   Toyota                                               34.2627  131.0645    120.0                      
+ JTZ   Takazaki                                             31.9012  131.0880    170.0   1996001  2286324  L
+ JU-   Juno                                                 30.1119 -101.0772    533.0   1964095  1964224  L
+ JU-TX Juno                                                 30.1119 -101.0772    533.0   1964095  1964224  L
+ JUA2  San Juan 2                                           -0.2138  -78.6052   3670.0                      
+ JUAN  San Juan                                             -0.2083  -78.5917   3590.0                      
+ JUBA  Jubany                                              -62.2373  -58.6627     16.0   2002064  2286324  L
+ JUCM  University of California, Santa Cruz                 37.0012 -122.0485    177.0   1976029  2286324  L
+ JUD   Juan Diaz                                            10.1620  -85.5470    844.0   1984306  2286324  L
+ JUD2  Juan Diaz 2                                          10.1670  -85.5412    680.0                      
+ JUE   Julich                                               50.9100    6.4070     91.0   1974305  2286324  L
+ JUG   Jugenheim                                            49.7667    8.6000      0.0                      
+ JUI3  Juive 3                                              -1.4218  -78.4767   2425.0                      
+ JUI6  Juive                                                -1.4244  -78.4686   2422.0   2007166  2286324  L
+ JUIV  Juive                                                -1.4238  -78.4647   2380.0   1992035  2286324  L
+ JUJ   Jujuy                                               -24.2458  -65.2728   1270.0                      
+ JULC  Julian                                               33.0483 -116.6130   1292.0   1978091  2286324  L
+ JUM   Jug                                                  35.9050 -106.6680   2400.0                      
+ JUMM  Mount Umunhum                                        37.1608 -121.8980   1048.0   1989300  2286324  L
+ JUND  Jungingen                                            48.3301    9.0408    600.0   1976001  2286324  L
+ JUQB  Juquia                                              -24.0930  -47.7163    470.0   2000291  2286324  L
+ JUR   Ureshino                                             33.0932  129.9490    160.0                      
+ JUS   Usuki                                                33.0657  131.7507    140.0                      
+ JVI   Jordan Valley                                        31.9380   35.3390    680.0   1986198  2286324  L
+ JVM   Valle D.L. Mare                                      49.2169   -2.2068     64.0   1981001  2286324  L
+ JVW   Jocassee View                                        34.9923  -82.9977    554.0   1991324  2286324  L
+ JWA   Jwalamukhi                                           31.8667   76.3333      0.0 T 1965335  2286324  L
+ JWK   Wakkake-Misaki                                       45.4168  141.6732     90.0            1996366  L
+ JWK2  Keihoku                                              45.3162  141.8975     60.0   1996001  2286324  L
+ JWL   Jwalamukhi                                           31.8700   76.3706      0.0 T                    
+ JWM   Minabe                                               33.8492  135.3547    170.0   1994286  2286324  L
+ JWSM  Woodside                                             37.4180 -122.2720    280.0   1966355  1980102  L
+ JWT   Wachi                                                35.2825  135.4015    172.0                      
+ JWY   Kouya                                                34.2183  135.5930    795.0                      
+ JWZ   Kozaga                                               33.5305  135.7148    230.0                      
+ JYA   Atsumi                                               38.5930  139.7138    200.0                      
+ JYAK  Yakushimahirauchi                                    30.2378  130.5097     90.0                      
+ JYG   Yagishiri                                            44.4268  141.4265     35.0                      
+ JYJ   Yonaguni jima 2                                      24.4502  122.9437     22.0   1994277  1999078  L
+ JYK   Kaneyama                                             38.9178  140.3590    220.0   1994274  2286324  L
+ JYM   Yakumo                                               42.2012  140.2533    170.0            1998365  L
+ JYM2  Yakumo 2                                             42.1172  140.3700    120.0   1998032  2286324  L
+ JYN   Shimob                                               35.4977  138.5443    775.0                      
+ JYNG  Yonagunijimakubura                                   24.4512  122.9452     15.0                      
+ JYO   Yokosk                                               35.2238  139.6653     80.0                      
+ JYP   Jyotipuram                                           33.1083   74.8500      0.0 T 1997001  2286324  L
+ JYS   Shirataka                                            38.2210  140.0655    300.0                      
+ JYSA                                                       62.7700   24.8700      0.0                      
+ JYT   Yasato                                               36.2277  140.1940     31.0                      
+ JYW   Yuwa                                                 39.5403  140.2085     30.0   1996001  2286324  L
+ JYZW  Yoshizawa                                            34.9960  137.7337     93.0   1999213  2286324  L
+ JZK   Kikaishima                                           28.3145  129.9720    130.0                      
+ JZO   Okuchi                                               32.1400  130.5985    440.0                      
+ K01   Nishinai                                             39.3989  141.6053    431.0   1971332  2286324  L
+ MUDI  Mud Lake                                             43.6189 -111.0770   2124.0   1986001  2286324  L
+ MUDJ  Muduarah                                             29.4220   35.8200    900.0                      
+ MUGIO Muggio                                               45.9219    9.0417    830.0   2001024  2286324  L
+ MUGL  Yilanlidag                                           37.2075   28.4675   1465.0   2002312  2003145  L
+ MUI   Mashhad University                                   36.3117   59.6050   1000.0   1972001  2286324  L
+ MUIF  Mont Vial                                            43.8963    7.1525   1480.0                      
+ MUJ   Mitsuishi                                            42.2831  142.5856     60.0                      
+ MUK   Mukerian                                             31.9500   75.6167      0.0   1964348  2286324  L
+ MUKH  Al Mukha                                             13.3150   43.2653      0.0                      
+ MUKL  Al Mukalla                                           14.4760   49.0360     41.0                      
+ MUL   Mullan                                               47.4617 -115.7820   1300.0   1968001  2286324  L
+ MULD  Muldenberg                                           50.4117   12.4040    678.0                      
+ MUM   Manipur University                                   24.7498   93.9242    784.0   2001001  2286324  L
+ MUMO  Musselwhite Mine                                     52.6128  -90.3914    316.0   2003165  2286324  L
+ MUMZ                                                       13.5555  -88.4792    410.0                      
+ MUN   Mundaring                                           -31.9783  116.2080    253.0   1959212  2008112  L
+ MUNC  Munchique                                             2.4693  -76.9569   3007.0   1994001  2286324  L
+ MUO   Muotathal                                            46.9676    8.6371   1920.0   1992307  2286324  L
+ MUR   Murgab                                               38.3667   73.9333   3860.0   1947001  1992147  L
+ N12A  Clover Valley, Wells                                 40.8522 -115.0387   1786.0   2006130  2008222  L
+ N13   NORSAR Subarray 13C Beam Reference Point             61.0498    9.8861    919.0   1968366  1976275  L
+ N13A  Wendover, West Wendover                              40.8556 -114.2045   1385.0   2006139  2008233  L
+ N14   NORSAR Subarray 14C Beam Reference Point             61.1869   10.2729    492.0   1968366  1976275  L
+ N14A  Grayback Hills BLM, Clive                            40.8513 -113.1867   1325.0   2007051  2008233  L
+ N15A  Stansbury Island BLM, Grantsville                    40.8903 -112.5201   1408.0   2007049  2009094  L
+ N16A  Rees Ranch, Coalville                                40.8869 -111.4370   2028.0   2007191  2009097  L
+ N17A  Moffit Pass                                          40.9425 -110.8335   2500.0   2007192  2009112  L
+ N18A  Larsen Ranch, Manila                                 40.9763 -109.6731   1893.0   2007205  2009113  L
+ N19A  John Jarvie Ranch (BLM), Flaming Gorge               40.8936 -109.1772   1703.0   2007230  2009114  L
+ N1R1  Vettahaugen                                          66.2070   13.7410    690.0   1997182  1998228  L
+ N1R2  Lillevik                                             66.2820   13.2330     61.0   1997182  2286324  L
+ N1R3  Nordsjona                                            66.3370   13.4060     68.0   1997182  2286324  L
+ N1R4  Lillevand                                            66.4490   13.8780     55.0   1997182  1998226  L
+ N1R5  Hammernes                                            66.3870   14.0330     62.0   1997182  2286324  L
+ N1R6  Dalselv                                              66.2610   13.9700     85.0   1997182  2286324  L
+ N20A  Spence Gulch, Sunbeam                                40.8338 -108.2626   2192.0   2007317  2286324  L
+ N21A  Black Mountain, Craig                                40.7600 -107.5196   2235.0   2007313  2009296  L
+ N22A  Wattenberg Ranch, Walden                             40.8023 -106.4544   2472.0   2007331  2286324  L
+ N23   N23                                                  37.3013 -116.6160   1838.0                      
+ N23A  Red Feather Lakes                                    40.8947 -105.9440   2458.0   2008187  2286324  L
+ N24A  Carr                                                 40.8271 -104.8824   1695.0   2008190  2286324  L
+ N25A  Grover                                               40.8132 -104.0873   1607.0   2008184  2286324  L
+ N26A  Koester Ranch, Padroni                               40.8289 -103.2221   1284.0   2008343  2286324  L
+ N27A  Anderson Farm, Haxtun                                40.8063 -102.5367   1228.0   2008339  2286324  L
+ N28A  Pribbeno Ranch, Imperial                             40.6873 -101.5406   1009.0   2009140  2286324  L
+ N29A  Votaw Ranch, Wellfleet                               40.8189 -100.6264    897.0   2009139  2286324  L
+ N2B1  Tytingvag                                            61.9000    5.0960     75.0   1998288  1999077  L
+ N2B2  Myklebust                                            61.7210    5.1780     25.0   1998288  2286324  L
+ N2B3  Lovikneset                                           61.8250    4.9530     10.0   1998288  2286324  L
+ N2B4  Drage                                                62.1190    5.2430    110.0   1998288  2286324  L
+ N2B5  Haus                                                 61.9220    5.5850     30.0   1998288  2286324  L
+ N2B6  Leirgulen                                            61.8640    5.3060     20.0   1998288  2286324  L
+ N2B7  Tytingvag                                            61.8990    5.0940     15.0   1999087  2286324  L
+ N30A  Hueftle Ranch, Cozad                                 40.7957 -100.1001    842.0   2009141  2286324  L
+ N31A  Bailey Ranch, Gibbon                                 40.8235  -98.9544    687.0   2009254  2286324  L
+ N32A  Stulken Farm, Doniphan                               40.7639  -98.2955    587.0   2009251  2286324  L
+ NA0   NORSAR 1A                                            60.8237   10.8324    379.0   1971001  2286324  L
+ NA11  North Anna                                           37.9831  -77.6850      0.0            1986121  L
+ NA12  North Anna                                           37.9882  -77.8770    134.0   1978213  1998365  L
+ NA2   North Anna                                           38.1279  -77.7401     99.0   1978274  2286324  L
+ NA5   North Anna                                           38.0108  -77.7365     76.0   1978213  2004001  L
+ NAA   Naalehu                                              19.0633 -155.5870    205.0   1958001  1969314  L
+ NAB   Nanaimo                                              49.2225 -124.0040    256.0   1982011  2003363  L
+ NABD  Nabeyama                                             31.4875  130.7753    340.0   1978001  2286324  L
+ NABI  Nabire                                               -3.3269  135.2403      0.0                      
+ NAC   Naches                                               46.7344 -120.8260    738.0   1973001  2286324  L
+ NACB  Ninganchiao                                          24.1738  121.5947    130.0   1995218  2286324  L
+ NACGM Naroch                                               54.9000   26.7800    189.0                      
+ NADR  Nagua                                                19.3541  -69.8561      4.0                      
+ NADZ  Nadzab                                               -6.5778  146.7130     65.0   1995240  2286324  L
+ NAE   Nake (Tuamotu)                                      -18.4236 -140.6690      2.0   1976001  2286324  L
+ NAF   Naboro                                              -18.1203  178.3008    183.0   1979274  1983091  L
+ NAG   Nagoya                                               35.1650  136.9680     56.0                      
+ NAGA  Nagai Island                                         54.9783 -160.1383    305.0   1996183  2286324  L
+ NAGO  Nago                                                 26.0000  128.1000      0.0            1993001  L
+ NAGR  Nagutskaya                                           44.4472   42.7614    580.0   1994027  2286324  L
+ NAH   Naha                                                 26.2167  127.6833     11.0            1995055  L
+ NAH1  Naha                                                 26.2033  127.6900     21.0   1987032  2286324  L
+ NAI   Nairobi                                              -1.2739   36.8037   1692.0   1963165  1999152  L
+ NAIG  Nisos Aigina                                         37.7585   23.4887    221.0   2004061  2286324  L
+ NAIN  Natchez Trace                                        35.8560  -88.2400    198.0   1985086  1987065  L
+ NAIT  NWS Agricenter                                       35.1297  -89.8036    104.0   2001233  2286324  L
+ NAIU  Northern Antelope Island                             41.0162 -112.2280   1472.0   1991317  2286324  L
+ NAJS  Najran                                               17.5034   44.2847   1310.0   1998138  2286324  L
+ NAK   Naxcivan                                             39.2050   45.4150    887.0   1951001  2286324  L
+ NAKO  Nairobi                                              -1.2739   36.8037   1692.0                      
+ PLEC  Pleito Hills                                         34.9685 -119.0680   1082.0   1981060  2286324  L
+ PLG   Polygyros                                            40.3739   23.4456    580.0                      
+ PMOR  Pomariorio Reef                                     -15.0022 -147.8942      2.0   2002095  2286324  L
+ PMOZ  Porto Moniz, Madeira                                 32.8230  -17.1970   1027.0   2008277  2286324  L
+ PMP   Pompeii                                              40.7500   14.5000      0.0                      
+ PMPB  Monarch Peak                                         36.2159 -120.8013    802.0   2010001  2286324  N
+ PMPM  Monarch Peak                                         36.2152 -120.7950    784.0   1970226  2286324  L
+ PMPS  Porto Santo                                          33.0570  -16.3330     47.0   1998354  2286324  L
+ PMPST Porto Santo, Madeira                                 33.0788  -16.3334    240.0   2008158  2286324  L
+ PMR   Palmer                                               61.5922 -149.1310    100.0   1967005  2286324  L
+ PMRM  Maxey Ranch                                          35.7848 -120.2360    512.0                      
+ PMRV  Marv??o                                              39.4283   -7.3917    430.0   2007179  2286324  L
+ PMS   Palmer South                                         61.2447 -149.5610    716.0   1967145  2005179  L
+ PMSA  Palmer Station                                      -64.7742  -64.0490     10.0   1993060  2286324  L
+ PMST  Lisbon--Monsanto                                     38.7368   -9.1833    175.0   2004099  2286324  L
+ PMSU  Muirshiel                                            55.8459   -4.7452    351.0   1990001  2286324  L
+ PMT   Pine Mountain                                        43.7909 -120.9450   1924.0   1969226  1984017  L
+ PMTG  Montargil                                            39.0690   -8.2253    190.0   2008269  2286324  L
+ PMV   Pico Espejo                                           8.5333  -71.0500   4765.0   1980042  2003168  L
+ PMW   Pole Mountain                                        41.2100 -105.3350   2240.0   1961342  1963213  L
+ PN-   Pine Creek                                           43.7431 -118.5772   1250.0                      
+ PN-OR Pine Creek                                           43.7431 -118.5772   1250.0                      
+ PN1   Presa Penitas 1                                      17.4690  -93.4880      0.0                      
+ PN2   Presa Penitas 2                                      17.4380  -93.4505      0.0                      
+ PN3   Presa Penitas 3                                      17.3540  -93.6080      0.0                      
+ PN4   Presa Penitas 4                                      17.1790  -93.3950      0.0 T                    
+ PN6   Pavlof North-6                                       55.4528 -161.9205    808.0   1988010  1996183  L
+ PN7A  Pavlof North-7A                                      55.4326 -161.9982    823.0   1996193  2286324  L
+ PNA   Partacoona                                          -32.0061  138.1650    180.0   1969244  2000062  L
+ PNB   Pomio                                                -5.5250  151.5080      4.0   1971218  1972152  L
+ PNBI  Panbari                                              26.5333   93.4833    350.0                      
+ PNC   Pine Canyon                                          36.5622 -121.6360    305.0   1967267  1983122  L
+ SHVB  Paradis Home                                         48.4723 -123.6360     69.0   2003058  2286324  L
+ SHW   Mount Saint Helens                                   46.1925 -122.2370   1423.0   1972299  2286324  L
+ SHWJ  Shawbak                                              30.3830   35.5000   1734.0   1989305  2286324  L
+ SHY   Shemya                                               52.7333  174.1330      0.0                      
+ SHYM  Surrey Hills                                        -37.8260  145.1100    100.0   1999001  2286324  L
+ SHZ   Shizuoka                                             34.9733  138.4070     14.0            1995090  L
+ SHZ3  Shizuoka 3                                           35.0658  138.2100    710.0   1993088  2286324  L
+ SHZE  Shinhuzimiza                                         36.3992  138.5358   2256.0   1977152  2286324  L
+ SHZJ  Shizuoka 2                                           35.0278  138.4227     40.0   1989084  1993150  L
+ SI-   Smithers                                             54.7883 -127.0714    579.0   1965298  1968273  L
+ SI-BC Smithers                                             54.7883 -127.0714    579.0   1968239  1968273  L
+ SI2   Simi Peak                                            34.2039 -118.7990    700.0   1973152  2286324  L
+ SIA   Xi'an                                                34.2483  108.9200    395.0                      
+ SIBI  Sibayak Dolok                                         3.2408   98.5044   2050.0   1991274  2286324  L
+ SIBR  Sibiu                                                45.8099   24.1758    463.0   2007311  2286324  L
+ SIC   Sept Iles                                            50.1720  -66.7380    283.0                      
+ SID   Sida                                                 63.7858  -18.0583     26.0            1994059  L
+ SIE   Siena                                                43.3200   11.3122    349.0                      
+ SIERE Sierre                                               46.3853    7.4734   2910.0   1974253  2286324  L
+ SIG   South Ingalls                                        39.6878 -105.0650      0.0 T          1965213  L
+ SIGR  SIGRI                                                39.2114   25.8553     83.0   2007353  2286324  L
+ SIH   Signal Hill                                          11.1722  -60.7708     80.0                      
+ SII   Sitkinak Island                                      56.5600 -154.1820    500.0   1975274  2286324  L
+ SIJI  Sorong                                               -0.9000  131.3000      0.0                      
+ SIL   Silver Peak                                          34.3478 -116.8270   1730.0   1975305  2286324  L
+ SILB  Sidney Island                                        48.6020 -123.2815     76.0   2003053  2006185  L
+ SILC  Silvia                                                2.6880  -76.3397   3150.0   1990001  2286324  L
+ SILE  Correggio--Silva                                     44.7550   10.7970     33.0                      
+ SILO  Sutton Inlier                                        54.4792  -84.9126    195.0   2003159  2286324  L
+ SILT  Sile                                                 41.1530   29.6430    100.0   2002001  2286324  L
+ SIM   Simferopol'                                          44.9490   34.1160    275.0   1928001  2286324  L
+ SIMI  Simarbalatuk                                          2.6889   98.9469   1681.0                      
+ SIMPL Simplonpass                                          46.2396    8.0196   1930.0                      
+ SIMR  Simon                                                38.4750 -117.7675   1899.0   1976183  1977182  L
+ SIN   Shinagawa                                            35.6167  139.7500      0.0                      
+ SIND  Sindeldorf                                           49.3488    9.6057    335.0   1998001  2286324  L
+ SING  Singapore                                             1.3050  103.8500      0.0                      
+ SINI  Singah                                               -7.0144  107.5000   1000.0                      
+ SIO   Slick                                                35.7463  -96.3071    323.0   1978193  2286324  L
+ SIOO  Sion-Ophtalmol                                       46.2328    7.3832    495.0                      
+ SIOV  Sion-Valere                                          46.2351    7.3642    560.0                      
+ SIP   Shinkiari                                            34.4667   73.2992   1448.0   1974001  2286324  L
+ SIPA  Siparia                                              10.1429  -61.5060     60.0   2000092  2286324  L
+ SIPH  Barangay Tapao                                       17.8917  120.4580     33.0   2005292  2286324  L
+ SIPM  Chiapas                                              17.2230  -93.1570      0.0 T          1999305  L
+ SIPP  Brgy, Tapao                                          17.9230  120.4580     56.0                      
+ SIPV  Sipayare                                             10.1827  -70.9322    154.6                      
+ SIQV  Siquisique                                           10.6490  -69.8080    440.0   2002150  2286324  L
+ SIR   Siria                                                10.5092  -66.5092   1050.0   1974001  2286324  L
+ SIRB                                                       45.4801   26.2616    512.0   1999040  2004245  L
+ SIRI  Monte Sirino - Moliterno                             40.1821   15.8675   1063.0   2006219  2286324  L
+ SIRN  Sırnak                                              37.4962   42.4130    968.0                      
+ SIRR  Siria                                                46.2675   21.6597    480.0   1995182  2286324  L
+ SIRT  Sirnak                                               37.5011   42.4392   1038.0   2005173  2286324  L
+ SIS   Sion                                                 46.2667    7.3667    500.0   1932001  1941001  L
+ SISB  Singen-Schiener Berg                                 47.6864    8.9643    492.0   2003092  2286324  L
+ SISC  Sisak                                                45.4710   16.3720    100.0   2000165  2286324  L
+ SLC   Salt Lake City                                       40.7638 -111.8480   1423.0   1900001  2005360  L
+ SLCN  Sala Consilina                                       40.3900   15.6328    986.0   1995250  2286324  L
+ SLD   San Luis Dam                                         37.0747 -121.2210    443.0   1965305  2286324  L
+ SLDE  Delcer                                               13.8031  -61.0583    246.0   2000275  2286324  L
+ SLE   Schleitheim                                          47.7645    8.4924    648.0   1981001  2286324  L
+ SLEB  Sale Mountain                                        51.1667 -118.1330   2075.0   1983313  2286324  L
+ SLF   Silifke                                              36.2386   33.6852    120.0   1995096  2286324  L
+ SLFW  Sugar Loaf                                           47.7589 -120.5278   1750.0   1998244  2286324  L
+ SLG   Sinonel                                              14.7078  -91.6355   1220.0   1979305  2286324  L
+ SLGI  Shiliguri                                            26.7000   88.4167      0.0   1997001  2286324  L
+ SLI   Saint Lucia                                          14.0280  -61.0080     30.0   1950001  1961005  L
+ SLIT  Slitere, Latvia                                      57.6287   22.2905     15.0   2006298  2286324  L
+ SLK   Susurluk                                             39.8711   28.1450    147.0   1979335  1998001  L
+ SLKI  Saumlaki                                             -7.9817  131.2980      0.0                      
+ SLKM  Skilak Lake                                          60.5078 -150.2210    655.0   1984224  2286324  L
+ SLKY  Flemingsburg                                         38.4260  -83.7510    280.0   1989046  2286324  L
+ SLL   Stollet                                              60.4760   13.3200    390.0   1969001  2286324  L
+ SLM   Saint Louis                                          38.6361  -90.2361    161.0   1909282  2286324  L
+ THI   Terre Haute                                          39.4069  -87.3600    150.0   1950001  2286324  L
+ THIG                                                       14.9077  -92.2652     15.0                      
+ THK   Tsim Bei Tsui                                        22.4863  114.0117      4.0   1979274  2286324  L
+ THKV  Tehran--Karaj                                        35.9157   50.8788   1795.0   1998001  2286324  L
+ THL   Klokotos Trikala                                     39.5647   22.0145    107.0   2006265  2286324  L
+ THMB  Thunder Mountain BC                                  52.5489 -124.1323   1126.0   2006239  2286324  L
+ THN   Thein Dam                                            32.4333   75.7167    621.0 L 1997001  2286324  L
+ THO   Tonto Hills Observatory                              33.8753 -111.8740   1134.0   1973035  1974212  L
+ THOB  Mount Thompson                                       52.6900 -119.1220   2499.0   1972289  2286324  L
+ THP   Tara Hills                                          -44.5450  169.8880    760.0   1975001  1984248  L
+ THR   Tehra@18n                                            35.9080   51.1260   2150.0   2000117  2286324  L
+ THR1  Thera Island                                         36.3705   25.4593    550.0   2004032  2286324  L
+ THR2  Thira island, Vourvoulos                             36.4468   25.4353    220.0   2008152  2286324  L
+ THR3  Thira Island, Nea Kammeni                            36.4091   25.4008     71.0   2004032  2286324  L
+ THR4  Thira Island, Oia                                    36.4600   25.3974    220.0   2004032  2286324  L
+ THR5  Thira Island, Kera                                   36.4172   25.3479    180.0   2004032  2286324  L
+ THR6  Thira Island, Akrotiri                               36.3562   25.3975    119.0   2004032  2286324  L
+ THR7  Fira-Santorini                                       36.4224   25.4284    315.0                      
+ THRC  Three Sisters                                        34.5532 -117.7183   1025.0   1975316  1976153  L
+ THRI  Tanaharon                                            -8.3694  115.5430   1000.0                      
+ THS   The Heights School                                  -34.7417  138.7733    340.0   1989306  2286324  L
+ THT   Papeete                                             -17.5690 -149.5740    337.0                      
+ THTN  Thala                                                35.5616    8.6881   1095.0   2011001  2286324  L
+ THU   Thule                                                76.4167  -68.3000    485.0   1955001  1963095  L
+ THULE Thule                                                76.5567  -68.6750    275.0   1957234  1960211  L
+ THV   Thanh Hoa                                            19.8508  105.7820      0.0   2001001  2286324  L
+ THW   Thamme Wali                                          32.7943   71.7427    533.0                      
+ THY   Trims Highway                                        63.4167 -145.7520    732.0   1986001  2005355  L
+ THZ   Tophouse                                            -41.7638  172.9040    760.0   1989334  2286324  L
+ TI-NV Tolicha Peak                                         37.2853 -116.8669   1524.0   1970239  1971212  L
+ TI2   Plekhanov                                            41.7333   44.7500    420.0   1968142  2286324  L
+ TIA   Tai'an                                               36.2114  117.1240    300.0   1979305  2286324  L
+ TIAR  Tiarei                                              -17.5578 -149.3458    300.0   2002001  2286324  L
+ TIC   Toumodi                                               6.5500   -5.0161    138.0   1967152  1970091   
+ TIC   Toumodi                                               6.6447   -5.0200    263.0   1970092  2286324   
+ TICN  Ticuantepe                                           12.0335  -86.2317    400.0   2000122  2286324  L
+ TID   Three Point Mountain                                 43.5000 -115.9330      0.0 T                    
+ TIE   Tianjin                                              39.1333  117.2670     20.0                      
+ TIF   T'bilisi                                             41.7167   44.8000    399.0   1899001  1988103  L
+ TIG   Tigre                                                 9.0367  -83.2960    690.0   1988336  2286324  L
+ TIGA  Tifton                                               31.4389  -83.5898    109.0   2009075  2286324  L
+ TIGG  Tignish, PEI                                         47.0015  -63.0091      8.0   2005272  2007309  L
+ TIH   Tihany                                               46.9000   17.8930    187.0   1987001  1991098  L
+ TIK   Tiksi                                                71.6333  128.8667     41.0   1956001  2286324  L
+ TILK  Tilichiki                                            60.4460  166.1450     25.0                      
+ TILR  Tilichiki                                            60.4310  166.0560     40.0   2005122  2286324  L
+ TIM   Timisoara                                            45.7366   21.2208     88.0   1943001  2286324  L
+ TIMB  Timberline                                           45.3356 -121.7101   1901.0   2006272  2286324  L
+ TIMO  Timmins Ontario                                      48.4659  -81.3032    392.0   2005206  2286324  L
+ TIN   Tinemaha                                             37.0550 -118.2280   1195.0   1929247  2286324  L
+ TINA  Tinaroo                                             -17.1761  145.5303    767.0   2004001  2286324  L
+ TINT  Rio Tinto                                            37.7667   -6.6333      0.0                      
+ TIO   Tiouine                                              30.9267   -7.2617   1335.0   1969001  2286324  L
+ TIOV  TMO PEDROTE                                          10.4385  -66.4146    830.0   2005305  2286324  L
+ TIP   Timpagrande                                          39.1786   16.7583    815.0   1999001  2286324  L
+ TIPT  Tiptonville                                          36.4238  -89.4861     88.0   1999121  2286324  L
+ TIR   Tirane                                               41.3477   19.8650    247.0   1968245  2286324  L
+ TIRR  Tirgusor                                             44.4581   28.4128     77.0   2003286  2286324  L
+ TIS   Tissa                                                31.8920   -6.5540   1687.0                      
+ TISN  Laguna Tiscapa                                       12.1425  -86.2693    200.0                      
+ TIT   Squaw Tit                                            41.0733 -123.9800    700.0                      
+ TITE  Tito                                                 40.5546   15.6926    660.0                      
+ TIWZ  Tintock                                             -40.7778  175.8855    559.0                      
+ TIXI  Tiksi                                                71.6490  128.8665     50.0   1995227  2286324  L
+ TIY   Taiyuan                                              37.7131  112.4340    850.0                      
+ TJC   Trinidad (USA)                                       37.2169 -104.6910   2103.0   1965274  2286324  L
+ TNTG  T'onet'i                                             41.6600   44.4100    120.0   1983001  2286324  L
+ TNTI  Ternate                                               0.7718  127.3667     43.0   2007005  2286324  L
+ TNU   Tenhult                                              57.6380   14.2690      0.0   1980001  1991001  L
+ TNV   Terranova Bay                                       -74.6950  164.1240     40.0   1989001  2286324  L
+ TNZ   Tarata                                              -39.1872  174.3800    123.0   1962121  1985331  L
+ TO-   Tishomingo                                           34.3564  -96.5681    259.0   1961324  1962160  L
+ TO-OK Tishomingo                                           34.3564  -96.5681    259.0   1962129  1962160  L
+ TOA   Tolsona                                              62.1048 -146.1720    909.0   1971258  2286324  L
+ TOA0  Torodi Ar. Site                                      13.1477    1.6947    214.3   2005270  2286324  L
+ TOA1  Torodi Ar. Site                                      13.1529    1.6919    220.2   2005270  2286324  L
+ TOA2  Torodi Ar. Site                                      13.1477    1.7004    216.3   2005270  2286324  L
+ TOA3  Torodi Ar. Site                                      13.1422    1.6933    216.8   2005270  2286324  L
+ TOAZ  Toaza                                                -0.1790  -78.6155   4200.0                      
+ TOB   Tobago                                               11.1410  -60.8410     15.0   1977121  2286324  L
+ TOB1  Torodi Ar. Site                                      13.1613    1.6934    231.4   2005270  2286324  L
+ TOB2  Torodi Ar. Site                                      13.1532    1.7071    216.4   2005270  2286324  L
+ TOB3  Torodi Ar. Site                                      13.1376    1.7042    215.8   2005270  2286324  L
+ TOB4  Torodi Ar. Site                                      13.1386    1.6838    226.4   2005270  2286324  L
+ TOB5  Torodi Ar. Site                                      13.1536    1.6806    218.5   2005270  2286324  L
+ TOBO  Tobermory, Bruce Peninsula National Park             45.2257  -81.5234    169.0   2003210  2286324  L
+ TOBT  Tobi-shima                                           39.1900  139.5500     20.0   1974244  2286324  L
+ TOC   Tocklai                                              26.7500   94.7667     87.0                      
+ TOC1  Torodi Ar. Site                                      13.1721    1.7017    233.3   2005270  2286324  L
+ TOC2  Torodi Ar. Site                                      13.1568    1.7204    221.8   2005270  2286324  L
+ TOC3  Torodi Ar. Site                                      13.1370    1.7205    214.3   2005270  2286324  L
+ TOC4  Torodi Ar. Site                                      13.1216    1.6994    231.7   2005270  2286324  L
+ TOC5  Torodi Ar. Site                                      13.1282    1.6751    231.5   2005270  2286324  L
+ TOC6  Torodi Ar. Site                                      13.1483    1.6655    225.6   2005270  2286324  L
+ TOC7  Torodi Ar. Site                                      13.1638    1.6787    224.6   2005270  2286324  L
+ TOCH  Tocopilla                                           -22.0935  -70.2007     45.0                      
+ TOD   Tromm                                                49.6059    8.8038    570.0   1974274  2286324  L
+ TOF   Tornio                                               66.0800   24.3300     50.0                      
+ TOFB  Tofino                                               49.1543 -125.9078     13.0                      
+ TOG   Togane                                               35.5500  140.3670      9.0            1941001  L
+ TOI   Tomamai                                              44.2212  141.6837     40.0                      
+ TOK   Tokyo                                                35.6867  139.7583   -285.0   1875001  2286324  L
+ TOKA  Tokat                                                40.3232   36.4783    679.0   2007344  2286324  L
+ TOKT  Tokat                                                40.3203   36.5448    726.0   1996030  2286324  L
+ TOL   Toledo                                               39.8814   -4.0486    480.0   1918001  1992335  L
+ TOLC  Tolima                                                4.5888  -75.3399   2516.0   1994001  2286324  L
+ TOLF  Tolfa                                                42.0641   12.0002    371.0   2002274  2286324  L
+ TOLI  Toli-Toli                                             1.1214  120.7944     86.0   2008183  2286324  L
+ TOLO  Toledo BPA CREST BB SMO                              44.6219 -123.9225     21.0   2001296  2286324  L
+ TOM   Tomie                                                32.6083  128.7650     28.0                      
+ TOMM  Thomson                                             -37.8085  146.3497    932.0   1999001  2286324  L
+ TON   Tongariro                                           -39.2028  175.5380   1120.0   1952001  1966112  L
+ TOO   Toolangi                                            -37.5714  145.4910    604.0   1960001  2286324  L
+ TOP   Topolovo                                             53.2300  158.0410    200.0   1961001  2286324  L
+ TOPM  Tallapoosa                                           36.5259  -89.8885     80.0   1999121  2286324  L
+ TOPO  Topo                                                 38.5910  -27.9190    645.0   1997001  2286324  L
+ TOPPO Toppo, Italy                                         46.1987   12.8170    258.0                      
+ TOR   Tori shima                                           30.4817  140.3050     82.0                      
+ TORD  Torodi Ar. Beam                                      13.1477    1.6947    214.3   2005270  2286324  L
+ TORE  Minerbio--Torre                                      44.6072   11.5255     16.0                      
+ TORNY Torny-Romont                                         46.7736    6.9586    758.0   2000028  2286324  L
+ TORO  Toronto--Leslie Street Spit                          43.6136  -79.3433     80.0   2004125  2286324  L
+ TORR  Tordecillas                                          36.9723   -4.0743   1321.0   1990001  2286324  L
+ TORT  La Tortuga                                           10.9084  -65.3139     40.0   1983244  1986001  L
+ TORV  Torococo                                              9.5600  -70.2300   1250.0                      
+ TOS   Tosya                                                41.0360   34.0230   1046.0   2002042  2286324  L
+ TOSP  Speyside                                             11.2984  -60.5353     10.0   2007129  2286324  L
+ TOT   Tottori                                              35.4850  134.2400     18.0                      
+ TOTH  TOTAH                                                33.3613   36.4283    696.0   2004001  2286324  L
+ TOTJ  Tottori                                              35.4783  134.2720     27.0   1979001  2286324  L
+ TOU   Touzarine                                            34.9620   -3.7540   1126.0   1992001  2286324  L
+ TOUF  Mont Tournerait                                      44.0137    7.2483   1830.0   1987337  2286324  L
+ TOV   El Tocuyo                                             9.7925  -69.7926    650.0   1975098  2286324  L
+ TOW   Tower One                                            35.8090 -117.7640    684.0   1982213  2286324  L
+ TOY   Toyama                                               36.7067  137.2050     10.0                      
+ TOZ   Tahuroa Road                                        -37.7308  175.5019      0.0   1998274  2286324  L
+ TP-   Tippipah                                             37.2003 -116.2260   2256.0   1961340  1961350  L
+ TP-NV Tippipah                                             37.2003 -116.2261   2256.0   1961340  1961350  L
+ TP2   Tecpan 2                                             14.7833  -91.0213   3075.0   1982001  2286324  L
+ TPA   Tala Pozo                                           -27.8217  -64.2450    177.0                      
+ TPAW  Teton Pass                                           43.4901 -110.9510   2512.0   1986001  2286324  L
+ TPB   Topolobampo                                          25.5967 -109.0530     25.0   1972221  1973232  L
+ TPC   Twentynine Palms                                     34.1058 -116.0490    720.0   1972122  2286324  L
+ TPE   Tepelena                                             40.2952   20.0109    251.0   1984092  2286324  L
+ TPG   Tlapa                                                17.5607  -98.5555   1100.0            1999305  L
+ TPH   Tonopah                                              38.0750 -117.2225   1883.7   1961244  1996357  L
+ TPI   Tanjungpandan                                        -2.7563  107.6534     25.0                      
+ TPIG  Tehuac#an                                            18.4195  -97.3617   1488.0   2002283  2286324  L
+ TPJ   Tangkuban Prahu                                      -6.7667  107.6000      0.0 T 1969001  1999237  L
+ TPK   Tolicha Peak                                         37.2686 -116.8040   2080.0   1979162  1982001  L
+ TPL   Tocopilla                                           -22.0978  -70.2094     40.0                      
+ TPM   Tepoztlan                                            18.9833  -99.0617   1500.0                      
+ TPMO  Tallapoosa                                           36.5400  -89.8520     83.0                      
+ TPMT  Tepee Creek                                          44.7298 -111.6660   2518.0   1992286  2286324  L
+ TPN   Tapini                                               -8.3569  146.9840    989.0   1964336  1969001  L
+ TPND  Tumut Pond Dam                                      -35.9630  148.3900   1205.0                      
+ TPNV  Topopah Spring                                       36.9488 -116.2490   1600.0   1992167  2286324  L
+ TPO   Tropico Hills                                        34.8788 -118.2280    799.0   1976153  2286324  L
+ TPOR  Trinity Point                                        45.0244 -117.0860   2000.0   1991244  2286324  L
+ TPP   Pointe-a-Pierre                                      10.3170  -61.4510     46.0   1965001  2286324  L
+ TPR   Prospect                                             11.1860  -60.7770    245.0   1978051  2286324  L
+ TPRI  Tanjung Pinang                                        0.9184  104.5263     41.0   2005001  2286324  L
+ TPRS  Tripped Ranch                                        34.0888 -118.5870     -1.0   1985305  2286324  L
+ TPT   Tiputa                                              -14.9844 -147.6200      3.0                      
+ TPTC  Pt. Cumana                                           10.6800  -61.5700     49.0                      
+ TPTI                                                        3.2600   97.1800      9.0                      
+ TPU   Tempiute Mountain                                    37.6046 -115.6496   1964.0   1979159  1998152  L
+ TPUB  Ta-pu                                                23.3005  120.6296    370.0   1995082  2286324  L
+ TPV   Tonopah                                              38.0658 -117.2280   1890.0   1965001  1970001  L
+ WAKE  Wake Island                                          19.2833  166.6536      0.2   1996183  2286324  L
+ WAKJ  Wakkanai                                             45.4133  141.6833     11.0                      
+ WAKR  Walker                                               38.5044 -119.4372   1890.0   1996246  2286324  L
+ WAL   Wallace                                              47.4600 -115.9650   1200.0 L 1965001  2286324  L
+ WAL1  Walls                                                60.2564   -1.6173    167.0   1980001  2286324  L
+ WALA  Waterton Lakes                                       49.0586 -113.9120   1400.0   1992136  2286324  L
+ WALK  Watson Lake                                          36.5394  -89.5423     87.0   1999121  2286324  L
+ WALU  Walls                                                60.2576   -1.6133    170.0   1980001  2286324  L
+ WAM   Wambrook                                            -36.1928  148.8830    200.0   1957001  2286324  L
+ WAMI  Wamena                                               -3.8847  138.7114      0.0 T                    
+ WAN   Wanliss Street                                       -4.1943  152.1760     25.0   1967001  2286324  L
+ WANC  Wrangell North Crater                                62.0031 -144.0699   4190.0   2000213  2286324  L
+ WAPA  Wapiti River                                         55.1833 -119.2536    784.0                      
+ WAR   Warsaw                                               52.2417   21.0236    110.0   1939001  2286324  L
+ WARB  Warburton                                           -26.1838  126.6430    460.0   1987179  1998365  L
+ WARN  West Arenal                                          10.4620  -84.7208    580.0                      
+ WAS   Washington                                           38.8925  -77.0331      1.0 L 1900001  1969001  L
+ WASL  Wasel                                                29.1880   34.9060      0.0   1993182  1997001  L
+ WASM  Alta Sierra Campground                               35.7382 -118.5570   1871.0   1980092  2286324  L
+ WASW  Wrangell Southwest                                   61.9282 -144.1724   2196.0   2001214  2286324  L
+ WAT   Watheroo                                            -30.3167  115.8830      0.0   1958001  1959001  L
+ WATA  Walderalm                                            47.3357   11.5763   1492.0   1989274  2286324  L
+ WATZ  Wairara                                             -38.7097  175.7329    520.0   1996214  2286324  L
+ WAU   Wau                                                  -7.3456  146.7165   1083.0   1996130  2286324  L
+ WAX   Waxell Ridge                                         60.4500 -142.8520    975.0   1975234  2286324  L
+ WAY   Waynesburg                                           39.9017  -80.1850    329.0   1956153  1964001  L
+ WAZ   Wanganui                                            -39.7564  174.9853    401.0   2003227  2286324  L
+ WAZA  Wrangell Mount Zanetti                               62.0751 -144.1522   2531.0                      
+ WB0   Warramunga Array Site B0                            -19.7671  134.3930    392.0   1965274  2286324  L
+ WB1   Warramunga Ar.                                      -19.9595  134.3460    422.0   1965274  2286324  L
+ WB2   Warramunga Array Site B2                            -19.9427  134.3511    388.0   1965274  2286324  L
+ YKR1  Yellowknife Array Site R1                            62.4927 -114.9456    170.0   1962001  2286324  L
+ YKR2  Yellowknife Array Site R2                            62.4928 -114.8964    175.0   1962001  2286324  L
+ YKR3  Yellowknife Array Site R3                            62.4930 -114.8477    176.8   1962001  2286324  L
+ YKR4  Yellowknife Array Site R4                            62.4928 -114.7995    173.4   1962001  2286324  L
+ YKR5  Yellowknife Array Site R5                            62.4933 -114.7499    182.9   1962001  2286324  L
+ YKR6  Yellowknife Array Site R6                            62.4933 -114.7014    192.2   1962001  2286324  L
+ YKR7  Yellowknife Array Site R7                            62.4934 -114.6537    198.9   1962001  2286324  L
+ YKR8  Yellowknife Ar.                                      62.4932 -114.6050    197.0   1963273  2286324  L
+ YKR9  Yellowknife Array Site R9                            62.4932 -114.5558    201.1   1962001  2286324  L
+ YKS   Yaku shima                                           30.4500  130.4970     15.0                      
+ YKT   Yakutat                                              59.3686 -138.8770    372.0   1972280  1975243  L
+ YKU   Yakutat                                              59.5531 -139.7290     20.0   1978121  2004134  L
+ YKU2  Yakutat                                              59.5121 -139.6710     10.1   2004092  2286324  L
+ YKW1  Yellowknife Array Site W1                            62.4932 -114.5090    198.0   1962001  2286324  L
+ YKW2  Yellowknife Array Site W2                            62.4248 -114.6054    200.0   1962001  2286324  L
+ YKW3  Yellowknife Array Site W3                            62.5608 -114.6160    198.0   1962001  2286324  L
+ YKW4  Yellowknife Array site W4                            62.4922 -114.7419    200.0   1962001  2286324  L
+ YLA   Ilan                                                 24.7656  121.7480      7.0   1936001  2286324  L
+ YLE   Yale                                                 41.3150  -72.9365      5.0   1995097  2286324  L
+ YLL   Llanberis                                            53.1402   -4.1704    162.0   1984001  2286324  L
+ YLT   Little Thumb Creek                                   44.4370 -110.5880   2439.0   2002274  2286324  L
+ YLV   Yalova                                               40.5667   29.3728    829.0   1982001  2286324  L
+ YLYR  Ulyunkhan                                            54.8761  111.1617    560.0   1989001  2286324  L
+ YM-NV Yucca Mountain                                       36.9314 -116.5542   1341.0   1970238  1971223  L
+ YMBN  Yamba Lake                                           64.8742 -111.5325    438.0   2001250  2006191  L
+ YMC   Maple Creek                                          44.7593 -111.0060   2073.0   1974274  2286324  L
+ YMD   Yuma Desert                                          32.5547 -114.5450     76.0   1975182  2286324  L
+ YML   Mary Lake                                            44.6053 -110.6432   2653.0   1993299  2286324  L
+ YMP   Mirror Lake Plateau                                  44.7402 -110.1560   2774.0   2002335  2286324  L
+ YMR   Madison River                                        44.6687 -110.9650   2149.0   1995258  2286324  L
+ YMS   Mount Sheridan                                       44.2640 -110.5278   3106.0   1995257  2286324  L
+ YMT1  Yucca Mountain                                       36.8539 -116.5300   1002.0   1981064  1992275  L
+ YMT2  Yucca Mountain                                       36.7853 -116.4866   1079.0   1981064  1992275  L
+ YMT3  Yucca Mountain                                       36.7860 -116.4130   1088.0   1981064  1998152  L
+ YMT4  Yucca Mountain                                       36.8487 -116.4503   1283.0   1981091  1998152  L
+ YMT5  Yucca Mountain                                       36.8987 -116.4534   1381.0   1981091  1998152  L
+ YMT6  Yucca Mountain                                       36.8557 -116.4000   1149.0   1981091  1998152  L
+ YMV   Mammoth Vault                                        44.9737 -110.6888   1829.0   1992275  2286324  L
+ YMZ   Yamizo                                               36.9241  140.2479    500.0   1981117  2286324  L
+ YMZU  Yamizo                                               36.9232  140.2460    500.0   1976170  2286324  L
+ YNAR  Nardues-Aldunate                                     42.6375   -1.3672    740.0                      
+ YNB   Natural Bridge                                       44.5245 -110.4590   2390.0   1974274  1983335  L
+ YNBS  Yanbu` al Bahr                                       24.3396   37.9939    210.0   1998138  2286324  L
+ YNC   Yinchuan                                             38.4750  106.2700      0.0 T                    
+ YNCB  YEONCHEON                                            38.0399  126.9258     56.0                      
+ YND   Yaounde                                               3.8700   11.4600    750.0   1982032  1986113  L
+ YNEN  Yamba Lake Northeast                                 65.0883 -111.0500    463.0   2002205  2006190  L
+ YNG   Young                                               -34.2980  148.3963    460.0   1991002  2286324  L
+ YNGY  Yangiyul                                             41.1100   69.0400    352.0   1967001  2286324  L
+ YNR   Norris Junction                                      44.7155 -110.6792   2336.0   1993195  2286324  L
+ YNT   Yunotani                                             37.2233  139.0145    170.0   1970305  2005327  L
+ YOA   Uoyan                                                56.1328  111.7239    500.0   1980001  2286324  L
+ YOBS                                                       24.3578   38.7424    372.0                      
+ YOGI  Yogyakarta                                           -7.8166  110.2949    160.0   2005340  2286324  L
+ YOJ   Yonaguni jima                                        24.4617  123.0108     32.0   1964001  1999078  L
+ YOK   Yokohama                                             35.4367  139.6567     38.0                      
+ YOKT  Yokooka                                              39.1600  139.9800    260.0   1974062  2286324  L
+ YOMI  Yo Moklole                                           -2.6428  140.5600    260.0                      
+ YON   Yonago                                               35.4317  133.3417      7.0                      
+ YONJ  Yonago 2                                             35.1883  133.4630    320.0                      
+ YOO   Oaxaca                                               17.7500  -97.8250   1600.0            1999305  L
+ YOS   Yoshiwara                                            35.1667  138.6830      0.0            1941001  L
+ YOSD  Yoshimatsu                                           32.0006  130.7278    315.0   1978091  2286324  L
+ YOSQ  Ashton Mining of Canada property                     52.8666  -72.1998    649.0   2005177  2286324  L
+ YOU   Young                                               -34.2783  148.3817    503.0   1974182  1999001  L
+ YOUB  Youbou, Lake Cowichan                                48.9009 -124.2618    771.0   2003134  2286324  L
+ YOZ   Yozgat                                               39.6400   35.3200   1422.0   2002284  2286324  L
+ YPBB  Black Butte                                          45.0288 -111.1168   2085.0   1973001  1983335  L
+ YPBE  Bechler                                              44.1495 -111.0390   1966.0            2004065  L
+ YPBR  Bridge Bay                                           44.5367 -110.4395   2383.0   1983354  1989298  L
+ YPCJ  Canyon Junction                                      44.7438 -110.4975   2426.0   1974274  2286324  L
+ YPDC  Denny Creek                                          44.7095 -111.2397   2025.0   1973001  2286324  L
+ YPE   Yupe                                                 14.1217  -89.6806   1581.0            2003094  L
+ YPEE  East Entrance                                        44.4905 -110.0010   2134.0   1974274  1976275  L
+ YPGV  Grant Village                                        44.3808 -110.5453   2430.0   1983354  1984303  L
+ YPHR  Hebgen Ridge                                         44.8523 -111.3160   2060.0   1973001  1983335  L
+ YPHS  Hot Springs Basin                                    44.7556 -110.3540   2621.0            2004065  L
+ YPLA  Lake Butte                                           44.5127 -110.2687   2580.0   1989274  2286324  L
+ YPLB  Lake Butte                                           44.5113 -110.2720   2565.0   1983354  1989297  L
+ YPLK  Lake Junction                                        44.5697 -110.3865   2390.0   1974274  1976275  L
+ YPM   Purple Mountain                                      44.6572 -110.8687   2582.0   1993299  2286324  L
+ YPMF  Mesa Falls                                           44.1432 -111.2882   1786.0   1974274  1976275  L
+ Z22A  Elephant Butte, Truth or Consequences                33.2555 -106.9639   1497.0   2008102  2286324  L
+ Z23A  Rita Site, White Sands Missle Range                  33.2621 -106.2319   1278.0   2008135  2011019  L
+ Z24A  Sheeppen Canyon, Tinnie                              33.3298 -105.3649   1863.0   2008136  2011065  L
+ Z25A  Roswell                                              33.2797 -104.7171   1233.0   2008107  2011067  L
+ Z26A  Caprock                                              33.2716 -103.9798   1163.0   2008108  2011064  L
+ Z27A  Tatum                                                33.3150 -103.2145   1197.0   2008108  2011063  L
+ Z28A  Tucker Farm, Meadow                                  33.2884 -102.3866   1045.0   2009027  2286324  L
+ ZZT   Zu Zu                                                35.3640  -89.3720    120.0   1974060  1975244  L
