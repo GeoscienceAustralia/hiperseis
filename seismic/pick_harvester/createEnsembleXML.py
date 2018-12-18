@@ -1,4 +1,18 @@
 #!/bin/env python
+"""
+Description:
+    This script was initially written for inserting new picks into the ISC catalogue.
+    We now use a unified csv catalogue (that Babak has prepared) and this script merges existing
+    picks with those picked by our parallel picker and creates self-consistent SC3ML files 
+    to be ingested into Seiscomp3.
+    
+CreationDate:   20/11/18
+Developer:      rakib.hassan@ga.gov.au
+ 
+Revision History:
+    LastUpdate:     20/11/18   RH
+
+"""
 
 import click
 import os, glob, fnmatch, sys
