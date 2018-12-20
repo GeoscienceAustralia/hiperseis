@@ -80,13 +80,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=str)
 @click.argument('scratch-path', required=True,
                 type=str)
-@click.argument('output-file', required=True,
+@click.argument('output-file-stem', required=True,
                 type=click.Path(exists=False))
-def process(data_path, scratch_path, output_file):
+def process(data_path, scratch_path, output_file_stem):
     """
     DATA_PATH: input-folder
     SCRATCH_PATH: scratch-folder
-    OUTPUT_FILE: output file name
+    OUTPUT_FILE_STEM: output file stem
     """
 
     comm = MPI.COMM_WORLD
@@ -137,7 +137,8 @@ def process(data_path, scratch_path, output_file):
     eventIds = comm.scatter(eventIds, root = 0)
     inventory = comm.bcast(inventory, root = 0)
     
-    procfile = open('%s/proc.%d.txt'%(scratch_path, rank), 'w+')
+    pprocfile = open('%s/pproc.%d.txt'%(scratch_path, rank), 'w+')
+    sprocfile = open('%s/sproc.%d.txt'%(scratch_path, rank), 'w+')
     for eid in tqdm(eventIds):
         ofn = '%s/%s.xml'%(scratch_path, eid.split('/')[-1])
         cmd = ['scxmldump -d  mysql://sysop:sysop@localhost/seiscomp3 -E %s -PAMf -o %s'% 
@@ -149,7 +150,8 @@ def process(data_path, scratch_path, output_file):
             notFound = defaultdict(int)
             cat = read_events(ofn, format='SC3ML')
             
-            lines = []
+            linesp = []
+            liness = []
             for e in cat.events:
                 po = e.preferred_origin()
 
@@ -164,9 +166,13 @@ def process(data_path, scratch_path, output_file):
                 if(poDepth == None): continue
                 
                 for a in po.arrivals:
-                    ncode = a.pick_id.get_referred_object().waveform_id.network_code
-                    scode = a.pick_id.get_referred_object().waveform_id.station_code
-                    ccode = a.pick_id.get_referred_object().waveform_id.channel_code
+                    try:
+                        ncode = a.pick_id.get_referred_object().waveform_id.network_code
+                        scode = a.pick_id.get_referred_object().waveform_id.station_code
+                        ccode = a.pick_id.get_referred_object().waveform_id.channel_code
+                    except:
+                        continue
+
                     
                     slon = None
                     slat = None
@@ -214,37 +220,54 @@ def process(data_path, scratch_path, output_file):
                             pick_attribs['snr'],
                             int(pick_attribs['bi'])]
 
-                    lines.append(line)
+                    if(a.phase == 'P'): linesp.append(line)
+                    elif(a.phase == 'S'): liness.append(line)
                 # end for
             # end for
 
-            for line in lines:
-                procfile.write(' '.join([str(item) for item in line]) + '\n')
+            for line in linesp:
+                pprocfile.write(' '.join([str(item) for item in line]) + '\n')
+            # end for
+            
+            for line in liness:
+                sprocfile.write(' '.join([str(item) for item in line]) + '\n')
             # end for
             if (len(notFound)): print 'Rank: %d'%(rank), notFound
         # end if
         if (os.path.exists(ofn)): os.remove(ofn)
         #break
     # end for
-    procfile.close()
+    pprocfile.close()
+    sprocfile.close()
 
     header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr bandIndex\n'
 
     comm.barrier()
     if(rank == 0):
-        of = open(output_file, 'w+')
+        ofp = open(output_file_stem + '.p.txt', 'w+')
+        ofs = open(output_file_stem + '.s.txt', 'w+')
         
-        of.write(header)
+        ofp.write(header)
+        ofs.write(header)
         for i in range(nproc):
-            pfn = '%s/proc.%d.txt'%(scratch_path, i)
+            pfn = '%s/pproc.%d.txt'%(scratch_path, i)
+            sfn = '%s/sproc.%d.txt'%(scratch_path, i)
+            
             lines = open(pfn, 'r').readlines()
             for line in lines:
-                of.write(line)
+                ofp.write(line)
+            # end for
+            
+            lines = open(sfn, 'r').readlines()
+            for line in lines:
+                ofs.write(line)
             # end for
 
             if (os.path.exists(pfn)): os.remove(pfn)
+            if (os.path.exists(sfn)): os.remove(sfn)
         # end for
-        of.close()
+        ofp.close()
+        ofs.close()
     # end if
 # end func
 
