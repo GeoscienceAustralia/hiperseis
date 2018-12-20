@@ -39,6 +39,7 @@ from mpi4py import MPI
 from collections import defaultdict 
 from pykml import parser
 import uuid, copy
+from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 
 def recursive_glob(treeroot, pattern):
     results = []
@@ -247,9 +248,9 @@ class Catalog():
                     year = int(vals[0])
                     month = int(vals[1])
                     day = int(vals[2])
-                    hour = int(vals[3] if vals[3] >=0 else 0)
-                    minute = int(vals[4] if vals[4] >=0 else 0)
-                    second = vals[5] if vals[5] >=0 else 0
+                    hour = int(vals[3])
+                    minute = int(vals[4])
+                    second = vals[5]
 
                     lon = vals[6]
                     lat = vals[7]
@@ -321,9 +322,9 @@ class Catalog():
                 year = int(vals[0])
                 month = int(vals[1])
                 day = int(vals[2])
-                hour = int(vals[3] if vals[3] >=0 else 0)
-                minute = int(vals[4] if vals[4] >=0 else 0)
-                second = vals[5] if vals[5] >=0 else 0
+                hour = int(vals[3])
+                minute = int(vals[4])
+                second = vals[5]
 
                 utctime = None
                 try:
@@ -365,6 +366,7 @@ class Catalog():
         missingStations = defaultdict(int)
         for e in self.eventList:
             if(e.preferred_origin and len(e.preferred_origin.arrival_list)):
+                cullList = []
                 for a in e.preferred_origin.arrival_list:                   
                     if(len(a.net)): continue
                     
@@ -373,7 +375,10 @@ class Catalog():
                     if(seedid not in cache):
                         sc = a.sta
                         lonlat = self.isc_coords_dict[sc]
-                        if(len(lonlat)==0): continue
+                        if(len(lonlat)==0): 
+                            cullList.append(a)
+                            continue
+                        # end if
 
                         r = self.fdsn_inventory.getClosestStations(lonlat[0], lonlat[1], maxdist=1e3)
                         #if(a.sta=='KUM'): print a.net, a.sta, a.loc, a.cha, r
@@ -396,8 +401,22 @@ class Catalog():
                     if(newCode):
                         #print a.net, newCode
                         a.net = newCode
+
+                        sc = self.fdsn_inventory.t[a.net][a.sta]
+                        if(type(sc)==defaultdict): 
+                            cullList.append(a)
+                            continue
+                        # end if
+                        da = gps2dist_azimuth(e.preferred_origin.lat, 
+                                              e.preferred_origin.lon, 
+                                              sc[1], sc[0])
+                        dist = kilometers2degrees(da[0]/1e3)
+                        if(np.fabs(a.distance-dist)>0.5): 
+                            cullList.append(a)
+                        # end if
                     # end if
                 # end for
+                for c in cullList: e.preferred_origin.arrival_list.remove(c)
             # end if
             
             # Create obspy event object         
