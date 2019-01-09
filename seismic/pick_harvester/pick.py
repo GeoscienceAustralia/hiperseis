@@ -48,7 +48,7 @@ from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, Catalog, CatalogCSV
+from utils import EventParser, Catalog, CatalogCSV, ProgressTracker
 import psutil
 import gc
 
@@ -136,8 +136,8 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
 
 def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
               stn, ste, ba, win_start=-50, win_end=50, resample_hz=20,
-              bp_freqmins= [0.05, 2],
-              bp_freqmaxs = [0.5, 5],
+              bp_freqmins = [0.01, 0.01, 0.5],
+              bp_freqmaxs = [   1,   2., 5.],
               margin=20,
               max_amplitude=1e8):
 
@@ -270,7 +270,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
 @click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
-def process(asdf_source, event_folder, output_path, min_magnitude):
+@click.option('--restart', default=False, is_flag=True, help='Restart job')
+def process(asdf_source, event_folder, output_path, min_magnitude, restart):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
@@ -323,6 +324,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
     ofp.write(header)
     ofs.write(header)
 
+    progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
     totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.local_net_sta_list():
         day = 24 * 3600
@@ -350,6 +352,9 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                 stations_ech = [s for s in stations if 'E' in s[3] or '2' in s[3]]  # only E channels
 
                 for codes in stations_zch:
+                    if(progTracker.increment()): pass
+                    else: continue
+
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
                                            curr + step,
@@ -409,6 +414,9 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                 if(len(stations_nch)>0 and len(stations_nch) == len(stations_ech)):
                     for codesn, codese in zip(stations_nch, stations_ech):
+                        if (progTracker.increment()): pass
+                        else: continue
+
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                                curr,
                                                curr + step,
