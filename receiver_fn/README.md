@@ -91,11 +91,11 @@ It shows different stacking options and allows to extract specific station as AS
 ## Configuration and used modules on NCI
 
 ### Currently Loaded Modulefiles:
-
-| 1) pbs                 |  4) dot                  | 7) python/2.7.13 |       10) geos/3.5.0
-| 2) gcc/4.9.0           |  5) gmt/5.1.0            | 8) szip/2.1      |       11) proj/4.9.3
-| 3) openmpi/1.8.4-debug |  6) intel-mkl/17.0.1.132 | 9) hdf5/1.8.14   |   
-
+```
+  1) pbs                    4) dot                    7) python/2.7.13         10) geos/3.5.0
+  2) gcc/4.9.0              5) gmt/5.1.0              8) szip/2.1              11) proj/4.9.3
+  3) openmpi/1.8.4-debug    6) intel-mkl/17.0.1.132   9) hdf5/1.8.14       
+```
 ### PIP Installed modules (pip freeze --user)
 ```
 adjustText==0.7.3
