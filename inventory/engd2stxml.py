@@ -17,6 +17,7 @@ from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
+from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 try:
     import tqdm
@@ -34,15 +35,12 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.width', 240)
 
-table_columns = ['NetworkCode', 'StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
-
 NOMINAL_EARTH_RADIUS_KM = 6378.1370
 DIST_TOLERANCE_KM = 2.0
 DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
 COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
 # See https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timestamp-limitations
-PANDAS_MAX_TIMESTAMP = str(pd.Timestamp.max)[0:19]
 
 
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -63,12 +61,11 @@ def read_eng(fname):
     Each Station Code (first column) might NOT be unique, and network codes are missing here, so duplicates will
     simply be noted and handled later.
 
-    Returns Pandas Dataframe containing the loaded data in column order of table_columns.
+    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
     """
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
     col_names = ['StationCode', 'Latitude', 'Longitude', 'Elevation']
-    data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names,
-                             dtype={'StationCode': str, 'Latitude': np.float64, 'Longitude': np.float64, 'Elevation': np.float64})
+    data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names, dtype=TABLE_SCHEMA)
     # Assumed network code for files of this format.
     data_frame['NetworkCode'] = 'GE'
     # Populate missing data.
@@ -79,7 +76,7 @@ def read_eng(fname):
     # Default channel code.
     data_frame['ChannelCode'] = 'BHZ'
     # Sort columns into preferred order
-    data_frame = data_frame[table_columns]
+    data_frame = data_frame[TABLE_COLUMNS]
     # Compute and report number of duplicates
     num_dupes = len(data_frame) - len(data_frame['StationCode'].unique())
     print("{0}: {1} stations found with {2} duplicates".format(fname, len(data_frame), num_dupes))
@@ -101,7 +98,7 @@ def read_isc(fname):
     The lines starting with a station code are HEADER rows, and provide the station coordinates.
     The idented lines starting with FDSN provide distinct station, network and channel data for the given station location.
 
-    Returns Pandas Dataframe containing the loaded data in column order of table_columns.
+    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
     """
     header_colspec = ((0, 5), (7, 16), (17, 26), (27, 34), (35, 54,), (55, 74))
     header_cols = ['StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']
@@ -154,7 +151,7 @@ def read_isc(fname):
                     line = line.replace(ts_unsupported, PANDAS_MAX_TIMESTAMP)
                 line_input = sio.StringIO(line)
                 ch_data = pd.read_fwf(line_input, colspecs=channel_colspec, names=channel_cols, nrows=1,
-                                      dtype={'FDSN': str, 'StationCode': str, 'NetworkCode': str, 'ChannelCode': str},
+                                      dtype={**TABLE_SCHEMA, **{'FDSN': str}},  # this merges the two dicts
                                       na_filter=False, parse_dates=[4, 5])
                 assert ch_data.iloc[0]['FDSN'] == 'FDSN'
                 channels.append(ch_data)
@@ -168,7 +165,7 @@ def read_isc(fname):
                 hdr['ChannelEnd'] = pd.NaT
                 hdr['ChannelCode'] = 'BHZ'
                 # Standardize column ordering
-                hdr = hdr[table_columns]
+                hdr = hdr[TABLE_COLUMNS]
                 df_list.append(hdr)
                 if channels:
                     # If channel data is also present, store it too.
@@ -177,13 +174,12 @@ def read_isc(fname):
                     ch_all[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']] = \
                         hdr[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']]
                     # Make sure column ordering is consistent
-                    network_df = ch_all[table_columns]
+                    network_df = ch_all[TABLE_COLUMNS]
                     df_list.append(network_df)
                 hdr = None
             # Read header row
             line_input = sio.StringIO(line)
-            hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1,
-                              dtype={'StationCode': str, 'Latitude': np.float64, 'Longitude': np.float64, 'Elevation': np.float64}, parse_dates=[4, 5])
+            hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA, parse_dates=[4, 5])
             line = f.readline()
             if show_progress:
                 pbar.update(len(line))
