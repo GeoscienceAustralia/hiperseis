@@ -295,12 +295,13 @@ def main(argv):
     our_xml = Inventory(networks=netDict.values(), source='EHB')
 
     print 'Writing output files..'
-    pathlib.Path("output").mkdir(exist_ok=True)
-    for inet, net in enumerate(our_xml.networks):
+    output_folder = "output_old"
+    pathlib.Path(output_folder).mkdir(exist_ok=True)
+    for net in our_xml.networks:
         currInv = Inventory(networks=[net], source='EHB')
-        fname = "station.%d.xml" % (inet)
+        fname = "network_{0}.xml".format(net.code)
         try:
-            currInv.write(os.path.join("output", fname), format="stationxml", validate=True)
+            currInv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
         except Exception as e:
             print("FAILED writing file {0} for network {1}, continuing".format(fname, net.code))
             continue

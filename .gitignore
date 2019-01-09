@@ -59,6 +59,12 @@ xcorqc/run.sh
 tempworks/
 .vscode/
 inventory/IRIS-ALL.xml.pkl
-inventory/output
+inventory/output*
 *.pkl
 **.lprof
+inventory/perfstats.stat
+inventory/LOG_*.txt
+inventory/INVENTORY*.csv
+inventory/INVENTORY*.h5
+inventory/plots**/*.png
+inventory/plots**/*.txt
