@@ -86,3 +86,76 @@ The **plot_map.py** draws a station map and piercing points of the receiver func
 The program to visualize and extract RF for inversion is **extract_rf.py**
 The RF input file must be specified within the body of the program.
 It shows different stacking options and allows to extract specific station as ASCII file for further inversion 
+
+
+## Configuration and used modules on NCI
+
+# Currently Loaded Modulefiles:
+  1) pbs                    4) dot                    7) python/2.7.13         10) geos/3.5.0
+  2) gcc/4.9.0              5) gmt/5.1.0              8) szip/2.1              11) proj/4.9.3
+  3) openmpi/1.8.4-debug    6) intel-mkl/17.0.1.132   9) hdf5/1.8.14
+
+# PIP Installed modules (pip freeze --user)
+
+adjustText==0.7.3
+arrow==0.12.1
+atomicwrites==1.2.1
+attrs==18.2.0
+backports.functools-lru-cache==1.5
+basemap==1.1.0
+Cartopy==0.16.0
+certifi==2018.10.15
+cftime==1.0.3.4
+chardet==3.0.4
+Click==7.0
+colorama==0.4.0
+configparser==3.5.0
+dill==0.2.8.2
+enum34==1.1.6
+fastdtw==0.3.2
+flake8==3.5.0
+Flask==1.0.2
+future==0.16.0
+geographiclib==1.49
+gmt-python==0.1a3
+h5py==2.8.0
+idna==2.7
+intervaltree==2.1.0
+isodate==0.6.0
+itsdangerous==1.1.0
+Jinja2==2.10
+joblib==0.13.0
+jobspy==0.26.1
+lxml==4.2.5
+MarkupSafe==1.1.0
+mccabe==0.6.1
+more-itertools==4.3.0
+netCDF4==1.4.2
+networkx==2.2
+obspy==1.1.0
+obspyh5==0.3.2
+pathlib2==2.3.2
+pluggy==0.8.0
+prov==1.5.2
+psutil==5.4.8
+py==1.7.0
+pyasdf==0.4.0
+pycodestyle==2.3.1
+pyflakes==1.6.0
+pyproj==1.9.5.1
+pyshp==1.2.12
+rdflib==4.2.2
+requests==2.20.0
+rf==0.6.2
+Rtree==0.8.3
+scandir==1.9.0
+scikit-learn==0.20.1
+Shapely==1.6.4.post2
+sklearn==0.0
+sortedcontainers==2.1.0
+SQLAlchemy==1.2.12
+toeplitz==0.1.3
+tqdm==4.27.0
+ujson==1.35
+urllib3==1.24
+Werkzeug==0.14.1
