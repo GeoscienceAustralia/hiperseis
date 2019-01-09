@@ -13,7 +13,7 @@ Following parameters must be set up in the program body:
  - Station inventory XML file
  - Output file name
 
-Firs, program will create catalogue of the events from 15 to 90 degrees of distance irelative to centre of Australia and quit. It should be run again directly or using `qsub` command.
+Firs, program will create catalogue of the events from 15 to 90 degrees of distance relative to centre of Australia and quit. It should be run again directly or using `qsub` command.
 Latter is preferable because data extraction is very time consuming process. If there is catalogue with specified dates it will continue to extraction without quitting.
 
 
@@ -80,3 +80,9 @@ Fri Nov 23 09:43:51 AEDT 2018
 ## Plotting station map and the ray piercing points
 
 The **plot_map.py** draws a station map and piercing points of the receiver functions. It is highly adaptable plotting routine with use of high-resolution topography and automatic adjustment of the station name positions. It requires installation of `https://github.com/Phlya/adjustText` for better results.
+
+## Visualization and extraction of RF for inversion
+
+The program to visualize and extract RF for inversion is **extract_rf.py**
+The RF input file must be specified within the body of the program.
+It shows different stacking options and allows to extract specific station as ASCII file for further inversion 
