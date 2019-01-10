@@ -1,5 +1,16 @@
 # Receiver Function (RF) tools
 
+## Workflow
+
+The RF workflow is based on following main steps:
+
+ - Data preparation. Extract waveforms associated with moderate events.
+ - Calculate RF performing deconvolution to ZRT or QLT coordinate system
+ - Discard bad results
+ - Analyse RF to identify multiples
+ - Perform 1D Earth structure inversion 
+
+There are number of manuals and literature about RF. You can refer to examples provided by [Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html) or manuals distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/)
 
 ## Data preparation
 
