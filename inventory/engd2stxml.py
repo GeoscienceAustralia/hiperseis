@@ -165,7 +165,6 @@ def read_isc(fname):
                 hdr['ChannelCode'] = 'BHZ'
                 # Standardize column ordering
                 hdr = hdr[TABLE_COLUMNS]
-                df_list.append(hdr)
                 if channels:
                     # If channel data is also present, store it too.
                     ch_all = pd.concat(channels, sort=False)
@@ -181,6 +180,7 @@ def read_isc(fname):
                     # Make sure column ordering is consistent
                     network_df = ch_all[TABLE_COLUMNS]
                     df_list.append(network_df)
+                df_list.append(hdr)
                 hdr = None
             # Read header row
             line_input = sio.StringIO(line)
