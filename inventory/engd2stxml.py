@@ -170,6 +170,12 @@ def read_isc(fname):
                     # If channel data is also present, store it too.
                     ch_all = pd.concat(channels, sort=False)
                     ch_all.drop('FDSN', axis=1, inplace=True)
+                    # Set the station date range to at least encompass the channels it contains.
+                    ch_min_start = ch_all['ChannelStart'].min()
+                    ch_max_end = ch_all['ChannelEnd'].max()
+                    hdr['StationStart'] = min(hdr.iloc[0]['StationStart'], ch_min_start)
+                    hdr['StationEnd'] = max(hdr.iloc[0]['StationEnd'], ch_max_end)
+                    # Assign common fields to the channel rows.
                     ch_all[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']] = \
                         hdr[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']]
                     # Make sure column ordering is consistent
@@ -359,29 +365,6 @@ def computeNeighboringStationMatrix(df):
 
 
 # @profile
-def cleanupStationDates(df):
-    """Clean up the station start and end dates by ensuring they are sufficient to contain the channel dates.
-
-       For stations with the same station code which are close together on the Earth's surface,
-       make the station dates consistent by setting to the maximum extent of the time intervals
-       for station start and end date.
-
-       Mutates df in-place.
-    """
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-    for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-        if show_progress:
-            pbar.update(len(data))
-        min_date = data[["StationStart", "ChannelStart"]].min(axis=0).min()
-        max_date = data[["StationEnd", "ChannelEnd"]].max(axis=0).max()
-        mask = (df['NetworkCode'] == netcode) & (df['StationCode'] == statcode)
-        df.loc[df.loc[mask.index].loc[mask.values].index, ["StationStart", "StationEnd"]] = np.array([min_date, max_date])
-    if show_progress:
-        pbar.close()
-
-
-# @profile
 def removeDuplicateStations(df, neighbor_matrix):
     """Remove stations which are identified as duplicates.
 
@@ -483,10 +466,6 @@ def cleanupDatabase(df, iris_inv):
 
     print("Cleaning up station elevations...")
     cleanupStationElevations(df)
-
-    print("Cleaning up station start/end dates...")
-    # We do this before removing duplicates, so that it doesn't matter which duplicate we remove.
-    cleanupStationDates(df)
 
     # TODO: generate scatter plots of station lat/long for all net.statcode prior to removal of duplicates.
 
