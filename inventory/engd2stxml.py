@@ -261,7 +261,7 @@ def removeIrisDuplicates(df, iris_inv):
        where the station codes match and the distance from the IRIS station is within threshold.
 
        NOTE: This function removes based on station code and lat/long matching ONLY, it IGNORES NETWORK CODE.
-       
+
        Mutates df in-place.
     """
     if show_progress:

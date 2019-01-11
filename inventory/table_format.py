@@ -12,11 +12,11 @@ TABLE_SCHEMA = OrderedDict((
     ('Latitude', np.float64),
     ('Longitude', np.float64),
     ('Elevation', np.float64),
-    ('StationStart', pd.Timestamp),
-    ('StationEnd', pd.Timestamp),
+    ('StationStart', np.datetime64),
+    ('StationEnd', np.datetime64),
     ('ChannelCode', str),
-    ('ChannelStart', pd.Timestamp),
-    ('ChannelEnd', pd.Timestamp)))
+    ('ChannelStart', np.datetime64),
+    ('ChannelEnd', np.datetime64)))
 
 TABLE_COLUMNS = TABLE_SCHEMA.keys()
 
