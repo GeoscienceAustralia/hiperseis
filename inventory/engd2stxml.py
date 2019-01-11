@@ -441,7 +441,11 @@ def removeDuplicateStations(df, neighbor_matrix):
             if len(data) <= 1:
                 continue
             key = data.iloc[0][matching_criteria]
-            duplicate_mask = ((data.iloc[1:len(data)][matching_criteria] == key) | (data.iloc[1:len(data)][matching_criteria].isna() & key.isna()))
+            # Consider a likely duplicate if all matching criteria are same as the key.
+            # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
+            # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
+            # not duplicates.
+            duplicate_mask = (data.iloc[1:len(data)][matching_criteria] == key)
             index_mask = np.all(duplicate_mask, axis=1)
             duplicate_index = data[1:].index[index_mask]
             if not duplicate_index.empty:
