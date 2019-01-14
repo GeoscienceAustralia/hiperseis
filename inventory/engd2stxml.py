@@ -266,8 +266,6 @@ def removeIrisDuplicates(df, iris_inv):
        Remove stations from df which are present in the global IRIS inventory, in cases
        where the station codes match and the distance from the IRIS station is within threshold.
 
-       NOTE: This function removes based on station code and lat/long matching ONLY, it IGNORES NETWORK CODE.
-
        Mutates df in-place.
     """
     if show_progress:
@@ -575,7 +573,9 @@ def main(argv):
     isc = pd.concat([isc1, isc2], sort=False)
 
     db = pd.concat([ehb, isc], sort=False)
-    db.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+    # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
+    # the record with the least NaT values will be favored to be kept.
+    db.sort_values(['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd'], inplace=True)
     db.reset_index(drop=True, inplace=True)
 
     # Perform cleanup on each database
