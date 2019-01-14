@@ -412,7 +412,7 @@ def removeDuplicateStations(df, neighbor_matrix):
     # and have no distinguishing channel data. We deliberately exclude station start and end dates from consideration here,
     # as these are extended during file read to cover range of contained channels, and therefore might not match in code dupes.
     matching_criteria = ["ChannelCode", "ChannelStart", "ChannelEnd"]
-    removal_index = []
+    removal_index = set()
     print("  CODE duplicates...")
     with open("LOG_CODE_DUPES_" + rt_timestamp + ".txt", 'w') as log:
         if show_progress:
@@ -422,20 +422,24 @@ def removeDuplicateStations(df, neighbor_matrix):
                 pbar.update(len(data))
             if len(data) <= 1:
                 continue
-            key = data.iloc[0][matching_criteria]
-            # Consider a likely duplicate if all matching criteria are same as the key.
-            # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
-            # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
-            # not duplicates.
-            duplicate_mask = (data.iloc[1:len(data)][matching_criteria] == key)
-            index_mask = np.all(duplicate_mask, axis=1)
-            duplicate_index = data[1:].index[index_mask]
-            if not duplicate_index.empty:
-                log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(data.iloc[[0]], data.loc[duplicate_index]))
-                removal_index.extend(duplicate_index.tolist())
+            for row_index, channel in data.iterrows():
+                if row_index in removal_index:
+                    continue
+                key = channel[matching_criteria]
+                # Consider a likely duplicate if all matching criteria are same as the key.
+                # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
+                # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
+                # not duplicates.
+                duplicate_mask = (data[matching_criteria] == key)
+                index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
+                duplicate_index = data.index[index_mask]
+                if not duplicate_index.empty:
+                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(data.loc[[row_index]], data.loc[duplicate_index]))
+                    removal_index.update(duplicate_index.tolist())
         if show_progress:
             pbar.close()
-    if removal_index:
+    removal_index = np.array(sorted(list(removal_index)))
+    if removal_index.size > 0:
         print("Removing following {0} duplicates due to undifferentiated network and station codes:\n{1}".format(len(removal_index), df.loc[removal_index]))
         df.drop(removal_index, inplace=True)
 
