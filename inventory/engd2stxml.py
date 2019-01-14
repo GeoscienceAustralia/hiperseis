@@ -409,8 +409,9 @@ def removeDuplicateStations(df, neighbor_matrix):
         df.drop(removal_rows, inplace=True)
 
     # Secondly, remove stations with same network and station code, but which are further away than the threshold distance
-    # and have no distinguishing dates or channel data.
-    matching_criteria = ["StationStart", "StationEnd", "ChannelCode", "ChannelStart", "ChannelEnd"]
+    # and have no distinguishing channel data. We deliberately exclude station start and end dates from consideration here,
+    # as these are extended during file read to cover range of contained channels, and therefore might not match in code dupes.
+    matching_criteria = ["ChannelCode", "ChannelStart", "ChannelEnd"]
     removal_index = []
     print("  CODE duplicates...")
     with open("LOG_CODE_DUPES_" + rt_timestamp + ".txt", 'w') as log:
