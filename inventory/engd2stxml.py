@@ -274,8 +274,8 @@ def removeIrisDuplicates(df, iris_inv):
         pbar = tqdm.tqdm(total=len(df), ascii=True)
     removal_index = []
     with open("LOG_IRIS_DUPES_" + rt_timestamp + ".txt", 'w') as log:
-        for statcode, data in df.groupby(["StationCode"]):
-            iris_query = iris_inv.select(station=statcode, channel="*HZ")
+        for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
+            iris_query = iris_inv.select(network=netcode, station=statcode, channel="*HZ")
             if len(iris_query) <= 0:
                 # No IRIS record matching this station
                 if show_progress:
@@ -283,7 +283,7 @@ def removeIrisDuplicates(df, iris_inv):
                 continue
             # Pull out matching stations. Since some station codes have asterisk, which is interpreted as a wildcard
             # by the obspy query, we need to filter against matching exact statcode.
-            matching_stations = [s for n in iris_query.networks for s in n.stations if s.code == statcode]
+            matching_stations = [s for n in iris_query.networks for s in n.stations if s.code == statcode and n.code == netcode]
             iris_station0 = matching_stations[0]
             # Check that the set of stations from IRIS are themselves within the distance tolerance of one another.
             iris_stations_dist = [np.deg2rad(locations2degrees(iris_station0.latitude, iris_station0.longitude, s.latitude, s.longitude)) * NOMINAL_EARTH_RADIUS_KM
@@ -291,8 +291,8 @@ def removeIrisDuplicates(df, iris_inv):
             iris_stations_dist = np.array(iris_stations_dist)
             within_tolerance_mask = (iris_stations_dist < DIST_TOLERANCE_KM)
             if not np.all(within_tolerance_mask):
-                log.write("WARNING: Not all IRIS stations localized within distance tolerance for station code {0}. "
-                          "Distances(km) = {1}\n".format(statcode, iris_stations_dist[~within_tolerance_mask]))
+                log.write("WARNING: Not all IRIS stations localized within distance tolerance for station code {0}.{1}. "
+                          "Distances(km) = {2}\n".format(netcode, statcode, iris_stations_dist[~within_tolerance_mask]))
             # Compute cosine distances between this group's set of stations and the IRIS station locagtion.
             ref_latlong = np.array([iris_station0.latitude, iris_station0.longitude])
             stations_latlong = data[["Latitude", "Longitude"]].values
@@ -307,8 +307,8 @@ def removeIrisDuplicates(df, iris_inv):
             duplicate_index = np.array(data.index.tolist())[mask]
             if len(duplicate_index) < len(data):
                 kept_station_distances = surface_dist[(~mask)]
-                log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}, not dropping. "
-                          "(Possible issues with station date ranges?) Distances(km) = {1}\n".format(statcode, kept_station_distances))
+                log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}.{1}, not dropping. "
+                          "(Possible issues with station date ranges?) Distances(km) = {2}\n".format(netcode, statcode, kept_station_distances))
             removal_index.extend(duplicate_index.tolist())
             if show_progress:
                 pbar.update(len(data))
