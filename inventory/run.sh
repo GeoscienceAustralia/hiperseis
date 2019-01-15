@@ -5,7 +5,6 @@
 #PBS -l mem=8gb
 #PBS -l jobfs=2gb
 #PBS -l ncpus=1
-#PBS -l cput=7200s
 #PBS -l software=python
 ## Tell it gdata1a filesystem needs to be available
 #PBS -lother=gdata1a
