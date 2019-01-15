@@ -28,7 +28,7 @@ except:
 
 # Script requires numpy >= 1.15.4. The source of the error is not yet identified, but has been
 # demonstrated on multiple platforms with lower versions of numpy.
-(major, minor, maint) = np.version.version.split('.', 2)
+(major, minor, maint) = [int(x) for x in np.version.version.split('.', 2)]
 if major < 1 or (major == 1 and minor < 15):
     print("Not supported error: Requires numpy >= 1.15.4, found numpy {0}".format(".".join((major, minor, maint))))
     sys.exit(1)
