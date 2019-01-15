@@ -83,6 +83,7 @@ def read_eng(fname):
     return data_frame
 
 
+# @profile
 def read_isc(fname):
     """Read ISC station inventory supplied by ISC that inherited Engdahl work, having such format:
 
@@ -170,10 +171,10 @@ def read_isc(fname):
                     ch_all = pd.concat(channels, sort=False)
                     ch_all.drop('FDSN', axis=1, inplace=True)
                     # Set the station date range to at least encompass the channels it contains.
-                    ch_min_start = ch_all['ChannelStart'].min()
-                    ch_max_end = ch_all['ChannelEnd'].max()
-                    hdr['StationStart'] = min(hdr.iloc[0]['StationStart'], ch_min_start)
-                    hdr['StationEnd'] = max(hdr.iloc[0]['StationEnd'], ch_max_end)
+                    st_min = min(hdr['StationStart'].min(), ch_all['ChannelStart'].min())
+                    st_max = max(hdr['StationEnd'].max(), ch_all['ChannelEnd'].max())
+                    hdr['StationStart'] = st_min
+                    hdr['StationEnd'] = st_max
                     # Assign common fields to the channel rows.
                     ch_all[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']] = \
                         hdr[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']]
@@ -541,25 +542,6 @@ def exportNetworkPlots(df, plot_folder):
 
 
 def main(argv):
-    # Read IRIS station database.
-    IRIS_all_file = "IRIS-ALL.xml"
-    print("Reading " + IRIS_all_file)
-    if USE_PICKLE:
-        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
-        if os.path.exists(IRIS_all_pkl_file):
-            with open(IRIS_all_pkl_file, 'rb') as f:
-                import cPickle as pkl
-                iris_inv = pkl.load(f)
-        else:
-            with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
-                iris_inv = read_inventory(f)
-            with open(IRIS_all_pkl_file, 'wb') as f:
-                import cPickle as pkl
-                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
-    else:
-        with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
-            iris_inv = read_inventory(f)
-
     # Read station database from ad-hoc formats
     if TEST_MODE:
         ehb_data_bmg = read_eng(os.path.join('test', 'BMG_test.STN'))
@@ -583,6 +565,25 @@ def main(argv):
     db.sort_values(['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd'], inplace=True)
     db.reset_index(drop=True, inplace=True)
 
+    # Read IRIS station database.
+    IRIS_all_file = "IRIS-ALL.xml"
+    print("Reading " + IRIS_all_file)
+    if USE_PICKLE:
+        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+        if os.path.exists(IRIS_all_pkl_file):
+            with open(IRIS_all_pkl_file, 'rb') as f:
+                import cPickle as pkl
+                iris_inv = pkl.load(f)
+        else:
+            with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+                iris_inv = read_inventory(f)
+            with open(IRIS_all_pkl_file, 'wb') as f:
+                import cPickle as pkl
+                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
+    else:
+        with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+            iris_inv = read_inventory(f)
+
     # Perform cleanup on each database
     db = cleanupDatabase(db, iris_inv)
 
@@ -603,8 +604,12 @@ def main(argv):
 if __name__ == "__main__":
     # import cProfile as prof
     # statsfile = 'perfstats.stat'
-    # prof.run('main(sys.argv)', statsfile)
+    # # prof.run('main(sys.argv)', statsfile)
+    # prof.run('read_isc(os.path.join(\'test\', \'iscehb_test.stn\'))', statsfile)
     # import pstats
     # p = pstats.Stats(statsfile)
     # p.sort_stats('tottime').print_stats(50)
     main(sys.argv)
+    # read_isc(os.path.join('test', 'iscehb_test.stn'))
+    # read_isc('ehb.stn')
+    # read_isc('iscehb.stn')
