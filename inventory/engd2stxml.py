@@ -33,6 +33,8 @@ vparts = np.version.version.split('.', 2)
 if major < 1 or (major == 1 and minor < 15):
     print("Not supported error: Requires numpy >= 1.15.4, found numpy {0}".format(".".join(vparts)))
     sys.exit(1)
+else:
+    print("Using numpy {0}".format(".".join(vparts)))
 
 USE_PICKLE = True
 
