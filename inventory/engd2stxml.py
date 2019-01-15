@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#PBS -l select=1:ncpus=1:mem=8gb
+#PBS -N StationMetadataCleanup
 """Creates database of stations from .STN files which are not in IRIS database,
    curates the data using heuristic rules, and exports new stations to station.xml
 """
