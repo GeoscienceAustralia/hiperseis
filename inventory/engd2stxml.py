@@ -397,7 +397,7 @@ def removeDuplicateStations(df, neighbor_matrix):
     with open("LOG_LOCATION_DUPES_" + rt_timestamp + ".txt", 'w') as log:
         if show_progress:
             pbar = tqdm.tqdm(total=len(df), ascii=True)
-        for i in xrange(num_stations):
+        for i in range(num_stations):
             if show_progress:
                 pbar.update()
             if i in removal_rows:
