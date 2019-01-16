@@ -9,8 +9,6 @@ import sys
 
 import numpy as np
 import scipy as sp
-import cStringIO as sio
-import pathlib2 as pathlib
 import datetime
 import pandas as pd
 from obspy import read_inventory
@@ -18,6 +16,14 @@ from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+
+if sys.version_info[0] < 3:
+    import cStringIO as sio
+    import pathlib2 as pathlib
+else:
+    import io
+    from io import StringIO as sio
+    import pathlib
 
 try:
     import tqdm
@@ -30,8 +36,8 @@ except:
 # demonstrated on multiple platforms with lower versions of numpy.
 vparts = np.version.version.split('.', 2)
 (major, minor, maint) = [int(x) for x in vparts]
-if major < 1 or (major == 1 and minor < 15):
-    print("Not supported error: Requires numpy >= 1.15.4, found numpy {0}".format(".".join(vparts)))
+if major < 1 or (major == 1 and minor < 14):
+    print("Not supported error: Requires numpy >= 1.14.2, found numpy {0}".format(".".join(vparts)))
     sys.exit(1)
 else:
     print("Using numpy {0}".format(".".join(vparts)))

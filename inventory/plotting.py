@@ -3,11 +3,16 @@
 """
 
 import os
+import sys
 import pandas as pd
-import pathlib2 as pathlib
 from pdconvert import pd2Network
 from obspy.core.inventory import Inventory
 import matplotlib.pyplot as plt
+
+if sys.version_info[0] < 3:
+    import pathlib2 as pathlib
+else:
+    import pathlib
 
 
 def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
