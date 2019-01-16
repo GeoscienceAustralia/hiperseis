@@ -68,3 +68,4 @@ inventory/INVENTORY*.csv
 inventory/INVENTORY*.h5
 inventory/plots**/*.png
 inventory/plots**/*.txt
+inventory/networks/*
