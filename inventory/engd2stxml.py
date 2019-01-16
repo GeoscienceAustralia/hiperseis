@@ -20,10 +20,11 @@ from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 if sys.version_info[0] < 3:
     import cStringIO as sio
     import pathlib2 as pathlib
+    import cPickle as pkl
 else:
-    import io
-    from io import StringIO as sio
+    import io as sio
     import pathlib
+    import pickle as pkl
 
 try:
     import tqdm
@@ -92,7 +93,7 @@ def read_eng(fname):
     # Default channel code.
     data_frame['ChannelCode'] = 'BHZ'
     # Sort columns into preferred order
-    data_frame = data_frame[TABLE_COLUMNS]
+    data_frame = data_frame[list(TABLE_COLUMNS)]
     # Compute and report number of duplicates
     num_dupes = len(data_frame) - len(data_frame['StationCode'].unique())
     print("{0}: {1} stations found with {2} duplicates".format(fname, len(data_frame), num_dupes))
@@ -143,7 +144,6 @@ def read_isc(fname):
         if os.path.exists(pkl_name):
             print("Reading cached " + fname)
             with open(pkl_name, 'rb') as f:
-                import cPickle as pkl
                 df_all = pkl.load(f)
                 reportStationCount(df_all)
                 return df_all
@@ -181,7 +181,7 @@ def read_isc(fname):
                 hdr['ChannelEnd'] = pd.NaT
                 hdr['ChannelCode'] = 'BHZ'
                 # Standardize column ordering
-                hdr = hdr[TABLE_COLUMNS]
+                hdr = hdr[list(TABLE_COLUMNS)]
                 if channels:
                     # If channel data is also present, store it too.
                     ch_all = pd.concat(channels, sort=False)
@@ -195,7 +195,7 @@ def read_isc(fname):
                     ch_all[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']] = \
                         hdr[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']]
                     # Make sure column ordering is consistent
-                    network_df = ch_all[TABLE_COLUMNS]
+                    network_df = ch_all[list(TABLE_COLUMNS)]
                     df_list.append(network_df)
                 df_list.append(hdr)
                 hdr = None
@@ -211,7 +211,6 @@ def read_isc(fname):
     df_all = pd.concat(df_list, sort=False)
     if USE_PICKLE:
         with open(fname + ".pkl", "wb") as f:
-            import cPickle as pkl
             pkl.dump(df_all, f, pkl.HIGHEST_PROTOCOL)
     reportStationCount(df_all)
     return df_all
@@ -588,13 +587,11 @@ def main(argv):
         IRIS_all_pkl_file = IRIS_all_file + ".pkl"
         if os.path.exists(IRIS_all_pkl_file):
             with open(IRIS_all_pkl_file, 'rb') as f:
-                import cPickle as pkl
                 iris_inv = pkl.load(f)
         else:
             with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
                 iris_inv = read_inventory(f)
             with open(IRIS_all_pkl_file, 'wb') as f:
-                import cPickle as pkl
                 pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
     else:
         with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
