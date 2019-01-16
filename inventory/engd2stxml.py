@@ -9,14 +9,22 @@ import sys
 
 import numpy as np
 import scipy as sp
-import cStringIO as sio
-import pathlib2 as pathlib
 import datetime
 import pandas as pd
 from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
+from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+
+if sys.version_info[0] < 3:
+    import cStringIO as sio
+    import pathlib2 as pathlib
+    import cPickle as pkl
+else:
+    import io as sio
+    import pathlib
+    import pickle as pkl
 
 try:
     import tqdm
@@ -24,6 +32,16 @@ try:
 except:
     show_progress = False
     print("Run 'pip install tqdm' to see progress bar.")
+
+# Script requires numpy >= 1.15.4. The source of the error is not yet identified, but has been
+# demonstrated on multiple platforms with lower versions of numpy.
+vparts = np.version.version.split('.', 2)
+(major, minor, maint) = [int(x) for x in vparts]
+if major < 1 or (major == 1 and minor < 14):
+    print("Not supported error: Requires numpy >= 1.14.2, found numpy {0}".format(".".join(vparts)))
+    sys.exit(1)
+else:
+    print("Using numpy {0}".format(".".join(vparts)))
 
 USE_PICKLE = True
 
@@ -34,15 +52,12 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.width', 240)
 
-table_columns = ['NetworkCode', 'StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
-
 NOMINAL_EARTH_RADIUS_KM = 6378.1370
 DIST_TOLERANCE_KM = 2.0
 DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
 COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
 # See https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timestamp-limitations
-PANDAS_MAX_TIMESTAMP = str(pd.Timestamp.max)[0:19]
 
 
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -63,12 +78,11 @@ def read_eng(fname):
     Each Station Code (first column) might NOT be unique, and network codes are missing here, so duplicates will
     simply be noted and handled later.
 
-    Returns Pandas Dataframe containing the loaded data in column order of table_columns.
+    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
     """
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
     col_names = ['StationCode', 'Latitude', 'Longitude', 'Elevation']
-    data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names,
-                             dtype={'StationCode': str, 'Latitude': np.float64, 'Longitude': np.float64, 'Elevation': np.float64})
+    data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names, dtype=TABLE_SCHEMA)
     # Assumed network code for files of this format.
     data_frame['NetworkCode'] = 'GE'
     # Populate missing data.
@@ -79,13 +93,14 @@ def read_eng(fname):
     # Default channel code.
     data_frame['ChannelCode'] = 'BHZ'
     # Sort columns into preferred order
-    data_frame = data_frame[table_columns]
+    data_frame = data_frame[list(TABLE_COLUMNS)]
     # Compute and report number of duplicates
     num_dupes = len(data_frame) - len(data_frame['StationCode'].unique())
     print("{0}: {1} stations found with {2} duplicates".format(fname, len(data_frame), num_dupes))
     return data_frame
 
 
+# @profile
 def read_isc(fname):
     """Read ISC station inventory supplied by ISC that inherited Engdahl work, having such format:
 
@@ -101,7 +116,7 @@ def read_isc(fname):
     The lines starting with a station code are HEADER rows, and provide the station coordinates.
     The idented lines starting with FDSN provide distinct station, network and channel data for the given station location.
 
-    Returns Pandas Dataframe containing the loaded data in column order of table_columns.
+    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
     """
     header_colspec = ((0, 5), (7, 16), (17, 26), (27, 34), (35, 54,), (55, 74))
     header_cols = ['StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']
@@ -129,7 +144,6 @@ def read_isc(fname):
         if os.path.exists(pkl_name):
             print("Reading cached " + fname)
             with open(pkl_name, 'rb') as f:
-                import cPickle as pkl
                 df_all = pkl.load(f)
                 reportStationCount(df_all)
                 return df_all
@@ -154,8 +168,7 @@ def read_isc(fname):
                     line = line.replace(ts_unsupported, PANDAS_MAX_TIMESTAMP)
                 line_input = sio.StringIO(line)
                 ch_data = pd.read_fwf(line_input, colspecs=channel_colspec, names=channel_cols, nrows=1,
-                                      dtype={'FDSN': str, 'StationCode': str, 'NetworkCode': str, 'ChannelCode': str},
-                                      na_filter=False, parse_dates=[4, 5])
+                                      dtype=TABLE_SCHEMA, na_filter=False, parse_dates=[4, 5])
                 assert ch_data.iloc[0]['FDSN'] == 'FDSN'
                 channels.append(ch_data)
                 line = f.readline()
@@ -168,22 +181,27 @@ def read_isc(fname):
                 hdr['ChannelEnd'] = pd.NaT
                 hdr['ChannelCode'] = 'BHZ'
                 # Standardize column ordering
-                hdr = hdr[table_columns]
-                df_list.append(hdr)
+                hdr = hdr[list(TABLE_COLUMNS)]
                 if channels:
                     # If channel data is also present, store it too.
                     ch_all = pd.concat(channels, sort=False)
                     ch_all.drop('FDSN', axis=1, inplace=True)
+                    # Set the station date range to at least encompass the channels it contains.
+                    st_min = min(hdr['StationStart'].min(), ch_all['ChannelStart'].min())
+                    st_max = max(hdr['StationEnd'].max(), ch_all['ChannelEnd'].max())
+                    hdr['StationStart'] = st_min
+                    hdr['StationEnd'] = st_max
+                    # Assign common fields to the channel rows.
                     ch_all[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']] = \
                         hdr[['Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']]
                     # Make sure column ordering is consistent
-                    network_df = ch_all[table_columns]
+                    network_df = ch_all[list(TABLE_COLUMNS)]
                     df_list.append(network_df)
+                df_list.append(hdr)
                 hdr = None
             # Read header row
             line_input = sio.StringIO(line)
-            hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1,
-                              dtype={'StationCode': str, 'Latitude': np.float64, 'Longitude': np.float64, 'Elevation': np.float64}, parse_dates=[4, 5])
+            hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA, parse_dates=[4, 5])
             line = f.readline()
             if show_progress:
                 pbar.update(len(line))
@@ -193,21 +211,28 @@ def read_isc(fname):
     df_all = pd.concat(df_list, sort=False)
     if USE_PICKLE:
         with open(fname + ".pkl", "wb") as f:
-            import cPickle as pkl
             pkl.dump(df_all, f, pkl.HIGHEST_PROTOCOL)
     reportStationCount(df_all)
     return df_all
 
 
 # @profile
-def flagStationNonconformingNames(df):
-    """Flag station names in df that do not conform to valid station naming."""
+def removeIllegalStationNames(df):
+    """Remove records for station names that do not conform to expected naming convention.
+
+       Such names can cause problems in downstream processing, in particular names with asterisk.
+    """
     import re
-    pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-\*]{1,4}$")
-    for (netcode, statcode), _ in df.groupby(['NetworkCode', 'StationCode']):
-        assert isinstance(statcode, str)
+    pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-]{1,4}$")
+    removal_index = []
+    for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
+        # assert isinstance(statcode, str)
         if not pattern.match(statcode):
-            print("SUSPECT Station Code: {0}.{1}".format(netcode, statcode))
+            print("UNSUPPORTED Station Code: {0}.{1}".format(netcode, statcode))
+            removal_index.extend(data.index.tolist())
+
+    if removal_index:
+        df.drop(removal_index, inplace=True)
 
 
 # @profile
@@ -256,46 +281,48 @@ def removeIrisDuplicates(df, iris_inv):
 
        Remove stations from df which are present in the global IRIS inventory, in cases
        where the station codes match and the distance from the IRIS station is within threshold.
+
        Mutates df in-place.
     """
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
     removal_index = []
     with open("LOG_IRIS_DUPES_" + rt_timestamp + ".txt", 'w') as log:
-        for statcode, data in df.groupby(["StationCode"]):
-            iris_result = iris_inv.select(station=statcode, channel="*HZ")
-            if len(iris_result) <= 0:
+        for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
+            iris_query = iris_inv.select(network=netcode, station=statcode, channel="*HZ")
+            if len(iris_query) <= 0:
                 # No IRIS record matching this station
                 if show_progress:
                     pbar.update(len(data))
                 continue
-            assert len(iris_result.networks) == 1
-            iris_net = iris_result.networks[0]
-            assert len(iris_net.stations) > 0
-            iris_sta = iris_net.stations[0]
+            # Pull out matching stations. Since some station codes have asterisk, which is interpreted as a wildcard
+            # by the obspy query, we need to filter against matching exact statcode.
+            matching_stations = [s for n in iris_query.networks for s in n.stations if s.code == statcode and n.code == netcode]
+            iris_station0 = matching_stations[0]
             # Check that the set of stations from IRIS are themselves within the distance tolerance of one another.
-            iris_stations_dist = [np.deg2rad(locations2degrees(iris_sta.latitude, iris_sta.longitude, s.latitude, s.longitude)) * NOMINAL_EARTH_RADIUS_KM
-                                  for s in iris_net.stations]
+            iris_stations_dist = [np.deg2rad(locations2degrees(iris_station0.latitude, iris_station0.longitude, s.latitude, s.longitude)) * NOMINAL_EARTH_RADIUS_KM
+                                  for s in matching_stations]
             iris_stations_dist = np.array(iris_stations_dist)
             within_tolerance_mask = (iris_stations_dist < DIST_TOLERANCE_KM)
             if not np.all(within_tolerance_mask):
-                log.write("WARNING: Not all IRIS stations localized within distance tolerance for station code {0}. "
-                          "Distances(km) = {1}\n".format(statcode, iris_stations_dist[~within_tolerance_mask]))
+                log.write("WARNING: Not all IRIS stations localized within distance tolerance for station code {0}.{1}. "
+                          "Distances(km) = {2}\n".format(netcode, statcode, iris_stations_dist[~within_tolerance_mask]))
             # Compute cosine distances between this group's set of stations and the IRIS station locagtion.
+            ref_latlong = np.array([iris_station0.latitude, iris_station0.longitude])
             stations_latlong = data[["Latitude", "Longitude"]].values
-            ref_latlong = np.array([iris_sta.latitude, iris_sta.longitude])
-            cosine_dist = latLong2CosineDistance(stations_latlong, ref_latlong)
-            assert isinstance(cosine_dist, np.ndarray)
-            if not cosine_dist.shape:
-                cosine_dist = np.reshape(cosine_dist, (1,))
-            mask = (cosine_dist >= COSINE_DIST_TOLERANCE)
+            distfunc = lambda r: np.deg2rad(locations2degrees(ref_latlong[0], ref_latlong[1], r[0], r[1])) * NOMINAL_EARTH_RADIUS_KM  # noqa
+            surface_dist = np.apply_along_axis(distfunc, 1, stations_latlong)
+            # assert isinstance(surface_dist, np.ndarray)
+            if not surface_dist.shape:
+                surface_dist = np.reshape(surface_dist, (1,))
+            mask = (surface_dist < DIST_TOLERANCE_KM)
             if np.isscalar(mask):
                 mask = np.array([mask], ndmin=1)
             duplicate_index = np.array(data.index.tolist())[mask]
             if len(duplicate_index) < len(data):
-                kept_station_distances = np.arccos(np.minimum(cosine_dist[(~mask)], 1)) * NOMINAL_EARTH_RADIUS_KM
-                log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}, not dropping. "
-                          "(Possible issues with station date ranges?) Distances(km) = {1}\n".format(statcode, kept_station_distances))
+                kept_station_distances = surface_dist[(~mask)]
+                log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}.{1}, not dropping. "
+                          "(Possible issues with station date ranges?) Distances(km) = {2}\n".format(netcode, statcode, kept_station_distances))
             removal_index.extend(duplicate_index.tolist())
             if show_progress:
                 pbar.update(len(data))
@@ -352,29 +379,6 @@ def computeNeighboringStationMatrix(df):
 
 
 # @profile
-def cleanupStationDates(df):
-    """Clean up the station start and end dates by ensuring they are sufficient to contain the channel dates.
-
-       For stations with the same station code which are close together on the Earth's surface,
-       make the station dates consistent by setting to the maximum extent of the time intervals
-       for station start and end date.
-
-       Mutates df in-place.
-    """
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-    for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-        if show_progress:
-            pbar.update(len(data))
-        min_date = data[["StationStart", "ChannelStart"]].min(axis=0).min()
-        max_date = data[["StationEnd", "ChannelEnd"]].max(axis=0).max()
-        mask = (df['NetworkCode'] == netcode) & (df['StationCode'] == statcode)
-        df.loc[df.loc[mask.index].loc[mask.values].index, ["StationStart", "StationEnd"]] = np.array([min_date, max_date])
-    if show_progress:
-        pbar.close()
-
-
-# @profile
 def removeDuplicateStations(df, neighbor_matrix):
     """Remove stations which are identified as duplicates.
 
@@ -393,7 +397,7 @@ def removeDuplicateStations(df, neighbor_matrix):
     with open("LOG_LOCATION_DUPES_" + rt_timestamp + ".txt", 'w') as log:
         if show_progress:
             pbar = tqdm.tqdm(total=len(df), ascii=True)
-        for i in xrange(num_stations):
+        for i in range(num_stations):
             if show_progress:
                 pbar.update()
             if i in removal_rows:
@@ -421,9 +425,10 @@ def removeDuplicateStations(df, neighbor_matrix):
         df.drop(removal_rows, inplace=True)
 
     # Secondly, remove stations with same network and station code, but which are further away than the threshold distance
-    # and have no distinguishing dates or channel data.
-    matching_criteria = ["StationStart", "StationEnd", "ChannelCode", "ChannelStart", "ChannelEnd"]
-    removal_index = []
+    # and have no distinguishing channel data. We deliberately exclude station start and end dates from consideration here,
+    # as these are extended during file read to cover range of contained channels, and therefore might not match in code dupes.
+    matching_criteria = ["ChannelCode", "ChannelStart", "ChannelEnd"]
+    removal_index = set()
     print("  CODE duplicates...")
     with open("LOG_CODE_DUPES_" + rt_timestamp + ".txt", 'w') as log:
         if show_progress:
@@ -433,16 +438,24 @@ def removeDuplicateStations(df, neighbor_matrix):
                 pbar.update(len(data))
             if len(data) <= 1:
                 continue
-            key = data.iloc[0][matching_criteria]
-            duplicate_mask = ((data.iloc[1:len(data)][matching_criteria] == key) | (data.iloc[1:len(data)][matching_criteria].isna() & key.isna()))
-            index_mask = np.all(duplicate_mask, axis=1)
-            duplicate_index = data[1:].index[index_mask]
-            if not duplicate_index.empty:
-                log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(data.iloc[[0]], data.loc[duplicate_index]))
-                removal_index.extend(duplicate_index.tolist())
+            for row_index, channel in data.iterrows():
+                if row_index in removal_index:
+                    continue
+                key = channel[matching_criteria]
+                # Consider a likely duplicate if all matching criteria are same as the key.
+                # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
+                # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
+                # not duplicates.
+                duplicate_mask = (data[matching_criteria] == key)
+                index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
+                duplicate_index = data.index[index_mask]
+                if not duplicate_index.empty:
+                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(data.loc[[row_index]], data.loc[duplicate_index]))
+                    removal_index.update(duplicate_index.tolist())
         if show_progress:
             pbar.close()
-    if removal_index:
+    removal_index = np.array(sorted(list(removal_index)))
+    if removal_index.size > 0:
         print("Removing following {0} duplicates due to undifferentiated network and station codes:\n{1}".format(len(removal_index), df.loc[removal_index]))
         df.drop(removal_index, inplace=True)
 
@@ -455,7 +468,13 @@ def cleanupDatabase(df, iris_inv):
 
        Returns cleaned up df.
     """
-    flagStationNonconformingNames(df)
+
+    print("Removing stations with illegal station code...")
+    num_before = len(df)
+    removeIllegalStationNames(df)
+    df.reset_index(drop=True, inplace=True)
+    if len(df) < num_before:
+        print("Removed {0}/{1} stations because their station codes are not compliant".format(num_before - len(df), num_before))
 
     print("Removing stations which replicate IRIS...")
     num_before = len(df)
@@ -466,10 +485,6 @@ def cleanupDatabase(df, iris_inv):
 
     print("Cleaning up station elevations...")
     cleanupStationElevations(df)
-
-    print("Cleaning up station start/end dates...")
-    # We do this before removing duplicates, so that it doesn't matter which duplicate we remove.
-    cleanupStationDates(df)
 
     # TODO: generate scatter plots of station lat/long for all net.statcode prior to removal of duplicates.
 
@@ -542,25 +557,6 @@ def exportNetworkPlots(df, plot_folder):
 
 
 def main(argv):
-    # Read IRIS station database.
-    IRIS_all_file = "IRIS-ALL.xml"
-    print("Reading " + IRIS_all_file)
-    if USE_PICKLE:
-        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
-        if os.path.exists(IRIS_all_pkl_file):
-            with open(IRIS_all_pkl_file, 'rb') as f:
-                import cPickle as pkl
-                iris_inv = pkl.load(f)
-        else:
-            with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
-                iris_inv = read_inventory(f)
-            with open(IRIS_all_pkl_file, 'wb') as f:
-                import cPickle as pkl
-                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
-    else:
-        with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
-            iris_inv = read_inventory(f)
-
     # Read station database from ad-hoc formats
     if TEST_MODE:
         ehb_data_bmg = read_eng(os.path.join('test', 'BMG_test.STN'))
@@ -579,8 +575,27 @@ def main(argv):
     isc = pd.concat([isc1, isc2], sort=False)
 
     db = pd.concat([ehb, isc], sort=False)
-    db.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+    # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
+    # the record with the least NaT values will be favored to be kept.
+    db.sort_values(['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd'], inplace=True)
     db.reset_index(drop=True, inplace=True)
+
+    # Read IRIS station database.
+    IRIS_all_file = "IRIS-ALL.xml"
+    print("Reading " + IRIS_all_file)
+    if USE_PICKLE:
+        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+        if os.path.exists(IRIS_all_pkl_file):
+            with open(IRIS_all_pkl_file, 'rb') as f:
+                iris_inv = pkl.load(f)
+        else:
+            with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+                iris_inv = read_inventory(f)
+            with open(IRIS_all_pkl_file, 'wb') as f:
+                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
+    else:
+        with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+            iris_inv = read_inventory(f)
 
     # Perform cleanup on each database
     db = cleanupDatabase(db, iris_inv)
@@ -602,8 +617,12 @@ def main(argv):
 if __name__ == "__main__":
     # import cProfile as prof
     # statsfile = 'perfstats.stat'
-    # prof.run('main(sys.argv)', statsfile)
+    # # prof.run('main(sys.argv)', statsfile)
+    # prof.run('read_isc(os.path.join(\'test\', \'iscehb_test.stn\'))', statsfile)
     # import pstats
     # p = pstats.Stats(statsfile)
     # p.sort_stats('tottime').print_stats(50)
     main(sys.argv)
+    # read_isc(os.path.join('test', 'iscehb_test.stn'))
+    # read_isc('ehb.stn')
+    # read_isc('iscehb.stn')
