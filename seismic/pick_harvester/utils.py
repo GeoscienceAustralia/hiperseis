@@ -48,6 +48,7 @@ class Origin:
         self.lon = lon
         self.depthkm = depthkm
         self.magnitude_list = []
+        self.arrival_list = []
     # end func
 # end class
 
@@ -65,6 +66,25 @@ class Magnitude:
         self.magnitude_value = mag
         self.magnitude_type = mag_type
     # end func
+# end class
+
+class Arrival:
+    def __init__(self, net, sta, loc, cha, lon, lat, elev, phase, utctime, distance):
+        self.net = net
+        self.sta = sta
+        self.loc = loc
+        self.cha = cha
+        self.lon = lon
+        self.lat = lat
+        self.elev = elev
+        self.phase = phase
+        self.utctime = utctime
+        self.distance = distance
+    # end func
+    def __str__(self):
+        return "{0}.{1} ({2}, {3}, {4}): {5} -> {6}, {7}".format(
+                self.net, self.sta, self.lat, self.lon, self.elev, self.phase, self.utctime, self.distance
+        )
 # end class
 
 class EventParser:
@@ -311,7 +331,7 @@ class CatalogCSV:
                 print 'Reading %s' % (fn)
 
                 for line in open(fn, 'r'):
-                    if(line[0]=='#'):
+                    if (line[0] == '#'):
                         items = line.split(',')
                         vals = map(float, items[1:])
 
@@ -367,6 +387,38 @@ class CatalogCSV:
 
                         eventList.append(event)
                         poTimestamps.append(origin.utctime.timestamp)
+                    else:
+                        items = line.split(',')
+                        vals = list(map(float, items[8:]))
+                        year = int(vals[0])
+                        month = int(vals[1])
+                        day = int(vals[2])
+                        hour = int(vals[3])
+                        minute = int(vals[4])
+                        second = vals[5]
+                        utctime = None
+                        try:
+                            utctime = UTCDateTime(year, month, day,
+                                                  hour, minute, second)
+                        except:
+                            continue
+                        # end try
+                        try:
+                            lon = float(items[4])
+                        except:
+                            lon = 0
+                        try:
+                            lat = float(items[5])
+                        except:
+                            lat = 0
+                        try:
+                            elev = float(items[6])
+                        except:
+                            elev = 0
+                        distance = vals[-1]
+                        a = Arrival(items[3].strip(), items[0].strip(), items[2].strip(), items[1].strip(),
+                                    lon, lat, elev, items[7].strip(), utctime, distance)
+                        eventList[-1].preferred_origin.arrival_list.append(a)
                     # end if
                 # end for
             # end for
