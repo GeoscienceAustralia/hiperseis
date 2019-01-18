@@ -1,20 +1,21 @@
+#!/usr/bin/env python
+
 #from mpi4py import MPI
-from os.path import join, exists
 import os, glob, fnmatch, sys
-import re
+#import re
 from collections import defaultdict
 from obspy import UTCDateTime
-import numpy as np
 import math
 
-from math import radians, cos, sin, asin, sqrt
+#from math import radians, cos, sin, asin, sqrt
 import numpy as np
 import scipy
-from scipy.spatial import cKDTree
-from random import shuffle
-import bisect
-import textwrap
+#from scipy.spatial import cKDTree
+#from random import shuffle
+#import bisect
 from tqdm.auto import tqdm
+
+from dataio.event_attrs import Origin, Event, Magnitude, Arrival
 
 
 def recursive_glob(treeroot, pattern):
@@ -25,65 +26,26 @@ def recursive_glob(treeroot, pattern):
     return results
 
 
-class Origin:
-    def __init__(self, utctime, lat, lon, depthkm):
-        self.utctime = utctime
-        self.lat = lat
-        self.lon = lon
-        self.depthkm = depthkm
-        self.magnitude_list = []
-        self.arrivals = []
-
-    def location(self):
-        return (lat, lon, depthkm)
-
-    def __str__(self):
-        return "Time: {0}\nLocation: ({1}, {2}, {3})".format(self.utctime, self.lat, self.lon, self.depthkm)
-
-
-class Event:
-    def __init__(self):
-        self.public_id = None
-        self.preferred_origin = None
-        self.preferred_magnitude = None
-        self.origin_list = []
-
-    def __str__(self):
-        return "ID: {0}\nPreferred origin:\n{1}\nPreferred Magnitude:\n{2}".format(
-               self.public_id,
-               textwrap.indent(str(self.preferred_origin), "  "),
-               textwrap.indent(str(self.preferred_magnitude), "  "))
-
-
-class Magnitude:
-    def __init__(self, mag, mag_type):
-        self.magnitude_value = mag
-        self.magnitude_type = mag_type
-
-    def __str__(self):
-        return "Magnitude: {0} ({1})".format(self.magnitude_value, self.magnitude_type)
-
-
-class Arrival:
-    def __init__(self, net, sta, loc, cha, lon, lat, elev, phase, utctime, distance):
-        self.net = net
-        self.sta = sta
-        self.loc = loc
-        self.cha = cha
-        self.lon = lon
-        self.lat = lat
-        self.elev = elev
-        self.phase = phase
-        self.utctime = utctime
-        self.distance = distance
-
-    def __str__(self):
-        return "{}.{} ({}, {}, {}), {}: {} -> {}, {}".format(
-                self.net, self.sta, self.lat, self.lon, self.elev, self.cha, self.phase, self.utctime, self.distance
-        )
-
-
 class CatalogCSV:
+    """Lightweight parser for seismic event catalog.
+
+       Catalog is format as follows:
+#EHB, 2005, 09, 16, 07, 28, 39.001,  126.93300,    4.18700,    2.90000,    28, 4.50, -999.00, -999.00, -999.00,       1, 134.3000, 1
+FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 37.00,  22.180 
+WR0 , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 34, 06.00,  25.130 
+KUM , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 02.00,  26.220 
+MEEK, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 04.00,  31.680 
+FORT, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 32.00,  34.780 
+STKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 36, 04.00,  38.480 
+KSM , BHZ,  ,  ,  ,  ,  , Pn, 2005, 09, 16, 07, 32, 39.00,  16.820 
+KAKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 04.00,  17.660 
+FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180 
+...
+
+       The header row indicates the number of phases listed in the subsequent lines of arrival data
+       (28 in this example).
+    """
+
     def __init__(self, event_folder):
         self.event_folder = event_folder
         # self.comm = MPI.COMM_WORLD
@@ -97,8 +59,8 @@ class CatalogCSV:
         self._load_events()
 
     def _load_events(self):
-        event_dict = defaultdict(list)
-        station_dict = defaultdict(list)
+        event_dict = {}
+        station_dict = defaultdict(lambda: defaultdict(list))
 
         event_id = None
         if True: # (self.rank==0):
@@ -121,15 +83,10 @@ class CatalogCSV:
                         try:
                             arrival = self._parse_arrival(line)
                             event_dict[event_id].preferred_origin.arrivals.append(arrival)
-                            bisect.insort(station_dict[arrival.sta], event_id)
+                            station_dict[arrival.sta][arrival.phase].append((event_id, arrival.distance))
                         except:
                             continue
-
-                    # end if
-                # end for
                 progress.close()
-            # end for
-        # end if
 
         self.event_dict = event_dict
         self.station_dict = station_dict
@@ -161,7 +118,7 @@ class CatalogCSV:
         mi = vals[12]
         mw = vals[13]
         mag = 0
-        magtype='mw'
+        magtype = 'mw'
         if mw > 0:
             mag = mw
             magtype='mw'
@@ -227,7 +184,6 @@ class CatalogCSV:
     def get_events(self):
         return self.event_dict.values()
 
-# end class
 
 #event_src_folder = '/g/data/ha3/am7399/temp'
 #cat = CatalogCSV(event_src_folder)
