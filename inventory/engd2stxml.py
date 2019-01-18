@@ -506,9 +506,7 @@ def exportStationXml(df, output_folder, filename_base):
        network create and obspy inventory object and export to stationxml file. Write an overall
        list of stations based on global inventory.
     """
-    from obspy.core import utcdatetime
     from obspy.core.inventory import Inventory, Network, Station, Channel, Site
-    # from collections import defaultdict
 
     pathlib.Path(output_folder).mkdir(exist_ok=True)
     print("Exporting stations to folder {0}".format(output_folder))
