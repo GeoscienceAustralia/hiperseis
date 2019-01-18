@@ -52,8 +52,6 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
         # self.nproc = self.comm.Get_size()
         # self.rank = self.comm.Get_rank()
 
-        self.event_folder = event_folder
-
         # retrieve list of all csv files
         self.csv_files = sorted(recursive_glob(self.event_folder, '*.csv'))
         self._load_events()
