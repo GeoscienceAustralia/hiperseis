@@ -19,6 +19,7 @@ from collections import defaultdict
 
 from math import radians, cos, sin, asin, sqrt
 import numpy as np
+from numpy import unravel_index
 import scipy
 from scipy.spatial import cKDTree
 
@@ -56,16 +57,25 @@ from scipy import signal
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 
-def compute_cwt_snr(trc, scales, threshold_func=None):
+def compute_cwt_snr_p(trc, scales):
     cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
     ps = np.fabs(cwt) ** 2
 
-    if(threshold_func):
-        tval = threshold_func(ps)
-        ps = pywt.threshold(ps, tval, mode='soft', substitute=1)
-    # end if
-
     cwtsnr = np.mean(ps[:, ps.shape[1] / 2:]) / np.mean(ps[:, :ps.shape[1] / 2])
+
+    return cwtsnr
+# end func
+
+def compute_cwt_snr_s(trc, scales):
+    cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
+    ps = np.fabs(cwt) ** 2
+
+    tval = np.std(ps)
+    ps = pywt.threshold(ps, tval, mode='soft', substitute=1)
+    idx = unravel_index(ps.argmax(), ps.shape)
+
+    line = ps[idx[0], :]
+    cwtsnr = np.mean(line[ps.shape[1] / 2:]) / np.mean(line[:ps.shape[1] / 2])
 
     return cwtsnr
 # end func
@@ -96,10 +106,13 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     try:
         buffer_start = -15
         buffer_end = 15
-        st = st.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
-        st.resample(resample_hz)
 
         snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+        snrst = snrst.copy()
+        snrst.resample(resample_hz)
+        snrst.detrend('linear')
+
+        st = snrst.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
     except:
         return None
     # end try
@@ -117,7 +130,6 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         bandindex = -1
         pickerindex = -1
 
-        tr.detrend('linear')
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
@@ -142,7 +154,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                                 try:
                                     wab = snrtr.slice(pick - 10, pick + 10)
                                     scales = np.logspace(0.15, 1.5, 30)
-                                    cwtsnr = compute_cwt_snr(wab, scales)
+                                    cwtsnr = compute_cwt_snr_p(wab, scales)
                                     snrlist.append(str([snr[ipick], cwtsnr]))
                                 except:
                                     print(e), len(wab)
@@ -208,11 +220,15 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         buffer_start = -25
         buffer_end = 25
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+        stn = stn.copy()
         stn.resample(resample_hz)
+        stn.detrend('linear')
 
         if(ste):
             ste = ste.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+            ste = ste.copy()
             ste.resample(resample_hz)
+            ste.detrend('linear')
         # end if
 
         if(ste):
@@ -241,7 +257,6 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         bandindex = -1
         pickerindex = -1
 
-        tr.detrend('linear')
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
@@ -266,7 +281,7 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                                 try:
                                     wab = snrtr.slice(pick - 20, pick + 20)
                                     scales = np.logspace(0.5, 4, 30)
-                                    cwtsnr = compute_cwt_snr(wab, scales, threshold_func=np.std)
+                                    cwtsnr = compute_cwt_snr_s(wab, scales)
                                     snrlist.append(str([snr[ipick], cwtsnr]))
                                 except Exception as e:
                                     print(e), len(wab)
