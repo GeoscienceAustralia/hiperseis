@@ -28,15 +28,14 @@ import time
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
 
 
-def formRequestUrl(netmask="*", statmask="*", locmask="*", chanmask="*"):
+def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
    """Form request URL to download station inventory in stationxml format, down to channel level,
-      with the given filters applied to network codes, station codes, locations and channel codes.
+      with the given filters applied to network codes, station codes and channel codes.
 
       Hardwired to exclude restricted channels and exclude comments to reduce file size.
    """
    return "http://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
           "&sta=" + statmask + \
-          "&loc=" + locmask + \
           "&cha=" + chanmask + \
           "&level=channel&format=xml&includerestricted=false&includecomments=false&nodata=404"
 
@@ -103,7 +102,6 @@ if __name__ == "__main__":
    parser = argparse.ArgumentParser()
    parser.add_argument("-n", "--netmask", help="Filter mask to apply to network codes, e.g. U* to get all network codes starting with \"U\"")
    parser.add_argument("-s", "--statmask", help="Filter mask to apply to station codes. Filter strings should not include quotation marks.")
-   parser.add_argument("-l", "--locmask", help="Filter mask to apply to station locations.")
    parser.add_argument("-c", "--chanmask", help="Filter mask to apply to channel codes.")
    parser.add_argument("-o", "--output", help="Name of output file.", default=DEFAULT_OUTPUT_FILE)
    args = vars(parser.parse_args())
