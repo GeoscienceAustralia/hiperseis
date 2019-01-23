@@ -15,7 +15,7 @@ from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
-from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
 
 if sys.version_info[0] < 3:
     import cStringIO as sio
@@ -334,27 +334,6 @@ def removeIrisDuplicates(df, iris_inv):
 
 
 # @profile
-def cleanupStationElevations(df):
-    """Find stations with conflicting elevation values and set to a consistent value.
-
-       Mutates df in-place.
-    """
-    with open("LOG_SUSPECT_ELEVATIONS_" + rt_timestamp + ".txt", 'w') as log:
-        for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-            if len(data) <= 1:
-                continue
-            elev = data['Elevation']
-            zero_and_nonzero_elevations = np.sum((elev == 0)) > 0 and np.sum((elev > 0))
-            if zero_and_nonzero_elevations:
-                non_zero_elev = elev[(elev > 0)]
-                if len(non_zero_elev.unique()) > 1:
-                    log.write("WARNING: multiple elevations detected for {0}.{1}, choosing min of {2}\n".format(netcode, statcode, non_zero_elev.values))
-                assumed_elevation = np.min(non_zero_elev)
-                mask = (elev != assumed_elevation) & (data['NetworkCode'] == netcode) & (data['StationCode'] == statcode)
-                df.loc[df.loc[mask.index].loc[mask.values].index, "Elevation"] = assumed_elevation
-
-
-# @profile
 def computeNeighboringStationMatrix(df):
     """Compute sparse matrix representing index of neighboring stations.
 
@@ -462,6 +441,13 @@ def removeDuplicateStations(df, neighbor_matrix):
     return df
 
 
+def populateDefaultStationDates(df):
+    """Replace all missing station start and end dates with default values.
+    """
+    df.StationStart[df.StationStart.isna()] = DEFAULT_START_TIMESTAMP
+    df.StationEnd[df.StationEnd.isna()] = DEFAULT_END_TIMESTAMP
+
+
 # @profile
 def cleanupDatabase(df, iris_inv):
     """Clean up the dataframe df.
@@ -483,11 +469,6 @@ def cleanupDatabase(df, iris_inv):
     if len(df) < num_before:
         print("Removed {0}/{1} stations because they exist in IRIS".format(num_before - len(df), num_before))
 
-    print("Cleaning up station elevations...")
-    cleanupStationElevations(df)
-
-    # TODO: generate scatter plots of station lat/long for all net.statcode prior to removal of duplicates.
-
     print("Cleaning up station duplicates...")
     num_before = len(df)
     neighbor_matrix = computeNeighboringStationMatrix(df)
@@ -495,6 +476,9 @@ def cleanupDatabase(df, iris_inv):
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
         print("Removed {0}/{1} stations flagged as duplicates".format(num_before - len(df), num_before))
+
+    print("Filling in missing station dates with defaults...")
+    populateDefaultStationDates(df)
 
     return df
 
@@ -516,6 +500,7 @@ def exportStationXml(df, output_folder, filename_base):
         progressor = pbar.update
     else:
         progressor = None
+
     global_inventory = Inventory(networks=[], source='EHB')
     for netcode, data in df.groupby('NetworkCode'):
         net = pd2Network(netcode, data, progressor)
@@ -581,18 +566,18 @@ def main(argv):
     # Read IRIS station database.
     IRIS_all_file = "IRIS-ALL.xml"
     print("Reading " + IRIS_all_file)
-    if USE_PICKLE:
+    if False:  # TODO: only keep this code if proven that pickled station xml file loads faster...
         IRIS_all_pkl_file = IRIS_all_file + ".pkl"
         if os.path.exists(IRIS_all_pkl_file):
             with open(IRIS_all_pkl_file, 'rb') as f:
                 iris_inv = pkl.load(f)
         else:
-            with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+            with open(IRIS_all_file, 'r') as f:
                 iris_inv = read_inventory(f)
             with open(IRIS_all_pkl_file, 'wb') as f:
                 pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
     else:
-        with open(IRIS_all_file, 'r', buffering=1024 * 1024) as f:
+        with open(IRIS_all_file, 'r') as f:
             iris_inv = read_inventory(f)
 
     # Perform cleanup on each database

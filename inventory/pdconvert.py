@@ -14,17 +14,15 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
-DEFAULT_START_TIMESTAMP = pd.Timestamp("1964-1-1 00:00:00")
-DEFAULT_END_TIMESTAMP = pd.Timestamp.max
-
-
 def pd2Station(statcode, station_df):
     """Convert Pandas dataframe with unique station code to FDSN Station object."""
     station_data = station_df.iloc[0]
     st_start = station_data['StationStart']
-    st_start = utcdatetime.UTCDateTime(st_start) if not pd.isnull(st_start) else DEFAULT_START_TIMESTAMP
+    assert pd.notnull(st_start)
+    st_start = utcdatetime.UTCDateTime(st_start)
     st_end = station_data['StationEnd']
-    st_end = utcdatetime.UTCDateTime(st_end) if not pd.isnull(st_end) else DEFAULT_END_TIMESTAMP
+    assert pd.notnull(st_end)
+    st_end = utcdatetime.UTCDateTime(st_end)
     station = Station(statcode,
                       station_data['Latitude'],
                       station_data['Longitude'],
