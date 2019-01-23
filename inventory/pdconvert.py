@@ -81,7 +81,7 @@ def inventory2Dataframe(inv_file):
                 d['ChannelStart'].append(np.datetime64(channel.start_date))
                 d['ChannelEnd'].append(np.datetime64(channel.end_date))
     df = pd.DataFrame.from_dict(d)
-    df = df[TABLE_COLUMNS]
+    df = df[list(TABLE_COLUMNS)]
     df.sort_values(['NetworkCode', 'StationCode'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df
