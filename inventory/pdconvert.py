@@ -7,7 +7,6 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from obspy import read_inventory
 from obspy.core import utcdatetime
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 
@@ -54,18 +53,28 @@ def pd2Network(netcode, network_df, progressor=None):
     return net
 
 
-def inventory2Dataframe(inv_file):
-    """Load a FDSN Inventory XML file and convert entire inventory to a Pandas Dataframe.
+def inventory2Dataframe(inv_object, show_progress=True):
+    """Convert a obspy Inventory object to a Pandas Dataframe.
 
        Returns a Pandas Dataframe with sequential integer index and sorted by [NetworkCode, StationCode].
+       Only populates entries for non-empty channels.
     """
-    with open(inv_file, 'r') as f:
-        fdsn_inv = read_inventory(f)
+
+    # def valgen():
+    #     for network in inv_object.networks:
+    #         for station in network.stations
+    #             yield len(station)
+
+    if show_progress:
+        import tqdm
+        num_entries = sum(len(station.channels) for network in inv_object.networks for station in network.stations)
+        pbar = tqdm.tqdm(total=num_entries, ascii=True)
 
     d = defaultdict(list)
-    for network in fdsn_inv.networks:
+    for network in inv_object.networks:
         for station in network.stations:
-            assert len(station.channels) > 0
+            if show_progress:
+                pbar.update(len(station.channels))
             for channel in station.channels:
                 d['NetworkCode'].append(network.code)
                 d['StationCode'].append(station.code)
@@ -80,6 +89,8 @@ def inventory2Dataframe(inv_file):
                 d['ChannelCode'].append(channel.code)
                 d['ChannelStart'].append(np.datetime64(channel.start_date))
                 d['ChannelEnd'].append(np.datetime64(channel.end_date))
+    if show_progress:
+        pbar.close()
     df = pd.DataFrame.from_dict(d)
     df = df[list(TABLE_COLUMNS)]
     df.sort_values(['NetworkCode', 'StationCode'], inplace=True)
