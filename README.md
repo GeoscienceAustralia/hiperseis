@@ -1,4 +1,4 @@
-# Software Package for Passive-Seismic Data Processing, Analysis and Modelling
+Software Package for Passive-Seismic Data Processing, Analysis and Modelling
 ==================================
 
 |Build Status|  |Documentation Status|
