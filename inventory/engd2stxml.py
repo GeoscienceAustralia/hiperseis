@@ -6,6 +6,7 @@ from __future__ import division
 
 import os
 import sys
+import argparse
 
 import numpy as np
 import scipy as sp
@@ -539,7 +540,7 @@ def exportNetworkPlots(df, plot_folder):
         raise
 
 
-def main(argv):
+def main(iris_xml_file):
     # Read station database from ad-hoc formats
     if TEST_MODE:
         ehb_data_bmg = read_eng(os.path.join('test', 'BMG_test.STN'))
@@ -564,20 +565,19 @@ def main(argv):
     db.reset_index(drop=True, inplace=True)
 
     # Read IRIS station database.
-    IRIS_all_file = "IRIS-ALL.xml"
-    print("Reading " + IRIS_all_file)
+    print("Reading " + iris_xml_file)
     if False:  # TODO: only keep this code if proven that pickled station xml file loads faster...
-        IRIS_all_pkl_file = IRIS_all_file + ".pkl"
+        IRIS_all_pkl_file = iris_xml_file + ".pkl"
         if os.path.exists(IRIS_all_pkl_file):
             with open(IRIS_all_pkl_file, 'rb') as f:
                 iris_inv = pkl.load(f)
         else:
-            with open(IRIS_all_file, 'r') as f:
+            with open(iris_xml_file, 'r') as f:
                 iris_inv = read_inventory(f)
             with open(IRIS_all_pkl_file, 'wb') as f:
                 pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
     else:
-        with open(IRIS_all_file, 'r') as f:
+        with open(iris_xml_file, 'r') as f:
             iris_inv = read_inventory(f)
 
     # Perform cleanup on each database
@@ -598,14 +598,21 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file to use to exclude station codes from STN sources.")
+    args = parser.parse_args()
+    if args.iris is None:
+        parser.print_help()
+        sys.exit(0)
+    else:
+        iris_xml_file = args.iris.strip()
+    print("Using IRIS source " + iris_xml_file)
+
     # import cProfile as prof
     # statsfile = 'perfstats.stat'
-    # # prof.run('main(sys.argv)', statsfile)
+    # # prof.run('main(iris_xml_file)', statsfile)
     # prof.run('read_isc(os.path.join(\'test\', \'iscehb_test.stn\'))', statsfile)
     # import pstats
     # p = pstats.Stats(statsfile)
     # p.sort_stats('tottime').print_stats(50)
-    main(sys.argv)
-    # read_isc(os.path.join('test', 'iscehb_test.stn'))
-    # read_isc('ehb.stn')
-    # read_isc('iscehb.stn')
+    main(iris_xml_file)
