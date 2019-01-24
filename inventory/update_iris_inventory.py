@@ -23,13 +23,18 @@ import tempfile as tmp
 import subprocess
 import argparse
 import time
+import re
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
 
 # Tuple of known illegal XML elements that obspy will reject if ingested. All such substrings
 # are removed prior to ingestion into obspy.
-KNOWN_ILLEGAL_ELEMENTS = ("<Azimuth>362.6</Azimuth>",)
+KNOWN_ILLEGAL_ELEMENTS_PATTERNS = (
+   r"<Azimuth>360\.[1-9]\d*</Azimuth>",
+   r"<Azimuth>36[1-9](\.\d*)?</Azimuth>",
+   r"<Azimuth>3[7-9]\d(\.\d*)?</Azimuth>",
+                          )
 
 
 def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
@@ -54,7 +59,6 @@ def cleanup(tmp_filename):
 def setTextEncoding(resp):
    """For the given response object, set its encoding from the contents of the text returned from server.
    """
-   import re
    encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
    matcher = re.compile(encoding_pattern)
    first_line = resp.text.split('\n', 1)[0]
@@ -113,9 +117,10 @@ def regenerateHumanReadable(iris, outfile):
       import io as sio
 
    print("  Ingesting query response into obspy...")
-   # This next line of code removes all instances of the substrings in KNOWN_ILLEGAL_ELEMENTS from iris.text,
+   # This code removes all instances of the substrings matching KNOWN_ILLEGAL_ELEMENTS_PATTERNS from iris.text,
    # then encodes it as UTF-8.
-   iris_str = functools.reduce(lambda text, bad: text.replace(bad, ""), KNOWN_ILLEGAL_ELEMENTS, iris.text).encode('utf-8')
+   matcher = re.compile("|".join(KNOWN_ILLEGAL_ELEMENTS_PATTERNS))
+   iris_str = matcher.sub("", iris.text).encode('utf-8')
    obspy_input = sio.BytesIO(iris_str)
    try:
       station_inv = read_inventory(obspy_input)
