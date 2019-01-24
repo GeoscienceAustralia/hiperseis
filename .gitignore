@@ -58,7 +58,7 @@ ENV/
 xcorqc/run.sh
 tempworks/
 .vscode/
-inventory/IRIS-ALL.xml.pkl
+inventory/IRIS-ALL*
 inventory/output*
 *.pkl
 **.lprof

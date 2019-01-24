@@ -11,4 +11,4 @@
 ## The job will be executed from current working directory instead of home.
 #PBS -l wd
 #PBS -N StationMetadataCleanup
-python ./engd2stxml.py
+python ./engd2stxml.py -i $1
