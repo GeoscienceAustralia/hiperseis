@@ -125,7 +125,7 @@ def regenerateHumanReadable(iris, outfile):
    try:
       station_inv = read_inventory(obspy_input)
    except:
-      DUMPFILE = 'fdsn_stn_inv_dump.txt'
+      DUMPFILE = 'fdsn_stn_inv_dump.xml'
       print("FAILED ingesting server response into obspy, dumping server response string to " + DUMPFILE)
       with open(DUMPFILE, 'w') as f:
          f.write(iris_str.decode('utf-8'))
