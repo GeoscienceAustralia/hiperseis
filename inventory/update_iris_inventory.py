@@ -64,7 +64,7 @@ def setTextEncoding(resp):
    first_line = resp.text.split('\n', 1)[0]
    match = matcher.search(first_line)
    assert match
-   encoding = match[1]
+   encoding = match.group(1)
    resp.encoding = encoding
    assert resp.encoding is not None
 
