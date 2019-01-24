@@ -14,37 +14,18 @@ Revision History:
 
 from mpi4py import MPI
 import glob, os, sys
-from os.path import join, exists
-from collections import defaultdict
 
-from math import radians, cos, sin, asin, sqrt
 import numpy as np
-from numpy import unravel_index
-import scipy
-from scipy.spatial import cKDTree
-
-import xcorqc
 from obspy import Stream, Trace, UTCDateTime
-import pyasdf
-import json
-import fnmatch
-import operator
 from datetime import datetime
 from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
-from random import shuffle
-from obspy import UTCDateTime, read_events, read_inventory
-from obspy.taup.taup_geo import calc_dist
-from obspy.clients.iris import Client as IrisClient
-from obspy.clients.fdsn import Client
+import traceback
+from obspy import UTCDateTime
 from obspy.taup import TauPyModel
-from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recursive_sta_lta, ar_pick
 from obspy.signal.rotate import rotate_ne_rt
-from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
-     Origin, Arrival, OriginQuality, Magnitude, Comment
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-import pywt
 from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
@@ -53,39 +34,15 @@ from utils import EventParser, Catalog, CatalogCSV, ProgressTracker
 import psutil
 import gc
 
-from scipy import signal
-from scipy.signal import savgol_filter
-import matplotlib.pyplot as plt
-
-def compute_cwt_snr_p(trc, scales):
-    cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
-    ps = np.fabs(cwt) ** 2
-
-    cwtsnr = np.mean(ps[:, ps.shape[1] / 2:]) / np.mean(ps[:, :ps.shape[1] / 2])
-
-    return cwtsnr
-# end func
-
-def compute_cwt_snr_s(trc, scales):
-    cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
-    ps = np.fabs(cwt) ** 2
-
-    tval = np.std(ps)
-    ps = pywt.threshold(ps, tval, mode='soft', substitute=1)
-    idx = unravel_index(ps.argmax(), ps.shape)
-
-    line = ps[idx[0], :]
-    cwtsnr = np.mean(line[ps.shape[1] / 2:]) / np.mean(line[:ps.shape[1] / 2])
-
-    return cwtsnr
-# end func
+from quality import compute_quality_measures
 
 def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
               bp_freqmins = [0.5, 2., 5.],
               bp_freqmaxs = [5., 10., 10.],
               margin=None,
-              max_amplitude=1e8):
+              max_amplitude=1e8,
+              plot_output_folder=None):
 
     po = event.preferred_origin
     if(not po): return None
@@ -104,8 +61,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     tat = atimes[0].time # theoretical arrival time
 
     try:
-        buffer_start = -15
-        buffer_end = 15
+        buffer_start = -5
+        buffer_end = 5
 
         snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         snrst = snrst.copy()
@@ -148,18 +105,23 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                         if ((margin and np.fabs(residual) < margin) or (margin == None)):
                             pickslist.append(pick)
 
-                            if(0):
-                                snrlist.append(snr[ipick])
-                            else:
-                                try:
-                                    wab = snrtr.slice(pick - 10, pick + 10)
-                                    scales = np.logspace(0.15, 1.5, 30)
-                                    cwtsnr = compute_cwt_snr_p(wab, scales)
-                                    snrlist.append(str([snr[ipick], cwtsnr]))
-                                except:
-                                    print(e), len(wab)
-                                    snrlist.append(str([snr[ipick], -1]))
+                            plotinfo = None
+                            if (plot_output_folder):
+                                plotinfo = {'eventid': event.public_id,
+                                            'origintime': po.utctime,
+                                            'mag': event.preferred_magnitude.magnitude_value,
+                                            'net': trc.stats.network,
+                                            'sta': trc.stats.station,
+                                            'phase': 'p',
+                                            'ppsnr': snr[ipick],
+                                            'pickid': ipick,
+                                            'outputfolder': plot_output_folder}
                             # end if
+
+                            wab = snrtr.slice(pick - 3, pick + 3)
+                            scales = np.logspace(0.15, 1.5, 30)
+                            cwtsnr, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, slope_ratio])
 
                             residuallist.append(residual)
                             bandindex = i
@@ -184,7 +146,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
 
         if (len(pickslist)):
             return pickslist, residuallist, \
-                   snrlist, bandindex, pickerindex
+                   np.array(snrlist), bandindex, pickerindex
         # end if
     # end if
 
@@ -196,7 +158,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
               bp_freqmins = [0.01, 0.01, 0.5],
               bp_freqmaxs = [   1,   2., 5.],
               margin=None,
-              max_amplitude=1e8):
+              max_amplitude=1e8,
+              plot_output_folder=None):
 
     po = event.preferred_origin
     if(not po): return None
@@ -217,8 +180,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     tr = None
     snrtr = None
     try:
-        buffer_start = -25
-        buffer_end = 25
+        buffer_start = -5
+        buffer_end = 5
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         stn = stn.copy()
         stn.resample(resample_hz)
@@ -275,18 +238,23 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                         if ((margin and np.fabs(residual) < margin) or (margin == None)):
                             pickslist.append(pick)
 
-                            if(0):
-                                snrlist.append(snr[ipick])
-                            else:
-                                try:
-                                    wab = snrtr.slice(pick - 20, pick + 20)
-                                    scales = np.logspace(0.5, 4, 30)
-                                    cwtsnr = compute_cwt_snr_s(wab, scales)
-                                    snrlist.append(str([snr[ipick], cwtsnr]))
-                                except Exception as e:
-                                    print(e), len(wab)
-                                    snrlist.append(-1)
+                            plotinfo = None
+                            if (plot_output_folder):
+                                plotinfo = {'eventid': event.public_id,
+                                            'origintime': po.utctime,
+                                            'mag': event.preferred_magnitude.magnitude_value,
+                                            'net': trc.stats.network,
+                                            'sta': trc.stats.station,
+                                            'phase': 's',
+                                            'ppsnr': snr[ipick],
+                                            'pickid': ipick,
+                                            'outputfolder': plot_output_folder}
                             # end if
+
+                            wab = snrtr.slice(pick - 3, pick + 3)
+                            scales = np.logspace(0.5, 4, 30)
+                            cwtsnr, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, slope_ratio])
 
                             residuallist.append(residual)
                             bandindex = i
@@ -312,7 +280,7 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
 
         if (len(pickslist)):
             return pickslist, residuallist, \
-                   snrlist, bandindex, pickerindex
+                   np.array(snrlist), bandindex, pickerindex
         # end if
     # end if
 
@@ -358,7 +326,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
-def process(asdf_source, event_folder, output_path, min_magnitude, restart):
+@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of SNR')
+def process(asdf_source, event_folder, output_path, min_magnitude, restart, save_quality_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
@@ -385,6 +354,19 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
         # end func
 
         outputConfigParameters()
+    # end if
+
+    # ==================================================
+    # Create output-folder for snr-plots
+    # ==================================================
+    plot_output_folder = None
+    if(save_quality_plots):
+        plot_output_folder = os.path.join(output_path, 'plots')
+        if(rank == 0):
+            if(not os.path.exists(plot_output_folder)):
+                os.mkdir(plot_output_folder)
+        # end if
+        comm.Barrier()
     # end if
 
     # ==================================================
@@ -423,7 +405,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr bandIndex nSigma\n'
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT qualityMeasureSlope bandIndex nSigma\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofp = None
@@ -490,7 +472,8 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
 
                         if(np.isnan(mag) or mag < min_magnitude): continue
 
-                        result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st)
+                        result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st,
+                                           plot_output_folder = plot_output_folder)
                         if(result):
                             picklist, residuallist, snrlist, bandindex, pickerindex = result
 
@@ -499,10 +482,12 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
                                 line = '%s %f %f %f %f %f ' \
                                        '%s %s %s %f %f %f ' \
                                        '%f %f %f ' \
-                                       '%f %s %d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                       da[1], da[2], arcdistance,
-                                                       residuallist[ip], snrlist[ip], bandindex, sigmalist[pickerindex])
+                                       '%f %f %f %f '\
+                                       '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                    da[1], da[2], arcdistance,
+                                                    residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                    bandindex, sigmalist[pickerindex])
                                 ofp.write(line)
                             # end for
                             ofp.flush()
@@ -510,7 +495,8 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
                         # end if
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
-                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, st, None, da[2])
+                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, st, None, da[2],
+                                               plot_output_folder=plot_output_folder)
                             if (result):
                                 picklist, residuallist, snrlist, bandindex, pickerindex = result
 
@@ -519,10 +505,12 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
                                     line = '%s %f %f %f %f %f ' \
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
-                                           '%f %s %d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                           codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                           da[1], da[2], arcdistance,
-                                                           residuallist[ip], snrlist[ip], bandindex, sigmalist[pickerindex])
+                                           '%f %f %f %f ' \
+                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                        da[1], da[2], arcdistance,
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                        bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
                                 ofs.flush()
@@ -572,7 +560,8 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
 
                             if (np.isnan(mag) or mag < min_magnitude): continue
 
-                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, stn, ste, da[2])
+                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, stn, ste, da[2],
+                                               plot_output_folder=plot_output_folder)
                             if (result):
                                 picklist, residuallist, snrlist, bandindex, pickerindex = result
 
@@ -581,10 +570,12 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart):
                                     line = '%s %f %f %f %f %f ' \
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
-                                           '%f %s %d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                           codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
-                                                           da[1], da[2], arcdistance,
-                                                           residuallist[ip], snrlist[ip], bandindex, sigmalist[pickerindex])
+                                           '%f %f %f %f ' \
+                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
+                                                        da[1], da[2], arcdistance,
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                        bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
                                 ofs.flush()
