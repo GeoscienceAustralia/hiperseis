@@ -1,15 +1,8 @@
-import xcorqc
-import argparse
-import datetime
-import glob, os, sys
-from os.path import join, exists
-from obspy import Stream, Trace, UTCDateTime
+from obspy import UTCDateTime
 import pyasdf
-import json
-import numpy as np
 
-from ASDFdatabase.seisds import SeisDB
-from xcorqc import IntervalStackXCorr, xcorr2
+from seismic.ASDFdatabase import SeisDB
+from xcorqc import IntervalStackXCorr
 
 # =========================== User Input Required =========================== #
 

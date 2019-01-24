@@ -13,24 +13,21 @@ Revision History:
 """
 
 from mpi4py import MPI
-import glob, os, sys
-from os.path import join, exists
+import glob, os
 from collections import defaultdict
 
-from math import radians, cos, sin, asin, sqrt
+from math import sqrt
 import numpy as np
-import scipy
 from scipy.spatial import cKDTree
 
-import xcorqc
-from obspy import Stream, Trace, UTCDateTime
+from obspy import UTCDateTime
 import pyasdf
-import json
 
 import click
 
-from ASDFdatabase.seisds import SeisDB
-from xcorqc import IntervalStackXCorr, xcorr2
+from seismic.ASDFdatabase import SeisDB
+from xcorqc import IntervalStackXCorr
+
 
 # define utility functions
 def rtp2xyz(r, theta, phi):

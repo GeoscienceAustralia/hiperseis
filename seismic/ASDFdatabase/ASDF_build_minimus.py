@@ -7,11 +7,8 @@ import pyasdf
 from pyasdf import ASDFWarning
 import warnings
 from collections import Counter, defaultdict
-from convert_logs.decode_datfile import decode_anulog
 
 import glob
-
-import numpy as np
 
 from obspy import read_inventory
 from obspy.core import inventory, read, UTCDateTime

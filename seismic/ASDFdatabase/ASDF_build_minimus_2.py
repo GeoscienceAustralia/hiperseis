@@ -5,13 +5,9 @@ from struct import error as StructError
 import json
 import pyasdf
 from pyasdf import ASDFWarning
-import warnings
-from collections import Counter, defaultdict
-from convert_logs.decode_datfile import decode_anulog
+from collections import Counter
 
 import glob
-
-import numpy as np
 
 from obspy import read_inventory, read, UTCDateTime
 from obspy.core.inventory import Inventory, Network, Station, Site

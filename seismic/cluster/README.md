@@ -151,10 +151,10 @@ less 5 seconds, and `S` arrivals are filtered for residuals for less than 10 sec
 ## PBS scripts
 
 When gathering a large number of arrivals, batch jobs can be utilised making use
- of the steps above. Example PBS scripts can be found [here for python3.4](../../hpc/cluster.sh) and 
-[here for python3.6](../../hpc/cluster36.sh). Instructions on how to setup hpc 
-environment on `raijin` like supercomputer can be found [here for python3.4](../../hpc/README.rst) and 
-[here for python3.6](../../hpc/READMEPY36.sh)
+ of the steps above. Example PBS scripts can be found [here for python3.4](../../scripts/hpc/cluster.sh) and 
+[here for python3.6](../../scripts/hpc/cluster36.sh). Instructions on how to setup hpc 
+environment on `raijin` like supercomputer can be found [here for python3.4](../../scripts/hpc/README.rst) and 
+[here for python3.6](../../scripts/hpc/READMEPY36.sh)
 
 
 ## Plot stations

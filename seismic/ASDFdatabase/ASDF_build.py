@@ -7,7 +7,7 @@ import pyasdf
 from pyasdf import ASDFWarning
 import warnings
 from collections import Counter, defaultdict
-from convert_logs.decode_datfile import decode_anulog
+from scripts.convert_logs.decode_datfile import decode_anulog
 
 import glob
 

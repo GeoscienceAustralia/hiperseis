@@ -55,7 +55,7 @@ ENV/
 .ropeproject
 .gitignore
 .idea/
-xcorqc/run.sh
+scripts/xcorqc/run.sh
 tempworks/
 .vscode/
 inventory/IRIS-ALL.xml.pkl

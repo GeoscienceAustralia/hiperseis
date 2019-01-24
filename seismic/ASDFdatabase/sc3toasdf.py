@@ -14,17 +14,11 @@ Revision History:
 """
 
 import click
-import sys, os, math
-import numpy as np
-import scipy
-import glob
-from collections import defaultdict
+import os
 import pyasdf
 
-from netCDF4 import Dataset as NCDataset
-from obspy.core import Stream, UTCDateTime
+from obspy.core import UTCDateTime
 
-from xcorqc.correlator import Dataset
 from obspy.clients.fdsn import Client
 
 import json

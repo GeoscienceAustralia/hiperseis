@@ -13,42 +13,22 @@ Revision History:
 """
 
 from mpi4py import MPI
-import glob, os, sys
-from os.path import join, exists
-from collections import defaultdict
+import os
 
-from math import radians, cos, sin, asin, sqrt
 import numpy as np
-import scipy
-from scipy.spatial import cKDTree
 
-import xcorqc
-from obspy import Stream, Trace, UTCDateTime
-import pyasdf
-import json
-import fnmatch
-import operator
+from obspy import Trace
 from datetime import datetime
-from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
-from random import shuffle
-from obspy import UTCDateTime, read_events, read_inventory
-from obspy.taup.taup_geo import calc_dist
-from obspy.clients.iris import Client as IrisClient
-from obspy.clients.fdsn import Client
+from obspy import UTCDateTime
 from obspy.taup import TauPyModel
-from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recursive_sta_lta, ar_pick
 from obspy.signal.rotate import rotate_ne_rt
-from obspy.core.event import Pick, CreationInfo, WaveformStreamID, ResourceIdentifier, Arrival, Event,\
-     Origin, Arrival, OriginQuality, Magnitude, Comment
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-import pywt
-from PhasePApy.phasepapy.phasepicker import fbpicker
-from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, Catalog, CatalogCSV
+from utils import CatalogCSV
 import psutil
 import gc
 

@@ -1,11 +1,8 @@
 import pyasdf
 import time
 import os
-from xcorqc.xcorqc import xcorr2
+from scripts.xcorqc import xcorr2
 from obspy import Stream, Trace
-import matplotlib.pyplot as plt
-from obspy import UTCDateTime
-
 
 code_start_time = time.time()
 
