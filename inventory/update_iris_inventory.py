@@ -12,7 +12,7 @@
    python update_iris_inventory.py
    python update_iris_inventory.py -o outfile.xml
    python update_iris_inventory.py --netmask=U* --statmask=K*
-   python update_iris_inventory.py --netmask=U* --output outfile.xml
+   python update_iris_inventory.py --netmask=UW,LO --output outfile.xml
 """
 
 import os
@@ -26,6 +26,10 @@ import time
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
+
+# Tuple of known illegal XML elements that obspy will reject if ingested. All such substrings
+# are removed prior to ingestion into obspy.
+KNOWN_ILLEGAL_ELEMENTS = ("<Azimuth>362.6</Azimuth>",)
 
 
 def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
@@ -46,12 +50,28 @@ def cleanup(tmp_filename):
    except:
       print("WARNING: Failed to remove temporary file " + tmp_filename)
 
+
+def setTextEncoding(resp):
+   """For the given response object, set its encoding from the contents of the text returned from server.
+   """
+   import re
+   encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
+   matcher = re.compile(encoding_pattern)
+   first_line = resp.text.split('\n', 1)[0]
+   match = matcher.search(first_line)
+   assert match
+   encoding = match[1]
+   resp.encoding = encoding
+   assert resp.encoding is not None
+
+
 def updateIrisStationXml(output_file, options=None):
    iris_url = formRequestUrl() if options is None else formRequestUrl(**options)
    # Download latest IRIS station database as FDSN station xml.
    try:
       print("Requesting data from server...")
       iris = req.get(iris_url)
+      setTextEncoding(iris)
    except:
       print("FAILED to retrieve URL content at " + iris_url)
       return
@@ -65,7 +85,10 @@ def updateIrisStationXml(output_file, options=None):
       # Convert using system call
       cmd = "fdsnxml2inv --quiet --formatted " + ifile.name + " " + output_file
       print("Converting to SC3 format...")
-      subprocess.check_call(cmd.split(), timeout=3600)
+      if sys.version_info[0] < 3:
+         subprocess.check_call(cmd.split())
+      else:
+         subprocess.check_call(cmd.split(), timeout=3600)
       print("Successfully updated file " + output_file)
    except:
       cleanup(ifile.name)
@@ -75,18 +98,33 @@ def updateIrisStationXml(output_file, options=None):
 
    # Create human-readable text form of the IRIS station inventory (Pandas stringified table)
    output_txt = os.path.splitext(output_file)[0] + ".txt"
-   regenerateHumanReadable(output_file, output_txt)
+   regenerateHumanReadable(iris, output_txt)
 
 
-def regenerateHumanReadable(infile, outfile):
+def regenerateHumanReadable(iris, outfile):
    print("Generating human readable version...")
    from pdconvert import inventory2Dataframe
    import pandas as pd
    from obspy import read_inventory
+   import functools
+   if sys.version_info[0] < 3:
+      import cStringIO as sio
+   else:
+      import io as sio
 
-   print("  Reading SC3 inventory " + infile)
-   with open(infile, 'r') as f:
-      station_inv = read_inventory(f)
+   print("  Ingesting query response into obspy...")
+   # This next line of code removes all instances of the substrings in KNOWN_ILLEGAL_ELEMENTS from iris.text,
+   # then encodes it as UTF-8.
+   iris_str = functools.reduce(lambda text, bad: text.replace(bad, ""), KNOWN_ILLEGAL_ELEMENTS, iris.text).encode('utf-8')
+   obspy_input = sio.BytesIO(iris_str)
+   try:
+      station_inv = read_inventory(obspy_input)
+   except:
+      DUMPFILE = 'fdsn_stn_inv_dump.txt'
+      print("FAILED ingesting server response into obspy, dumping server response string to " + DUMPFILE)
+      with open(DUMPFILE, 'w') as f:
+         f.write(iris_str.decode('utf-8'))
+      raise
 
    print("  Converting to dataframe...")
    inv_df = inventory2Dataframe(station_inv)
