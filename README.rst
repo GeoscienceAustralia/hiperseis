@@ -20,20 +20,15 @@ Overview
 Contacts
 ==========
 
-| **Fei Zhang**
-| fei.zhang@ga.gov.au
+- Fei Zhang: fei.zhang@ga.gov.au
 
-| **Rakib Hassan**
-| Rakib.Hassan@ga.gov.au
+- Rakib Hassan: rakib.hassan@ga.gov.au
 
-| **Andrew Medlin**
-| andrew.medlin@ga.gov.au
+- Andrew Medlin: andrew.medlin@ga.gov.au
 
-| **Alexei Gorbatov**
-| Alexei.gorbatov@ga.gov.au
+- Alexei Gorbatov: alexei.gorbatov@ga.gov.au
 
-| **Babak Hejrani**
-| Babak.Hejrani@ga.gov.au
+- Babak Hejrani: babak.hejrani@ga.gov.au
 
 
 System Requirements
