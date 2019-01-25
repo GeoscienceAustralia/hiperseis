@@ -128,12 +128,6 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                             pickerindex = ipicker
 
                             foundpicks = True
-                            #print 'p-ipicker: %d===='%(ipicker)
-                            #summary = fbpicker.FBSummary(picker, trc)
-                            #summary = aicdpicker.AICDSummary(picker, trc)
-                            #outputPath = '/g/data/ha3/rakib/seismic/pst/tests/output'
-                            #ofn = '%s/%s.%s_%f_%d.png' % (outputPath, scnl, str(po.utctime), snr[0], i)
-                            #summary.plot_picks(show=False, savefn=ofn)
                         # end if
                     # end for
                 except:
@@ -261,13 +255,6 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                             pickerindex = ipicker
 
                             foundpicks = True
-                            #print 's-ipicker: %d====' % (ipicker)
-                            #summary = fbpicker.FBSummary(picker, trc)
-                            #summary = aicdpicker.AICDSummary(picker, trc)
-                            #outputPath = '/home/rakib/work/pst/picking/sarr'
-                            #outputPath = '/g/data1a/ha3/rakib/seismic/pst/tests/plots/new'
-                            #ofn = '%s/%s.%s_%f_%d.s.png' % (outputPath, scnl, str(po.utctime), snr[0], i)
-                            #summary.plot_picks(show=False, savefn=ofn)
                         # end if
                     # end for
                 except:
@@ -326,7 +313,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
-@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of SNR')
+@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
 def process(asdf_source, event_folder, output_path, min_magnitude, restart, save_quality_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
@@ -342,14 +329,17 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
     if(rank == 0):
         def outputConfigParameters():
             # output config parameters
-            fn = 'pick.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
+            fn = 'pick.%s.cfg' % (datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
             fn = os.path.join(output_path, fn)
 
             f = open(fn, 'w+')
-            f.write('Parameters Values:\n\n')
+            f.write('Parameter Values:\n\n')
             f.write('%25s\t\t: %s\n' % ('ASDF_SOURCE', asdf_source))
             f.write('%25s\t\t: %s\n' % ('EVENT_FOLDER', event_folder))
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t: %s\n' % ('MIN_MAGNITUDE', min_magnitude))
+            f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
+            f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
         # end func
 
