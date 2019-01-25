@@ -26,7 +26,6 @@ Contacts
 | **Rakib Hassan**
 | Rakib.Hassan@ga.gov.au
 
-
 | **Andrew Medlin**
 | andrew.medlin@ga.gov.au
 
