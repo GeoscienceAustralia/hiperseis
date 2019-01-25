@@ -19,7 +19,7 @@ import numpy as np
 
 from obspy import Trace
 from datetime import datetime
-from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from scripts.ASDFdatabase import FederatedASDFDataSet
 
 import click
 from obspy import UTCDateTime

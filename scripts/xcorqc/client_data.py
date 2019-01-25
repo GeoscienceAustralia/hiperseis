@@ -1,4 +1,4 @@
-from seismic.ASDFdatabase.ClientUtils import Client2ASDF
+from scripts.ASDFdatabase import Client2ASDF
 import os
 
 # =========================== User Input Required =========================== #

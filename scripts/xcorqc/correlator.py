@@ -25,7 +25,7 @@ import pyasdf
 
 import click
 
-from seismic.ASDFdatabase import SeisDB
+from scripts.ASDFdatabase import SeisDB
 from xcorqc import IntervalStackXCorr
 
 

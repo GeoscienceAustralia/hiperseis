@@ -14,7 +14,7 @@ from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from seismic import mpiops
 import ellipcorr
 
-from seismic.cluster.cluster import Grid, ArrivalWriter
+from scripts.cluster.cluster import Grid, ArrivalWriter
 from inventory.parse_inventory import read_all_stations
 
 

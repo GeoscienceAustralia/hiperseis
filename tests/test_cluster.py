@@ -21,8 +21,7 @@ from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from seismic.mpiops import rank
-import seismic
-from seismic.cluster.cluster import (process_event,
+from scripts.cluster.cluster import (process_event,
                                      process_many_events,
                                      Grid,
                                      column_names,
@@ -64,7 +63,7 @@ def test_get_paths_from_csv(path2csv=None):
 
     if path2csv is None:
         my_csv = os.path.join(MOCK_DATA, "example_events_paths.csv")
-        ev_paths = seismic.cluster.cluster.get_paths_from_csv(my_csv)
+        ev_paths = scripts.cluster.cluster.get_paths_from_csv(my_csv)
 
         print("A list of path_dirs: ", ev_paths)
 

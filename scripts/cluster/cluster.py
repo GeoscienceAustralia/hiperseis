@@ -30,7 +30,7 @@ from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic import pslog
 from seismic import mpiops
 import ellipcorr
-from inventory.parse_inventory import read_all_stations
+from seismic.inventory.parse_inventory import read_all_stations
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
