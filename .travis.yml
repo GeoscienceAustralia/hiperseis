@@ -1,0 +1,21 @@
+dist: trusty
+sudo: required  # use VM instead of docker
+
+language: python
+virtualenv:
+  system_site_packages: true
+python:
+- '3.5'
+install:
+- pip install -r requirements.txt
+script:
+- pytest
+- coverage run test/test_operations.py
+after_success: coveralls
+
+#after_script: cd ~
+#deploy:
+#  provider: pypi
+#  user: lqdev
+#  password:
+#    secure: Cywt4032m6kv2SH7j6WMe4dru4OUfKClBIlsfrAgosQkVCFBDUhcIUsez/wuN7kRxgYbcNQaEmwqsNWq+43UiXoOhJJaYPDJKkqQ1MQccgjaRLHdsY39Xt9Zeb6Yz67zyMfDgvY0T7oWNLBcoTPChPgUgpud5dcAJ0LxusQjOXWDqSaA9azDm19S1HVx6ataMdFQkYgAnZzx3BE5ja30EvzZveCb4/tRX2Fvi3i/jQfM47EQDuxvRcWZiHtiX+5WyZuqSMLZI9CS40DvpdhqWtYZ0VEa2ve0WwW2NPI0fhVrzq8dftmjJUhRI+JMbxZObZh0YS5wuzunmhSQbhlEX2vPWjhb1iige4bt7E9mDJfQ04F18q+QQG1dE5HP1U+/VvoAwX9OTZj9zH4Q5IGS5fpbXooKv3drP0ppfqmy+4HH0+bdMxZSnGp9NNh76EFirLWg4SkvX3jQeX9CKvG9ZxFcmI+9Aku135xplCj5Lfs2Q+e96wqe5nv2XUoHEumWe93hofzUBHKxHnz4zTKqQDUdH3hH9KmEaXllwtHUGD/JnkhjtzJlaqxnlESH+AAz8xMu5gbB/wTHE/jqsZ+7qcCvOCWd1sBhT+6nJzupD4sxSvOBAgpENKvnw27itLFCoOSpxF4AGAo2Uyd7VTRX1pcovw7x/0obVG9nwZqpiGs=
