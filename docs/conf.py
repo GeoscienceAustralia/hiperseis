@@ -195,8 +195,8 @@ epub_exclude_files = ['search.html']
 #NATIVE_MODULES = [
 MOCK_MODULES = [
     'ellipcorr',
-    'osgeo.ogr',
-    'osgeo.gdal',
+    'obspy',
+    'osgeo'
 ]
 
 import mock
