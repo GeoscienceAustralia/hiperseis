@@ -10,6 +10,7 @@ dill # For comprehensive support for pickling of python objects such as None and
 scikit-learn
 seaborn
 graphviz
+pyproj
 #gdal # Uncomment for Windows conda install
 #basemap # Uncomment for Windows conda install
 
