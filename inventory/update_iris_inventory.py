@@ -63,6 +63,7 @@ def setTextEncoding(resp):
     match = matcher.search(first_line)
     assert match
     encoding = match.group(1)
+    print("Detected text encoding {}".format(encoding))
     resp.encoding = encoding
     assert resp.encoding is not None
 
