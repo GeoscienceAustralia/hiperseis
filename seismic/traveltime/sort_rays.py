@@ -1,8 +1,19 @@
 """
-Read in event-arrival seismic rays and sort them according to a Grid discretization,
-and select the quality ray for inversion program input.
-"""
+Description:
+    Read in event-arrival seismic rays and sort them according to a Grid discretization,
+    and select the quality ray for inversion program input.
 
+
+References: 
+    https://gajira.atlassian.net/browse/ALAMP-49
+
+CreationDate:   29/01/2019
+Developer:      fei.zhang@ga.gov.au
+
+Revision History:
+    LastUpdate:     29/01/2019   FZ
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
+"""
 from __future__ import print_function, absolute_import
 
 import sys

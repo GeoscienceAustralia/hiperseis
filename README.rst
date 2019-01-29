@@ -7,11 +7,9 @@ Software Package for Passive-Seismic Data Processing, Analysis and Modelling
 Overview
 ========
 
-
-- Documentation: http://seismicpy.readthedocs.io/en/develop/
-
 - Home Page: https://github.com/GeoscienceAustralia/passive-seismic
 
+- Documentation: http://seismicpy.readthedocs.io/en/develop/
 
 - Wiki Pages: https://github.com/GeoscienceAustralia/passive-seismic/wiki
 

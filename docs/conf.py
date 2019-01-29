@@ -16,6 +16,12 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
+#sys.path.insert(0, os.path.abspath('../..'))
+print(sys.path)
 
 # -- Project information -----------------------------------------------------
 
@@ -179,3 +185,21 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
+
+
+# Mock modules that need native libraries.
+# sphinx\registry.py", line 315, in load_extension
+#     mod = __import__(extname, None, None, ['setup'])
+# RuntimeError: sys.path must be a list of directory names
+# See: http://read-the-docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules
+#NATIVE_MODULES = [
+MOCK_MODULES = [
+    'ellipcorr',
+    'osgeo.ogr',
+    'osgeo.gdal',
+]
+
+import mock
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
