@@ -12,6 +12,7 @@ import numpy as np
 import scipy as sp
 import datetime
 import pandas as pd
+import obspy
 from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
@@ -26,6 +27,9 @@ else:
     import io as sio
     import pathlib
     import pickle as pkl
+
+print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
+print("Using obspy version {}".format(obspy.__version__))
 
 try:
     import tqdm
@@ -572,12 +576,12 @@ def main(iris_xml_file):
             with open(IRIS_all_pkl_file, 'rb') as f:
                 iris_inv = pkl.load(f)
         else:
-            with open(iris_xml_file, 'r') as f:
+            with open(iris_xml_file, mode='r', encoding='utf-8') as f:
                 iris_inv = read_inventory(f)
             with open(IRIS_all_pkl_file, 'wb') as f:
                 pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
     else:
-        with open(iris_xml_file, 'r') as f:
+        with open(iris_xml_file, mode='r', encoding='utf-8') as f:
             iris_inv = read_inventory(f)
 
     # Perform cleanup on each database
