@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import numpy as np
 import sys
 from obspy.core import utcdatetime
@@ -10,7 +11,7 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.clients.nrl import NRL
 
 def read_eng(fname):
-    ''' We read Engdahl file in this subroutine
+    """Read Engdahl file in this subroutine
 
      AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
      AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
@@ -20,7 +21,8 @@ def read_eng(fname):
      AS01  Alice Springs Arra                                  -23.6647  133.9508      0.0   2005001  2286324  I
     0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
               10        20        30        40        50        60        70        80
-    '''
+    """
+
     eng_stn=[]
     with open(fname) as stations:
         for string in stations:

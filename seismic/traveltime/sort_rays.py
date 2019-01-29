@@ -3,7 +3,6 @@ Description:
     Read in event-arrival seismic rays and sort them according to a Grid discretization,
     and select the quality ray for inversion program input.
 
-
 References: 
     https://gajira.atlassian.net/browse/ALAMP-49
 
@@ -14,6 +13,7 @@ Revision History:
     LastUpdate:     29/01/2019   FZ
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
+
 from __future__ import print_function, absolute_import
 
 import sys
@@ -58,6 +58,11 @@ Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
               type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
               default='INFO', help='Level of logging')
 def cli(verbosity):
+    """
+    
+    :param verbosity:
+    :return:
+    """
     pslog.configure(verbosity)
 
 

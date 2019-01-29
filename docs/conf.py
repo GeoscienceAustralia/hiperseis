@@ -195,7 +195,7 @@ epub_exclude_files = ['search.html']
 #NATIVE_MODULES = [
 MOCK_MODULES = [
     'ellipcorr',
-    'obspy',
+    'obspy.*',
     'osgeo'
 ]
 

@@ -2,15 +2,18 @@
 Package Seismic
 =================
 
-**3D-Grid Model and Ray Clustering**
-======================================
-
-.. automodule:: seismic.traveltime.sort_rays
-	:members:
+**Earth 3D Grid Model**
+=======================
 
 .. automodule:: seismic.traveltime.cluster_grid
 	:members:
 
+
+**Sorting and Clustering of Seismic Rays**
+==========================================
+
+.. automodule:: seismic.traveltime.sort_rays
+	:members:
 
 
 **Station Inventory**

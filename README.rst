@@ -1,4 +1,4 @@
-Software Package for Passive-Seismic Data Processing, Analysis and Modelling
+Software Package for Seismic Data Processing, Analysis and Modelling
 ==================================
 
 |Build Status|  |Documentation Status|
@@ -34,7 +34,7 @@ System Requirements
 
 - Linux OS
 - Python 2.7
-- Python 3  
+- Python 3.5
 
 Setup Guide for Developers
 ==========================
