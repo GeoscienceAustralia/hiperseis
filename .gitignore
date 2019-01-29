@@ -69,3 +69,5 @@ inventory/INVENTORY*.h5
 inventory/plots**/*.png
 inventory/plots**/*.txt
 inventory/networks/*
+inventory/callgrind.*
+inventory/fdsn_stn_inv_dump.txt
