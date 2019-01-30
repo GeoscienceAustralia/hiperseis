@@ -1,7 +1,23 @@
 #!/usr/bin/env python
-"""Creates database of stations from .STN files which are not in IRIS database,
-   curates the data using heuristic rules, and exports new stations to station.xml
 """
+Engdahl and ISC STN data conversion to station XML
+==================================================
+
+Creates database of stations from .STN files which are not in IRIS database,
+curates the data using heuristic rules, and exports new stations to station XML format
+by network.
+
+Cleanup steps applied:
+* Add default station dates where missing.
+* Make "future" station end dates consistent to max Pandas timestamp.
+* Remove duplicate station records.
+* Remove stations that are already catalogued in IRIS web service. See update_iris_inventory.py
+* TODO...
+
+Raises:
+    warning. -- Nil
+"""
+
 from __future__ import division
 
 import os
@@ -48,28 +64,31 @@ if major < 1 or (major == 1 and minor < 14):
 else:
     print("Using numpy {0}".format(".".join(vparts)))
 
+# Whether or not to convert loaded STN files into pickled versions, for faster loading next time.
 USE_PICKLE = True
 
+# Set true to work with smaller, faster datasets.
 TEST_MODE = False
 
+# Pandas table display options to reduce aggressiveness of truncation.
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.width', 240)
 
+# Global constants
 NOMINAL_EARTH_RADIUS_KM = 6378.1370
 DIST_TOLERANCE_KM = 2.0
 DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
 COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
-# See https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timestamp-limitations
-
-
+# Timestamp to be added to output file names.
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
 
 
 def read_eng(fname):
-    """Read Engdahl file having the following format of fixed width formatted columns:
+    """
+    Read Engdahl STN file having the following format of fixed width formatted columns:
 
      AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
      AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
@@ -84,7 +103,14 @@ def read_eng(fname):
     simply be noted and handled later.
 
     Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
+    
+    Arguments:
+        fname {[type]} -- [description]
+    
+    Returns:
+        [type] -- [description]
     """
+
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
     col_names = ['StationCode', 'Latitude', 'Longitude', 'Elevation']
     data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names, dtype=TABLE_SCHEMA)
