@@ -231,7 +231,7 @@ def removeBlacklisted(df):
     :type df: pandas.DataFrame
     """
     for badnet in BLACKLISTED_NETWORKS:
-        df = df.drop(df["NetworkCode"] == badnet)
+        df = df[df["NetworkCode"] != badnet]
     return df
 
 
