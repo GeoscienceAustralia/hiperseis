@@ -64,6 +64,8 @@ COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
 # See https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timestamp-limitations
 
+# List of networks to remove outright. See ticket PST-340.
+BLACKLISTED_NETWORKS = ("CI",)
 
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
 
@@ -219,6 +221,18 @@ def read_isc(fname):
             pkl.dump(df_all, f, pkl.HIGHEST_PROTOCOL)
     reportStationCount(df_all)
     return df_all
+
+
+def removeBlacklisted(df):
+    """Remove network codes that are explicitly blacklisted due to QA issues or undesirable overlap
+       with trusted FDSN station codes.
+    
+    :param df: Dataframe of initially loaded data from STN files
+    :type df: pandas.DataFrame
+    """
+    for badnet in BLACKLISTED_NETWORKS:
+        df = df.drop(df["NetworkCode"] == badnet)
+    return df
 
 
 # @profile
@@ -565,6 +579,10 @@ def main(iris_xml_file):
     isc = pd.concat([isc1, isc2], sort=False)
 
     db = pd.concat([ehb, isc], sort=False)
+
+    print("Removing blacklisted networks...")
+    db = removeBlacklisted(db)
+
     # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
     # the record with the least NaT values will be favored to be kept.
     db.sort_values(['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd'], inplace=True)
