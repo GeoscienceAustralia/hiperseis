@@ -451,6 +451,8 @@ def populateDefaultStationDates(df):
     """
     df.StationStart[df.StationStart.isna()] = DEFAULT_START_TIMESTAMP
     df.StationEnd[df.StationEnd.isna()] = DEFAULT_END_TIMESTAMP
+    assert not np.any(df.StationStart.isna())
+    assert not np.any(df.StationEnd.isna())
 
 
 # @profile
