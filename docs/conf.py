@@ -196,6 +196,9 @@ epub_exclude_files = ['search.html']
 MOCK_MODULES = [
     'ellipcorr',
     'obspy.*',
+    'obspy.core',
+    'obspy.clients',
+    'obspy.geodetics',
     'osgeo'
 ]
 

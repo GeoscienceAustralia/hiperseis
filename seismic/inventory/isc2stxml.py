@@ -11,8 +11,8 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.clients.nrl import NRL
 
 def read_eng(fname):
-    """Read Engdahl file in this subroutine
-
+    """
+     Read Engdahl file in this subroutine
      AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
      AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
      AAK   Ala Archa         Kyrgyzstan                         42.6390   74.4940      0.0   2005001  2286324  I
@@ -194,11 +194,6 @@ def main(argv):
                    if len(inv.select(station=isc[j,0],network=isc[j,1]))<=0:
                       # Bingo...
                       lost.append(isc[j,:])
-
-
-
-
-
 
 
 

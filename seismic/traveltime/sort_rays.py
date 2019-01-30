@@ -59,7 +59,7 @@ Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
               default='INFO', help='Level of logging')
 def cli(verbosity):
     """
-    
+    CLI group logging config
     :param verbosity:
     :return:
     """
