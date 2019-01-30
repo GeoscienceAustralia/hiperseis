@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Engdahl and ISC STN data conversion to station XML
-==================================================
+H1. Engdahl and ISC STN data conversion to station XML
 
 Creates database of stations from .STN files which are not in IRIS database,
 curates the data using heuristic rules, and exports new stations to station XML format
@@ -14,8 +13,9 @@ Cleanup steps applied:
 * Remove stations that are already catalogued in IRIS web service. See update_iris_inventory.py
 * TODO...
 
-Raises:
-    warning. -- Nil
+:raises warning.: nil
+:return: nil
+:rtype: nil
 """
 
 from __future__ import division
@@ -93,25 +93,22 @@ def read_eng(fname):
     """
     Read Engdahl STN file having the following format of fixed width formatted columns:
 
-     AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
-     AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
-     AAK   Ala Archa         Kyrgyzstan                         42.6390   74.4940      0.0   2005001  2286324  I
-     ABJI                                                       -7.7957  114.2342      0.0   2005001  2286324  I
-     APSI                                                       -0.9108  121.6487      0.0   2005001  2286324  I
-     AS01  Alice Springs Arra                                  -23.6647  133.9508      0.0   2005001  2286324  I
-    0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-              10        20        30        40        50        60        70        80
+    :: AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
+    :: AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
+    :: AAK   Ala Archa         Kyrgyzstan                         42.6390   74.4940      0.0   2005001  2286324  I
+    :: ABJI                                                       -7.7957  114.2342      0.0   2005001  2286324  I
+    :: APSI                                                       -0.9108  121.6487      0.0   2005001  2286324  I
+    :: AS01  Alice Springs Arra                                  -23.6647  133.9508      0.0   2005001  2286324  I
+    :: 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+    ::          10        20        30        40        50        60        70        80
 
-    Each Station Code (first column) might NOT be unique, and network codes are missing here, so duplicates will
-    simply be noted and handled later.
+    Each Station Code (first column) might NOT be unique, and network codes are missing here, so all records are
+    placed under 'GE' network.
 
-    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
-    
-    Arguments:
-        fname {[type]} -- [description]
-    
-    Returns:
-        [type] -- [description]
+    :param fname: STN file name to load
+    :type fname: str
+    :return: Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
+    :rtype: pandas.DataFrame
     """
 
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
@@ -134,24 +131,29 @@ def read_eng(fname):
     return data_frame
 
 
-# @profile
 def read_isc(fname):
-    """Read ISC station inventory supplied by ISC that inherited Engdahl work, having such format:
+    """
+    Read ISC station inventory having such format and convert to Pandas DataFrame:
 
-    109C     32.8892 -117.1100     0.0 2006-06-01 04:11:18 2008-01-04 01:26:30
-    109C     32.8882 -117.1050   150.0 2008-01-04 01:26:30
-                 FDSN 109C   TA -- BHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
-                 FDSN 109C   TA -- LHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
-                 FDSN 109C   TA -- BHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
-                 FDSN 109C   TA -- LHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
-    0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-              10        20        30        40        50        60        70        80
+    :: 109C     32.8892 -117.1100     0.0 2006-06-01 04:11:18 2008-01-04 01:26:30
+    :: 109C     32.8882 -117.1050   150.0 2008-01-04 01:26:30
+    ::              FDSN 109C   TA -- BHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
+    ::              FDSN 109C   TA -- LHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
+    ::              FDSN 109C   TA -- BHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
+    ::              FDSN 109C   TA -- LHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
+    :: 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+    ::           10        20        30        40        50        60        70        80
 
     The lines starting with a station code are HEADER rows, and provide the station coordinates.
-    The idented lines starting with FDSN provide distinct station, network and channel data for the given station location.
+    The idented lines starting with FDSN provide distinct station, network and channel data for the
+    given station location.
 
-    Returns Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
+    :param fname: STN file name to load
+    :type fname: str
+    :return: Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
+    :rtype: pandas.DataFrame
     """
+
     header_colspec = ((0, 5), (7, 16), (17, 26), (27, 34), (35, 54,), (55, 74))
     header_cols = ['StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']
     channel_colspec = ((13, 17), (18, 23), (24, 27), (31, 34), (35, 54), (55, 74))
@@ -168,7 +170,12 @@ def read_isc(fname):
 
     # Nested helper function
     def reportStationCount(df):
-        """Convenience function to report on number of unique network and station codes in the dataframe."""
+        """
+        Convenience function to report on number of unique network and station codes in the dataframe.
+        
+        :param df: Dataframe to report on
+        :type df: pandas.DataFrame
+        """
         num_unique_networks = len(df['NetworkCode'].unique())
         num_unique_stations = len(df['StationCode'].unique())
         print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks, num_unique_stations))
@@ -251,9 +258,10 @@ def read_isc(fname):
 
 
 def removeBlacklisted(df):
-    """Remove network codes that are explicitly blacklisted due to QA issues or undesirable overlap
-       with trusted FDSN station codes.
-    
+    """
+    Remove network codes that are explicitly blacklisted due to QA issues or undesirable overlap
+    with trusted FDSN station codes.
+
     :param df: Dataframe of initially loaded data from STN files
     :type df: pandas.DataFrame
     """
@@ -262,11 +270,14 @@ def removeBlacklisted(df):
     return df
 
 
-# @profile
 def removeIllegalStationNames(df):
-    """Remove records for station names that do not conform to expected naming convention.
+    """
+    Remove records for station names that do not conform to expected naming convention.
+    Such names can cause problems in downstream processing, in particular names with asterisk.
 
-       Such names can cause problems in downstream processing, in particular names with asterisk.
+    :param df: Dataframe containing station records from which illegal station codes should be
+        removed (modified in-place)
+    :type df: pandas.DataFrame
     """
     import re
     pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-]{1,4}$")
@@ -281,19 +292,29 @@ def removeIllegalStationNames(df):
         df.drop(removal_index, inplace=True)
 
 
-# @profile
 def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
-    """Compute the approximate cosine distance between each station of 2 sets.
-
-       Each set is specified as a numpy column vector of [latitude, longitude] positions in degrees.
-
-       This function performs an outer product and will produce matrix of size N0 x N1, where
-       N0 is the number of rows in latlong_deg_set1 and N1 is the number of rows in latlong_deg_set2.
-
-       Returns np.ndarray containing cosines of angles between each pair of stations from
-       the input arguments.
     """
-    # If input is 1D, convert to 2D for consistency of matrix orientations.
+    Compute the approximate cosine distance between each station of 2 sets.
+
+    Each set is specified as a numpy column vector of [latitude, longitude] positions in degrees.
+
+    This function performs an outer product and will produce matrix of size N0 x N1, where
+    N0 is the number of rows in latlong_deg_set1 and N1 is the number of rows in latlong_deg_set2.
+
+    Returns np.ndarray containing cosines of angles between each pair of stations from
+    the input arguments.
+    If input is 1D, convert to 2D for consistency of matrix orientations.
+    
+    :param latlong_deg_set1: First set of numpy column vector of [latitude, longitude] positions in
+        degrees
+    :type latlong_deg_set1: np.ndarray
+    :param latlong_deg_set2: Second set of numpy column vector of [latitude, longitude] positions in
+        degrees
+    :type latlong_deg_set2: np.ndarray
+    :return: Array containing cosines of angles between each pair of stations from the input
+        arguments.
+    :rtype: np.ndarray
+    """
     if len(latlong_deg_set1.shape) == 1:
         latlong_deg_set1 = np.reshape(latlong_deg_set1, (1, -1))
     if len(latlong_deg_set2.shape) == 1:
@@ -321,14 +342,20 @@ def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
     return result
 
 
-# @profile
 def removeIrisDuplicates(df, iris_inv):
-    """Remove stations which duplicate records in IRIS database.
+    """
+    Remove stations which duplicate records in IRIS database.
 
-       Remove stations from df which are present in the global IRIS inventory, in cases
-       where the station codes match and the distance from the IRIS station is within threshold.
+    The definition of "duplicate" for station position is tolerance based with a distance tolerance
+    of DIST_TOLERANCE_KM.
 
-       Mutates df in-place.
+    When the set of station records from IRIS themselves do not all lie within DIST_TOLERANCE_KM,
+    then warnings are logged for those stations.
+
+    :param df: Dataframe containing station records. Is modified in-place by this function.
+    :type df: pandas.DataFrame
+    :param iris_inv: Station inventory as read by obspy.read_inventory.
+    :type iris_inv: obspy.Inventory
     """
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
@@ -379,15 +406,18 @@ def removeIrisDuplicates(df, iris_inv):
         df.drop(removal_index, inplace=True)
 
 
-# @profile
 def computeNeighboringStationMatrix(df):
-    """Compute sparse matrix representing index of neighboring stations.
+    """
+    Compute sparse matrix representing index of neighboring stations.
 
-       Ordering of matrix corresponds to ordering of Dataframe df, which is expected to be sequential
-       integer indexed. For a given station index i, then the non-zero off-diagonal entries in row i
-       of the returned matrix indicate the indices of adjacent, nearby stations.
+    Ordering of matrix corresponds to ordering of Dataframe df, which is expected to be sequential
+    integer indexed. For a given station index i, then the non-zero off-diagonal entries in row i
+    of the returned matrix indicate the indices of adjacent, nearby stations.
 
-       Returns sparse binary matrix having non-zero values at indices of neighboring stations.
+    :param df: Dataframe containing station records.
+    :type df: pandas.DataFrame
+    :return: Sparse binary matrix having non-zero values at indices of neighboring stations.
+    :rtype: scipy.sparse.csr_matrix
     """
     self_latlong = df[["Latitude", "Longitude"]].values
     # In order to keep calculation tractable for potentially large matrices without resort to
@@ -403,14 +433,19 @@ def computeNeighboringStationMatrix(df):
     return cos_dist
 
 
-# @profile
 def removeDuplicateStations(df, neighbor_matrix):
-    """Remove stations which are identified as duplicates.
+    """
+    Remove stations which are identified as duplicates:
+    * Removes duplicated stations in df based on station code and locality of lat/long coordinates.
+    * Removes duplicated station based on codes and channel data matching, IRRESPECTIVE of locality
 
-       Remove duplicated stations in df based on station code and locality of lat/long coordinates.
-       Remove duplicated station based on codes and channel data, IRRESPECTIVE of locality.
-
-       Mutates df in-place.
+    :param df: Dataframe containing station records. Is modified during processing.
+    :type df: pandas.DataFrame
+    :param neighbor_matrix: Sparse binary matrix having non-zero values at indices of neighboring
+        stations.
+    :type neighbor_matrix: scipy.sparse.csr_matrix
+    :return: Dataframe containing station records with identified duplicates removed.
+    :rtype: pandas.DataFrame
     """
     assert len(df) == neighbor_matrix.shape[0]
     assert neighbor_matrix.shape[0] == neighbor_matrix.shape[1]
@@ -496,7 +531,6 @@ def populateDefaultStationDates(df):
     assert not np.any(df.StationEnd.isna())
 
 
-# @profile
 def cleanupDatabase(df, iris_inv):
     """Clean up the dataframe df.
 
@@ -659,11 +693,4 @@ if __name__ == "__main__":
         iris_xml_file = args.iris.strip()
     print("Using IRIS source " + iris_xml_file)
 
-    # import cProfile as prof
-    # statsfile = 'perfstats.stat'
-    # # prof.run('main(iris_xml_file)', statsfile)
-    # prof.run('read_isc(os.path.join(\'test\', \'iscehb_test.stn\'))', statsfile)
-    # import pstats
-    # p = pstats.Stats(statsfile)
-    # p.sort_stats('tottime').print_stats(50)
     main(iris_xml_file)
