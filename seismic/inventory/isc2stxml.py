@@ -4,11 +4,11 @@ import numpy as np
 import sys
 from obspy.core import utcdatetime
 from obspy.geodetics.base import locations2degrees
-from obspy.clients.fdsn.client import Client
+#from obspy.clients.fdsn.client import Client
 #client = Client("IRIS")
 from obspy import read_inventory
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
-from obspy.clients.nrl import NRL
+# from obspy.clients.nrl import NRL
 
 def read_eng(fname):
     """
