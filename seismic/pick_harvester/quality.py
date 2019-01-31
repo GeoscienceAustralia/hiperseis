@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from numpy import unravel_index
 import numpy as np
 import traceback
+import heapq
 
 def compute_quality_measures(trc, scales, plotinfo=None):
     # function for a least-squares line fit
@@ -42,10 +43,12 @@ def compute_quality_measures(trc, scales, plotinfo=None):
 
         before = np.amax(psbefore, axis=0)
         after  = np.amax(psafter, axis=0)
-        argAfter = np.argmax(psafter, axis=0)
         cwtsnr = np.mean(after[after > np.std(after)]) / \
                  np.mean(before)
-        dom_freq = freqs[argAfter[np.argsort(after)[len(after)//2]]]
+
+        argAfter = np.argmax(psafter, axis=0)
+        topDecile = heapq.nlargest(len(after)//10, range(len(after)), after.take)
+        dom_freq = np.mean(freqs[argAfter[topDecile]])
         # =======================================
         # Compute slope-based quality estimate
         # =======================================
