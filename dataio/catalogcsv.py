@@ -130,7 +130,7 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
             mag = mi
             magtype = 'mi'
 
-        eventid = int(items[14].strip())
+        eventid = int(items[15].strip())
 
         utctime = None
         utctime = UTCDateTime(year, month, day, hour, minute, second)
