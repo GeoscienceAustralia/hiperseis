@@ -120,8 +120,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
 
                             wab = snrtr.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.15, 1.5, 30)
-                            cwtsnr, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
-                            snrlist.append([snr[ipick], cwtsnr, slope_ratio])
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
                             bandindex = i
@@ -247,8 +247,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
 
                             wab = snrtr.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.5, 4, 30)
-                            cwtsnr, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
-                            snrlist.append([snr[ipick], cwtsnr, slope_ratio])
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
                             bandindex = i
@@ -395,7 +395,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT qualityMeasureSlope bandIndex nSigma\n'
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofp = None
@@ -472,11 +472,11 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                                 line = '%s %f %f %f %f %f ' \
                                        '%s %s %s %f %f %f ' \
                                        '%f %f %f ' \
-                                       '%f %f %f %f '\
+                                       '%f %f %f %f %f '\
                                        '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                     codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                     da[1], da[2], arcdistance,
-                                                    residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                    residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
                                                     bandindex, sigmalist[pickerindex])
                                 ofp.write(line)
                             # end for
@@ -495,11 +495,11 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                                     line = '%s %f %f %f %f %f ' \
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
-                                           '%f %f %f %f ' \
+                                           '%f %f %f %f %f ' \
                                            '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                         codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
                                                         da[1], da[2], arcdistance,
-                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
                                                         bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
@@ -560,11 +560,11 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                                     line = '%s %f %f %f %f %f ' \
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
-                                           '%f %f %f %f ' \
+                                           '%f %f %f %f %f ' \
                                            '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
                                                         codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
                                                         da[1], da[2], arcdistance,
-                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
                                                         bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
