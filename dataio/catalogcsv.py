@@ -6,6 +6,7 @@ import os, glob, fnmatch, sys
 from collections import defaultdict
 from obspy import UTCDateTime
 import math
+import random as rnd
 
 #from math import radians, cos, sin, asin, sqrt
 import numpy as np
@@ -46,8 +47,9 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
        (28 in this example).
     """
 
-    def __init__(self, event_folder):
+    def __init__(self, event_folder, sampling_factor=1.0):
         self.event_folder = event_folder
+        self.sampling_factor = sampling_factor  # Proportion of events that get sampled
         # self.comm = MPI.COMM_WORLD
         # self.nproc = self.comm.Get_size()
         # self.rank = self.comm.Get_rank()
@@ -61,7 +63,7 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
         station_dict = defaultdict(lambda: defaultdict(list))
 
         event_id = None
-        if True: # (self.rank==0):
+        if True:  # (self.rank==0):
             for ifn, fn in enumerate(self.csv_files):
                 print('Reading %s' % (fn))
 
@@ -71,13 +73,15 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
                     progress.update(len(line))
                     if line[0] == '#':
                         try:
-                            event_id, event = self._parse_event_header(line)
-                            event_dict[event_id] = event
+                            if rnd.random() < self.sampling_factor:
+                                event_id, event = self._parse_event_header(line)
+                                event_dict[event_id] = event
+                            else:
+                                event_id = None
                         except:
                             event_id = None
                             continue
-                    else:
-                        assert event_id is not None
+                    elif event_id is not None:
                         try:
                             arrival = self._parse_arrival(line)
                             event_dict[event_id].preferred_origin.arrivals.append(arrival)
