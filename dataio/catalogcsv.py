@@ -69,7 +69,7 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
 
                 for line in open(fn, 'r'):
                     progress.update(len(line))
-                    if (line[0] == '#'):
+                    if line[0] == '#':
                         try:
                             event_id, event = self._parse_event_header(line)
                             event_dict[event_id] = event
@@ -130,7 +130,7 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
             mag = mi
             magtype = 'mi'
 
-        eventid = int(items[-1].strip())
+        eventid = int(items[14].strip())
 
         utctime = None
         utctime = UTCDateTime(year, month, day, hour, minute, second)
