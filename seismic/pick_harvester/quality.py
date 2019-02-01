@@ -20,7 +20,7 @@ import numpy as np
 import traceback
 import heapq
 
-def compute_quality_measures(trc, scales, plotinfo=None):
+def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
     # function for a least-squares line fit
     def function(x, A, B):
         return A * x + B
@@ -53,6 +53,7 @@ def compute_quality_measures(trc, scales, plotinfo=None):
         # Compute slope-based quality estimate
         # =======================================
         times = trc.times() - trc.times().max() / 2
+        times_filtered = trc_filtered.times() - trc_filtered.times().max() / 2
 
         mid = len(trc.times()) / 2
         timesa = times[mid:]
@@ -85,7 +86,8 @@ def compute_quality_measures(trc, scales, plotinfo=None):
             y = freqs
             x, y = np.meshgrid(x, y)
 
-            axes[0].plot(times, trc.data)
+            axes[0].plot(times, trc.data, c='g', lw=1, label='Raw')
+            axes[0].plot(times_filtered, trc_filtered.data, c='g', lw=0.5, label='Filtered')
             axes[1].pcolormesh(x, y, ps, cmap='jet')
             axes[2].plot(timesa, ab[mid:], c='r')
             axes[2].plot(timesb, ab[:mid], c='b')
@@ -94,6 +96,7 @@ def compute_quality_measures(trc, scales, plotinfo=None):
 
             axes[0].set_xlim(times.min(), times.max())
             axes[0].tick_params(labelbottom=False)
+            axes[0].legend(loc=2, fontsize=4)
             axes[1].set_ylabel('Freq [Hz]')
             axes[1].tick_params(labelbottom=False)
             axes[2].set_xlim(times.min(), times.max())

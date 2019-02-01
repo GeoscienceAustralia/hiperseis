@@ -90,6 +90,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
+            trc.detrend('linear')
+            trc.taper(max_percentage=0.05, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
@@ -119,8 +121,9 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                             # end if
 
                             wab = snrtr.slice(pick - 3, pick + 3)
+                            wab_filtered = trc.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.15, 1.5, 30)
-                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
@@ -217,6 +220,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
+            trc.detrend('linear')
+            trc.taper(max_percentage=0.05, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
@@ -246,8 +251,9 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                             # end if
 
                             wab = snrtr.slice(pick - 3, pick + 3)
+                            wab_filtered = trc.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.5, 4, 30)
-                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, scales, plotinfo)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
