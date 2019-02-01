@@ -14,17 +14,15 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
-DEFAULT_START_TIMESTAMP = pd.Timestamp("1964-1-1 00:00:00")
-DEFAULT_END_TIMESTAMP = pd.Timestamp.max
-
-
 def pd2Station(statcode, station_df):
     """Convert Pandas dataframe with unique station code to FDSN Station object."""
     station_data = station_df.iloc[0]
     st_start = station_data['StationStart']
-    st_start = utcdatetime.UTCDateTime(st_start) if not pd.isnull(st_start) else DEFAULT_START_TIMESTAMP
+    assert pd.notnull(st_start)
+    st_start = utcdatetime.UTCDateTime(st_start)
     st_end = station_data['StationEnd']
-    st_end = utcdatetime.UTCDateTime(st_end) if not pd.isnull(st_end) else DEFAULT_END_TIMESTAMP
+    assert pd.notnull(st_end)
+    st_end = utcdatetime.UTCDateTime(st_end)
     station = Station(statcode,
                       station_data['Latitude'],
                       station_data['Longitude'],
@@ -56,18 +54,23 @@ def pd2Network(netcode, network_df, progressor=None):
     return net
 
 
-def inventory2Dataframe(inv_file):
-    """Load a FDSN Inventory XML file and convert entire inventory to a Pandas Dataframe.
+def inventory2Dataframe(inv_object, show_progress=True):
+    """Convert a obspy Inventory object to a Pandas Dataframe.
 
        Returns a Pandas Dataframe with sequential integer index and sorted by [NetworkCode, StationCode].
+       Only populates entries for non-empty channels.
     """
-    with open(inv_file, 'r') as f:
-        fdsn_inv = read_inventory(f)
+
+    if show_progress:
+        import tqdm
+        num_entries = sum(len(station.channels) for network in inv_object.networks for station in network.stations)
+        pbar = tqdm.tqdm(total=num_entries, ascii=True)
 
     d = defaultdict(list)
-    for network in fdsn_inv.networks:
+    for network in inv_object.networks:
         for station in network.stations:
-            assert len(station.channels) > 0
+            if show_progress:
+                pbar.update(len(station.channels))
             for channel in station.channels:
                 d['NetworkCode'].append(network.code)
                 d['StationCode'].append(station.code)
@@ -82,8 +85,10 @@ def inventory2Dataframe(inv_file):
                 d['ChannelCode'].append(channel.code)
                 d['ChannelStart'].append(np.datetime64(channel.start_date))
                 d['ChannelEnd'].append(np.datetime64(channel.end_date))
+    if show_progress:
+        pbar.close()
     df = pd.DataFrame.from_dict(d)
-    df = df[TABLE_COLUMNS]
+    df = df[list(TABLE_COLUMNS)]
     df.sort_values(['NetworkCode', 'StationCode'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df

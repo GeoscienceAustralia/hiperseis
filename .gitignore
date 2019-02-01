@@ -58,7 +58,7 @@ ENV/
 xcorqc/run.sh
 tempworks/
 .vscode/
-inventory/IRIS-ALL.xml.pkl
+inventory/IRIS-ALL*
 inventory/output*
 *.pkl
 **.lprof
@@ -69,3 +69,5 @@ inventory/INVENTORY*.h5
 inventory/plots**/*.png
 inventory/plots**/*.txt
 inventory/networks/*
+inventory/callgrind.*
+inventory/fdsn_stn_inv_dump.txt

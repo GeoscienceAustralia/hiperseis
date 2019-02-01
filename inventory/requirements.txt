@@ -1,0 +1,22 @@
+numpy>=1.14.2 # Earlier versions have bugs with applying composite boolean masks to Pandas dataframe index
+scipy>=0.19.1
+pytables
+pandas
+matplotlib==3.0.1 # Matplotlib 3.0.2 has problems with configuration on some platforms, breaking imports
+jupyter
+#mpi4py # On NCI, use 'module load npi4py' instead.
+h5py
+dill # For comprehensive support for pickling of python objects such as None and lambdas
+scikit-learn
+seaborn
+graphviz
+pyproj
+#gdal # Uncomment for Windows conda install
+#basemap # Uncomment for Windows conda install
+
+# Following are optional, can be commented out if you don't want them.
+tqdm
+numba
+dask
+line_profiler
+pandoc
