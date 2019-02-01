@@ -91,7 +91,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
             trc.detrend('linear')
-            trc.taper(max_percentage=0.05, type='hann')
+            trc.taper(max_percentage=0.1, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
@@ -221,7 +221,7 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
             trc.detrend('linear')
-            trc.taper(max_percentage=0.05, type='hann')
+            trc.taper(max_percentage=0.1, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
