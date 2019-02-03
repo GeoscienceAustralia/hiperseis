@@ -18,8 +18,9 @@ import matplotlib.pyplot as plt
 from numpy import unravel_index
 import numpy as np
 import traceback
+import heapq
 
-def compute_quality_measures(trc, scales, plotinfo=None):
+def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
     # function for a least-squares line fit
     def function(x, A, B):
         return A * x + B
@@ -35,19 +36,24 @@ def compute_quality_measures(trc, scales, plotinfo=None):
 
         psbefore   = ps[:, :ps.shape[1] / 2]
         psafter    = ps[:, ps.shape[1] / 2:]
-        idx_max_before = unravel_index(psbefore.argmax(), psbefore.shape)
-        idx_max_after  = unravel_index(psafter.argmax(), psafter.shape)
 
+        #idx_max_before = unravel_index(psbefore.argmax(), psbefore.shape)
+        #idx_max_after  = unravel_index(psafter.argmax(), psafter.shape)
         #before = psbefore[idx_max_after[0], :]
+
         before = np.amax(psbefore, axis=0)
         after  = np.amax(psafter, axis=0)
         cwtsnr = np.mean(after[after > np.std(after)]) / \
                  np.mean(before)
 
+        argAfter = np.argmax(psafter, axis=0)
+        topDecile = heapq.nlargest(len(after)//10, range(len(after)), after.take)
+        dom_freq = np.mean(freqs[argAfter[topDecile]])
         # =======================================
         # Compute slope-based quality estimate
         # =======================================
         times = trc.times() - trc.times().max() / 2
+        times_filtered = trc_filtered.times() - trc_filtered.times().max() / 2
 
         mid = len(trc.times()) / 2
         timesa = times[mid:]
@@ -74,16 +80,14 @@ def compute_quality_measures(trc, scales, plotinfo=None):
 
             fig, axes = plt.subplots(ncols=1, nrows=3)
 
-            fig.suptitle("""OriginTime: %s\nMagnitude: %4.2f
-            PhasePapySNR: %4.2f
-            WaveletsSNR: %4.2f
-            SlopeRatio: %4.2f""" % (ot, mag, ppsnr, cwtsnr, slope_ratio), fontsize=6)
+            fig.suptitle("OriginTime: %s Magnitude: %4.2f"%(ot, mag), fontsize=7)
 
             x = times
             y = freqs
             x, y = np.meshgrid(x, y)
 
-            axes[0].plot(times, trc.data)
+            axes[0].plot(times, trc.data, c='g', lw=1, label='Raw')
+            axes[0].plot(times_filtered, trc_filtered.data, c='g', lw=0.5, label='Filtered')
             axes[1].pcolormesh(x, y, ps, cmap='jet')
             axes[2].plot(timesa, ab[mid:], c='r')
             axes[2].plot(timesb, ab[:mid], c='b')
@@ -92,11 +96,22 @@ def compute_quality_measures(trc, scales, plotinfo=None):
 
             axes[0].set_xlim(times.min(), times.max())
             axes[0].tick_params(labelbottom=False)
+            axes[0].legend(loc=2, fontsize=4)
             axes[1].set_ylabel('Freq [Hz]')
             axes[1].tick_params(labelbottom=False)
             axes[2].set_xlim(times.min(), times.max())
             axes[2].set_xlabel('Time [s]')
             axes[2].set_ylabel('Cumm. Length')
+
+            textx = x.max() + 0.25
+            texty0 = np.mean(np.array(axes[0].get_ylim()))
+            texty1 = np.mean(np.array(axes[1].get_ylim()))
+            texty2 = np.mean(np.array(axes[2].get_ylim()))
+            axes[0].text(textx, texty0, 'PP_SNR: %4.2f'%(ppsnr), fontsize=7)
+            axes[1].text(textx, texty1 + 1, 'CWT_SNR: %4.2f' % (cwtsnr), fontsize=7)
+            axes[1].text(textx, texty1 - 1, 'DOM_FRQ: %4.2f' % (dom_freq), fontsize=7)
+            axes[2].text(textx, texty2, 'S_RATIO: %4.2f' % (slope_ratio), fontsize=7)
+            plt.subplots_adjust(left=0.2, right=0.75)
 
             ofn = os.path.join(of, '%s.%d.%s.%s.%d.png' % (phase, ei, net, sta, pickid))
             plt.savefig(ofn, dpi=300)
@@ -106,5 +121,5 @@ def compute_quality_measures(trc, scales, plotinfo=None):
         traceback.print_exc()
     # end try
 
-    return cwtsnr, slope_ratio
+    return cwtsnr, dom_freq, slope_ratio
 # end func
