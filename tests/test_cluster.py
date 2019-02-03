@@ -32,7 +32,7 @@ from scripts.cluster.cluster import (process_event,
                                      STATION_CODE,
                                      FREQUENCY,
                                      _in_region)
-from inventory.parse_inventory import read_all_stations, read_stations
+from seismic.inventory.parse_inventory import read_all_stations, read_stations
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
