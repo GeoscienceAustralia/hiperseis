@@ -36,11 +36,20 @@ KNOWN_ILLEGAL_ELEMENTS_PATTERNS = (
 
 
 def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
-    """Form request URL to download station inventory in stationxml format, down to channel level,
-       with the given filters applied to network codes, station codes and channel codes.
-
-       Hardwired to exclude restricted channels and exclude comments to reduce file size.
     """
+    Form request URL to download station inventory in stationxml format, down to channel level,
+    with the given filters applied to network codes, station codes and channel codes.
+
+    :param netmask: Pattern of network codes to match, comma separated with wildcards, defaults to "*"
+    :param netmask: str, optional
+    :param statmask: Pattern of station codes to match, comma separated with wildcards, defaults to "*"
+    :param statmask: str, optional
+    :param chanmask: Pattern of channel codes to match, comma separated with wildcards, defaults to "*"
+    :param chanmask: str, optional
+    :return: Fully formed URL to perform IRIS query and get back FDSN station XML result.
+    :rtype: str
+    """
+    # Hardwired to exclude restricted channels and exclude comments to reduce file size.
     return "http://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
            "&sta=" + statmask + \
            "&cha=" + chanmask + \
@@ -48,6 +57,12 @@ def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
 
 
 def cleanup(tmp_filename):
+    """
+    Helper function to clean up temporary file on disk.
+
+    :param tmp_filename: File name to clean up
+    :type tmp_filename: str
+    """
     try:
         os.remove(tmp_filename)
     except:
@@ -55,7 +70,11 @@ def cleanup(tmp_filename):
 
 
 def setTextEncoding(resp):
-    """For the given response object, set its encoding from the contents of the text returned from server.
+    """
+    For the given response object, set its encoding from the contents of the text returned from server.
+
+    :param resp: Query response object returned by response.get()
+    :type resp: requests.Response
     """
     encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
     matcher = re.compile(encoding_pattern)
@@ -111,7 +130,7 @@ def regenerateHumanReadable(iris, outfile):
     from obspy import read_inventory
     import functools
     if sys.version_info[0] < 3:
-        import cStringIO as sio
+        import cStringIO as sio  #pylint: disable=import-error
     else:
         import io as sio
 

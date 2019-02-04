@@ -14,7 +14,7 @@ from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
-def pd2Station(statcode, station_df):
+def pd2Station(statcode, station_df, instrument_register=None):
     """Convert Pandas dataframe with unique station code to FDSN Station object."""
     station_data = station_df.iloc[0]
     st_start = station_data['StationStart']
@@ -35,19 +35,28 @@ def pd2Station(statcode, station_df):
         ch_start = utcdatetime.UTCDateTime(ch_start) if not pd.isnull(ch_start) else None
         ch_end = d['ChannelEnd']
         ch_end = utcdatetime.UTCDateTime(ch_end) if not pd.isnull(ch_end) else None
-        cha = Channel(d['ChannelCode'], '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),
+        ch_code = d['ChannelCode']
+        instrument = instrument_register[ch_code]
+        if instrument is not None:
+            sensor = instrument.sensor
+            response = instrument.response
+        else:
+            assert False, "No instrument response for channel code {}".format(ch_code)
+            sensor = None
+            response = None
+        cha = Channel(ch_code, '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),
                       depth=0.0, azimuth=0.0, dip=-90.0,
-                      start_date=ch_start,
-                      end_date=ch_end)
+                      start_date=ch_start, end_date=ch_end,
+                      sensor=sensor, response=response)
         station.channels.append(cha)
     return station
 
 
-def pd2Network(netcode, network_df, progressor=None):
+def pd2Network(netcode, network_df, instrument_register, progressor=None):
     """Convert Pandas dataframe with unique network code to FDSN Network object."""
     net = Network(netcode, stations=[], description=' ')
     for statcode, ch_data in network_df.groupby('StationCode'):
-        station = pd2Station(statcode, ch_data)
+        station = pd2Station(statcode, ch_data, instrument_register)
         net.stations.append(station)
         if progressor:
             progressor(len(ch_data))

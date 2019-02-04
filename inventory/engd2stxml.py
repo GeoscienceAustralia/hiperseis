@@ -28,6 +28,9 @@ import numpy as np
 import scipy as sp
 import datetime
 import pandas as pd
+from collections import namedtuple, defaultdict
+import requests as req
+
 import obspy
 from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
@@ -87,6 +90,9 @@ BLACKLISTED_NETWORKS = ("CI",)
 
 # Timestamp to be added to output file names.
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+
+# Bundled container for related sensor and response.
+Instrument = namedtuple("Instrument", ['sensor', 'response'])
 
 
 def read_eng(fname):
@@ -566,7 +572,7 @@ def cleanupDatabase(df, iris_inv):
     return df
 
 
-def exportStationXml(df, output_folder, filename_base):
+def exportStationXml(df, nominal_instruments, output_folder, filename_base):
     """Export the dataset in df to Station XML format.
 
        Given a dataframe containing network and station codes grouped under networks, for each
@@ -586,7 +592,7 @@ def exportStationXml(df, output_folder, filename_base):
 
     global_inventory = Inventory(networks=[], source='EHB')
     for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data, progressor)
+        net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
         net_inv = Inventory(networks=[net], source=global_inventory.source)
         global_inventory.networks.append(net)
         fname = "{0}{1}.xml".format(filename_base, netcode)
@@ -620,6 +626,65 @@ def exportNetworkPlots(df, plot_folder):
         if show_progress:
             pbar.close()
         raise
+
+
+def obtainNominalInstrumentResponse(netcode, statcode, chcode):
+    """
+    For given network, station and channel code, find a suitable response in IRIS database and
+    return as obspy instrument response.
+
+    :param netcode: Network code
+    :type netcode: str
+    :param statcode: Station code
+    :type statcode: str
+    :param chcode: Channel code
+    :type chcode: str
+    :return: Instrument response from IRIS for given network, station and channel.
+    :rtype: obspy.core.inventory.response.Response
+    """
+    return None
+
+
+def extractUniqueSensorsResponses(inv):
+    """
+    For the channel codes in the given inventory, determine a nominal instrument response suitable
+    for that code. Note that no attempt is made here to determine an ACTUAL correct response for
+    a given network and station. The only requirement here is to populate a plausible, non-empty
+    response for a given channel code, to placate Seiscomp3 which requires that an instrument
+    response always be present.
+
+    :param inv: Seismic station inventory
+    :type inv: obspy.Inventory
+    :return: Python dict of (obspy.Sensor, obspy.Response) indexed by str representing channel code
+    :rtype: {str: Instrument(obspy.Sensor, obspy.Response) } where Instrument is a
+        namedtuple("Instrument", ['sensor', 'response'])
+    """
+    from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
+
+    # Create like this so if later indexed with invalid key, returns None instead of exception.
+    nominal_instruments = defaultdict(lambda: None)
+    inv_generator = ((net, sta, cha) for net in inv.networks for sta in net.stations for cha in sta.channels \
+                     if cha.code is not None and cha.code not in nominal_instruments)
+    for (net, sta, cha) in inv_generator:
+        assert isinstance(cha.code, str)
+        try:
+            # For each channel code, obtain a nominal instrument response by IRIS query.
+            if cha.code not in nominal_instruments:
+                cha.response = obtainNominalInstrumentResponse(net.code, sta.code, cha.code)
+            assert cha.response and cha.response.get_paz()
+            for rs in cha.response.response_stages:
+                if rs.decimation_delay is None:
+                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
+                if rs.decimation_correction is None:
+                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+
+            nominal_instruments[cha.code] = Instrument(cha.sensor, cha.response)
+        except AssertionError:
+            raise
+        except Exception as e:
+            print(e)
+            pass
+    return nominal_instruments
 
 
 def main(iris_xml_file):
@@ -666,6 +731,9 @@ def main(iris_xml_file):
         with open(iris_xml_file, mode='r', encoding='utf-8') as f:
             iris_inv = read_inventory(f)
 
+    # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
+    nominal_instruments = extractUniqueSensorsResponses(iris_inv)
+
     # Perform cleanup on each database
     db = cleanupDatabase(db, iris_inv)
 
@@ -674,7 +742,7 @@ def main(iris_xml_file):
     else:
         output_folder = "output"
 
-    exportStationXml(db, output_folder, "network_")
+    exportStationXml(db, nominal_instruments, output_folder, "network_")
 
     writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
 
