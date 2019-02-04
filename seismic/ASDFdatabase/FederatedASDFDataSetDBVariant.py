@@ -91,7 +91,7 @@ class FederatedASDFDataSetDBVariant():
             self.source_sha1 = hashlib.sha1(open(self.asdf_source).read()).hexdigest()
             fileContents = filter(len, open(self.asdf_source).read().splitlines())
 
-            # collate filename and time bounds
+            # collate file names
             for i in range(len(fileContents)):
                 if(fileContents[i][0]=='#'): continue # filter commented lines
 
@@ -115,7 +115,7 @@ class FederatedASDFDataSetDBVariant():
             # end if
         # end func
 
-        # Create in memory database
+        # Create database
         self.conn = None
         self.db_fn = os.path.join(os.path.dirname(self.asdf_source),  self.source_sha1 + '.db')
         self.create_database()
@@ -338,7 +338,7 @@ if __name__=="__main__":
     fn = os.path.join('/tmp', 'test.log')
     logger = setup_logger('main', fn)
 
-    fds = FederatedASDFDataSetTest('/g/data/ha3/rakib/tmp/a.txt', logger)
+    fds = FederatedASDFDataSetDBVariant('/g/data/ha3/rakib/tmp/a.txt', logger)
     #s = fds.get_waveforms('AU', 'QIS', '*', 'BHZ',
     #                      '2010-06-01T00:00:00', '2010-06-01T00:06:00',
     #                      'raw_recording', automerge=False)

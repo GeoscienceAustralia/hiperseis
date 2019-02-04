@@ -13,31 +13,36 @@ Revision History:
 """
 
 from mpi4py import MPI
-import os
+import glob, os, sys
 
 import numpy as np
-
-from obspy import Trace
+from obspy import Stream, Trace, UTCDateTime
 from datetime import datetime
 from scripts.ASDFdatabase import FederatedASDFDataSet
 
 import click
+import traceback
 from obspy import UTCDateTime
 from obspy.taup import TauPyModel
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
+from PhasePApy.phasepapy.phasepicker import fbpicker
+from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import CatalogCSV
+from utils import EventParser, Catalog, CatalogCSV, ProgressTracker
 import psutil
 import gc
 
-def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
+from quality import compute_quality_measures
+
+def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
               bp_freqmins = [0.5, 2., 5.],
-              bp_freqmaxs = [5, 9.9, 9.95],
-              margin=10,
-              max_amplitude=1e8):
+              bp_freqmaxs = [5., 10., 10.],
+              margin=None,
+              max_amplitude=1e8,
+              plot_output_folder=None):
 
     po = event.preferred_origin
     if(not po): return None
@@ -56,70 +61,102 @@ def extract_p(taupy_model, picker, event, station_longitude, station_latitude,
     tat = atimes[0].time # theoretical arrival time
 
     try:
-        st = st.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
-        st.resample(resample_hz)
+        buffer_start = -5
+        buffer_end = 5
+
+        snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+        snrst = snrst.copy()
+        snrst.resample(resample_hz)
+        snrst.detrend('linear')
+
+        st = snrst.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
     except:
         return None
     # end try
 
-    if(len(st) == 0): return None
+    if(len(st) == 0 or len(snrst) == 0): return None
 
     tr = st[0]
+    snrtr = snrst[0]
     if(type(tr.data) == np.ndarray):
         if(np.max(tr.data) > max_amplitude): return None
 
         pickslist = []
         snrlist = []
         residuallist = []
+        bandindex = -1
+        pickerindex = -1
 
-        tr.detrend('linear')
+        foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
+            trc.detrend('linear')
+            trc.taper(max_percentage=0.1, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
 
-            try:
-                scnl, picks, polarity, snr, uncert = picker.picks(trc)
+            for ipicker, picker in enumerate(pickerlist):
+                try:
+                    scnl, picks, polarity, snr, uncert = picker.picks(trc)
 
-                for ipick, pick in enumerate(picks):
-                    actualArrival = pick - po.utctime
-                    residual = actualArrival - tat
+                    for ipick, pick in enumerate(picks):
+                        actualArrival = pick - po.utctime
+                        residual = actualArrival - tat
 
-                    if (np.fabs(residual) < margin):
-                        pickslist.append(pick)
-                        snrlist.append(snr[ipick])
-                        residuallist.append(residual)
+                        if ((margin and np.fabs(residual) < margin) or (margin == None)):
+                            pickslist.append(pick)
 
-                        #summary = fbpicker.FBSummary(picker, trc)
-                        #summary = aicdpicker.AICDSummary(picker, trc)
-                        #outputPath = '/g/data/ha3/rakib/seismic/pst/tests/output'
-                        #ofn = '%s/%s.%s_%f_%d.png' % (outputPath, scnl, str(po.utctime), snr[0], i)
-                        #summary.plot_picks(show=False, savefn=ofn)
-                    # end if
-                # end for
-            except:
-                continue
-            # end try
+                            plotinfo = None
+                            if (plot_output_folder):
+                                plotinfo = {'eventid': event.public_id,
+                                            'origintime': po.utctime,
+                                            'mag': event.preferred_magnitude.magnitude_value,
+                                            'net': trc.stats.network,
+                                            'sta': trc.stats.station,
+                                            'phase': 'p',
+                                            'ppsnr': snr[ipick],
+                                            'pickid': ipick,
+                                            'outputfolder': plot_output_folder}
+                            # end if
+
+                            wab = snrtr.slice(pick - 3, pick + 3)
+                            wab_filtered = trc.slice(pick - 3, pick + 3)
+                            scales = np.logspace(0.15, 1.5, 30)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
+
+                            residuallist.append(residual)
+                            bandindex = i
+                            pickerindex = ipicker
+
+                            foundpicks = True
+                        # end if
+                    # end for
+                except:
+                    continue
+                # end try
+                if (foundpicks): break
+            # end for
+            if (foundpicks): break
         # end for
 
         if (len(pickslist)):
-            optimal_pick_idx = np.argmax(np.array(snrlist))
-
-            return pickslist[optimal_pick_idx], residuallist[optimal_pick_idx], \
-                   snrlist[optimal_pick_idx], optimal_pick_idx
+            return pickslist, residuallist, \
+                   np.array(snrlist), bandindex, pickerindex
         # end if
     # end if
 
     return None
 # end func
 
-def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
+def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitude,
               stn, ste, ba, win_start=-50, win_end=50, resample_hz=20,
-              bp_freqmins= [0.05, 2],
-              bp_freqmaxs = [0.5, 5],
-              margin=20,
-              max_amplitude=1e8):
+              bp_freqmins = [0.01, 0.01, 0.5],
+              bp_freqmaxs = [   1,   2., 5.],
+              margin=None,
+              max_amplitude=1e8,
+              plot_output_folder=None):
 
     po = event.preferred_origin
     if(not po): return None
@@ -138,24 +175,33 @@ def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
     tat = atimes[0].time # theoretical arrival time
 
     tr = None
+    snrtr = None
     try:
-        stn = stn.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
+        buffer_start = -5
+        buffer_end = 5
+        stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+        stn = stn.copy()
         stn.resample(resample_hz)
+        stn.detrend('linear')
 
         if(ste):
-            ste = ste.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
+            ste = ste.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
+            ste = ste.copy()
             ste.resample(resample_hz)
+            ste.detrend('linear')
         # end if
 
         if(ste):
             if(type(stn[0].data) == np.ndarray and type(ste[0].data) == np.ndarray):
                 rc, tc = rotate_ne_rt(stn[0].data, ste[0].data, ba)
-                tr = Trace(data=tc, header=stn[0].stats)
+                snrtr = Trace(data=tc, header=stn[0].stats)
+                tr = snrtr.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
                 #tr = Trace(data=np.sqrt(np.power(rc,2) + np.power(tc,2)), header=stn[0].stats)
             # end if
         else:
             if(type(stn[0].data) == np.ndarray):
-                tr = stn[0]
+                snrtr = stn[0]
+                tr = snrtr.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
             # end if
         # end if
     except Exception as e:
@@ -168,44 +214,66 @@ def extract_s(taupy_model, picker, event, station_longitude, station_latitude,
         pickslist = []
         snrlist = []
         residuallist = []
+        bandindex = -1
+        pickerindex = -1
 
-        tr.detrend('linear')
+        foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = tr.copy()
+            trc.detrend('linear')
+            trc.taper(max_percentage=0.1, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
 
-            try:
-                scnl, picks, polarity, snr, uncert = picker.picks(trc)
+            for ipicker, picker in enumerate(pickerlist):
+                try:
+                    scnl, picks, polarity, snr, uncert = picker.picks(trc)
 
-                for ipick, pick in enumerate(picks):
-                    actualArrival = pick - po.utctime
-                    residual = actualArrival - tat
+                    for ipick, pick in enumerate(picks):
+                        actualArrival = pick - po.utctime
+                        residual = actualArrival - tat
 
-                    if (np.fabs(residual) < margin):
-                        pickslist.append(pick)
-                        snrlist.append(snr[ipick])
-                        residuallist.append(residual)
+                        if ((margin and np.fabs(residual) < margin) or (margin == None)):
+                            pickslist.append(pick)
 
-                        #summary = fbpicker.FBSummary(picker, trc)
-                        #summary = aicdpicker.AICDSummary(picker, trc)
-                        #outputPath = '/home/rakib/work/pst/picking/sarr'
-                        #outputPath = '/g/data1a/ha3/rakib/seismic/pst/tests/plots/new'
-                        #ofn = '%s/%s.%s_%f_%d.s.png' % (outputPath, scnl, str(po.utctime), snr[0], i)
-                        #summary.plot_picks(show=False, savefn=ofn)
-                    # end if
-                # end for
-            except:
-                continue
-            # end try
+                            plotinfo = None
+                            if (plot_output_folder):
+                                plotinfo = {'eventid': event.public_id,
+                                            'origintime': po.utctime,
+                                            'mag': event.preferred_magnitude.magnitude_value,
+                                            'net': trc.stats.network,
+                                            'sta': trc.stats.station,
+                                            'phase': 's',
+                                            'ppsnr': snr[ipick],
+                                            'pickid': ipick,
+                                            'outputfolder': plot_output_folder}
+                            # end if
+
+                            wab = snrtr.slice(pick - 3, pick + 3)
+                            wab_filtered = trc.slice(pick - 3, pick + 3)
+                            scales = np.logspace(0.5, 4, 30)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
+                            snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
+
+                            residuallist.append(residual)
+                            bandindex = i
+                            pickerindex = ipicker
+
+                            foundpicks = True
+                        # end if
+                    # end for
+                except:
+                    continue
+                # end try
+                if (foundpicks): break
+            # end for
+            if (foundpicks): break
         # end for
 
         if (len(pickslist)):
-            optimal_pick_idx = np.argmax(np.array(snrlist))
-
-            return pickslist[optimal_pick_idx], residuallist[optimal_pick_idx], \
-                   snrlist[optimal_pick_idx], optimal_pick_idx
+            return pickslist, residuallist, \
+                   np.array(snrlist), bandindex, pickerindex
         # end if
     # end if
 
@@ -250,7 +318,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
 @click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
-def process(asdf_source, event_folder, output_path, min_magnitude):
+@click.option('--restart', default=False, is_flag=True, help='Restart job')
+@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
+def process(asdf_source, event_folder, output_path, min_magnitude, restart, save_quality_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
@@ -265,44 +335,88 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
     if(rank == 0):
         def outputConfigParameters():
             # output config parameters
-            fn = 'pick.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
+            fn = 'pick.%s.cfg' % (datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
             fn = os.path.join(output_path, fn)
 
             f = open(fn, 'w+')
-            f.write('Parameters Values:\n\n')
+            f.write('Parameter Values:\n\n')
             f.write('%25s\t\t: %s\n' % ('ASDF_SOURCE', asdf_source))
             f.write('%25s\t\t: %s\n' % ('EVENT_FOLDER', event_folder))
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t: %s\n' % ('MIN_MAGNITUDE', min_magnitude))
+            f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
+            f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
         # end func
 
         outputConfigParameters()
     # end if
 
+    # ==================================================
+    # Create output-folder for snr-plots
+    # ==================================================
+    plot_output_folder = None
+    if(save_quality_plots):
+        plot_output_folder = os.path.join(output_path, 'plots')
+        if(rank == 0):
+            if(not os.path.exists(plot_output_folder)):
+                os.mkdir(plot_output_folder)
+        # end if
+        comm.Barrier()
+    # end if
+
+    # ==================================================
+    # Read catalogue and retrieve origin times
+    # ==================================================
     cat = CatalogCSV(event_folder)
     events = cat.get_events()
     originTimestamps = cat.get_preferred_origin_timestamps()
 
-    # ==========================================
-    #picker = fbpicker.FBPicker(t_long=5, freqmin=0.1, mode='std', t_ma=20, nsigma=8, \
-    #                           t_up=1, nr_len=5, nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
-    picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=8, t_up=1, nr_len=5,
-                                   nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
-    picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=8, t_up=1, nr_len=5,
-                                   nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+    # ==================================================
+    # Create lists of pickers for both p- and s-arrivals
+    # ==================================================
+    sigmalist = np.arange(8,3,-1)
+    pickerlist_p = []
+    pickerlist_s = []
+    for sigma in sigmalist:
+        picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=sigma, t_up=1, nr_len=5,
+                                       nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+        picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=sigma, t_up=1, nr_len=5,
+                                       nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
 
+        pickerlist_p.append(picker_p)
+        pickerlist_s.append(picker_s)
+    # end for
+
+    # ==================================================
+    # Define theoretical model
+    # Instantiate data-access object
+    # Retrieve estimated workload
+    # ==================================================
     taupyModel = TauPyModel(model='iasp91')
     fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
     workload = getWorkloadEstimate(fds, originTimestamps)
 
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr bandIndex\n'
+    # ==================================================
+    # Define output header and open output files
+    # depending on the mode of operation (fresh/restart)
+    # ==================================================
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
-    ofp = open(ofnp, 'w+')
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
-    ofs = open(ofns, 'w+')
-    ofp.write(header)
-    ofs.write(header)
+    ofp = None
+    ofs = None
+    if(restart == False):
+        ofp = open(ofnp, 'w+')
+        ofs = open(ofns, 'w+')
+        ofp.write(header)
+        ofs.write(header)
+    else:
+        ofp = open(ofnp, 'a+')
+        ofs = open(ofns, 'a+')
+    # end if
 
+    progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
     totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.local_net_sta_list():
         day = 24 * 3600
@@ -330,6 +444,9 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
                 stations_ech = [s for s in stations if 'E' in s[3] or '2' in s[3]]  # only E channels
 
                 for codes in stations_zch:
+                    if(progTracker.increment()): pass
+                    else: continue
+
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
                                            curr + step,
@@ -351,34 +468,48 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                         if(np.isnan(mag) or mag < min_magnitude): continue
 
-                        result = extract_p(taupyModel, picker_p, event, slon, slat, st)
+                        result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st,
+                                           plot_output_folder = plot_output_folder)
                         if(result):
-                            pick, residual, snr, bi = result
+                            picklist, residuallist, snrlist, bandindex, pickerindex = result
 
-                            line = '%s %f %f %f %f %f ' \
-                                   '%s %s %s %f %f %f ' \
-                                   '%f %f %f ' \
-                                   '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                   codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                   da[1], da[2], kilometers2degrees(da[0]/1e3),
-                                                   residual, snr, bi)
-                            ofp.write(line)
+                            arcdistance = kilometers2degrees(da[0]/1e3)
+                            for ip, pick in enumerate(picklist):
+                                line = '%s %f %f %f %f %f ' \
+                                       '%s %s %s %f %f %f ' \
+                                       '%f %f %f ' \
+                                       '%f %f %f %f %f '\
+                                       '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                    da[1], da[2], arcdistance,
+                                                    residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
+                                                    bandindex, sigmalist[pickerindex])
+                                ofp.write(line)
+                            # end for
+                            ofp.flush()
                             pickCountP += 1
                         # end if
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
-                            result = extract_s(taupyModel, picker_s, event, slon, slat, st, None, da[2])
+                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, st, None, da[2],
+                                               plot_output_folder=plot_output_folder)
                             if (result):
-                                pick, residual, snr, bi = result
+                                picklist, residuallist, snrlist, bandindex, pickerindex = result
 
-                                line = '%s %f %f %f %f %f ' \
-                                       '%s %s %s %f %f %f ' \
-                                       '%f %f %f ' \
-                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                       da[1], da[2], kilometers2degrees(da[0] / 1e3),
-                                                       residual, snr, bi)
-                                ofs.write(line)
+                                arcdistance = kilometers2degrees(da[0] / 1e3)
+                                for ip, pick in enumerate(picklist):
+                                    line = '%s %f %f %f %f %f ' \
+                                           '%s %s %s %f %f %f ' \
+                                           '%f %f %f ' \
+                                           '%f %f %f %f %f ' \
+                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                                        da[1], da[2], arcdistance,
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
+                                                        bandindex, sigmalist[pickerindex])
+                                    ofs.write(line)
+                                # end for
+                                ofs.flush()
                                 pickCountS += 1
                             # end if
                         # end if
@@ -389,6 +520,9 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                 if(len(stations_nch)>0 and len(stations_nch) == len(stations_ech)):
                     for codesn, codese in zip(stations_nch, stations_ech):
+                        if (progTracker.increment()): pass
+                        else: continue
+
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                                curr,
                                                curr + step,
@@ -422,18 +556,25 @@ def process(asdf_source, event_folder, output_path, min_magnitude):
 
                             if (np.isnan(mag) or mag < min_magnitude): continue
 
-                            result = extract_s(taupyModel, picker_s, event, slon, slat, stn, ste, da[2])
+                            result = extract_s(taupyModel, pickerlist_s, event, slon, slat, stn, ste, da[2],
+                                               plot_output_folder=plot_output_folder)
                             if (result):
-                                pick, residual, snr, bi = result
+                                picklist, residuallist, snrlist, bandindex, pickerindex = result
 
-                                line = '%s %f %f %f %f %f ' \
-                                       '%s %s %s %f %f %f ' \
-                                       '%f %f %f ' \
-                                       '%f %f %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                       codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
-                                                       da[1], da[2], kilometers2degrees(da[0] / 1e3),
-                                                       residual, snr, bi)
-                                ofs.write(line)
+                                arcdistance = kilometers2degrees(da[0] / 1e3)
+                                for ip, pick in enumerate(picklist):
+                                    line = '%s %f %f %f %f %f ' \
+                                           '%s %s %s %f %f %f ' \
+                                           '%f %f %f ' \
+                                           '%f %f %f %f %f ' \
+                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
+                                                        da[1], da[2], arcdistance,
+                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
+                                                        bandindex, sigmalist[pickerindex])
+                                    ofs.write(line)
+                                # end for
+                                ofs.flush()
                                 pickCountS += 1
                             # end if
                         # end for

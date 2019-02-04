@@ -8,11 +8,14 @@ import pandas as pd
 from pdconvert import pd2Network
 from obspy.core.inventory import Inventory
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib
 else:
     import pathlib
+
+no_instruments = defaultdict(lambda: None)
 
 
 def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
@@ -20,7 +23,7 @@ def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_lis
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
     for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data)
+        net = pd2Network(netcode, data, no_instruments)
         plot_fname = os.path.join(dest_path, netcode + ".png")
         try:
             fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0", water_fill_color="#d0d0ff", color="#c08080")
@@ -47,7 +50,7 @@ def saveStationLocalPlots(df, plot_folder, progressor=None, include_stations_lis
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
     for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-        net = pd2Network(netcode, data)
+        net = pd2Network(netcode, data, no_instruments)
         station_name = ".".join([netcode, statcode])
         plot_fname = os.path.join(dest_path, station_name + ".png")
         try:

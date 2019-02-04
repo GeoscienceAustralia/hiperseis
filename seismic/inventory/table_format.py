@@ -20,4 +20,8 @@ TABLE_SCHEMA = OrderedDict((
 
 TABLE_COLUMNS = TABLE_SCHEMA.keys()
 
+# See https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timestamp-limitations
 PANDAS_MAX_TIMESTAMP = str(pd.Timestamp.max)[0:19]
+
+DEFAULT_START_TIMESTAMP = pd.Timestamp("1964-1-1 00:00:00")
+DEFAULT_END_TIMESTAMP = pd.Timestamp.max

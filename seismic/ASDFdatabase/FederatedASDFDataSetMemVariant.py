@@ -118,7 +118,7 @@ class FederatedASDFDataSetMemVariant():
 
             fileContents = filter(len, open(self.asdf_source).read().splitlines())
 
-            # collate filename and time bounds
+            # collate file names
             for i in range(len(fileContents)):
                 if(fileContents[i][0]=='#'): continue # filter commented lines
 
@@ -505,7 +505,7 @@ if __name__=="__main__":
     fn = os.path.join('/tmp', 'test.log')
     logger = setup_logger('main', fn)
 
-    fds = FederatedASDFDataSet('/g/data/ha3/rakib/tmp/a.txt', logger)
+    fds = FederatedASDFDataSetMemVariant('/g/data/ha3/rakib/tmp/a.txt', logger)
     #s = fds.get_waveforms('AU', 'QIS', '*', 'BHZ',
     #                      '2010-06-01T00:00:00', '2010-06-01T00:06:00',
     #                      'raw_recording', automerge=False)
