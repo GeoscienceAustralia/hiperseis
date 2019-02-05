@@ -10,6 +10,8 @@ install:
 - pip install -r requirements.txt
 script:
 - pytest  tests/test_dum_success.py
+- pytest  -v tests/test_event.py
+- pytest  -v tests/test_config.py
 # - coverage run test/test_operations.py
 after_success: coveralls
 
