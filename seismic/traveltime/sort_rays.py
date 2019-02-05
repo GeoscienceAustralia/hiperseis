@@ -16,19 +16,19 @@ Revision History:
 
 from __future__ import print_function, absolute_import
 
-import sys
 import json
 import logging
+import sys
 from collections import namedtuple
 from math import asin
+
 import click
-import pandas as pd
-
-from obspy.geodetics import gps2dist_azimuth, locations2degrees
 import ellipcorr
+import pandas as pd
+from obspy.geodetics import gps2dist_azimuth, locations2degrees
 
-from seismic import pslog
-from seismic.traveltime.cluster_grid import UniformGrid, Grid2
+from seismic.traveltime import pslog
+from seismic.traveltime.cluster_grid import Grid2
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)

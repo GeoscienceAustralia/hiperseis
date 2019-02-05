@@ -5,18 +5,18 @@
 # export ELLIPCORR=/Softlab/Githubz/passive-seismic/ellip-corr
 # python2 scripts/process_sc3xmls.py /Softlab/Data/PST/sc3xmls/events_xmls_sc3ml/
 
+import glob
+import logging
 import os
 import sys
-import logging
-import glob
+
+import ellipcorr
+from inventory.parse_inventory import read_all_stations
 from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
-from seismic import mpiops
-import ellipcorr
-
 from scripts.cluster.cluster import Grid, ArrivalWriter
-from inventory.parse_inventory import read_all_stations
 
+from seismic.traveltime import mpiops
 
 log=logging.getLogger()
 log.setLevel(logging.DEBUG)

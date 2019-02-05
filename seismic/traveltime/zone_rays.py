@@ -10,7 +10,8 @@ import click
 import numpy as np
 import pandas as pd
 from obspy.geodetics.base import WGS84_A as RADIUS
-from seismic import pslog
+
+from seismic.traveltime import pslog
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)

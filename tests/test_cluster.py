@@ -4,23 +4,24 @@ pytest -v tests/test_cluster.py   # this is partially working. issue with mpirun
 
 """
 from __future__ import print_function, absolute_import
-import os
-from os.path import exists
-import shutil
-import random
-import string
-import glob
+
 import csv
-import numpy as np
-import pytest
-from pytest import approx
-import pandas as pd
-from subprocess import check_call
+import glob
+import os
+import random
+import shutil
+import string
 from collections import Counter
+from os.path import exists
+from subprocess import check_call
+
+import numpy as np
+import pandas as pd
+import pytest
 from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
-from seismic.mpiops import rank
+from pytest import approx
 from scripts.cluster.cluster import (process_event,
                                      process_many_events,
                                      Grid,
@@ -32,7 +33,9 @@ from scripts.cluster.cluster import (process_event,
                                      STATION_CODE,
                                      FREQUENCY,
                                      _in_region)
+
 from seismic.inventory.parse_inventory import read_all_stations, read_stations
+from seismic.traveltime.mpiops import rank
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
