@@ -18,7 +18,7 @@ import glob, os, sys
 import numpy as np
 from obspy import Stream, Trace, UTCDateTime
 from datetime import datetime
-from scripts.ASDFdatabase import FederatedASDFDataSet
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
 import traceback
