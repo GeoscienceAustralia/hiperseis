@@ -6,7 +6,7 @@ import pytest
 import datetime
 import yaml
 import os
-from seismic import config
+from tests import config
 
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')
