@@ -15,7 +15,7 @@ from matplotlib import pylab as plt
 from matplotlib.lines import Line2D
 from mpl_toolkits.basemap import Basemap
 import click
-from seismic import pslog
+from seismic.traveltime import pslog, mpiops
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
@@ -184,7 +184,6 @@ def plotcmd(arrivals_file, region):
     """
     Another plot command
     """
-    from seismic import mpiops
     log.info('Begin plotcmd {}'.format(mpiops.rank))
     log.debug("The input arrival file is %s", arrivals_file)
 

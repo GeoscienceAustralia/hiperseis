@@ -1,11 +1,14 @@
 from __future__ import print_function
-import click
+
 import logging
+
+import click
 from obspy.core import read as obspy_read, Stream
+from seismic.pickers import pickermaps
 
 import seismic
-from seismic import pslog, config
-from seismic.pickers import pickermaps
+from seismic import config
+from seismic.traveltime import pslog
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ log = logging.getLogger(__name__)
               type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']),
               default='INFO', help='Level of logging')
 def cli(verbosity):
-    seismic.pslog.configure(verbosity)
+    seismic.traveltime.pslog.configure(verbosity)
 
 
 @cli.command()

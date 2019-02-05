@@ -14,6 +14,7 @@ import os
 import random
 from collections import namedtuple
 from math import asin, sin, acos, sqrt
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -27,7 +28,7 @@ import click
 from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from obspy.geodetics.base import WGS84_A as RADIUS
-from seismic import pslog
+from seismic.traveltime import pslog
 from seismic import mpiops
 import ellipcorr
 from seismic.inventory.parse_inventory import read_all_stations

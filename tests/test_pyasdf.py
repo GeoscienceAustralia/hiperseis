@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
-from seismic.mpiops import rank, size, comm, run_once
+import pytest
+
+from seismic.traveltime.mpiops import rank, size, comm, run_once
 
 try:
     import h5py

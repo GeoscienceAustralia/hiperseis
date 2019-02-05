@@ -20,7 +20,6 @@ cd  passive-seismic/tempworks
 from __future__ import print_function, absolute_import
 
 import csv
-import ellipcorr
 import fnmatch
 import logging
 import os
@@ -28,13 +27,14 @@ import random
 from math import asin
 
 import click
+import ellipcorr
 import pandas as pd
+from inventory.parse_inventory import read_all_stations
 from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
 
-from inventory.parse_inventory import read_all_stations
-from seismic import mpiops
-from seismic import pslog
+from seismic.traveltime import mpiops
+from seismic.traveltime import pslog
 
 # Only If this gather_events will do computation of the block numbers in a grid
 # from seismic.traveltime.cluster_grid import Grid2
