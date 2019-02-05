@@ -22,6 +22,7 @@ import subprocess
 import argparse
 import time
 import re
+from iris_query import formChannelRequestUrl, setTextEncoding
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
@@ -33,27 +34,6 @@ KNOWN_ILLEGAL_ELEMENTS_PATTERNS = (
     r"<Azimuth>36[1-9](\.\d*)?</Azimuth>",
     r"<Azimuth>3[7-9]\d(\.\d*)?</Azimuth>",
 )
-
-
-def formRequestUrl(netmask="*", statmask="*", chanmask="*"):
-    """
-    Form request URL to download station inventory in stationxml format, down to channel level,
-    with the given filters applied to network codes, station codes and channel codes.
-
-    :param netmask: Pattern of network codes to match, comma separated with wildcards, defaults to "*"
-    :param netmask: str, optional
-    :param statmask: Pattern of station codes to match, comma separated with wildcards, defaults to "*"
-    :param statmask: str, optional
-    :param chanmask: Pattern of channel codes to match, comma separated with wildcards, defaults to "*"
-    :param chanmask: str, optional
-    :return: Fully formed URL to perform IRIS query and get back FDSN station XML result.
-    :rtype: str
-    """
-    # Hardwired to exclude restricted channels and exclude comments to reduce file size.
-    return "http://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
-           "&sta=" + statmask + \
-           "&cha=" + chanmask + \
-           "&level=channel&format=xml&includerestricted=false&includecomments=false&nodata=404"
 
 
 def cleanup(tmp_filename):
@@ -69,26 +49,17 @@ def cleanup(tmp_filename):
         print("WARNING: Failed to remove temporary file " + tmp_filename)
 
 
-def setTextEncoding(resp):
-    """
-    For the given response object, set its encoding from the contents of the text returned from server.
-
-    :param resp: Query response object returned by response.get()
-    :type resp: requests.Response
-    """
-    encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
-    matcher = re.compile(encoding_pattern)
-    first_line = resp.text.split('\n', 1)[0]
-    match = matcher.search(first_line)
-    assert match
-    encoding = match.group(1)
-    print("Detected text encoding {}".format(encoding))
-    resp.encoding = encoding
-    assert resp.encoding is not None
-
-
 def updateIrisStationXml(output_file, options=None):
-    iris_url = formRequestUrl() if options is None else formRequestUrl(**options)
+    """
+    Pull the latest IRIS complete station inventory (down to station level, not including 
+    instrument responses) from IRIS web service and save to file in sc3ml format.
+
+    :param output_file: Destination sc3ml file to generate
+    :type output_file: str
+    :param options: Filtering options for network, station and channel codes, defaults to None
+    :param options: Python dict of key-values pairs matching command line options, optional
+    """
+    iris_url = formChannelRequestUrl() if options is None else formChannelRequestUrl(**options)
     # Download latest IRIS station database as FDSN station xml.
     try:
         print("Requesting data from server...")

@@ -41,7 +41,6 @@ def pd2Station(statcode, station_df, instrument_register=None):
             sensor = instrument.sensor
             response = instrument.response
         else:
-            assert False, "No instrument response for channel code {}".format(ch_code)
             sensor = None
             response = None
         cha = Channel(ch_code, '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),

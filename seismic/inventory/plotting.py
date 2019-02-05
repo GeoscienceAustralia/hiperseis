@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 if sys.version_info[0] < 3:
-    import pathlib2 as pathlib
+    import pathlib2 as pathlib  # pylint: disable=import-error
 else:
     import pathlib
 

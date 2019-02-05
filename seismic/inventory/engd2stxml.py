@@ -30,6 +30,7 @@ import datetime
 import pandas as pd
 from collections import namedtuple, defaultdict
 import requests as req
+import time
 
 import obspy
 from obspy import read_inventory
@@ -37,11 +38,12 @@ from obspy.geodetics.base import locations2degrees
 from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
+from iris_query import setTextEncoding, formResponseRequestUrl
 
 if sys.version_info[0] < 3:
-    import cStringIO as sio
-    import pathlib2 as pathlib
-    import cPickle as pkl
+    import cStringIO as sio  #pylint: disable=import-error
+    import pathlib2 as pathlib  #pylint: disable=import-error
+    import cPickle as pkl  #pylint: disable=import-error
 else:
     import io as sio
     import pathlib
@@ -587,8 +589,10 @@ def exportStationXml(df, nominal_instruments, output_folder, filename_base):
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
         progressor = pbar.update
+        std_print = pbar.write
     else:
         progressor = None
+        std_print = print
 
     global_inventory = Inventory(networks=[], source='EHB')
     for netcode, data in df.groupby('NetworkCode'):
@@ -599,8 +603,8 @@ def exportStationXml(df, nominal_instruments, output_folder, filename_base):
         try:
             net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
         except Exception as e:
-            print(e)
-            print("FAILED writing file {0} for network {1}, continuing".format(fname, netcode))
+            std_print(e)
+            std_print("FAILED writing file {0} for network {1}, continuing".format(fname, netcode))
             continue
     if show_progress:
         pbar.close()
@@ -628,7 +632,7 @@ def exportNetworkPlots(df, plot_folder):
         raise
 
 
-def obtainNominalInstrumentResponse(netcode, statcode, chcode):
+def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     """
     For given network, station and channel code, find a suitable response in IRIS database and
     return as obspy instrument response.
@@ -639,10 +643,38 @@ def obtainNominalInstrumentResponse(netcode, statcode, chcode):
     :type statcode: str
     :param chcode: Channel code
     :type chcode: str
-    :return: Instrument response from IRIS for given network, station and channel.
-    :rtype: obspy.core.inventory.response.Response
+    :return: Dictionary of instrument responses from IRIS for given network(s), station(s) and channel(s).
+    :rtype: dict of {str, Instrument(sensor, obspy.core.inventory.response.Response)}
     """
-    return None
+    from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
+
+    query_url = formResponseRequestUrl(netcode, statcode, chcode)
+    tries = 10
+    while tries > 0:
+        try:
+            tries -= 1
+            response_xml = req.get(query_url)
+            first_line = sio.StringIO(response_xml.text).readline().rstrip()
+            assert 'Error 404' not in first_line
+            break
+        except req.exceptions.RequestException as e:  # pylint: disable=unused-variable
+            time.sleep(1)
+    assert tries > 0
+    setTextEncoding(response_xml, quiet=True)
+    # This line decodes when .text attribute is extracted, then encodes to utf-8
+    obspy_input = sio.BytesIO(response_xml.text.encode('utf-8'))
+    channel_data = read_inventory(obspy_input)
+    responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks \
+                 for sta in net.stations for cha in sta.channels if cha.code is not None}
+    # Make responses valid for Seiscomp3
+    for inst in responses.values():
+        if inst.response:
+            for rs in inst.response.response_stages:
+                if rs.decimation_delay is None:
+                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
+                if rs.decimation_correction is None:
+                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+    return responses
 
 
 def extractUniqueSensorsResponses(inv):
@@ -659,31 +691,51 @@ def extractUniqueSensorsResponses(inv):
     :rtype: {str: Instrument(obspy.Sensor, obspy.Response) } where Instrument is a
         namedtuple("Instrument", ['sensor', 'response'])
     """
-    from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
 
     # Create like this so if later indexed with invalid key, returns None instead of exception.
     nominal_instruments = defaultdict(lambda: None)
-    inv_generator = ((net, sta, cha) for net in inv.networks for sta in net.stations for cha in sta.channels \
-                     if cha.code is not None and cha.code not in nominal_instruments)
-    for (net, sta, cha) in inv_generator:
-        assert isinstance(cha.code, str)
-        try:
-            # For each channel code, obtain a nominal instrument response by IRIS query.
-            if cha.code not in nominal_instruments:
-                cha.response = obtainNominalInstrumentResponse(net.code, sta.code, cha.code)
-            assert cha.response and cha.response.get_paz()
-            for rs in cha.response.response_stages:
-                if rs.decimation_delay is None:
-                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
-                if rs.decimation_correction is None:
-                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+    reference_networks = ('GE', 'IU', 'BK')
+    print("Preparing common instrument response database from networks {} (this may take a while)...".format(reference_networks))
+    for netcode in reference_networks:
+        print("  querying {}...".format(netcode))
+        nominal_instruments.update(obtainNominalInstrumentResponses(netcode, '*', '*'))
 
-            nominal_instruments[cha.code] = Instrument(cha.sensor, cha.response)
-        except AssertionError:
-            raise
-        except Exception as e:
-            print(e)
-            pass
+    if show_progress:
+        num_entries = sum(len(sta.channels) for net in inv.networks for sta in net.stations)
+        pbar = tqdm.tqdm(total=num_entries, ascii=True, desc="Finding additional instrument responses")
+        std_print = tqdm.tqdm.write
+    else:
+        std_print = print
+
+    failed_codes = set()
+    for net in inv.networks:
+        if net.code in BLACKLISTED_NETWORKS:
+            if show_progress:
+                for sta in net.stations:
+                    pbar.update(len(sta.channels))
+            continue
+        for sta in net.stations:
+            if show_progress:
+                pbar.update(len(sta.channels))
+            for cha in sta.channels:
+                if cha.code is None or cha.code in nominal_instruments:
+                    continue
+                assert isinstance(cha.code, str)
+                try:
+                    # For each channel code, obtain a nominal instrument response by IRIS query.
+                    if cha.code not in nominal_instruments:
+                        response = obtainNominalInstrumentResponses(net.code, sta.code, cha.code)
+                        nominal_instruments.update(response)
+                        std_print("Found nominal instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
+                except Exception:
+                    std_print("Failed to acquire instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
+                    failed_codes.add(cha.code)
+    if show_progress:
+        pbar.close()
+    # Report on channel codes for which no response could be found
+    failed_codes = sorted(list(failed_codes - set(nominal_instruments.keys())))
+    if len(failed_codes) > 0:
+        print("WARNING: No instrument response could be determined for these channel codes:\n{}".format(failed_codes))
     return nominal_instruments
 
 
