@@ -13,7 +13,6 @@ Revision History:
     LastUpdate:     29/01/2019   FZ
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
-
 from __future__ import print_function, absolute_import
 
 import json
@@ -64,7 +63,6 @@ def cli(verbosity):
     :return:
     """
     pslog.configure(verbosity)
-
 
 # @cli.command()
 # @click.argument('output_file',
