@@ -1,4 +1,4 @@
-Software Package for Seismic Data Processing, Analysis and Modelling
+Software Package for Seismology Data/Metadata Processing and Analysis
 ==================================
 
 |Build Status|  |Documentation Status|
