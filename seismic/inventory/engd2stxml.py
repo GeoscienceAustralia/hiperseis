@@ -3,15 +3,17 @@
 H1. Engdahl and ISC STN data conversion to station XML
 
 Creates database of stations from .STN files which are not in IRIS database,
-curates the data using heuristic rules, and exports new stations to station XML format
-by network.
+curates the data using heuristic rules, and exports new stations to FDSN
+station XML format network with non-empty, nominal instrument response data.
 
 Cleanup steps applied:
+* Removes "blacklisted" networks that add little value and cause problems due to station code
+  conflicts.
 * Add default station dates where missing.
 * Make "future" station end dates consistent to max Pandas timestamp.
+* Remove records with illegal station codes.
 * Remove duplicate station records.
 * Remove stations that are already catalogued in IRIS web service. See update_iris_inventory.py
-* TODO...
 
 :raises warning.: nil
 :return: nil
@@ -19,6 +21,7 @@ Cleanup steps applied:
 """
 
 from __future__ import division
+from __future__ import print_function
 
 import os
 import sys
@@ -40,13 +43,17 @@ from plotting import saveNetworkLocalPlots
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
 from iris_query import setTextEncoding, formResponseRequestUrl
 
-if sys.version_info[0] < 3:
-    import cStringIO as sio  #pylint: disable=import-error
-    import pathlib2 as pathlib  #pylint: disable=import-error
-    import cPickle as pkl  #pylint: disable=import-error
+PY2 = sys.version_info[0] < 3
+
+if PY2:
+    import cStringIO as sio  # pylint: disable=import-error
+    import io as bio
+    import pathlib2 as pathlib  # pylint: disable=import-error
+    import cPickle as pkl  # pylint: disable=import-error
 else:
     import io as sio
-    import pathlib
+    bio = sio
+    import pathlib  # pylint: disable=import-error
     import pickle as pkl
 
 print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
@@ -75,13 +82,16 @@ USE_PICKLE = True
 # Set true to work with smaller, faster datasets.
 TEST_MODE = False
 
-# Pandas table display options to reduce aggressiveness of truncation.
+# Pandas table display options to reduce aggressiveness of truncation. Due to size of data sometimes we
+# need to see more details in the table.
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.width', 240)
 
-# Global constants
+# Global constants. Assumption of spherical earth model. This is quite a weak assumption, but
+# the obspy function locations2degrees() uses spherical earth model too, so no difference to
+# distance method used here.
 NOMINAL_EARTH_RADIUS_KM = 6378.1370
 DIST_TOLERANCE_KM = 2.0
 DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
@@ -90,7 +100,7 @@ COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 # List of networks to remove outright. See ticket PST-340.
 BLACKLISTED_NETWORKS = ("CI",)
 
-# Timestamp to be added to output file names.
+# Timestamp to be added to output file names, so that each run generates unique log files.
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
 
 # Bundled container for related sensor and response.
@@ -116,9 +126,9 @@ def read_eng(fname):
     :param fname: STN file name to load
     :type fname: str
     :return: Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
-    :rtype: pandas.DataFrame
+    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
-
+    # Intervals of column numbers delineating input fields.
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
     col_names = ['StationCode', 'Latitude', 'Longitude', 'Elevation']
     data_frame = pd.read_fwf(fname, colspecs=colspec, names=col_names, dtype=TABLE_SCHEMA)
@@ -137,6 +147,16 @@ def read_eng(fname):
     num_dupes = len(data_frame) - len(data_frame['StationCode'].unique())
     print("{0}: {1} stations found with {2} duplicates".format(fname, len(data_frame), num_dupes))
     return data_frame
+
+
+def reportUnpickleFail(filename):
+    """
+    Standard failure report message when trying to unpickle file.
+
+    :param filename: The name of the file that failed to unpickle.
+    :type filename: str
+    """
+    print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. Falling back to full parse.".format(filename))
 
 
 # @profile
@@ -160,9 +180,9 @@ def read_isc(fname):
     :param fname: STN file name to load
     :type fname: str
     :return: Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
-    :rtype: pandas.DataFrame
+    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
-
+    # Intervals of column numbers delineating input fields.
     header_colspec = ((0, 5), (7, 16), (17, 26), (27, 34), (35, 54,), (55, 74))
     header_cols = ['StationCode', 'Latitude', 'Longitude', 'Elevation', 'StationStart', 'StationEnd']
     channel_colspec = ((13, 17), (18, 23), (24, 27), (31, 34), (35, 54), (55, 74))
@@ -193,10 +213,13 @@ def read_isc(fname):
         pkl_name = fname + ".pkl"
         if os.path.exists(pkl_name):
             print("Reading cached " + fname)
-            with open(pkl_name, 'rb') as f:
-                df_all = pkl.load(f)
-                reportStationCount(df_all)
-                return df_all
+            try:
+                with open(pkl_name, 'rb') as f:
+                    df_all = pkl.load(f)
+                    reportStationCount(df_all)
+                    return df_all
+            except:
+                reportUnpickleFail(pkl_name)
 
     print("Parsing " + fname)
     df_list = []
@@ -226,12 +249,12 @@ def read_isc(fname):
                     pbar.update(len(line))
             if hdr is not None:
                 # Always store header data as a station record.
-                hdr['NetworkCode'] = 'IR'
-                hdr['ChannelStart'] = pd.NaT
-                hdr['ChannelEnd'] = pd.NaT
-                hdr['ChannelCode'] = 'BHZ'
+                hdr['NetworkCode'] = 'IR'     # pylint: disable=unsupported-assignment-operation
+                hdr['ChannelStart'] = pd.NaT  # pylint: disable=unsupported-assignment-operation
+                hdr['ChannelEnd'] = pd.NaT    # pylint: disable=unsupported-assignment-operation
+                hdr['ChannelCode'] = 'BHZ'    # pylint: disable=unsupported-assignment-operation
                 # Standardize column ordering
-                hdr = hdr[list(TABLE_COLUMNS)]
+                hdr = hdr[list(TABLE_COLUMNS)]  # pylint: disable=unsubscriptable-object
                 if channels:
                     # If channel data is also present, store it too.
                     ch_all = pd.concat(channels, sort=False)
@@ -272,7 +295,7 @@ def removeBlacklisted(df):
     with trusted FDSN station codes.
 
     :param df: Dataframe of initially loaded data from STN files
-    :type df: pandas.DataFrame
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     for badnet in BLACKLISTED_NETWORKS:
         df = df[df["NetworkCode"] != badnet]
@@ -282,11 +305,11 @@ def removeBlacklisted(df):
 def removeIllegalStationNames(df):
     """
     Remove records for station names that do not conform to expected naming convention.
-    Such names can cause problems in downstream processing, in particular names with asterisk.
+    Such names can cause problems in downstream station, in particular names with asterisk.
 
     :param df: Dataframe containing station records from which illegal station codes should be
         removed (modified in-place)
-    :type df: pandas.DataFrame
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     import re
     pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-]{1,4}$")
@@ -362,7 +385,7 @@ def removeIrisDuplicates(df, iris_inv):
     then warnings are logged for those stations.
 
     :param df: Dataframe containing station records. Is modified in-place by this function.
-    :type df: pandas.DataFrame
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param iris_inv: Station inventory as read by obspy.read_inventory.
     :type iris_inv: obspy.core.inventory.inventory.Inventory
     """
@@ -402,7 +425,8 @@ def removeIrisDuplicates(df, iris_inv):
                 mask = np.array([mask], ndmin=1)
             duplicate_index = np.array(data.index.tolist())[mask]
             if len(duplicate_index) < len(data):
-                kept_station_distances = surface_dist[(~mask)]
+                # Disable false positive from pylint on following line
+                kept_station_distances = surface_dist[(~mask)]  # pylint: disable=invalid-unary-operand-type
                 log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}.{1}, not dropping. "
                           "(Possible issues with station date ranges?) Distances(km) = {2}\n".format(netcode, statcode, kept_station_distances))
             removal_index.extend(duplicate_index.tolist())
@@ -424,7 +448,7 @@ def computeNeighboringStationMatrix(df):
     of the returned matrix indicate the indices of adjacent, nearby stations.
 
     :param df: Dataframe containing station records.
-    :type df: pandas.DataFrame
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :return: Sparse binary matrix having non-zero values at indices of neighboring stations.
     :rtype: scipy.sparse.csr_matrix
     """
@@ -446,15 +470,15 @@ def removeDuplicateStations(df, neighbor_matrix):
     """
     Remove stations which are identified as duplicates:
     * Removes duplicated stations in df based on station code and locality of lat/long coordinates.
-    * Removes duplicated station based on codes and channel data matching, IRRESPECTIVE of locality
+    * Removes duplicated stations based on codes and channel data matching, IRRESPECTIVE of locality
 
     :param df: Dataframe containing station records. Is modified during processing.
-    :type df: pandas.DataFrame
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param neighbor_matrix: Sparse binary matrix having non-zero values at indices of neighboring
         stations.
     :type neighbor_matrix: scipy.sparse.csr_matrix
     :return: Dataframe containing station records with identified duplicates removed.
-    :rtype: pandas.DataFrame
+    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     assert len(df) == neighbor_matrix.shape[0]
     assert neighbor_matrix.shape[0] == neighbor_matrix.shape[1]
@@ -532,7 +556,11 @@ def removeDuplicateStations(df, neighbor_matrix):
 
 
 def populateDefaultStationDates(df):
-    """Replace all missing station start and end dates with default values.
+    """
+    Replace all missing station start and end dates with default values.
+
+    :param df: Dataframe in which to fill in missing station start and end dates.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     df.StationStart[df.StationStart.isna()] = DEFAULT_START_TIMESTAMP
     df.StationEnd[df.StationEnd.isna()] = DEFAULT_END_TIMESTAMP
@@ -541,11 +569,17 @@ def populateDefaultStationDates(df):
 
 
 def cleanupDatabase(df, iris_inv):
-    """Clean up the dataframe df.
-
-       Returns cleaned up df.
     """
+    Main cleanup function encompassing the sequential data cleanup steps.
 
+    :param df: Dataframe of station records to clean up
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param iris_inv: IRIS station inventory
+    :type iris_inv: obspy.core.inventory.inventory.Inventory
+    :return: Cleaned up dataframe of station records
+    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    """
+    # Returns cleaned up df.
     print("Removing stations with illegal station code...")
     num_before = len(df)
     removeIllegalStationNames(df)
@@ -575,13 +609,26 @@ def cleanupDatabase(df, iris_inv):
 
 
 def exportStationXml(df, nominal_instruments, output_folder, filename_base):
-    """Export the dataset in df to Station XML format.
-
-       Given a dataframe containing network and station codes grouped under networks, for each
-       network create and obspy inventory object and export to stationxml file. Write an overall
-       list of stations based on global inventory.
     """
-    from obspy.core.inventory import Inventory, Network, Station, Channel, Site
+    Export the dataset in df to FDSN Station XML format.
+
+    Given a dataframe containing network and station codes grouped by network, for each
+    network create an obspy inventory object and export to FDSN station XML file. Also
+    write an overall list of stations based on global inventory to stations.txt.
+
+    :param df: Dataframe containing all the station records to export.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
+        characterization
+    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
+        obspy.core.inventory.response.Response) }
+    :param output_folder: Name of output folder in which to place the exported XML files
+    :type output_folder: str or pathlib.Path
+    :param filename_base: Base name of each output file. Exported filename is appended with the
+        network code, plus .xml extension.
+    :type filename_base: str
+    """
+    from obspy.core.inventory import Inventory
 
     pathlib.Path(output_folder).mkdir(exist_ok=True)
     print("Exporting stations to folder {0}".format(output_folder))
@@ -614,12 +661,29 @@ def exportStationXml(df, nominal_instruments, output_folder, filename_base):
 
 
 def writeFinalInventory(df, fname):
-    """Write the final database to re-usable file formats."""
+    """
+    Write the final database to re-usable file formats.
+
+    :param df: Dataframe containing complete inventory of station records.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param fname: Base filename to export to. Output filename will be appended with
+        file format extensions.
+    :type fname: str
+    """
     df.to_csv(fname + ".csv", index=False)
     df.to_hdf(fname + ".h5", mode='w', key='inventory')
 
 
 def exportNetworkPlots(df, plot_folder):
+    """
+    Export visual map plots of each network for reference purposes.
+
+    :param df: Dataframe containing complete inventory of station records.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param plot_folder: Name of folder in which to put the output files.
+    :type plot_folder: str
+    """
+
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
     try:
@@ -644,7 +708,7 @@ def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     :param chcode: Channel code
     :type chcode: str
     :return: Dictionary of instrument responses from IRIS for given network(s), station(s) and channel(s).
-    :rtype: dict of {str, Instrument(sensor, obspy.core.inventory.response.Response)}
+    :rtype: dict of {str, Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)}
     """
     from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
 
@@ -662,9 +726,9 @@ def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     assert tries > 0
     setTextEncoding(response_xml, quiet=True)
     # This line decodes when .text attribute is extracted, then encodes to utf-8
-    obspy_input = sio.BytesIO(response_xml.text.encode('utf-8'))
+    obspy_input = bio.BytesIO(response_xml.text.encode('utf-8'))
     channel_data = read_inventory(obspy_input)
-    responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks \
+    responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks
                  for sta in net.stations for cha in sta.channels if cha.code is not None}
     # Make responses valid for Seiscomp3
     for inst in responses.values():
@@ -687,9 +751,10 @@ def extractUniqueSensorsResponses(inv):
 
     :param inv: Seismic station inventory
     :type inv: obspy.Inventory
-    :return: Python dict of (obspy.Sensor, obspy.Response) indexed by str representing channel code
-    :rtype: {str: Instrument(obspy.Sensor, obspy.Response) } where Instrument is a
-        namedtuple("Instrument", ['sensor', 'response'])
+    :return: Python dict of (obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)
+        indexed by str representing channel code
+    :rtype: {str: Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response) }
+        where Instrument is a namedtuple("Instrument", ['sensor', 'response'])
     """
 
     # Create like this so if later indexed with invalid key, returns None instead of exception.
@@ -740,21 +805,29 @@ def extractUniqueSensorsResponses(inv):
 
 
 def main(iris_xml_file):
+    """
+    Main entry point.
+
+    :param iris_xml_file: Name of IRIS xml file to load (generated by script update_iris_inventory.py)
+    :type iris_xml_file: str or pathlib.Path
+    """
+
     # Read station database from ad-hoc formats
+    stations_folder_name = 'stations'
     if TEST_MODE:
-        ehb_data_bmg = read_eng(os.path.join('test', 'BMG_test.STN'))
-        ehb_data_isc = read_eng(os.path.join('test', 'ISC_test.STN'))
+        ehb_data_bmg = read_eng(os.path.join(stations_folder_name, 'test', 'BMG_test.STN'))
+        ehb_data_isc = read_eng(os.path.join(stations_folder_name, 'test', 'ISC_test.STN'))
     else:
-        ehb_data_bmg = read_eng('BMG.STN')
-        ehb_data_isc = read_eng('ISC.STN')
+        ehb_data_bmg = read_eng(os.path.join(stations_folder_name, 'BMG.STN'))
+        ehb_data_isc = read_eng(os.path.join(stations_folder_name, 'ISC.STN'))
     ehb = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
 
     if TEST_MODE:
-        isc1 = read_isc(os.path.join('test', 'ehb_test.stn'))
-        isc2 = read_isc(os.path.join('test', 'iscehb_test.stn'))
+        isc1 = read_isc(os.path.join(stations_folder_name, 'test', 'ehb_test.stn'))
+        isc2 = read_isc(os.path.join(stations_folder_name, 'test', 'iscehb_test.stn'))
     else:
-        isc1 = read_isc('ehb.stn')
-        isc2 = read_isc('iscehb.stn')
+        isc1 = read_isc(os.path.join(stations_folder_name, 'ehb.stn'))
+        isc2 = read_isc(os.path.join(stations_folder_name, 'iscehb.stn'))
     isc = pd.concat([isc1, isc2], sort=False)
 
     db = pd.concat([ehb, isc], sort=False)
@@ -769,16 +842,10 @@ def main(iris_xml_file):
 
     # Read IRIS station database.
     print("Reading " + iris_xml_file)
-    if False:  # TODO: only keep this code if proven that pickled station xml file loads faster...
-        IRIS_all_pkl_file = iris_xml_file + ".pkl"
-        if os.path.exists(IRIS_all_pkl_file):
-            with open(IRIS_all_pkl_file, 'rb') as f:
-                iris_inv = pkl.load(f)
-        else:
-            with open(iris_xml_file, mode='r', encoding='utf-8') as f:
-                iris_inv = read_inventory(f)
-            with open(IRIS_all_pkl_file, 'wb') as f:
-                pkl.dump(iris_inv, f, pkl.HIGHEST_PROTOCOL)
+    if PY2:
+        import io
+        with io.open(iris_xml_file, mode='r', encoding='utf-8') as f:
+            iris_inv = read_inventory(f)
     else:
         with open(iris_xml_file, mode='r', encoding='utf-8') as f:
             iris_inv = read_inventory(f)
@@ -791,14 +858,15 @@ def main(iris_xml_file):
 
     if TEST_MODE:
         output_folder = "output_test"
+        plot_folder = "plots_test"
     else:
         output_folder = "output"
+        plot_folder = "plots"
 
     exportStationXml(db, nominal_instruments, output_folder, "network_")
 
     writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
 
-    plot_folder = "plots"
     print("Exporting network plots to folder {0}".format(plot_folder))
     exportNetworkPlots(db, plot_folder)
 
@@ -808,10 +876,13 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file to use to exclude station codes from STN sources.")
     args = parser.parse_args()
     if args.iris is None:
-        parser.print_help()
-        sys.exit(0)
+        print("Running test mode")
+        TEST_MODE = True
+        USE_PICKLE = False
+        self_path = os.path.dirname(os.path.abspath(__file__))
+        iris_xml_file = os.path.join(self_path, 'test', "IRIS-ALL_tiny.xml")
     else:
+        print("Using IRIS source " + iris_xml_file)
         iris_xml_file = args.iris.strip()
-    print("Using IRIS source " + iris_xml_file)
 
     main(iris_xml_file)

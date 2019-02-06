@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-"""Helper functions for making and managing web queries to IRIS web service.
+"""
+Helper functions for making and managing web queries to IRIS web service.
 """
 
 import re
 import sys
 if sys.version_info[0] < 3:
-    import cStringIO as sio  #pylint: disable=import-error
+    import cStringIO as sio  # pylint: disable=import-error
 else:
     import io as sio
 
@@ -70,5 +71,3 @@ def setTextEncoding(resp, quiet=False):
         print("Detected text encoding {}".format(encoding))
     resp.encoding = encoding
     assert resp.encoding is not None
-
-

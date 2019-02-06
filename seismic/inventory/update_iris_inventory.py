@@ -51,7 +51,7 @@ def cleanup(tmp_filename):
 
 def updateIrisStationXml(output_file, options=None):
     """
-    Pull the latest IRIS complete station inventory (down to station level, not including 
+    Pull the latest IRIS complete station inventory (down to station level, not including
     instrument responses) from IRIS web service and save to file in sc3ml format.
 
     :param output_file: Destination sc3ml file to generate
@@ -95,13 +95,22 @@ def updateIrisStationXml(output_file, options=None):
 
 
 def regenerateHumanReadable(iris, outfile):
+    """
+    Generate human readable, tabular version of the IRIS database.
+
+    :param iris: Query response object containing result string returned from IRIS query.
+    :type iris: requests.Response
+    :param outfile: Output text file name
+    :type outfile: str
+    """
+
     print("Generating human readable version...")
     from pdconvert import inventory2Dataframe
     import pandas as pd
     from obspy import read_inventory
-    import functools
+
     if sys.version_info[0] < 3:
-        import cStringIO as sio  #pylint: disable=import-error
+        import cStringIO as sio  # pylint: disable=import-error
     else:
         import io as sio
 

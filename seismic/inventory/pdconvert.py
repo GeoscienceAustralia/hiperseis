@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-"""Helper functions for converting between Pandas dataframe and FDSN Inventory,
-   Network, Station and Channel objects.
+"""
+Helper functions for converting between Pandas dataframe and FDSN Inventory,
+Network, Station and Channel objects.
 """
 
 from collections import defaultdict
@@ -15,7 +16,19 @@ from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
 def pd2Station(statcode, station_df, instrument_register=None):
-    """Convert Pandas dataframe with unique station code to FDSN Station object."""
+    """
+    Convert Pandas dataframe with unique station code to obspy Station object.
+
+    :param statcode: Station code
+    :type statcode: str
+    :param station_df: Dataframe containing records for a single station code.
+    :type station_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+        obspy.core.inventory.response.Response)}, optional
+    :return: Station object containing the station information from the dataframe
+    :rtype: obspy.core.inventory.station.Station
+    """
     station_data = station_df.iloc[0]
     st_start = station_data['StationStart']
     assert pd.notnull(st_start)
@@ -41,7 +54,7 @@ def pd2Station(statcode, station_df, instrument_register=None):
             sensor = instrument.sensor
             response = instrument.response
         else:
-            sensor = None
+            sensor = None   # TODO: Replace with response of last resort
             response = None
         cha = Channel(ch_code, '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),
                       depth=0.0, azimuth=0.0, dip=-90.0,
@@ -52,7 +65,21 @@ def pd2Station(statcode, station_df, instrument_register=None):
 
 
 def pd2Network(netcode, network_df, instrument_register, progressor=None):
-    """Convert Pandas dataframe with unique network code to FDSN Network object."""
+    """
+    Convert Pandas dataframe with unique network code to obspy Network object.
+
+    :param netcode: Network code
+    :type netcode: str
+    :param network_df: Dataframe containing records for a single network code.
+    :type network_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+        obspy.core.inventory.response.Response)}, optional
+    :param progressor: Progress bar functor to receive progress updates, defaults to None
+    :param progressor: Callable object receiving incremental update on progress, optional
+    :return: Network object containing the network information from the dataframe
+    :rtype: obspy.core.inventory.network.Network
+    """
     net = Network(netcode, stations=[], description=' ')
     for statcode, ch_data in network_df.groupby('StationCode'):
         station = pd2Station(statcode, ch_data, instrument_register)
@@ -63,12 +90,17 @@ def pd2Network(netcode, network_df, instrument_register, progressor=None):
 
 
 def inventory2Dataframe(inv_object, show_progress=True):
-    """Convert a obspy Inventory object to a Pandas Dataframe.
-
-       Returns a Pandas Dataframe with sequential integer index and sorted by [NetworkCode, StationCode].
-       Only populates entries for non-empty channels.
     """
+    Convert a obspy Inventory object to a Pandas Dataframe.
 
+    :param inv_object: Obspy inventory object to convert to dataframe
+    :type inv_object: obspy.core.inventory.inventory.Inventory
+    :param show_progress: Whether to use a progress bar, defaults to True
+    :param show_progress: bool, optional
+    :return: Pandas Dataframe with sequential integer index and sorted by [NetworkCode, StationCode].
+        Only populates entries for non-empty channels.
+    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    """
     if show_progress:
         import tqdm
         num_entries = sum(len(station.channels) for network in inv_object.networks for station in network.stations)

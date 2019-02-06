@@ -1,25 +1,37 @@
 #!/usr/bin/env python
+"""
+Lightweight reader for CSV seismic event catalogs, indexing the found events by event ID and station.
 
-#from mpi4py import MPI
-import os, glob, fnmatch, sys
-#import re
+This was adapted for the speical use case of distance-t-event QA checks performed for ticket PST-340.
+"""
+
+import os
+import glob
+import fnmatch
+import sys
 from collections import defaultdict
 from obspy import UTCDateTime
 import math
 import random as rnd
 
-#from math import radians, cos, sin, asin, sqrt
 import numpy as np
 import scipy
-#from scipy.spatial import cKDTree
-#from random import shuffle
-#import bisect
 from tqdm.auto import tqdm
 
-from dataio.event_attrs import Origin, Event, Magnitude, Arrival
+from event_attrs import Origin, Event, Magnitude, Arrival
 
 
 def recursive_glob(treeroot, pattern):
+    """
+    Generate a complete list of files matching pattern under the root of a directory hierarchy.
+    
+    :param treeroot: Path to the root of the directory tree.
+    :type treeroot: str or pathlib.Path
+    :param pattern: File name pattern to match, e.g. "*.csv"
+    :type pattern: str
+    :return: List of paths to the files matching the pattern, qualified relative to treeroot
+    :rtype: list(str)
+    """
     results = []
     for base, dirs, files in os.walk(treeroot):
         goodfiles = fnmatch.filter(files, pattern)
@@ -28,23 +40,24 @@ def recursive_glob(treeroot, pattern):
 
 
 class CatalogCSV:
-    """Lightweight parser for seismic event catalog.
+    """
+    Lightweight parser for seismic event catalog.
 
-       Catalog is format as follows:
-#EHB, 2005, 09, 16, 07, 28, 39.001,  126.93300,    4.18700,    2.90000,    28, 4.50, -999.00, -999.00, -999.00,       1, 134.3000, 1
-FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 37.00,  22.180 
-WR0 , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 34, 06.00,  25.130 
-KUM , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 02.00,  26.220 
-MEEK, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 04.00,  31.680 
-FORT, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 32.00,  34.780 
-STKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 36, 04.00,  38.480 
-KSM , BHZ,  ,  ,  ,  ,  , Pn, 2005, 09, 16, 07, 32, 39.00,  16.820 
-KAKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 04.00,  17.660 
-FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180 
-...
+    Catalog is format as follows:
+    :: #EHB, 2005, 09, 16, 07, 28, 39.001,  126.93300,    4.18700,    2.90000,    28, 4.50, -999.00, -999.00, -999.00,       1, 134.3000, 1
+    :: FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 37.00,  22.180
+    :: WR0 , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 34, 06.00,  25.130
+    :: KUM , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 02.00,  26.220
+    :: MEEK, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 04.00,  31.680
+    :: FORT, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 32.00,  34.780
+    :: STKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 36, 04.00,  38.480
+    :: KSM , BHZ,  ,  ,  ,  ,  , Pn, 2005, 09, 16, 07, 32, 39.00,  16.820
+    :: KAKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 04.00,  17.660
+    :: FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
+    :: ...
 
-       The header row indicates the number of phases listed in the subsequent lines of arrival data
-       (28 in this example).
+    The header row, which starts with '#', indicates the number of phases listed in the subsequent lines of arrival data
+    (28 in this example).   
     """
 
     def __init__(self, event_folder, sampling_factor=1.0):
@@ -187,5 +200,10 @@ FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
         return self.event_dict.values()
 
 
-#event_src_folder = '/g/data/ha3/am7399/temp'
-#cat = CatalogCSV(event_src_folder)
+if __name__ == "__main__":
+    # Test path for standalone execution.
+    self_path = os.path.dirname(os.path.abspath(__file__))
+    event_src_folder = os.path.join(self_path, 'test')
+    cat = CatalogCSV(event_src_folder)
+    for e in cat.get_events():
+        print(e)

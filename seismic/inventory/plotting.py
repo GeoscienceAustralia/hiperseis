@@ -13,12 +13,24 @@ from collections import defaultdict
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib  # pylint: disable=import-error
 else:
-    import pathlib
+    import pathlib  # pylint: disable=import-error
 
 no_instruments = defaultdict(lambda: None)
 
 
 def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
+    """
+    Save visual map plot per network, saved to file netcode.png.
+
+    :param df: Dataframe of station records to save.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param plot_folder: Name of output folder
+    :type plot_folder: str
+    :param progressor: Progress bar functor to receive progress updates, defaults to None
+    :param progressor: Callable object receiving incremental update on progress, optional
+    :param include_stations_list: If True, also export stationtxt file alongside each png file, defaults to True
+    :param include_stations_list: bool, optional
+    """
     dest_path = os.path.join(plot_folder, "networks")
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
@@ -46,6 +58,18 @@ def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_lis
 
 
 def saveStationLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
+    """
+    Save visual map plot per station, saved to file netcode.stationcode.png.
+
+    :param df: Dataframe of station records to save.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param plot_folder: Name of output folder
+    :type plot_folder: str
+    :param progressor: Progress bar functor to receive progress updates, defaults to None
+    :param progressor: Callable object receiving incremental update on progress, optional
+    :param include_stations_list: If True, also export stationtxt file alongside each png file, defaults to True
+    :param include_stations_list: bool, optional
+    """
     dest_path = os.path.join(plot_folder, "stations")
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
