@@ -1,4 +1,4 @@
-Software Package for Seismology Data/Metadata Processing and Analysis
+HiPerSeis: High Performance Software Package for Seismology Data/Metadata Processing and Analysis
 ==================================
 
 |Build Status|  |Documentation Status|
@@ -7,11 +7,11 @@ Software Package for Seismology Data/Metadata Processing and Analysis
 Overview
 ========
 
-- Home Page: https://github.com/GeoscienceAustralia/passive-seismic
+- Home Page: https://github.com/GeoscienceAustralia/hiperseis
 
 - Documentation: http://seismicpy.readthedocs.io/en/develop/
 
-- Wiki Pages: https://github.com/GeoscienceAustralia/passive-seismic/wiki
+- Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
 
 
 
@@ -34,35 +34,35 @@ System Requirements
 
 - Linux OS
 - Python 2.7
-- Python 3.5
+- Python 3.5 or higher
 
 Setup Guide for Developers
 ==========================
 
-1. Install Python environment and dependency packages. See Wiki Pages: https://github.com/GeoscienceAustralia/passive-seismic/wiki
+1. Install Python environment and dependency packages. See Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
 
 
-2. Obtain the source code from https://github.com/GeoscienceAustralia/passive-seismic
+2. Obtain the source code from https://github.com/GeoscienceAustralia/hiperseis
 
--  ``git clone https://github.com/GeoscienceAustralia/passive-seismic.git``
-- ``cd passive-seismic``
+-  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
+- ``cd hiperseis``
 
-   - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/passive-seismic.egg-link)
+   - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
   
 
 
 License
 ===============
 
-Passive-Seismic is licensed under the GPL version 3
+HiPerSeis is licensed under the GPL version 3
 
 
 
-.. |Build Status| image:: https://travis-ci.org/GeoscienceAustralia/passive-seismic.svg?branch=develop
-   :target: https://travis-ci.org/GeoscienceAustralia/passive-seismic
+.. |Build Status| image:: https://travis-ci.org/GeoscienceAustralia/hiperseis.svg?branch=develop
+   :target: https://travis-ci.org/GeoscienceAustralia/hiperseis
    
-.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/passive-seismic/badge.svg?branch=develop
-   :target: https://coveralls.io/github/GeoscienceAustralia/passive-seismic?branch=develop
+.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg?branch=develop
+   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=develop
 
 .. |Documentation Status| image:: https://readthedocs.org/projects/seismicpy/badge/?version=develop
    :target: http://seismicpy.readthedocs.io/en/develop/
