@@ -22,7 +22,7 @@ import subprocess
 import argparse
 import time
 import re
-from iris_query import formChannelRequestUrl, setTextEncoding
+from .iris_query import formChannelRequestUrl, setTextEncoding
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"

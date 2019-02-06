@@ -53,8 +53,12 @@ def pd2Station(statcode, station_df, instrument_register=None):
         if instrument is not None:
             sensor = instrument.sensor
             response = instrument.response
+        elif 'LAST_RESORT' in instrument_register:
+            last_resort = instrument_register['LAST_RESORT']
+            sensor = last_resort.sensor
+            response = last_resort.response
         else:
-            sensor = None   # TODO: Replace with response of last resort
+            sensor = None
             response = None
         cha = Channel(ch_code, '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),
                       depth=0.0, azimuth=0.0, dip=-90.0,

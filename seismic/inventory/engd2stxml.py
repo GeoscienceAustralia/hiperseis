@@ -352,8 +352,8 @@ def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
     if len(latlong_deg_set2.shape) == 1:
         latlong_deg_set2 = np.reshape(latlong_deg_set2, (1, -1))
 
-    set1_latlong_rad = np.deg2rad(latlong_deg_set1)
-    set2_latlong_rad = np.deg2rad(latlong_deg_set2)
+    set1_latlong_rad = np.deg2rad(latlong_deg_set1)  # pylint: disable=assignment-from-no-return
+    set2_latlong_rad = np.deg2rad(latlong_deg_set2)  # pylint: disable=assignment-from-no-return
 
     set1_polar = np.column_stack((
         np.sin(set1_latlong_rad[:, 0]) * np.cos(set1_latlong_rad[:, 1]),
@@ -729,15 +729,15 @@ def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     obspy_input = bio.BytesIO(response_xml.text.encode('utf-8'))
     channel_data = read_inventory(obspy_input)
     responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks
-                 for sta in net.stations for cha in sta.channels if cha.code is not None}
+                 for sta in net.stations for cha in sta.channels if cha.code is not None and cha.response is not None}
     # Make responses valid for Seiscomp3
     for inst in responses.values():
-        if inst.response:
-            for rs in inst.response.response_stages:
-                if rs.decimation_delay is None:
-                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
-                if rs.decimation_correction is None:
-                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+        assert inst.response
+        for rs in inst.response.response_stages:
+            if rs.decimation_delay is None:
+                rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
+            if rs.decimation_correction is None:
+                rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
     return responses
 
 
@@ -786,21 +786,34 @@ def extractUniqueSensorsResponses(inv):
                 if cha.code is None or cha.code in nominal_instruments:
                     continue
                 assert isinstance(cha.code, str)
-                try:
-                    # For each channel code, obtain a nominal instrument response by IRIS query.
-                    if cha.code not in nominal_instruments:
-                        response = obtainNominalInstrumentResponses(net.code, sta.code, cha.code)
-                        nominal_instruments.update(response)
+                # For each channel code, obtain a nominal instrument response by IRIS query.
+                if cha.code not in nominal_instruments:
+                    response = obtainNominalInstrumentResponses(net.code, sta.code, cha.code)
+                    nominal_instruments.update(response)
+                    if cha.code in response:
                         std_print("Found nominal instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
-                except Exception:
-                    std_print("Failed to acquire instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
-                    failed_codes.add(cha.code)
+                    else:
+                        std_print("Failed to acquire instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
+                        failed_codes.add(cha.code)
     if show_progress:
         pbar.close()
+
+    # Flag a fallback response of last resort for channel codes for which we find no valid response from IRIS.
+    last_resort_responses = ['BHE', 'BHN', 'BHZ', 'HHE', 'HHN', 'HHZ', 'LHE', 'LHN', 'LHZ', 'SHE', 'SHN', 'SHZ', None]
+    for last_resort_response in last_resort_responses:
+        assert last_resort_response is not None
+        if last_resort_response in nominal_instruments:
+            nominal_instruments['LAST_RESORT'] = nominal_instruments[last_resort_response]
+            print("Last resort response code: {}".format(last_resort_response))
+            assert nominal_instruments['LAST_RESORT'] is not None
+            break
+
     # Report on channel codes for which no response could be found
     failed_codes = sorted(list(failed_codes - set(nominal_instruments.keys())))
     if len(failed_codes) > 0:
         print("WARNING: No instrument response could be determined for these channel codes:\n{}".format(failed_codes))
+        print("         {} selected as response of last resort.".format(last_resort_response))
+
     return nominal_instruments
 
 
@@ -813,7 +826,8 @@ def main(iris_xml_file):
     """
 
     # Read station database from ad-hoc formats
-    stations_folder_name = 'stations'
+    self_path = os.path.dirname(os.path.abspath(__file__))
+    stations_folder_name = os.path.join(self_path, 'stations')
     if TEST_MODE:
         ehb_data_bmg = read_eng(os.path.join(stations_folder_name, 'test', 'BMG_test.STN'))
         ehb_data_isc = read_eng(os.path.join(stations_folder_name, 'test', 'ISC_test.STN'))
@@ -882,7 +896,7 @@ if __name__ == "__main__":
         self_path = os.path.dirname(os.path.abspath(__file__))
         iris_xml_file = os.path.join(self_path, 'test', "IRIS-ALL_tiny.xml")
     else:
-        print("Using IRIS source " + iris_xml_file)
         iris_xml_file = args.iris.strip()
+        print("Using IRIS source " + iris_xml_file)
 
     main(iris_xml_file)
