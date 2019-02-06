@@ -364,7 +364,7 @@ def removeIrisDuplicates(df, iris_inv):
     :param df: Dataframe containing station records. Is modified in-place by this function.
     :type df: pandas.DataFrame
     :param iris_inv: Station inventory as read by obspy.read_inventory.
-    :type iris_inv: obspy.Inventory
+    :type iris_inv: obspy.core.inventory.inventory.Inventory
     """
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
