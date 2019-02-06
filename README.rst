@@ -9,7 +9,7 @@ Overview
 
 - Home Page: https://github.com/GeoscienceAustralia/hiperseis
 
-- Documentation: http://seismicpy.readthedocs.io/en/develop/
+- Documentation: http://hiperseis.readthedocs.io/en/develop/
 
 - Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
 
@@ -64,7 +64,7 @@ HiPerSeis is licensed under the GPL version 3
 .. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg?branch=develop
    :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=develop
 
-.. |Documentation Status| image:: https://readthedocs.org/projects/seismicpy/badge/?version=develop
-   :target: http://seismicpy.readthedocs.io/en/develop/
+.. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
+   :target: http://hiperseis.readthedocs.io/en/develop/
 
 
