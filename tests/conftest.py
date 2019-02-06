@@ -7,7 +7,7 @@ import glob
 import pytest
 import datetime
 
-from seismic import config
+from tests import config
 
 TESTS = os.path.dirname(__file__)
 DATA = os.path.join(TESTS, 'mocks', 'data')

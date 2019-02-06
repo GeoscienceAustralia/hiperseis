@@ -22,7 +22,7 @@ from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from pytest import approx
-from scripts.cluster.cluster import (process_event,
+from legacy.cluster.cluster import (process_event,
                                      process_many_events,
                                      Grid,
                                      column_names,
