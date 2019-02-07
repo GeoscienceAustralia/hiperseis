@@ -72,3 +72,4 @@ seismic/inventory/networks*/*
 seismic/inventory/callgrind.*
 seismic/inventory/fdsn_stn_inv_dump.txt
 seismic/inventory/vitalstats*.txt
+**~
