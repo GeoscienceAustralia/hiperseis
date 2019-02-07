@@ -55,6 +55,7 @@ else:
     bio = sio
     import pathlib  # pylint: disable=import-error
     import pickle as pkl
+    basestring = str
 
 print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
 print("Using obspy version {}".format(obspy.__version__))
@@ -374,71 +375,6 @@ def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
     return result
 
 
-def removeIrisDuplicates(df, iris_inv):
-    """
-    Remove stations which duplicate records in IRIS database.
-
-    The definition of "duplicate" for station position is tolerance based with a distance tolerance
-    of DIST_TOLERANCE_KM.
-
-    When the set of station records from IRIS themselves do not all lie within DIST_TOLERANCE_KM,
-    then warnings are logged for those stations.
-
-    :param df: Dataframe containing station records. Is modified in-place by this function.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param iris_inv: Station inventory as read by obspy.read_inventory.
-    :type iris_inv: obspy.core.inventory.inventory.Inventory
-    """
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-    removal_index = []
-    with open("LOG_IRIS_DUPES_" + rt_timestamp + ".txt", 'w') as log:
-        for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-            iris_query = iris_inv.select(network=netcode, station=statcode, channel="*HZ")
-            if len(iris_query) <= 0:
-                # No IRIS record matching this station
-                if show_progress:
-                    pbar.update(len(data))
-                continue
-            # Pull out matching stations. Since some station codes have asterisk, which is interpreted as a wildcard
-            # by the obspy query, we need to filter against matching exact statcode.
-            matching_stations = [s for n in iris_query.networks for s in n.stations if s.code == statcode and n.code == netcode]
-            iris_station0 = matching_stations[0]
-            # Check that the set of stations from IRIS are themselves within the distance tolerance of one another.
-            iris_stations_dist = [np.deg2rad(locations2degrees(iris_station0.latitude, iris_station0.longitude, s.latitude, s.longitude)) * NOMINAL_EARTH_RADIUS_KM
-                                  for s in matching_stations]
-            iris_stations_dist = np.array(iris_stations_dist)
-            within_tolerance_mask = (iris_stations_dist < DIST_TOLERANCE_KM)
-            if not np.all(within_tolerance_mask):
-                log.write("WARNING: Not all IRIS stations localized within distance tolerance for station code {0}.{1}. "
-                          "Distances(km) = {2}\n".format(netcode, statcode, iris_stations_dist[~within_tolerance_mask]))
-            # Compute cosine distances between this group's set of stations and the IRIS station locagtion.
-            ref_latlong = np.array([iris_station0.latitude, iris_station0.longitude])
-            stations_latlong = data[["Latitude", "Longitude"]].values
-            distfunc = lambda r: np.deg2rad(locations2degrees(ref_latlong[0], ref_latlong[1], r[0], r[1])) * NOMINAL_EARTH_RADIUS_KM  # noqa
-            surface_dist = np.apply_along_axis(distfunc, 1, stations_latlong)
-            # assert isinstance(surface_dist, np.ndarray)
-            if not surface_dist.shape:
-                surface_dist = np.reshape(surface_dist, (1,))
-            mask = (surface_dist < DIST_TOLERANCE_KM)
-            if np.isscalar(mask):
-                mask = np.array([mask], ndmin=1)
-            duplicate_index = np.array(data.index.tolist())[mask]
-            if len(duplicate_index) < len(data):
-                # Disable false positive from pylint on following line
-                kept_station_distances = surface_dist[(~mask)]  # pylint: disable=invalid-unary-operand-type
-                log.write("WARNING: Some ISC stations outside distance tolerance of IRIS location for station {0}.{1}, not dropping. "
-                          "(Possible issues with station date ranges?) Distances(km) = {2}\n".format(netcode, statcode, kept_station_distances))
-            removal_index.extend(duplicate_index.tolist())
-            if show_progress:
-                pbar.update(len(data))
-    if show_progress:
-        pbar.close()
-
-    if removal_index:
-        df.drop(removal_index, inplace=True)
-
-
 def computeNeighboringStationMatrix(df):
     """
     Compute sparse matrix representing index of neighboring stations.
@@ -586,13 +522,6 @@ def cleanupDatabase(df, iris_inv):
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
         print("Removed {0}/{1} stations because their station codes are not compliant".format(num_before - len(df), num_before))
-
-    print("Removing stations which replicate IRIS...")
-    num_before = len(df)
-    removeIrisDuplicates(df, iris_inv)
-    df.reset_index(drop=True, inplace=True)
-    if len(df) < num_before:
-        print("Removed {0}/{1} stations because they exist in IRIS".format(num_before - len(df), num_before))
 
     print("Cleaning up station duplicates...")
     num_before = len(df)
@@ -759,11 +688,14 @@ def extractUniqueSensorsResponses(inv):
 
     # Create like this so if later indexed with invalid key, returns None instead of exception.
     nominal_instruments = defaultdict(lambda: None)
-    reference_networks = ('GE', 'IU', 'BK')
+    if TEST_MODE:
+        reference_networks = (('GE', '*', '*HZ'),)  # trailing comma required to make it a tuple
+    else:
+        reference_networks = (('GE', '*', '*'), ('IU', '*', '*'), ('BK', '*', '*'))
     print("Preparing common instrument response database from networks {} (this may take a while)...".format(reference_networks))
-    for netcode in reference_networks:
-        print("  querying {}...".format(netcode))
-        nominal_instruments.update(obtainNominalInstrumentResponses(netcode, '*', '*'))
+    for query in reference_networks:
+        print("  querying {} as {}.{}.{}".format(query[0], *query))
+        nominal_instruments.update(obtainNominalInstrumentResponses(*query))
 
     if show_progress:
         num_entries = sum(len(sta.channels) for net in inv.networks for sta in net.stations)
@@ -785,7 +717,7 @@ def extractUniqueSensorsResponses(inv):
             for cha in sta.channels:
                 if cha.code is None or cha.code in nominal_instruments:
                     continue
-                assert isinstance(cha.code, str)
+                assert isinstance(cha.code, basestring), type(cha.code)
                 # For each channel code, obtain a nominal instrument response by IRIS query.
                 if cha.code not in nominal_instruments:
                     response = obtainNominalInstrumentResponses(net.code, sta.code, cha.code)
