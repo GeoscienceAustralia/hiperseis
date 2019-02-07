@@ -23,6 +23,7 @@ import argparse
 import time
 import re
 from .iris_query import formChannelRequestUrl, setTextEncoding
+from .fdsnxml_convert import toSc3ml
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
@@ -75,13 +76,9 @@ def updateIrisStationXml(output_file, options=None):
         ifile = tmp.NamedTemporaryFile("w", delete=False)
         ifile.write(iris.text)
         ifile.close()
-        # Convert using system call
-        cmd = "fdsnxml2inv --quiet --formatted " + ifile.name + " " + output_file
+        # Convert using helper module
         print("Converting to SC3 format...")
-        if sys.version_info[0] < 3:
-            subprocess.check_call(cmd.split())
-        else:
-            subprocess.check_call(cmd.split(), timeout=3600)
+        toSc3ml(ifile.name, output_file)
         print("Successfully updated file " + output_file)
     except:
         cleanup(ifile.name)

@@ -42,6 +42,7 @@ from pdconvert import pd2Network
 from plotting import saveNetworkLocalPlots
 from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
 from iris_query import setTextEncoding, formResponseRequestUrl
+from fdsnxml_convert import toSc3ml
 
 PY2 = sys.version_info[0] < 3
 
@@ -810,6 +811,8 @@ def main(iris_xml_file):
         plot_folder = "plots"
 
     exportStationXml(db, nominal_instruments, output_folder, "network_")
+    if not TEST_MODE:
+        toSc3ml(output_folder, "networks_sc3ml")
 
     writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
 
