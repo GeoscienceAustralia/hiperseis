@@ -78,7 +78,7 @@ def _folderToSc3ml(src_folder, dst_folder):
             else:
                 dst_tree = dst_folder
             os.makedirs(dst_tree, exist_ok=True)
-            dst_file = os.path.join(dst_tree, f + ".sc3ml")
+            dst_file = os.path.join(dst_tree, f)
             try:
                 _fileToSc3ml(src_file, dst_file)
                 success_files.append(src_file)
