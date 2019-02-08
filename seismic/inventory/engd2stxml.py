@@ -508,14 +508,12 @@ def populateDefaultStationDates(df):
     assert not np.any(df.StationEnd.isna())
 
 
-def cleanupDatabase(df, iris_inv):
+def cleanupDatabase(df):
     """
     Main cleanup function encompassing the sequential data cleanup steps.
 
     :param df: Dataframe of station records to clean up
     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param iris_inv: IRIS station inventory
-    :type iris_inv: obspy.core.inventory.inventory.Inventory
     :return: Cleaned up dataframe of station records
     :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
@@ -809,7 +807,7 @@ def main(iris_xml_file):
     nominal_instruments = extractUniqueSensorsResponses(iris_inv)
 
     # Perform cleanup on each database
-    db = cleanupDatabase(db, iris_inv)
+    db = cleanupDatabase(db)
 
     if TEST_MODE:
         output_folder = "output_test"
@@ -820,7 +818,16 @@ def main(iris_xml_file):
 
     exportStationXml(db, nominal_instruments, output_folder, "network_")
     if not TEST_MODE:
-        toSc3ml(output_folder, "networks_sc3ml")
+        sc3ml_output_folder = "networks_sc3ml"
+        try:
+            toSc3ml(output_folder, sc3ml_output_folder)
+        except OSError:
+            print("WARNING: Unable to convert to sc3ml, possibly seiscomp not available on platform!")
+            if os.path.isdir(sc3ml_output_folder):
+                import uuid
+                print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
+                stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
+                os.rename(sc3ml_output_folder, stashed_name)
 
     writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
 
