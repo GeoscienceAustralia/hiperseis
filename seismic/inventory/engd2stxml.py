@@ -605,6 +605,11 @@ def writeFinalInventory(df, fname):
     """
     df.to_csv(fname + ".csv", index=False)
     df.to_hdf(fname + ".h5", mode='w', key='inventory')
+    # Human readable, fixed width column format.
+    with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 1000):
+        inv_str = str(df)
+        with open(fname + ".txt", "w") as f:
+            f.write(inv_str)
 
 
 def exportNetworkPlots(df, plot_folder):
