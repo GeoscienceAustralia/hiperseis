@@ -100,7 +100,10 @@ DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
 COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
 
 # List of networks to remove outright. See ticket PST-340.
-BLACKLISTED_NETWORKS = ("CI",)
+# CI: too many station code conflicts with other global networks
+# 7B, 7D, 7F, 7G, 7W, 7X: these are Australian deployments and GA has more comprehensive and
+#     accurate data on these networks than is available in the .STN files.
+BLACKLISTED_NETWORKS = ("CI", "7B", "7D", "7F", "7G", "7W", "7X")
 
 # Timestamp to be added to output file names, so that each run generates unique log files.
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
