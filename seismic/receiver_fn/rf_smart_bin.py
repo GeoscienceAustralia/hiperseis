@@ -4,14 +4,14 @@ import numpy as np
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
 import itertools as iter
-from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel,legend,subplot2grid,GridSpec
+from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
 from copy import deepcopy
 from obspy.core.utcdatetime import UTCDateTime
 
 from sklearn.cluster import DBSCAN
 
-# Here are the libraries to deal with RFSTREAM, it uses obspy classes for event and station
-#from rf import RFStream
+# Here are the libraries to deal with RFSTREAM, it uses obspy classes for event and station.
+# from rf import RFStream
 import rf
 from obspy.core.event.event import Event
 from obspy.core.inventory.station import Station
@@ -25,7 +25,7 @@ from rf import get_profile_boxes, iter_event_data, IterMultipleComponents
 
 
 def compare_pairs(data):
-    distance,path=fastdtw(data[0],data[1],dist=euclidean)
+    distance, _ = fastdtw(data[0], data[1], dist=euclidean)
     return distance
 
 def crossSpectrum(x, y):

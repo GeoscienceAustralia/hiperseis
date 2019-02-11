@@ -5,11 +5,12 @@ from obspy.taup import TauPyModel
 from obspy.signal.trigger import recursive_sta_lta, trigger_onset
 from rf import read_rf, RFStream
 # make changes to extract_picks to import this instead of repeating them here
-#sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'seismic', 'pickers_integration'))
-#from extract_picks import clean_trace, find_best_bounds
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'seismic', 'pickers_integration'))
+# from extract_picks import clean_trace, find_best_bounds
 
 model = TauPyModel(model='iasp91')
-pphase_search_margin=10
+pphase_search_margin = 10
+
 
 def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     # add bandpass filtering sensitive to the distance d between source and receiver
@@ -18,14 +19,15 @@ def clean_trace(tr, t1, t2, freqmin=1.0, freqmax=4.9):
     tr.taper(0.01)
     tr.filter('bandpass', freqmin=freqmin, freqmax=freqmax)
 
+
 def find_best_bounds(cft, samp_rate):
     bestupper = 2
     bestlower = 0.75
     max_margin = bestupper - bestlower
-    leasttrigs = len(trigger_onset(cft, 2, 0.75, max_len=(60*samp_rate), max_len_delete=True))
+    leasttrigs = len(trigger_onset(cft, 2, 0.75, max_len=(60 * samp_rate), max_len_delete=True))
     for upper in np.linspace(2, 10, 12):
         for lower in [0.875, 0.75, 0.625, 0.5, 0.375]:
-            t = trigger_onset(cft, upper, lower, max_len=(60*samp_rate), max_len_delete=True)
+            t = trigger_onset(cft, upper, lower, max_len=(60 * samp_rate), max_len_delete=True)
             if len(t) > 0 and (upper - lower) > max_margin and len(t) <= leasttrigs:
                 leasttrigs = len(t)
                 max_margin = upper - lower
@@ -88,4 +90,4 @@ for trz, trn, tre in zip(stz, stn, ste):
 
 st_out = stz + stn + ste
 st_out_rf = RFStream(st_out)
-st_out_rf.write(out_streamfile, 'H5') 
+st_out_rf.write(out_streamfile, 'H5')

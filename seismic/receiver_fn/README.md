@@ -2,7 +2,7 @@
 
 ## Workflow
 
-The RF workflow is based on following main steps:
+The RF workflow is based on the following main steps:
 
  - Data preparation. Extract waveforms associated with moderate events.
  - Calculate RF performing deconvolution to ZRT or QLT coordinate system
@@ -10,27 +10,32 @@ The RF workflow is based on following main steps:
  - Analyse RF to identify multiples
  - Perform 1D Earth structure inversion 
 
-There are number of manuals and literature about RF. You can refer to examples provided by [Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html) or manuals distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/)
+There are a number of manuals and literature about RF. You can refer to examples provided by
+[Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html) or manuals
+distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/).
 
 ## Data preparation
 
-First step in data preparation is to extract segments of waveforms stored in the H5 waveform file containing all deployment data.
-It is based on set of registered teleseismic earthquakes extracted from IRIS website. 
-The main program to extract waveforms from H5 file is **prepare_rf_data.py** 
-Following parameters must be set up in the program body:
+The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
+file containing all deployment data.
+It is based on a set of registered teleseismic earthquakes extracted from the IRIS web service.
+The main program to extract waveforms from H5 file is `prepare_rf_data.py`. The
+following parameters must be set up in the program body:
 
  - File name of the H5 file that contains all waveform data
  - Start and end dates of the deployment
  - Station inventory XML file
  - Output file name
 
-Firs, program will create catalogue of the events from 15 to 90 degrees of distance relative to centre of Australia and quit. It should be run again directly or using `qsub` command.
-Latter is preferable because data extraction is very time consuming process. If there is catalogue with specified dates it will continue to extraction without quitting.
-
+First, the program will create a catalogue of the events from 15 to 90 degrees of distance relative
+to the centre of Australia, and then quit. The program should then be run a second time, either
+directly or using `qsub` command on NCI. The latter is preferable because data extraction is a very
+time consuming process. If there is catalogue with specified dates it will continue to extraction without quitting.
 
 ## Receiver function calculation
 
-It is very simple strightforward process using **generate_rf.py** program. It reads H5 file with waveform segments and generate LQT receiver functions without moveout.
+Receiver function calculation is a very simple strightforward process using the `generate_rf.py` program.
+It reads H5 file with waveform segments and generates LQT receiver functions without moveout.
 The parameters to specify are:
 
  - H5 input file name
@@ -39,26 +44,27 @@ The parameters to specify are:
  - stations to exclude if any
  - sampling rate to interpolate
 
-There is a work-around to preserve H5 header information due to the obspy library bug. It was reported and will be fixed soon.
+There is a work-around to preserve H5 header information due to a obspy library bug [!REF?].
+It was reported and will be fixed soon.
 
-The parallelized version of the same program is **generate_rf_parallel.py** 
+The parallelized version of the same program is `generate_rf_parallel.py`.
 
 
 ## Filtering and removing bad RF
 
 There are number of ways to select good results and remove bad ones. 
 Currently there are three methods implemented:
+  - grouping by similarity - grouping method based on calculation of Euclidean distances and clustering by similarity (aca machine learning approach)
+  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be applied to use this technique.
+  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique.
 
-  - grouping by similarity - grouping method based on calculation of euclidean distances and clustering by similarity ( aca machine learning approach)
-  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be applied to use this technique
-  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique
+In the last two approaches, RFs are compared to the median and, consequently, the moveout should be applied to built one.
+Currently it works with LQT convention that can be changed within the program. Existing libraries allow one to tailor
+the process and more options can be easily added.
 
-In the last two approaches RFs are compared to the median and , consequently, the moveout should be applied to built one.
-Currently it works with LQT convention that can be changed within the program. Existing libraries allow to tailor process and more options can be easily added.
+The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate the process.
 
-The example of how methods work can be seen running **rf_smart_tune_up.py** code. It uses `rf_test.dat` file to illustrate the process.
-
-The actual program that works with RF is **rf_smart_bin.py**
+The actual program that works with RF is `rf_smart_bin.py`.
 
 Following parameters should be specified within program:
 

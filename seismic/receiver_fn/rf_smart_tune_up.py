@@ -2,7 +2,7 @@ import numpy as np
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
 import itertools as iter
-from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel,legend,subplot2grid,GridSpec
+from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
 from copy import deepcopy
 from sklearn.cluster import DBSCAN
 
@@ -10,13 +10,13 @@ from sklearn.cluster import DBSCAN
 
 
 def compare_pairs(data):
-    distance,path=fastdtw(data[0],data[1],dist=euclidean)
+    distance, _ = fastdtw(data[0], data[1], dist=euclidean)
     return distance
 
 def crossSpectrum(x, y):
 
 #-------------------Remove mean-------------------
-    nperseg=x.size/20
+    nperseg = x.size/20
     cross = np.zeros(nperseg, dtype='complex128')
     for ind in range(x.size / nperseg):
 
@@ -25,22 +25,24 @@ def crossSpectrum(x, y):
         xp = xp - np.mean(xp)
         yp = yp - np.mean(xp)
 
-    # Do FFT
+        # Do FFT
         cfx = np.fft.fft(xp)
         cfy = np.fft.fft(yp)
 
-    # Get cross spectrum
-        cross += cfx.conj()*cfy
-    freq=np.fft.fftfreq(nperseg)
-    return cross,freq
+        # Get cross spectrum
+        cross += cfx.conj() * cfy
+
+    freq = np.fft.fftfreq(nperseg)
+    return cross, freq
+
 
 def coh(y,y2):
-    p11,freq=crossSpectrum(y,y)
-    p22,freq=crossSpectrum(y2,y2)
-    p12,freq=crossSpectrum(y,y2)
+    p11, freq = crossSpectrum(y, y)
+    p22, freq = crossSpectrum(y2, y2)
+    p12, freq = crossSpectrum(y, y2)
     # coherence
-    part1=np.divide(np.abs(p12)**2,p11.real,out=np.zeros_like(np.abs(p12)**2),where=p11.real!=0)
-    coh=np.divide(part1,p22.real,out=np.zeros_like(part1),where=p22.real!=0)
+    part1 = np.divide(np.abs(p12)**2, p11.real, out=np.zeros_like(np.abs(p12)**2), where=p11.real!=0)
+    coh = np.divide(part1, p22.real, out=np.zeros_like(part1), where=p22.real!=0)
 
 #   plot( freq[freq > 0], coh[freq > 0])
 #   show()
@@ -49,38 +51,37 @@ def coh(y,y2):
     return  freq[freq > 0], coh[freq > 0]
 
 
-#-------------Main---------------------------------
+# -------------Main---------------------------------
 
-if __name__=='__main__':
-
+if __name__ == '__main__':
     t=[]
     x=[]
     with open('rf_test.dat') as fin:
          for line in fin:
-             a,b=line.split()
+             a, b = line.split()
              t.append(a)
              x.append(b)
 
-    t=np.array(t,dtype='float')
-    x=np.array(x,dtype='float')
-    swipe=[]
+    t = np.array(t, dtype='float')
+    x = np.array(x, dtype='float')
+    swipe = []
 
-# Generating synthetic data and adding noise
+    # Generating synthetic data and adding noise
 
     for i in xrange(10):
-         noise=np.random.random(x.size)-0.5
-         if i<4:
-             swipe.append(x+noise/(i+1))
-         else:
-             swipe.append(x)
+        noise = np.random.random(x.size) - 0.5
+        if i < 4:
+            swipe.append(x + noise/(i+1))
+        else:
+            swipe.append(x)
 
-    swipe=np.array(swipe)
+    swipe = np.array(swipe)
 
-# First trying to find median value
+    # First trying to find median value
 
-    average=np.median(swipe,axis=0)
+    average = np.median(swipe,axis=0)
 
-# Then see how coherent each signal is comparing to median
+    # Then see how coherent each signal is comparing to median
 
     fig1=figure(1)
     gs1=GridSpec(5,6)
@@ -105,7 +106,7 @@ if __name__=='__main__':
     ax3.set_ylabel('Coherence with median')
 
 
-# Next method is remove one trace and se its contribution to average, if not changed then is similar to main group
+    # Next method is remove one trace and se its contribution to average, if not changed then is similar to main group
     ax4=subplot2grid((5,6),(3,2),colspan=2,rowspan=2)
     ind=np.ones((swipe.shape[0],),bool)
     dev=[]
@@ -130,7 +131,7 @@ if __name__=='__main__':
     ax6.set_xlabel('S/N')
 
 
-# Another method is to find shape similarity between each RF
+    # Another method is to find shape similarity between each RF
 
     ax5=subplot2grid((5,6),(3,4),colspan=2,rowspan=2)
 

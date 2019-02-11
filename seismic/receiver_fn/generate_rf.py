@@ -1,13 +1,12 @@
 # AG
 import os.path
-import matplotlib.pyplot as plt
-import numpy as np
-from obspy import read_inventory, read_events, UTCDateTime as UTC
-from obspy.clients.fdsn import Client
+# import matplotlib.pyplot as plt
+# import numpy as np
+
 from rf import read_rf, RFStream
-from rf import get_profile_boxes, iter_event_data, IterMultipleComponents
-from rf.imaging import plot_profile_map
-from rf.profile import profile
+from rf import IterMultipleComponents
+# from rf.imaging import plot_profile_map
+# from rf.profile import profile
 from tqdm import tqdm
 
 data = read_rf('DATA/7X-event_waveforms_for_rf.h5', 'H5')
@@ -23,17 +22,17 @@ for stream3c in tqdm(IterMultipleComponents(data, 'onset', 3)):
     stream3c.filter('bandpass', freqmin=0.01, freqmax=15)
     if len(stream3c) != 3:
         continue
-    a1=stream3c[0].stats['asdf']
-    a2=stream3c[1].stats['asdf']
-    a3=stream3c[2].stats['asdf']
-    stream3c[0].stats['asdf']=[]
-    stream3c[1].stats['asdf']=[]
-    stream3c[2].stats['asdf']=[]
+    a1 = stream3c[0].stats['asdf']
+    a2 = stream3c[1].stats['asdf']
+    a3 = stream3c[2].stats['asdf']
+    stream3c[0].stats['asdf'] = []
+    stream3c[1].stats['asdf'] = []
+    stream3c[2].stats['asdf'] = []
 
     stream3c.rf()
-    stream3c[0].stats['asdf']=a1
-    stream3c[1].stats['asdf']=a2
-    stream3c[2].stats['asdf']=a3
+    stream3c[0].stats['asdf'] = a1
+    stream3c[1].stats['asdf'] = a2
+    stream3c[2].stats['asdf'] = a3
     stream3c.trim2(-25, 75, 'onset')
     stream.extend(stream3c)
 

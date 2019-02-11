@@ -2,28 +2,29 @@ from rf import read_rf, RFStream
 from rf import IterMultipleComponents
 from joblib import Parallel, delayed
 
+
 def do_rf(stream3c):
 
     stream3c.detrend('linear').resample(100)
     stream3c.taper(0.01)
-    stream3c.filter('bandpass', freqmin=0.01, freqmax=15,corners=2,zerophase=True)
+    stream3c.filter('bandpass', freqmin=0.01, freqmax=15, corners=2, zerophase=True)
     if len(stream3c) != 3:
        return RFStream()
-    a1=stream3c[0].stats['asdf']
-    a2=stream3c[1].stats['asdf']
-    a3=stream3c[2].stats['asdf']
-    stream3c[0].stats['asdf']=[]
-    stream3c[1].stats['asdf']=[]
-    stream3c[2].stats['asdf']=[]
+    a1 = stream3c[0].stats['asdf']
+    a2 = stream3c[1].stats['asdf']
+    a3 = stream3c[2].stats['asdf']
+    stream3c[0].stats['asdf'] = []
+    stream3c[1].stats['asdf'] = []
+    stream3c[2].stats['asdf'] = []
 
     # LQT receiver functions are default
 #   stream3c.rf()
     # ZRT receiver functions must be specified
     stream3c.rf(rotate='NE->RT')
 
-    stream3c[0].stats['asdf']=a1
-    stream3c[1].stats['asdf']=a2
-    stream3c[2].stats['asdf']=a3
+    stream3c[0].stats['asdf'] = a1
+    stream3c[1].stats['asdf'] = a2
+    stream3c[2].stats['asdf'] = a3
     stream3c.trim2(-25, 75, 'onset')
     return stream3c
 
@@ -39,11 +40,11 @@ data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set a
 
 stream = RFStream()
 
-rf_streams=Parallel(n_jobs=-1,verbose=1)(map(delayed(do_rf),IterMultipleComponents(data, 'onset', 3)))
+rf_streams = Parallel(n_jobs=-1, verbose=1)(map(delayed(do_rf), IterMultipleComponents(data, 'onset', 3)))
 
-for i,rf in enumerate(rf_streams):
-    event_id={'event_id':0}
-    event_id['event_id']=i
+for i, rf in enumerate(rf_streams):
+    event_id = {'event_id': 0}
+    event_id['event_id'] = i
     for tr in rf:
         tr.stats.update(event_id)
     stream.extend(rf)
