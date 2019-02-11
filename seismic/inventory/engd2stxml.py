@@ -265,8 +265,8 @@ def read_isc(fname):
                     ch_all = pd.concat(channels, sort=False)
                     ch_all.drop('FDSN', axis=1, inplace=True)
                     # Set the station date range to at least encompass the channels it contains.
-                    st_min = min(hdr['StationStart'].min(), ch_all['ChannelStart'].min())
-                    st_max = max(hdr['StationEnd'].max(), ch_all['ChannelEnd'].max())
+                    st_min = np.array([hdr['StationStart'].min(), ch_all['ChannelStart'].min()]).min()
+                    st_max = np.array([hdr['StationEnd'].max(), ch_all['ChannelEnd'].max()]).max()
                     hdr['StationStart'] = st_min
                     hdr['StationEnd'] = st_max
                     # Assign common fields to the channel rows.
@@ -507,11 +507,11 @@ def populateDefaultStationDates(df):
     isna_start_mask = df.StationStart.isna()
     isna_end_mask = df.StationEnd.isna()
     df.StationStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
-    # Intentionally masking by StationStart.isna() here:
-    df.ChannelStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
+    # # Intentionally masking by StationStart.isna() here:
+    # df.ChannelStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
     df.StationEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
-    # Intentionally masking by StationEnd.isna() here:
-    df.ChannelEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
+    # # Intentionally masking by StationEnd.isna() here:
+    # df.ChannelEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
     assert not np.any(df.StationStart.isna())
     assert not np.any(df.StationEnd.isna())
 
