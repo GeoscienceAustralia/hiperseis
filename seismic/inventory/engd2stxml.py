@@ -13,7 +13,8 @@ Cleanup steps applied:
 * Make "future" station end dates consistent to max Pandas timestamp.
 * Remove records with illegal station codes.
 * Remove duplicate station records.
-* Remove stations that are already catalogued in IRIS web service. See update_iris_inventory.py
+* TODO Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3
+  rejects such overlapping dates.
 
 :raises warning.: nil
 :return: nil
@@ -82,7 +83,7 @@ else:
 USE_PICKLE = True
 
 # Set true to work with smaller, faster datasets.
-TEST_MODE = False
+TEST_MODE = True
 
 # Pandas table display options to reduce aggressiveness of truncation. Due to size of data sometimes we
 # need to see more details in the table.
@@ -278,9 +279,12 @@ def read_isc(fname):
                 df_list.append(hdr)
                 hdr = None
             # Read header row
-            line_input = sio.StringIO(line)
-            hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA, parse_dates=[4, 5])
-            line = f.readline()
+            if len(line) > 0:
+                line_input = sio.StringIO(line)
+                hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA, parse_dates=[4, 5])
+                line = f.readline()
+            else:
+                hdr = None
             if show_progress:
                 pbar.update(len(line))
     if show_progress:
@@ -498,22 +502,53 @@ def removeDuplicateStations(df, neighbor_matrix):
 def populateDefaultStationDates(df):
     """
     Replace all missing station start and end dates with default values.
+    Replace all missing channel start and end dates with their corresponding station/end dates.
 
     :param df: Dataframe in which to fill in missing station start and end dates.
     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     # Do it for both station dates AND channel dates, as seiscomp3 will treat empty dates as
     # overlapping other time intervals and discard records.
-    isna_start_mask = df.StationStart.isna()
-    isna_end_mask = df.StationEnd.isna()
-    df.StationStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
-    # # Intentionally masking by StationStart.isna() here:
-    # df.ChannelStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
-    df.StationEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
-    # # Intentionally masking by StationEnd.isna() here:
-    # df.ChannelEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
+    st_isna_start_mask = df.StationStart.isna()
+    st_isna_end_mask = df.StationEnd.isna()
+    df.StationStart[st_isna_start_mask] = DEFAULT_START_TIMESTAMP
+    df.StationEnd[st_isna_end_mask] = DEFAULT_END_TIMESTAMP
     assert not np.any(df.StationStart.isna())
     assert not np.any(df.StationEnd.isna())
+
+    ch_isna_start_mask = df.ChannelStart.isna()
+    ch_isna_end_mask = df.ChannelEnd.isna()
+    df.ChannelStart[ch_isna_start_mask] = df.StationStart[ch_isna_start_mask]
+    df.ChannelEnd[ch_isna_end_mask] = df.StationEnd[ch_isna_end_mask]
+    assert not np.any(df.ChannelStart.isna())
+    assert not np.any(df.ChannelEnd.isna())
+
+
+def mergeOverlappingChannelEpochs(df):
+    """
+    Removed overlapping time intervals for a given network.station.channel, as this
+    needs to be unique.
+
+    :param df: Dataframe of station records in which to merge overlapping channel dates
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    """
+    for (netcode, statcode, chcode), data in df.groupby(['NetworkCode', 'StationCode', 'ChannelCode']):
+        if len(data) <= 1:
+            continue
+        data.loc[:, 'next_start'] = data.loc[:, 'ChannelStart'].shift(-1)
+        data.loc[:, 'overlap'] = (data.loc[:, 'next_start'] < data.loc[:, 'ChannelEnd']).astype(int)
+        data['CumMaxStart'] = data.ChannelStart.cummax()
+        data['CumMaxEnd'] = data.ChannelEnd.cummax()
+        print(data)
+        intervals = [(data.index[0], data.index[0])]
+        for idx, row in data.iloc[1:].iterrows():
+            # print(idx, row)
+            if data.ChannelEnd[intervals[-1][1]] > row.ChannelStart:
+                intervals[-1] = (intervals[-1][0], idx)
+            else:
+                intervals.append((idx, idx))
+        print(intervals)
+
 
 
 def cleanupDatabase(df):
@@ -543,6 +578,10 @@ def cleanupDatabase(df):
 
     print("Filling in missing station dates with defaults...")
     populateDefaultStationDates(df)
+
+    print("Merging overlapping channel epochs...")
+    mergeOverlappingChannelEpochs(df)
+    df.reset_index(drop=True, inplace=True)
 
     return df
 
@@ -798,8 +837,12 @@ def main(iris_xml_file):
 
     # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
     # the record with the least NaT values will be favored to be kept.
-    db.sort_values(['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd'], inplace=True)
+    SORT_ORDERING = ['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
+    db.sort_values(SORT_ORDERING, inplace=True)
     db.reset_index(drop=True, inplace=True)
+
+    # Perform cleanup on each database
+    db = cleanupDatabase(db)
 
     # Read IRIS station database.
     print("Reading " + iris_xml_file)
@@ -813,9 +856,6 @@ def main(iris_xml_file):
 
     # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
     nominal_instruments = extractUniqueSensorsResponses(iris_inv)
-
-    # Perform cleanup on each database
-    db = cleanupDatabase(db)
 
     if TEST_MODE:
         output_folder = "output_test"
