@@ -97,18 +97,18 @@ from the preceding header row. For more details consult source code function
 
 The station inventory cleanup script `engd2stxml.py` produces the following output artifacts:
 
-FILE NAME(S) | DESCRIPTION 
---------------------------
-LOG_LOCATION_DUPES_YYYYMMDDThhmmss.txt<BR>LOG_CODE_DUPES_YYYYMMDDThhmmss.txt | Log files of duplicate records removed
-output/network_*.xml          | Station inventory files in FDSN station xml format
-networks_sc3ml/network_*.xml  | Station inventory files in sc3ml format
-INVENTORY_YYYYMMDDThhmmss.csv | Re-loadable inventory database in tabular CSV
-INVENTORY_YYYYMMDDThhmmss.h5  | Re-loadable inventory database in tabular hdf5 under key "inventory"
-INVENTORY_YYYYMMDDThhmmss.txt | Human readable inventory database in fixed with tabular text format
-plots/networks/*.png          | Map graphic showing station locations for a given network
-plots/networks/*.txt          | Per network station data in FDSN stationtxt format
-station.txt                   | Entire inventory database in FDSN stationtxt format
-stations/*.pkl                | As a side effect, cached `.pkl` files alongside `.STN` files used as input
+| FILE NAME(S) | DESCRIPTION |
+|--------------|-------------|
+|LOG_LOCATION_DUPES_YYYYMMDDThhmmss.txt<BR>LOG_CODE_DUPES_YYYYMMDDThhmmss.txt | Log files of duplicate records removed|
+|output/network_*.xml          | Station inventory files in FDSN station xml format|
+|networks_sc3ml/network_*.xml  | Station inventory files in sc3ml format|
+|INVENTORY_YYYYMMDDThhmmss.csv | Re-loadable inventory database in tabular CSV|
+|INVENTORY_YYYYMMDDThhmmss.h5  | Re-loadable inventory database in tabular hdf5 under key "inventory"|
+|INVENTORY_YYYYMMDDThhmmss.txt | Human readable inventory database in fixed with tabular text format|
+|plots/networks/*.png          | Map graphic showing station locations for a given network|
+|plots/networks/*.txt          | Per network station data in FDSN stationtxt format|
+|station.txt                   | Entire inventory database in FDSN stationtxt format|
+|stations/*.pkl                | As a side effect, cached `.pkl` files alongside `.STN` files used as input|
 
 *Beware:* whenever a `.STN` file is changed, any corresponding `.pkl` file should be deleted manually
 to force a regeneration of the `.pkl` file.
