@@ -1,0 +1,15 @@
+numpy
+matplotlib
+scipy
+scikit-learn
+tqdm
+obspy
+pyasdf
+shapely
+geographiclib
+cartopy
+joblib
+fastdtw
+#toeplitz # What channel to get this from?
+#obspyh5 # What channel to get this from?
+#rf # What channel to get this from?
