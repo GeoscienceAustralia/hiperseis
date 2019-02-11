@@ -505,15 +505,15 @@ def populateDefaultStationDates(df):
     # Do it for both station dates AND channel dates, as seiscomp3 will treat empty dates as
     # overlapping other time intervals and discard records.
     isna_start_mask = df.StationStart.isna()
-    isna_end_mask = df.StationStart.isna()
+    isna_end_mask = df.StationEnd.isna()
     df.StationStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
     # Intentionally masking by StationStart.isna() here:
     df.ChannelStart[isna_start_mask] = DEFAULT_START_TIMESTAMP
     df.StationEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
     # Intentionally masking by StationEnd.isna() here:
     df.ChannelEnd[isna_end_mask] = DEFAULT_END_TIMESTAMP
-    assert not np.any(isna_start_mask)
-    assert not np.any(isna_end_mask)
+    assert not np.any(df.StationStart.isna())
+    assert not np.any(df.StationEnd.isna())
 
 
 def cleanupDatabase(df):
