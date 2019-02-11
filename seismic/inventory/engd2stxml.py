@@ -13,7 +13,7 @@ Cleanup steps applied:
 * Make "future" station end dates consistent to max Pandas timestamp.
 * Remove records with illegal station codes.
 * Remove duplicate station records.
-* TODO Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3
+* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3
   rejects such overlapping dates.
 
 :raises warning.: nil
@@ -83,7 +83,7 @@ else:
 USE_PICKLE = True
 
 # Set true to work with smaller, faster datasets.
-TEST_MODE = True
+TEST_MODE = False
 
 # Pandas table display options to reduce aggressiveness of truncation. Due to size of data sometimes we
 # need to see more details in the table.
@@ -529,25 +529,39 @@ def mergeOverlappingChannelEpochs(df):
     Removed overlapping time intervals for a given network.station.channel, as this
     needs to be unique.
 
+    This function expects the input DataFrame to have a sequential integer index.
+
     :param df: Dataframe of station records in which to merge overlapping channel dates
     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
-    for (netcode, statcode, chcode), data in df.groupby(['NetworkCode', 'StationCode', 'ChannelCode']):
+    if show_progress:
+        pbar = tqdm.tqdm(total=len(df), ascii=True)
+    removal_index = []
+    for _, data in df.groupby(['NetworkCode', 'StationCode', 'ChannelCode']):
+        if show_progress:
+            pbar.update(len(data))
         if len(data) <= 1:
             continue
-        data.loc[:, 'next_start'] = data.loc[:, 'ChannelStart'].shift(-1)
-        data.loc[:, 'overlap'] = (data.loc[:, 'next_start'] < data.loc[:, 'ChannelEnd']).astype(int)
-        data['CumMaxStart'] = data.ChannelStart.cummax()
-        data['CumMaxEnd'] = data.ChannelEnd.cummax()
-        print(data)
+        data.loc[:, 'CumMaxEnd'] = data.ChannelEnd.cummax().shift(1)
+        data.loc[:, 'overlap'] = (data.loc[:, 'ChannelStart'] < data.loc[:, 'CumMaxEnd']).astype(int)
         intervals = [(data.index[0], data.index[0])]
         for idx, row in data.iloc[1:].iterrows():
-            # print(idx, row)
-            if data.ChannelEnd[intervals[-1][1]] > row.ChannelStart:
+            if row.overlap > 0:
                 intervals[-1] = (intervals[-1][0], idx)
             else:
                 intervals.append((idx, idx))
-        print(intervals)
+        intervals = [i for i in intervals if i[1] > i[0]]
+        for first, last in intervals:
+            ch_start = data.loc[first:last, 'ChannelStart'].min()
+            ch_end = data.loc[first:last, 'ChannelEnd'].max()
+            df.loc[first, ['ChannelStart', 'ChannelEnd']] = np.array([ch_start, ch_end])
+            removal_index.extend(range(first + 1, last + 1))
+
+    if show_progress:
+        pbar.close()
+
+    if removal_index:
+        df.drop(removal_index, inplace=True)
 
 
 
@@ -580,8 +594,11 @@ def cleanupDatabase(df):
     populateDefaultStationDates(df)
 
     print("Merging overlapping channel epochs...")
+    num_before = len(df)
     mergeOverlappingChannelEpochs(df)
     df.reset_index(drop=True, inplace=True)
+    if len(df) < num_before:
+        print("Merged {0}/{1} channel records with overlapping epochs".format(num_before - len(df), num_before))
 
     return df
 
