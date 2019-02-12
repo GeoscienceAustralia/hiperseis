@@ -71,16 +71,16 @@ Following parameters should be specified within program:
 - H5 Input file name
 - H5 Output file name
 
-Although there are number of methods coded the current version outputs only the data grouped by similarity. Please feel free to change and modify this code.
-Output RF are cut -5 to 60 seconds relative to arrival time.
+Although there are number of methods coded, the current version outputs only the data grouped by similarity.
+Please feel free to change and modify this code. Output RF are cut -5 to 60 seconds relative to arrival time.
 
 ## Analysing RF using vespagrams
 
-Vespagrams are images of receiver functions ordered by distance or sloweness. The character (shapes) of conversion distribution
+Vespagrams are images of receiver functions ordered by distance or slowness. The character (shapes) of conversion distribution
 could tell if they are direct conversions such as Pms or its multiples such as PpPms or PpSms.
 The good reading about application of vespagrams is * Tian et al. GRL 2005 VOL. 32, L08301, doi:10.1029/2004GL021885 *
 
-The tool to plot vespagrams is **rf_slow_stack.py** and it takes set of RF stored in H5 file (python rf package). 
+The tool to plot vespagrams is `rf_slow_stack.py` and it takes set of RF stored in H5 file (python rf package). 
 The file name must be specified within program body as well as set of parameters. Currently the plotting is set from -5 to 20 seconds and 5 to 9 s/degrees.
 The filtering is bandpass from 0.03 to 0.5 Hz.
 
