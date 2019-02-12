@@ -249,3 +249,13 @@ widgetsnbextension==3.4.2
 wrapt==1.11.1
 xlrd==1.2.0
 ```
+
+Seiscomp3 fdsnxml2inv converter:
+```
+fdsnxml2inv: Jakarta 2017.124
+API version: 10.0.0
+GIT HEAD: 89a1a1a
+Compiler: c++ (GCC) 4.8.2 20140120 (Red Hat 4.8.2-16)
+Build system: Linux 3.10.0-123.el7.x86_64
+OS: CentOS Linux release 7.0.1406 (Core) / Linux
+```
