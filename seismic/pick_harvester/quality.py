@@ -21,11 +21,31 @@ import traceback
 import heapq
 
 def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
+    """
+    Computes quality measures for a given pick based on:
+        1. wavelet transforms
+        2. waveform complexity analysis (similar to Higuchi fractal dimensions)
+
+    :param trc: raw obspy trace centred on pick-time
+    :param trc_filtered: filtered obspy trace centred on pick-time
+    :param scales: scales for computing continuous wavelet transforms
+    :param plotinfo: dictionary containing required plotting information
+                     (eventid, origintime, mag, net, sta, phase, ppsnr,
+                      pickid, outputfolder)
+
+    :return: 1. cwtsnr: quality measure based on wavelet analysis
+             2. dom_freq: dominant frequency of arrival energy
+             3. slope_ratio: quality measure based on waveform
+                             complexity analysis
+    """
     # function for a least-squares line fit
     def function(x, A, B):
         return A * x + B
     # end func
 
+    cwtsnr = -1
+    dom_freq = -1
+    slope_ratio = -1
     try:
         # =======================================
         # Compute wavelets-based quality estimate
@@ -123,7 +143,8 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
             plt.close()
         # end if
     except:
-        traceback.print_exc()
+        pass
+        #traceback.print_exc()
     # end try
 
     return cwtsnr, dom_freq, slope_ratio
