@@ -25,8 +25,8 @@ import pyasdf
 
 import click
 
-from seismic.ASDFdatabase import SeisDB
-from xcorqc import IntervalStackXCorr
+from seismic.ASDFdatabase.seisds import SeisDB
+from seismic.xcorqc.xcorqc import IntervalStackXCorr
 
 
 # define utility functions

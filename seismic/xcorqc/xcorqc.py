@@ -12,7 +12,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy
 import math
-from fft import *
+from seismic.xcorqc.fft import *
 from collections import defaultdict
 from netCDF4 import Dataset
 

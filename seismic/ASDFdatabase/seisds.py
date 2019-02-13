@@ -3,7 +3,7 @@ import time
 import json
 from obspy import UTCDateTime
 import random
-
+import logging
 
 class SeisDB(object):
     def __init__(self, json_file=False, generate_numpy_index=True):
@@ -19,9 +19,9 @@ class SeisDB(object):
                 self._json_loaded = True
                 self.generateIndex()
             except IOError as e:
-                print "I/O error({0}): {1}".format(e.errorno, e.strerror)
+                logging.error("I/O error({0}): {1}".format(e.errorno, e.strerror))
             except ValueError as e:
-                print "JSON Decoding has failed with a value error({0}): {1}".format(e.errorno, e.strerror)
+                logging.error("JSON Decoding has failed with a value error({0}): {1}".format(e.errorno, e.strerror))
 
     def generateIndex(self):
         assert self._json_loaded, "Invalid SeisDB object. Try loading a valid JSON file first."
@@ -37,7 +37,7 @@ class SeisDB(object):
                 type_list = []
                 # check if the dtype has been populated
                 dtype_pop = False
-                for _i, (key, value) in enumerate(self._json_dict.iteritems()):
+                for _i, (key, value) in enumerate(self._json_dict.items()):
                     self._indexed_dict[_i] = key
                     temp_list = []
 
@@ -48,11 +48,11 @@ class SeisDB(object):
                     if not dtype_pop:
                         type_list.append(('tag', 'S100'))
 
-                    print(value)
-                    print(type(value))
+                    logging.info(value)
+                    logging.info(type(value))
 
-                    for sub_key, sub_value in value.iteritems():
-                        print(sub_key, sub_value)
+                    for sub_key, sub_value in value.items():
+                        logging.info("{}, {}".format(sub_key, sub_value))
 
                         # only add some of the attributes to the numpy array to speed up lookup
                         if sub_key == "tr_starttime":
@@ -86,12 +86,12 @@ class SeisDB(object):
 
                 self.dt = np.dtype(type_list)
                 self._indexed_np_array = np.array(self._index_dict_list, dtype=self.dt)
-                print(self._indexed_np_array)
+                logging.info(self._indexed_np_array)
                 self._use_numpy_index = True
                 self._valid_index = True
 
             except KeyError as e:
-                print "Indexing JSON dictionary has failed with a key error({0}): {1}".format(e.errorno, e.strerror)
+                logging.error("Indexing JSON dictionary has failed with a key error({0}): {1}".format(e.errorno, e.strerror))
 
         else:
             try:
@@ -99,10 +99,10 @@ class SeisDB(object):
                 self._indexed_dict = {}
                 # new dictionary to be sure that starttime and endtime fields are float
                 self._formatted_dict = {}
-                for _i, (key, value) in enumerate(self._json_dict.iteritems()):
+                for _i, (key, value) in enumerate(self._json_dict.items()):
                     self._indexed_dict[_i] = key
                     temp_dict = {}
-                    for _j, (sub_key, sub_value) in enumerate(value.iteritems()):
+                    for _j, (sub_key, sub_value) in enumerate(value.items()):
                         if sub_key == "tr_starttime":
                             temp_dict[sub_key] = float(sub_value)
                         elif sub_key == "tr_endtime":
@@ -113,7 +113,7 @@ class SeisDB(object):
                     self._formatted_dict[_i] = temp_dict
                 self._valid_index = True
             except KeyError as e:
-                print "Indexing JSON dictionary has failed with a key error({0}): {1}".format(e.errorno, e.strerror)
+                logging.info("Indexing JSON dictionary has failed with a key error({0}): {1}".format(e.errorno, e.strerror))
 
     def queryByTime(self, net, sta, chan, tags, query_starttime, query_endtime):
         qs = query_starttime
@@ -136,10 +136,10 @@ class SeisDB(object):
                     indices.append(_i)
             # indices_array = np.array(indices)
             # Print output
-            # print(indices_array)
+            # logging.debug(indices_array)
             # for index in indices_array:
-            #    print(self._indexed_dict[index]['ASDF_tag'])
-            # print(len(indices_array))
+            #    logging.debug(self._indexed_dict[index]['ASDF_tag'])
+            # logging.debug(len(indices_array))
             # return {k:self._indexed_dict[self._index_dict_list[k]] for k in indices if k in self._index_dict_list}
             return {k: {"ASDF_tag": self._indexed_dict[k],
                         "new_station": self._formatted_dict[k]["new_station"],
@@ -152,11 +152,11 @@ class SeisDB(object):
                 & np.logical_or(np.logical_and(self._indexed_np_array['st'] <= qs, qs < self._indexed_np_array['et']),
                                 (np.logical_and(qs <= self._indexed_np_array['st'],
                                                 self._indexed_np_array['st'] < qe))))
-            # print(_indexed_np_array_masked[0])
+            # logging.debug(_indexed_np_array_masked[0])
             # for index in _indexed_np_array_masked[0]:
-            #    print(self._indexed_np_array[index, 6])
-            # print(len(_indexed_np_array_masked[0]))
-            # print(self._index_dict_list[0])
+            #    logging.debug(self._indexed_np_array[index, 6])
+            # logging.debug(len(_indexed_np_array_masked[0]))
+            # logging.debug(self._index_dict_list[0])
             # return {k:self._indexed_dict[self._indexed_np_array[k]] for k in _indexed_np_array_masked[0] if k in self._indexed_np_array}
             return {k: {"ASDF_tag": self._indexed_dict[k],
                         "new_station": self._indexed_np_array['sta'][k],
@@ -164,8 +164,8 @@ class SeisDB(object):
                     for k in _indexed_np_array_masked[0]}
 
     def get_recording_intervals(self, net, sta, chan, tags):
-        # print(self._indexed_np_array)
-        print(net,sta,chan,tags)
+        # logging.debug(self._indexed_np_array)
+        logging.info(net, sta, chan, tags)
         _indexed_np_array_masked = np.where(
             (np.in1d(self._indexed_np_array['net'], net)) & (np.in1d(self._indexed_np_array['sta'], sta)) & (
                 np.in1d(self._indexed_np_array['cha'], chan)) & (np.in1d(self._indexed_np_array['tag'], tags)))
@@ -180,29 +180,29 @@ class SeisDB(object):
         _sorted_st_array = _st_array[_arg_sorted_st_array]
         _sorted_et_array = _et_array[_arg_sorted_st_array]
 
-        print(_sorted_st_array)
-        print(_sorted_et_array)
+        logging.info(_sorted_st_array)
+        logging.info(_sorted_et_array)
 
         if _sorted_st_array.shape[0] == 1:
             #i.e. there are no gaps
-            print(_sorted_st_array[0])
+            logging.info(_sorted_st_array[0])
             return (np.array([[_sorted_st_array[0]], [_sorted_et_array[0]]]))
 
 
         # offset the starttime array so that we start from the second recorded waveform
         _offset_st_array = _sorted_st_array[1:]
 
-        print(_offset_st_array)
+        logging.info(_offset_st_array)
 
         _diff_array = _offset_st_array - _sorted_et_array[:-1]
 
-        print(_diff_array)
+        logging.info(_diff_array)
 
         # now get indexes when gap (diff positive) or overlap (diff negative)
         # remember to add 1 to index because of offset
         _sorted_gaps_index = np.where(_diff_array > 1)
 
-        print(_sorted_gaps_index)
+        logging.info(_sorted_gaps_index)
 
         # if it is empty then the gaps are smaller than 1 second ignore them
         if _sorted_gaps_index[0].shape[0]==0:
@@ -214,7 +214,7 @@ class SeisDB(object):
         # rec_start_list_after gaps = list(_sorted_st_array[_sorted_gaps_index])
         rec_end_list_after_gaps = list(_sorted_et_array[_sorted_gaps_index])
 
-        print(rec_end_list_after_gaps)
+        logging.info(rec_end_list_after_gaps)
 
 
         rec_start_list =[]
@@ -227,7 +227,7 @@ class SeisDB(object):
             int_id = _sorted_gaps_index[0][_i] + 1
             if _i == len(rec_end_list_after_gaps) - 1:
                 # last interval
-                # print(_sorted_st_array[int_id], _sorted_et_array[-1])
+                # logging.debug(_sorted_st_array[int_id], _sorted_et_array[-1])
                 rec_start_list.append(_sorted_st_array[int_id])
                 rec_end_list.append(_sorted_et_array[-1])
 
@@ -241,59 +241,59 @@ class SeisDB(object):
         gaps_array = self.get_gaps_intervals(net, sta, chan, tags)
 
 
-        print("Getting data percentage")
+        logging.info("Getting data percentage")
 
-        print([intervals_array[1][x] - intervals_array[0][x] for x in range(len(intervals_array[0]))])
+        logging.info(str([intervals_array[1][x] - intervals_array[0][x] for x in range(len(intervals_array[0]))]))
 
         total_rec_seconds = sum([intervals_array[1][x] - intervals_array[0][x] for x in range(len(intervals_array[0]))])
         total_gaps_seconds = sum([gaps_array[1][x] - gaps_array[0][x] for x in range(len(gaps_array[0]))])
 
-        print(total_rec_seconds, total_gaps_seconds)
-        print("Percentage of Gaps: ", 100*(total_gaps_seconds/total_rec_seconds))
-        print("Percentage of Recording: ", 100 * (1-(total_gaps_seconds / total_rec_seconds)))
+        logging.info("{}, {}".format(total_rec_seconds, total_gaps_seconds))
+        logging.info("Percentage of Gaps: {}".format(100*(total_gaps_seconds/total_rec_seconds)))
+        logging.info("Percentage of Recording: {}".format(100 * (1-(total_gaps_seconds / total_rec_seconds))))
 
     def get_gaps_intervals(self, net, sta, chan, tags):
 
-        # print(self._indexed_np_array)
+        # logging.debug(self._indexed_np_array)
         _indexed_np_array_masked = np.where(
             (np.in1d(self._indexed_np_array['net'], net)) & (np.in1d(self._indexed_np_array['sta'], sta)) & (
             np.in1d(self._indexed_np_array['cha'], chan)) & (np.in1d(self._indexed_np_array['tag'], tags)))
-        # print(_indexed_np_array_masked)
+        # logging.debug(_indexed_np_array_masked)
 
         _masked_np_array = self._indexed_np_array[_indexed_np_array_masked]
-        # print(_masked_np_array)
+        # logging.debug(_masked_np_array)
 
-        # print(np.sort(_masked_np_array, order='st'))
+        # logging.debug(str(np.sort(_masked_np_array, order='st')))
 
         _st_array = _masked_np_array["st"]
         _et_array = _masked_np_array["et"]
 
-        # print(_st_array)
+        # logging.debug(_st_array)
 
         _arg_sorted_st_array = np.argsort(_st_array)
 
         _sorted_st_array = _st_array[_arg_sorted_st_array]
         _sorted_et_array = _et_array[_arg_sorted_st_array]
 
-        # print(_arg_sorted_st_array)
-        # print(_sorted_st_array)
-        # print(_sorted_et_array)
+        # logging.debug(_arg_sorted_st_array)
+        # logging.debug(_sorted_st_array)
+        # logging.debug(_sorted_et_array)
 
         # offset the starttime array so that we start from the second recorded waveform
         _offset_st_array = _sorted_st_array[1:]
 
-        # print(_offset_st_array)
+        # logging.debug(_offset_st_array)
 
         _diff_array = _offset_st_array - _sorted_et_array[:-1]
 
-        # print(_diff_array)
+        # logging.debug(_diff_array)
 
         # now get indexes when gap (diff positive) or overlap (diff negative)
         # remember to add 1 to index because of offset
         _sorted_gaps_index = np.where(_diff_array > 1)
         # _sorted_ovlps_index = np.where(_diff_array < 1)
 
-        # print(_sorted_gaps_index)
+        # logging.debug(_sorted_gaps_index)
 
         # now get the gap_starttimes and gap endtimes
         gaps_start_list = list(_sorted_et_array[_sorted_gaps_index])
@@ -309,7 +309,7 @@ class SeisDB(object):
         assert self._json_loaded, "Invalid SeisDB object. Try loading a valid JSON file first."
         assert self._valid_index, "Invalid SeisDB object. Index has not been generated."
         if not self._use_numpy_index:
-            print("Must be using Numpy index")
+            logging.error("Must be using Numpy index")
 
         else:
             return (np.unique(self._indexed_np_array['cha']), np.unique(self._indexed_np_array['tag']))
@@ -320,8 +320,7 @@ class SeisDB(object):
         :return: full DB
         """
 
-        # for
-        # print(self._json_dict[json_key])
+        # logging.debug(self._json_dict[json_key])
         return (self._json_dict[json_key])
 
     def is_chan_related(self, chan, net, sta, loc):
@@ -344,19 +343,18 @@ class SeisDB(object):
 
 
 if __name__ == "__main__":
-    print "Testing db access"
+    print("Testing db access")
     sta = ["SQ2A1", "SQ2F6"]
     chan = ["BHZ"]
     query_time = UTCDateTime(2014, 3, 17, 00).timestamp
     db = '/g/data1/ha3/Passive/_ANU/7F(2013-2014)/raw_DATA/7F(2013-2014)_raw_dataDB.json'
-    print "Sta = " + str(sta)
-    print "Chan = " + str(chan)
-    print "Query time = " + str(query_time)
-    print "JSON file = " + str(db)
+    print("Sta = " + str(sta))
+    print("Chan = " + str(chan))
+    print("Query time = " + str(query_time))
+    print("JSON file = " + str(db))
     sdb = SeisDB(db)
     res = sdb.queryByTime(sta, chan, query_time)
-    # print res
-    for index, element in res.iteritems():
-        print "Index = " + str(index)
-        print "Element = " + str(element)
+    for index, element in res.items():
+        logging.info("Index = " + str(index))
+        logging.info("Element = " + str(element))
 
