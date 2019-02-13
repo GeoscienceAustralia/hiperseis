@@ -25,19 +25,20 @@ import pyasdf
 
 import click
 
-from scripts.ASDFdatabase import SeisDB
+from seismic.ASDFdatabase import SeisDB
 from xcorqc import IntervalStackXCorr
 
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
     xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta);
+    rst = r * np.sin(theta)
     xout[:, 0] = rst * np.cos(phi)
     xout[:, 1] = rst * np.sin(phi)
     xout[:, 2] = r * np.cos(theta)
     return xout
 # end func
+
 
 def xyz2rtp(x, y, z):
     rout = np.zeros((x.shape[0], 3))
@@ -50,18 +51,18 @@ def xyz2rtp(x, y, z):
 # end func
 
 class Dataset:
-    def __init__(self, asdf_file_name, station_names = '*', ignore_json_db=False, zchan=None, nchan=None, echan=None):
+    def __init__(self, asdf_file_name, station_names='*', ignore_json_db=False, zchan=None, nchan=None, echan=None):
 
         self._data_path = asdf_file_name
         self.ds = None
         self.has_jason_db = False
         self.ds_jason_db = None
-        self._earth_radius = 6371 #km
+        self._earth_radius = 6371  # km
 
         try:
             self.ds = pyasdf.ASDFDataSet(self._data_path, mode='r')
         except:
-            raise NameError('Error reading file : %s'%(self._data_path))
+            raise NameError('Error reading file : %s' % (self._data_path))
         # end try
 
         if(not ignore_json_db):

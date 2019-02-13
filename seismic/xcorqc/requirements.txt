@@ -1,0 +1,8 @@
+numpy
+mpi4py
+scipy
+obspy
+pyasdf
+click
+git+https://github.com/matplotlib/basemap.git
+netcdf4
