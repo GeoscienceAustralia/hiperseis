@@ -1,7 +1,7 @@
 from obspy import UTCDateTime
 import pyasdf
 
-from scripts.ASDFdatabase import SeisDB
+from seismic.ASDFdatabase.seisdb import SeisDB
 from xcorqc import IntervalStackXCorr
 
 # =========================== User Input Required =========================== #

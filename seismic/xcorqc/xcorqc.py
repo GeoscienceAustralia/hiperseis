@@ -1,23 +1,32 @@
+#!/usr/bin/env python
+"""
+TBD
+"""
+
+import os
 import datetime
-import glob, os
+import glob
 from os.path import join, exists
+import logging
+import math
+from collections import defaultdict
+
+import numpy as np
+import scipy
+import matplotlib
+# matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 import obspy
 from obspy.core import Stream, UTCDateTime
 from obspy import read, Trace
 from obspy.signal.cross_correlation import xcorr
-import numpy as np
-import matplotlib
-import logging
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import scipy
-import math
-from seismic.xcorqc.fft import *
-from collections import defaultdict
-from netCDF4 import Dataset
-
 from obspy.signal.detrend import simple, spline
 from obspy.signal.filter import bandpass
+
+# from seismic.xcorqc.fft import *
+from netCDF4 import Dataset
+
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -31,7 +40,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.setLevel(level)
     logger.addHandler(handler)
     return logger
-# end func
+
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -61,7 +70,7 @@ def taper(tr, taperlen):
     tr[0:taperlen] *= 0.5 * (1 + np.cos(np.linspace(-math.pi, 0, taperlen)))
     tr[-taperlen:] *= 0.5 * (1 + np.cos(np.linspace(0, math.pi, taperlen)))
     return tr
-# end func
+
 
 def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
            flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
@@ -203,7 +212,7 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
         windowsPerInterval.append(windowCount)
 
         step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
-        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
+        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)  # Enveloping
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
 
@@ -317,15 +326,13 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
         # Fetch station names if a wildcard was passed
         temp_station_ids = [x.split('.')[1] for x in tempds.waveforms.list()]
 
-    #setup loggers
+    # setup loggers
     loggers = []
     for rs in ref_station_ids:
         for ts in temp_station_ids:
             fn = os.path.join(outputPath, '%s.%s.log'%(rs, ts))
             logger = setup_logger('%s.%s'%(rs, ts), fn)
             loggers.append(logger)
-        # end for
-    # end for
 
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
@@ -377,7 +384,6 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 # end if
             except:
                 logger.warn('\tError encountered while fetching data. Skipping along..')
-            # end try
 
             if (refSt is None):
                 logger.info('Failed to fetch data..')
@@ -387,8 +393,7 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 continue
             else:
                 pass
-                #print refSt
-            # end for
+                # print refSt
 
             for tempStId in temp_station_ids:
                 stationPair = refStId + '.' + tempStId
@@ -420,7 +425,7 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                             logger.warn('\tFailed to merge traces..')
                             tempSt = None
                         # end try
-                    #end if
+                    # end if
                 except:
                     logger.warn('\tError encountered while fetching data. Skipping along..')
                 # end try
@@ -434,13 +439,11 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 else:
                     pass
                     #print tempSt
-                # end for
 
                 if (verbose > 2):
                     logger.debug('\t\tData Gaps:')
                     tempSt.print_gaps() # output sent to stdout; fix this
                     print ("\n")
-                # end if
 
                 logger.info('\tCross-correlating station-pair: %s' % (stationPair))
                 xcl, winsPerInterval, \
@@ -457,7 +460,6 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                     logger.warn("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
                           (stationPair) + " due to gaps in data.")
                     continue
-                # end if
 
                 xcorrResultsDict[stationPair].append(xcl)
                 windowCountResultsDict[stationPair].append(winsPerInterval)
@@ -465,8 +467,8 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 intervalStartTimesDict[stationPair].append(cTime.timestamp + intervalStartSeconds)
                 intervalEndTimesDict[stationPair].append(cTime.timestamp + intervalEndSeconds)
 
-                #for iss, ies in zip(intervalStartSeconds, intervalEndSeconds):
-                #    logger.warn('\t\t\t%d, %d, %d'%(iss, ies, ies-iss))
+                # for iss, ies in zip(intervalStartSeconds, intervalEndSeconds):
+                #     logger.warn('\t\t\t%d, %d, %d'%(iss, ies, ies-iss))
                 # end for
 
                 pairCount += 1
@@ -553,105 +555,104 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
     return x, xcorrResultsDict, windowCountResultsDict
 # end func
 
-'''
-# Leaving the earlier implementation and associated tests as is for the time being.
-# This should be cleaned up and tests implemented in another ticket. 
 
-def IntervalStackXCorr(refstn, st,
-                       window_seconds=3600,
-                       interval_seconds=86400, flo=0.9, fhi=1.1):
-    comp_list = []
-    a_list = []
-    b_list = []
-    ref_list = []
-    stn_list = []
-    xcorr_list = []
-    xcorr_x_list = []
-    for tr_1 in refstn:
-        station_1 = tr_1.stats.station
+# # Leaving the earlier implementation and associated tests as is for the time being.
+# # This should be cleaned up and tests implemented in another ticket.
 
-        for tr_2 in st:
-            station_2 = tr_2.stats.station
+# def IntervalStackXCorr(refstn, st,
+#                        window_seconds=3600,
+#                        interval_seconds=86400, flo=0.9, fhi=1.1):
+#     comp_list = []
+#     a_list = []
+#     b_list = []
+#     ref_list = []
+#     stn_list = []
+#     xcorr_list = []
+#     xcorr_x_list = []
+#     for tr_1 in refstn:
+#         station_1 = tr_1.stats.station
 
-            comp_list.append(station_2 + '_' + station_1)
+#         for tr_2 in st:
+#             station_2 = tr_2.stats.station
 
-            xcorr_func = xcorr2(tr_1, tr_2, window_seconds, interval_seconds, flo, fhi)
+#             comp_list.append(station_2 + '_' + station_1)
 
-            tr_1_len = tr_1.stats.endtime.timestamp - tr_1.stats.starttime.timestamp
-            tr_2_len = tr_2.stats.endtime.timestamp - tr_2.stats.starttime.timestamp
-            xcorr_len = tr_2_len - tr_1_len
-            xcorr_start = tr_2.stats.starttime.timestamp
+#             xcorr_func = xcorr2(tr_1, tr_2, window_seconds, interval_seconds, flo, fhi)
 
-            X = np.linspace(-window_seconds, window_seconds, xcorr_func.shape[1])
-            ref_list.append(tr_1)
-            stn_list.append(tr_2)
-            xcorr_list.append(xcorr_func)
-            xcorr_x_list.append(X)
-    return [xcorr_list, xcorr_x_list, comp_list]
+#             tr_1_len = tr_1.stats.endtime.timestamp - tr_1.stats.starttime.timestamp
+#             tr_2_len = tr_2.stats.endtime.timestamp - tr_2.stats.starttime.timestamp
+#             xcorr_len = tr_2_len - tr_1_len
+#             xcorr_start = tr_2.stats.starttime.timestamp
 
-
-def saveXCorr(xcorr_list, xcorr_x_list, xcor_output_dir, figname):
-    os.chdir(xcor_output_dir)
-    for i, l in enumerate(xcorr_list):
-        np.savetxt(figname + '.xcor', xcorr_list[i])
+#             X = np.linspace(-window_seconds, window_seconds, xcorr_func.shape[1])
+#             ref_list.append(tr_1)
+#             stn_list.append(tr_2)
+#             xcorr_list.append(xcorr_func)
+#             xcorr_x_list.append(X)
+#     return [xcorr_list, xcorr_x_list, comp_list]
 
 
-def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list):
-    nplots = len(comp_list)
-    if nplots == 0:
-        return
-    fig, ax = plt.subplots(1, nplots, squeeze=False)
-    fig.set_figheight(23.39)  # 11.69)
-    fig.set_figwidth(16.53)  # 8.27)
+# def saveXCorr(xcorr_list, xcorr_x_list, xcor_output_dir, figname):
+#     os.chdir(xcor_output_dir)
+#     for i, l in enumerate(xcorr_list):
+#         np.savetxt(figname + '.xcor', xcorr_list[i])
 
-    for i, comp_xcorr in enumerate(comp_list):
-        ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0] + 1), xcorr_list[i], vmin=0, vmax=1,
-                            cmap='jet')  # , label=comp_xcorr, lw=1.2)
-        ax[0, i].set_ylabel('Day')
-        ax[0, i].set_xlabel('Lag (s)')
-        ax[0, i].set_title(comp_xcorr)
-        ax[0, i].invert_yaxis()
 
-    os.chdir(plot_output_dir)
-    plt.savefig(figname + '.png', dpi=300)
-    plt.clf()
+# def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list):
+#     nplots = len(comp_list)
+#     if nplots == 0:
+#         return
+#     fig, ax = plt.subplots(1, nplots, squeeze=False)
+#     fig.set_figheight(23.39)  # 11.69)
+#     fig.set_figwidth(16.53)  # 8.27)
 
-if __name__ == "__main__":
-    sdr = '/g/data/ha3/Passive/Ref/'
-    fn1 = 'AUQLP__BHZ__-14-05-23-00-00-00.msd'
-    fn1b = 'AUQLP__BHZ__-14-05-24-00-00-00.msd'
-    fn2 = 'AUINKA_BHZ__-14-05-23-00-00-00.msd'
-    fn2b = 'AUINKA_BHZ__-14-05-24-00-00-00.msd'
-    st1 = read(sdr + fn1)
-    st1 += read(sdr + fn1b)
-    st1.merge()
-    st2 = read(sdr + fn2)
-    st2 += read(sdr + fn2b)
-    st2.merge()
-    st2.resample(80.0, no_filter=True)
-    print(st1)
-    print(st2)
-    ylist, x, comp_list = IntervalStackXCorr(st1, st2)
-    print ylist
-    print x
-    print comp_list
-    st1.resample(80.0, no_filter=True)
-    ylist2, x2, comp_list2 = IntervalStackXCorr(st1, st2)
-    print ylist2
-    print x2
-    print comp_list2
-    # confirm the error is zero
-    # stdyratio = np.std(ylist2[0]/ylist[0])
-    maxdiff = np.max(np.abs(ylist2[0] - ylist[0]))
-    saveXCorrPlot(ylist, x, '/g/data/ha3/', 'outxcor_dsr4', comp_list)
-    saveXCorr(ylist, x2, '/g/data/ha3/', 'outxcor_8040')
-    saveXCorr(ylist2, x2, '/g/data/ha3/', 'outxcor_8080')
-    # print "Std y ratio = " + str(stdyratio)
-    print "Max diff = " + str(maxdiff)
-    # plt.subplot(211)
-    # plt.plot(ylist[0][179999:180001])
-    # plt.subplot(212)
-    # plt.plot(ylist2[0][179999:180001])
-    # plt.show()
-    assert maxdiff < 0.05, "The xcor after resampling is not the same"
-'''
+#     for i, comp_xcorr in enumerate(comp_list):
+#         ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0] + 1), xcorr_list[i], vmin=0, vmax=1,
+#                             cmap='jet')  # , label=comp_xcorr, lw=1.2)
+#         ax[0, i].set_ylabel('Day')
+#         ax[0, i].set_xlabel('Lag (s)')
+#         ax[0, i].set_title(comp_xcorr)
+#         ax[0, i].invert_yaxis()
+
+#     os.chdir(plot_output_dir)
+#     plt.savefig(figname + '.png', dpi=300)
+#     plt.clf()
+
+# if __name__ == "__main__":
+#     sdr = '/g/data/ha3/Passive/Ref/'
+#     fn1 = 'AUQLP__BHZ__-14-05-23-00-00-00.msd'
+#     fn1b = 'AUQLP__BHZ__-14-05-24-00-00-00.msd'
+#     fn2 = 'AUINKA_BHZ__-14-05-23-00-00-00.msd'
+#     fn2b = 'AUINKA_BHZ__-14-05-24-00-00-00.msd'
+#     st1 = read(sdr + fn1)
+#     st1 += read(sdr + fn1b)
+#     st1.merge()
+#     st2 = read(sdr + fn2)
+#     st2 += read(sdr + fn2b)
+#     st2.merge()
+#     st2.resample(80.0, no_filter=True)
+#     print(st1)
+#     print(st2)
+#     ylist, x, comp_list = IntervalStackXCorr(st1, st2)
+#     print ylist
+#     print x
+#     print comp_list
+#     st1.resample(80.0, no_filter=True)
+#     ylist2, x2, comp_list2 = IntervalStackXCorr(st1, st2)
+#     print ylist2
+#     print x2
+#     print comp_list2
+#     # confirm the error is zero
+#     # stdyratio = np.std(ylist2[0]/ylist[0])
+#     maxdiff = np.max(np.abs(ylist2[0] - ylist[0]))
+#     saveXCorrPlot(ylist, x, '/g/data/ha3/', 'outxcor_dsr4', comp_list)
+#     saveXCorr(ylist, x2, '/g/data/ha3/', 'outxcor_8040')
+#     saveXCorr(ylist2, x2, '/g/data/ha3/', 'outxcor_8080')
+#     # print "Std y ratio = " + str(stdyratio)
+#     print "Max diff = " + str(maxdiff)
+#     # plt.subplot(211)
+#     # plt.plot(ylist[0][179999:180001])
+#     # plt.subplot(212)
+#     # plt.plot(ylist2[0][179999:180001])
+#     # plt.show()
+#     assert maxdiff < 0.05, "The xcor after resampling is not the same"

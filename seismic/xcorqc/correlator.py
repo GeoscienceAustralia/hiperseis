@@ -12,21 +12,27 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-from mpi4py import MPI
-import glob, os
+import os
+import glob
 from collections import defaultdict
-
 from math import sqrt
+
 import numpy as np
 from scipy.spatial import cKDTree
 
 from obspy import UTCDateTime
 import pyasdf
 
+# For execution under Windows, see 
+from mpi4py import MPI
+
 import click
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
+
+
+TEST_MODE = False
 
 
 # define utility functions
@@ -49,6 +55,7 @@ def xyz2rtp(x, y, z):
     rout[2] = np.arctan2(y, x)
     return rout
 # end func
+
 
 class Dataset:
     def __init__(self, asdf_file_name, station_names='*', ignore_json_db=False, zchan=None, nchan=None, echan=None):
@@ -75,7 +82,7 @@ class Dataset:
                         self.has_jason_db = True
                     except:
                         raise RuntimeError('Failed to load json file:%s' % (f))
-                    #end try
+                    # end try
                     break
                 # end if
             # end for
@@ -94,7 +101,8 @@ class Dataset:
             sn = station._station_name.split('.')[1]
 
             if(station_subset != '*'):
-                if sn not in station_subset: continue
+                if sn not in station_subset:
+                    continue
 
             self.stations.append(sn)
             self.stations_metadata[sn] = station
@@ -106,9 +114,12 @@ class Dataset:
             for nw in station.StationXML:
                 for st in nw:
                     for ch in st:
-                        if 'Z' in ch.code or 'z' in ch.code: zchannels.add(ch.code)
-                        if 'N' in ch.code or 'n' in ch.code: nchannels.add(ch.code)
-                        if 'E' in ch.code or 'e' in ch.code: echannels.add(ch.code)
+                        if 'Z' in ch.code or 'z' in ch.code:
+                            zchannels.add(ch.code)
+                        if 'N' in ch.code or 'n' in ch.code:
+                            nchannels.add(ch.code)
+                        if 'E' in ch.code or 'e' in ch.code:
+                            echannels.add(ch.code)
                     # end for
                 # end for
             # end for
@@ -124,19 +135,28 @@ class Dataset:
         # end for
 
         if len(zchannels):
-            if(zchan is None): assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
-            else: zchannels = set([zchan]) if zchan in zchannels else None
-            if(zchannels is None): assert 0, 'Invalid z-channel name'
+            if(zchan is None):
+                assert len(zchannels) == 1, 'Multiple z-channels found %s' % (zchannels)
+            else:
+                zchannels = set([zchan]) if zchan in zchannels else None
+            if(zchannels is None):
+                assert 0, 'Invalid z-channel name'
 
         if len(nchannels):
-            if(nchan is None): assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
-            else: nchannels = set([nchan]) if nchan in nchannels else None
-            if(nchannels is None): assert 0, 'Invalid n-channel name'
+            if(nchan is None):
+                assert len(nchannels) == 1, 'Multiple n-channels found %s' % (nchannels)
+            else:
+                nchannels = set([nchan]) if nchan in nchannels else None
+            if(nchannels is None):
+                assert 0, 'Invalid n-channel name'
 
         if len(echannels):
-            if(echan is None): assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
-            else: echannels = set([echan]) if echan in echannels else None
-            if(echannels is None): assert 0, 'Invalid e-channel name'
+            if(echan is None):
+                assert len(echannels) == 1, 'Multiple e-channels found %s' % (echannels)
+            else:
+                echannels = set([echan]) if echan in echannels else None
+            if(echannels is None):
+                assert 0, 'Invalid e-channel name'
 
         self.zchannel = zchannels.pop() if len(zchannels) else None
         self.nchannel = nchannels.pop() if len(nchannels) else None
@@ -144,7 +164,7 @@ class Dataset:
     # end func
 
     def get_closest_stations(self, station_name, other_dataset, nn=1):
-        assert isinstance(station_name, str) or isinstance(station_name, unicode), 'station_name must be a string'
+        assert isinstance(station_name, basestring), 'station_name must be a string'
         assert isinstance(other_dataset, Dataset), 'other_dataset must be an instance of Dataset'
         station_name = station_name.upper()
 
@@ -152,11 +172,13 @@ class Dataset:
 
         d, l = other_dataset._tree.query(self._cart_location[station_name], nn)
 
-        if(type(l) == int): l = [l]
+        if isinstance(l, int):
+            l = [l]
 
         l = l[l<len(other_dataset.stations)]
 
-        if(type(l) == int): l = [l]
+        if isinstance(l, int):
+            l = [l]
 
         assert len(l), 'No stations found..'
 
@@ -177,14 +199,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=int)
 @click.argument('window-seconds', required=True,
                 type=int)
-
 @click.option('--ds1-dec-factor', default=1, help="Decimation factor for data-source-1")
 @click.option('--ds2-dec-factor', default=1, help="Decimation factor for data-source-2")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
-                                                      " to correlate against a given station in data-source-1. If"
-                                                      " set to -1, correlations for a cross-product of all stations"
-                                                      " in both data-sets are produced -- note, this is computationally"
-                                                      " expensive.")
+                                                       " to correlate against a given station in data-source-1. If"
+                                                       " set to -1, correlations for a cross-product of all stations"
+                                                       " in both data-sets are produced -- note, this is computationally"
+                                                       " expensive.")
 @click.option('--fmin', default=0.3, help="Lowest frequency for bandpass filter")
 @click.option('--fmax', default=1., help="Highest frequency for bandpass filter")
 @click.option('--station-names1', default='*', type=str,
@@ -233,7 +254,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def process(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
             ds2_dec_factor, nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, clip_to_2std, one_bit_normalize, read_buffer_size,
-
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
             ignore_ds1_json_db, ignore_ds2_json_db):
     """
@@ -308,9 +328,10 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
     for st1 in proc_stations[rank]:
         st2list = None
         if(nearest_neighbours != -1):
-            if (data_source1==data_source2):
-                st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours+1))
-                if (st1 in  st2list): st2list.remove(st1)
+            if data_source1 == data_source2:
+                st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours + 1))
+                if st1 in st2list:
+                    st2list.remove(st1)
                 st2list = list(st2list)
             else:
                 st2list = ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours)
@@ -330,7 +351,16 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
     # end for
 # end func
 
-if (__name__ == '__main__'):
-    process()
-# end if
-
+if __name__ == '__main__':
+    if TEST_MODE:
+        process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
+                nearest_neighbours=5,
+                start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
+                read_buffer_size=1,
+                ds1_dec_factor=1, ds2_dec_factor=1,
+                fmin=0.01, fmax=10.0,
+                clip_to_2std=True,
+                one_bit_normalize=True
+                )
+    else:
+        process()
