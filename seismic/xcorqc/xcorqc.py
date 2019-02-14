@@ -24,7 +24,7 @@ from obspy.signal.cross_correlation import xcorr
 from obspy.signal.detrend import simple, spline
 from obspy.signal.filter import bandpass
 
-# from seismic.xcorqc.fft import *
+from seismic.xcorqc.fft import *
 from netCDF4 import Dataset
 
 
