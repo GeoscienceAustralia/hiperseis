@@ -1,6 +1,20 @@
 #!/usr/bin/env python
 """
-TBD
+Description:
+    Cross-correlation functionality
+References:
+
+CreationDate:   29/06/17
+Developer:      laurence.davies@ga.gov.au
+
+Revision History:
+    LastUpdate:     29/06/17   LD       First commit of xcor code.
+    LastUpdate:     13/07/17   LD       Fixed xcor filtering issue when traces have different sample rates.
+    LastUpdate:     11/08/17   RH       Implement ASDF-based cross-correlation workflow
+    LastUpdate:     11/07/18   RH       Implemented parallel cross-correlator
+    LastUpdate:     19/07/18   RH       Implemented cross-correlation approaches described in Habel et al. 2018
+
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
 import os
