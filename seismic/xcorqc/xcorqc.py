@@ -86,21 +86,93 @@ def taper(tr, taperlen):
     return tr
 
 
-def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
-           flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
-           verbose=1, logger=None):
+def xcorr2Window(tr1, tr2, sr1, sr2, fftlen, window_samples_1,
+                 clip_to_2std=False, one_bit_normalize=False, filter_params=None):
+    # Performs cross correlation in spectral domain, returning results in spectral domain.
+    tr1_d = np.array(tr1, dtype=np.float32)
+    tr2_d = np.array(tr2, dtype=np.float32)
+    max_sr = max(sr1, sr2)
+
+    # detrend
+    tr1_d = spline(tr1_d, 2, 1000)
+    tr2_d = spline(tr2_d, 2, 1000)
+
+    # zero-mean
+    tr1_d -= np.mean(tr1_d)
+    tr2_d -= np.mean(tr2_d)
+
+    # clip to +/- 2*std
+    if clip_to_2std:
+        std_tr1 = np.std(tr1_d)
+        std_tr2 = np.std(tr2_d)
+        clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
+        clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
+
+        tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
+        tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
+    # end if
+
+    # apply zero-phase band-pass
+    if filter_params is not None:
+        flo = filter_params[0]
+        fhi = filter_params[1]
+        tr1_d = bandpass(tr1_d, flo, fhi, sr1, zerophase=True)
+        tr2_d = bandpass(tr2_d, flo, fhi, sr2, zerophase=True)
+
+    # taper
+    #tr1_d = taper(tr1_d, int(sr1 / flo))
+    #tr2_d = taper(tr2_d, int(sr2 / flo))
+
+    # 1-bit normalization
+    if one_bit_normalize:
+        tr1_d = np.sign(tr1_d)
+        tr2_d = np.sign(tr2_d)
+    # end if
+
+    if (sr1 < sr2):
+        fftlen2 = fftlen
+        fftlen1 = int((fftlen2 * 1.0 * sr1) / max_sr)
+        outdims2 = np.array([fftlen2])
+        outdims1 = np.array([fftlen1])
+        rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * fftn(
+            zeropad(ndflip(tr2_d), fftlen2), shape=outdims2)
+    elif (sr1 > sr2):
+        fftlen1 = fftlen
+        fftlen2 = int((fftlen1 * 1.0 * sr2) / max_sr)
+        outdims2 = np.array([fftlen2])
+        outdims1 = np.array([fftlen1])
+        rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * zeropad_ba(
+            fftn(zeropad(ndflip(tr2_d), fftlen2), shape=outdims2), fftlen1)
+    else:
+        fftlen = 2 ** (int(np.log2(2 * window_samples_1 - 1)) + 1)
+        outdims = np.array([fftlen])
+        rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * fftn(zeropad(ndflip(tr2_d), fftlen),
+                                                                shape=outdims)
+    # end if
+
+    return rf
+
+
+def xcorr2Stacked(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=86400,
+                  flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
+                  verbose=1, logger=None):
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
-    tr1_d_all = tr1.data  # refstn
+    # Trace 1 (tr1) is treated as the reference station.
+    tr1_d_all = tr1.data
     tr2_d_all = tr2.data
+    # Full size of input time series for trace 1 and trace 2.
     lentr1_all = tr1_d_all.shape[0]
     lentr2_all = tr2_d_all.shape[0]
+    # Convert window and interval times to number of samples
     window_samples_1 = window_seconds * sr1
     window_samples_2 = window_seconds * sr2
     interval_samples_1 = interval_seconds * sr1
     interval_samples_2 = interval_seconds * sr2
+    # Tracking indices for the start of the current xcorr interval
     itr1s = 0
     itr2s = 0
+    # Container for the collected cross correlation results
     resll = []
 
     intervalCount = 0
@@ -108,6 +180,7 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
     intervalStartSeconds = []
     intervalEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
+        # Tracking indices for the end of the current xcorr interval
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
         sr = max(sr1, sr2)
@@ -115,11 +188,13 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
         fftlen = 2 ** (int(np.log2(xcorlen)) + 1)
 
         windowCount = 0
+        # Tracking indices for the start of the current sample window
         wtr1s = int(itr1s)
         wtr2s = int(itr2s)
         resl = []
 
         while wtr1s < itr1e and wtr2s < itr2e:
+            # Tracking indices for the end of the current sample window
             wtr1e = int(min(itr1e, wtr1s + window_samples_1))
             wtr2e = int(min(itr2e, wtr2s + window_samples_2))
 
@@ -134,62 +209,9 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
             if (not (np.ma.is_masked(tr1_d_all[wtr1s:wtr1e])
                      or np.ma.is_masked(tr2_d_all[wtr2s:wtr2e]))):
 
-                tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
-                tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
-
-                # detrend
-                tr1_d = spline(tr1_d, 2, 1000)
-                tr2_d = spline(tr2_d, 2, 1000)
-
-                # zero-mean
-                tr1_d -= np.mean(tr1_d)
-                tr2_d -= np.mean(tr2_d)
-
-                # clip to +/- 2*std
-                if(clip_to_2std):
-                    std_tr1 = np.std(tr1_d)
-                    std_tr2 = np.std(tr2_d)
-                    clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
-                    clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
-
-                    tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
-                    tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
-                # end if
-
-                # apply zero-phase band-pass
-                tr1_d = bandpass(tr1_d, flo, fhi, sr1, zerophase=True)
-                tr2_d = bandpass(tr2_d, flo, fhi, sr2, zerophase=True)
-
-                # taper
-                #tr1_d = taper(tr1_d, int(sr1 / flo))
-                #tr2_d = taper(tr2_d, int(sr2 / flo))
-
-                # 1-bit normalization
-                if(one_bit_normalize):
-                    tr1_d = np.sign(tr1_d)
-                    tr2_d = np.sign(tr2_d)
-                # end if
-
-                if (sr1 < sr2):
-                    fftlen2 = fftlen
-                    fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
-                    outdims2 = np.array([fftlen2])
-                    outdims1 = np.array([fftlen1])
-                    rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * fftn(
-                        zeropad(ndflip(tr2_d), fftlen2), shape=outdims2)
-                elif (sr1 > sr2):
-                    fftlen1 = fftlen
-                    fftlen2 = int((fftlen1 * 1.0 * sr2) / sr)
-                    outdims2 = np.array([fftlen2])
-                    outdims1 = np.array([fftlen1])
-                    rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * zeropad_ba(
-                        fftn(zeropad(ndflip(tr2_d), fftlen2), shape=outdims2), fftlen1)
-                else:
-                    fftlen = 2 ** (int(np.log2(2 * window_samples_1 - 1)) + 1)
-                    outdims = np.array([fftlen])
-                    rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * fftn(zeropad(ndflip(tr2_d), fftlen),
-                                                                            shape=outdims)
-                # end if
+                rf = xcorr2Window(tr1_d_all[wtr1s:wtr1e], tr2_d_all[wtr2s:wtr2e], sr1, sr2, fftlen, window_samples_1,
+                                  clip_to_2std=clip_to_2std, one_bit_normalize=one_bit_normalize,
+                                  filter_params=(flo, fhi))
 
                 resl.append(rf)
                 windowCount += 1
@@ -225,8 +247,13 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
 
         windowsPerInterval.append(windowCount)
 
+        # resl now contains collected sequential xcorrs in spectral domain for tr1 and tr2 across
+        # the stacking interval duration, each of which represents correlation within a
+        # window_seconds window. Stack (sum) these to compute a mean spectral correlation.
+        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
+        # Negate the negative frequencies and transform back to time domain - this is equivalent
+        # to the Hilbert transform, i.e. enveloping.
         step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
-        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)  # Enveloping
         mean = mean + step * mean  # compute analytic
         mean = ifftn(mean)
 
@@ -237,8 +264,9 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0, interval_seconds=864
         # mean can be 0 for a null result
         if(normFactor > 0):
             mean /= normFactor
-        #end if
+        # end if
 
+        # Truncate the boundary effects from convolution.
         resll.append(mean[:xcorlen])
     # end while (iteration over intervals)
 
@@ -462,7 +490,7 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
                 logger.info('\tCross-correlating station-pair: %s' % (stationPair))
                 xcl, winsPerInterval, \
                 intervalStartSeconds, intervalEndSeconds = \
-                    xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
+                    xcorr2Stacked(refSt[0], tempSt[0], window_seconds=window_seconds,
                                               interval_seconds=interval_seconds,
                                               flo=flo, fhi=fhi,
                                               clip_to_2std=clip_to_2std,
@@ -591,7 +619,7 @@ def IntervalStackXCorr(refds, refds_db, tempds, tempds_db,
 
 #             comp_list.append(station_2 + '_' + station_1)
 
-#             xcorr_func = xcorr2(tr_1, tr_2, window_seconds, interval_seconds, flo, fhi)
+#             xcorr_func = xcorr2Stacked(tr_1, tr_2, window_seconds, interval_seconds, flo, fhi)
 
 #             tr_1_len = tr_1.stats.endtime.timestamp - tr_1.stats.starttime.timestamp
 #             tr_2_len = tr_2.stats.endtime.timestamp - tr_2.stats.starttime.timestamp

@@ -1,7 +1,7 @@
 import pyasdf
 import time
 import os
-from scripts.xcorqc import xcorr2
+from scripts.xcorqc import xcorr2Stacked
 from obspy import Stream, Trace
 
 code_start_time = time.time()
@@ -99,7 +99,7 @@ def xcor_process(st, inv):
         print(perm_st)
         print("DO XCOR......")
 
-        xcl, winsPerInterval = xcorr2(ref_tr, temp_tr)
+        xcl, winsPerInterval = xcorr2Stacked(ref_tr, temp_tr)
 
         if (xcl is None):
             print("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
