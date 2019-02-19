@@ -26,8 +26,8 @@ import subprocess
 import argparse
 import time
 import re
-from iris_query import formChannelRequestUrl, setTextEncoding
-from fdsnxml_convert import toSc3ml
+from .iris_query import formChannelRequestUrl, setTextEncoding
+from .fdsnxml_convert import toSc3ml
 
 
 DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
@@ -106,7 +106,7 @@ def regenerateHumanReadable(iris, outfile):
     """
 
     print("Generating human readable version...")
-    from pdconvert import inventory2Dataframe
+    from .pdconvert import inventory2Dataframe
     import pandas as pd
     from obspy import read_inventory
 

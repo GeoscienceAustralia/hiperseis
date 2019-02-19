@@ -40,10 +40,11 @@ order of minutes rather than many hours for loading sc3ml IRIS inventory.
 
 ## Workflow
 
+The following commands should be run from the hiperseis library root:
 1. Produce reference data file IRIS station inventory in sc3ml format:
-   `python update_iris_inventory.py -o IRIS-ALL.xml`
+   `python -m seismic.inventory.update_iris_inventory -o IRIS-ALL.xml`
 2. Run station cleanup script, passing in IRIS inventory as input:
-    `python engd2stxml.py -i IRIS-ALL.xml`
+   `python -m seismic.inventory.engd2stxml -i IRIS-ALL.xml`
 
 Note: in the call to `update_iris_inventory.py`, additional options are available to
 narrow the scope of query to IRIS online database if desired.

@@ -1,24 +1,20 @@
 #!/usr/bin/env python
 """
-H1. Engdahl and ISC STN data conversion to station XML
+==================================================
+Engdahl and ISC STN data conversion to station XML
+==================================================
 
 Creates database of stations from .STN files which are not in IRIS database,
 curates the data using heuristic rules, and exports new stations to FDSN
 station XML format network with non-empty, nominal instrument response data.
 
 Cleanup steps applied:
-* Removes "blacklisted" networks that add little value and cause problems due to station code
-  conflicts.
+* Removes "blacklisted" networks that add little value and cause problems due to station code conflicts.
 * Add default station dates where missing.
 * Make "future" station end dates consistent to max Pandas timestamp.
 * Remove records with illegal station codes.
 * Remove duplicate station records.
-* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3
-  rejects such overlapping dates.
-
-:raises warning.: nil
-:return: nil
-:rtype: nil
+* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3 rejects such overlapping dates.
 """
 
 from __future__ import division
@@ -39,11 +35,11 @@ import time
 import obspy
 from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
-from pdconvert import pd2Network
-from plotting import saveNetworkLocalPlots
-from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
-from iris_query import setTextEncoding, formResponseRequestUrl
-from fdsnxml_convert import toSc3ml
+from .pdconvert import pd2Network
+from .plotting import saveNetworkLocalPlots
+from .table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
+from .iris_query import setTextEncoding, formResponseRequestUrl
+from .fdsnxml_convert import toSc3ml
 
 PY2 = sys.version_info[0] < 3
 
