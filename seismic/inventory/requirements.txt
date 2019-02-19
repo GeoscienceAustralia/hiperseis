@@ -1,4 +1,7 @@
-pytables
+numpy>=1.14.2 # Earlier versions have bugs with applying composite boolean masks to Pandas dataframe index
+scipy>=0.19.1
+pytables; sys_platform=="win32"
+tables; sys_platform!="win32"
 pandas
 matplotlib==3.0.1 # Matplotlib 3.0.2 has problems with configuration on some platforms, breaking imports
 jupyter
