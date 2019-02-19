@@ -217,8 +217,12 @@ def process(data_path, scratch_path, output_file_stem):
                             da[2], 
                             kilometers2degrees(da[0]/1e3),
                             a.time_residual,
-                            pick_attribs['snr'],
-                            int(pick_attribs['bi'])]
+                            pick_attribs['phasepapy_snr'],
+                            pick_attribs['quality_measure_cwt'],
+                            pick_attribs['dom_freq'],
+                            pick_attribs['quality_measure_slope'],
+                            int(pick_attribs['band_index']),
+                            int(pick_attribs['nsigma'])]
 
                     if(a.phase == 'P'): linesp.append(line)
                     elif(a.phase == 'S'): liness.append(line)
@@ -240,8 +244,7 @@ def process(data_path, scratch_path, output_file_stem):
     pprocfile.close()
     sprocfile.close()
 
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr bandIndex\n'
-
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
     comm.barrier()
     if(rank == 0):
         ofp = open(output_file_stem + '.p.txt', 'w+')

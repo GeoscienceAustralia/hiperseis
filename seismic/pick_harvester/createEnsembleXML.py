@@ -449,7 +449,7 @@ class Catalog():
             for a in e.preferred_origin.arrival_list:
                 if(type(self.fdsn_inventory.t[a.net][a.sta]) == defaultdict):
                     missingStations[a.net+'.'+a.sta] += 1
-                    #continue
+                    continue
                 # end if
                 oldPick  = OPick( resource_id=OResourceIdentifier(id=self.get_id()),
                                   time=UTCDateTime(a.utctime),
@@ -478,7 +478,7 @@ class Catalog():
                 for op in opList:
                     if(type(self.fdsn_inventory.t[op[1]][op[2]]) == defaultdict):
                         missingStations[op[1]+'.'+op[2]] += 1
-                        #continue
+                        continue
                     # end if
                     newPick  = OPick( resource_id=OResourceIdentifier(id=self.get_id()),
                                       time=UTCDateTime(op[0]),
@@ -533,45 +533,61 @@ class OurPicks:
                 if(iline == 0): continue
 
                 items = line.split()
-                #eventID 0
-                # originTimestamp 1
-                # mag 2
-                # originLon 3
-                # originLat 4
-                # originDepthKm 5
-                # net 6
-                # sta 7
-                # cha 8
-                # pickTimestamp 9
-                # stationLon 10
-                # stationLat 11
-                # az 12
-                # baz 13
-                # distance 14
-                # ttResidual 15
-                # snr 16
-                # bandIndex 17
+                """
+                0 eventID
+                1 originTimestamp
+                2 mag
+                3 originLon
+                4 originLat
+                5 originDepthKm
+                6 net
+                7 sta
+                8 cha
+                9 pickTimestamp
+                10 stationLon
+                11 stationLat
+                12 az
+                13 baz
+                14 distance
+                15 ttResidual
+                16 snr
+                17 qualityMeasureCWT
+                18 domFreq
+                19 qualityMeasureSlope
+                20 bandIndex
+                21 nSigma
+                """
 
                 t = float(items[9])
-                d = float(items[-4])
-                baz = float(items[-5])
-                az = float(items[-6])
-                snr  = float(items[-2])
-                bi  = int(items[-1])
-                mag  = float(items[2])
+                d = float(items[14])
+                baz = float(items[13])
+                az = float(items[12])
+                snr  = float(items[16])
+                quality_measure_cwt = float(items[17])
+                dom_freq = float(items[18])
+                quality_measure_slope = float(items[19])
+                bi  = int(items[20])
+                nsigma = int(items[21])
 
+                mag  = float(items[2])
                 elon = float(items[3])
                 elat = float(items[4])
                 ed = float(items[5])
                 slon = float(items[10])
                 slat = float(items[11])
-                residual = float(items[-3])
+                residual = float(items[15])
                 net = items[6]
                 sta = items[7]
                 cha = items[8]
                 
                 auxData = []
-                auxData.append(OComment(text = 'bi = ' + str(bi) + ', snr = ' + str(snr), force_resource_id=False))
+                auxData.append(OComment(text = 'phasepapy_snr = ' + str(snr) +
+                                               ', quality_measure_cwt = ' + str(quality_measure_cwt) +
+                                               ', dom_freq = ' + str(dom_freq) +
+                                               ', quality_measure_slope = ' + str(quality_measure_slope) +
+                                               ', band_index = ' + str(bi) +
+                                               ', nsigma = ' + str(nsigma),
+                                        force_resource_id=False))
                 self.picks[int(float(items[0]))].append([t, net, sta, cha, phase, residual, auxData, elat, elon, slat, slon,
                                              d, az, baz])
             # end for
@@ -594,8 +610,8 @@ if __name__=="__main__":
                        '/g/data/ha3/rakib/seismic/pst/tests/results/temp/s_arrivals.txt'],
                        ['P', 'S', 'P', 'S'])
     else:
-        op = OurPicks(['/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take9/p_combined.txt',
-                       '/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take9/s_combined.txt'],
+        op = OurPicks(['/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take12/p_combined.txt',
+                       '/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take12/s_combined.txt'],
                        ['P', 'S'])
     # end if
     c = Catalog(ISC_COORDS_FILE, fi, op, PATH, OFPATH)
