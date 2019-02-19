@@ -12,8 +12,8 @@ scikit-learn
 seaborn
 graphviz
 pyproj
-gdal
-basemap
+#gdal # Commented out for use on NCI where these are system installs. Uncomment for other systems.
+#basemap # Commented out for use on NCI where these are system installs. Uncomment for other systems.
 obspy==1.1.0
 
 # Following are optional, can be commented out if you don't want them.
