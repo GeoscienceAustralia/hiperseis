@@ -1,0 +1,2 @@
+numpy>=1.14.2 # Earlier versions have bugs with applying composite boolean masks to Pandas dataframe index
+scipy>=0.19.1

@@ -9,17 +9,31 @@ collections of station records (many of which are not in IRIS) in bespoke
 ## Requirements
 
 The Python library requirements for using the tools and workflow of this package
-are listed in `requirements.txt`. The package is written for Python version 2.7
+are listed in `requirements_common.txt` for all platforms, plus additional platform
+specific requirements listed in `requirements_linux.txt` for Linux and
+`requirements_win32.txt` for Windows. The package is written for Python version 2.7
 or >=3.5. To install the library requirements, run
 
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements.txt`
+&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_common.txt`
+
+followed by platform-specific requirements:
+
+&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_linux.txt`  (for Linux)
+
+OR
+
+&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_win32.txt`  (for Windows)
+
+The scripts in this package also require Seiscomp3 to be installed on the host
+system and to be visible in the PATH. The installation of Seiscomp3 requires
+admin privileges and configuration by a knowledgable user.
 
 ### Performance note
 
 Version 1.1.0 of the obspy library has a severe performance problem scaling up
 reading of large sc3ml inventory files at the size of data we typically process.
-Geoscience Australia has produced a fix for this issue (TODO: add link), enabling
-users to use the patched version. Until the release of future version of obspy
+Geoscience Australia has produced [a fix for this issue](https://github.com/medlin01GA/obspy.git),
+enabling users to use the patched version. Until the release of future version of obspy
 incorporating this patch, produce a custom build of obspy to allow runtime in the
 order of minutes rather than many hours for loading sc3ml IRIS inventory.
 

@@ -7,10 +7,14 @@
 
    Example usages:
    ---------------
-   python update_iris_inventory.py
-   python update_iris_inventory.py -o outfile.xml
-   python update_iris_inventory.py --netmask=U* --statmask=K*
-   python update_iris_inventory.py --netmask=UW,LO --output outfile.xml
+
+   `python update_iris_inventory.py`
+
+   `python update_iris_inventory.py -o outfile.xml`
+
+   `python update_iris_inventory.py --netmask=U* --statmask=K*`
+
+   `python update_iris_inventory.py --netmask=UW,LO --output outfile.xml`
 """
 
 import os
