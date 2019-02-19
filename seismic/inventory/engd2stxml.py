@@ -35,11 +35,11 @@ import time
 import obspy
 from obspy import read_inventory
 from obspy.geodetics.base import locations2degrees
-from .pdconvert import pd2Network
-from .plotting import saveNetworkLocalPlots
-from .table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
-from .iris_query import setTextEncoding, formResponseRequestUrl
-from .fdsnxml_convert import toSc3ml
+from seismic.inventory.pdconvert import pd2Network
+from seismic.inventory.plotting import saveNetworkLocalPlots
+from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
+from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
+from seismic.inventory.fdsnxml_convert import toSc3ml
 
 PY2 = sys.version_info[0] < 3
 

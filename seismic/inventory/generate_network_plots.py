@@ -14,7 +14,7 @@ import os
 import sys
 import pandas as pd
 
-from plotting import saveNetworkLocalPlots, saveStationLocalPlots
+from seismic.inventory.plotting import saveNetworkLocalPlots, saveStationLocalPlots
 
 try:
     import tqdm
