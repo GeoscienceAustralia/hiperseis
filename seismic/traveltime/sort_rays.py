@@ -1,17 +1,10 @@
 """
 Description:
-    Read in event-arrival seismic rays and sort them according to a Grid discretization,
-    and select the quality ray for inversion program input.
+    Read in event-arrival seismic rays and sort them according to a discretization model of Earth,
+    The output will feed into an inversion program.
 
-References: 
-    https://gajira.atlassian.net/browse/ALAMP-49
-
-CreationDate:   29/01/2019
-Developer:      fei.zhang@ga.gov.au
-
-Revision History:
-    LastUpdate:     29/01/2019   FZ
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+Developer:
+    fei.zhang@ga.gov.au
 """
 from __future__ import print_function, absolute_import
 
@@ -88,8 +81,7 @@ def sort(output_file, sorted_file, residual_cutoff):
     cluster sort outfile_S.csv 10. -s sorted_S.csv
 
     input file header:
-    col_names=['source_block', 'station_block', 'residual', 'event_number',
-            'source_longitude','source_latitude','source_depth',
+    col_names=['source_block', 'station_block', 'residual', 'event_number','source_longitude','source_latitude','source_depth',
             'station_longitude','station_latitude', 'observed_tt', 'locations2degrees', 'station_code','SNR', 'P_or_S']
 
     :param output_file: output file from the gather stage (eg, outfile_P.csv)
