@@ -129,6 +129,11 @@ def xcorr2Window(tr1, tr2, sr1, sr2, fftlen, window_samples_1,
         tr2_d = np.sign(tr2_d)
     # end if
 
+    # Zero padding in the frequency domain here adds zero amplitude entries to the
+    # highest frequency components. This is equivalent to increasing the sampling rate
+    # while preserving low band components, which is the same as upsampling in the time
+    # domain. In this manner, all inputs are convolved at the same sampling rate,
+    # regardless of any discrepancies in the input sampling rates.
     if (sr1 < sr2):
         fftlen2 = fftlen
         fftlen1 = int((fftlen2 * 1.0 * sr1) / max_sr)
