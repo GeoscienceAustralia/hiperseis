@@ -225,13 +225,19 @@ class FederatedASDFDataSetDBVariant():
 
         query = 'select * from wdb where '
         if (network): query += " net='%s' "%(network)
-        if (station): query += "and sta='%s' "%(station)
-        if (location): query += "and loc='%s' "%(location)
-        if (channel): query += "and cha='%s' "%(channel)
+        if (station):
+            if(network): query += "and sta='%s' "%(station)
+            else: query += "sta='%s' "%(station)
+        if (location):
+            if(network or station): query += "and loc='%s' "%(location)
+            else: query += "loc='%s' "%(location)
+        if (channel):
+            if(network or station or location): query += "and cha='%s' "%(channel)
+            else: query += "cha='%s' "%(channel)
         if (network or station or location or channel): query += ' and '
-        query += " ((st>=%f and et<=%f) or (st<%f and et>%f) or (st<%f and et>%f) or (st<%f and et>%f))" \
-                 %    (starttime, endtime, starttime, starttime,  endtime, endtime,    starttime, endtime)
-        query += "group by net, sta, loc, cha"
+        query += ' et>=%f and st<=%f' \
+                 % (starttime, endtime)
+        query += ' group by net, sta, loc, cha'
 
         rows = self.conn.execute(query).fetchall()
         results = []
@@ -255,8 +261,8 @@ class FederatedASDFDataSetDBVariant():
 
         query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
                 %(network, station, location, channel) + \
-                "and ((st>=%f and et<=%f) or (st<%f and et>%f) or (st<%f and et>%f) or (st<%f and et>%f))" \
-                 %    (starttime, endtime, starttime, starttime,  endtime, endtime,    starttime, endtime)
+                "and et>=%f and st<=%f" \
+                 % (starttime, endtime)
 
         rows = self.conn.execute(query).fetchall()
         s = Stream()
