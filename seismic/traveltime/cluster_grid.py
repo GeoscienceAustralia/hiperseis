@@ -14,6 +14,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+from deprecated import depreacted
 
 log = logging.getLogger(__name__)
 
@@ -447,7 +448,7 @@ class Grid2:
 
         return pdf3d
 
-@deprecated
+@deprecated(reason="Use the class Grid2")
 class UniformGrid:
     """
     This is the original (simple) uniform grid model for Earth.
