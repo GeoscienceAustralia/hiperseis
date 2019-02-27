@@ -87,8 +87,7 @@ def sort(output_file, sorted_file, residual_cutoff):
     :param output_file: output file from the gather stage (eg, outfile_P.csv)
     :param sorted_file: str, optional
         optional sorted output file path. Default: sorted.csv.
-    :param residual_cutoff: float
-        residual seconds above which arrivals are rejected.
+    :param residual_cutoff: float residual seconds above which arrivals are rejected.
     :return: None
     """
 
