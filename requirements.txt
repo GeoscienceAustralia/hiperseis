@@ -7,4 +7,5 @@ joblib
 pytest
 click
 pandas
+deprecated
 

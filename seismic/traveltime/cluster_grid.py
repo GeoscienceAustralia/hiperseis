@@ -14,7 +14,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-from deprecated import depreacted
+from deprecated import deprecated
 
 log = logging.getLogger(__name__)
 
