@@ -3,12 +3,12 @@
 Description:
     Define a 3D grid discretization of the Earth
 
-CreationDate:   2/09/2018
-Developer:      fei.zhang@ga.gov.au
+CreationDate:
+    2/09/2018
 
-Revision History:
-    LastUpdate:     2/11/2018   clean up refactoring
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+Developer:
+    | fei.zhang@ga.gov.au
+    |
 """
 
 import os
