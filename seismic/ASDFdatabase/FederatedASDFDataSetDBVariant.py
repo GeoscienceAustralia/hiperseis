@@ -84,7 +84,7 @@ class FederatedASDFDataSetDBVariant():
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
-        self.asdf_station_coordinates = defaultdict(lambda: defaultdict(int))
+        self.asdf_station_coordinates = []
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -109,6 +109,7 @@ class FederatedASDFDataSetDBVariant():
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
                 self.asdf_datasets.append(ds)
+                self.asdf_station_coordinates.append(defaultdict(list))
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if

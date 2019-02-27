@@ -148,7 +148,7 @@ class FederatedASDFDataSetMemVariant():
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
                 self.asdf_datasets.append(ds)
-                self.asdf_station_coordinates.append(ds.get_all_coordinates())
+                self.asdf_station_coordinates.append(defaultdict(list))
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
@@ -160,6 +160,13 @@ class FederatedASDFDataSetMemVariant():
             self.waveform_start_time_list.append(None)
             self.waveform_end_time_list.append(None)
         # end func
+
+        for ids, ds in enumerate(self.asdf_datasets):
+            coords_dict = ds.get_all_coordinates()
+            for k in coords_dict:
+                self.asdf_station_coordinates[ids][k] = [coords_dict[k]['longitude'], coords_dict[k]['latitude']]
+            # end for
+        # end for
 
         # Create indices
         if(self.use_json_db): self.create_index()
@@ -381,8 +388,8 @@ class FederatedASDFDataSetMemVariant():
 
                                     if(len(tag_indices)):
                                         rv = [nk, sk, lk, ck,
-                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['longitude'],
-                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['latitude']]
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)][0],
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)][1]]
                                         results.append(rv)
                                 # end if
                                 if(channel): break
