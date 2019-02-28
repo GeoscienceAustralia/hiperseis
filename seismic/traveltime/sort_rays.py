@@ -1,7 +1,13 @@
 """
 Description:
-    Read in event-arrival seismic rays and sort them according to a discretization model of Earth,
-    The output will feed into an inversion program.
+    Read in event-arrival seismic rays and sort them according to a discretization model of Earth.
+
+    The input file header assumed to be:
+
+    col_names=['source_block', 'station_block', 'residual', 'event_number','source_longitude','source_latitude','source_depth',
+    'station_longitude','station_latitude', 'observed_tt', 'locations2degrees', 'station_code','SNR', 'P_or_S']
+
+    The output CSV file will be feed into an inversion program which will derive travel-time tomography images.
 
 Developer:
     fei.zhang@ga.gov.au
@@ -11,7 +17,6 @@ from __future__ import print_function, absolute_import
 import json
 import logging
 import sys
-from collections import namedtuple
 from math import asin
 
 import click
@@ -42,8 +47,8 @@ column_names = ['source_block', 'station_block',
                 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
                 'observed_tt', 'locations2degrees', STATION_CODE, 'SNR', 'P_or_S']
 
-Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
+# NotUsed  Region = namedtuple('Region', 'upperlat, bottomlat, leftlon, rightlon')
 
 @click.group()
 @click.option('-v', '--verbosity',
@@ -57,44 +62,34 @@ def cli(verbosity):
     """
     pslog.configure(verbosity)
 
+
 # @cli.command()
-# @click.argument('output_file',
+# @click.argument('input_file',
 #                 type=click.File(mode='r'))
 # @click.argument('residual_cutoff', type=float)
 # @click.option('-s', '--sorted_file',
 #               type=click.File(mode='w'), default='sorted.csv',
 #               help='output sorted and filter file.')
-def sort(output_file, sorted_file, residual_cutoff):
+def sort(input_file, sorted_file, residual_cutoff):
     """
-    Sort and filter the arrivals.
-
-    Sort based on the source and station block number.
+    Sort and filter the arrivals based on the source and station block number.
     There are two stages of filtering:
-    1. Filter based on the time residual
-    2. Filter based on median of observed travel time.
+        - Filter based on the arrival time residual value: defult value for the cutoff is 5 for P-Wave, 10 for S-Wave
+        - Filter based on median of observed travel time.
 
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observed travel time (observed_tt).
 
-    cmdline usage:
-    cluster sort outfile_P.csv 5. -s sorted_P.csv
-    cluster sort outfile_S.csv 10. -s sorted_S.csv
-
-    input file header:
-    col_names=['source_block', 'station_block', 'residual', 'event_number','source_longitude','source_latitude','source_depth',
-            'station_longitude','station_latitude', 'observed_tt', 'locations2degrees', 'station_code','SNR', 'P_or_S']
-
-    :param output_file: output file from the gather stage (eg, outfile_P.csv)
-    :param sorted_file: str, optional
-        optional sorted output file path. Default: sorted.csv.
-    :param residual_cutoff: float residual seconds above which arrivals are rejected.
-    :return: None
+    :param input_file: output file from the gather stage (eg, outfile_P.csv)
+    :param sorted_file: str, optional optional sorted output file path. Default: sorted.csv.
+    :param residual_cutoff: float residual seconds, arrivals are rejected if the residual is larger than the cutoff
+    :return: A pandas df
     """
 
     log.info('Reading in and Filtering arrivals.')
 
-    # cluster_data = pd.read_csv(output_file, header=None,  names=column_names) # original fixed header
-    cluster_data = pd.read_csv(output_file, header='infer')  # if input file has correct header line
+    # cluster_data = pd.read_csv(input_file, header=None,  names=column_names) # original fixed header
+    cluster_data = pd.read_csv(input_file, header='infer')  # if input file has correct header line
 
     cluster_data = cluster_data[abs(cluster_data['residual']) < residual_cutoff]
 
@@ -148,38 +143,30 @@ def sort(output_file, sorted_file, residual_cutoff):
 
 
 # @cli.command()
-# @click.argument('output_file',
+# @click.argument('input_file',
 #                 type=click.File(mode='r'))
 # @click.argument('residual_cutoff', type=float)
 # @click.option('-s', '--sorted_file',
 #               type=click.File(mode='w'), default='sorted2.csv',
 #               help='output sorted and filter file.')
-def sort2(output_file, sorted_file, residual_cutoff):
+def sort2(input_file, sorted_file, residual_cutoff):
     """
-    Sort and filter the arrivals.
-
-    Sort based on the source and station block number.
+    Sort and filter the arrivals based on the source and station block number.
     There are two stages of filtering:
-    1. Filter based on the time residual
-    2. Filter based on best Signal_to_Noise-Ratio seismic wave: If there are multiple source and station block combinations, we keep the
-    row corresponding to the highest SNR value
+        - Filter based on the time residual
+        - Filter based on best Signal to Noise Ratio of the seismic wave:
 
-    cmdline usage:
-    cluster sort outfile_P.csv 5. -s sorted_P.csv
-    cluster sort outfile_S.csv 10. -s sorted_S.csv
+    If there are multiple source and station block combinations, the row corresponding to the highest SNR value is kept.
 
-
-    :param output_file: output file from the gather stage (eg, outfile_P.csv)
-    :param sorted_file: str, optional
-        optional sorted output file path. Default: sorted.csv.
-    :param residual_cutoff: float
-        residual seconds above which arrivals are rejected.
+    :param input_file: output file from the gather stage (eg, outfile_P.csv)
+    :param sorted_file: str, optionaloptional sorted output file path. Default: sorted.csv.
+    :param residual_cutoff: float arrivals are rejected if the residual is larger than the cutoff.
     :return: pandas_df
     """
 
     log.info('Filtering arrivals.')
 
-    cluster_data = pd.read_csv(output_file, header=None,
+    cluster_data = pd.read_csv(input_file, header=None,
                                names=column_names)
 
     cluster_data = cluster_data[abs(cluster_data['residual'])
@@ -224,7 +211,8 @@ def sort2(output_file, sorted_file, residual_cutoff):
 def translate_csv(in_csvfile, out_csvfile):
     """
     Read in a csv file, re-grid each row according to a new Grid model.
-    Write into another csv file with re-calculated block_numbers and six new columns of Grid cell centers
+    Write into another csv file with re-calculated block_numbers and six new columns of Grid cell centers.
+
     :param in_csvfile: path to an input csv file
     :param out_csvfile: path to an output csv file
     :return: out_csvfile
@@ -275,7 +263,19 @@ def translate_csv(in_csvfile, out_csvfile):
 
 def compute_ellipticity_corr(arrival_phase, ev_latitude, ev_longitude, ev_depth_km, sta_latitude, sta_longitude,
                              degrees_to_source):
-    myazim = gps2dist_azimuth(ev_latitude, ev_longitude, sta_latitude, sta_longitude)[1] # [1] shall be taken
+    """
+    Utility function to compute ellipticity correction.
+
+    :param arrival_phase: P or S
+    :param ev_latitude:  event lat
+    :param ev_longitude: event long
+    :param ev_depth_km: event depth in km
+    :param sta_latitude: station lat
+    :param sta_longitude: station long
+    :param degrees_to_source: degree to source
+    :return: ellipticity correction float value
+    """
+    myazim = gps2dist_azimuth(ev_latitude, ev_longitude, sta_latitude, sta_longitude)[1]  # [1] shall be taken
     # see https://docs.obspy.org/_modules/obspy/geodetics/base.html#gps2dist_azimuth
     # this function returns 3 values (Great_circle_distance_in_m, azimuth_A->B_in_degrees, azimuth_B->A_in degrees)
 
@@ -296,12 +296,16 @@ def compute_ellipticity_corr(arrival_phase, ev_latitude, ev_longitude, ev_depth_
 
 
 def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
-    """ Read in a csv file, re-grid each row according to a given Grid model.
+    """
+    Read in a csv file, re-grid each row according to a given Grid model.
     Write into output csv file with re-calculated block_numbers re-named columns
 
     :param inputcsv: path to an input csv file
-    :param outputcsv:
-    :return:
+    :param outputcsv: path to output file
+    :param phase: P or S
+    :param mygrid: instance of Earth Grid model
+    :param column_name_map: column map dictionary as in csv_columns.json file
+    :return: outfile
     """
 
     if phase.upper() == 'P':
@@ -370,22 +374,20 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
 
     # elliptic correction to the  observed_travel_time;
 
-    final_df['locations_to_degrees'] = final_df.apply(lambda x: locations2degrees( x.source_lat, x.source_lon,
-                                                                x.station_lat, x.station_lon), axis=1)
-    final_df['my_azim'] = final_df.apply(lambda x: gps2dist_azimuth( x.source_lat, x.source_lon,
-                                                                x.station_lat, x.station_lon)[1], axis=1)
+    final_df['locations_to_degrees'] = final_df.apply(lambda x: locations2degrees(x.source_lat, x.source_lon,
+                                                                                  x.station_lat, x.station_lon), axis=1)
+    final_df['my_azim'] = final_df.apply(lambda x: gps2dist_azimuth(x.source_lat, x.source_lon,
+                                                                    x.station_lat, x.station_lon)[1], axis=1)
 
     final_df['my_bazim'] = final_df.apply(lambda x: gps2dist_azimuth(x.source_lat, x.source_lon,
-                                                                    x.station_lat, x.station_lon)[2], axis=1)
+                                                                     x.station_lat, x.station_lon)[2], axis=1)
     final_df['ellipticity_corr'] = final_df.apply(lambda x:
-                                          compute_ellipticity_corr(phase, x.source_lat, x.source_lon,x.source_depth_km,
-                                                                   x.station_lat, x.station_lon, x.distance),
-                                          axis=1)
+                                                  compute_ellipticity_corr(phase, x.source_lat, x.source_lon,
+                                                                           x.source_depth_km,
+                                                                           x.station_lat, x.station_lon, x.distance),
+                                                  axis=1)
 
     final_df['observed_tt'] = final_df.observed_tt + final_df.ellipticity_corr
-
-
-
 
     # make sure the originDepth/source_depth is in KM for required by inversion program
 
@@ -393,9 +395,9 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
 
     # inpdf.to_csv(outputcsv, header=True, index=False, sep=' ')   # mismatch columns in space-delimited csv file as the NaN => empty space !
 
-    if phase =='P':
-        final_df['P_or_S'] =1
-    elif phase =='S':
+    if phase == 'P':
+        final_df['P_or_S'] = 1
+    elif phase == 'S':
         final_df['P_or_S'] = 2
     else:
         raise Exception("Phase must be P or S !!!")
@@ -405,14 +407,13 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
     # the following values are required for inversion program. the event_number defined as int(originTimestamp)
     # the columns must be in the order:
     required_columns = ['source_block', 'station_block', 'tt_residual', 'event_number',
-                 'source_lon', 'source_lat', 'source_depth_km',
-                 'station_lon', 'station_lat', 'observed_tt', 'locations_to_degrees',  'P_or_S']
-
+                        'source_lon', 'source_lat', 'source_depth_km',
+                        'station_lon', 'station_lat', 'observed_tt', 'locations_to_degrees', 'P_or_S']
 
     pdf4inv = final_df[required_columns]
 
     inv_txt = "%s_inv.txt" % outputcsv
-    pdf4inv.to_csv(inv_txt,header=False, index=False, sep=' ', float_format='%.6f')  # space delimitted txt file
+    pdf4inv.to_csv(inv_txt, header=False, index=False, sep=' ', float_format='%.6f')  # space delimitted txt file
 
     return outputcsv
 

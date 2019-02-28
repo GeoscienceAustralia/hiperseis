@@ -261,9 +261,9 @@ class Grid2:
         each spatial point (lat, lon, z) is mapped to a uniq block_number.
 
         :param lat: latitude (-90,90)
-        :param lon: longitude (0,180)
-        :param z: depth
-        :return: int block number AND (xc,yc, zcm)
+        :param lon: longitude (0,360)
+        :param z: depth meter
+        :return: a tuple of 4 block number AND and the block's centre coordinate(int_block_n, xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
         y = (lat + 90.0) % 180  # convert lat into y which will be in [0,180)
