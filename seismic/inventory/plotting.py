@@ -5,7 +5,7 @@
 import os
 import sys
 import pandas as pd
-from pdconvert import pd2Network
+from seismic.inventory.pdconvert import pd2Network
 from obspy.core.inventory import Inventory
 import matplotlib.pyplot as plt
 from collections import defaultdict

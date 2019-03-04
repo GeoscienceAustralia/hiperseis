@@ -1,6 +1,7 @@
 numpy>=1.14.2 # Earlier versions have bugs with applying composite boolean masks to Pandas dataframe index
 scipy>=0.19.1
-pytables
+pytables; sys_platform=="win32"
+tables; sys_platform!="win32"
 pandas
 matplotlib==3.0.1 # Matplotlib 3.0.2 has problems with configuration on some platforms, breaking imports
 jupyter
@@ -11,13 +12,13 @@ scikit-learn
 seaborn
 graphviz
 pyproj
-#gdal # Uncomment for Windows conda install
-#basemap # Uncomment for Windows conda install
-obspy>=1.1.0
+#gdal # Commented out for use on NCI where these are system installs. Uncomment for other systems.
+#basemap # Commented out for use on NCI where these are system installs. Uncomment for other systems.
+obspy==1.1.0
 
 # Following are optional, can be commented out if you don't want them.
 tqdm
-numba
-dask
-line_profiler
+#numba
+#dask
+#line_profiler
 pandoc

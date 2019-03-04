@@ -1,5 +1,5 @@
 HiPerSeis: High Performance Software Package for Seismology Data/Metadata Processing and Analysis
-==================================
+=================================================================================================
 
 |Build Status|  |Documentation Status|
 

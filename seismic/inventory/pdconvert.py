@@ -12,7 +12,7 @@ from obspy import read_inventory
 from obspy.core import utcdatetime
 from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 
-from table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
 def pd2Station(statcode, station_df, instrument_register=None):
