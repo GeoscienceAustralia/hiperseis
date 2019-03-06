@@ -43,7 +43,6 @@ from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from netCDF4 import Dataset
 
-
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
@@ -95,7 +94,7 @@ def whiten(x, sr, fmin=None, fmax=None):
     # apply hanning window
     l = x.shape[0]
     h = signal.hann(l)
-    xf = np.fft.rfft(h*x)
+    xf = rfft(h*x)
 
     # magnitude
     mag = np.abs(xf)
@@ -107,7 +106,7 @@ def whiten(x, sr, fmin=None, fmax=None):
     j = np.where((f >= fmin) & (f <= fmax))[0]
 
     mag[j] = 1.
-    xnew = np.fft.irfft(mag*np.exp(1j*phase))
+    xnew = irfft(mag*np.exp(1j*phase))
 
     return xnew
 # end func
@@ -561,10 +560,22 @@ def IntervalStackXCorr(refds, tempds,
                     x = np.linspace(-window_seconds, window_seconds,
                                     xcorrResultsDict[k][0].shape[1])
                 # end if
+
+                if (ensemble_stack):
+                    if (combinedXcorrResults.shape[0]>1):
+                        combinedXcorrResults = np.expand_dims(np.sum(combinedXcorrResults,
+                                                                     axis=0), axis=0)
+                    # end if
+                # end if
             else:
                 if (combinedXcorrResults.shape[1] == xcorrResultsDict[k][i].shape[1]):
                     if(ensemble_stack):
-                        combinedXcorrResults += xcorrResultsDict[k][i]
+                        if(xcorrResultsDict[k][i].shape[0]>1):
+                            combinedXcorrResults += np.expand_dims(np.sum(xcorrResultsDict[k][i],
+                                                                          axis=0), axis=0)
+                        else:
+                            combinedXcorrResults += xcorrResultsDict[k][i]
+                        # end if
                     else:
                         combinedXcorrResults = np.concatenate((combinedXcorrResults,
                                                                xcorrResultsDict[k][i]))
