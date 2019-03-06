@@ -57,7 +57,6 @@ sake of simplicity. This is may not be the only solution, but it is currently th
 
 ### Setup process
 
-1. Load modules:
   1. `module purge` is highly recommended if you have modules loaded, only known to be not 
      necessary for modules `git` and `pbs`
   1. Make git available: `module load git`
@@ -70,7 +69,6 @@ sake of simplicity. This is may not be the only solution, but it is currently th
   1. Verify `which mpicc` returns `/apps/openmpi/2.1.1/bin/mpicc`
   1. Load HDF5 library version 1.10.2 built for parallel execution: `module load hdf5/1.10.2p`
   1. Load MPI for Python library 3.0.0: `module load mpi4py/3.0.0-py2`
-1. Build and install customized 3rd party Python libraries
   1. Pull h5py repository from github fork of h5py for purpose of custom build: `git clone https://github.com/basaks/h5py.git`
      (this just makes h5py not reject the HDF5 library version on NCI which has appended character 'p' for parallel)
   1. `cd h5py`
@@ -80,7 +78,6 @@ sake of simplicity. This is may not be the only solution, but it is currently th
   1. After lots of build output, you should see somewhere in the last 20 lines of output something very similar to the
      following, indicating installation of the built library into user space for Python packages:
      `Installed /home/547/your_login_id/.local/lib/python2.7/site-packages/h5py-2.7.0.post0-py2.7-linux-x86_64.egg`
-1. Install standard 3rd party Python libraries
   1. `pip install --user obspy==1.1.0`
   1. `pip install --user click`
   1. `pip install --user netCDF4`
@@ -96,69 +93,70 @@ TODO: how to test the setup
 ### Version dump of known good configuration
 
 Known good `pip freeze` output:
-> atomicwrites==1.3.0
-> attrs==19.1.0
-> backports.shutil-get-terminal-size==1.0.0
-> certifi==2018.11.29
-> cftime==1.0.3.4
-> chardet==3.0.4
-> Click==7.0
-> colorama==0.4.1
-> configparser==3.7.3
-> cycler==0.10.0
-> Cython==0.26
-> decorator==4.1.2
-> dill==0.2.9
-> entrypoints==0.3
-> enum34==1.1.6
-> flake8==3.7.7
-> funcsigs==1.0.2
-> functools32==3.2.3.post2
-> future==0.17.1
-> h5py==2.7.0.post0
-> idna==2.8
-> ipython==5.4.1
-> ipython-genutils==0.2.0
-> isodate==0.6.0
-> lxml==4.3.2
-> matplotlib==2.0.2
-> mccabe==0.6.1
-> more-itertools==5.0.0
-> mpi4py==3.0.0
-> netCDF4==1.4.3
-> networkx==2.2
-> nose==1.3.7
-> numpy==1.14.2
-> obspy==1.1.0
-> pathlib2==2.3.0
-> pexpect==4.2.1
-> pickleshare==0.7.4
-> pluggy==0.9.0
-> prompt-toolkit==1.0.15
-> prov==1.5.3
-> ptyprocess==0.5.2
-> py==1.8.0
-> pyasdf==0.4.0
-> pycodestyle==2.5.0
-> pyflakes==2.1.1
-> Pygments==2.2.0
-> pyparsing==2.2.0
-> pytest==4.3.0
-> python-dateutil==2.6.1
-> pytz==2017.2
-> rdflib==4.2.2
-> requests==2.21.0
-> scandir==1.5
-> scipy==0.19.1
-> simplegeneric==0.8.1
-> six==1.10.0
-> SQLAlchemy==1.3.0
-> subprocess32==3.2.7
-> traitlets==4.3.2
-> typing==3.6.6
-> urllib3==1.24.1
-> wcwidth==0.1.7
-
+```
+atomicwrites==1.3.0
+attrs==19.1.0
+backports.shutil-get-terminal-size==1.0.0
+certifi==2018.11.29
+cftime==1.0.3.4
+chardet==3.0.4
+Click==7.0
+colorama==0.4.1
+configparser==3.7.3
+cycler==0.10.0
+Cython==0.26
+decorator==4.1.2
+dill==0.2.9
+entrypoints==0.3
+enum34==1.1.6
+flake8==3.7.7
+funcsigs==1.0.2
+functools32==3.2.3.post2
+future==0.17.1
+h5py==2.7.0.post0
+idna==2.8
+ipython==5.4.1
+ipython-genutils==0.2.0
+isodate==0.6.0
+lxml==4.3.2
+matplotlib==2.0.2
+mccabe==0.6.1
+more-itertools==5.0.0
+mpi4py==3.0.0
+netCDF4==1.4.3
+networkx==2.2
+nose==1.3.7
+numpy==1.14.2
+obspy==1.1.0
+pathlib2==2.3.0
+pexpect==4.2.1
+pickleshare==0.7.4
+pluggy==0.9.0
+prompt-toolkit==1.0.15
+prov==1.5.3
+ptyprocess==0.5.2
+py==1.8.0
+pyasdf==0.4.0
+pycodestyle==2.5.0
+pyflakes==2.1.1
+Pygments==2.2.0
+pyparsing==2.2.0
+pytest==4.3.0
+python-dateutil==2.6.1
+pytz==2017.2
+rdflib==4.2.2
+requests==2.21.0
+scandir==1.5
+scipy==0.19.1
+simplegeneric==0.8.1
+six==1.10.0
+SQLAlchemy==1.3.0
+subprocess32==3.2.7
+traitlets==4.3.2
+typing==3.6.6
+urllib3==1.24.1
+wcwidth==0.1.7
+```
 
 
 [Panoply]:https://www.giss.nasa.gov/tools/panoply/
