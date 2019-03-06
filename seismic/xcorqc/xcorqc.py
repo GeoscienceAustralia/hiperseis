@@ -113,13 +113,16 @@ def whiten(x, sr, fmin=None, fmax=None):
 # end func
 
 def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
-           resample_rate=None, flo=0.9, fhi=1.1, clip_to_2std=False, one_bit_normalize=False,
-           whitening=False, verbose=1, logger=None):
+           resample_rate=None, flo=0.9, fhi=1.1, clip_to_2std=False, whitening=False,
+           one_bit_normalize=False, envelope_normalize=False,
+           verbose=1, logger=None):
 
     assert window_overlap <= 0.5, 'Overlap must be < 0.5'
 
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
+    sr1_orig = sr1
+    sr2_orig = sr2
     tr1_d_all = tr1.data  # refstn
     tr2_d_all = tr2.data
     lentr1_all = tr1_d_all.shape[0]
@@ -130,7 +133,16 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
     interval_samples_2 = interval_seconds * sr2
     itr1s = 0
     itr2s = 0
+    sr = 0
     resll = []
+
+    if(resample_rate):
+        sr1 = resample_rate
+        sr2 = resample_rate
+    # end if
+    sr = max(sr1, sr2)
+    xcorlen = int(2 * window_seconds * sr - 1)
+    fftlen = 2 ** (int(np.log2(xcorlen)) + 1)
 
     intervalCount = 0
     windowsPerInterval = []  # Stores the number of windows processed per interval
@@ -139,9 +151,6 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
     while itr1s < lentr1_all and itr2s < lentr2_all:
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
-        sr = max(sr1, sr2)
-        xcorlen = int(2 * window_seconds * sr - 1)
-        fftlen = 2 ** (int(np.log2(xcorlen)) + 1)
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -169,10 +178,10 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
                 # resample
                 if(resample_rate):
                     tr1_d = Trace(data=tr1_d,
-                                  header=Stats(header={'sampling_rate':sr1,
+                                  header=Stats(header={'sampling_rate':sr1_orig,
                                                        'npts':window_samples_1})).resample(resample_rate).data
                     tr2_d = Trace(data=tr2_d,
-                                  header=Stats(header={'sampling_rate':sr2,
+                                  header=Stats(header={'sampling_rate':sr2_orig,
                                                        'npts':window_samples_2})).resample(resample_rate).data
                 # end if
 
@@ -186,8 +195,8 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
 
                 # taper
                 if(window_overlap>0):
-                    tr1_d = taper(tr1_d, int(window_overlap*window_samples_1))
-                    tr2_d = taper(tr2_d, int(window_overlap*window_samples_2))
+                    tr1_d = taper(tr1_d, int(window_overlap*tr1_d.shape[0]))
+                    tr2_d = taper(tr2_d, int(window_overlap*tr2_d.shape[0]))
                 # end if
 
                 # apply zero-phase band-pass
@@ -220,22 +229,16 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
                 if (sr1 < sr2):
                     fftlen2 = fftlen
                     fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
-                    outdims2 = np.array([fftlen2])
-                    outdims1 = np.array([fftlen1])
-                    rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=outdims1), fftlen2) * fftn(
-                        zeropad(ndflip(tr2_d), fftlen2), shape=outdims2)
+                    rf = zeropad_ba(fftn(zeropad(tr1_d, fftlen1), shape=[fftlen1]), fftlen2) * fftn(
+                        zeropad(ndflip(tr2_d), fftlen2), shape=[fftlen2])
                 elif (sr1 > sr2):
                     fftlen1 = fftlen
                     fftlen2 = int((fftlen1 * 1.0 * sr2) / sr)
-                    outdims2 = np.array([fftlen2])
-                    outdims1 = np.array([fftlen1])
-                    rf = fftn(zeropad(tr1_d, fftlen1), shape=outdims1) * zeropad_ba(
-                        fftn(zeropad(ndflip(tr2_d), fftlen2), shape=outdims2), fftlen1)
+                    rf = fftn(zeropad(tr1_d, fftlen1), shape=[fftlen1]) * zeropad_ba(
+                        fftn(zeropad(ndflip(tr2_d), fftlen2), shape=[fftlen2]), fftlen1)
                 else:
-                    fftlen = 2 ** (int(np.log2(2 * window_samples_1 - 1)) + 1)
-                    outdims = np.array([fftlen])
-                    rf = fftn(zeropad(tr1_d, fftlen), shape=outdims) * fftn(zeropad(ndflip(tr2_d), fftlen),
-                                                                            shape=outdims)
+                    rf = fftn(zeropad(tr1_d, fftlen), shape=[fftlen]) * fftn(zeropad(ndflip(tr2_d), fftlen),
+                                                                             shape=[fftlen])
                 # end if
 
                 resl.append(rf)
@@ -250,14 +253,14 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
             if(logger): logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end fi
 
-        if(np.fabs(itr1e - itr1s) < sr1):
+        if(np.fabs(itr1e - itr1s) < sr1_orig):
             itr1s = itr1e
             itr2s = itr2e
             continue
         # end if
 
-        intervalStartSeconds.append(itr1s/sr1)
-        intervalEndSeconds.append(itr1e/sr1)
+        intervalStartSeconds.append(itr1s/sr1_orig)
+        intervalEndSeconds.append(itr1e/sr1_orig)
         itr1s = itr1e
         itr2s = itr2e
         intervalCount += 1
@@ -272,20 +275,25 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
 
         windowsPerInterval.append(windowCount)
 
-        step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
-        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)  # Enveloping
+        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
 
-        #mean = mean + step * mean  # compute analytic
+        if (envelope_normalize):
+            step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
+            mean = mean + step * mean  # compute analytic
+        # end if
+
         mean = ifftn(mean)
 
-        # Compute magnitude of mean
-        mean = np.abs(mean)
-        normFactor = np.max(mean)
+        if(envelope_normalize):
+            # Compute magnitude of mean
+            mean = np.abs(mean)
+            normFactor = np.max(mean)
 
-        # mean can be 0 for a null result
-        if(normFactor > 0):
-            mean /= normFactor
-        #end if
+            # mean can be 0 for a null result
+            if(normFactor > 0):
+                mean /= normFactor
+            # end if
+        # end if
 
         resll.append(mean[:xcorlen])
     # end while (iteration over intervals)
@@ -314,7 +322,9 @@ def IntervalStackXCorr(refds, tempds,
                        buffer_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, flo=0.9, fhi=1.1,
                        clip_to_2std=False, whitening=False,
-                       one_bit_normalize=False, outputPath='/tmp', verbose=1):
+                       one_bit_normalize=False, envelope_normalize=False,
+                       ensemble_stack=False,
+                       outputPath='/tmp', verbose=1):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
     waveforms from all possible station-pairs from the two data sets. To allow efficient, random
@@ -368,6 +378,10 @@ def IntervalStackXCorr(refds, tempds,
     :param whitening: Apply spectral whitening
     :type one_bit_normalize: bool
     :param one_bit_normalize: Apply one-bit normalization to data in each window
+    :type envelope_normalize: bool
+    :param envelope_normalize: Envelope via Hilbert transforms and normalize
+    :type ensemble_stack: bool
+    :param ensemble_stack: Outputs a single CC function stacked over all data for a given station-pair
     :type verbose: int
     :param verbose: Verbosity of printouts. Default is 1; maximum is 3.
     :type outputPath: str
@@ -502,12 +516,13 @@ def IntervalStackXCorr(refds, tempds,
         xcl, winsPerInterval, \
         intervalStartSeconds, intervalEndSeconds = \
             xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
-                                      interval_seconds=interval_seconds,
-                                      resample_rate = resample_rate,
-                                      flo=flo, fhi=fhi,
-                                      clip_to_2std=clip_to_2std, whitening=whitening,
-                                      one_bit_normalize=one_bit_normalize,
-                                      verbose=verbose, logger=logger)
+                   interval_seconds=interval_seconds,
+                   resample_rate=resample_rate,
+                   flo=flo, fhi=fhi,
+                   clip_to_2std=clip_to_2std, whitening=whitening,
+                   one_bit_normalize=one_bit_normalize,
+                   envelope_normalize=envelope_normalize,
+                   verbose=verbose, logger=logger)
 
         # Continue if no results were returned due to data-gaps
         if (xcl is None):
@@ -516,7 +531,7 @@ def IntervalStackXCorr(refds, tempds,
             cTime += cStep
             continue
         # end if
-        
+
         xcorrResultsDict[stationPair].append(xcl)
         windowCountResultsDict[stationPair].append(winsPerInterval)
 
@@ -527,6 +542,7 @@ def IntervalStackXCorr(refds, tempds,
     # wend (loop over time range)
 
     x = None
+    skippedCount = 0
     # Concatenate results
     for k in xcorrResultsDict.keys():
         combinedXcorrResults = None
@@ -547,12 +563,20 @@ def IntervalStackXCorr(refds, tempds,
                 # end if
             else:
                 if (combinedXcorrResults.shape[1] == xcorrResultsDict[k][i].shape[1]):
-                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                           xcorrResultsDict[k][i]))
+                    if(ensemble_stack):
+                        combinedXcorrResults += xcorrResultsDict[k][i]
+                    else:
+                        combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                               xcorrResultsDict[k][i]))
+                    # end if
                 else:
-                    combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                           np.zeros((xcorrResultsDict[k][i].shape[0],
-                                                                     combinedXcorrResults.shape[1]))))
+                    if(ensemble_stack):
+                        pass
+                    else:
+                        combinedXcorrResults = np.concatenate((combinedXcorrResults,
+                                                               np.zeros((xcorrResultsDict[k][i].shape[0],
+                                                                         combinedXcorrResults.shape[1]))))
+                    # end if
                     logger.warn("\t\tVariable sample rates detected. Current station-pair: %s"%(k))
                 # end if
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
@@ -579,24 +603,40 @@ def IntervalStackXCorr(refds, tempds,
         root_grp.description = 'Cross-correlation results for station-pair: %s' % (k)
 
         # Dimensions
-        root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
         root_grp.createDimension('lag', xcorrResultsDict[k].shape[1])
-
-        # Variables
-        interval = root_grp.createVariable('interval', 'f4', ('interval',))
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
-        nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
-        ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
-        iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
-        xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',))
 
-        # Populate variables
-        interval[:] = np.arange(xcorrResultsDict[k].shape[0])
+        if(ensemble_stack):
+            nsw = root_grp.createVariable('NumStackedWindows', 'i8')
+            ist = root_grp.createVariable('IntervalStartTime', 'i8')
+            iet = root_grp.createVariable('IntervalEndTime', 'i8')
+            xc  = root_grp.createVariable('xcorr', 'f4', ('lag',))
+
+            totalIntervalCount = int(np.sum(windowCountResultsDict[k] > 0))
+            totalWindowCount = int(np.sum(windowCountResultsDict[k]))
+            nsw[:] = totalWindowCount
+            ist[:] = int(np.min(intervalStartTimesDict[k]))
+            iet[:] = int(np.min(intervalEndTimesDict[k]))
+            xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
+        else:
+            root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
+            # Variables
+            interval = root_grp.createVariable('interval', 'f4', ('interval',))
+            nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
+            ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
+            iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
+            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',))
+
+            # Populate variables
+            interval[:] = np.arange(xcorrResultsDict[k].shape[0])
+            nsw[:] = windowCountResultsDict[k]
+            ist[:] = intervalStartTimesDict[k]
+            iet[:] = intervalEndTimesDict[k]
+            xc[:, :] = xcorrResultsDict[k]
+        # end if
+
         lag[:] = x
-        nsw[:] = windowCountResultsDict[k]
-        ist[:] = intervalStartTimesDict[k]
-        iet[:] = intervalEndTimesDict[k]
-        xc[:, :] = xcorrResultsDict[k]
+
         root_grp.close()
     # end for
 

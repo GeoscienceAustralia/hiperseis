@@ -118,7 +118,8 @@ def process(data_source1, data_source2, output_path,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
-            ds2_zchan=None, ds2_nchan=None, ds2_echan=None):
+            ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
+            envelope_normalize=False, ensemble_stack=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -164,6 +165,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
             f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
             f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+            f.write('%25s\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
 
             f.close()
         # end func
@@ -209,7 +211,8 @@ def process(data_source1, data_source2, output_path,
                                                             endTime, st1, st2, ds1_zchan, ds2_zchan,
                                                             resample_rate, read_buffer_size, interval_seconds,
                                                             window_seconds, fmin, fmax, clip_to_2std, whitening,
-                                                            one_bit_normalize, output_path, 2)
+                                                            one_bit_normalize, envelope_normalize, ensemble_stack,
+                                                            output_path, 2)
         # end for
     # end for
 # end func
@@ -278,10 +281,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--ds2-echan', default='BHE',
               type=str,
               help="Name of e-channel for data-source-2")
+@click.option('--envelope-normalize', is_flag=True, help="Envelope (via Hilbert transform) and normalize CCs. "
+                                                         "This procedure is useful for clock-error detection "
+                                                         "workflows")
+@click.option('--ensemble-stack', is_flag=True, help="Outputs a single ensemble CC function over all data for "
+                                                     "for a given station-pair. In other words, stacks over "
+                                                     "'interval-seconds' are in turn stacked to produce a "
+                                                     "single CC function.")
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
-            nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
-            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan):
+         nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
+         end_time, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
+         ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
+         ensemble_stack):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -296,7 +307,8 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
-            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan)
+            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
+            ensemble_stack)
 # end func
 
 if __name__ == '__main__':

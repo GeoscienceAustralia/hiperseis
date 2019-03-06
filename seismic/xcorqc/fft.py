@@ -38,7 +38,7 @@ except ImportError:
     "To install it, try running 'easy_install anfft' from the terminal.\n"\
     "Falling back on the slower 'fftpack' module for ND Fourier transforms."
     """
-    from scipy.fftpack import fftn, ifftn
+    from scipy.fftpack import fftn, ifftn, rfft, irfft
 
 def ndflip(a):
     """Inverts an n-dimensional array along each of its axes"""
