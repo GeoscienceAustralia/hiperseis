@@ -109,7 +109,46 @@ class Dataset:
 
         return list(np.array(other_dataset.netsta_list)[l])
     # end func
+
+    def get_unique_station_pairs(self, other_dataset, nn=1):
+        pairs = set()
+        for st1 in self.netsta_list:
+            st2list = None
+            if (nn != -1):
+                if self == other_dataset:
+                    st2list = set(self.get_closest_stations(st1, other_dataset, nn=nn + 1))
+                    if st1 in st2list:
+                        st2list.remove(st1)
+                    st2list = list(st2list)
+                else:
+                    st2list = self.get_closest_stations(st1, other_dataset, nn=nn)
+            else:
+                st2list = other_dataset.netsta_list
+            # end if
+
+            for st2 in st2list:
+                pairs.add((st1, st2))
+            # end for
+        # end for
+
+        pairs_subset = set()
+        for item in pairs:
+            if(item[0] == item[1]): continue
+
+            dup_item = (item[1], item[0])
+            if(dup_item not in pairs_subset and item not in pairs_subset):
+                pairs_subset.add(item)
+            # end if
+        # end if
+
+        return list(pairs_subset)
+    # end func
 # end class
+
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+# end func
 
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds,
@@ -135,11 +174,11 @@ def process(data_source1, data_source2, output_path,
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
-    proc_stations = defaultdict(list)
 
     ds1 = Dataset(data_source1, netsta_list1)
     ds2 = Dataset(data_source2, netsta_list2)
 
+    proc_stations = []
     if (rank == 0):
         def outputConfigParameters():
             # output config parameters
@@ -172,48 +211,24 @@ def process(data_source1, data_source2, output_path,
 
         outputConfigParameters()
 
-        # split work over stations in ds1 for the time being
-        count = 0
-        for iproc in np.arange(nproc):
-            for istation in np.arange(np.divide(len(ds1.netsta_list), nproc)):
-                proc_stations[iproc].append(ds1.netsta_list[count])
-                count += 1
-        # end for
-        for iproc in np.arange(np.mod(len(ds1.netsta_list), nproc)):
-            proc_stations[iproc].append(ds1.netsta_list[count])
-            count += 1
-        # end for
+        pairs = ds1.get_unique_station_pairs(ds2, nn=nearest_neighbours)
+        proc_stations = split_list(pairs, npartitions=nproc)
     # end if
 
     # broadcast workload to all procs
     proc_stations = comm.bcast(proc_stations, root=0)
 
-    for st1 in proc_stations[rank]:
-        st2list = None
-        if (nearest_neighbours != -1):
-            if data_source1 == data_source2:
-                st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours + 1))
-                if st1 in st2list:
-                    st2list.remove(st1)
-                st2list = list(st2list)
-            else:
-                st2list = ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours)
-        else:
-            st2list = ds2.netsta_list
+    startTime = UTCDateTime(start_time)
+    endTime = UTCDateTime(end_time)
+    for pair in proc_stations[rank]:
+        st1, st2 = pair
 
-        for st2 in st2list:
-            startTime = UTCDateTime(start_time)
-            endTime = UTCDateTime(end_time)
-
-            if (st1 == st2): continue
-
-            x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
-                                                            endTime, st1, st2, ds1_zchan, ds2_zchan,
-                                                            resample_rate, read_buffer_size, interval_seconds,
-                                                            window_seconds, fmin, fmax, clip_to_2std, whitening,
-                                                            one_bit_normalize, envelope_normalize, ensemble_stack,
-                                                            output_path, 2)
-        # end for
+        x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
+                                                        endTime, st1, st2, ds1_zchan, ds2_zchan,
+                                                        resample_rate, read_buffer_size, interval_seconds,
+                                                        window_seconds, fmin, fmax, clip_to_2std, whitening,
+                                                        one_bit_normalize, envelope_normalize, ensemble_stack,
+                                                        output_path, 2)
     # end for
 # end func
 
@@ -249,14 +264,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--end-time', default='2100-01-01T00:00:00',
               type=str,
               help="Date and time (in UTC format) to stop at; default is year 2100.")
-@click.option('--clip-to-2std', default=False,
-              type=bool,
+@click.option('--clip-to-2std', is_flag=True,
               help="Clip data in each window to +/- 2 standard deviations")
-@click.option('--whitening', default=False,
-              type=bool,
+@click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
-@click.option('--one-bit-normalize', default=False,
-              type=bool,
+@click.option('--one-bit-normalize', is_flag=True,
               help="Apply one-bit normalization to data in each window")
 @click.option('--read-buffer-size', default=10,
               type=int,
