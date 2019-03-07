@@ -55,6 +55,13 @@ In general virtual environments are preferred, but not well supported in Python 
 setup uses the python user space (`--user` option of `pip`), but not virtual environments for the
 sake of simplicity. This is may not be the only solution, but it is currently the only known working solution.
 
+On Raijin, we need to use Python 2.7.13 since earlier versions don't work properly with MPI. 
+Also, the numpy and scipy libraries are custom built for maximum performance on the host hardware.
+Due to the multiplicity of Python and library versions that are possible, for maintainability only limited
+combinations are supported, typically only one version of numpy and scipy per Python version.
+
+In future new configurations will be developed to support Python >= 3.5.
+
 ### Setup process
 
   1. `module purge` is highly recommended if you have modules loaded, only known to be not 
