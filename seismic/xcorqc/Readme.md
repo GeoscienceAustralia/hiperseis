@@ -92,10 +92,19 @@ In future new configurations will be developed to support Python >= 3.5.
 
 Date last validated: 6 March 2019
 
-#### Setup validation
+### Setup validation
 
-TODO: how to test the setup
+The Python setup can be tested for running the cross-correlation on Raijin using scripts `validate_xcorr_setup.py`
+(Python) and `validate_xcorr_runtime.sh` (shell script) in folder `hiperseis/seismic/xcorqc`. These scripts should
+be run directly from that folder, not from another folder.
 
+Firstly, run `python validate_xcorr_setup.py` from the command line. Various output will appear explaining the item
+being tested and the result, plus output from Python libraries. If the test succeeds, the last line of output
+should read `SUCCESS!`.
+
+Next, run at the command line run `./validate_xcorr_runtime.sh`. You should see various output, mostly warnings. To
+confirm successful completion of the test, you should see a file `validation_result/ARMA.CMSA.nc` with a current
+file time stamp. If this file is not present or not with a current time stamp, then the test was not successful.
 
 ### Version dump of known good configuration
 
