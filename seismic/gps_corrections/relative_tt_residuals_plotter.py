@@ -59,7 +59,8 @@ dtype = {'#eventID': object,
 
 # Priority order of trusted channels
 # channel_pref = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ', '???', '?']
-channel_pref = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
+channel_pref = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ']
+# channel_pref = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
 
 min_ref_snr = 10
 # min_ref_snr = 0
@@ -73,6 +74,7 @@ nsigma_cutoff = 4
 # cwt_cutoff = 0
 # slope_cutoff = 0
 # nsigma_cutoff = 0
+
 
 def getNetworkStations(df, netcode):
     return sorted(df[df['net'] == netcode]['sta'].unique().tolist())
@@ -120,10 +122,12 @@ def display_styled_table(df):
     df['lastEventID'] = df['#eventID'].shift(1)
     df['lastEventID'].iloc[0] = df['#eventID'].iloc[0]
     cols = ['#ffffff', '#e0e0ff']
+
     def block_highlighter(r):
         if r['lastEventID'] != r['#eventID']:
             block_highlighter.current_col = (block_highlighter.current_col + 1) % len(cols)
         return ['background-color: ' + cols[block_highlighter.current_col]]*len(r)
+
     block_highlighter.current_col = 0
     return df.style.apply(block_highlighter, axis=1)
 
@@ -148,7 +152,7 @@ def plotTargetNetworkRelResiduals(df, target, ref, tt_scale=50, snr_scale=(0, 60
                 net_code, ref_code, str(min_ref_snr), str(cwt_cutoff), str(slope_cutoff), str(nsigma_cutoff))
         if len(vals) > 0:
             # print(time_range[1] - time_range[0])
-            plt.figure(figsize=(32, 16))
+            plt.figure(figsize=(32, 9))
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50*mag, 10), edgecolors=None, linewidths=0)
             time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
             plt.axes().xaxis.set_major_formatter(time_formatter)
@@ -163,14 +167,14 @@ def plotTargetNetworkRelResiduals(df, target, ref, tt_scale=50, snr_scale=(0, 60
             plt.ylim((-tt_scale, tt_scale))
             plt.clim(snr_scale)
             plt.title(title, fontsize=18)
-            lgd = plt.legend(['Point size = Mag - {}, Color = SNR'.format(min_mag)], fontsize=12, loc=1)
+            plt.legend(['Point size = Mag - {}, Color = SNR'.format(min_mag)], fontsize=12, loc=1)
             plt.text(0.01, 0.96, "Channel selection: {}".format(channel_pref), transform=plt.gca().transAxes, fontsize=12)
             plt.text(0.01, 0.92, "Start date: {}".format(str(time_range[0])), transform=plt.gca().transAxes, fontsize=12)
             plt.text(0.01, 0.88, "  End date: {}".format(str(time_range[1])), transform=plt.gca().transAxes, fontsize=12)
             if annotator is not None:
                 annotator()
             if save_file:
-                subfolder = net_code
+                subfolder = os.path.join(net_code, ref_code)
                 os.makedirs(subfolder, exist_ok=True)
                 plt_file = os.path.join(subfolder, '_'.join([net_code, ref_code]) + '_' + ylabel.replace(" ", "").replace(".*", "") + file_label + ".png")
                 plt.savefig(plt_file, dpi=150)
@@ -316,7 +320,7 @@ def main():
 
     # ## Generate catalog of major regional events (mag 8+) for overlays
     if True:
-        df_mag8 = df_raw_picks[df_raw_picks['mag'] >= 8.2]
+        df_mag8 = df_raw_picks[df_raw_picks['mag'] >= 8.0]
         df_mag8['day'] = df_mag8['originTimestamp'].transform(datetime.datetime.utcfromtimestamp).transform(lambda x: x.strftime("%Y-%m-%d"))
         df_mag8 = df_mag8.sort_values(['day', 'originTimestamp'])
 
@@ -330,12 +334,19 @@ def main():
         significant_events = significant_events.set_index('date')
 
         significant_events.loc['2001-06-23', 'name'] = '2001 South Peru Earthquake'
+        significant_events.loc['2001-11-14', 'name'] = '2001 Kunlun earthquake'
+        significant_events.loc['2002-11-03', 'name'] = '2002 Denali earthquake'
+        significant_events.loc['2003-09-25', 'name'] = '2003 Tokachi-Oki earthquake'
         significant_events.loc['2004-12-26', 'name'] = '2004 Indian Ocean earthquake and tsunami'
         significant_events.loc['2005-03-28', 'name'] = '2005 Nias–Simeulue earthquake'
+        significant_events.loc['2009-09-29', 'name'] = '2009 Samoa earthquake and tsunami'
         significant_events.loc['2010-02-27', 'name'] = '2010 Chile earthquake'
         significant_events.loc['2011-03-11', 'name'] = '2011 Tohoku earthquake and tsunami'
         significant_events.loc['2012-04-11', 'name'] = '2012 Indian Ocean earthquakes'
         significant_events.loc['2013-02-06', 'name'] = '2013 Solomon Islands earthquakes'
+        significant_events.loc['2013-09-24', 'name'] = '2013 Balochistan earthquakes'
+        significant_events.loc['2014-04-01', 'name'] = '2014 Iquique earthquake'
+        significant_events.loc['2015-09-16', 'name'] = '2015 Illapel earthquake'
 
         print(significant_events)
 
@@ -352,17 +363,17 @@ def main():
                         'stationLon', 'stationLat', 'az', 'baz', 'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
 
     if True:
-        # Some select stations require custom date filters to remove singular events outside the date range of the rest of the network
+        # Some select stations require custom date filters to remove events outside the known valid date range of a network
         DATE_FILTER = (
-            ('7D', 'DG41', pd.Timestamp(datetime.datetime(2012, 7, 1))), 
-            ('7D', 'DF43', pd.Timestamp(datetime.datetime(2012, 7, 1)))
+            ('7D', pd.Timestamp(datetime.datetime(2010, 1, 1))),
+            ('7G', pd.Timestamp(datetime.datetime(2010, 1, 1))),
         )
         before = len(df_picks)
-        for net, sta, min_date in DATE_FILTER:
-            date_mask = (df_picks['net'] == net) & (df_picks['sta'] == sta) & (df_picks['originTimestamp'] < min_date.timestamp())
+        for net, min_date in DATE_FILTER:
+            date_mask = (df_picks['net'] == net) & (df_picks['originTimestamp'] < min_date.timestamp())
             df_picks = df_picks[~date_mask]
         after = len(df_picks)
-        print('Removed {} events due to timestamps'.format(before - after))
+        print('Removed {} events due to known invalid timestamps'.format(before - after))
 
     # ## Filter to teleseismic events
     ANG_DIST = 'distance'  # angular distance (degrees) between event and station
@@ -384,6 +395,23 @@ def main():
         print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
         single_ref = {'net': [ref_net], 'sta': [ref_sta]}
         analyzeTargetRelativeToRef(df_picks, single_ref, TARGET_STNS, significant_events)
+
+    # REF_NET = 'AU'
+    # REF_STN = getNetworkStations(df_picks, REF_NET)
+    # # REF_STN = REF_STN[0:10]
+    # REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
+
+    # # TARGET_NETWORKS = ['AU', '7B', '7D', '7G', '7X']
+    # TARGET_NETWORKS = ['7B', '7D', '7G', '7X']
+    # for TARGET_NET in TARGET_NETWORKS:
+    #     TARGET_STN = getNetworkStations(df_picks, TARGET_NET)
+    #     TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
+    #     # getNetworkDateRange(df_picks, TARGET_NET)
+
+    #     for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
+    #         print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
+    #         single_ref = {'net': [ref_net], 'sta': [ref_sta]}
+    #         analyzeTargetRelativeToRef(df_picks, single_ref, TARGET_STNS, significant_events)
 
 
 if __name__ == "__main__":
