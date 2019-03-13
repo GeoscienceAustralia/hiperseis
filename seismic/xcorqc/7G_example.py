@@ -11,7 +11,7 @@ tempDataFile        = '/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015)
 # Associated json database file
 tempDataDBFile      = '/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015)_raw_dataDB.json'
 # Station codes to analyse (set to ['*']) for all stations
-tempStationCodes    =  ['CP43', 'CQ43']
+tempNetSta    =  '7G.CP43'
 # Decimation factor applied to traces
 tempDecFactor       = 5
 
@@ -28,7 +28,7 @@ windowSeconds       = 3600
 # == Path to Reference Station Data ==
 refDataFile         = '/g/data/ha3/rakib/_ANU/7G(2013-2015)/refData/stka.6m.h5'
 # Station codes to analyse (set to ['*']) for all stations
-refStationCodes     = ['*'] #['INKA']
+refNetSta           = 'INKA'
 # Decimation factor applied to traces
 refDecFactor        = 5
 
@@ -64,8 +64,11 @@ except:
 startTime = UTCDateTime(startTime)
 endTime   = UTCDateTime(endTime)
 
-x, xCorrResDict, wcResDict = IntervalStackXCorr(refDs, tempDs, tempDsDb, startTime, endTime,
-                                                refStationCodes, tempStationCodes, comp, refDecFactor,
-                                                tempDecFactor, bufferSeconds, intervalSeconds,
-                                                windowSeconds, flo=0.5, fhi=3, outputPath=outputDir,
+x, xCorrResDict, wcResDict = IntervalStackXCorr(refDs, tempDs, startTime, endTime,
+                                                refNetSta, tempNetSta,
+                                                comp, comp,
+                                                buffer_seconds=bufferSeconds,
+                                                interval_seconds=intervalSeconds,
+                                                window_seconds=windowSeconds,
+                                                flo=0.5, fhi=3, outputPath=outputDir,
                                                 verbose=2)
