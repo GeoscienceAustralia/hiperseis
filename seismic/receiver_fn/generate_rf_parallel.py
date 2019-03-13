@@ -1,6 +1,7 @@
 from rf import read_rf, RFStream
 from rf import IterMultipleComponents
 from joblib import Parallel, delayed
+import numpy as np
 
 
 def do_rf(stream3c):
@@ -22,10 +23,20 @@ def do_rf(stream3c):
     # ZRT receiver functions must be specified
     stream3c.rf(rotate='NE->RT')
 
+    amax={'amax':np.max(stream3c[0].data)}
     stream3c[0].stats['asdf'] = a1
+    stream3c[0].stats.update(amax)
+
+    amax={'amax':np.max(stream3c[1].data)}
     stream3c[1].stats['asdf'] = a2
+    stream3c[1].stats.update(amax)
+
+    amax={'amax':np.max(stream3c[2].data)}
     stream3c[2].stats['asdf'] = a3
+    stream3c[2].stats.update(amax)
+
     stream3c.trim2(-25, 75, 'onset')
+#   print np.max(stream3c[0].data),np.max(stream3c[1].data),np.max(stream3c[2].data)
     return stream3c
 
 print "Lets start the show..."
