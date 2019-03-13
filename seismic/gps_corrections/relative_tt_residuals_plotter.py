@@ -147,7 +147,8 @@ def plotTargetNetworkRelResiduals(df, target, ref, tt_scale=50, snr_scale=(0, 60
         title = r"Network {} TT residual relative to {} (filtering: ref SNR$\geq${}, CWT$\geq${}, slope$\geq${}, $n\sigma\geq{}$)".format(
                 net_code, ref_code, str(min_ref_snr), str(cwt_cutoff), str(slope_cutoff), str(nsigma_cutoff))
         if len(vals) > 0:
-            plt.figure(figsize=(32,9))
+            # print(time_range[1] - time_range[0])
+            plt.figure(figsize=(32, 16))
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50*mag, 10), edgecolors=None, linewidths=0)
             time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
             plt.axes().xaxis.set_major_formatter(time_formatter)
@@ -169,7 +170,7 @@ def plotTargetNetworkRelResiduals(df, target, ref, tt_scale=50, snr_scale=(0, 60
             if annotator is not None:
                 annotator()
             if save_file:
-                subfolder = os.path.join(net_code, ref_code)
+                subfolder = net_code
                 os.makedirs(subfolder, exist_ok=True)
                 plt_file = os.path.join(subfolder, '_'.join([net_code, ref_code]) + '_' + ylabel.replace(" ", "").replace(".*", "") + file_label + ".png")
                 plt.savefig(plt_file, dpi=150)
@@ -262,8 +263,54 @@ def addEventMarkerLines(events):
                  fontsize=12, fontstyle='italic', color='#008000c0', rotation=90)
 
 
+def analyzeTargetRelativeToRef(df_picks, ref_stn, target_stns, significant_events):
+    # ## Remove reference station records where the SNR is too low
+    mask_ref = df_picks[list(ref_stn)].isin(ref_stn).all(axis=1)
+    mask_ref_snr = ~mask_ref | (mask_ref & (df_picks['snr'] >= min_ref_snr))
+    df_good_ref_snr = df_picks.loc[mask_ref_snr]
+    print("Remaining picks after filtering to SNR >= {}: {}".format(min_ref_snr, len(df_good_ref_snr)))
+
+    # ## Filter to constrained quality metrics
+    mask_cwt = (df_good_ref_snr['qualityMeasureCWT'] >= cwt_cutoff)
+    mask_slope = (df_good_ref_snr['qualityMeasureSlope'] >= slope_cutoff)
+    mask_sigma = (df_good_ref_snr['nSigma'] >= nsigma_cutoff)
+    # Make sure we DON'T filter out the reference station, which may have zero quality values
+    mask_ref = df_good_ref_snr[list(ref_stn)].isin(ref_stn).all(axis=1)
+    quality_mask = (mask_cwt & mask_slope & mask_sigma) | mask_ref
+    assert np.sum(quality_mask) > 100, 'Not enough points left after quality filtering'
+    df_qual = df_good_ref_snr[quality_mask]
+    print("Remaining picks after filtering to minimum quality metrics: {}".format(len(df_qual)))
+
+    # ## Filter to desired ref and target networks
+    mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1)
+    mask_targ = df_qual[list(target_stns)].isin(target_stns).all(axis=1)
+    mask = mask_ref | mask_targ
+    np.any(mask)
+    df_nets = df_qual.loc[mask]
+    # len(df_nets)
+    # Filter out events in which ref_stn and TARGET stations are not both present
+    print("Narrowing dataframe to events common to REF and TARGET networks...")
+    keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d[list(ref_stn)].isin(ref_stn).all(axis=1)) 
+                   and np.any(d[list(target_stns)].isin(target_stns).all(axis=1))]
+    # len(keep_events)
+    event_mask = df_nets['#eventID'].isin(keep_events)
+    df_nets = df_nets[event_mask]
+    print("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
+    if len(df_nets) == 0:
+        print("WARNING: no events left to analyze!")
+        return
+
+    # Alias for dataset at the end of all filtering, a static name that can be used from here onwards.
+    ds_final = df_nets
+    # print(getOverlappingDateRange(ds_final, ref_stn, target_stns))
+
+    # plotNetworkRelativeToRefStation(ds_final, ref_stn, target_stns)
+    plotNetworkRelativeToRefStation(ds_final, ref_stn, target_stns, significant_events)
+
+
 def main():
 
+    print("Loading picks file {}".format(PICKS_PATH))
     df_raw_picks = pd.read_csv(PICKS_PATH, ' ', header=0, dtype=dtype)
     print("Number of raw picks: {}".format(len(df_raw_picks)))
 
@@ -288,6 +335,7 @@ def main():
         significant_events.loc['2010-02-27', 'name'] = '2010 Chile earthquake'
         significant_events.loc['2011-03-11', 'name'] = '2011 Tohoku earthquake and tsunami'
         significant_events.loc['2012-04-11', 'name'] = '2012 Indian Ocean earthquakes'
+        significant_events.loc['2013-02-06', 'name'] = '2013 Solomon Islands earthquakes'
 
         print(significant_events)
 
@@ -323,56 +371,19 @@ def main():
     print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
     TARGET_NET = 'AU'
-    STN_LIST = getNetworkStations(df_picks, TARGET_NET)
-    TARGET_STNS = {'net': [TARGET_NET] * len(STN_LIST), 'sta': [s for s in STN_LIST]}
+    TARGET_STN = getNetworkStations(df_picks, TARGET_NET)
+    TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
     # getNetworkDateRange(df_picks, TARGET_NET)
 
     REF_NET = 'AU'
-    REF_STN = 'HTT'  # QIS, CTA, QLP, TOO, WB2, WR0, WR2, HTT, ARMA, CMSA
-    REF = {'net': [REF_NET], 'sta': [REF_STN]}
-    # getStationDateRange(df_picks, REF_NET, REF_STN)
+    REF_STN = getNetworkStations(df_picks, REF_NET)
+    # REF_STN = REF_STN[0:10]
+    REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
 
-    # ## Remove reference station records where the SNR is too low
-    mask_ref = df_picks[list(REF)].isin(REF).all(axis=1)
-    mask_ref_snr = ~mask_ref | (mask_ref & (df_picks['snr'] >= min_ref_snr))
-    df_good_ref_snr = df_picks.loc[mask_ref_snr]
-    print("Remaining picks after filtering to SNR >= {}: {}".format(min_ref_snr, len(df_good_ref_snr)))
-
-    # ## Filter to constrained quality metrics
-    mask_cwt = (df_good_ref_snr['qualityMeasureCWT'] >= cwt_cutoff)
-    mask_slope = (df_good_ref_snr['qualityMeasureSlope'] >= slope_cutoff)
-    mask_sigma = (df_good_ref_snr['nSigma'] >= nsigma_cutoff)
-    # Make sure we DON'T filter out the reference station, which may have zero quality values
-    mask_ref = df_good_ref_snr[list(REF)].isin(REF).all(axis=1)
-    quality_mask = (mask_cwt & mask_slope & mask_sigma) | mask_ref
-    assert np.sum(quality_mask) > 100, 'Not enough points left after quality filtering'
-    df_qual = df_good_ref_snr[quality_mask]
-    print("Remaining picks after filtering to minimum quality metrics: {}".format(len(df_qual)))
-
-    # ## Filter to desired ref and target networks
-    mask_ref = df_qual[list(REF)].isin(REF).all(axis=1)
-    mask_targ = df_qual[list(TARGET_STNS)].isin(TARGET_STNS).all(axis=1)
-    mask = mask_ref | mask_targ
-    np.any(mask)
-    df_nets = df_qual.loc[mask]
-    # len(df_nets)
-    # Filter out events in which REF and TARGET stations are not both present
-    print("Narrowing dataframe to events common to REF and TARGET networks...")
-    keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d[list(REF)].isin(REF).all(axis=1)) and np.any(d[list(TARGET_STNS)].isin(TARGET_STNS).all(axis=1))]
-    # len(keep_events)
-    event_mask = df_nets['#eventID'].isin(keep_events)
-    df_nets = df_nets[event_mask]
-    print("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
-    if len(df_nets) == 0:
-        print("WARNING: no events left to analyze!")
-        return
-
-    # Alias for dataset at the end of all filtering, a static name that can be used from here onwards.
-    ds_final = df_nets
-    # print(getOverlappingDateRange(ds_final, REF, TARGET_STNS))
-
-    # plotNetworkRelativeToRefStation(ds_final, REF, TARGET_STNS)
-    plotNetworkRelativeToRefStation(ds_final, REF, TARGET_STNS, significant_events)
+    for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
+        print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
+        single_ref = {'net': [ref_net], 'sta': [ref_sta]}
+        analyzeTargetRelativeToRef(df_picks, single_ref, TARGET_STNS, significant_events)
 
 
 if __name__ == "__main__":
