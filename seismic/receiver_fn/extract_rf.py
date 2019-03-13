@@ -35,12 +35,41 @@ if __name__=='__main__':
     1. rf stacked by similarity 
     2. all rf stacked 
      
+    Note the parameters of gaussian pulse and its width where
+
+Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
+
+10                      4.8                                0.50
+5                       2.4                                0.75
+2.5                     1.2                                1.00
+1.25                    0.6                                1.50
+1.0                     0.5                                1.67 (5/3)
+0.625                   0.3                                2.10
+0.5                     0.24                               2.36
+0.4                     0.2                                2.64
+0.2                     0.1                                3.73
+
     '''
 
     print "Reading the input file..."
     # Input file
     stream=rf.read_rf('DATA/7X-ZRT-R-cleaned.h5','H5')
     print "Reading is done..."
+
+    net=stream[0].stats.network.encode('utf-8')
+    # output directory
+    out_dir=net+"-INV/"
+
+    # inversion programs use 1Hz pulse width, therefore higher corner should be not lower than that
+    filter_type='bandpass'
+    freqmin=0.03
+    freqmax=1.0
+
+    # Trimming window
+    tstart=-5.
+    tend=40.
+
+
 
     station_list=[]
     group_list=[]
@@ -79,35 +108,43 @@ if __name__=='__main__':
        sstat.append(estat)
        plot=True
 
-    net=stream[0].stats.network.encode('utf-8')
 
-    filter_type='bandpass'
-    freqmin=0.03
-    freqmax=0.5
     
     for estat in sstat:
 
          station=stream.select(station=estat,component='R').moveout()
 
 #        we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
-         station=station.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10).trim2(-5.,20.)
 #        somehow trim2 doesn't trim down to 20 sec after arrival. Should be investigated further
 #        print station[0].stats.delta,station[0].stats.npts
          
+            
 
          if len(station)>1:
 
+            for trace in station:
+                # preserve original amplitude to rescale later to preserve proportions relative to source
+                amp_max=np.max(trace.data)
+                trace.taper(0.01)
+                trace=trace.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
+                trace.data=trace.data*(amp_max/np.max(trace.data))
+
 
             # first we get stacks - normal and phase weighted
-            phase_w=phase_weights(station)
             copy_st=station.copy()
             stacked=station.copy().stack()
+            stacked.trim2(tstart,tend,'onset')
+            time_s=stacked[0].stats.delta*np.array(list(xrange(stacked[0].stats.npts)))
+
+            amp_max=np.max(stacked[0].data)
+
+            phase_w=phase_weights(station)
             ph_weighted=copy_st.stack()
-            ph_wght_max=np.max(np.abs(ph_weighted[0].data))
-            ph_weighted=ph_weighted[0].data*phase_w
+            ph_weighted[0].data=ph_weighted[0].data*phase_w
             # Note - weighting changes the real amplitude and it must be rescaled back to origin
-            ph_weighted=ph_weighted*(ph_wght_max/np.max(np.abs(ph_weighted)))
-            time=stacked[0].stats.delta*np.array(list(xrange(stacked[0].stats.npts)))
+            ph_weighted[0].data=ph_weighted[0].data*(amp_max/np.max(ph_weighted[0].data))
+            ph_weighted.trim2(tstart,tend,'onset')
+            time_p=ph_weighted[0].stats.delta*np.array(list(xrange(ph_weighted[0].stats.npts)))
 
 
             # then we take the same for each similarity groups
@@ -122,10 +159,10 @@ if __name__=='__main__':
             rows=np.int(np.ceil(float(max_grp)/float(columns)))+1
             grid=gridspec.GridSpec(columns,rows,wspace=0.2,hspace=0.2)
             ax=plt.subplot(grid[0])
-            ax.plot(time,stacked[0].data)
-            ax.set_title('Stacked')
+            ax.plot(time_s,stacked[0].data)
+            ax.set_title(estat+' Stacked')
             ax=plt.subplot(grid[1])
-            ax.plot(time,ph_weighted)
+            ax.plot(time_p,ph_weighted[0].data)
             ax.set_title('Phase weighted stack')
           
             frame=2
@@ -149,20 +186,20 @@ if __name__=='__main__':
 
  
 
+
+            if not os.path.exists(out_dir):
+                  os.makedirs(out_dir) 
+                  os.makedirs(out_dir+'PDF')
+
             if plot:
                   plt.show()
-
             else:
-                  out_dir=net+"-INV/"
-                  if not os.path.exists(out_dir):
-                       os.makedirs(out_dir) 
-                       os.makedirs(out_dir+'PDF')
                   fig.savefig(out_dir+'PDF/'+net+'-'+estat+'-rf-ph_weighted.pdf',format='PDF')
                   plt.close('all')
 
-            with open(out_dir+net+'-'+estat+'-rf-ph_weighted.txt','w') as text_file:
-                  for i in xrange(time.shape[0]):
-                       text_file.write(str(time[i]-5)+'   '+str(ph_weighted[i])+'\n')
+            with open(out_dir+net+'-'+estat+'-rf-ph_weighted.dat','w') as text_file:
+                  for i in xrange(time_p.shape[0]):
+                       text_file.write(str(time_p[i]+tstart)+'   '+str(ph_weighted[0].data[i])+'\n')
 
             text_file.close()
        
