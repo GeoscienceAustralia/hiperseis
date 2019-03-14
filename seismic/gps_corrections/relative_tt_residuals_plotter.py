@@ -171,13 +171,16 @@ def plotTargetNetworkRelResiduals(df, target, ref, tt_scale=50, snr_scale=(0, 60
             plt.text(0.01, 0.96, "Channel selection: {}".format(channel_pref), transform=plt.gca().transAxes, fontsize=12)
             plt.text(0.01, 0.92, "Start date: {}".format(str(time_range[0])), transform=plt.gca().transAxes, fontsize=12)
             plt.text(0.01, 0.88, "  End date: {}".format(str(time_range[1])), transform=plt.gca().transAxes, fontsize=12)
+            plt.tight_layout(pad=1.05)
             if annotator is not None:
                 annotator()
             if save_file:
-                subfolder = os.path.join(net_code, ref_code)
+                # subfolder = os.path.join(net_code, ref_code)
+                subfolder = net_code
                 os.makedirs(subfolder, exist_ok=True)
                 plt_file = os.path.join(subfolder, '_'.join([net_code, ref_code]) + '_' + ylabel.replace(" ", "").replace(".*", "") + file_label + ".png")
                 plt.savefig(plt_file, dpi=150)
+                plt.close()
             else:
                 plt.show()
     # end plotDataset
@@ -249,10 +252,11 @@ def plotNetworkRelativeToRefStation(df_plot, ref, target_stns, events=None):
     # Sort data by event origin time
     df_plot = df_plot.sort_values(['#eventID', 'originTimestamp'])
 
+    save_file = False
     if events is not None:
-        plotTargetNetworkRelResiduals(df_plot, target_stns, ref, save_file=True, annotator=lambda: addEventMarkerLines(events))
+        plotTargetNetworkRelResiduals(df_plot, target_stns, ref, save_file=save_file, annotator=lambda: addEventMarkerLines(events))
     else:
-        plotTargetNetworkRelResiduals(df_plot, target_stns, ref, save_file=True)
+        plotTargetNetworkRelResiduals(df_plot, target_stns, ref, save_file=save_file)
 
 
 def addEventMarkerLines(events):
@@ -347,6 +351,7 @@ def main():
         significant_events.loc['2013-09-24', 'name'] = '2013 Balochistan earthquakes'
         significant_events.loc['2014-04-01', 'name'] = '2014 Iquique earthquake'
         significant_events.loc['2015-09-16', 'name'] = '2015 Illapel earthquake'
+        significant_events.loc['2016-08-24', 'name'] = '2016 Myanmar earthquake'
 
         print(significant_events)
 
@@ -388,8 +393,11 @@ def main():
 
     REF_NET = 'AU'
     REF_STN = getNetworkStations(df_picks, REF_NET)
-    # REF_STN = REF_STN[0:10]
     REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
+    # REF_STN = REF_STN[0:10]
+    # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2', 'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
+    #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2', 'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
+    # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
 
     for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
         print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
