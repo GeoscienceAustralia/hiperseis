@@ -60,41 +60,38 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     if (len(atimes) == 0): return None
     tat = atimes[0].time # theoretical arrival time
 
+    buffer_start = -10
+    buffer_end = 10
     try:
-        buffer_start = -5
-        buffer_end = 5
-
         snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         snrst = snrst.copy()
         snrst.resample(resample_hz)
         snrst.detrend('linear')
-
-        st = snrst.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
     except:
         return None
     # end try
 
     if(len(st) == 0 or len(snrst) == 0): return None
 
-    tr = st[0]
     snrtr = snrst[0]
-    if(type(tr.data) == np.ndarray):
-        if(np.max(tr.data) > max_amplitude): return None
+    if(type(snrtr.data) == np.ndarray):
+        if(np.max(snrtr.data) > max_amplitude): return None
 
         pickslist = []
         snrlist = []
         residuallist = []
         bandindex = -1
         pickerindex = -1
+        taper_percentage = float(buffer_end) / float(win_end)
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
-            trc = tr.copy()
-            trc.detrend('linear')
-            trc.taper(max_percentage=0.1, type='hann')
+            trc = snrtr.copy()
+            trc.taper(max_percentage=taper_percentage, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
+            trc = trc.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
 
             for ipicker, picker in enumerate(pickerlist):
                 try:
@@ -174,11 +171,10 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     if (len(atimes) == 0): return None
     tat = atimes[0].time # theoretical arrival time
 
-    tr = None
+    buffer_start = -10
+    buffer_end = 10
     snrtr = None
     try:
-        buffer_start = -5
-        buffer_end = 5
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         stn = stn.copy()
         stn.resample(resample_hz)
@@ -195,36 +191,35 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
             if(type(stn[0].data) == np.ndarray and type(ste[0].data) == np.ndarray):
                 rc, tc = rotate_ne_rt(stn[0].data, ste[0].data, ba)
                 snrtr = Trace(data=tc, header=stn[0].stats)
-                tr = snrtr.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
-                #tr = Trace(data=np.sqrt(np.power(rc,2) + np.power(tc,2)), header=stn[0].stats)
+                snrtr.detrend('linear')
             # end if
         else:
             if(type(stn[0].data) == np.ndarray):
                 snrtr = stn[0]
-                tr = snrtr.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
             # end if
         # end if
     except Exception as e:
         return None
     # end try
 
-    if(tr):
-        if(np.max(tr.data) > max_amplitude): return None
+    if(type(snrtr.data) == np.ndarray):
+        if(np.max(snrtr.data) > max_amplitude): return None
 
         pickslist = []
         snrlist = []
         residuallist = []
         bandindex = -1
         pickerindex = -1
+        taper_percentage = float(buffer_end)/float(win_end)
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
-            trc = tr.copy()
-            trc.detrend('linear')
-            trc.taper(max_percentage=0.1, type='hann')
+            trc = snrtr.copy()
+            trc.taper(max_percentage=taper_percentage, type='hann')
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
+            trc = trc.slice(po.utctime + tat + win_start, po.utctime + tat + win_end)
 
             for ipicker, picker in enumerate(pickerlist):
                 try:

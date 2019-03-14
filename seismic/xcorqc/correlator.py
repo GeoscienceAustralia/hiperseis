@@ -20,19 +20,14 @@ from math import sqrt
 import numpy as np
 from scipy.spatial import cKDTree
 
+from mpi4py import MPI
 from obspy import UTCDateTime
 import pyasdf
-
-# For execution under Windows, see 
-from mpi4py import MPI
 
 import click
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
-
-
-TEST_MODE = False
 
 
 # define utility functions
@@ -186,6 +181,111 @@ class Dataset:
     # end func
 # end class
 
+def process(data_source1, data_source2, output_path,
+            interval_seconds, window_seconds,
+            ds1_dec_factor=1, ds2_dec_factor=1, nearest_neighbours=1,
+            fmin=0.3, fmax=1., station_names1='*', station_names2='*',
+            start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
+            clip_to_2std=False, one_bit_normalize=False, read_buffer_size=10,
+            ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
+            ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
+            ignore_ds1_json_db=True, ignore_ds2_json_db=True):
+    """
+    DATA_SOURCE1: Path to ASDF file \n
+    DATA_SOURCE2: Path to ASDF file \n
+    OUTPUT_PATH: Output folder \n
+    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
+    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
+                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
+    """
+    read_buffer_size *= interval_seconds
+    station_names1 = str(station_names1)
+    station_names2 = str(station_names2)
+
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+    proc_stations = defaultdict(list)
+
+    ds1 = Dataset(data_source1, station_names1, ignore_ds1_json_db, ds1_zchan, ds1_nchan, ds1_echan)
+    ds2 = Dataset(data_source2, station_names2, ignore_ds2_json_db, ds2_zchan, ds2_nchan, ds2_echan)
+
+    if (rank == 0):
+        def outputConfigParameters():
+            # output config parameters
+            fn = 'correlator.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
+            fn = os.path.join(output_path, fn)
+
+            f = open(fn, 'w+')
+            f.write('Parameters Values:\n\n')
+            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
+            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
+            f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
+            f.write('%25s\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+
+            f.write('%25s\t\t: %s\n' % ('--ds1-dec-factor', ds1_dec_factor))
+            f.write('%25s\t\t: %s\n' % ('--ds2-dec-factor', ds2_dec_factor))
+            f.write('%25s\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
+            f.write('%25s\t\t: %s\n' % ('--fmin', fmin))
+            f.write('%25s\t\t: %s\n' % ('--fmax', fmax))
+            f.write('%25s\t\t: %s\n' % ('--station-names1', station_names1))
+            f.write('%25s\t\t: %s\n' % ('--station-names2', station_names2))
+            f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
+            f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
+            f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+
+            f.close()
+        # end func
+
+        outputConfigParameters()
+
+        # split work over stations in ds1 for the time being
+        count = 0
+        for iproc in np.arange(nproc):
+            for istation in np.arange(np.divide(len(ds1.stations), nproc)):
+                proc_stations[iproc].append(ds1.stations[count])
+                count += 1
+        # end for
+        for iproc in np.arange(np.mod(len(ds1.stations), nproc)):
+            proc_stations[iproc].append(ds1.stations[count])
+            count += 1
+        # end for
+    # end if
+
+    # broadcast workload to all procs
+    proc_stations = comm.bcast(proc_stations, root=0)
+
+    for st1 in proc_stations[rank]:
+        st2list = None
+        if (nearest_neighbours != -1):
+            if data_source1 == data_source2:
+                st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours + 1))
+                if st1 in st2list:
+                    st2list.remove(st1)
+                st2list = list(st2list)
+            else:
+                st2list = ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours)
+        else:
+            st2list = ds2.stations
+
+        for st2 in st2list:
+            startTime = UTCDateTime(start_time)
+            endTime = UTCDateTime(end_time)
+
+            x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.ds, ds1.ds_jason_db, ds2.ds, ds2.ds_jason_db, startTime,
+                                                            endTime, [st1], [st2], ds1.zchannel, ds2.zchannel,
+                                                            ds1_dec_factor,
+                                                            ds2_dec_factor, read_buffer_size, interval_seconds,
+                                                            window_seconds, fmin, fmax, clip_to_2std, one_bit_normalize,
+                                                            output_path, 2)
+        # end for
+    # end for
+# end func
+
+
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -251,7 +351,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Ignore json db for data-source-1, if found")
 @click.option('--ignore-ds2-json-db', is_flag=True,
               help="Ignore json db for data-source-2, if found")
-def process(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
+def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
             ds2_dec_factor, nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, clip_to_2std, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
@@ -265,102 +365,24 @@ def process(data_source1, data_source2, output_path, interval_seconds, window_se
                     WINDOW_SECONDS; no stacking is performed if they are of the same size.
     """
 
-    read_buffer_size *= interval_seconds
-    station_names1 = str(station_names1)
-    station_names2 = str(station_names2)
-
-    comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()
-    rank = comm.Get_rank()
-    proc_stations = defaultdict(list)
-
-    ds1 = Dataset(data_source1, station_names1, ignore_ds1_json_db, ds1_zchan, ds1_nchan, ds1_echan)
-    ds2 = Dataset(data_source2, station_names2, ignore_ds2_json_db, ds2_zchan, ds2_nchan, ds2_echan)
-
-    if(rank == 0):
-        def outputConfigParameters():
-            # output config parameters
-            fn = 'correlator.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
-            fn = os.path.join(output_path, fn)
-
-            f = open(fn, 'w+')
-            f.write('Parameters Values:\n\n')
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
-            f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
-            f.write('%25s\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
-            f.write('%25s\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
-
-            f.write('%25s\t\t: %s\n' % ('--ds1-dec-factor', ds1_dec_factor))
-            f.write('%25s\t\t: %s\n' % ('--ds2-dec-factor', ds2_dec_factor))
-            f.write('%25s\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
-            f.write('%25s\t\t: %s\n' % ('--fmin', fmin))
-            f.write('%25s\t\t: %s\n' % ('--fmax', fmax))
-            f.write('%25s\t\t: %s\n' % ('--station-names1', station_names1))
-            f.write('%25s\t\t: %s\n' % ('--station-names2', station_names2))
-            f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
-            f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
-            f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
-            f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
-            f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
-
-            f.close()
-        # end func
-
-        outputConfigParameters()
-
-        # split work over stations in ds1 for the time being
-        count = 0
-        for iproc in np.arange(nproc):
-            for istation in np.arange(np.divide(len(ds1.stations), nproc)):
-                proc_stations[iproc].append(ds1.stations[count])
-                count += 1
-        # end for
-        for iproc in np.arange(np.mod(len(ds1.stations), nproc)):
-            proc_stations[iproc].append(ds1.stations[count])
-            count += 1
-        # end for
-    # end if
-
-    # broadcast workload to all procs
-    proc_stations = comm.bcast(proc_stations, root=0)
-
-    for st1 in proc_stations[rank]:
-        st2list = None
-        if(nearest_neighbours != -1):
-            if data_source1 == data_source2:
-                st2list = set(ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours + 1))
-                if st1 in st2list:
-                    st2list.remove(st1)
-                st2list = list(st2list)
-            else:
-                st2list = ds1.get_closest_stations(st1, ds2, nn=nearest_neighbours)
-        else:
-            st2list = ds2.stations
-
-        for st2 in st2list:
-            startTime = UTCDateTime(start_time)
-            endTime = UTCDateTime(end_time)
-
-            x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.ds, ds1.ds_jason_db, ds2.ds, ds2.ds_jason_db, startTime,
-                                                            endTime, [st1], [st2], ds1.zchannel, ds2.zchannel, ds1_dec_factor,
-                                                            ds2_dec_factor, read_buffer_size, interval_seconds,
-                                                            window_seconds, fmin, fmax, clip_to_2std, one_bit_normalize,
-                                                            output_path, 2)
-        # end for
-    # end for
+    process(data_source1, data_source2, output_path, interval_seconds, window_seconds, ds1_dec_factor,
+            ds2_dec_factor, nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
+            end_time, clip_to_2std, one_bit_normalize, read_buffer_size,
+            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
+            ignore_ds1_json_db, ignore_ds2_json_db)
 # end func
 
 if __name__ == '__main__':
-    if TEST_MODE:
-        process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
-                nearest_neighbours=5,
-                start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
-                read_buffer_size=1,
-                ds1_dec_factor=1, ds2_dec_factor=1,
-                fmin=0.01, fmax=10.0,
-                clip_to_2std=True,
-                one_bit_normalize=True
-                )
-    else:
-        process()
+    '''
+    Example call
+    process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
+            nearest_neighbours=5,
+            start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
+            read_buffer_size=1,
+            ds1_dec_factor=1, ds2_dec_factor=1,
+            fmin=0.01, fmax=10.0,
+            clip_to_2std=True,
+            one_bit_normalize=True)
+    '''
+    main()
+# end if

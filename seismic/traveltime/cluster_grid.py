@@ -3,29 +3,29 @@
 Description:
     Define a 3D grid discretization of the Earth
 
-CreationDate:   2/09/2018
-Developer:      fei.zhang@ga.gov.au
+CreationDate:
+    2/09/2018
 
-Revision History:
-    LastUpdate:     2/11/2018   clean up refactoring
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+Developer:
+    | fei.zhang@ga.gov.au
 """
 
 import os
 import logging
 import numpy as np
 import pandas as pd
+# from deprecated import deprecated
 
 log = logging.getLogger(__name__)
 
 
 class Grid2:
     """
-    A non-uniform Grid Model for eventsource-->>station rays clustering and sorting.
+    A non-uniform Grid Model of Earth for eventsource-->station rays clustering and sorting.
 
-    Reference to the inversion Fortran code model (file param1x1):
-    Global: 72 36 16 5. 5.               (5x5d egree + a list of 1+16 depths)
-    Region: 100. 190. -54. 0. 90 54  23  (1x1 degree  + a list of 1+23 depths
+    Reference to the inversion Fortran code model parameter file param1x1 in this directory:
+        - Global: 5x5 degree  and a list of 1+16 depths
+        - Region: 1x1 degree  and a list of 1+29 depths
     """
 
     # def __init__(self, nx=360, ny=180, dz=10000):
@@ -235,9 +235,10 @@ class Grid2:
     def is_point_in_region(self, lat, lon):
         """
         test if the event or station point is in the region box?
-        :param lat:
-        :param lon:
-        :return: T/F
+        
+        :param lat: latitude
+        :param lon: longitude
+        :return: boolean T or F
         """
 
         # if (abs(lat) > 90):
@@ -258,10 +259,11 @@ class Grid2:
         """
         find the index-number of an events/station in a non-uniform grid
         each spatial point (lat, lon, z) is mapped to a uniq block_number.
+
         :param lat: latitude (-90,90)
-        :param lon: longitude (0,180)
-        :param z: depth
-        :return: int block number AND (xc,yc, zcm)
+        :param lon: longitude (0,360)
+        :param z: depth meter
+        :return: a tuple of 4 block number AND and the block's centre coordinate(int_block_n, xc,yc, zcm)
         """
         x = lon % 360  # convert lon into x which must be in [0,360)
         y = (lat + 90.0) % 180  # convert lat into y which will be in [0,180)
@@ -310,6 +312,7 @@ class Grid2:
         """
         given a point with depth z meters, and a np-array of refined depth in meters,
         find the index which z fall into.
+
         :param z: an event depth in meters
         :param dep_meters: an array of numbers corresponding to a refined depth discretization.
         :return:  depth index and the cell block centre depth in metres.
@@ -353,7 +356,7 @@ class Grid2:
     def show_properties(self):
         """
         print the properties of the grid definition
-        :return:
+
         """
 
         print(str(self))  # print a string representation of this object
@@ -394,7 +397,8 @@ class Grid2:
     def generate_latlong_grid(self, depthmeters=0.0):
         """
         create a csv file containing: (block_number, lat,long, depthm=0, xc,yc,zc)
-        :return:
+
+        :return: Pandas data frame
         """
 
         # how many points per degree in lat and lon respectively
@@ -419,8 +423,9 @@ class Grid2:
 
     def generate_grid3D(self):
         """
-        loop over all the reference depths, both regional and global depth list.
-        :return:
+        Loop over all the reference depths, both regional and global depth list.
+
+        :return: pandas dataframe
         """
 
         pdf3d = self.generate_latlong_grid()
@@ -443,11 +448,12 @@ class Grid2:
 
         return pdf3d
 
-
+# @deprecated(reason="Use the class Grid2")
 class UniformGrid:
     """
-    The original (simple) uniform grid model definition.
-    Note: this class is replaced by a more generic non-uniform Grid2
+    This is the original (simple) uniform grid model for Earth.
+
+    It is replaced by the more generic non-uniform model defined above as class Grid2
     """
 
     def __init__(self, nx=360, ny=180, dz=10000):
@@ -465,7 +471,8 @@ class UniformGrid:
 
     def find_block_number(self, lat, lon, z):
         """
-        find the 3D-block number in this grid - Not thorougly tested!
+        find the 3D-block number in this grid
+
         :param lat: lattitude
         :param lon: longitude
         :param z: elevation

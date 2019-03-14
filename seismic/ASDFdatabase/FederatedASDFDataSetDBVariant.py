@@ -84,7 +84,7 @@ class FederatedASDFDataSetDBVariant():
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
-        self.asdf_station_coordinates = []
+        self.asdf_station_coordinates = defaultdict(lambda: defaultdict(int))
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -109,7 +109,6 @@ class FederatedASDFDataSetDBVariant():
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
                 self.asdf_datasets.append(ds)
-                self.asdf_station_coordinates.append(ds.get_all_coordinates())
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
@@ -152,6 +151,20 @@ class FederatedASDFDataSetDBVariant():
                 self.conn = sqlite3.connect(self.db_fn)
                 self.conn.execute('create table wdb(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
+                self.conn.execute('create table netsta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
+                                  'lat double)')
+                metadatalist = []
+                for ids, ds in enumerate(self.asdf_datasets):
+                    coords_dict = ds.get_all_coordinates()
+                    for k in coords_dict.keys():
+                        lon = coords_dict[k]['longitude']
+                        lat = coords_dict[k]['latitude']
+                        nc, sc = k.split('.')
+                        metadatalist.append([ids, nc, sc, lon, lat])
+                    # end for
+                # end for
+                self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat) values '
+                                      '(?, ?, ?, ?, ?)', metadatalist)
             # end if
 
             tagsCount = 0
@@ -188,6 +201,7 @@ class FederatedASDFDataSetDBVariant():
 
             if(self.rank==0):
                 self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
                 print 'Created database on rank %d for %d waveforms (%5.2f MB)' % \
                       (self.rank, tagsCount, round(psutil.Process().memory_info().rss / 1024. / 1024., 2))
 
@@ -196,6 +210,13 @@ class FederatedASDFDataSetDBVariant():
             self.comm.Barrier()
             self.conn = sqlite3.connect(self.db_fn)
         # end if
+
+        # Load metadata
+        rows = self.conn.execute('select * from netsta').fetchall()
+        for row in rows:
+            ds_id, net, sta, lon, lat = row
+            self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat]
+        # end for
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
@@ -204,12 +225,19 @@ class FederatedASDFDataSetDBVariant():
 
         query = 'select * from wdb where '
         if (network): query += " net='%s' "%(network)
-        if (station): query += "and sta='%s' "%(station)
-        if (location): query += "and loc='%s' "%(location)
-        if (channel): query += "and cha='%s' "%(channel)
-        query += "and ((st>=%f and et<=%f) or (st<%f and et>%f) or (st<%f and et>%f) or (st<%f and et>%f))" \
-                 %    (starttime, endtime, starttime, starttime,  endtime, endtime,    starttime, endtime)
-        query += "group by net, sta, loc, cha"
+        if (station):
+            if(network): query += "and sta='%s' "%(station)
+            else: query += "sta='%s' "%(station)
+        if (location):
+            if(network or station): query += "and loc='%s' "%(location)
+            else: query += "loc='%s' "%(location)
+        if (channel):
+            if(network or station or location): query += "and cha='%s' "%(channel)
+            else: query += "cha='%s' "%(channel)
+        if (network or station or location or channel): query += ' and '
+        query += ' et>=%f and st<=%f' \
+                 % (starttime, endtime)
+        query += ' group by net, sta, loc, cha'
 
         rows = self.conn.execute(query).fetchall()
         results = []
@@ -217,8 +245,8 @@ class FederatedASDFDataSetDBVariant():
             ds_id, net, sta, loc, cha, st, et, tag = row
 
             rv = [net, sta, loc, cha,
-                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)]['longitude'],
-                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)]['latitude']]
+                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][0],
+                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][1]]
             results.append(rv)
         # end for
 
@@ -233,8 +261,8 @@ class FederatedASDFDataSetDBVariant():
 
         query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
                 %(network, station, location, channel) + \
-                "and ((st>=%f and et<=%f) or (st<%f and et>%f) or (st<%f and et>%f) or (st<%f and et>%f))" \
-                 %    (starttime, endtime, starttime, starttime,  endtime, endtime,    starttime, endtime)
+                "and et>=%f and st<=%f" \
+                 % (starttime, endtime)
 
         rows = self.conn.execute(query).fetchall()
         s = Stream()
