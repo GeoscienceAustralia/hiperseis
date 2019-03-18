@@ -69,14 +69,15 @@ def _fileToSc3ml(src_file, dst_file, response=None):
         raise FileExistsError("{} already exists as a folder".format(dst_file))
 
     # Inject responses
-    if(response):
-        inv  = read_inventory(src_file)
-        for n in inv.networks:
-            for s in n.stations:
-                for c in s.channels:
-                    if(not c.start_date): c.start_date = s.start_date
-                    if(not c.end_date): c.end_date = s.end_date
-                    if(not c.response): c.response = response
+    inv  = read_inventory(src_file)
+    for n in inv.networks:
+        for s in n.stations:
+            if(not s.start_date): s.start_date = n.start_date
+            if(not s.end_date): s.end_date = n.end_date
+            for c in s.channels:
+                if(not c.start_date): c.start_date = s.start_date
+                if(not c.end_date): c.end_date = s.end_date
+                if(response and not c.response): c.response = response
 
         fn = os.path.join(tempfile.gettempdir(), os.path.basename(src_file))
         inv.write(fn, format='STATIONXML')

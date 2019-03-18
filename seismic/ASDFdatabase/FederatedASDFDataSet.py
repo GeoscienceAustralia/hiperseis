@@ -47,6 +47,7 @@ class FederatedASDFDataSet():
         self.use_json_db = use_json_db
         self.logger = logger
         self.asdf_source = asdf_source
+        self._unique_coordinates = None
 
         if(self.variant == 'mem'):
             if(HAS_RTREE):
@@ -59,6 +60,24 @@ class FederatedASDFDataSet():
         else:
             raise Exception("Invalid variant: must be 'mem' or 'db'")
         # end if
+    # end func
+
+    @property
+    def unique_coordinates(self):
+        """
+
+        :return: dictionary containing [lon, lat] coordinates indexed by 'net.sta'
+        """
+        if self._unique_coordinates == None:
+            self._unique_coordinates = defaultdict(list)
+
+            for ds_dict in self.fds.asdf_station_coordinates:
+                for key in ds_dict.keys():
+                    self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
+                # end for
+            # end for
+        # end if
+        return self._unique_coordinates
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
