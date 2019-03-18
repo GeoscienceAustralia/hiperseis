@@ -397,6 +397,8 @@ def main():
     # REF_STN = REF_STN[0:10]
     # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2', 'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
     #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2', 'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
+    # Hand-analyze stations with identified possible clock issues:
+    # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
     # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
 
     for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
