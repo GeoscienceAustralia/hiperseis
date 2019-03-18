@@ -25,11 +25,11 @@ import pyasdf
 import ujson as json
 from collections import defaultdict
 
-from FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
+from seismic.ASDFdatabase.FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
 
 HAS_RTREE = True
 try:
-    from FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
+    from seismic.ASDFdatabase.FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
 except:
     HAS_RTREE = False
 # end if
