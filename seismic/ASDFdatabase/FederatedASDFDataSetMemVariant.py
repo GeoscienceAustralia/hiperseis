@@ -26,6 +26,7 @@ import pyasdf
 import ujson as json
 from collections import defaultdict
 from rtree import index
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -341,8 +342,8 @@ class FederatedASDFDataSetMemVariant():
     # end func
 
     def get_global_time_range(self, network, station, location=None, channel=None):
-        resultsMin = [4102444800.0] # year 2100
-        resultsMax = [-2208988800.0] # year 1900
+        resultsMin = [MAX_DATE.timestamp] # year 2100
+        resultsMax = [MIN_DATE.timestamp] # year 1900
 
         for val in self.tree_list:
             if(val):

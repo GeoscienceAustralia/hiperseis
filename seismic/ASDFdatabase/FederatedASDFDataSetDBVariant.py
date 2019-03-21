@@ -29,6 +29,7 @@ import sqlite3
 import psutil
 import hashlib
 from functools import partial
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -230,8 +231,8 @@ class FederatedASDFDataSetDBVariant():
 
         row = self.conn.execute(query).fetchall()[0]
 
-        min = UTCDateTime(row[0]) if row[0] else UTCDateTime(4102444800.0)
-        max = UTCDateTime(row[1]) if row[1] else UTCDateTime(-2208988800.0)
+        min = UTCDateTime(row[0]) if row[0] else MAX_DATE
+        max = UTCDateTime(row[1]) if row[1] else MIN_DATE
         return min, max
     # end func
 
