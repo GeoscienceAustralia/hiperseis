@@ -220,6 +220,21 @@ class FederatedASDFDataSetDBVariant():
         # end for
     # end func
 
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        query = "select min(st), max(et) from wdb where net='%s' and sta='%s' "%(network, station)
+
+        if (location):
+            query += "and loc='%s' "%(location)
+        if (channel):
+            query += "and cha='%s' "%(channel)
+
+        row = self.conn.execute(query).fetchall()[0]
+
+        min = UTCDateTime(row[0]) if row[0] else UTCDateTime(4102444800.0)
+        max = UTCDateTime(row[1]) if row[1] else UTCDateTime(-2208988800.0)
+        return min, max
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
