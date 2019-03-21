@@ -29,6 +29,7 @@ import sqlite3
 import psutil
 import hashlib
 from functools import partial
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -218,6 +219,21 @@ class FederatedASDFDataSetDBVariant():
             ds_id, net, sta, lon, lat = row
             self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat]
         # end for
+    # end func
+
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        query = "select min(st), max(et) from wdb where net='%s' and sta='%s' "%(network, station)
+
+        if (location):
+            query += "and loc='%s' "%(location)
+        if (channel):
+            query += "and cha='%s' "%(channel)
+
+        row = self.conn.execute(query).fetchall()[0]
+
+        min = UTCDateTime(row[0]) if row[0] else MAX_DATE
+        max = UTCDateTime(row[1]) if row[1] else MIN_DATE
+        return min, max
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
