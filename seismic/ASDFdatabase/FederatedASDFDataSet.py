@@ -80,6 +80,19 @@ class FederatedASDFDataSet():
         return self._unique_coordinates
     # end func
 
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        """
+        :param network: network code
+        :param station: station code
+        :param location: location code (optional)
+        :param channel: channel code (optional)
+        :return: tuple containing min and max times as UTCDateTime objects. If no matching records are found
+                 min is set to 2100-01-01T00:00:00.000000Z and max is set to 1900-01-01T00:00:00.000000Z
+        """
+
+        return self.fds.get_global_time_range(network, station, location=location, channel=channel)
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         """
         :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
