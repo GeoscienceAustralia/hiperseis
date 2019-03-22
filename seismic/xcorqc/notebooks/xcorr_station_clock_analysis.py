@@ -67,7 +67,7 @@ def station_coords(federated_ds, code, timestamp):
     query_window_seconds = 3600 * 24 * 30
     net, sta = code.split('.')
     # Perform query on Federated Dataset
-    sta_records = federated_ds.get_stations(datetime, obspy.UTCDateTime(timestamp) +
+    sta_records = federated_ds.get_stations(timestamp, obspy.UTCDateTime(timestamp) +
                                             query_window_seconds, network=net, station=sta)
     # Filter query results to *HZ channels
     z_records = [r for r in sta_records if r[3][1:3] == 'HZ']
@@ -324,7 +324,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
 
     start_time = str(start_utc_time)
     end_time = str(end_utc_time)
-    print("Date range for file {}: {} -- {}".format(src_file, start_time, end_time))
+    print("Date range for file {}:\n    {} -- {}".format(src_file, start_time, end_time))
 
     origin_code, dest_code = station_codes(src_file)
     dist = station_distance(asdf_dataset, origin_code, dest_code, start_time)
