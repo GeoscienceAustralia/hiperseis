@@ -1,21 +1,19 @@
 #!/bin/env python
+"""
+Bulk analysis script for analysing relative traveltime residuals from a pick ensemble
+for the purpose of identifying time periods of GPS clock error in specific stations.
+"""
 
 import sys
 import os
 import datetime
 import numpy as np
 import pandas as pd
-# pd.set_option('display.max_rows', 200)
-# pd.set_option('display.max_columns', None)
-# pd.set_option('display.max_colwidth', -1)
-# pd.set_option('display.width', 240)
 
 import pytz
 import matplotlib
 import matplotlib.dates
 import matplotlib.pyplot as plt
-# matplotlib.rcParams['figure.figsize'] = (16.0, 9.0)
-# matplotlib.rcParams['figure.max_open_warning'] = 100
 
 # Progress bar helper to indicate that slow tasks have not stalled
 import tqdm
@@ -35,9 +33,6 @@ CHANNEL_PREF = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ']
 MIN_REF_SNR = 10
 # MIN_REF_SNR = 0
 
-# CWT_CUTOFF = 10
-# slope_cutoff = 2
-# nsigma_cutoff = 4
 CWT_CUTOFF = 15
 SLOPE_CUTOFF = 3
 NSIGMA_CUTOFF = 4
@@ -52,16 +47,46 @@ MIN_EVENT_MAG = 5.5
 
 
 def get_network_stations(df, netcode):
+    """
+    Get the unique station codes belonging to a given network from a Pandas DataFrame
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param netcode: Network code for which station codes will be returned
+    :type netcode: str
+    :return: Sorted list of station code strings extracted from df
+    :rtype: list(str)
+    """
     return sorted(df[df['net'] == netcode]['sta'].unique().tolist())
 
 
 def get_network_mean(df, netcode):
+    """
+    Get the mean station latitude and longitude coordinates for all stations in a given network.
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param netcode: Network code for which mean coordinates will be returned
+    :type netcode: str
+    :return: Mean (latitude, longitude) coordinates of stations in the network
+    :rtype: tuple(float, float)
+    """
     mean_lat = df[df['net'] == netcode]['stationLat'].mean()
     mean_lon = df[df['net'] == netcode]['stationLon'].mean()
     return (mean_lat, mean_lon)
 
 
 def get_network_date_range(df, netcode):
+    """
+    Get the date range of pick events in df for a given network code
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param netcode: Network code whose pick event dates min and max will be returned
+    :type netcode: str
+    :return: Min and max dates of picks for given network
+    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
+    """
     mask = (df['net'] == netcode)
     df_net = df.loc[mask]
     min_date = df_net['originTimestamp'].min()
@@ -70,6 +95,18 @@ def get_network_date_range(df, netcode):
 
 
 def get_station_date_range(df, netcode, statcode):
+    """
+    Get the date range of pick events in df for a given network and station code
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param netcode: Network code
+    :type netcode: str
+    :param statcode: Station code
+    :type statcode: str
+    :return: Min and max dates of picks for given network and station
+    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
+    """
     mask = (df['net'] == netcode)
     df_net = df.loc[mask]
     mask = (df_net['sta'] == statcode)
@@ -79,99 +116,133 @@ def get_station_date_range(df, netcode, statcode):
     return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
 
 
-# @profile
-def get_overlapping_date_range(df, ref_station, target_network):
-    mask_ref = df[list(ref_station)].isin(ref_station).all(axis=1)
+def get_overlapping_date_range(df, ref_network, target_network):
+    """
+    Get the range of dates for which pick events in df from ref_network overlap with
+    any picks from target_network
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param ref_network: Network and station codes for reference network
+    :type ref_network: dict of corresponding network and station codes under keys 'net' and 'sta'
+    :param target_network: Network and station codes for target network
+    :type target_network: dict of corresponding network and station codes under keys 'net' and 'sta'
+    :return: Start and end dates of datetime range during which pick events overlap for
+        ref_network and target_network
+    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
+    """
+    mask_ref = df[list(ref_network)].isin(ref_network).all(axis=1)
     mask_targ = df[list(target_network)].isin(target_network).all(axis=1)
     mask = mask_ref | mask_targ
     if not np.any(mask):
         return (None, None)
     df_nets = df.loc[mask]
-    keep_events = [e for e, d in df_nets.groupby('#eventID') 
-                   if np.any(d[list(ref_station)].isin(ref_station).all(axis=1)) and
+    keep_events = [e for e, d in df_nets.groupby('#eventID')
+                   if np.any(d[list(ref_network)].isin(ref_network).all(axis=1)) and
                    np.any(d[list(target_network)].isin(target_network).all(axis=1))]
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
     return (obspy.UTCDateTime(df_nets['originTimestamp'].min()), obspy.UTCDateTime(df_nets['originTimestamp'].max()))
 
 
-# @profile
 def get_iris_station_codes(src_file, original_network):
+    """
+    Extract the station codes for a given network code from a IRIS query result file.
+
+    :param src_file: IRIS catalog query result file containing network and station information
+    :type src_file: str or path
+    :param original_network: Network code whose station codes will be extracted from IRIS file
+    :type original_network: str
+    :return: Pandas dataframe with station codes as the index and station latitude, longitude
+        as columns
+    :rtype: pandas.DataFrame
+    """
     # Get station codes listed in IRIS whose network is original_network.
     # We need this to ensure we get complete coverage of chosen network, as it is
     # possible some such codes appear only under other network codes such as IR, GE, etc.. in the event catalog.
     # Returns a Pandas dataframe consisting of each station code and its mean (latitude, longitude) position.
     df = pd.read_csv(src_file, header=0, sep='|')
     df.columns = [c.strip() for c in df.columns.tolist()]
-    au_net_df = df.loc[(df['Network'] == original_network)]
-    au_net_df.columns = [c.strip() for c in au_net_df.columns.tolist()]
-    au_perm_stations = sorted(au_net_df['Station'].unique())
+    orig_net_df = df.loc[(df['Network'] == original_network)]
+    orig_net_df.columns = [c.strip() for c in orig_net_df.columns.tolist()]
+    orig_net_perm_stations = sorted(orig_net_df['Station'].unique())
     mean_lat = []
     mean_lon = []
-    for sta in au_perm_stations:
-        mean_lat.append(au_net_df.loc[(au_net_df['Station'] == sta), 'Latitude'].mean())
-        std_dev = au_net_df.loc[(au_net_df['Station'] == sta), 'Latitude'].std(ddof=0)
+    for sta in orig_net_perm_stations:
+        mean_lat.append(orig_net_df.loc[(orig_net_df['Station'] == sta), 'Latitude'].mean())
+        std_dev = orig_net_df.loc[(orig_net_df['Station'] == sta), 'Latitude'].std(ddof=0)
         assert std_dev < 1.0, "{}: {}".format(sta, std_dev)
-        mean_lon.append(au_net_df.loc[(au_net_df['Station'] == sta), 'Longitude'].mean())
-        std_dev = au_net_df.loc[(au_net_df['Station'] == sta), 'Longitude'].std(ddof=0)
+        mean_lon.append(orig_net_df.loc[(orig_net_df['Station'] == sta), 'Longitude'].mean())
+        std_dev = orig_net_df.loc[(orig_net_df['Station'] == sta), 'Longitude'].std(ddof=0)
         assert std_dev < 1.0, "{}: {}".format(sta, std_dev)
-    df_dict = {'sta': au_perm_stations, 'lat': mean_lat, 'lon': mean_lon}
+    df_dict = {'sta': orig_net_perm_stations, 'lat': mean_lat, 'lon': mean_lon}
     result_df = pd.DataFrame(df_dict)
     return result_df.set_index(['sta'])
 
-# @profile
+
 def determine_alternate_matching_codes(df, iris_file, original_network):
-    # Find stations from other networks in df with the same station codes, but different network codes,
-    # whose positions match the stations of the same code in the original network.
+    """
+    Find stations from other networks in df with the same station codes, but different
+    network codes, whose positions match the stations of the same code in the original
+    network.
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param iris_file: IRIS catalog query result file containing network and station information
+    :type iris_file: str or path
+    :param original_network: Network code whose station codes will be extracted from IRIS file
+    :type original_network: str
+    :return: Matching sequences of network and station codes
+    :rtype: tuple(str), tuple(str)
+    """
+    # Get all the IRIS station codes for the given network
     matching_network_stn_iris_df = get_iris_station_codes(iris_file, original_network)
 
+    # Generate mask for all station codes from IRIS that are present in df
     mask_iris_stns = df['sta'].isin(matching_network_stn_iris_df.index)
+    # Generate mask for all records not belonging to given network
     mask_not_orig = (df['net'] != original_network)
+    # Generate new dataframe of station codes from IRIS for given network that
+    # are listed under a different network code.
     df_orig_stns_codes = df.loc[mask_iris_stns & mask_not_orig]
 
     # For each non-original network record, compute its distance from the known corresponding original station location
     from obspy.geodetics import locations2degrees
 
-    # @profile
     def dist_to_orig_stn(row, orig_df):
         row_sta = row['sta']
         orig_df_sta = orig_df.loc[row_sta]
         return locations2degrees(row['stationLat'], row['stationLon'], orig_df_sta['lat'], orig_df_sta['lon'])
 
+    # For each station code, compute its distance in degrees from the same station code location in IRIS.
+    # If distance is too far away, station will be considered different from the AU network same station code.
     print("Computing distances to original network station locations...")
     distances_from_orig = df_orig_stns_codes.apply(lambda r: dist_to_orig_stn(r, matching_network_stn_iris_df), axis=1)
 
-    df_orig_stns_codes_matching = df_orig_stns_codes.loc[(distances_from_orig < 1.0)]
+    # Only keep stations which are close to the same station code from original network.
+    angle_tolerance_deg = 1.0
+    df_orig_stns_codes_matching = df_orig_stns_codes.loc[(distances_from_orig < angle_tolerance_deg)]
 
+    # Split out the network and matching station codes from the dataframe
     new_codes = [(n, s) for (n, s), _ in df_orig_stns_codes_matching.groupby(['net', 'sta'])]
     new_nets, new_stas = zip(*new_codes)
     return new_nets, new_stas
 
 
-def display_styled_table(df):
-    # Display table with blocks of same event ID highlighted
-    df['lastEventID'] = df['#eventID'].shift(1)
-    df['lastEventID'].iloc[0] = df['#eventID'].iloc[0]
-    cols = ['#ffffff', '#e0e0ff']
-
-    def block_highlighter(r):
-        if r['lastEventID'] != r['#eventID']:
-            block_highlighter.current_col = (block_highlighter.current_col + 1) % len(cols)
-        return ['background-color: ' + cols[block_highlighter.current_col]] * len(r)
-
-    block_highlighter.current_col = 0
-    return df.style.apply(block_highlighter, axis=1)
-
-
-# @profile
 def pandas_timestamp_to_plottable_datetime(data):
+    """
+    Convert float UTC timestamp to equivalent type that is plottable by matplotlib
+
+    :param data: Pandas series of float timestamps
+    :type data: pandas.Series
+    :return: Array of Python datetimes
+    :rtype: numpy.array(datetime)
+    """
     return data.transform(datetime.datetime.utcfromtimestamp).astype('datetime64[ms]').dt.to_pydatetime()
 
 
-# @profile
 def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0, 60), save_file=False, file_label='', annotator=None):
 
-    # @profile
     def plot_dataset(ds, net_code, ref_code):
         # Sort ds rows by SNR, so that the weakest SNR points are drawn first and the high SNR point last,
         # to make sure high SNR point are in the top rendering layer.
@@ -234,7 +305,6 @@ def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0
     plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
 
-# @profile
 def plot_network_relative_to_ref_station(df_plot, ref, target_stns, events=None):
     # For each event, create column for reference traveltime residual
 
@@ -308,8 +378,23 @@ def add_event_marker_lines(events):
                  fontsize=12, fontstyle='italic', color='#008000c0', rotation=90)
 
 
-# @profile
 def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
+    """
+    Apply event quality requirements to pick events.
+
+    :param ref_network: Network and station codes for reference network
+    :type ref_network: dict of corresponding network and station codes under keys 'net' and 'sta'
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param ref_stn: Network and station codes for reference network (expected to be just one entry)
+    :type ref_stn: dict of corresponding network and station codes under keys 'net' and 'sta'
+         (expected to be just one entry)
+    :param apply_quality_to_ref: Whether to apply quality criteria to the reference station events, defaults to True
+    :param apply_quality_to_ref: bool, optional
+    :return: Filtered dataframe of pick events
+    :rtype: pandas.DataFrame
+    """
     # Remove records where the SNR is too low
     mask_snr = (df['snr'] >= MIN_REF_SNR)
 
@@ -339,9 +424,22 @@ def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
     return df_qual
 
 
-# @profile
 def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_events):
+    """
+    Analyze a single (reference) station's residuals relative to all the other stations
+    in a (target) network.
 
+    :param df_picks: Pandas dataframe loaded from a pick event ensemble
+    :type df_picks: pandas.DataFrame
+    :param ref_stn: Network and station codes for reference network (expected to be just one entry)
+    :type ref_stn: dict of corresponding network and station codes under keys 'net' and 'sta'
+         (expected to be just one entry)
+    :param target_stns: Network and station codes for target network
+    :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
+    :param significant_events: Pandas dataframe of historically significant seismic events, with a
+        'name' and indexed by date string.
+    :type significant_events: pandas.DataFrame
+    """
     # Setting this to False will generate a lot more events per station chart, sometimes making it
     # easier to spot drift. But it may also add many events with significant non-zero residual.
     APPLY_QUALITY_TO_REF = False
@@ -375,7 +473,6 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_e
     plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, significant_events)
 
 
-# @profile
 def main(input_file):
 
     print(pd.__version__)
@@ -453,7 +550,7 @@ def main(input_file):
     print("Remaining picks after channel filter: {}".format(len(df_picks)))
 
     # Remove unused columns for readability
-    df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm', 'net', 'sta', 'cha', 'pickTimestamp', 'phase', 
+    df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm', 'net', 'sta', 'cha', 'pickTimestamp', 'phase',
                         'stationLon', 'stationLat', 'az', 'baz', 'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
 
     if True:  # TODO: Make this an option
@@ -481,7 +578,8 @@ def main(input_file):
     # getNetworkDateRange(df_picks, TARGET_NET)
 
     # Find additional network.station codes that match AU network, and add them to target
-    IRIS_AU_STATIONS_FILE = r"C:\software\hiperseis\seismic\gps_corrections\AU_irisws-fedcatalog_20190305T012747Z.txt"
+    # TODO: Make this a command line argument.
+    IRIS_AU_STATIONS_FILE = "AU_irisws-fedcatalog_20190305T012747Z.txt"
     new_nets, new_stas = determine_alternate_matching_codes(df_picks, IRIS_AU_STATIONS_FILE, TARGET_NET)
     print("Adding {} more stations from alternate international networks".format(len(new_nets)))
     TARGET_STNS['net'].extend(list(new_nets))
