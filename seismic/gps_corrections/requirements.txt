@@ -1,0 +1,5 @@
+numpy>=1.12.1
+pandas
+pyproj==1.9.6
+basemap
+obspy
