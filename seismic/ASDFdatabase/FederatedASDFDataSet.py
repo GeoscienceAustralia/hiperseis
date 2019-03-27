@@ -23,8 +23,9 @@ from obspy.core import Stream, UTCDateTime
 from obspy import read, Trace
 import pyasdf
 import ujson as json
+from scipy.spatial import cKDTree
 from collections import defaultdict
-
+from seismic.ASDFdatabase.utils import rtp2xyz
 from FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
 
 HAS_RTREE = True
@@ -48,6 +49,7 @@ class FederatedASDFDataSet():
         self.logger = logger
         self.asdf_source = asdf_source
         self._unique_coordinates = None
+        self._earth_radius = 6371 #km
 
         if(self.variant == 'mem'):
             if(HAS_RTREE):
@@ -60,6 +62,29 @@ class FederatedASDFDataSet():
         else:
             raise Exception("Invalid variant: must be 'mem' or 'db'")
         # end if
+
+        # Populate coordinates
+        self._unique_coordinates = defaultdict(list)
+
+        rtps = []
+        key_list = []
+        for ds_dict in self.fds.asdf_station_coordinates:
+            for key in ds_dict.keys():
+                self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
+
+                rtps.append([self._earth_radius,
+                             np.radians(90 - ds_dict[key][1]),
+                             np.radians(ds_dict[key][0])])
+
+                key_list.append(key)
+            # end for
+        # end for
+
+        rtps = np.array(rtps)
+        xyzs = rtp2xyz(rtps[:, 0], rtps[:, 1], rtps[:, 2])
+
+        self._tree = cKDTree(xyzs)
+        self._key_list = np.array(key_list)
     # end func
 
     @property
@@ -68,16 +93,32 @@ class FederatedASDFDataSet():
 
         :return: dictionary containing [lon, lat] coordinates indexed by 'net.sta'
         """
-        if self._unique_coordinates == None:
-            self._unique_coordinates = defaultdict(list)
-
-            for ds_dict in self.fds.asdf_station_coordinates:
-                for key in ds_dict.keys():
-                    self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
-                # end for
-            # end for
-        # end if
         return self._unique_coordinates
+    # end func
+
+    def get_closest_stations(self, lon, lat, nn=1):
+        """
+
+        :param lon: longitude (degree)
+        :param lat: latitude (degrees)
+        :param nn: number of closest stations to fetch
+        :return: A tuple containing a list of closest 'network.station' names and a list of distances
+                 (in ascending order) in kms
+        """
+        xyz = rtp2xyz(np.array([self._earth_radius]),
+                      np.array([np.radians(90 - lat)]),
+                      np.array([np.radians(lon)]))
+        d, l = self._tree.query(xyz, nn)
+
+        if isinstance(l, int):
+            l = [l]
+
+        l = l[l<len(self.unique_coordinates)]
+
+        if isinstance(l, int):
+            l = [l]
+
+        return (list(self._key_list[l]), d[0][:len(l)])
     # end func
 
     def get_global_time_range(self, network, station, location=None, channel=None):
