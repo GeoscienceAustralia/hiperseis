@@ -66,25 +66,26 @@ class FederatedASDFDataSet():
         # Populate coordinates
         self._unique_coordinates = defaultdict(list)
 
-        rtps = []
-        key_list = []
+        rtps_dict = defaultdict()
         for ds_dict in self.fds.asdf_station_coordinates:
             for key in ds_dict.keys():
                 self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
 
-                rtps.append([self._earth_radius,
-                             np.radians(90 - ds_dict[key][1]),
-                             np.radians(ds_dict[key][0])])
-
-                key_list.append(key)
+                rtps_dict[key] = [self._earth_radius,
+                                  np.radians(90 - ds_dict[key][1]),
+                                  np.radians(ds_dict[key][0])]
             # end for
         # end for
 
-        rtps = np.array(rtps)
+        rtps_list = []
+        for k in rtps_dict.keys():
+            rtps_list.append(rtps_dict[k])
+        # end for
+        rtps = np.array(rtps_list)
         xyzs = rtp2xyz(rtps[:, 0], rtps[:, 1], rtps[:, 2])
 
         self._tree = cKDTree(xyzs)
-        self._key_list = np.array(key_list)
+        self._key_list = np.array(rtps_dict.keys())
     # end func
 
     @property
@@ -113,12 +114,15 @@ class FederatedASDFDataSet():
         if isinstance(l, int):
             l = [l]
 
+        if (len(d.shape)==1):
+            d = np.expand_dims(d, axis=0)
+
         l = l[l<len(self.unique_coordinates)]
 
         if isinstance(l, int):
             l = [l]
 
-        return (list(self._key_list[l]), d[0][:len(l)])
+        return (list(self._key_list[l]), d[0, :len(l)])
     # end func
 
     def get_global_time_range(self, network, station, location=None, channel=None):
