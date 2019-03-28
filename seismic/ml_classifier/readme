@@ -1,0 +1,24 @@
+Machine-learning classifier for seismic P and S wave arrivals
+
+data.py: methods that return iterators that may be used with Keras to feed
+data to the neural network for training. Uses a pre-processed training set
+stored on NCI.
+
+datagenerator.py: defines a class that inherits the Keras 'Sequence' class,
+used for the generators returned by data.py
+
+main.py: trains and tests the neural network using the pre-processed ISC
+dataset on NCI
+
+misclassification-analysis.py: takes the test partition of the ISC dataset
+and saves plots of correctly and incorrectly classified waveforms to
+corresponding subdirectories for qualitative analysis of results
+
+model.py: defines the structure and hyperparameters of the neural network
+algorithm in Keras
+
+scoreClassifier.py: computes precision and recall for S waves, P waves and
+noise in the ISC test dataset.
+
+shakenet-model.hdf5: pretrained weights from the ISC teleseismic dataset. Used
+by the test scripts.
