@@ -25,9 +25,9 @@ register_matplotlib_converters()
 
 
 # Priority order of trusted channels
-# CHANNEL_PREF = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ', '???', '?']
-CHANNEL_PREF = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ']
-# CHANNEL_PREF = ['BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
+# CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ', '???', '?']
+CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ']
+# CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
 
 # TODO: Bundle these filter settings into a NamedTuple or class
 MIN_REF_SNR = 10
@@ -44,6 +44,18 @@ NSIGMA_CUTOFF = 4
 MIN_EVENT_MAG = 5.5
 # MIN_EVENT_MAG = 4.0
 # MIN_EVENT_MAG = 0.0
+
+
+# Trivial container class for passing options around
+class BatchOptions:
+    def __init__(self):
+        self.save_file = True
+        # Setting this to False will generate a lot more events per station chart, sometimes making it
+        # easier to spot drift. But it may also add many events with significant non-zero residual.
+        self.ref_filtering = False
+        self.show_deployments = False
+        self.batch_label = ''
+        self.events = None
 
 
 def get_network_stations(df, netcode):
@@ -241,7 +253,10 @@ def pandas_timestamp_to_plottable_datetime(data):
     return data.transform(datetime.datetime.utcfromtimestamp).astype('datetime64[ms]').dt.to_pydatetime()
 
 
-def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0, 60), save_file=False, file_label='', annotator=None):
+def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr_scale=(0, 60), annotator=None):
+
+    file_label = options.batch_label
+    save_file = options.save_file
 
     def plot_dataset(ds, net_code, ref_code):
         # Sort ds rows by SNR, so that the weakest SNR points are drawn first and the high SNR point last,
@@ -253,12 +268,14 @@ def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0
         min_mag = 4.0
         mag = ds['mag'].values - min_mag
         ylabel = 'Relative TT residual (sec)'
-        title = r"Network {} TT residual relative to {} (filtering: ref SNR$\geq${}, CWT$\geq${}, slope$\geq${}, $n\sigma\geq{}$)".format(
-                net_code, ref_code, str(MIN_REF_SNR), str(CWT_CUTOFF), str(SLOPE_CUTOFF), str(NSIGMA_CUTOFF))
+        title = r"Station {} TT residuals relative to network {} (filtering: ref SNR$\geq${}, CWT$\geq${}, "\
+                r"slope$\geq${}, $n\sigma\geq{}$)".format(ref_code, net_code, str(MIN_REF_SNR),
+                                                          str(CWT_CUTOFF), str(SLOPE_CUTOFF),
+                                                          str(NSIGMA_CUTOFF))
         if len(vals) > 0:
-            # print(time_range[1] - time_range[0])
             plt.figure(figsize=(32, 9))
-            sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10), edgecolors=None, linewidths=0)
+            sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
+                             edgecolors=None, linewidths=0)
             time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
             plt.axes().xaxis.set_major_formatter(time_formatter)
             cb = plt.colorbar(sc, drawedges=False)
@@ -273,17 +290,21 @@ def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0
             plt.clim(snr_scale)
             plt.title(title, fontsize=18)
             plt.legend(['Point size = Mag - {}, Color = SNR'.format(min_mag)], fontsize=12, loc=1)
-            plt.text(0.01, 0.96, "Channel selection: {}".format(CHANNEL_PREF), transform=plt.gca().transAxes, fontsize=12)
-            plt.text(0.01, 0.92, "Start date: {}".format(str(time_range[0])), transform=plt.gca().transAxes, fontsize=12)
-            plt.text(0.01, 0.88, "  End date: {}".format(str(time_range[1])), transform=plt.gca().transAxes, fontsize=12)
+            plt.text(0.01, 0.96, "Channel selection: {}".format(CHANNEL_PREF),
+                     transform=plt.gca().transAxes, fontsize=12)
+            plt.text(0.01, 0.92, "Start date: {}".format(str(time_range[0])),
+                     transform=plt.gca().transAxes, fontsize=12)
+            plt.text(0.01, 0.88, "  End date: {}".format(str(time_range[1])),
+                     transform=plt.gca().transAxes, fontsize=12)
             plt.tight_layout(pad=1.05)
             if annotator is not None:
                 annotator()
             if save_file:
-                # subfolder = os.path.join(net_code, ref_code)
-                subfolder = net_code
+                subfolder = os.path.join(ref_code.split('.')[0] + file_label, net_code)
+                # subfolder = net_code
                 os.makedirs(subfolder, exist_ok=True)
-                plt_file = os.path.join(subfolder, '_'.join([net_code, ref_code]) + '_' + ylabel.replace(" ", "").replace(".*", "") + file_label + ".png")
+                plt_file = os.path.join(subfolder, '_'.join([ref_code, net_code]) + '_' +
+                                        ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
                 plt.close()
             else:
@@ -293,7 +314,8 @@ def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
     time_range = (df_times.min(), df_times.max())
     ref_code = ".".join([ref['net'][0], ref['sta'][0]])
-    print("Plotting time range " + " to ".join([t.strftime("%Y-%m-%d %H:%M:%S") for t in time_range]) + " for " + ref_code)
+    print("Plotting time range " + " to ".join([t.strftime("%Y-%m-%d %H:%M:%S") for t in time_range]) +
+          " for " + ref_code)
     yaxis = 'relTtResidual'
     xlabel = 'Event Origin Timestamp'
 
@@ -305,9 +327,19 @@ def plot_target_network_rel_residuals(df, target, ref, tt_scale=50, snr_scale=(0
     plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
 
-def plot_network_relative_to_ref_station(df_plot, ref, target_stns, events=None):
-    # For each event, create column for reference traveltime residual
-
+def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
+    """
+    [summary]
+    
+    :param df_plot: [description]
+    :type df_plot: [type]
+    :param ref: [description]
+    :type ref: [type]
+    :param target_stns: [description]
+    :type target_stns: [type]
+    :param batch_options: Runtime options.
+    :type batch_options: class BatchOptions
+    """
     # Create column for entire table first
     df_plot['ttResidualRef'] = np.nan
 
@@ -352,24 +384,22 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, events=None)
     df_plot['relTtResidual'] = df_plot['ttResidual'] - df_plot['ttResidualRef']
 
     # Re-order columns
-    df_plot = df_plot[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm', 'net', 'sta', 'cha',
-                       'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'distance', 'snr', 'ttResidual', 'ttResidualRef',
-                       'relTtResidual', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
+    df_plot = df_plot[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
+                       'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat',
+                       'distance', 'snr', 'ttResidual', 'ttResidualRef', 'relTtResidual',
+                       'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
 
     # Sort data by event origin time
     df_plot = df_plot.sort_values(['#eventID', 'originTimestamp'])
 
-    save_file = True
-    show_deployments = False
-
-    def plot_decorator(ev):
-        if ev is not None:
-            add_event_marker_lines(ev)
-        if show_deployments:
+    def plot_decorator(opts):
+        if opts.events is not None:
+            add_event_marker_lines(opts.events)
+        if opts.show_deployments:
             add_temporary_deployment_intervals()
 
-    plot_target_network_rel_residuals(df_plot, target_stns, ref, save_file=save_file,
-                                      annotator=lambda: plot_decorator(events))
+    plot_target_network_rel_residuals(df_plot, target_stns, ref, options,
+                                      annotator=lambda: plot_decorator(options))
 
 
 def add_event_marker_lines(events):
@@ -377,7 +407,8 @@ def add_event_marker_lines(events):
     y_lims = plt.ylim()
     for date, event in events.iterrows():
         event_time = pytz.utc.localize(datetime.datetime.strptime(date, "%Y-%m-%d"))
-        if event_time < matplotlib.dates.num2date(time_lims[0]) or event_time >= matplotlib.dates.num2date(time_lims[1]):
+        if event_time < matplotlib.dates.num2date(time_lims[0]) or \
+           event_time >= matplotlib.dates.num2date(time_lims[1]):
             continue
         plt.axvline(event_time, linestyle='--', linewidth=1, color='#00800080')
         plt.text(event_time, y_lims[0] + 0.01 * (y_lims[1] - y_lims[0]), event['name'],
@@ -388,7 +419,7 @@ def add_event_marker_lines(events):
 def utc_time_string_to_plottable_datetime(utc_timestamp_str):
     """
     Convert a UTC timestamp string to datetime type that is plottable by matplotlib
-   
+
     :param utc_timestamp_str: ISO-8601 UTC timestamp string
     :type utc_timestamp_str: str
     :return: Plottable datetime value
@@ -481,7 +512,7 @@ def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
     return df_qual
 
 
-def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_events):
+def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options):
     """
     Analyze a single (reference) station's residuals relative to all the other stations
     in a (target) network.
@@ -493,16 +524,11 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_e
          (expected to be just one entry)
     :param target_stns: Network and station codes for target network
     :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
-    :param significant_events: Pandas dataframe of historically significant seismic events, with a
-        'name' and indexed by date string.
-    :type significant_events: pandas.DataFrame
+    :param batch_options: Runtime options.
+    :type batch_options: class BatchOptions
     """
-    # Setting this to False will generate a lot more events per station chart, sometimes making it
-    # easier to spot drift. But it may also add many events with significant non-zero residual.
-    APPLY_QUALITY_TO_REF = True
-
     # Event quality filtering
-    df_qual = apply_event_quality_filtering(df_picks, ref_stn, apply_quality_to_ref=APPLY_QUALITY_TO_REF)
+    df_qual = apply_event_quality_filtering(df_picks, ref_stn, apply_quality_to_ref=batch_options.ref_filtering)
 
     # Filter to desired ref and target networks
     mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1)
@@ -527,7 +553,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_e
     ds_final = df_nets
     # print(getOverlappingDateRange(ds_final, ref_stn, target_stns))
 
-    plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, significant_events)
+    plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options)
 
 
 def main(input_file):
@@ -602,7 +628,7 @@ def main(input_file):
     print("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
                                                   obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
 
-    # Remove non-BHZ channels as their picks are not considered reliable enough to use
+    # Remove unwanted channels as their picks are not considered reliable enough to use
     df_picks = df_raw_picks[df_raw_picks['cha'].isin(CHANNEL_PREF)].reset_index()
     print("Remaining picks after channel filter: {}".format(len(df_picks)))
 
@@ -643,40 +669,32 @@ def main(input_file):
     TARGET_STNS['sta'].extend(list(new_stas))
     # getNetworkDateRange(df_picks, TARGET_NET)
 
-    REF_NET = 'AU'
-    REF_STN = get_network_stations(df_picks, REF_NET)
-    REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
-    # REF_STN = REF_STN[0:10]
-    # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2', 'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
-    #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2', 'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
-    # Hand-analyze stations with identified possible clock issues:
-    # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
-    # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
-    if REF_NET == 'AU':
-        REF_STNS['net'].extend(list(new_nets))
-        REF_STNS['sta'].extend(list(new_stas))
+    REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
+    options = BatchOptions()
+    options.events = significant_events
+    REF_FILTERING = False
+    options.ref_filtering = REF_FILTERING
+    options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
+    for REF_NET in REF_NETS:
+        REF_STN = get_network_stations(df_picks, REF_NET)
+        REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
+        # REF_STN = REF_STN[0:10]
+        # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2', 'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
+        #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2', 'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
+        # Hand-analyze stations with identified possible clock issues:
+        # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
+        # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
+        if REF_NET == 'AU':
+            REF_STNS['net'].extend(list(new_nets))
+            REF_STNS['sta'].extend(list(new_stas))
+            options.show_deployments = True
+        else:
+            options.show_deployments = False
 
-    for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
-        print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
-        single_ref = {'net': [ref_net], 'sta': [ref_sta]}
-        analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, significant_events)
-
-    # REF_NET = 'AU'
-    # REF_STN = getNetworkStations(df_picks, REF_NET)
-    # # REF_STN = REF_STN[0:10]
-    # REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
-
-    # # TARGET_NETWORKS = ['AU', '7B', '7D', '7G', '7X']
-    # TARGET_NETWORKS = ['7B', '7D', '7G', '7X']
-    # for TARGET_NET in TARGET_NETWORKS:
-    #     TARGET_STN = getNetworkStations(df_picks, TARGET_NET)
-    #     TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
-    #     # getNetworkDateRange(df_picks, TARGET_NET)
-
-    #     for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
-    #         print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
-    #         single_ref = {'net': [ref_net], 'sta': [ref_sta]}
-    #         analyzeTargetRelativeToRef(df_picks, single_ref, TARGET_STNS, significant_events)
+        for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
+            print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
+            single_ref = {'net': [ref_net], 'sta': [ref_sta]}
+            analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, options)
 
 
 if __name__ == "__main__":
