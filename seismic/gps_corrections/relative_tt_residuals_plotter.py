@@ -360,10 +360,16 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, events=None)
     df_plot = df_plot.sort_values(['#eventID', 'originTimestamp'])
 
     save_file = True
-    if events is not None:
-        plot_target_network_rel_residuals(df_plot, target_stns, ref, save_file=save_file, annotator=lambda: add_event_marker_lines(events))
-    else:
-        plot_target_network_rel_residuals(df_plot, target_stns, ref, save_file=save_file)
+    show_deployments = False
+
+    def plot_decorator(ev):
+        if ev is not None:
+            add_event_marker_lines(ev)
+        if show_deployments:
+            add_temporary_deployment_intervals()
+
+    plot_target_network_rel_residuals(df_plot, target_stns, ref, save_file=save_file,
+                                      annotator=lambda: plot_decorator(events))
 
 
 def add_event_marker_lines(events):
@@ -374,8 +380,59 @@ def add_event_marker_lines(events):
         if event_time < matplotlib.dates.num2date(time_lims[0]) or event_time >= matplotlib.dates.num2date(time_lims[1]):
             continue
         plt.axvline(event_time, linestyle='--', linewidth=1, color='#00800080')
-        plt.text(event_time, y_lims[0] + 0.01 * (y_lims[1] - y_lims[0]), event['name'], horizontalalignment='center', verticalalignment='bottom',
+        plt.text(event_time, y_lims[0] + 0.01 * (y_lims[1] - y_lims[0]), event['name'],
+                 horizontalalignment='center', verticalalignment='bottom',
                  fontsize=12, fontstyle='italic', color='#008000c0', rotation=90)
+
+
+def utc_time_string_to_plottable_datetime(utc_timestamp_str):
+    """
+    Convert a UTC timestamp string to datetime type that is plottable by matplotlib
+   
+    :param utc_timestamp_str: ISO-8601 UTC timestamp string
+    :type utc_timestamp_str: str
+    :return: Plottable datetime value
+    :rtype: datetime.datetime with tzinfo
+    """
+    utc_time = obspy.UTCDateTime(utc_timestamp_str)
+    return pytz.utc.localize(datetime.datetime.utcfromtimestamp(float(utc_time)))
+
+
+def add_temporary_deployment_intervals():
+    """
+    Graphical decorator for the TT residual charts to add visual indication of the time intervals
+    during which selected temporary network deployments took place.
+    """
+    def render_deployment_interval(rec_x, rec_y, rec_width, rec_height, rec_color, text):
+        plt.gca().add_patch(plt.Rectangle((rec_x, rec_y), width=rec_width,
+                                          height=rec_height, color=rec_color, alpha=0.8, clip_on=True))
+        plt.text(rec_x, rec_y + rec_height / 2.0, text, fontsize=12, verticalalignment='center', clip_on=True)
+
+    import matplotlib.patches as patches
+    # Keep these in chronological order of start date to ensure optimal y-position staggering
+    deployment_7X = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
+                     utc_time_string_to_plottable_datetime('2011-04-01T23:18:49.000000Z'),
+                     'C7', 'Deployment 7X')
+    deployment_7D = (utc_time_string_to_plottable_datetime('2012-01-01T00:01:36.000000Z'),
+                     utc_time_string_to_plottable_datetime('2014-03-27T15:09:51.000000Z'),
+                     'C1', 'Deployment 7D')
+    deployment_7F = (utc_time_string_to_plottable_datetime('2012-12-31T23:59:59.000000Z'),
+                     utc_time_string_to_plottable_datetime('2014-11-15T00:43:14.000000Z'),
+                     'C3', 'Deployment 7F')
+    deployment_7G = (utc_time_string_to_plottable_datetime('2014-01-01T00:00:06.000000Z'),
+                     utc_time_string_to_plottable_datetime('2016-02-09T21:04:29.000000Z'),
+                     'C4', 'Deployment 7G')
+    deployment_OA = (utc_time_string_to_plottable_datetime('2017-09-13T23:59:13.000000Z'),
+                     utc_time_string_to_plottable_datetime('2018-11-28T01:11:14.000000Z'),
+                     'C8', 'Deployment OA')
+    deployments = (deployment_7X, deployment_7D, deployment_7F, deployment_7G, deployment_OA)
+    height = 5
+    base_ypos = -40 - height / 2.0
+    stagger = height / 2.0
+    for d in deployments:
+        ypos = base_ypos + stagger
+        render_deployment_interval(d[0], ypos, (d[1] - d[0]), height, d[2], d[3])
+        stagger = -stagger
 
 
 def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
@@ -442,7 +499,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, significant_e
     """
     # Setting this to False will generate a lot more events per station chart, sometimes making it
     # easier to spot drift. But it may also add many events with significant non-zero residual.
-    APPLY_QUALITY_TO_REF = False
+    APPLY_QUALITY_TO_REF = True
 
     # Event quality filtering
     df_qual = apply_event_quality_filtering(df_picks, ref_stn, apply_quality_to_ref=APPLY_QUALITY_TO_REF)
@@ -595,8 +652,9 @@ def main(input_file):
     # Hand-analyze stations with identified possible clock issues:
     # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
     # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
-    REF_STNS['net'].extend(list(new_nets))
-    REF_STNS['sta'].extend(list(new_stas))
+    if REF_NET == 'AU':
+        REF_STNS['net'].extend(list(new_nets))
+        REF_STNS['sta'].extend(list(new_stas))
 
     for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
         print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
