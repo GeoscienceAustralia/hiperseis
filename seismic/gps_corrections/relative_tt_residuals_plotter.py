@@ -528,7 +528,7 @@ def main(input_file):
         significant_events.loc['2002-11-03', 'name'] = '2002 Denali earthquake'
         significant_events.loc['2003-09-25', 'name'] = '2003 Tokachi-Oki earthquake'
         significant_events.loc['2004-12-26', 'name'] = '2004 Indian Ocean earthquake and tsunami'
-        significant_events.loc['2005-03-28', 'name'] = '2005 Nias–Simeulue earthquake'
+        significant_events.loc['2005-03-28', 'name'] = '2005 Nias-Simeulue earthquake'
         significant_events.loc['2009-09-29', 'name'] = '2009 Samoa earthquake and tsunami'
         significant_events.loc['2010-02-27', 'name'] = '2010 Chile earthquake'
         significant_events.loc['2011-03-11', 'name'] = '2011 Tohoku earthquake and tsunami'
