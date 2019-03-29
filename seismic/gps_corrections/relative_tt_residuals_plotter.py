@@ -661,18 +661,28 @@ def main(input_file):
     # getNetworkDateRange(df_picks, TARGET_NET)
 
     # Find additional network.station codes that match AU network, and add them to target
-    # TODO: Make this a command line argument.
-    IRIS_AU_STATIONS_FILE = "AU_irisws-fedcatalog_20190305T012747Z.txt"
-    new_nets, new_stas = determine_alternate_matching_codes(df_picks, IRIS_AU_STATIONS_FILE, TARGET_NET)
-    print("Adding {} more stations from alternate international networks".format(len(new_nets)))
-    TARGET_STNS['net'].extend(list(new_nets))
-    TARGET_STNS['sta'].extend(list(new_stas))
+    if TARGET_NET == 'AU':
+        # TODO: Make this a command line argument.
+        IRIS_AU_STATIONS_FILE = "AU_irisws-fedcatalog_20190305T012747Z.txt"
+        new_nets, new_stas = determine_alternate_matching_codes(df_picks, IRIS_AU_STATIONS_FILE, TARGET_NET)
+        print("Adding {} more stations from alternate international networks".format(len(new_nets)))
+        TARGET_STNS['net'].extend(list(new_nets))
+        TARGET_STNS['sta'].extend(list(new_stas))
+
+        # Add Australian Seismographs in Schools Network
+        SIS_NET = 'S'
+        mask_sis = (df_picks['net'] == SIS_NET)
+        SIS_CODES = sorted([c for c in df_picks.loc[mask_sis, 'sta'].unique() if c[0:2] == 'AU'])
+        print("Adding {} more stations from Seismographs in Schools network".format(len(SIS_CODES)))
+        TARGET_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
+        TARGET_STNS['sta'].extend(SIS_CODES)
     # getNetworkDateRange(df_picks, TARGET_NET)
 
-    REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
+    # REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
+    REF_NETS = ['AU']
     options = BatchOptions()
     options.events = significant_events
-    REF_FILTERING = False
+    REF_FILTERING = True
     options.ref_filtering = REF_FILTERING
     options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
     for REF_NET in REF_NETS:
@@ -685,8 +695,11 @@ def main(input_file):
         # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
         # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
         if REF_NET == 'AU':
+            assert TARGET_NET == 'AU'
             REF_STNS['net'].extend(list(new_nets))
             REF_STNS['sta'].extend(list(new_stas))
+            REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
+            REF_STNS['sta'].extend(SIS_CODES)
             options.show_deployments = True
         else:
             options.show_deployments = False
