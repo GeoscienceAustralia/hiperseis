@@ -45,9 +45,14 @@ MIN_EVENT_MAG = 5.5
 # MIN_EVENT_MAG = 4.0
 # MIN_EVENT_MAG = 0.0
 
+# This gets populated by main()
+TEMP_DEPLOYMENTS = {}
 
 # Trivial container class for passing options around
 class BatchOptions:
+    """
+    Simple container type for run time options.   
+    """
     def __init__(self):
         self.save_file = True
         # Setting this to False will generate a lot more events per station chart, sometimes making it
@@ -56,6 +61,8 @@ class BatchOptions:
         self.show_deployments = False
         self.batch_label = ''
         self.events = None
+        # X-axis time range
+        self.x_range = None
 
 
 def get_network_stations(df, netcode):
@@ -312,7 +319,10 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
     # end plotDataset
 
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
-    time_range = (df_times.min(), df_times.max())
+    if options.x_range is not None:
+        time_range = options.x_range
+    else:
+        time_range = (df_times.min(), df_times.max())
     ref_code = ".".join([ref['net'][0], ref['sta'][0]])
     print("Plotting time range " + " to ".join([t.strftime("%Y-%m-%d %H:%M:%S") for t in time_range]) +
           " for " + ref_code)
@@ -434,29 +444,16 @@ def add_temporary_deployment_intervals():
     Graphical decorator for the TT residual charts to add visual indication of the time intervals
     during which selected temporary network deployments took place.
     """
+    import matplotlib.patches as patches
+
     def render_deployment_interval(rec_x, rec_y, rec_width, rec_height, rec_color, text):
         plt.gca().add_patch(plt.Rectangle((rec_x, rec_y), width=rec_width,
                                           height=rec_height, color=rec_color, alpha=0.8, clip_on=True))
         plt.text(rec_x, rec_y + rec_height / 2.0, text, fontsize=12, verticalalignment='center', clip_on=True)
 
-    import matplotlib.patches as patches
     # Keep these in chronological order of start date to ensure optimal y-position staggering
-    deployment_7X = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
-                     utc_time_string_to_plottable_datetime('2011-04-01T23:18:49.000000Z'),
-                     'C7', 'Deployment 7X')
-    deployment_7D = (utc_time_string_to_plottable_datetime('2012-01-01T00:01:36.000000Z'),
-                     utc_time_string_to_plottable_datetime('2014-03-27T15:09:51.000000Z'),
-                     'C1', 'Deployment 7D')
-    deployment_7F = (utc_time_string_to_plottable_datetime('2012-12-31T23:59:59.000000Z'),
-                     utc_time_string_to_plottable_datetime('2014-11-15T00:43:14.000000Z'),
-                     'C3', 'Deployment 7F')
-    deployment_7G = (utc_time_string_to_plottable_datetime('2014-01-01T00:00:06.000000Z'),
-                     utc_time_string_to_plottable_datetime('2016-02-09T21:04:29.000000Z'),
-                     'C4', 'Deployment 7G')
-    deployment_OA = (utc_time_string_to_plottable_datetime('2017-09-13T23:59:13.000000Z'),
-                     utc_time_string_to_plottable_datetime('2018-11-28T01:11:14.000000Z'),
-                     'C8', 'Deployment OA')
-    deployments = (deployment_7X, deployment_7D, deployment_7F, deployment_7G, deployment_OA)
+    deployments = (TEMP_DEPLOYMENTS['7X'], TEMP_DEPLOYMENTS['7D'], TEMP_DEPLOYMENTS['7F'],
+                   TEMP_DEPLOYMENTS['7G'], TEMP_DEPLOYMENTS['OA'])
     height = 5
     base_ypos = -40 - height / 2.0
     stagger = height / 2.0
@@ -624,6 +621,23 @@ def main(input_file):
 
         print(significant_events)
 
+    # Populate temporary deployments details
+    TEMP_DEPLOYMENTS['7X'] = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
+                              utc_time_string_to_plottable_datetime('2011-04-01T23:18:49.000000Z'),
+                              'C7', 'Deployment 7X')
+    TEMP_DEPLOYMENTS['7D'] = (utc_time_string_to_plottable_datetime('2012-01-01T00:01:36.000000Z'),
+                              utc_time_string_to_plottable_datetime('2014-03-27T15:09:51.000000Z'),
+                              'C1', 'Deployment 7D')
+    TEMP_DEPLOYMENTS['7F'] = (utc_time_string_to_plottable_datetime('2012-12-31T23:59:59.000000Z'),
+                              utc_time_string_to_plottable_datetime('2014-11-15T00:43:14.000000Z'),
+                              'C3', 'Deployment 7F')
+    TEMP_DEPLOYMENTS['7G'] = (utc_time_string_to_plottable_datetime('2014-01-01T00:00:06.000000Z'),
+                              utc_time_string_to_plottable_datetime('2016-02-09T21:04:29.000000Z'),
+                              'C4', 'Deployment 7G')
+    TEMP_DEPLOYMENTS['OA'] = (utc_time_string_to_plottable_datetime('2017-09-13T23:59:13.000000Z'),
+                              utc_time_string_to_plottable_datetime('2018-11-28T01:11:14.000000Z'),
+                              'C8', 'Deployment OA')
+
     # Query time period for source dataset
     print("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
                                                   obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
@@ -678,10 +692,11 @@ def main(input_file):
         TARGET_STNS['sta'].extend(SIS_CODES)
     # getNetworkDateRange(df_picks, TARGET_NET)
 
-    # REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
-    REF_NETS = ['AU']
+    REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
+    # REF_NETS = ['AU']
     options = BatchOptions()
     options.events = significant_events
+    # TODO: Make REF_FILTERING a command line option
     REF_FILTERING = True
     options.ref_filtering = REF_FILTERING
     options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
@@ -703,6 +718,13 @@ def main(input_file):
             options.show_deployments = True
         else:
             options.show_deployments = False
+
+        # For certain temporary deployments, force a fixed time range on the x-axis so that all stations
+        # in the deployment can be compared on a common time range.
+        if REF_NET in TEMP_DEPLOYMENTS:
+            options.x_range = (TEMP_DEPLOYMENTS[REF_NET][0], TEMP_DEPLOYMENTS[REF_NET][1])
+        else:
+            options.x_range = None
 
         for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
             print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
