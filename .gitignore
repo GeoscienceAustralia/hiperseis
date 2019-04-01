@@ -76,3 +76,4 @@ seismic/inventory/vitalstats*.txt
 seismic/xcorqc/*refdata.h5
 seismic/gps_corrections/**/*.png
 seismic/xcorqc/**/*.pdf
+seismic/xcorqc/**/*.png
