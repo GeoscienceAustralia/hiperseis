@@ -112,7 +112,7 @@ def whiten(x, sr, fmin=None, fmax=None):
 # end func
 
 def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
-           resample_rate=None, flo=0.9, fhi=1.1, clip_to_2std=False, whitening=False,
+           resample_rate=None, flo=None, fhi=None, clip_to_2std=False, whitening=False,
            one_bit_normalize=False, envelope_normalize=False,
            verbose=1, logger=None):
 
@@ -199,8 +199,10 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
                 # end if
 
                 # apply zero-phase band-pass
-                tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=6, zerophase=True)
-                tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=6, zerophase=True)
+                if(flo and fhi):
+                    tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=6, zerophase=True)
+                    tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=6, zerophase=True)
+                # end if
 
                 # clip to +/- 2*std
                 if(clip_to_2std):
@@ -319,7 +321,7 @@ def IntervalStackXCorr(refds, tempds,
                        temp_cha,
                        resample_rate=None,
                        buffer_seconds=864000, interval_seconds=86400,
-                       window_seconds=3600, flo=0.9, fhi=1.1,
+                       window_seconds=3600, flo=None, fhi=None,
                        clip_to_2std=False, whitening=False,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
