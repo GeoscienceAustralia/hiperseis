@@ -46,49 +46,7 @@ def station_codes(filename):
     return (sta1, sta2)
 
 
-def station_coords(federated_ds, code, timestamp):
-    """
-    Get station location coordinates of z-channel for a given station code.
-    In practice a time period is required to query station metadata, so an
-    end time of 30 days after the query timestamp is used.
-
-    Preferentially picks BHZ channel if available, otherwise the first available
-    z-channel.
-
-    :param federated_ds: Federated dataset to query for station coordinates
-    :type federated_ds: seismic.ASDFdatabase.FederatedASDFDataSet
-    :param code: Station and network code in the format ``NETWORK.STATION``
-    :type code: str
-    :param timestamp: UTC datetime string at which to enquire about the location.
-    :type timestamp: str
-    :return: Pair of station coordinates in format [latitude, longitude]
-    :rtype: list
-    """
-    query_window_seconds = 3600 * 24 * 30
-    net, sta = code.split('.')
-    # Perform query on Federated Dataset
-    sta_records = federated_ds.get_stations(timestamp, obspy.UTCDateTime(timestamp) +
-                                            query_window_seconds, network=net, station=sta)
-    # Filter query results to *HZ channels
-    z_records = [r for r in sta_records if r[3][1:3] == 'HZ']
-    if len(z_records) != 1:
-        print("WARNING: More than one matching channel record found for station {} coords:\n{}"
-              .format(code, z_records))
-        PREFERRED_CHANNEL = 'BHZ'
-        z_record = None
-        for rec in z_records:
-            if rec[3] == PREFERRED_CHANNEL:
-                z_record = rec
-                break
-        if z_record is None:
-            z_record = z_records[0]
-        print("WARNING: Automatically chose channel {}".format(z_record[3]))
-    else:
-        z_record = z_records[0]
-    return z_record[4:6]
-
-
-def station_distance(federated_ds, code1, code2, timestamp):
+def station_distance(federated_ds, code1, code2):
     """
     Determine the distance in km between a pair of stations at a given time.
 
@@ -98,14 +56,11 @@ def station_distance(federated_ds, code1, code2, timestamp):
     :type code1: str
     :param code2: Station and network code in the format ``NETWORK.STATION`` for second station
     :type code2: str
-    :param timestamp: UTC datetime string at which to enquire about the distance between stations.
-    :type timestamp: str
     :return: Distance between stations in kilometers
     :rtype: float
     """
-
-    coords1 = station_coords(federated_ds, code1, timestamp)
-    coords2 = station_coords(federated_ds, code2, timestamp)
+    coords1 = federated_ds.unique_coordinates[code1]
+    coords2 = federated_ds.unique_coordinates[code2]
     return distance(coords1, coords2)
 
 
@@ -307,7 +262,7 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
 
 def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_threshold,
                                    show=True, underlay_rcf_xcorr=False,
-                                   pdf_file=None, png_file=None):
+                                   pdf_file=None, png_file=None, title_tag=''):
     # Read xcorr data
     xcdata = NCDataset(src_file, 'r')
 
@@ -327,7 +282,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     print("Date range for file {}:\n    {} -- {}".format(src_file, start_time, end_time))
 
     origin_code, dest_code = station_codes(src_file)
-    dist = station_distance(asdf_dataset, origin_code, dest_code, start_time)
+    dist = station_distance(asdf_dataset, origin_code, dest_code)
 
     # Extract primary data
     lag_indices = np.squeeze(np.argwhere(np.fabs(np.round(xc_lag, decimals=2)) == time_window))
@@ -358,7 +313,8 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     # Master layout and plotting code
 
     fig = plt.figure(figsize=(11.69, 16.53))
-    fig.suptitle("Station: {}, Dist. to {}: {:3.2f} km".format(origin_code, dest_code, dist), fontsize=16, y=1)
+    fig.suptitle("Station: {}, Dist. to {}: {:3.2f} km{}".format(
+            origin_code, dest_code, dist, '' if not title_tag else ' ' + title_tag), fontsize=16, y=1)
 
     ax1 = fig.add_axes([0.1, 0.075, 0.5, 0.725])
 
