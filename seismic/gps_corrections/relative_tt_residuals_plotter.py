@@ -48,6 +48,7 @@ MIN_EVENT_MAG = 5.5
 # This gets populated by main()
 TEMP_DEPLOYMENTS = {}
 
+
 # Trivial container class for passing options around
 class BatchOptions:
     """
@@ -287,7 +288,7 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
             plt.axes().xaxis.set_major_formatter(time_formatter)
             cb = plt.colorbar(sc, drawedges=False)
             cb.set_label('Signal to noise ratio', fontsize=12)
-            plt.grid(color='#80808080', linestyle=':')
+            plt.grid(color='#808080', linestyle=':', alpha=0.7)
             plt.xlabel(xlabel, fontsize=14)
             plt.ylabel(ylabel, fontsize=14)
             plt.xticks(fontsize=14)
@@ -316,7 +317,7 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
                 plt.close()
             else:
                 plt.show()
-    # end plotDataset
+    # end plot_dataset
 
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
     if options.x_range is not None:
@@ -340,7 +341,7 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
 def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
     """
     [summary]
-    
+
     :param df_plot: [description]
     :type df_plot: [type]
     :param ref: [description]
@@ -444,7 +445,6 @@ def add_temporary_deployment_intervals():
     Graphical decorator for the TT residual charts to add visual indication of the time intervals
     during which selected temporary network deployments took place.
     """
-    import matplotlib.patches as patches
 
     def render_deployment_interval(rec_x, rec_y, rec_width, rec_height, rec_color, text):
         plt.gca().add_patch(plt.Rectangle((rec_x, rec_y), width=rec_width,
@@ -669,7 +669,9 @@ def main(input_file):
     df_picks = df_picks.loc[mask_tele]
     print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
-    TARGET_NET = 'AU'
+    # TARGET_NET = 'AU'
+    # TARGET_STN = get_network_stations(df_picks, TARGET_NET)
+    TARGET_NET = '7X'
     TARGET_STN = get_network_stations(df_picks, TARGET_NET)
     TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
     # getNetworkDateRange(df_picks, TARGET_NET)
@@ -692,32 +694,38 @@ def main(input_file):
         TARGET_STNS['sta'].extend(SIS_CODES)
     # getNetworkDateRange(df_picks, TARGET_NET)
 
-    REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
+    # REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
     # REF_NETS = ['AU']
+    REF_NETS = ['7X']
     options = BatchOptions()
     options.events = significant_events
+    # options.save_file = False
+    options.show_deployments = True
     # TODO: Make REF_FILTERING a command line option
-    REF_FILTERING = True
+    REF_FILTERING = False
     options.ref_filtering = REF_FILTERING
     options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
     for REF_NET in REF_NETS:
         REF_STN = get_network_stations(df_picks, REF_NET)
+        # REF_STN = ['QIS']
         REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
         # REF_STN = REF_STN[0:10]
-        # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2', 'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
-        #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2', 'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
+        # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2',
+        #                'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
+        #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2',
+        #                'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
         # Hand-analyze stations with identified possible clock issues:
         # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
         # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
-        if REF_NET == 'AU':
-            assert TARGET_NET == 'AU'
-            REF_STNS['net'].extend(list(new_nets))
-            REF_STNS['sta'].extend(list(new_stas))
-            REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
-            REF_STNS['sta'].extend(SIS_CODES)
-            options.show_deployments = True
-        else:
-            options.show_deployments = False
+        # if REF_NET == 'AU':
+        #     assert TARGET_NET == 'AU'
+        #     REF_STNS['net'].extend(list(new_nets))
+        #     REF_STNS['sta'].extend(list(new_stas))
+        #     REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
+        #     REF_STNS['sta'].extend(SIS_CODES)
+        #     options.show_deployments = True
+        # else:
+        #     options.show_deployments = False
 
         # For certain temporary deployments, force a fixed time range on the x-axis so that all stations
         # in the deployment can be compared on a common time range.
