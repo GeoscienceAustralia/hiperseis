@@ -153,6 +153,27 @@ class FederatedASDFDataSet():
         return results
     # end func
 
+    def get_waveform_count(self, network, station, location, channel, starttime,
+                           endtime, trace_count_threshold=200):
+        """
+        Count the number of traces within the given parameters of network, station, etc..
+        and date range. This is a fast method of determing whether any trace data exists
+        in a given time period, if you don't actually need the waveform data itself.
+
+        :param network: network code
+        :param station: station code
+        :param location: location code
+        :param channel: channel code
+        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param trace_count_threshold: returns 0 if the number of traces within the time-rage provided
+                                      exceeds the threshold (default 200). This is particularly useful for filtering
+                                      out data from bad stations, e.g. those from the AU.Schools network
+        :return: The number of streams containing waveform data over the time-range provided
+        """
+        return self.fds.get_waveform_count(network, station, location, channel,
+                                           starttime, endtime, trace_count_threshold)
+
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, automerge=False, trace_count_threshold=200):
         """
