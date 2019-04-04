@@ -114,7 +114,7 @@ def compute_estimated_clock_corrections(rcf, snr_mask, ccf_masked, x_lag, pcf_cu
     Compute the estimated GPS clock corrections given series of cross-correlation functions
     and an overall reference correlation function (rcf, the mean of valid samples of the
     cross-correlation time series).
-    
+
     :param rcf: Pre-computed reference correlation function (RCF) as per Hable et. al (2018)
     :type rcf: np.array
     :param snr_mask: Mask of which samples meet minimum SNR criteria
