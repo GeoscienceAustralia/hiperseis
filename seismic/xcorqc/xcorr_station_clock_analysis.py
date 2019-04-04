@@ -310,6 +310,8 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
         crange_floor = 0.7
         plot_data[np.isnan(plot_data)] = crange_floor
         plot_data[(plot_data < crange_floor)] = crange_floor
+        nan_mask = np.isnan(correction)
+        plot_data[nan_mask, :] = np.nan
         ax.pcolormesh(gx, gy, plot_data, cmap='RdYlBu_r', rasterized=True)
         ax.set_ylim((min(np_times), max(np_times)))
         xrange = 1.2 * np.nanmax(np.abs(correction))
@@ -318,11 +320,14 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
         ax.plot(correction, np_times, 'o--', color=col, fillstyle='none', markersize=4, alpha=0.8)
     else:
         # Plain line plot
-        ax.plot(correction, y_times, 'o-', c='#f22e62', lw=1.5, fillstyle='none', markersize=4)
-        ax.set_ylim((min(y_times), max(y_times)))
+        np_times = np.array([datetime.datetime.utcfromtimestamp(v) for v in y_times]).astype('datetime64[s]')
+        ax.plot(correction, np_times, 'o-', c='#f22e62', lw=1.5, fillstyle='none', markersize=4)
+        ax.set_ylim((min(np_times), max(np_times)))
         ax.grid(":", color='#80808080')
 
-    ax.set_yticklabels([])
+    ytl = ax.get_yticklabels()
+    for y in ytl:
+        y.set_visible(False)
     xtl = ax.get_xticklabels()
     xtl[0].set_visible(False)
     xtl[-1].set_visible(False)
