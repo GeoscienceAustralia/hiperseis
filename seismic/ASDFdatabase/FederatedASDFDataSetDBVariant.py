@@ -270,6 +270,24 @@ class FederatedASDFDataSetDBVariant():
         return results
     # end func
 
+    def get_waveform_count(self, network, station, location, channel, starttime,
+                           endtime, trace_count_threshold=200):
+
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
+
+        query = "select count(*) from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
+                %(network, station, location, channel) + \
+                "and et>=%f and st<=%f" \
+                 % (starttime, endtime)
+
+        num_traces = self.conn.execute(query).fetchall()[0][0]
+
+        if num_traces > trace_count_threshold:
+            return 0
+        else:
+            return num_traces
+
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, automerge=False, trace_count_threshold=200):
 
