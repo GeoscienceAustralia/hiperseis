@@ -1,7 +1,5 @@
 import numpy as np 
 import os
-#import skimage.io as io
-#import skimage.transform as trans
 import numpy as np
 from keras.models import *
 from keras.layers import *
