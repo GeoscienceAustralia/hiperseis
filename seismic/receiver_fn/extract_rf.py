@@ -53,7 +53,8 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
     print "Reading the input file..."
     # Input file
-    stream=rf.read_rf('DATA/7X-ZRT-R-cleaned.h5','H5')
+#   stream=rf.read_rf('DATA/7X-ZRT-R-1cleaned.h5','H5')
+    stream=rf.read_rf('DATA/7X-ZRT-R-ma12-cleaned.h5','H5')
     print "Reading is done..."
 
     net=stream[0].stats.network.encode('utf-8')
@@ -62,7 +63,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
     # inversion programs use 1Hz pulse width, therefore higher corner should be not lower than that
     filter_type='bandpass'
-    freqmin=0.03
+    freqmin=0.1
     freqmax=1.0
 
     # Trimming window
@@ -115,7 +116,6 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
          station=stream.select(station=estat,component='R').moveout()
 
 #        we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
-#        somehow trim2 doesn't trim down to 20 sec after arrival. Should be investigated further
 #        print station[0].stats.delta,station[0].stats.npts
          
             
@@ -124,17 +124,23 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
             for trace in station:
                 # preserve original amplitude to rescale later to preserve proportions relative to source
-                amp_max=np.max(trace.data)
+                if trace.stats.amax > 0:
+                   amp_max=trace.stats.amax
+                   print "*"
+                else:
+                   amp_max=np.max(trace.data)
                 trace.taper(0.01)
-                trace=trace.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
-                trace.data=trace.data*(amp_max/np.max(trace.data))
+                # 6.25 is the frequency hardwired into the inversion program
+                trace=trace.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(6.25)
+#               trace=trace.interpolate(6.25)
+                trace.data=trace.data*(amp_max/np.amax(trace.data))
 
 
             # first we get stacks - normal and phase weighted
             copy_st=station.copy()
             stacked=station.copy().stack()
             stacked.trim2(tstart,tend,'onset')
-            time_s=stacked[0].stats.delta*np.array(list(xrange(stacked[0].stats.npts)))
+            time_s=stacked[0].stats.delta*np.array(list(xrange(stacked[0].stats.npts)))+tstart
 
             amp_max=np.max(stacked[0].data)
 
@@ -142,9 +148,13 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             ph_weighted=copy_st.stack()
             ph_weighted[0].data=ph_weighted[0].data*phase_w
             # Note - weighting changes the real amplitude and it must be rescaled back to origin
-            ph_weighted[0].data=ph_weighted[0].data*(amp_max/np.max(ph_weighted[0].data))
             ph_weighted.trim2(tstart,tend,'onset')
-            time_p=ph_weighted[0].stats.delta*np.array(list(xrange(ph_weighted[0].stats.npts)))
+            time_p=ph_weighted[0].stats.delta*np.array(list(xrange(ph_weighted[0].stats.npts)))+tstart
+            zero=ph_weighted[0].data[time_p<0.]
+            idx=np.max(np.where(zero<=0.)[0])
+            ph_weighted[0].data[:idx+1]=0.
+#           ph_weighted.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=1,zerophase=True)
+            ph_weighted[0].data=ph_weighted[0].data*(amp_max/np.max(ph_weighted[0].data))
 
 
             # then we take the same for each similarity groups
@@ -173,13 +183,15 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
                   for trace in station:
                       if trace.stats.rf_group==i:
                          grp_stream.append(trace)
-                  
+                  print "Group: ",i," number of records: ", len(grp_stream)
                   grp_stacked=grp_stream.copy().stack()
                   grp_stck_max=np.max(np.abs(grp_stacked.copy()[0].data))
+#                 grp_stck_max=amp_max
                   phase_w=phase_weights(grp_stream)
                   grp_stacked_wght=grp_stacked.copy()[0].data*phase_w
                   grp_stacked_wght=grp_stacked_wght*(grp_stck_max/np.max(np.abs(grp_stacked_wght)))  
-                  grp_time=grp_stacked[0].stats.delta*np.array(list(xrange(grp_stacked[0].stats.npts)))
+                  
+                  grp_time=grp_stacked[0].stats.delta*np.array(list(xrange(grp_stacked[0].stats.npts)))+tstart
                   ax=plt.subplot(grid[i+frame])
                   ax.plot(grp_time,grp_stacked_wght)
                   ax.set_title('Group '+str(i))
@@ -194,12 +206,13 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             if plot:
                   plt.show()
             else:
-                  fig.savefig(out_dir+'PDF/'+net+'-'+estat+'-rf-ph_weighted.pdf',format='PDF')
+                  fig.savefig(out_dir+'PDF/'+net+'-'+estat+'-rf2-ph_weighted.pdf',format='PDF')
                   plt.close('all')
 
-            with open(out_dir+net+'-'+estat+'-rf-ph_weighted.dat','w') as text_file:
+            
+            with open(out_dir+net+'-'+estat+'-rf2-ph_weighted.dat','w') as text_file:
                   for i in xrange(time_p.shape[0]):
-                       text_file.write(str(time_p[i]+tstart)+'   '+str(ph_weighted[0].data[i])+'\n')
+                        text_file.write(str(time_p[i])+'   '+str(ph_weighted[0].data[i])+'\n')
 
             text_file.close()
        
