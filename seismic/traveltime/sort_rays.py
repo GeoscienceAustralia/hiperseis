@@ -14,10 +14,13 @@ Developer:
 """
 from __future__ import print_function, absolute_import
 
+import os
 import json
 import logging
 import sys
 from math import asin
+import time
+import numpy as np
 
 import click
 import ellipcorr
@@ -295,6 +298,129 @@ def compute_ellipticity_corr(arrival_phase, ev_latitude, ev_longitude, ev_depth_
     return ellipticity_corr
 
 
+# definition of filter for seismic rays
+def _filter_data(D, quality, network=None, station=None, gt=None, lt=None):
+    """
+     A  Data Filter to  remove flagged data from D: dataframe
+    :param D:
+    :param quality:
+    :param network:
+    :param station:
+    :param gt:
+    :param lt:
+    :return:
+    """
+
+    if not gt and not lt:
+        raise ValueError("At least gt or lt must be specified.")
+    B = (D['#eventID'] == None)
+    if network:
+        B += (D['net'] != network)
+    if station:
+        B += (D['sta'] != station)
+    if gt:
+        B += (D[quality] < gt)
+    if lt:
+        B += (D[quality] > lt)
+
+    return D[B]
+
+
+def apply_filters(csv_data, phase):
+    """
+    Apply filters to the rows (rays) according to phase P or S. Remove un-reliable data.
+    :param csv_data:  input pandas dataframe
+    :param phase:  P or S
+    :return: pandas dataframe
+    """
+
+    if phase.upper() == 'P':
+        qualityMeasureCWT_cutoff = 20
+        qualityMeasureSlope_cutoff = 4
+        nSigma_cutoff = 6
+        residual_cutoff = 5.0
+    elif phase.upper() == 'S':
+        qualityMeasureCWT_cutoff = 0
+        qualityMeasureSlope_cutoff = 0
+        nSigma_cutoff = 0
+        residual_cutoff = 10.0
+    else:
+        print("!!! Phase must be either P or S !!!")
+        raise Exception("Phase < %s >  Not Recognised! " % (phase))
+
+    # Marcus filter code block
+    print("CSV size=", csv_data.shape)
+    log.info('Select useful rows/rays by applying filters.')
+
+    # Filter any remaining outlier traveltime residuals
+    csv_data = csv_data[abs(csv_data['tt_residual']) < residual_cutoff]
+    print("CSV size=", csv_data.shape)
+
+    # Temporarily remove network 7D until clock errors have been fixed.
+    #csv_data = _filter_data(csv_data, 'originTimestamp', network='7D', gt=time.mktime(time.strptime('2000-01-01', ('%Y-%M-%d'))))
+    print("CSV size=", csv_data.shape)
+
+    # Filter to remove lowest quality picks
+    csv_data = csv_data[(csv_data['qualityMeasureCWT'] >= qualityMeasureCWT_cutoff)]
+    print ("CSV size=", csv_data.shape)
+
+    csv_data = csv_data[(csv_data['qualityMeasureSlope'] >= qualityMeasureSlope_cutoff)]
+    print("CSV size=", csv_data.shape)
+
+    csv_data = csv_data[(csv_data['nSigma'] >= nSigma_cutoff)]
+    print("CSV size=", csv_data.shape)
+
+    # Filter out known time-shifts from station records
+    if os.path.exists('FILTER.csv'):
+        filters = pd.read_csv('FILTER.csv')
+        for i in range(filters.shape[0]):
+            csv_data = _filter_data(csv_data,
+                                    'originTimestamp',
+                                    network=filters['network_code'].ix[i],
+                                    station=filters['station_code'].ix[i],
+                                    gt=time.mktime(time.strptime(filters['excl_start_date'].ix[i], ('%Y-%M-%d'))),
+                                    lt=time.mktime(time.strptime(filters['excl_end_date'].ix[i],   ('%Y-%M-%d'))))
+
+
+    # Other filter: remove shallow event originDepth<0.01KM?
+
+    # Save P-wave events to file to use as quality reference for S-wave picks
+    if phase.upper() == 'P':
+        p_events = {}
+        for n in list(set(csv_data['net'].values)):
+            sub = csv_data[csv_data['net'] == n]
+            for s in list(set(sub['sta'].values)):
+                sub = sub[sub['sta'] == s]
+                p_events[n+':'+s] = np.array(list(set(sub['#eventID'].values)))
+#        p_events = np.array(list(set(csv_data['#eventID'].values)))
+        np.save('P_EVENTS.npy', p_events)
+    elif phase.upper() == 'S':
+#        s_events = np.array(list(set(csv_data['#eventID'].values)))
+        if os.path.exists('P_EVENTS.npy'):
+            p_events = np.load('P_EVENTS.npy')[()]
+        else:
+            print('Run P-wave clustering prior to S-wave clustering!')
+            raise Exception("Cannot filter S-wave picks to P-wave picks.")
+        for n in list(set(csv_data['net'].values)):
+            sub = csv_data[csv_data['net'] == n]
+            for s in list(set(sub['sta'].values)):
+                sub = sub[sub['sta'] == s]
+                for S_ID in np.array(list(set(sub['#eventID'].values))):
+                    if n+':'+s not in p_events.keys():
+                        S_bool = (csv_data['net']==n)*(csv_data['sta']==s)
+                        csv_data = csv_data[S_bool == False]
+                    elif S_ID not in p_events[n+':'+s]:
+                        S_bool = (csv_data['net']==n)*(csv_data['sta']==s)*(csv_data['#eventID']==S_ID)
+                        csv_data = csv_data[S_bool == False]
+#        for S_ID in s_events:
+#            S_bool = csv_data['#eventID'] == S_ID
+#            if S_ID not in p_events:
+#                csv_data = csv_data[S_bool == False]
+        os.remove('P_EVENTS.npy')
+
+    return csv_data
+
+
 def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
     """
     Read in a csv file, re-grid each row according to a given Grid model.
@@ -308,9 +434,12 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
     :return: outfile
     """
 
+# Sanity Check of Input parameters:
     if phase.upper() == 'P':
         residual_cutoff = 5.0
+        print("P Wave data processing")
     elif phase.upper() == 'S':
+        print("S Wave data processing")
         residual_cutoff = 10.0
     else:
         print("!!! Phase must be either P or S !!!")
@@ -332,11 +461,14 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
     # 'source_depth_km', 'station_lon',  'station_lat',  'observed_tt', 'locations2degrees',  'station_code',  'p_or_s']
 
     log.info('Select useful rows/rays by applying filters.')
+    # csv_data = csv_data[abs(csv_data['tt_residual']) < residual_cutoff]
 
-    csv_data = csv_data[abs(csv_data['tt_residual']) < residual_cutoff]
-    # remove shallow event originDepth<0.01KM?
+    # Plugin the filter here
+    csv_data = apply_filters(csv_data, phase)
 
     log.info('Apply a grid model to discretize the rays, before sorting clustering.')
+    print("Final CSV size=", csv_data.shape)
+    print(csv_data.head())
 
     # # Re-define the source_block and station_block number according to the mygrid model
     # originLon
