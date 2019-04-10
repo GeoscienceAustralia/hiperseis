@@ -26,6 +26,7 @@ import pyasdf
 import ujson as json
 from collections import defaultdict
 from rtree import index
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -338,6 +339,52 @@ class FederatedASDFDataSetMemVariant():
         print 'Created sparse indices on rank %d for %d waveforms' % (self.rank, tagsCount)
 
         self.extract_time_ranges()
+    # end func
+
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        resultsMin = [MAX_DATE.timestamp] # year 2100
+        resultsMax = [MIN_DATE.timestamp] # year 1900
+
+        for val in self.tree_list:
+            if(val):
+                for (nk, nv) in val.iteritems():
+                    if(network):
+                        nk = network
+                        nv = val[nk]
+                    # end if
+                    for (sk, sv) in nv.iteritems():
+                        if (station):
+                            sk = station
+                            sv = nv[sk]
+                        # end if
+                        for (lk, lv) in sv.iteritems():
+                            if (location):
+                                lk = location
+                                lv = sv[lk]
+                            # end if
+                            for (ck, cv) in lv.iteritems():
+                                if (channel):
+                                    ck = channel
+                                    cv = lv[ck]
+                                # end if
+
+                                if (type(cv) == index.Index):
+                                    xmin, ymin, xmax, ymax = cv.bounds
+                                    resultsMin.append(xmin)
+                                    resultsMax.append(xmax)
+                                # end if
+                                if(channel): break
+                            # end for
+                            if(location): break
+                        # end for
+                        if(station): break
+                    # end for
+                    if(network): break
+                # end for
+            # end if
+        # end for
+
+        return UTCDateTime(np.min(np.array(resultsMin))), UTCDateTime(np.max(np.array(resultsMax)))
     # end func
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):

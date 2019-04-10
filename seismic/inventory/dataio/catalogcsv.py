@@ -2,7 +2,7 @@
 """
 Lightweight reader for CSV seismic event catalogs, indexing the found events by event ID and station.
 
-This was adapted for the speical use case of distance-t-event QA checks performed for ticket PST-340.
+This was adapted for the speical use case of distance-to-event QA checks performed for ticket PST-340.
 """
 
 import os
