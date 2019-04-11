@@ -340,14 +340,15 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
 
 def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
     """
-    [summary]
+    Compute relative residuals and send to plotting function.
 
-    :param df_plot: [description]
-    :type df_plot: [type]
-    :param ref: [description]
-    :type ref: [type]
-    :param target_stns: [description]
-    :type target_stns: [type]
+    :param df_plot: Pandas dataframe containing only events which are common to ref station and target stations.
+    :type df_plot: pandas.DataFrame
+    :param ref_stn: Network and station codes for reference network (expected to be just one entry)
+    :type ref_stn: dict of corresponding network and station codes under keys 'net' and 'sta'
+         (expected to be just one entry)
+    :param target_stns: Network and station codes for target network
+    :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
     :param batch_options: Runtime options.
     :type batch_options: class BatchOptions
     """
