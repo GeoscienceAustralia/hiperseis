@@ -179,10 +179,15 @@ def process(data_source1, data_source2, output_path,
     ds2 = Dataset(data_source2, netsta_list2)
 
     proc_stations = []
+    time_tag = None
     if (rank == 0):
+        # Register time tag with high resolution, since queued jobs can readily
+        # commence around the same time.
+        time_tag = UTCDateTime.now().strftime("%y-%m-%d.T%H.%M.%S.%f")
+
         def outputConfigParameters():
             # output config parameters
-            fn = 'correlator.%s.cfg' % (UTCDateTime.now().strftime("%y-%m-%d.T%H.%M"))
+            fn = 'correlator.%s.cfg' % (time_tag)
             fn = os.path.join(output_path, fn)
 
             f = open(fn, 'w+')
@@ -205,6 +210,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
             f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
             f.write('%25s\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
+            f.write('%25s\t\t: %s\n' % ('--whitening', whitening))
 
             f.close()
         # end func
@@ -217,6 +223,7 @@ def process(data_source1, data_source2, output_path,
 
     # broadcast workload to all procs
     proc_stations = comm.bcast(proc_stations, root=0)
+    time_tag = comm.bcast(time_tag, root=0)
 
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
@@ -228,7 +235,7 @@ def process(data_source1, data_source2, output_path,
                                                         resample_rate, read_buffer_size, interval_seconds,
                                                         window_seconds, fmin, fmax, clip_to_2std, whitening,
                                                         one_bit_normalize, envelope_normalize, ensemble_stack,
-                                                        output_path, 2)
+                                                        output_path, 2, tracking_tag=time_tag)
     # end for
 # end func
 
