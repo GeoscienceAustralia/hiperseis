@@ -77,7 +77,7 @@ class XcorrPreprocessor:
 
         start_time = str(start_utc_time)
         end_time = str(end_utc_time)
-        print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
+#        print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
 
         # Extract primary data
         lag_indices = np.squeeze(np.argwhere(np.fabs(np.round(xc_lag, decimals=2)) == self.time_window))
@@ -250,7 +250,7 @@ def plot_reference_correlation_function(ax, x_lag, rcf, rcf_corrected, snr_thres
                       "Based on Subset\n"
                       "with SNR > {}".format(snr_threshold))
         ax.plot(x_lag, rcf_corrected, '--', c='#00b75b', alpha=0.8, label="First order\ncorrected RCF")
-        ax.legend()
+        ax.legend(loc=1)
     else:
         ax.text(0.5, 0.5, 'REFERENCE CCF:\nINSUFFICIENT SNR', horizontalalignment='center',
                 verticalalignment='center', transform=ax.transAxes, fontsize=16)
@@ -323,6 +323,10 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
         np_times = np.array([datetime.datetime.utcfromtimestamp(v) for v in y_times]).astype('datetime64[s]')
         ax.plot(correction, np_times, 'o-', c='#f22e62', lw=1.5, fillstyle='none', markersize=4)
         ax.set_ylim((min(np_times), max(np_times)))
+        xlim = list(ax.get_xlim())
+        xlim[0] = min(xlim[0], -1)
+        xlim[1] = max(xlim[1], 1)
+        ax.set_xlim(tuple(xlim))
         ax.grid(":", color='#80808080')
 
     ytl = ax.get_yticklabels()
@@ -339,7 +343,8 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
 
 def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_threshold,
                                    show=True, underlay_rcf_xcorr=False,
-                                   pdf_file=None, png_file=None, title_tag=''):
+                                   pdf_file=None, png_file=None, title_tag='',
+                                   settings=None):
     # Read and preprocess xcorr data
     xcorr_pp = XcorrPreprocessor(src_file, time_window, snr_threshold)
 
@@ -373,6 +378,20 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
 
     # Plot CCF-template (reference CCF) ===========
     plot_reference_correlation_function(ax2, xcorr_pp.lag, xcorr_pp.rcf, rcf_corrected, snr_threshold)
+
+    # If settings are provided, plot them as text box overlay in ax2
+    if settings is not None:
+        def setstr(name):
+            return '{}: {}'.format(name, settings[name])
+        settings_str = '\n'.join([setstr('INTERVAL_SECONDS'), setstr('WINDOW_SECONDS'),
+                                  setstr('--resample-rate'), setstr('--fmin'), setstr('--fmax'),
+                                  setstr('--clip-to-2std'), setstr('--one-bit-normalize'),
+                                  setstr('--envelope-normalize')])
+        if '--whitening' in settings:
+            settings_str += '\n' + setstr('--whitening')
+        ax2.text(0.02, 0.97, settings_str, fontsize=8, alpha=0.8,
+                 horizontalalignment='left', verticalalignment='top',
+                 transform=ax2.transAxes, bbox=dict(fc='#e0e0e080', ec='#80808080'))
 
     # Plot number of stacked windows ==============
     plot_stacked_window_count(ax3, xcorr_pp.nsw, xcorr_pp.start_times)
