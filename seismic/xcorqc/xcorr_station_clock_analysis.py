@@ -452,7 +452,7 @@ def read_correlator_config(nc_file):
     base, _ = os.path.splitext(fname)
     base_parts = base.split('.')
     if len(base_parts) > 4:
-        timestamp = '.'.join(base_parts[4:-1])
+        timestamp = '.'.join(base_parts[4:])
         config_filename = '.'.join(['correlator', timestamp, 'cfg'])
         config_file = os.path.join(folder, config_filename)
         if os.path.exists(config_file):
