@@ -3,20 +3,23 @@
 """
 Functions for computing estimated GPS clock corrections based on station pair cross-correlation
 and plotting in standard layout.
-
-Highest level plotting function is ``plot_xcorr_file_clock_analysis``.
 """
 
 import os
-from textwrap import wrap
+import sys
 import datetime
+import time
+import gc
+import glob
+
+from textwrap import wrap
 
 import numpy as np
 import scipy
 from scipy import signal
+import pandas as pd
 import matplotlib.dates
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 from dateutil import rrule
 
 import obspy
@@ -24,6 +27,7 @@ from netCDF4 import Dataset as NCDataset
 from seismic.ASDFdatabase import FederatedASDFDataSet
 
 from analytic_plot_utils import distance
+from tqdm.auto import tqdm
 
 
 class XcorrPreprocessor:
@@ -412,6 +416,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
 
     # Print and display
     if pdf_file is not None:
+        from matplotlib.backends.backend_pdf import PdfPages
         pdf_out = PdfPages(pdf_file)
         pdf_out.savefig(plt.gcf(), dpi=600)
         pdf_out.close()
@@ -422,4 +427,158 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     if show:
         plt.show()
 
-    plt.close()
+    # Need to clean all this up explicitly, otherwise huge memory leaks when run
+    # from ipython notebook.
+    ax1.clear()
+    ax2.clear()
+    ax3.clear()
+    ax4.clear()
+    ax5.clear()
+    ax6.clear()
+    fig.clf()
+    plt.close('all')
+
+
+def read_correlator_config(nc_file):
+    """
+    Read the correlator settings used for given nc file.
+
+    :param nc_file: File name of the .nc file containing the cross-correlation data.
+    :type nc_file: str
+    :return: Pandas Series with named fields whose values are the runtime settings used for the .nc file
+    :rtype: pandas.Series
+    """
+    folder, fname = os.path.split(nc_file)
+    base, _ = os.path.splitext(fname)
+    base_parts = base.split('.')
+    if len(base_parts) > 4:
+        timestamp = '.'.join(base_parts[4:-1])
+        config_filename = '.'.join(['correlator', timestamp, 'cfg'])
+        config_file = os.path.join(folder, config_filename)
+        if os.path.exists(config_file):
+            settings_df = pd.read_csv(config_file, sep=':', names=['setting', 'value'],
+                                      index_col=0, skiprows=1, skipinitialspace=True,
+                                      squeeze=True, converters={'setting': str.strip})
+            title_tag = '({}-{} Hz)'.format(settings_df['--fmin'], settings_df['--fmax'])
+        else:
+            print('WARNING: Settings file {} not found!'.format(config_file))
+            settings_df = None
+            title_tag = ''
+    else:
+        settings_df = None
+        title_tag = ''
+
+    return settings_df, title_tag
+
+
+def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plots=True, underlay_rcf_xcorr=False):
+    """
+    Process a batch of .nc files to generate standard visualization graphics. PNG files are output alongside the
+    source .nc file. To suppress file output, set save_plots=False.
+
+    :param src_files: List of files to process
+    :type src_files: Iterable of str
+    :param dataset: Dataset to be used to ascertain the distance between stations.
+    :type dataset: FederatedASDFDataset
+    :param time_window: Lag time window to plot (plus or minus this value in seconds)
+    :type time_window: float
+    :param snr_threshold: Minimum signal to noise ratio for samples to be included into the clock lag estimate
+    :type snr_threshold: float
+    :param save_plots: Whether to save plots to file, defaults to True
+    :param save_plots: bool, optional
+    :param underlay_rcf_xcorr: Show the individual correlation of row sample with RCF beneath the computed time lag,
+        defaults to False
+    :param underlay_rcf_xcorr: bool, optional
+    :return: List of files for which processing failed, and associated error.
+    :rtype: list(tuple(str, str))
+    """
+    PY2 = (sys.version_info[0] == 2)
+
+    pbar = tqdm(total=len(src_files), dynamic_ncols=True)
+    found_preexisting = False
+    failed_files = []
+    skipped_count = 0
+    success_count = 0
+    for src_file in src_files:
+        _, base_file = os.path.split(src_file)
+        pbar.set_description(base_file)
+        # Sleep to ensure progress bar is refreshed
+        time.sleep(0.2)
+
+        if not os.path.exists(src_file):
+            tqdm.write("ERROR! File {} not found!".format(src_file))
+            failed_files.append((src_file, "File not found!"))
+            continue
+
+        # Extract timestamp from nc filename if available
+        settings, title_tag = read_correlator_config(src_file)
+
+        try:
+            if save_plots:
+                basename, _ = os.path.splitext(src_file)
+                png_file = basename + ".png"
+                # If png file already exists and has later timestamp than src_file, then skip it.
+                if os.path.exists(png_file):
+                    src_file_time = os.path.getmtime(src_file)
+                    png_file_time = os.path.getmtime(png_file)
+                    png_file_size = os.stat(png_file).st_size
+                    if png_file_time > src_file_time and png_file_size > 0:
+                        tqdm.write("PNG file {} is more recent than source file {}, skipping!".format(
+                                   os.path.split(png_file)[1], os.path.split(src_file)[1]))
+                        found_preexisting = True
+                        skipped_count += 1
+                        pbar.update()
+                        continue
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, png_file=png_file,
+                                               show=False, underlay_rcf_xcorr=underlay_rcf_xcorr,
+                                               title_tag=title_tag, settings=settings)
+            else:
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, 
+                                               underlay_rcf_xcorr=underlay_rcf_xcorr, title_tag=title_tag,
+                                               settings=settings)
+            success_count += 1
+            pbar.update()
+
+        except Exception as e:
+            tqdm.write("ERROR processing file {}".format(src_file))
+            failed_files.append((src_file, str(e)))
+
+        # Python 2 does not handle circular references, so it helps to explicitly clean up.
+        if PY2:
+            gc.collect()
+
+    pbar.close()
+
+    if found_preexisting:
+        print("Some files were skipped because pre-existing matching png files were up-to-date.\n"
+              "Remove png files to force regeneration.")
+
+    return failed_files
+
+
+def batch_process_folder(folder_name, dataset, time_window, snr_threshold, save_plots=True):
+    """
+    Process all the .nc files in a given folder into graphical visualizations.
+
+    :param folder_name: Path to process containing .nc files
+    :type folder_name: str
+    :param dataset: Dataset to be used to ascertain the distance between stations.
+    :type dataset: FederatedASDFDataset
+    :param time_window: Lag time window to plot (plus or minus this value in seconds)
+    :type time_window: float
+    :param snr_threshold: Minimum signal to noise ratio for samples to be included into the clock lag estimate
+    :type snr_threshold: float
+    :param save_plots: Whether to save plots to file, defaults to True
+    :param save_plots: bool, optional
+    """
+    src_files = glob.glob(os.path.join(folder_name, '*.nc'))
+    print("Found {} .nc files in {}".format(len(src_files), folder_name))
+
+    failed_files = batch_process_xcorr(src_files, dataset, time_window=time_window,
+                                       snr_threshold=snr_threshold, save_plots=save_plots)
+    if failed_files:
+        print("The following files experienced errors:")
+        for fname, err_msg in failed_files:
+            print(" File: " + fname)
+            if err_msg:
+                print("Error: " + err_msg)
