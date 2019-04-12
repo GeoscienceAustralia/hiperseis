@@ -89,8 +89,8 @@ class FederatedASDFDataSetDBVariant():
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
-            self.source_sha1 = hashlib.sha1(open(self.asdf_source).read()).hexdigest()
-            fileContents = filter(len, open(self.asdf_source).read().splitlines())
+            self.source_sha1 = hashlib.sha1(open(self.asdf_source).read().encode('utf-8')).hexdigest()
+            fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
 
             # collate file names
             for i in range(len(fileContents)):

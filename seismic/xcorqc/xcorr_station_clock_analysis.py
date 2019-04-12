@@ -18,7 +18,7 @@ from textwrap import wrap
 
 import numpy as np
 import scipy
-# from scipy import signal
+from scipy import signal
 import pandas as pd
 import matplotlib.dates
 import matplotlib.pyplot as plt
