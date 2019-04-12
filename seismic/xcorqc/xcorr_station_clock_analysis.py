@@ -5,7 +5,7 @@ Functions for computing estimated GPS clock corrections based on station pair cr
 and plotting in standard layout.
 """
 
-# pylint: disable=invalid-name, no-name-in-module
+# pylint: disable=invalid-name, no-name-in-module, broad-except
 
 import os
 import sys
@@ -23,13 +23,14 @@ import pandas as pd
 import matplotlib.dates
 import matplotlib.pyplot as plt
 from dateutil import rrule
+import click
 
 import obspy
 from netCDF4 import Dataset as NCDataset
-from seismic.ASDFdatabase import FederatedASDFDataSet
-
-from analytic_plot_utils import distance
 from tqdm.auto import tqdm
+
+from seismic.ASDFdatabase import FederatedASDFDataSet
+from analytic_plot_utils import distance
 
 
 class XcorrPreprocessor:
@@ -71,16 +72,15 @@ class XcorrPreprocessor:
         xcdata = NCDataset(self.src_file, 'r')
 
         xc_start_times = xcdata.variables['IntervalStartTimes'][:]
-        xc_end_times = xcdata.variables['IntervalEndTimes'][:]
+        # xc_end_times = xcdata.variables['IntervalEndTimes'][:]
         xc_lag = xcdata.variables['lag'][:]
         xc_xcorr = xcdata.variables['xcorr'][:, :]
         xc_num_stacked_windows = xcdata.variables['NumStackedWindows'][:]
         xcdata.close()
         xcdata = None
 
-        start_utc_time = obspy.UTCDateTime(xc_start_times[0])
-        end_utc_time = obspy.UTCDateTime(xc_end_times[-1])
-
+        # start_utc_time = obspy.UTCDateTime(xc_start_times[0])
+        # end_utc_time = obspy.UTCDateTime(xc_end_times[-1])
         # start_time = str(start_utc_time)
         # end_time = str(end_utc_time)
         # print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
@@ -525,7 +525,7 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plo
                     png_file_size = os.stat(png_file).st_size
                     if png_file_time > src_file_time and png_file_size > 0:
                         tqdm.write("PNG file {} is more recent than source file {}, skipping!".format(
-                                   os.path.split(png_file)[1], os.path.split(src_file)[1]))
+                            os.path.split(png_file)[1], os.path.split(src_file)[1]))
                         found_preexisting = True
                         skipped_count += 1
                         pbar.update()
@@ -534,7 +534,7 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plo
                                                show=False, underlay_rcf_xcorr=underlay_rcf_xcorr,
                                                title_tag=title_tag, settings=settings)
             else:
-                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, 
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold,
                                                underlay_rcf_xcorr=underlay_rcf_xcorr, title_tag=title_tag,
                                                settings=settings)
             success_count += 1
@@ -577,9 +577,42 @@ def batch_process_folder(folder_name, dataset, time_window, snr_threshold, save_
 
     failed_files = batch_process_xcorr(src_files, dataset, time_window=time_window,
                                        snr_threshold=snr_threshold, save_plots=save_plots)
+    _report_failed_files(failed_files)
+
+
+def _report_failed_files(failed_files):
     if failed_files:
         print("The following files experienced errors:")
         for fname, err_msg in failed_files:
             print(" File: " + fname)
             if err_msg:
                 print("Error: " + err_msg)
+
+
+@click.command()
+@click.argument('paths', type=click.Path('r'), required=True, nargs=-1)
+@click.option('--dataset', default=None, required=True, type=click.Path('r'), help='Federated ASDF dataset filename')
+@click.option('--time-window', default=300, type=int, help='Duration of time lag window to consider')
+@click.option('--snr-threshold', default=6, type=float, help='Minimum sample SNR to include in clock correction estimate')
+def main(paths, dataset, time_window, snr_threshold):
+    files = []
+    dirs = []
+    for p in paths:
+        if os.path.isdir(p):
+            dirs.append(p)
+        elif os.path.isfile(p):
+            files.append(p)
+        else:
+            # click argument checking should ensure this never happens
+            print("ERROR: Path {} not found!".format(p))
+            sys.exit(1)
+
+    ds = FederatedASDFDataSet.FederatedASDFDataSet(dataset)
+    failed_files = batch_process_xcorr(files, ds, time_window, snr_threshold)
+    _report_failed_files(failed_files)
+    for d in dirs:
+        batch_process_folder(d, ds, time_window, snr_threshold)
+
+
+if __name__ == "__main__":
+    main()  # pylint: disable=no-value-for-parameter

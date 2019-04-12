@@ -563,7 +563,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
 
 
 @click.command()
-@click.argument('picks-file', type=click.Path('r'))
+@click.argument('picks-file', type=click.Path('r'), required=True)
 def main(picks_file):
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
@@ -761,4 +761,4 @@ def main(picks_file):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
