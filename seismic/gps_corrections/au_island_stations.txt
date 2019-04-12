@@ -1,0 +1,2 @@
+# List of station codes from Australian network which are location on islands or surrounded largely by nearby ocean, require special filtering
+LHI, MANU, MCQ, NFK, NIUE, RABL, XMI, XMIS

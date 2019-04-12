@@ -29,6 +29,7 @@ import sqlite3
 import psutil
 import hashlib
 from functools import partial
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -84,7 +85,7 @@ class FederatedASDFDataSetDBVariant():
         self.logger = logger
         self.asdf_source = None
         self.asdf_file_names = []
-        self.asdf_station_coordinates = defaultdict(lambda: defaultdict(int))
+        self.asdf_station_coordinates = []
 
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
@@ -109,6 +110,7 @@ class FederatedASDFDataSetDBVariant():
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
                 self.asdf_datasets.append(ds)
+                self.asdf_station_coordinates.append(defaultdict(list))
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
@@ -219,6 +221,21 @@ class FederatedASDFDataSetDBVariant():
         # end for
     # end func
 
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        query = "select min(st), max(et) from wdb where net='%s' and sta='%s' "%(network, station)
+
+        if (location):
+            query += "and loc='%s' "%(location)
+        if (channel):
+            query += "and cha='%s' "%(channel)
+
+        row = self.conn.execute(query).fetchall()[0]
+
+        min = UTCDateTime(row[0]) if row[0] else MAX_DATE
+        max = UTCDateTime(row[1]) if row[1] else MIN_DATE
+        return min, max
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
@@ -252,6 +269,24 @@ class FederatedASDFDataSetDBVariant():
 
         return results
     # end func
+
+    def get_waveform_count(self, network, station, location, channel, starttime,
+                           endtime, trace_count_threshold=200):
+
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
+
+        query = "select count(*) from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
+                %(network, station, location, channel) + \
+                "and et>=%f and st<=%f" \
+                 % (starttime, endtime)
+
+        num_traces = self.conn.execute(query).fetchall()[0][0]
+
+        if num_traces > trace_count_threshold:
+            return 0
+        else:
+            return num_traces
 
     def get_waveforms(self, network, station, location, channel, starttime,
                       endtime, automerge=False, trace_count_threshold=200):

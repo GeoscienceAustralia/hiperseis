@@ -26,6 +26,7 @@ import pyasdf
 import ujson as json
 from collections import defaultdict
 from rtree import index
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -148,7 +149,7 @@ class FederatedASDFDataSetMemVariant():
             if(os.path.exists(fn)):
                 ds = pyasdf.ASDFDataSet(fn, mode='r')
                 self.asdf_datasets.append(ds)
-                self.asdf_station_coordinates.append(ds.get_all_coordinates())
+                self.asdf_station_coordinates.append(defaultdict(list))
             else:
                 raise NameError('File not found: %s..'%fn)
             # end if
@@ -160,6 +161,13 @@ class FederatedASDFDataSetMemVariant():
             self.waveform_start_time_list.append(None)
             self.waveform_end_time_list.append(None)
         # end func
+
+        for ids, ds in enumerate(self.asdf_datasets):
+            coords_dict = ds.get_all_coordinates()
+            for k in coords_dict:
+                self.asdf_station_coordinates[ids][k] = [coords_dict[k]['longitude'], coords_dict[k]['latitude']]
+            # end for
+        # end for
 
         # Create indices
         if(self.use_json_db): self.create_index()
@@ -333,6 +341,52 @@ class FederatedASDFDataSetMemVariant():
         self.extract_time_ranges()
     # end func
 
+    def get_global_time_range(self, network, station, location=None, channel=None):
+        resultsMin = [MAX_DATE.timestamp] # year 2100
+        resultsMax = [MIN_DATE.timestamp] # year 1900
+
+        for val in self.tree_list:
+            if(val):
+                for (nk, nv) in val.iteritems():
+                    if(network):
+                        nk = network
+                        nv = val[nk]
+                    # end if
+                    for (sk, sv) in nv.iteritems():
+                        if (station):
+                            sk = station
+                            sv = nv[sk]
+                        # end if
+                        for (lk, lv) in sv.iteritems():
+                            if (location):
+                                lk = location
+                                lv = sv[lk]
+                            # end if
+                            for (ck, cv) in lv.iteritems():
+                                if (channel):
+                                    ck = channel
+                                    cv = lv[ck]
+                                # end if
+
+                                if (type(cv) == index.Index):
+                                    xmin, ymin, xmax, ymax = cv.bounds
+                                    resultsMin.append(xmin)
+                                    resultsMax.append(xmax)
+                                # end if
+                                if(channel): break
+                            # end for
+                            if(location): break
+                        # end for
+                        if(station): break
+                    # end for
+                    if(network): break
+                # end for
+            # end if
+        # end for
+
+        return UTCDateTime(np.min(np.array(resultsMin))), UTCDateTime(np.max(np.array(resultsMax)))
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
@@ -381,8 +435,8 @@ class FederatedASDFDataSetMemVariant():
 
                                     if(len(tag_indices)):
                                         rv = [nk, sk, lk, ck,
-                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['longitude'],
-                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)]['latitude']]
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)][0],
+                                              self.asdf_station_coordinates[i]['%s.%s'%(nk, sk)][1]]
                                         results.append(rv)
                                 # end if
                                 if(channel): break
