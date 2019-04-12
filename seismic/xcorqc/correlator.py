@@ -19,12 +19,12 @@ from math import sqrt
 
 import numpy as np
 from scipy.spatial import cKDTree
+import click
 
 from mpi4py import MPI
 from obspy import UTCDateTime
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
-import click
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr

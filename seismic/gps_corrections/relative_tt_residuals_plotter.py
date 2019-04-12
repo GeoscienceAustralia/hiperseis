@@ -2,32 +2,36 @@
 """
 Bulk analysis script for analysing relative traveltime residuals from a pick ensemble
 for the purpose of identifying time periods of GPS clock error in specific stations.
+
+Example usage: ``python relative_tt_residuals_plotter.py /data_cache/Picks/20190219/ensemble.p.txt``
 """
 
-import sys
 import os
 import datetime
 import numpy as np
 import pandas as pd
+from pandas.plotting import register_matplotlib_converters
 
 import pytz
 import matplotlib
 import matplotlib.dates
 import matplotlib.pyplot as plt
 
+import click
 # Progress bar helper to indicate that slow tasks have not stalled
 import tqdm
 
 import obspy
 
-from pandas.plotting import register_matplotlib_converters
+# pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
+
 register_matplotlib_converters()
 
-
 # Priority order of trusted channels
-# CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ', '???', '?']
-CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'S?Z', 'SHZ']
-# CHANNEL_PREF = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
+CHANNEL_PREF_NO_SHZ = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
+CHANNEL_PREF_BALANCED = CHANNEL_PREF_NO_SHZ + ['S?Z', 'SHZ']
+CHANNEL_PREF_GREEDY = CHANNEL_PREF_BALANCED + ['???', '?']
+CHANNEL_PREF = CHANNEL_PREF_BALANCED
 
 # TODO: Bundle these filter settings into a NamedTuple or class
 MIN_REF_SNR = 10
@@ -45,6 +49,10 @@ MIN_EVENT_MAG = 5.5
 # MIN_EVENT_MAG = 4.0
 # MIN_EVENT_MAG = 0.0
 
+DISPLAY_HISTORICAL_EVENTS = True
+
+DATE_FILTER_TEMP_DEPLOYMENTS = True
+
 # This gets populated by main()
 TEMP_DEPLOYMENTS = {}
 
@@ -52,7 +60,7 @@ TEMP_DEPLOYMENTS = {}
 # Trivial container class for passing options around
 class BatchOptions:
     """
-    Simple container type for run time options.   
+    Simple container type for run time options.
     """
     def __init__(self):
         self.save_file = True
@@ -261,12 +269,12 @@ def pandas_timestamp_to_plottable_datetime(data):
     return data.transform(datetime.datetime.utcfromtimestamp).astype('datetime64[ms]').dt.to_pydatetime()
 
 
-def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr_scale=(0, 60), annotator=None):
+def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr_scale=(0, 60), annotator=None):
 
     file_label = options.batch_label
     save_file = options.save_file
 
-    def plot_dataset(ds, net_code, ref_code):
+    def _plot_dataset(ds, net_code, ref_code):
         # Sort ds rows by SNR, so that the weakest SNR points are drawn first and the high SNR point last,
         # to make sure high SNR point are in the top rendering layer.
         ds = ds.sort_values('snr')
@@ -280,7 +288,7 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
                 r"slope$\geq${}, $n\sigma\geq{}$)".format(ref_code, net_code, str(MIN_REF_SNR),
                                                           str(CWT_CUTOFF), str(SLOPE_CUTOFF),
                                                           str(NSIGMA_CUTOFF))
-        if len(vals) > 0:
+        if vals:
             plt.figure(figsize=(32, 9))
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
                              edgecolors=None, linewidths=0)
@@ -335,7 +343,7 @@ def plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr
     mask_ref = df[list(ref)].isin(ref).all(axis=1)
     mask_targ = df[list(target)].isin(target).all(axis=1)
     df_agg = df[(mask_targ) & (~mask_ref)]
-    plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
+    _plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
 
 def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
@@ -404,17 +412,17 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
     # Sort data by event origin time
     df_plot = df_plot.sort_values(['#eventID', 'originTimestamp'])
 
-    def plot_decorator(opts):
+    def _plot_decorator(opts):
         if opts.events is not None:
-            add_event_marker_lines(opts.events)
+            _add_event_marker_lines(opts.events)
         if opts.show_deployments:
-            add_temporary_deployment_intervals()
+            _add_temporary_deployment_intervals()
 
-    plot_target_network_rel_residuals(df_plot, target_stns, ref, options,
-                                      annotator=lambda: plot_decorator(options))
+    _plot_target_network_rel_residuals(df_plot, target_stns, ref, options,
+                                       annotator=lambda: _plot_decorator(options))
 
 
-def add_event_marker_lines(events):
+def _add_event_marker_lines(events):
     time_lims = plt.xlim()
     y_lims = plt.ylim()
     for date, event in events.iterrows():
@@ -441,13 +449,13 @@ def utc_time_string_to_plottable_datetime(utc_timestamp_str):
     return pytz.utc.localize(datetime.datetime.utcfromtimestamp(float(utc_time)))
 
 
-def add_temporary_deployment_intervals():
+def _add_temporary_deployment_intervals():
     """
     Graphical decorator for the TT residual charts to add visual indication of the time intervals
     during which selected temporary network deployments took place.
     """
 
-    def render_deployment_interval(rec_x, rec_y, rec_width, rec_height, rec_color, text):
+    def _render_deployment_interval(rec_x, rec_y, rec_width, rec_height, rec_color, text):
         plt.gca().add_patch(plt.Rectangle((rec_x, rec_y), width=rec_width,
                                           height=rec_height, color=rec_color, alpha=0.8, clip_on=True))
         plt.text(rec_x, rec_y + rec_height / 2.0, text, fontsize=12, verticalalignment='center', clip_on=True)
@@ -460,7 +468,7 @@ def add_temporary_deployment_intervals():
     stagger = height / 2.0
     for d in deployments:
         ypos = base_ypos + stagger
-        render_deployment_interval(d[0], ypos, (d[1] - d[0]), height, d[2], d[3])
+        _render_deployment_interval(d[0], ypos, (d[1] - d[0]), height, d[2], d[3])
         stagger = -stagger
 
 
@@ -543,7 +551,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
     print("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
-    if len(df_nets) == 0:
+    if not df_nets:
         print("WARNING: no events left to analyze!")
         return
 
@@ -554,10 +562,19 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options)
 
 
-def main(input_file):
+@click.command()
+@click.argument('picks-file', type=click.Path('r'))
+def main(picks_file):
+    """
+    Main function for running relative traveltime residual plotting. The picks ensemble file should
+    have column headings:
+    `#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma`
 
-    print(pd.__version__)
-    print(matplotlib.__version__)
+    :param picks_file: Picks ensemble file
+    :type picks_file: str or path
+    """
+    print("Pandas version: " + pd.__version__)
+    print("Matplotlib version: " + matplotlib.__version__)
 
     dtype = {'#eventID': object,
              'originTimestamp': np.float64,
@@ -584,12 +601,12 @@ def main(input_file):
              'nSigma': np.int64}
 
     # Load in event ensemble
-    print("Loading picks file {}".format(input_file))
-    df_raw_picks = pd.read_csv(input_file, ' ', header=0, dtype=dtype)
+    print("Loading picks file {}".format(picks_file))
+    df_raw_picks = pd.read_csv(picks_file, ' ', header=0, dtype=dtype)
     print("Number of raw picks: {}".format(len(df_raw_picks)))
 
     # Generate catalog of major regional events (mag 8+) for overlays
-    if True:  # TODO: Make this an option
+    if DISPLAY_HISTORICAL_EVENTS:
         df_mag8 = df_raw_picks[df_raw_picks['mag'] >= 8.0]
         df_mag8['day'] = df_mag8['originTimestamp'].transform(datetime.datetime.utcfromtimestamp)\
             .transform(lambda x: x.strftime("%Y-%m-%d"))
@@ -648,11 +665,13 @@ def main(input_file):
     print("Remaining picks after channel filter: {}".format(len(df_picks)))
 
     # Remove unused columns for readability
-    df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm', 'net', 'sta', 'cha', 'pickTimestamp', 'phase',
-                        'stationLon', 'stationLat', 'az', 'baz', 'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
+    df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
+                         'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'az', 'baz',
+                         'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
 
-    if True:  # TODO: Make this an option
-        # Some select stations require custom date filters to remove events outside the known valid date range of a network
+    if DATE_FILTER_TEMP_DEPLOYMENTS:
+        # Some select stations require custom date filters to remove events outside the known valid
+        # date range of a network
         DATE_FILTER = (
             ('7D', pd.Timestamp(datetime.datetime(2010, 1, 1))),
             ('7G', pd.Timestamp(datetime.datetime(2010, 1, 1))),
@@ -664,9 +683,9 @@ def main(input_file):
         after = len(df_picks)
         print('Removed {} events due to known invalid timestamps'.format(before - after))
 
-    # ## Filter to teleseismic events
-    ANG_DIST = 'distance'  # angular distance (degrees) between event and station
-    mask_tele = (df_picks[ANG_DIST] >= 30.0) & (df_picks[ANG_DIST] <= 90.0)
+    # Filter to teleseismic events.
+    # 'distance' is angular distance (degrees) between event and station.
+    mask_tele = (df_picks['distance'] >= 30.0) & (df_picks['distance'] <= 90.0)
     df_picks = df_picks.loc[mask_tele]
     print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
@@ -742,6 +761,4 @@ def main(input_file):
 
 
 if __name__ == "__main__":
-    # Example usage: ``python relative_tt_residuals_plotter.py "C:\data_cache\Picks\20190219\ensemble.p.txt"``
-    input_file = sys.argv[1]
-    main(input_file)
+    main()

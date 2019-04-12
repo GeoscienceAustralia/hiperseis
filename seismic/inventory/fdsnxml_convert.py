@@ -35,7 +35,7 @@ def toSc3ml(src_path, dst_path, response_fdsnxml):
     If src_path is a folder, dst_path will be treated as a folder. If dst_path already exists as
     a file, an exception is raised. The src_path directory hierarchy will be walked to find all
     .xml files, each of which will be converted to a mirrored relative path under dst_path.
-    
+
     :param src_path: The source path from which to input XML file(s).
     :type src_path: str or pathlib.Path
     :param dst_path: The destination path into which converted sc3ml file(s) are output.

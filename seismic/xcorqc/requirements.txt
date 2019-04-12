@@ -6,3 +6,5 @@ pyasdf
 click
 git+https://github.com/matplotlib/basemap.git
 netcdf4
+Shapely
+descartes
