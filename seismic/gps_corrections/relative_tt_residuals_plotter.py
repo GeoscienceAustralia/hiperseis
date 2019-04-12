@@ -3,7 +3,11 @@
 Bulk analysis script for analysing relative traveltime residuals from a pick ensemble
 for the purpose of identifying time periods of GPS clock error in specific stations.
 
-Example usage: ``python relative_tt_residuals_plotter.py /data_cache/Picks/20190219/ensemble.p.txt``
+Example usage, which plots 7X.MA11 and 7X.MA12 residuals relative to all common events on
+AU network:
+
+``relative_tt_residuals_plotter.py --network1=AU --networks2=7X --stations2="MA11,MA12" /c/data_cache/Picks/20190320/ensemble.p.txt``
+
 """
 
 import os
@@ -288,7 +292,7 @@ def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, sn
                 r"slope$\geq${}, $n\sigma\geq{}$)".format(ref_code, net_code, str(MIN_REF_SNR),
                                                           str(CWT_CUTOFF), str(SLOPE_CUTOFF),
                                                           str(NSIGMA_CUTOFF))
-        if vals:
+        if vals.any():
             plt.figure(figsize=(32, 9))
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
                              edgecolors=None, linewidths=0)
@@ -551,7 +555,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
     print("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
-    if not df_nets:
+    if df_nets.empty:
         print("WARNING: no events left to analyze!")
         return
 
@@ -564,7 +568,16 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
 
 @click.command()
 @click.argument('picks-file', type=click.Path('r'), required=True)
-def main(picks_file):
+@click.option('--network1', type=str, required=True, help='Network against which to compute residuals')
+@click.option('--stations1', type=str, required=False,
+              help='Comma separated list of specific network 1 station codes to use.'
+              'If empty, use all stations in network 1.')
+@click.option('--networks2', type=str, required=True, help='Comma separated list of network(s) '
+              'for which to compute residuals')
+@click.option('--stations2', type=str, required=False, help='Comma separated list of specific network 2 '
+              'station codes to use. If empty, use all stations for each network in networks2. Should not '
+              'be used unless networks2 has just a single network.')
+def main(picks_file, network1, networks2, stations1=None, stations2=None):
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings:
@@ -572,7 +585,17 @@ def main(picks_file):
 
     :param picks_file: Picks ensemble file
     :type picks_file: str or path
+    :param network1: Reference network code
+    :type network1: str
+    :param networks2: Comma separated list of network code(s) to analyze
+    :type networks2: str
+    :param stations1: Comma separated list of reference station codes to use for network1, defaults to None
+    :param stations1: str, optional
+    :param stations2: Comma separated list of station codes to analyze for network2, if only one network specified
+        in networks2. Otherwise should not be used. Defaults to None.
+    :param stations2: str, optional
     """
+
     print("Pandas version: " + pd.__version__)
     print("Matplotlib version: " + matplotlib.__version__)
 
@@ -637,7 +660,7 @@ def main(picks_file):
         significant_events.loc['2015-09-16', 'name'] = '2015 Illapel earthquake'
         significant_events.loc['2016-08-24', 'name'] = '2016 Myanmar earthquake'
 
-        print(significant_events)
+        # print(significant_events)
 
     # Populate temporary deployments details
     TEMP_DEPLOYMENTS['7X'] = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
@@ -664,7 +687,7 @@ def main(picks_file):
     df_picks = df_raw_picks[df_raw_picks['cha'].isin(CHANNEL_PREF)].reset_index()
     print("Remaining picks after channel filter: {}".format(len(df_picks)))
 
-    # Remove unused columns for readability
+    # Remove unused columns
     df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
                          'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'az', 'baz',
                          'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
@@ -689,19 +712,16 @@ def main(picks_file):
     df_picks = df_picks.loc[mask_tele]
     print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
-    # TARGET_NET = 'AU'
-    # TARGET_STN = get_network_stations(df_picks, TARGET_NET)
-    TARGET_NET = '7X'
-    TARGET_STN = get_network_stations(df_picks, TARGET_NET)
+    TARGET_NET = network1
+    TARGET_STN = stations1.split(',') if stations1 else get_network_stations(df_picks, TARGET_NET)
     TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
-    # getNetworkDateRange(df_picks, TARGET_NET)
 
     # Find additional network.station codes that match AU network, and add them to target
     if TARGET_NET == 'AU':
         # TODO: Make this a command line argument.
         IRIS_AU_STATIONS_FILE = "AU_irisws-fedcatalog_20190305T012747Z.txt"
         new_nets, new_stas = determine_alternate_matching_codes(df_picks, IRIS_AU_STATIONS_FILE, TARGET_NET)
-        print("Adding {} more stations from alternate international networks".format(len(new_nets)))
+        print("Adding {} more stations from alternate networks file {}".format(len(new_nets), IRIS_AU_STATIONS_FILE))
         TARGET_STNS['net'].extend(list(new_nets))
         TARGET_STNS['sta'].extend(list(new_stas))
 
@@ -709,43 +729,32 @@ def main(picks_file):
         SIS_NET = 'S'
         mask_sis = (df_picks['net'] == SIS_NET)
         SIS_CODES = sorted([c for c in df_picks.loc[mask_sis, 'sta'].unique() if c[0:2] == 'AU'])
-        print("Adding {} more stations from Seismographs in Schools network".format(len(SIS_CODES)))
+        print("Adding {} more stations from {} network".format(len(SIS_CODES), SIS_NET))
         TARGET_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
         TARGET_STNS['sta'].extend(SIS_CODES)
-    # getNetworkDateRange(df_picks, TARGET_NET)
 
-    # REF_NETS = ['7D', '7F', '7G', '7X', 'OA']
-    # REF_NETS = ['AU']
-    REF_NETS = ['7X']
+    REF_NETS = networks2.split(',')
+    assert len(REF_NETS) == 1 or not stations2, \
+        "Can't specify multiple networks and custom station list at the same time!"
     options = BatchOptions()
     options.events = significant_events
-    # options.save_file = False
     options.show_deployments = True
     # TODO: Make REF_FILTERING a command line option
-    REF_FILTERING = False
+    REF_FILTERING = True
     options.ref_filtering = REF_FILTERING
     options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
     for REF_NET in REF_NETS:
-        REF_STN = get_network_stations(df_picks, REF_NET)
-        # REF_STN = ['QIS']
+        if len(REF_NETS) == 1 and stations2:
+            REF_STN = stations2.split(',')
+        else:
+            REF_STN = get_network_stations(df_picks, REF_NET)
         REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
-        # REF_STN = REF_STN[0:10]
-        # custom_stns = ['ARMA', 'WB0', 'WB1', 'WB2', 'WB3', 'WB4', 'WB6', 'WB7', 'WB8', 'WB9', 'WC1', 'WC2',
-        #                'WC3', 'WC4', 'WR1', 'WR2', 'WR3', 'WR4', 'WR5', 'WR6', 'WR7', 'WR8', 'WR9',
-        #                'PSA00', 'PSAA1', 'PSAA2', 'PSAA3', 'PSAB1', 'PSAB2', 'PSAB3', 'PSAC1', 'PSAC2',
-        #                'PSAC3', 'PSAD1', 'PSAD2', 'PSAD3', 'QIS', 'QLP', 'RKGY', 'STKA']
-        # Hand-analyze stations with identified possible clock issues:
-        # custom_stns = ['ARMA', 'HTT', 'KAKA', 'KMBL', 'MEEK', 'MOO', 'MUN', 'RKGY', 'RMQ', 'WC1', 'YNG']
-        # REF_STNS = {'net': ['AU'] * len(custom_stns), 'sta': custom_stns}
-        # if REF_NET == 'AU':
-        #     assert TARGET_NET == 'AU'
-        #     REF_STNS['net'].extend(list(new_nets))
-        #     REF_STNS['sta'].extend(list(new_stas))
-        #     REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
-        #     REF_STNS['sta'].extend(SIS_CODES)
-        #     options.show_deployments = True
-        # else:
-        #     options.show_deployments = False
+
+        if REF_NET == 'AU' and TARGET_NET == 'AU':
+            REF_STNS['net'].extend(list(new_nets))
+            REF_STNS['sta'].extend(list(new_stas))
+            REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
+            REF_STNS['sta'].extend(SIS_CODES)
 
         # For certain temporary deployments, force a fixed time range on the x-axis so that all stations
         # in the deployment can be compared on a common time range.

@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from dateutil import rrule
 import click
 
-import obspy
+# import obspy
 from netCDF4 import Dataset as NCDataset
 from tqdm.auto import tqdm
 
@@ -593,8 +593,23 @@ def _report_failed_files(failed_files):
 @click.argument('paths', type=click.Path('r'), required=True, nargs=-1)
 @click.option('--dataset', default=None, required=True, type=click.Path('r'), help='Federated ASDF dataset filename')
 @click.option('--time-window', default=300, type=int, help='Duration of time lag window to consider')
-@click.option('--snr-threshold', default=6, type=float, help='Minimum sample SNR to include in clock correction estimate')
+@click.option('--snr-threshold', default=6, type=float,
+              help='Minimum sample SNR to include in clock correction estimate')
 def main(paths, dataset, time_window, snr_threshold):
+    """
+    Main entry point for running clock analysis and CCF visualization on batch of station
+    cross-correlation results.
+
+    :param paths: Space separated list of files and folders to run analysis on. Files should be .nc files.
+    :type paths: str or path
+    :param dataset: Path to Federated ASDF dataset specification file
+    :type dataset: str or path
+    :param time_window: Time lag window size (x-axis extent) in seconds to use for analysis
+    :type time_window: int
+    :param snr_threshold: Minimum sample SNR to include in clock correction estimate
+    :type snr_threshold: float
+    """
+
     files = []
     dirs = []
     for p in paths:
