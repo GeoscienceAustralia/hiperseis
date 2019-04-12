@@ -3,20 +3,23 @@
 """
 Functions for computing estimated GPS clock corrections based on station pair cross-correlation
 and plotting in standard layout.
-
-Highest level plotting function is ``plot_xcorr_file_clock_analysis``.
 """
 
 import os
-from textwrap import wrap
+import sys
 import datetime
+import time
+import gc
+import glob
+
+from textwrap import wrap
 
 import numpy as np
 import scipy
 from scipy import signal
+import pandas as pd
 import matplotlib.dates
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 from dateutil import rrule
 
 import obspy
@@ -24,6 +27,7 @@ from netCDF4 import Dataset as NCDataset
 from seismic.ASDFdatabase import FederatedASDFDataSet
 
 from analytic_plot_utils import distance
+from tqdm.auto import tqdm
 
 
 class XcorrPreprocessor:
@@ -77,7 +81,7 @@ class XcorrPreprocessor:
 
         start_time = str(start_utc_time)
         end_time = str(end_utc_time)
-        print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
+#        print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
 
         # Extract primary data
         lag_indices = np.squeeze(np.argwhere(np.fabs(np.round(xc_lag, decimals=2)) == self.time_window))
@@ -250,7 +254,7 @@ def plot_reference_correlation_function(ax, x_lag, rcf, rcf_corrected, snr_thres
                       "Based on Subset\n"
                       "with SNR > {}".format(snr_threshold))
         ax.plot(x_lag, rcf_corrected, '--', c='#00b75b', alpha=0.8, label="First order\ncorrected RCF")
-        ax.legend()
+        ax.legend(loc=1)
     else:
         ax.text(0.5, 0.5, 'REFERENCE CCF:\nINSUFFICIENT SNR', horizontalalignment='center',
                 verticalalignment='center', transform=ax.transAxes, fontsize=16)
@@ -323,6 +327,10 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
         np_times = np.array([datetime.datetime.utcfromtimestamp(v) for v in y_times]).astype('datetime64[s]')
         ax.plot(correction, np_times, 'o-', c='#f22e62', lw=1.5, fillstyle='none', markersize=4)
         ax.set_ylim((min(np_times), max(np_times)))
+        xlim = list(ax.get_xlim())
+        xlim[0] = min(xlim[0], -1)
+        xlim[1] = max(xlim[1], 1)
+        ax.set_xlim(tuple(xlim))
         ax.grid(":", color='#80808080')
 
     ytl = ax.get_yticklabels()
@@ -339,7 +347,8 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
 
 def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_threshold,
                                    show=True, underlay_rcf_xcorr=False,
-                                   pdf_file=None, png_file=None, title_tag=''):
+                                   pdf_file=None, png_file=None, title_tag='',
+                                   settings=None):
     # Read and preprocess xcorr data
     xcorr_pp = XcorrPreprocessor(src_file, time_window, snr_threshold)
 
@@ -374,6 +383,20 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     # Plot CCF-template (reference CCF) ===========
     plot_reference_correlation_function(ax2, xcorr_pp.lag, xcorr_pp.rcf, rcf_corrected, snr_threshold)
 
+    # If settings are provided, plot them as text box overlay in ax2
+    if settings is not None:
+        def setstr(name):
+            return '{}: {}'.format(name, settings[name])
+        settings_str = '\n'.join([setstr('INTERVAL_SECONDS'), setstr('WINDOW_SECONDS'),
+                                  setstr('--resample-rate'), setstr('--fmin'), setstr('--fmax'),
+                                  setstr('--clip-to-2std'), setstr('--one-bit-normalize'),
+                                  setstr('--envelope-normalize')])
+        if '--whitening' in settings:
+            settings_str += '\n' + setstr('--whitening')
+        ax2.text(0.02, 0.97, settings_str, fontsize=8, alpha=0.8,
+                 horizontalalignment='left', verticalalignment='top',
+                 transform=ax2.transAxes, bbox=dict(fc='#e0e0e080', ec='#80808080'))
+
     # Plot number of stacked windows ==============
     plot_stacked_window_count(ax3, xcorr_pp.nsw, xcorr_pp.start_times)
 
@@ -393,6 +416,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
 
     # Print and display
     if pdf_file is not None:
+        from matplotlib.backends.backend_pdf import PdfPages
         pdf_out = PdfPages(pdf_file)
         pdf_out.savefig(plt.gcf(), dpi=600)
         pdf_out.close()
@@ -403,4 +427,158 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     if show:
         plt.show()
 
-    plt.close()
+    # Need to clean all this up explicitly, otherwise huge memory leaks when run
+    # from ipython notebook.
+    ax1.clear()
+    ax2.clear()
+    ax3.clear()
+    ax4.clear()
+    ax5.clear()
+    ax6.clear()
+    fig.clf()
+    plt.close('all')
+
+
+def read_correlator_config(nc_file):
+    """
+    Read the correlator settings used for given nc file.
+
+    :param nc_file: File name of the .nc file containing the cross-correlation data.
+    :type nc_file: str
+    :return: Pandas Series with named fields whose values are the runtime settings used for the .nc file
+    :rtype: pandas.Series
+    """
+    folder, fname = os.path.split(nc_file)
+    base, _ = os.path.splitext(fname)
+    base_parts = base.split('.')
+    if len(base_parts) > 4:
+        timestamp = '.'.join(base_parts[4:])
+        config_filename = '.'.join(['correlator', timestamp, 'cfg'])
+        config_file = os.path.join(folder, config_filename)
+        if os.path.exists(config_file):
+            settings_df = pd.read_csv(config_file, sep=':', names=['setting', 'value'],
+                                      index_col=0, skiprows=1, skipinitialspace=True,
+                                      squeeze=True, converters={'setting': str.strip})
+            title_tag = '({}-{} Hz)'.format(settings_df['--fmin'], settings_df['--fmax'])
+        else:
+            print('WARNING: Settings file {} not found!'.format(config_file))
+            settings_df = None
+            title_tag = ''
+    else:
+        settings_df = None
+        title_tag = ''
+
+    return settings_df, title_tag
+
+
+def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plots=True, underlay_rcf_xcorr=False):
+    """
+    Process a batch of .nc files to generate standard visualization graphics. PNG files are output alongside the
+    source .nc file. To suppress file output, set save_plots=False.
+
+    :param src_files: List of files to process
+    :type src_files: Iterable of str
+    :param dataset: Dataset to be used to ascertain the distance between stations.
+    :type dataset: FederatedASDFDataset
+    :param time_window: Lag time window to plot (plus or minus this value in seconds)
+    :type time_window: float
+    :param snr_threshold: Minimum signal to noise ratio for samples to be included into the clock lag estimate
+    :type snr_threshold: float
+    :param save_plots: Whether to save plots to file, defaults to True
+    :param save_plots: bool, optional
+    :param underlay_rcf_xcorr: Show the individual correlation of row sample with RCF beneath the computed time lag,
+        defaults to False
+    :param underlay_rcf_xcorr: bool, optional
+    :return: List of files for which processing failed, and associated error.
+    :rtype: list(tuple(str, str))
+    """
+    PY2 = (sys.version_info[0] == 2)
+
+    pbar = tqdm(total=len(src_files), dynamic_ncols=True)
+    found_preexisting = False
+    failed_files = []
+    skipped_count = 0
+    success_count = 0
+    for src_file in src_files:
+        _, base_file = os.path.split(src_file)
+        pbar.set_description(base_file)
+        # Sleep to ensure progress bar is refreshed
+        time.sleep(0.2)
+
+        if not os.path.exists(src_file):
+            tqdm.write("ERROR! File {} not found!".format(src_file))
+            failed_files.append((src_file, "File not found!"))
+            continue
+
+        # Extract timestamp from nc filename if available
+        settings, title_tag = read_correlator_config(src_file)
+
+        try:
+            if save_plots:
+                basename, _ = os.path.splitext(src_file)
+                png_file = basename + ".png"
+                # If png file already exists and has later timestamp than src_file, then skip it.
+                if os.path.exists(png_file):
+                    src_file_time = os.path.getmtime(src_file)
+                    png_file_time = os.path.getmtime(png_file)
+                    png_file_size = os.stat(png_file).st_size
+                    if png_file_time > src_file_time and png_file_size > 0:
+                        tqdm.write("PNG file {} is more recent than source file {}, skipping!".format(
+                                   os.path.split(png_file)[1], os.path.split(src_file)[1]))
+                        found_preexisting = True
+                        skipped_count += 1
+                        pbar.update()
+                        continue
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, png_file=png_file,
+                                               show=False, underlay_rcf_xcorr=underlay_rcf_xcorr,
+                                               title_tag=title_tag, settings=settings)
+            else:
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, 
+                                               underlay_rcf_xcorr=underlay_rcf_xcorr, title_tag=title_tag,
+                                               settings=settings)
+            success_count += 1
+            pbar.update()
+
+        except Exception as e:
+            tqdm.write("ERROR processing file {}".format(src_file))
+            failed_files.append((src_file, str(e)))
+
+        # Python 2 does not handle circular references, so it helps to explicitly clean up.
+        if PY2:
+            gc.collect()
+
+    pbar.close()
+
+    if found_preexisting:
+        print("Some files were skipped because pre-existing matching png files were up-to-date.\n"
+              "Remove png files to force regeneration.")
+
+    return failed_files
+
+
+def batch_process_folder(folder_name, dataset, time_window, snr_threshold, save_plots=True):
+    """
+    Process all the .nc files in a given folder into graphical visualizations.
+
+    :param folder_name: Path to process containing .nc files
+    :type folder_name: str
+    :param dataset: Dataset to be used to ascertain the distance between stations.
+    :type dataset: FederatedASDFDataset
+    :param time_window: Lag time window to plot (plus or minus this value in seconds)
+    :type time_window: float
+    :param snr_threshold: Minimum signal to noise ratio for samples to be included into the clock lag estimate
+    :type snr_threshold: float
+    :param save_plots: Whether to save plots to file, defaults to True
+    :param save_plots: bool, optional
+    """
+    src_files = glob.glob(os.path.join(folder_name, '*.nc'))
+    print("Found {} .nc files in {}".format(len(src_files), folder_name))
+
+    failed_files = batch_process_xcorr(src_files, dataset, time_window=time_window,
+                                       snr_threshold=snr_threshold, save_plots=save_plots)
+    if failed_files:
+        print("The following files experienced errors:")
+        for fname, err_msg in failed_files:
+            print(" File: " + fname)
+            if err_msg:
+                print("Error: " + err_msg)
