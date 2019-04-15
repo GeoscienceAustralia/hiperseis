@@ -12,8 +12,6 @@ import numpy as np
 
 
 
-wfctr=0
-
 #define a method to take pick parameters and return the corresponding trace
 def _genTS(fdsnclient,st,ch,starttime,endtime,loc=None,net=None):
     
@@ -67,10 +65,5 @@ def getWave(webclient,st,chloc,starttime,endtime,saveDir="/g/data/ha3/rlt118/neu
         wf.resample(100)
         wf.detrend()
         wf.normalize()
-        wfctr+=1
-        wf.write(saveDir+str(wfctr)+'_'+phase+'.pkl',format="PICKLE")
-        np.save(saveDir+str(wfctr)+'_'+phase+'.npy',wf.data)
-        return True
-    else:
-        return False
+    return wf
     

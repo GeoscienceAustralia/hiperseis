@@ -26,7 +26,7 @@ class pickLoader:
             self.f.close()
             raise StopIteration
         if pick[0][0]=='#':
-            #this is a commented line
+            #this is a commented line in the pick file
             return self.next()
         
         net=pick[6]
@@ -79,11 +79,15 @@ class pickLoader:
                 
             wf=None
             if stream:
-                stream=stream.rotate(method='NE->RT',back_azimuth=baz)
-                for trywf in stream:
-                    if trywf.stats['channel'][-1]=='T':
-                        wf=trywf
-                        break
+                try:
+                    stream=stream.rotate(method='NE->RT',back_azimuth=baz)
+                    for trywf in stream:
+                        if trywf.stats['channel'][-1]=='T':
+                            wf=trywf
+                            break
+                except Exception as e:
+                    print >>sys.stderr, e
+                    wf=None
 
         else:
             try:
