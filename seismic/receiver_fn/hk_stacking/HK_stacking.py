@@ -4,7 +4,10 @@
 """
 convenience and plotting routines for HK-stacking code
 
+This code used for this publication by Christian Sippl:
+  https://www.sciencedirect.com/science/article/pii/S0040195116300245
 """
+
 from numpy import *
 import glob, os, ausrem, util, cPickle, iris
 from pylab import *

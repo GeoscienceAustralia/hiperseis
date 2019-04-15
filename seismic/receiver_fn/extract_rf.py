@@ -1,9 +1,13 @@
+import os
+from past.builtins import xrange
+
 import numpy as np
 from scipy.signal import hilbert
+
 import rf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import os
+
 def phase_weights(stream):
 
     tphase=[]
@@ -29,12 +33,12 @@ if __name__=='__main__':
 
     ''' @package extract_rf
     This code contains different approaches to extract RFs from H5 file in stacked form.
-    Output is preapared for trans-dimensional inversion in ASCII format
+    Output is prepared for trans-dimensional inversion in ASCII format
 
     Currently there are two methods of stacking
-    1. rf stacked by similarity 
-    2. all rf stacked 
-     
+    1. rf stacked by similarity
+    2. all rf stacked
+
     Note the parameters of gaussian pulse and its width where
 
 Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
@@ -51,11 +55,11 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
     '''
 
-    print "Reading the input file..."
+    print("Reading the input file...")
     # Input file
 #   stream=rf.read_rf('DATA/7X-ZRT-R-1cleaned.h5','H5')
     stream=rf.read_rf('DATA/7X-ZRT-R-ma12-cleaned.h5','H5')
-    print "Reading is done..."
+    print("Reading is done...")
 
     net=stream[0].stats.network.encode('utf-8')
     # output directory
@@ -92,9 +96,9 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
     station_list,idx=np.unique(station_list,return_index=True)
     group_list=group_list[idx]
 
-    print "Gathered ",len(station_list)," stations"
+    print("Gathered ",len(station_list)," stations")
     for i in xrange(station_list.shape[0]):
-        print station_list[i],group_list[i] 
+        print(station_list[i],group_list[i])
 
     estat=''
     sstat=[]
@@ -110,15 +114,12 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
        plot=True
 
 
-    
     for estat in sstat:
 
          station=stream.select(station=estat,component='R').moveout()
 
 #        we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
-#        print station[0].stats.delta,station[0].stats.npts
-         
-            
+#        print(station[0].stats.delta,station[0].stats.npts)
 
          if len(station)>1:
 
@@ -126,7 +127,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
                 # preserve original amplitude to rescale later to preserve proportions relative to source
                 if trace.stats.amax > 0:
                    amp_max=trace.stats.amax
-                   print "*"
+                   print("*")
                 else:
                    amp_max=np.max(trace.data)
                 trace.taper(0.01)
@@ -161,7 +162,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
             groups=count_groups(station)
             max_grp=np.max(groups)
-            print "Max grp ",max_grp
+            print("Max grp ",max_grp)
 
             # however first we define general plotting scheme and plot previous results
             fig = plt.figure(figsize=(11.69,8.27))
@@ -183,7 +184,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
                   for trace in station:
                       if trace.stats.rf_group==i:
                          grp_stream.append(trace)
-                  print "Group: ",i," number of records: ", len(grp_stream)
+                  print("Group: ",i," number of records: ", len(grp_stream))
                   grp_stacked=grp_stream.copy().stack()
                   grp_stck_max=np.max(np.abs(grp_stacked.copy()[0].data))
 #                 grp_stck_max=amp_max

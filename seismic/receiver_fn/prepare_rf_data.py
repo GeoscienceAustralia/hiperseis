@@ -28,7 +28,7 @@ def get_events(lonlat, starttime, endtime):
                   'minmagnitude': 5.5, 'maxmagnitude': 6.5}
         print("Following parameters for earthquake extraction will be used:")
         print('starttime', starttime, 'endtime', endtime, 'latitude', lonlat[1], 'longitude', 
-              lonlat[0], 'minradius: 15', 'maxradius: 90','minmagnitude: 5.5', 'maxmagnitude : 6.5')
+              lonlat[0], 'minradius: 15', 'maxradius: 90', 'minmagnitude: 5.5', 'maxmagnitude : 6.5')
         catalog = client.get_events(**kwargs)
         catalog.write(cat_file, 'QUAKEML')
         print("Catalog loaded")
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     # ----------------- End ----------------------
 
-    catalog = get_events(lonlat, UTC(start_time), UTC(end_time)) 
+    catalog = get_events(lonlat, UTC(start_time), UTC(end_time))
 
     stream = RFStream()
     with tqdm() as pbar:

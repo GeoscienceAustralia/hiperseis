@@ -2,7 +2,10 @@
 #coding=utf-8
 
 """
-Collection of functions for RF processing, data preparation and use of different routines
+Collection of functions for RF processing, data preparation and use of different routines.
+
+This code used for this publication by Christian Sippl:
+  https://www.sciencedirect.com/science/article/pii/S0040195116300245
 """
 
 import obspy, subprocess, os, util, iris, cPickle, basic

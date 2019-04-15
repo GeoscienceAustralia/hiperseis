@@ -161,8 +161,6 @@ def get_stations(stream):
 #-------------Main---------------------------------
 
 if __name__=='__main__':
-    
-    
     """ It is an example of how to plot nice maps """
 
     import rf
