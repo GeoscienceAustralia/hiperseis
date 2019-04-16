@@ -168,7 +168,6 @@ if __name__ == '__main__':
 
     print("Reading the input file...")
     # Input file
-#   stream=rf.read_rf('DATA/7X-rf_zrt2.h5','H5')
     stream = rf.read_rf('DATA/7X-MA12-rf_zrt.h5', 'H5')
 
     print("Reading is done...")
@@ -200,8 +199,7 @@ if __name__ == '__main__':
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     q_stream = o_stream.copy()
     # Filter specified below is only for data analysis and not applied to output data
-    q_stream = q_stream.filter(
-        'bandpass', freqmin=0.05, freqmax=0.7).interpolate(5)
+    q_stream = q_stream.filter('bandpass', freqmin=0.05, freqmax=0.7).interpolate(5)
 
     # original file will be interpolated to 100Hz
     o_stream = o_stream.trim2(-5, 60, 'onset')

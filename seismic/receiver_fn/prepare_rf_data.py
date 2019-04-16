@@ -120,6 +120,7 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
     # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
     # Form closure to allow waveform source file to be derived from a setting (or command line input)
+    # TODO: Replace this with FederatedASDFDataSet to speed up waveform access.
     def closure_get_waveforms(network, station, location, channel, starttime, endtime):
         return custom_get_waveforms(waveform_datafile, network, station, location, channel, starttime, endtime)
 

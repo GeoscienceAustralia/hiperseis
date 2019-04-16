@@ -19,7 +19,7 @@ TRIM_START_TIME_SEC = -25.0
 TRIM_END_TIME_SEC = 75.0
 EXCLUDE_STATION_CODE = ['MIJ2', 'MIL2']
 
-data = read_rf('DATA/7X-event_waveforms_for_rf.h5', 'H5')
+data = read_rf('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000.h5', 'H5')
 
 # exclude bad stations
 inc_set = list(set([tr.stats.inclination for tr in data]))
@@ -34,20 +34,15 @@ for stream3c in tqdm(IterMultipleComponents(data, 'onset', 3)):
     if len(stream3c) != 3:
         continue
 
-    # Workaround to preserve H5 header information. (TODO: check if this is fixed in latest obspy,
-    # document which version(s) this bug applies to.)
-    a1 = stream3c[0].stats['asdf']
-    a2 = stream3c[1].stats['asdf']
-    a3 = stream3c[2].stats['asdf']
-    stream3c[0].stats['asdf'] = []
-    stream3c[1].stats['asdf'] = []
-    stream3c[2].stats['asdf'] = []
+    try:
+        stream3c.rf()
+    except ValueError as e:
+        print("ERROR: Failed on stream:\n{}".format(stream3c))
+        print(e)
+        print("(continuing from error...)")
+        continue
 
-    stream3c.rf()
-    stream3c[0].stats['asdf'] = a1
-    stream3c[1].stats['asdf'] = a2
-    stream3c[2].stats['asdf'] = a3
     stream3c.trim2(TRIM_START_TIME_SEC, TRIM_END_TIME_SEC, 'onset')
     stream.extend(stream3c)
 
-stream.write('DATA/7X-rf_qlt', 'H5')
+stream.write('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000_LQT.h5', 'H5')

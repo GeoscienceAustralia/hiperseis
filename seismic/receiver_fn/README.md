@@ -55,15 +55,19 @@ The parallelized version of the same program is `generate_rf_parallel.py`.
 
 There are number of ways to select good results and remove bad ones. 
 Currently there are three methods implemented:
-  - grouping by similarity - grouping method based on calculation of Euclidean distances and clustering by similarity (aca machine learning approach)
-  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be applied to use this technique.
-  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique.
+  - grouping by similarity - grouping method based on calculation of Euclidean distances and clustering by similarity
+    (aca machine learning approach)
+  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be
+    applied to use this technique.
+  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be
+    applied to use this technique.
 
 In the last two approaches, RFs are compared to the median and, consequently, the moveout should be applied to built one.
 Currently it works with LQT convention that can be changed within the program. Existing libraries allow one to tailor
 the process and more options can be easily added.
 
-The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate the process.
+The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate
+the process.
 
 The actual program that works with RF is `rf_smart_bin.py`.
 
