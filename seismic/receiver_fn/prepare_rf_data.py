@@ -18,6 +18,7 @@ from obspy.core import Stream
 
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, early_exit=True):
+    # If file needs to be generated, then this function requires internet access.
     if os.path.exists(cat_file):
         catalog = read_events(cat_file)
     else:
@@ -116,6 +117,7 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          exit_after_catalog)
+    # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
     # Form closure to allow waveform source file to be derived from a setting (or command line input)
     def closure_get_waveforms(network, station, location, channel, starttime, endtime):
