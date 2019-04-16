@@ -11,13 +11,13 @@ from rf import iter_event_data
 # from rf.profile import profile
 from tqdm import tqdm
 
+import click
 import pyasdf
 from pyasdf import ASDFDataSet
 from obspy.core import Stream
 
 
-def get_events(lonlat, starttime, endtime):
-    cat_file = 'DATA/catalog' + str(starttime).replace(' ', '-') + '-' + str(endtime).replace(' ', '-') + '.xml'
+def get_events(lonlat, starttime, endtime, cat_file):
     if os.path.exists(cat_file):
         catalog = read_events(cat_file)
     else:
@@ -38,11 +38,11 @@ def get_events(lonlat, starttime, endtime):
     return catalog
 
 
-def custom_get_waveforms(network, station, location, channel, starttime,
+def custom_get_waveforms(waveform_datafile, network, station, location, channel, starttime,
                          endtime, quality=None, minimumlength=None,
                          longestonly=None, filename=None, attach_response=False,
                          **kwargs):
-    with pyasdf.ASDFDataSet('/g/data/ha3/Passive/_ANU/7X(2009-2011)/ASDF/7X(2009-2011).h5', mode='r') as asdfDataSet:
+    with pyasdf.ASDFDataSet(waveform_datafile, mode='r') as asdfDataSet:
         st = Stream()
         # ignoring channel for now as all the 7D network waveforms have only BH? channels
         filteredList = [i for i in asdfDataSet.waveforms[network + '.' + station].list() if
@@ -56,28 +56,43 @@ def custom_get_waveforms(network, station, location, channel, starttime,
 
 # ---+----------Main---------------------------------
 
-if __name__ == '__main__':
+@click.command()
+@click.option('--rf-trace-datafile', type=str, required=True, help='Path to output file, e.g. "7G_event_waveforms_for_rf.h5"')
+def main(rf_trace_datafile):
+
+    # rf_trace_datafile = os.path.join(os.path.split(__file__)[0], 'DATA', '7G_event_waveforms_for_rf.h5')
+    assert not os.path.exists(rf_trace_datafile), "Won't delete existing file{}, remove manually.".format(rf_trace_datafile)
 
     # we use centre of Australia to calculate radius and gather events from 15 to 90 degrees
     lonlat = [133.88, -23.69]
 
     # Change parameters below
-    data = os.path.join('DATA', '')
-    invfile = data + '7X-inventory.xml'
-    datafile = data + '7X-event_waveforms_for_rf.h5'
-
-    start_time = '2009-12-01 00:00:00'
-    end_time = '2011-04-01 00:00:00'
+    invfile = "/g/data/ha3/Passive/SHARED_DATA/Inventory/networks/network_7G.xml"
     inventory = read_inventory(invfile)
 
-    # ----------------- End ----------------------
+    waveform_datafile = "/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015).h5"
+    start_time = UTC('2014-01-01T00:00:06')
+    end_time = UTC('2016-02-09T21:04:29')
 
-    catalog = get_events(lonlat, UTC(start_time), UTC(end_time))
+    # ----------------- End ----------------------
+    def fname_time(utc_datetime):
+        return utc_datetime.strftime("%Y-%m-%dT%H%M%S")
+
+    cat_file = os.path.join(os.path.split(__file__)[0], 'DATA', 'catalog_7G_' + fname_time(start_time) + '-' + fname_time(end_time) + '.xml')
+    catalog = get_events(lonlat, start_time, end_time, cat_file)
+
+    # Form closure to allow waveform source file to be derived from a setting (or command line input)
+    def closure_get_waveforms(network, station, location, channel, starttime, endtime):
+        return custom_get_waveforms(waveform_datafile, network, station, location, channel, starttime, endtime)
 
     stream = RFStream()
     with tqdm() as pbar:
-        for s in iter_event_data(catalog, inventory, custom_get_waveforms, pbar=pbar):
+        for s in iter_event_data(catalog, inventory, closure_get_waveforms, pbar=pbar):
             for trace in s:
                 stream.extend(s)
 
-    stream.write(datafile, 'H5')
+    stream.write(rf_trace_datafile, 'H5')
+
+
+if __name__ == '__main__':
+    main()  # pylint: disable=no-value-for-parameter
