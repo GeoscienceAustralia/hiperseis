@@ -1,12 +1,14 @@
-#module HK_stacking
-#coding=utf-8
-
+#!/usr/bin/env python
+# coding=utf-8
+# module HK_stacking
 """
-convenience and plotting routines for HK-stacking code
+Convenience and plotting routines for HK-stacking code.  Requires custom built binary executable `hk2d`. (Provenance: TBD)
 
 This code used for this publication by Christian Sippl:
   https://www.sciencedirect.com/science/article/pii/S0040195116300245
 """
+
+# pylint: skip-file
 
 from numpy import *
 import glob, os, ausrem, util, cPickle, iris
@@ -519,7 +521,8 @@ def call_HK(stat,vp,H=[30.,60.,0.05],K=[1.65,1.85,0.002],weight=[0.33,0.33,0.33]
   os.system(cmd)
 
 
-def plot_HK_map(flder='.',lonrange=[120.,125.],latrange=[-34.,-30.],info_file='/home/christian/info_file',z='H',gravity=False,smooth=0.1,eps=0.33,Ps=False,pval=False,save=False,mode='color'):
+def plot_HK_map(flder='.',lonrange=[120.,125.],latrange=[-34.,-30.],info_file='/home/christian/info_file',z='H',
+                gravity=False,smooth=0.1,eps=0.33,Ps=False,pval=False,save=False,mode='color'):
   """
   plots an interpolated map of crustal thickness (or vp/vs) from a bunch of HK-stacking derived values
   Ps=True only works with z='H'

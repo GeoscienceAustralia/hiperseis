@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # AG
 # import os.path
 # import matplotlib.pyplot as plt

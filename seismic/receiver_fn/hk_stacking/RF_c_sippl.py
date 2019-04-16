@@ -1,6 +1,6 @@
-#module RF
-#coding=utf-8
-
+#!/usr/bin/env python
+# coding=utf-8
+# module RF
 """
 Collection of functions for RF processing, data preparation and use of different routines.
 
@@ -8,14 +8,29 @@ This code used for this publication by Christian Sippl:
   https://www.sciencedirect.com/science/article/pii/S0040195116300245
 """
 
-import obspy, subprocess, os, util, iris, cPickle, basic
+# pylint: skip-file
+
+import os
+import sys
+import subprocess
+
+if sys.version_info[0] == 2:
+  import cPickle as pkl
+else:
+  import pickle as pkl
+
+import obspy
+import iris
+# import basic  # Unidentified library
+# import util
 from obspy.geodetics import gps2dist_azimuth
 from pylab import *
 from numpy import *
 from glob import glob
-from obspy.taup import taup
+# from obspy.taup import taup  # broken, doesn't exist
 from obspy.core import read, Stream, UTCDateTime, Trace
-from obspy.sac import sacio
+# This is based on an *ancient* version of obspy (0.10.2), not compatible with obspy 1.x.x.
+# from obspy.sac import sacio
 from obspy.taup import TauPyModel
 #from toeplitz import sto_sl
 
@@ -49,7 +64,7 @@ def stack(inlist,outfile):
       if len(trace.data) == len_e:
         e_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'      
+        print('Trace lengths do not fit - trace not added!')
 
   if len(n) != 0:
     #stack N
@@ -60,7 +75,7 @@ def stack(inlist,outfile):
       if len(trace.data) == len_n:
         n_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'
+        print('Trace lengths do not fit - trace not added!')
 
   if len(z) != 0:
     #stack Z
@@ -71,7 +86,7 @@ def stack(inlist,outfile):
       if len(trace) == len_z:
         z_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'
+        print('Trace lengths do not fit - trace not added!')
 
   return e_stack, n_stack, z_stack         
 
@@ -86,7 +101,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
   data = evfile.readlines()
   evfile.close()
 
-  sta = basic.Station(station,info_file)
+  sta = basic.Station(station,info_file)  # TODO: Replace with something other than unidentified library 'basic'
   stat_lat = sta.lat
   stat_lon = sta.lon
   stat_elev = sta.elev
@@ -111,7 +126,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     bigdict[int(eid)]['orig_time'] = UTCDateTime(int(yr),int(mn),int(dy),int(time.split(':')[0]),int(time.split(':')[1]),float(time.split(':')[2]))
 
     #get data files
-    print eid
+    print(eid)
 
     try:
       ev_folder = glob(datapath+'/'+eid+'__*')[0]
@@ -125,24 +140,24 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     try:
       assert len(e[0]) == len(n[0]) == len(z[0])
     except AssertionError:
-      print "Different trace lengths: not processed"
+      print("Different trace lengths: not processed")
       del bigdict[int(eid)]
       continue
 
     #check that none of the components is flat
     if max(e[0].data) - min(e[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue
     if max(n[0].data) - min(n[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue
 
     if max(z[0].data) - min(z[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue          
@@ -153,7 +168,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
 #      assert e[0].data.all() != z[0].data.all()
 #      assert n[0].data.all() != z[0].data.all()   
 #    except AssertionError:
-#      print "Two or more components are identical: not processed"
+#      print("Two or more components are identical: not processed")
 #      continue
 
     distm,az,baz = gps2dist_azimuth(float(lat),float(lon),stat_lat,stat_lon)
@@ -167,13 +182,16 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     #get ray parameter
 
     if local:
-      raytr = iris.ttime_dict(bigdict[int(eid)]['event_lat'],bigdict[int(eid)]['event_lon'],bigdict[int(eid)]['event_depth'],bigdict[int(eid)]['station_lat'],bigdict[int(eid)]['station_lon'],phase='p')
-
+      raytr = iris.ttime_dict(bigdict[int(eid)]['event_lat'], bigdict[int(eid)]['event_lon'],
+                              bigdict[int(eid)]['event_depth'], bigdict[int(eid)]['station_lat'],
+                              bigdict[int(eid)]['station_lon'], phase='p')
     else:
-      raytr = iris.ttime_dict(bigdict[int(eid)]['event_lat'],bigdict[int(eid)]['event_lon'],bigdict[int(eid)]['event_depth'],bigdict[int(eid)]['station_lat'],bigdict[int(eid)]['station_lon'],phase='P')
+      raytr = iris.ttime_dict(bigdict[int(eid)]['event_lat'], bigdict[int(eid)]['event_lon'],
+                              bigdict[int(eid)]['event_depth'], bigdict[int(eid)]['station_lat'],
+                              bigdict[int(eid)]['station_lon'], phase='P')
     rayp = round(raytr['rayp'],5)
-    print 'RAYP:'
-    print rayp
+    print('RAYP:')
+    print(rayp)
     bigdict[int(eid)]['ray parameter'] = rayp
 
     #calculate Moho piercing point
@@ -183,8 +201,8 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
       arr = model.get_pierce_points(float(dep),round(dist,2),phase_list='p')
 
     pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*111.195
-    print 'PIERCE DIST:'
-    print pierce_dist 
+    print('PIERCE DIST:')
+    print(pierce_dist)
     bigdict[int(eid)]['Pierce_distance_P'] = round(pierce_dist,2)
 
     #compute rotation
@@ -204,7 +222,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     #downsampling
     factor = (z[0].stats.sampling_rate / sampfreq)
     if not factor%1 == 0:
-      print 'Error: non-integer decimation factor!!'
+      print('Error: non-integer decimation factor!!')
       del bigdict[int(eid)]
       continue
     else:
@@ -228,7 +246,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
         assert r != zeros(len(r))
         assert t != zeros(len(t))
       except AssertionError:
-        print "At least one traces is only zeros: not processed"
+        print("At least one traces is only zeros: not processed")
         continue
 
       z[0].detrend(type='linear')
@@ -322,7 +340,8 @@ def deconv_3D(indict,source_component='L',method='time'):
   
   return indict_new
 
-def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info_file='/home/sippl/info_file',rfdicpath='/home/sippl/sandbox/RF/ALFREX/dicts_a2.5'):
+def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info_file='/home/sippl/info_file',
+               rfdicpath='/home/sippl/sandbox/RF/ALFREX/dicts_a2.5'):
   """
   fully automatic plotting of CCP stacks, selection of profile parameters (starting point, azimuth, length, width) in inout, stations selected based on width
   point in (lat,lon), decimal degrees
@@ -341,7 +360,7 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
   dx = (xbig - xsmall) * 111.195 * cos((ybig+ysmall)/2. * pi / 180.)
   dy = (ybig - ysmall) * 111.195 
   try:
-    az = (arctan(dy/(float(dx)))*180.)/pi
+    az = (arctan(dy/(float(dx)))*180.)/pi  # Why not using atan2 here?
   except ZeroDivisionError:
     az = 0.
   length = sqrt(dx**2 + dy**2)
@@ -391,7 +410,7 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
     sta_lat = float(lat)
     sta_lon = float(lon)
 
-    #print stat,sta_lat,sta_lon
+    #print(stat,sta_lat,sta_lon)
 
     angle_norm = az%90
 
@@ -427,15 +446,15 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
         sta_offset = sta_offset_e - e_correction
 
       if sta_offset > 0 and sta_offset < length:
-        print "Station "+stat+" included!!"
-        print sta_offset, dist
+        print("Station "+stat+" included!!")
+        print(sta_offset, dist)
         #add station to CCP stack
         x,y = m(sta_lon,sta_lat)
         m.plot(x,y,'ro')
         #stationlist.append(stat)
         
         try:
-          indict = cPickle.load(open(glob(rfdicpath+'/'+stat+'_[Rr][Ff]*')[0],'rb'))
+          indict = pkl.load(open(glob(rfdicpath+'/'+stat+'_[Rr][Ff]*')[0],'rb'))
           for i in indict.keys():
             azi = indict[i]['Backazimuth']
             model = TauPyModel(model='ak135')
@@ -599,7 +618,7 @@ def rf_viewer(indict,time_win=[0,35]):
     xvals = (arange(len(indict[j]['Traces']['RF'])))/indict[j]['Traces']['RF'].stats.sampling_rate
     plot(xvals,indict[j]['Traces']['RF'],'k-')
     xlim(time_win)
-    print "Input needed: choose (r) to reject the trace or (k) to keep it!"
+    print("Input needed: choose (r) to reject the trace or (k) to keep it!")
     key = raw_input()
 
     if key == 'r':
@@ -825,7 +844,8 @@ def get_az_plot(indict,minfit=85.,azbin=45): #stacked RF every azbin degrees (if
   xlim([0,50*sampr])
   ylabel('Backazimuth')
   xlabel('time [s]')
-  xticks([0,5*sampr,10*sampr,15*sampr,20*sampr,25*sampr,30*sampr,35*sampr,40*sampr,45*sampr,50*sampr],['0','5','10','15','20','25','30','35','40','45','50'])
+  xticks([0,5*sampr,10*sampr,15*sampr,20*sampr,25*sampr,30*sampr,35*sampr,40*sampr,45*sampr,50*sampr],
+         ['0','5','10','15','20','25','30','35','40','45','50'])
 
   show()
 
@@ -870,7 +890,8 @@ def get_dist_plot(indict,minfit=85.,distbin=5): #same thing for distance bins
   xlim([0,50*sampr])
   ylabel('Distance (deg)')
   xlabel('time [s]')
-  xticks([0,5*sampr,10*sampr,15*sampr,20*sampr,25*sampr,30*sampr,35*sampr,40*sampr,45*sampr,50*sampr],['-5','0','5','10','15','20','25','30','35','40','45'])
+  xticks([0,5*sampr,10*sampr,15*sampr,20*sampr,25*sampr,30*sampr,35*sampr,40*sampr,45*sampr,50*sampr],
+         ['-5','0','5','10','15','20','25','30','35','40','45'])
 
   show()
 
@@ -970,19 +991,21 @@ def cc_matrix(indict,Chi=0.8,Tau=0.35,write=False,outfolder='.',rotate='2D'):
     filename = gooddict[1]['station']+'__allRFs.list'
     outf = open(outfolder+'/'+filename,'w')
     for i in gooddict.keys():
-      outname = '%04i%02i%02i__%02i%02i%02i__%4s__RF.SAC' % (gooddict[i]['orig_time'].year, gooddict[i]['orig_time'].month,gooddict[i]['orig_time'].day, gooddict[i]['orig_time'].hour, gooddict[i]['orig_time'].minute, gooddict[i]['orig_time'].second,gooddict[i]['station'])
+      outname = '%04i%02i%02i__%02i%02i%02i__%4s__RF.SAC' % (gooddict[i]['orig_time'].year, gooddict[i]['orig_time'].month,
+        gooddict[i]['orig_time'].day, gooddict[i]['orig_time'].hour, gooddict[i]['orig_time'].minute, 
+        gooddict[i]['orig_time'].second,gooddict[i]['station'])
       #outname = gooddict[i]['name']+'__sel'
       gooddict[i]['Traces'][trmark].write(outfolder+'/'+outname,'SAC')
        
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'dist',gooddict[i]['Distance'])
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'az',gooddict[i]['Azimuth'])
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'baz',gooddict[i]['Backazimuth'])
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'evla',gooddict[i]['event_lat'])
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'evlo',gooddict[i]['event_lon'])
-      sacio().SetHvalueInFile(outfolder+'/'+outname,'evdp',gooddict[i]['event_depth']) 
-      
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'dist', gooddict[i]['Distance'])
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'az', gooddict[i]['Azimuth'])
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'baz', gooddict[i]['Backazimuth'])
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'evla', gooddict[i]['event_lat'])
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'evlo', gooddict[i]['event_lon'])
+      sacio().SetHvalueInFile(outfolder + '/' + outname, 'evdp', gooddict[i]['event_depth'])
 
-      raytr = iris.ttime_dict(gooddict[i]['event_lat'],gooddict[i]['event_lon'],gooddict[i]['event_depth'],gooddict[i]['station_lat'],gooddict[i]['station_lon'],phase='P')
+      raytr = iris.ttime_dict(gooddict[i]['event_lat'], gooddict[i]['event_lon'], gooddict[i]['event_depth'],
+                              gooddict[i]['station_lat'], gooddict[i]['station_lon'], phase='P')
       outf.write(outname+'  '+str(round(raytr['rayp'],5))+'  0.00  '+str(round(gooddict[i]['Backazimuth'],3))+'  '+str(round(raytr['dist'],3))+'\n')
 
       #set header entries
@@ -1028,7 +1051,7 @@ def create_modelfile(deplist,vplist,vslist,outpath='./model.mod'):  #OK, works..
   outf = open(outpath,'w')
   #length check
   if not len(deplist) == len(vplist) == len(vslist):
-    print "Entered lists have different lengths! No model file created."
+    print("Entered lists have different lengths! No model file created.")
     return
   headerline = '%3i Generic                         \n' % (len(deplist))
   outf.write(headerline)
@@ -1342,7 +1365,8 @@ def RF_plot(indict,sort='baz'):
 
   elif sort == 'rayp':
     for j in indict.keys():
-      raytr = iris.ttime_dict(indict[j]['event_lat'],indict[j]['event_lon'],indict[j]['event_depth'],indict[j]['station_lat'],indict[j]['station_lon'],phase='P')
+      raytr = iris.ttime_dict(indict[j]['event_lat'], indict[j]['event_lon'], indict[j]['event_depth'],
+                              indict[j]['station_lat'], indict[j]['station_lon'], phase='P')
       rayp = round(raytr['rayp'],5) 
       y1 = rayp 
       y2 = ((indict[j]['Traces']['RF'].data)/indict[j]['Traces']['RF'].data.max())/2. + rayp
@@ -1461,9 +1485,9 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
       SNR = range_signal / range_noise
       #discriminate
       if use_SNR:
-        print SNR
+        print(SNR)
         if SNR > 5:
-          print "used"
+          print("used")
           corr = obspy.signal.cross_correlation.xcorr(ztrace.data, ztrace.data, 50*int(ztrace.stats.sampling_rate),full_xcorr=True)[2]
           allcorr += corr
           count += 1
@@ -1472,7 +1496,7 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
         allcorr += corr
         count += 1
     else:
-      print len(ztrace.data)
+      print(len(ztrace.data))
       continue
     
   #normalize 
@@ -1481,7 +1505,7 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
   outdict = {}
   outdict[stat+'-'+stat] = {}
   outdict[stat+'-'+stat][1] = allcorr
-  cPickle.dump(outdict,open(outdir+'/'+stat+'-'+stat,'wb'))  
+  pkl.dump(outdict,open(outdir+'/'+stat+'-'+stat,'wb'))  
 
 
 def matrix_all_rayp(diclist,spacing=0.25,freq=5.):
@@ -1495,7 +1519,7 @@ def matrix_all_rayp(diclist,spacing=0.25,freq=5.):
   count = 1
 
   for dic in diclist:
-    dicc = cPickle.load(open(dic,'rb'))
+    dicc = pkl.load(open(dic,'rb'))
     for k in dicc.keys():
       dic_new[count] = {}
       dic_new[count]['rayp'] = dicc[k]['ray parameter']
@@ -1607,11 +1631,11 @@ def plot_events_earth(xlist,ylist,l_bound,u_bound,center=[-32.,123.]):
     #check whether list entries are in "allowed" range
     from obspy.core.util.geodetics import gps2DistAzimuth
     distm = gps2DistAzimuth(ylist[i],xlist[i],center[0],center[1])[0] 
-    print distm / (1000. * 111.195)
+    print(distm / (1000. * 111.195))
     if distm / (1000. * 111.195) > u_bound or distm / (1000. * 111.195) < l_bound:
-      print "discarded"
+      print("discarded")
       continue
-    print "In"
+    print("In")
     x,y = m(xlist[i],ylist[i])
     plot(x,y,'ro',markersize=6)
 
@@ -1720,7 +1744,8 @@ def shoot(lon, lat, azimuth, maxdist=None):
 
 def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
   """
-  operates on list of dictionaries that contain Ps picks, for every station, the median and the inner quartile range of Ps times is computed and stored (for later plotting on a map etc)
+  operates on list of dictionaries that contain Ps picks, for every station, the median and the
+  inner quartile range of Ps times is computed and stored (for later plotting on a map etc)
   """
 
   inlist = glob(indir+'/*__new')
@@ -1733,7 +1758,7 @@ def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
   for entry in inlist:
     stat = entry.split('/')[-1].split('_')[0]
     stats.append(stat)
-    dat = cPickle.load(open(entry,'rb'))
+    dat = pkl.load(open(entry,'rb'))
     Ps = []
     for j in dat.keys():
       if dat[j].has_key('Ps_time'):
