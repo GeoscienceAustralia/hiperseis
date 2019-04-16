@@ -17,7 +17,7 @@ from pyasdf import ASDFDataSet
 from obspy.core import Stream
 
 
-def get_events(lonlat, starttime, endtime, cat_file):
+def get_events(lonlat, starttime, endtime, cat_file, early_exit=True):
     if os.path.exists(cat_file):
         catalog = read_events(cat_file)
     else:
@@ -33,8 +33,9 @@ def get_events(lonlat, starttime, endtime, cat_file):
         catalog = client.get_events(**kwargs)
         catalog.write(cat_file, 'QUAKEML')
         print("Catalog loaded")
-        print("Run this process again using qsub")
-        exit(0)
+        if early_exit:
+            print("Run this process again using qsub")
+            exit(0)
     return catalog
 
 
@@ -57,29 +58,36 @@ def custom_get_waveforms(waveform_datafile, network, station, location, channel,
 # ---+----------Main---------------------------------
 
 @click.command()
-@click.option('--rf-trace-datafile', type=str, required=True, help='Path to output file, e.g. "7G_event_waveforms_for_rf.h5"')
-def main(rf_trace_datafile):
+@click.option('--inventory-file', type=click.File('r'), required=True,
+              help='Path to input inventory file corresponding to waveform file, '
+              'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
+@click.option('--waveform-file', type=click.File('rb'), required=True,
+              help='Path to input h5 waveform file from which to extract traces for RF analysis, '
+              'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\).h5".')
+@click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
+              help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
+              'If file already exists, it will be loaded, otherwise it will be created.')
+@click.option('--rf-trace-datafile', type=click.File('wb'), required=True,
+              help='Path to output file, e.g. "7X_event_waveforms_for_rf.h5"')
+@click.option('--start-time', type=str, required=True,
+              help='Start datetime in ISO 8601 format, e.g. "2009-06-16T03:42:00"')
+@click.option('--end-time', type=str, required=True,
+              help='End datetime in ISO 8601 format, e.g. "2011-04-01T23:18:49"')
+def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, start_time, end_time):
 
-    # rf_trace_datafile = os.path.join(os.path.split(__file__)[0], 'DATA', '7G_event_waveforms_for_rf.h5')
-    assert not os.path.exists(rf_trace_datafile), "Won't delete existing file{}, remove manually.".format(rf_trace_datafile)
+    assert not os.path.exists(rf_trace_datafile.name), \
+        "Won't delete existing file {}, remove manually.".format(rf_trace_datafile.name)
 
     # we use centre of Australia to calculate radius and gather events from 15 to 90 degrees
     lonlat = [133.88, -23.69]
 
-    # Change parameters below
-    invfile = "/g/data/ha3/Passive/SHARED_DATA/Inventory/networks/network_7G.xml"
-    inventory = read_inventory(invfile)
+    inventory = read_inventory(inventory_file)
+    waveform_datafile = waveform_file
+    start_time = UTC(start_time)
+    end_time = UTC(end_time)
 
-    waveform_datafile = "/g/data/ha3/Passive/_ANU/7G(2013-2015)/ASDF/7G(2013-2015).h5"
-    start_time = UTC('2014-01-01T00:00:06')
-    end_time = UTC('2016-02-09T21:04:29')
-
-    # ----------------- End ----------------------
-    def fname_time(utc_datetime):
-        return utc_datetime.strftime("%Y-%m-%dT%H%M%S")
-
-    cat_file = os.path.join(os.path.split(__file__)[0], 'DATA', 'catalog_7G_' + fname_time(start_time) + '-' + fname_time(end_time) + '.xml')
-    catalog = get_events(lonlat, start_time, end_time, cat_file)
+    exit_after_catalog = False
+    catalog = get_events(lonlat, start_time, end_time, event_catalog_file, exit_after_catalog)
 
     # Form closure to allow waveform source file to be derived from a setting (or command line input)
     def closure_get_waveforms(network, station, location, channel, starttime, endtime):
@@ -91,6 +99,7 @@ def main(rf_trace_datafile):
             for trace in s:
                 stream.extend(s)
 
+    print(stream)
     stream.write(rf_trace_datafile, 'H5')
 
 
