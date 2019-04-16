@@ -134,7 +134,7 @@ def remove_small_s2n(stream,ratio):
     newstream=rf.RFStream()
     for i in xrange(len(stream)):
         rms =np.sqrt(np.mean(np.square(signal[i].data)))/np.sqrt(np.mean(np.square(noise[i].data)))
-        if rms > ratio:
+        if rms > ratio and stream[i].stats.distance>35.:
            newstream.append(stream[i])
     return newstream
 
@@ -149,11 +149,14 @@ if __name__=='__main__':
     1. rf_group_by_similarity - grouping method based on calculation of euclidean distances and clustering by similarity ( aca machine learning approach)
     2. coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be applied to use this technique
     3. knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique
+    Note - teleseismic cut out (35 degrees) is hardwired in remove_small_s2n
     '''
 
     print "Reading the input file..."
     # Input file
-    stream=rf.read_rf('DATA/7X-rf_zrt.h5','H5')
+#   stream=rf.read_rf('DATA/7X-rf_zrt2.h5','H5')
+    stream=rf.read_rf('DATA/7X-MA12-rf_zrt.h5','H5')
+
     print "Reading is done..."
     # output file naming look at the end of the code
 
@@ -183,7 +186,7 @@ if __name__=='__main__':
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     q_stream=o_stream.copy()
     # Filter specified below is only for data analysis and not applied to output data
-    q_stream=q_stream.filter('bandpass',freqmin=0.05,freqmax=1.).interpolate(5)
+    q_stream=q_stream.filter('bandpass',freqmin=0.05,freqmax=0.7).interpolate(5)
 
 
     # original file will be interpolated to 100Hz
@@ -205,7 +208,7 @@ if __name__=='__main__':
 
     for i in xrange(station_list.shape[0]):
         print "Station ",station_list[i],i+1," of ",station_list.shape[0]
-        traces=q_stream.select(station=station_list[i])
+        traces=q_stream.select(station=station_list[i]).copy()
 
         
         # we choose short RF to simplify and speed up the processing
@@ -234,6 +237,7 @@ if __name__=='__main__':
            print station_list[i],' has only one trace'
  
         num_group=np.amax(ind)
+        print "Number of detected groups: ",num_group
 
 # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
 
@@ -276,5 +280,6 @@ if __name__=='__main__':
     '''
 
     # Output file
-    ofile='DATA/'+net+'-'+rf_type.strip()+'-cleaned.h5'
+    ofile='DATA/'+net+'-'+rf_type.strip()+'-ma12-cleaned.h5'
+   
     out_file.write(ofile,'H5')

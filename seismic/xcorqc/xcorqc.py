@@ -325,7 +325,7 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
-                       outputPath='/tmp', verbose=1):
+                       outputPath='/tmp', verbose=1, tracking_tag=''):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
     waveforms from all possible station-pairs from the two data sets. To allow efficient, random
@@ -385,6 +385,8 @@ def IntervalStackXCorr(refds, tempds,
     :param ensemble_stack: Outputs a single CC function stacked over all data for a given station-pair
     :type verbose: int
     :param verbose: Verbosity of printouts. Default is 1; maximum is 3.
+    :type tracking_tag: str
+    :param tracking_tag: File tag to be added to output file names so runtime settings can be tracked
     :type outputPath: str
     :param outputPath: Folder to write results to
     :return: 1: 1d np.array with time samples spanning [-window_samples:window_samples]
@@ -397,7 +399,7 @@ def IntervalStackXCorr(refds, tempds,
     """
     # setup logger
     stationPair = '%s.%s'%(ref_net_sta, temp_net_sta)
-    fn = os.path.join(outputPath, '%s.log'%(stationPair))
+    fn = os.path.join(outputPath, '%s.log'%(stationPair if not tracking_tag else '.'.join([stationPair, tracking_tag])))
     logger = setup_logger('%s.%s'%(ref_net_sta, temp_net_sta), fn)
 
     startTime = UTCDateTime(start_time)
@@ -610,7 +612,7 @@ def IntervalStackXCorr(refds, tempds,
 
     # Save Results
     for i, k in enumerate(xcorrResultsDict.keys()):
-        fn = os.path.join(outputPath, '%s.nc'%(k))
+        fn = os.path.join(outputPath, '%s.nc'%(k if not tracking_tag else '.'.join([k, tracking_tag])))
 
         root_grp = Dataset(fn, 'w', format='NETCDF4')
         root_grp.description = 'Cross-correlation results for station-pair: %s' % (k)
