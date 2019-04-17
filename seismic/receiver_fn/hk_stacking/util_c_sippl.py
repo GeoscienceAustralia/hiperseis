@@ -15,7 +15,7 @@ from numpy import arctan2
 import subprocess,glob,os
 from subprocess import Popen
 
-import basic
+import basic_c_sippl
 
 def onclick(event):
   """  
@@ -61,7 +61,7 @@ def read_cnv4CC(cnv_file):
   data = infile.readlines()
   infile.close()
   ev_num=1
-  cnv = basic.Catalog()
+  cnv = basic_c_sippl.Catalog()
   for i in range(len(data)):
     if len(data[i]) > 35:
       if data[i][35] == 'e' or data[i][35] == 'E' or data[i][35] == 'w' or data[i][35] == 'W':
@@ -88,7 +88,7 @@ def read_cnv4CC(cnv_file):
 	evres = float(data[i][58:].strip('\n'))
 	orig_time = UTCDateTime(year,month,day,hour,mn,sec)
 	print orig_time
-	ev = basic.Event(orig_time,evlat,evlon,evdep)
+	ev = basic_c_sippl.Event(orig_time,evlat,evlon,evdep)
         ev.Picks = {}
 	ev.info['magnitude'] = evmag
 	ev.info['gap'] = evgap
@@ -164,7 +164,7 @@ def read_pha(infile):
   """
   reading a ph2dt .pha-file into Catalog format
   """
-  cat = basic.Catalog()
+  cat = basic_c_sippl.Catalog()
   cat.events = {}
 
   infl = open(infile,'r')
@@ -176,7 +176,7 @@ def read_pha(infile):
       print dat[j]
       dum,yr,mo,dy,hr,mn,sc,lat,lon,dep,mag,dum,dum,dum,ID = dat[j].split(None)
       orig = UTCDateTime(int(yr),int(mo),int(dy),int(hr),int(mn),float(sc))
-      ev = basic.Event(orig,float(lat),float(lon),float(dep))
+      ev = basic_c_sippl.Event(orig,float(lat),float(lon),float(dep))
       ev.info['eventID'] = ID
       ev.info['magnitude'] = float(mag)
       ev.Picks = {}
@@ -251,7 +251,7 @@ def read_cnv(cnv_file,date='date',pol=True,statlen=4,writeID=False):
   data = infile.readlines()
   infile.close()
   ev_num=1
-  cnv = basic.Catalog()
+  cnv = basic_c_sippl.Catalog()
   for i in range(len(data)):
     if len(data[i]) > 35:
       if data[i][35] == 'e' or data[i][35] == 'E' or data[i][35] == 'w' or data[i][35] == 'W':
@@ -298,7 +298,7 @@ def read_cnv(cnv_file,date='date',pol=True,statlen=4,writeID=False):
 	elif date == 'date':
 	  orig_time = UTCDateTime(year,month,day,hour,mn,sec)
 	print orig_time
-	ev = basic.Event(orig_time,evlat,evlon,evdep)
+	ev = basic_c_sippl.Event(orig_time,evlat,evlon,evdep)
         ev.Picks = {}
 	ev.info['magnitude'] = evmag
 	ev.info['gap'] = evgap
@@ -404,7 +404,7 @@ def read_ISCsimple(infile):
   dat = fl.readlines()
   fl.close()
 
-  cat = basic.Catalog()
+  cat = basic_c_sippl.Catalog()
   cat.events = {}
   for line in dat:
     try:
@@ -416,7 +416,7 @@ def read_ISCsimple(infile):
     hour,minute,second = time.split(':')
     orig_time = UTCDateTime(int(year),int(month),int(day),int(hour),int(minute),float(second))
 
-    ev = basic.Event(orig_time,float(lat),float(lon),float(dep))
+    ev = basic_c_sippl.Event(orig_time,float(lat),float(lon),float(dep))
 
     ev.Picks = {}
     ev.info['magnitude'] = float(mag)
@@ -434,7 +434,7 @@ def read_CSNcat(infile):
   dat = fl.readlines()
   fl.close()
 
-  cat = basic.Catalog()
+  cat = basic_c_sippl.Catalog()
   cat.events = {}
   for line in dat:
     year = line[1:5]
@@ -476,7 +476,7 @@ def read_CSNcat(infile):
     if lat == '' or lon == '' or dep == '':
       continue
     try:
-      ev = basic.Event(orig_time,float(lat),float(lon),float(dep))
+      ev = basic_c_sippl.Event(orig_time,float(lat),float(lon),float(dep))
     except ValueError: #incomplete coordinates
       continue
     ev.Picks = {}
@@ -568,7 +568,7 @@ def read_catalogue(catalogue,magflag=True,cumsumflag=True):
   fil.close()
 
   num = 1
-  cat = basic.Catalog()
+  cat = basic_c_sippl.Catalog()
   cat.events = {}
   for i in range(len(data)):
     if data[i][0:1] == '1':
@@ -581,7 +581,7 @@ def read_catalogue(catalogue,magflag=True,cumsumflag=True):
       else:
 	julorig,year,mon,day,hr,mn,sec,lat,lon,dep,nobs,gap,rms = data[i].strip('\n').split(None)
       orig_time = UTCDateTime(float(julorig))
-      ev = basic.Event(orig_time,float(lat),float(lon),float(dep))
+      ev = basic_c_sippl.Event(orig_time,float(lat),float(lon),float(dep))
       ev.Picks = {}
       if magflag:
 	ev.info['magnitude'] = float(mag)
@@ -2121,7 +2121,7 @@ def read_JMA(infile):
   ifl.close()
 
   ev_num = 1
-  cat = basic.Catalog()
+  cat = basic_c_sippl.Catalog()
   for j in data:
     #origin time
     yr = j[1:5]
@@ -2154,7 +2154,7 @@ def read_JMA(infile):
     except ValueError:
       continue
     #define event
-    ev = basic.Event(orig_time,lat,lon,dep)
+    ev = basic_c_sippl.Event(orig_time,lat,lon,dep)
     ev.Picks = {}
     
     #magnitude

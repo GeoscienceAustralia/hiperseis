@@ -21,8 +21,8 @@ else:
 
 import obspy
 import iris
-# import basic  # Unidentified library
-# import util
+import basic_c_sippl
+import util_c_sippl
 from obspy.geodetics import gps2dist_azimuth
 from pylab import *
 from numpy import *
@@ -101,7 +101,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
   data = evfile.readlines()
   evfile.close()
 
-  sta = basic.Station(station,info_file)  # TODO: Replace with something other than unidentified library 'basic'
+  sta = basic_c_sippl.Station(station,info_file)
   stat_lat = sta.lat
   stat_lon = sta.lon
   stat_elev = sta.elev
@@ -611,6 +611,7 @@ def rf_viewer(indict,time_win=[0,35]):
   """
   shows plot of RF, interactive choice whether the trace should be kept or discarded
   """
+  from builtins import input
   dict_new = {}
   count = 1
   for j in sorted(indict.keys()):
@@ -619,7 +620,7 @@ def rf_viewer(indict,time_win=[0,35]):
     plot(xvals,indict[j]['Traces']['RF'],'k-')
     xlim(time_win)
     print("Input needed: choose (r) to reject the trace or (k) to keep it!")
-    key = raw_input()
+    key = input()
 
     if key == 'r':
       continue

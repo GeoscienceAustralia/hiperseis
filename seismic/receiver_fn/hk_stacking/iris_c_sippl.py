@@ -1,7 +1,7 @@
 #module iris
 #coding=utf-8
 
-import obspy, os, glob, basic
+import obspy, os, glob, basic_c_sippl
 from obspy.core import UTCDateTime,Stream,read
 from obspy.clients.fdsn import Client
 #from obspy.taup import taup
@@ -18,7 +18,7 @@ def read_ISC(infile,cat=False):
   inf.close()
 
   if cat:
-    bigdict = basic.Catalog() 
+    bigdict = basic_c_sippl.Catalog() 
     for line in data:
       try:
         date,time,lat,lon,dep,mag = line.strip('\n').split(None)
@@ -29,7 +29,7 @@ def read_ISC(infile,cat=False):
       yr,mn,dy = date.split('/')
       hr,min,sec = time.split(':')
       orig_time = UTCDateTime(int(yr),int(mn),int(dy),int(hr),int(min),float(sec))
-      ev = basic.Event(orig_time,float(lat),float(lon),float(dep))
+      ev = basic_c_sippl.Event(orig_time,float(lat),float(lon),float(dep))
       ev.Picks = {}
       ev.info['magnitude'] = float(mag)
       ev.info['ident'] = 'NN'
