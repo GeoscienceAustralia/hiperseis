@@ -7,7 +7,8 @@ import os
 from obspy.core import UTCDateTime
 from copy import deepcopy as cp
 from pylab import *
-import util
+import util_c_sippl
+from util_c_sippl import KM_PER_DEG
 
 def read_info(info_path,header=False):
   '''
@@ -610,10 +611,10 @@ class Catalog:
     """
     filter catalog by hypocenter distance from slab surface
     """
-    Lats,Lons,Deps = util.import_slab(model=model)
+    Lats,Lons,Deps = util_c_sippl.import_slab(model=model)
     for j in self.events.keys():
-      prof = util.get_closest_profile(self.events[j].info['event_lat'],Lats,Lons,Deps)
-      dist = util.compute_point_distance(self.events[j].info['event_lon'],self.events[j].info['event_dep'],prof,Lons)
+      prof = util_c_sippl.get_closest_profile(self.events[j].info['event_lat'],Lats,Lons,Deps)
+      dist = util_c_sippl.compute_point_distance(self.events[j].info['event_lon'],self.events[j].info['event_dep'],prof,Lons)
       if dist < dist_min:
         del self.events[j]
         continue
@@ -745,7 +746,7 @@ class Catalog:
 
     m.drawparallels(pars,labels=[1,0,0,0])
     if lock:
-      Lat,Lon,Lock = util.import_locking('/home/sippl/temp/Locking_NChile.xyz')
+      Lat,Lon,Lock = util_c_sippl.import_locking('/home/sippl/temp/Locking_NChile.xyz')
       Xs,Ys = meshgrid(Lon,Lat)
       X,Y = m(Xs,Ys)
       m.pcolor(X,Y,Lock,cmap='hot_r')
@@ -826,8 +827,8 @@ class Catalog:
       cat_new.filter(lon_max=maxlon,lon_min=minlon)
 
     if not width == 'none':
-      mxlat = centr_lat + (width/111.195)
-      mnlat = centr_lat - (width/111.195)
+      mxlat = centr_lat + (width/KM_PER_DEG)
+      mnlat = centr_lat - (width/KM_PER_DEG)
 
       cat_new.filter(lat_max=mxlat,lat_min=mnlat)
 
@@ -850,7 +851,7 @@ class Catalog:
     cat_new.filter(lon_max=mxlon,lon_min=mnlon,dep_max=mxdep)
 
     lat_mean = (array(lats)).mean()
-    fac = cos(lat_mean * pi / 180.) * 111.195
+    fac = cos(lat_mean * pi / 180.) * KM_PER_DEG
 
     lonrange = ((mxlon - mnlon)) * fac
 
@@ -859,16 +860,16 @@ class Catalog:
     figure(figsize=(16,ysize))
 
     if slab:
-      Lats, Lons, Deps = util.import_slab(model='tassara')
-      prof = util.get_closest_profile(centr_lat,Lats,Lons,Deps)
+      Lats, Lons, Deps = util_c_sippl.import_slab(model='tassara')
+      prof = util_c_sippl.get_closest_profile(centr_lat,Lats,Lons,Deps)
       plot((array(Lons)-mnlon)*fac,prof,'r-')
 
-      Lats,Lons,Deps = util.import_slab(model='slab1.0')
-      prof = util.get_closest_profile(centr_lat,Lats,Lons,Deps)
+      Lats,Lons,Deps = util_c_sippl.import_slab(model='slab1.0')
+      prof = util_c_sippl.get_closest_profile(centr_lat,Lats,Lons,Deps)
       plot((array(Lons)-mnlon)*fac,prof,'g-')
 
-      Lats,Lons,Deps = util.import_slab(model='ipoc')
-      prof = util.get_closest_profile(centr_lat,Lats,Lons,Deps)
+      Lats,Lons,Deps = util_c_sippl.import_slab(model='ipoc')
+      prof = util_c_sippl.get_closest_profile(centr_lat,Lats,Lons,Deps)
       plot((array(Lons)-mnlon)*fac,prof,'b-')
 
 
@@ -936,9 +937,9 @@ class Catalog:
     """
 
     """
-    Lats, Lons, Deps = util.import_slab(model='etopo')
-    prof = util.get_closest_profile(centr_lat,Lats,Lons,Deps)
-    fac = cos(centr_lat * pi / 180.) * 111.195   
+    Lats, Lons, Deps = util_c_sippl.import_slab(model='etopo')
+    prof = util_c_sippl.get_closest_profile(centr_lat,Lats,Lons,Deps)
+    fac = cos(centr_lat * pi / 180.) * KM_PER_DEG
 
     plot(array(Lons)*fac,prof,'k--') 
 
@@ -967,8 +968,8 @@ class Catalog:
     ysmall = min(startpoint[0],endpoint[0])
     xbig = max(startpoint[1],endpoint[1])
     xsmall = min(startpoint[1],endpoint[1])
-    dx = (xbig - xsmall) * 111.195 * cos((ybig+ysmall)/2. * pi / 180.)
-    dy = (ybig - ysmall) * 111.195
+    dx = (xbig - xsmall) * KM_PER_DEG * cos((ybig+ysmall)/2. * pi / 180.)
+    dy = (ybig - ysmall) * KM_PER_DEG
     try:
       az = (arctan(dy/(float(dx)))*180.)/pi
     except ZeroDivisionError:
@@ -992,16 +993,16 @@ class Catalog:
     angle_norm = az%90
 
     for j in range(len(lats)):
-      ev_offset_n = ((startpoint[0] - lats[j]) * 111.195) / sin(angle_norm*pi/180.)
-      ev_offset_e = (-1) * ((startpoint[1] - lons[j]) * 111.195 * cos(startpoint[0] * pi /180.)) / sin((90.-angle_norm)*pi/180.)
+      ev_offset_n = ((startpoint[0] - lats[j]) * KM_PER_DEG) / sin(angle_norm*pi/180.)
+      ev_offset_e = (-1) * ((startpoint[1] - lons[j]) * KM_PER_DEG * cos(startpoint[0] * pi /180.)) / sin((90.-angle_norm)*pi/180.)
 
       #check whether event is within profile line
       xstart = 0
       ystart = 0
-      xend = (endpoint[1] - startpoint[1]) * 111.195 * cos((endpoint[1] + startpoint[1])/2. * pi / 180.) 
-      yend = (endpoint[0] - startpoint[0]) * 111.195
-      xev = (lons[j] - startpoint[1]) * 111.195 * cos((lons[j] + startpoint[1])/2. * pi / 180.)
-      yev = (lats[j] - startpoint[0]) * 111.195
+      xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * cos((endpoint[1] + startpoint[1])/2. * pi / 180.) 
+      yend = (endpoint[0] - startpoint[0]) * KM_PER_DEG
+      xev = (lons[j] - startpoint[1]) * KM_PER_DEG * cos((lons[j] + startpoint[1])/2. * pi / 180.)
+      yev = (lats[j] - startpoint[0]) * KM_PER_DEG
 
       dist = ((yend - ystart) * xev - (xend - xstart) * yev + xend*ystart - yend*xstart) / sqrt((yend - ystart)**2 + (xend - xstart)**2)
 
@@ -1047,7 +1048,7 @@ class Catalog:
       lats.append(self.events[i].info['event_lat'])
 
     mean_lat = (array(lats)).mean()
-    fac = 111.195 * cos(mean_lat*pi/180.)
+    fac = KM_PER_DEG * cos(mean_lat*pi/180.)
 
     cat_new = cp(self)
     if not maxlat == 'none' and not minlat == 'none':
@@ -1070,24 +1071,24 @@ class Catalog:
     mxlat = (array(lats)).max()
     mnlat = (array(lats)).min()
 
-    latrange = (mxlat - mnlat) * 111.195    
+    latrange = (mxlat - mnlat) * KM_PER_DEG    
     ysize = 20 * (mxdep/latrange)
 
     figure(figsize=(16,6))
     #figure()
 
     if mag:
-      scatter(((array(lats)-mnlat)*111.195),(array(deps)*(-1)),s=array(mags)*4,facecolor='none',edgecolors='black')
+      scatter(((array(lats)-mnlat)*KM_PER_DEG),(array(deps)*(-1)),s=array(mags)*4,facecolor='none',edgecolors='black')
     else:
-      scatter(((array(lats)-mnlat)*111.195),(array(deps)*(-1)),s=0.5,facecolors='none',edgecolors='black')
+      scatter(((array(lats)-mnlat)*KM_PER_DEG),(array(deps)*(-1)),s=0.5,facecolors='none',edgecolors='black')
 
     axis('equal')
 
     ylabel('depth [km]')
     xlabel('distance [km]')
 
-    Send = (-24.75 - mnlat)*111.195
-    Nend = (-18. - mnlat)*111.195
+    Send = (-24.75 - mnlat)*KM_PER_DEG
+    Nend = (-18. - mnlat)*KM_PER_DEG
 
     print Send, Nend
 
@@ -1233,7 +1234,7 @@ class Catalog:
     """
     import numpy as np
     import subprocess
-    from util import get_cumsum,get_cumsumP,get_cumsumS
+    from util_c_sippl import get_cumsum,get_cumsumP,get_cumsumS
 
     outpath = "test_pick_class"
     cmd1 = "mkdir -p " + outpath

@@ -22,7 +22,7 @@ else:
 import obspy
 import iris
 import basic_c_sippl
-import util_c_sippl
+from util_c_sippl import KM_PER_DEG
 from obspy.geodetics import gps2dist_azimuth
 from pylab import *
 from numpy import *
@@ -173,7 +173,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
 
     distm,az,baz = gps2dist_azimuth(float(lat),float(lon),stat_lat,stat_lon)
 
-    dist = distm/(1e3 * 111.195)
+    dist = distm/(1e3 * KM_PER_DEG)
 
     bigdict[int(eid)]['Distance'] = round(dist,2)
     bigdict[int(eid)]['Azimuth'] = round(az,2)
@@ -200,7 +200,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     else:
       arr = model.get_pierce_points(float(dep),round(dist,2),phase_list='p')
 
-    pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*111.195
+    pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*KM_PER_DEG
     print('PIERCE DIST:')
     print(pierce_dist)
     bigdict[int(eid)]['Pierce_distance_P'] = round(pierce_dist,2)
@@ -340,7 +340,7 @@ def deconv_3D(indict,source_component='L',method='time'):
   
   return indict_new
 
-def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info_file='/home/sippl/info_file',
+def CCP_master(startpoint, endpoint, width, spacing, depth, v_background='ak135', info_file='/home/sippl/info_file',
                rfdicpath='/home/sippl/sandbox/RF/ALFREX/dicts_a2.5'):
   """
   fully automatic plotting of CCP stacks, selection of profile parameters (starting point, azimuth, length, width) in inout, stations selected based on width
@@ -357,8 +357,8 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
   ysmall = min(startpoint[0],endpoint[0])
   xbig = max(startpoint[1],endpoint[1])
   xsmall = min(startpoint[1],endpoint[1])
-  dx = (xbig - xsmall) * 111.195 * cos((ybig+ysmall)/2. * pi / 180.)
-  dy = (ybig - ysmall) * 111.195 
+  dx = (xbig - xsmall) * KM_PER_DEG * cos((ybig+ysmall)/2. * pi / 180.)
+  dy = (ybig - ysmall) * KM_PER_DEG
   try:
     az = (arctan(dy/(float(dx)))*180.)/pi  # Why not using atan2 here?
   except ZeroDivisionError:
@@ -415,8 +415,8 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
     angle_norm = az%90
 
     #calculate position on profile (length)
-    sta_offset_n = ((startpoint[0] - sta_lat) * 111.195) / sin(angle_norm*pi/180.)
-    sta_offset_e = (-1) * ((startpoint[1] - sta_lon) * 111.195 * cos(startpoint[0] * pi /180.)) / sin((90.-angle_norm)*pi/180.)
+    sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / sin(angle_norm*pi/180.)
+    sta_offset_e = (-1) * ((startpoint[1] - sta_lon) * KM_PER_DEG * cos(startpoint[0] * pi /180.)) / sin((90.-angle_norm)*pi/180.)
     
     """
     if abs(az-90.) > 30. and abs(az-270.) > 30.:
@@ -428,10 +428,10 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
    
     xstart = 0
     ystart = 0
-    xend = (endpoint[1] - startpoint[1]) * 111.195 * cos((endpoint[1] + startpoint[1])/2. * pi / 180.)
-    yend = (endpoint[0] - startpoint[0]) * 111.195
-    xstat = (sta_lon - startpoint[1]) * 111.195 * cos((sta_lon + startpoint[1])/2. * pi / 180.)
-    ystat = (sta_lat - startpoint[0]) * 111.195
+    xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * cos((endpoint[1] + startpoint[1])/2. * pi / 180.)
+    yend = (endpoint[0] - startpoint[0]) * KM_PER_DEG
+    xstat = (sta_lon - startpoint[1]) * KM_PER_DEG * cos((sta_lon + startpoint[1])/2. * pi / 180.)
+    ystat = (sta_lat - startpoint[0]) * KM_PER_DEG
 
     dist = ((yend - ystart) * xstat - (xend - xstart) * ystat + xend*ystart - yend*xstart) / sqrt((yend - ystart)**2 + (xend - xstart)**2)
 
@@ -1338,7 +1338,7 @@ def get_pierce(bigdict):
     dist = bigdict[i]['Distance'] 
     
     arr = model.get_pierce_points(float(dep),round(dist,2),phase_list='P')
-    pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*111.195
+    pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*KM_PER_DEG
     bigdict[i]['Pierce_distance'] = round(pierce_dist,2)
 
   return bigdict
@@ -1632,8 +1632,8 @@ def plot_events_earth(xlist,ylist,l_bound,u_bound,center=[-32.,123.]):
     #check whether list entries are in "allowed" range
     from obspy.core.util.geodetics import gps2DistAzimuth
     distm = gps2DistAzimuth(ylist[i],xlist[i],center[0],center[1])[0] 
-    print(distm / (1000. * 111.195))
-    if distm / (1000. * 111.195) > u_bound or distm / (1000. * 111.195) < l_bound:
+    print(distm / (1000. * KM_PER_DEG))
+    if distm / (1000. * KM_PER_DEG) > u_bound or distm / (1000. * KM_PER_DEG) < l_bound:
       print("discarded")
       continue
     print("In")
@@ -1641,10 +1641,10 @@ def plot_events_earth(xlist,ylist,l_bound,u_bound,center=[-32.,123.]):
     plot(x,y,'ro',markersize=6)
 
   #get circles
-  X1,Y1 = equi(m,center[1],center[0],l_bound*111.195)
+  X1,Y1 = equi(m,center[1],center[0],l_bound*KM_PER_DEG)
   X1_new,Y1_new = m(X1,Y1)
 
-  X2,Y2 = equi(m,center[1],center[0],u_bound*111.195)
+  X2,Y2 = equi(m,center[1],center[0],u_bound*KM_PER_DEG)
   X2_new,Y2_new = m(X2,Y2)
 
   plot(X1_new,Y1_new,'k--')

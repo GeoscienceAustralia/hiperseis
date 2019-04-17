@@ -17,6 +17,8 @@ from subprocess import Popen
 
 import basic_c_sippl
 
+KM_PER_DEG = 111.1949
+
 def onclick(event):
   """  
   for capturing mouse clicks on a figure 
@@ -1561,7 +1563,7 @@ def giant_phasecut(cat,stacorrfile,leng=120.,cnv=False,archive='/RAID/tipage/dat
 
     #raytracing
     nlloc.initialize('/home/sippl/sandbox/nlloc')
-    nlloc.change_input_line('/home/sippl/sandbox/nlloc',(float(cat[i]['event_lon'])-67.)*111.2*cos(float(cat[i]['event_lat'])*2*pi/360.),(float(cat[i]['event_lat'])-33.)*111.2,float(cat[i]['event_depth']))
+    nlloc.change_input_line('/home/sippl/sandbox/nlloc',(float(cat[i]['event_lon'])-67.)*KM_PER_DEG*cos(float(cat[i]['event_lat'])*2*pi/360.),(float(cat[i]['event_lat'])-33.)*KM_PER_DEG,float(cat[i]['event_depth']))
     nlloc.call_nlloc('/home/sippl/sandbox/nlloc')
     raydict = nlloc.read_output('/home/sippl/sandbox/nlloc')
 
@@ -1791,7 +1793,7 @@ def plot_recordsection(datapath,info_file='/home/sippl/info_file',eq_loc=(-30.,1
 
     #get P traveltime     
     dist_m,az,baz = obspy.core.util.geodetics.gps2DistAzimuth(sta_lat,sta_lon,eq_loc[0],eq_loc[1])
-    dist_deg = dist_m / (1000. * 111.195)
+    dist_deg = dist_m / (1000. * KM_PER_DEG)
     arr_P = model.get_travel_times(eq_loc[2],dist_deg,phase_list=['P'])[0].time 
    
     #define cut window (30 s before to 60 s after)
@@ -2011,11 +2013,11 @@ def compute_point_distance(lon,dep,prof,Lons):
 
   #build matrix from prof, Lons
   matrx = zeros([len(prof),2])
-  matrx[:,0] = (array(Lons) * 111.195 * cos(21*pi/180.))
+  matrx[:,0] = (array(Lons) * KM_PER_DEG * cos(21*pi/180.))
   matrx[:,1] = prof
 
   line = geom.LineString(matrx)
-  lon = lon * 111.195 * cos(21*pi/180.)
+  lon = lon * KM_PER_DEG * cos(21*pi/180.)
   point = geom.Point(lon,dep*(-1))
   #get sign (is it above or below?)
   lon_true = line.project(point)
@@ -2037,12 +2039,12 @@ def plot_topoprof(centr_lat,swath=0,step=1.):
   if swath == 0:
     Lats, Lons, Deps = import_slab(model='etopo')
     prof = get_closest_profile(centr_lat,Lats,Lons,Deps)
-    fac = cos(centr_lat * pi / 180.) * 111.195         
+    fac = cos(centr_lat * pi / 180.) * KM_PER_DEG
   else:
     # get central csec
     Lats, Lons, Deps = import_slab(model='etopo')
     prof = array(get_closest_profile(centr_lat,Lats,Lons,Deps))
-    fac = cos(centr_lat * pi / 180.) * 111.195    
+    fac = cos(centr_lat * pi / 180.) * KM_PER_DEG
 
     #then loop over others, count how many (for normalization)
     s_min = centr_lat - (swath * (1/fac))
