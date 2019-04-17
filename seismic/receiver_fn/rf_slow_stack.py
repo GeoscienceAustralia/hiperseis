@@ -38,8 +38,7 @@ import matplotlib.dates as mdates
 
 import matplotlib.gridspec as gridspec
 
-KM_PER_DEG = 111.1949
-
+# from rf_util import KM_PER_DEG
 
 # Definition of the simple 1D Earth model, remember each interface will give one Ps conversion
 # you can add shallow layer to study Ps conversions in sedimentary basins
