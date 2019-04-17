@@ -472,6 +472,7 @@ def CCP_master(startpoint, endpoint, width, spacing, depth, v_background='ak135'
     else:
       x,y = m(sta_lon,sta_lat)
       m.plot(x,y,'k^')
+    # end if abs(dist) <= width
 
   #normalize, then plot
   matrx_norm = (matrx / matrx_entry).transpose()
