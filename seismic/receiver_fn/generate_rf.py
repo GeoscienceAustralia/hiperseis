@@ -28,7 +28,7 @@ data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set a
                           not in EXCLUDE_STATION_CODE])
 
 stream = RFStream()
-for stream3c in tqdm(IterMultipleComponents(data, 'onset', 3)):
+for i, stream3c in enumerate(tqdm(IterMultipleComponents(data, 'onset', 3))):
     stream3c.detrend('linear').interpolate(RESAMPLE_RATE_HZ)
     stream3c.taper(TAPER_LIMIT)
     stream3c.filter('bandpass', freqmin=FILTER_BAND_HZ[0], freqmax=FILTER_BAND_HZ[1], corners=2, zerophase=True)
@@ -59,16 +59,21 @@ for stream3c in tqdm(IterMultipleComponents(data, 'onset', 3)):
     # 0.4                     0.2                                2.64
     # 0.2                     0.1                                3.73
 
+    event_id = {'event_id': i}
+
+    stream3c[0].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[0].data)}
     stream3c[0].stats.update(amax)
 #   stream3c[0].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
 #   stream3c[0].data = stream3c[0].data*(amax['amax']/np.amax(stream3c[0].data))
 
+    stream3c[1].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[1].data)}
     stream3c[1].stats.update(amax)
 #   stream3c[1].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
 #   stream3c[1].data = stream3c[0].data*(amax['amax']/np.amax(stream3c[0].data))  # Is this supposed to be zero index here?
 
+    stream3c[2].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[2].data)}
     stream3c[2].stats.update(amax)
 #   stream3c[2].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
@@ -78,9 +83,4 @@ for stream3c in tqdm(IterMultipleComponents(data, 'onset', 3)):
     stream.extend(stream3c)
 
 
-for i, rf in enumerate(stream):
-    event_id = {'event_id': i}
-    for tr in rf:
-        tr.stats.update(event_id)
-
-stream.write('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000_LQT.h5', 'H5')
+stream.write('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000_ZRT.h5', 'H5')

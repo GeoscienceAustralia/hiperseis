@@ -72,7 +72,7 @@ def coh(y, y2):
     return freq[freq > 0], coh[freq > 0]
 
 
-def rf_group_by_similarity(swipe):
+def rf_group_by_similarity(swipe, similarity_eps):
     '''
     Module to cluster waveforms by similarity
     swipe - numpy array of RF rowwise
@@ -84,15 +84,15 @@ def rf_group_by_similarity(swipe):
         n_jobs=-1, verbose=1)(map(delayed(compare_pairs), iter.combinations(swipe, 2)))
     index = list((i, j)
                  for ((i, _), (j, _)) in iter.combinations(enumerate(swipe), 2))
-#   for i in xrange(len(index)):
-#         print index[i],distance[i]
-    # First check that distance betwen points
+    # for i in xrange(len(index)):
+    #     print(index[i], distance[i])
+    # First check that distance between points
     index = np.array(index)
     distance = np.array(distance)
     matrix = np.zeros((np.amax(index)+1, 1+np.amax(index)))+np.amax(distance)
-#   print matrix[index].shape,distance.shape,index.shape
+#   print(matrix[index].shape,distance.shape,index.shape)
     matrix[index[:, 0], index[:, 1]] = distance[:]
-    clustering = DBSCAN(eps=3, min_samples=2, metric='precomputed').fit(matrix)
+    clustering = DBSCAN(eps=similarity_eps, min_samples=2, metric='precomputed').fit(matrix)
 
     return clustering.labels_
 
@@ -166,12 +166,15 @@ if __name__ == '__main__':
     Note - teleseismic cut out (35 degrees) is hardwired in remove_small_s2n
     '''
 
+    # Settings
+#    similarity_eps = 3.0
+    similarity_eps = 8.0
+
     print("Reading the input file...")
     # Input file
-    stream = rf.read_rf('DATA/7X-MA12-rf_zrt.h5', 'H5')
-
+    stream = rf.read_rf('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000_ZRT.h5', 'H5')
     print("Reading is done...")
-    # output file naming look at the end of the code
+    # output file naming --> look at the end of the code
 
     rf_type = 'LQT-Q '
     o_stream = stream.select(component='Q')
@@ -194,7 +197,7 @@ if __name__ == '__main__':
     t_stream = stream.select(component='T')
     z_stream = stream.select(component='Z')
 
-    net = o_stream[0].stats.network.encode('utf-8')
+    net = o_stream[0].stats.network
 
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     q_stream = o_stream.copy()
@@ -219,14 +222,15 @@ if __name__ == '__main__':
     out_file = rf.RFStream()
 
     for i in xrange(station_list.shape[0]):
-        print("Station ", station_list[i], i+1, " of ", station_list.shape[0])
-        traces = q_stream.select(station=station_list[i]).copy()
+        station_code = station_list[i].decode('utf-8')
+        print("Station ", station_code, i+1, " of ", station_list.shape[0])
+        traces = q_stream.select(station=station_code).copy()
 
         # we choose short RF to simplify and speed up the processing
         traces = traces.trim2(-5, 20, 'onset')
 
         # but keep original traces as they are to use them at the end
-        o_traces = o_stream.select(station=station_list[i])
+        o_traces = o_stream.select(station=station_code)
 
         swipe = []
         o_swipe = []
@@ -242,17 +246,17 @@ if __name__ == '__main__':
         print("Processing ", swipe.shape[0], " events")
         # we sue clustering technique to find similar signals
         if swipe.shape[0] > 1:
-            ind = rf_group_by_similarity(swipe)
+            ind = rf_group_by_similarity(swipe, similarity_eps)
         else:
             ind = np.array([0])
-            print(station_list[i], ' has only one trace')
+            print(station_code, ' has only one trace')
 
         num_group = np.amax(ind)
-        print("Number of detected groups: ", num_group)
+        print("Number of detected groups: ", num_group + 1)
 
 # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
 
-        for k in xrange(num_group+1):
+        for k in xrange(num_group + 1):
             # average can use weights and mean can work on masked arrays
             stacked = np.average(o_swipe[ind == k, :], axis=0)
 
@@ -291,6 +295,5 @@ if __name__ == '__main__':
     '''
 
     # Output file
-    ofile = 'DATA/' + net + '-' + rf_type.strip() + '-ma12-cleaned.h5'
-
+    ofile = '/g/data/ha3/am7399/shared/' + net + '-' + rf_type.strip() + '-cleaned.h5'
     out_file.write(ofile, 'H5')
