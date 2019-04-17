@@ -72,21 +72,23 @@ if __name__ == '__main__':
         The image is composed using triangulation. It gives good results but block median or mean must be implemented at some stage to reduce size of PDF.
     '''
 
-    stream = rf.read_rf('DATA/7X-rf_zrt.h5', 'H5')
+    stream = rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5', 'H5')
     rf_type = 'LQT-Q '
     filter_type = 'bandpass'
     freqmin = 0.03
     freqmax = 0.5
 
-#we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
+#we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward,
+# so we end up with 4 corners de facto.
 # Lets assume we have LQT orientation
-    selected_stream=stream.select(component='Q').filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
+    selected_stream=stream.select(component='Q').filter(filter_type, freqmin=freqmin, freqmax=freqmax,
+                                                        corners=2,zerophase=True).interpolate(10)
 
 
 # if none lets try ZRT
     if len(selected_stream)<=0:
-         selected_stream=stream.select(component='R').filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(10)
-
+         selected_stream=stream.select(component='R').filter(filter_type, freqmin=freqmin, freqmax=freqmax,
+                                                             corners=2,zerophase=True).interpolate(10)
          rf_type='ZRT-R '
 
     if len(selected_stream)<=0:
@@ -96,21 +98,22 @@ if __name__ == '__main__':
 
     station_list=[]
 
-    # here we collect station names but maybe ID is more appropriate in case of having the same station names in different deployments
+    # here we collect station names but maybe ID is more appropriate in case of having the same station names
+    # in different deployments
     
     for i in xrange(len(selected_stream)):
-         station_list.append(selected_stream[i].stats.station.encode('utf-8'))
-         net=selected_stream[i].stats.network.encode('utf-8')
+         station_list.append(selected_stream[i].stats.station)
+         net = selected_stream[i].stats.network
 
     pdffile = net + '-' + rf_type.strip() + '-rf-vespagrams.pdf'
 
-    exists=os.path.isfile(pdffile)
+    exists = os.path.isfile(pdffile)
 
     if exists:
          # we add the time stamp to identify the file that can be read in linux command line as date -d @number (date -d @1542926631)
          pdffile = net + '-' + rf_type.strip() + '-' + str(int(UTC.now()._get_timestamp())) + '-rf-vespagrams.pdf'
 
-    pdf=PdfPages(pdffile)
+    pdf = PdfPages(pdffile)
     pdf.attach_note(rf_type+filter_type+' '+str(freqmin)+'-'+str(freqmax)+' Hz') 
     d = pdf.infodict()
     d['Title'] = rf_type+'RF vespagrams of '+net+' network'
@@ -153,7 +156,8 @@ if __name__ == '__main__':
                 print('altered')
                 data=tr.data.copy()
                 print(data.shape,tr.stats.delta)
-                500 below corresponds to 0 with sampling rate of 100Hz
+                # 500 below corresponds to 0 with sampling rate of 100Hz
+                # TODO: !Change these array indices to be computed, not magic numbers!
                 data[500:800]=1.
                 moved.append(data)
             else:
@@ -349,8 +353,9 @@ if __name__ == '__main__':
         frame=frame+1
         print('frame',frame)
         if frame >= rows*columns:
-            cb_ax=fig.add_axes([0.25,0.98,0.5 ,0.02])
-            labels=fig.colorbar(cs,cax=cb_ax,ticks=[np.min(zi),0,np.max(zi)],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
+            cb_ax = fig.add_axes([0.25,0.98,0.5 ,0.02])
+            labels = fig.colorbar(cs, cax=cb_ax, ticks=[np.min(zi),0,np.max(zi)], orientation='horizontal',
+                                  extend='neither', extendfrac=0.00001, extendrect=True, drawedges=False)
 #           labels.set_ticks([np.min(zi),0,np.max(zi)])
 #           labels.set_ticklabels(['-','0','+'])
             cb_ax.set_xticks([np.min(zi),0,np.max(zi)])
@@ -363,12 +368,13 @@ if __name__ == '__main__':
             plt.close()
 #           plt.show()
 
-if not printed:
+    if not printed:
          cb_ax=fig.add_axes([0.25,0.95,0.5 ,0.02])
-         labels=fig.colorbar(cs,cax=cb_ax,ticks=[-1,0,1],orientation='horizontal',extend='neither',extendfrac=0.00001,extendrect=True,drawedges=False)
+         labels=fig.colorbar(cs,cax=cb_ax,ticks=[-1,0,1],orientation='horizontal',extend='neither',
+                             extendfrac=0.00001,extendrect=True,drawedges=False)
          labels.ax.set_xticklabels(['-','0','+',''])
          pdf.savefig()
          plt.close()
 
-pdf.close()
-print("No worries, mate...")
+    pdf.close()
+    print("No worries, mate...")

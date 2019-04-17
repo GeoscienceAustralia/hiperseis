@@ -60,13 +60,12 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
     print("Reading the input file...")
     # Input file
-#   stream=rf.read_rf('DATA/7X-ZRT-R-1cleaned.h5','H5')
-    stream=rf.read_rf('DATA/7X-ZRT-R-ma12-cleaned.h5','H5')
+    stream=rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5','H5')
     print("Reading is done...")
 
-    net=stream[0].stats.network.encode('utf-8')
+    net = stream[0].stats.network
     # output directory
-    out_dir=net+"-INV/"
+    out_dir = net+"-INV/"
 
     # inversion programs use 1Hz pulse width, therefore higher corner should be not lower than that
     filter_type='bandpass'
@@ -84,7 +83,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
     # here we collect station names
 
     for i in xrange(len(stream)):
-        station_list.append(stream[i].stats.station.encode('utf-8'))
+        station_list.append(stream[i].stats.station)
         group_list.append(stream[i].stats.rf_group)
 
     group_list=np.array(group_list)
