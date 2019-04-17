@@ -396,7 +396,6 @@ def apply_filters(csv_data, phase):
         print ("Final Number of P Rays = ", len(p_events), p_events[:5])
 
         np.save('P_EVENTS.npy', np.array(p_events))
-        sys.exit(100)
 
     elif phase.upper() == 'S':
 
@@ -410,7 +409,7 @@ def apply_filters(csv_data, phase):
             # only keep the rows if ray_filter_flag is 1
             csv_data = csv_data [csv_data["ray_filter_flag"] == 1 ]
 
-            # os.remove('P_EVENTS.npy')
+            os.remove('P_EVENTS.npy')
 
         else:
             print('Run P-wave clustering prior to S-wave clustering!')
