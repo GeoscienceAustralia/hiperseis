@@ -56,6 +56,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 0.2                     0.1                                3.73
 
     '''
+    from builtins import input
 
     print("Reading the input file...")
     # Input file
@@ -106,8 +107,8 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
     sstat=[]
 
 #   while station_list[estat==station_list].shape[0]==0:
-#         estat=raw_input("Station to extract: ")
-    estat=raw_input("Station to extract [All]: ")
+#         estat=input("Station to extract: ")
+    estat=input("Station to extract [All]: ")
     if station_list[estat==station_list].shape[0]==0: 
        sstat=station_list
        plot=False
