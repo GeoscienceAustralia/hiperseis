@@ -21,7 +21,7 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 
 from rf.profile import profile
-from tqdm import tqdm
+# from tqdm import tqdm
 from rf.imaging import plot_profile_map
 from rf import get_profile_boxes, iter_event_data, IterMultipleComponents
 

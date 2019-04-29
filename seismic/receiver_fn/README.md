@@ -45,12 +45,6 @@ The parameters to specify are:
  - stations to exclude if any
  - sampling rate to interpolate
 
-There is a work-around to preserve H5 header information due to a obspy library bug [!REF?].
-It was reported and will be fixed soon.
-
-The parallelized version of the same program is `generate_rf_parallel.py`.
-
-
 ## Filtering and removing bad RF
 
 There are number of ways to select good results and remove bad ones. 

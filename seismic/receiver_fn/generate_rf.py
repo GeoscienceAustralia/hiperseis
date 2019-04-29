@@ -9,12 +9,12 @@ from rf import read_rf, RFStream
 from rf import IterMultipleComponents
 # from rf.imaging import plot_profile_map
 # from rf.profile import profile
-from tqdm import tqdm
+# from tqdm import tqdm
 
 try:
     from joblib import Parallel, delayed
     parallel_available = True
-except:
+except ImportError:
     parallel_available = False
 
 # pylint: disable=invalid-name
