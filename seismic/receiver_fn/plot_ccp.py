@@ -194,22 +194,22 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
     profile_x_length, profile_y_length, length = equirectangular_size(xsmall, ysmall, xbig, ybig)
 
     # TODO: Reverse engineer the undocumented coordinate system here. Maybe zero azimuth is cartographic north? Clockwise like a compass bearing?
-    # try:
-    #     # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
-    #     profile_azimuth = (np.arctan(profile_y_length / (float(profile_x_length))) * 180.0) / np.pi
-    # except ZeroDivisionError:
-    #     profile_azimuth = 0.0
-    # #find quadrant (additive term to angle...)
-    # if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
-    #     add = 90.
-    # elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
-    #     add = 0.
-    # elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
-    #     add = 180.
-    # elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
-    #     add = 270.
-    # profile_azimuth += add
-    profile_azimuth = np.arctan2(profile_y_length, profile_x_length) * 180.0 / np.pi
+    try:
+        # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
+        profile_azimuth = (np.arctan(profile_y_length / (float(profile_x_length))) * 180.0) / np.pi
+    except ZeroDivisionError:
+        profile_azimuth = 0.0
+    #find quadrant (additive term to angle...)
+    if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
+        add = 90.
+    elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
+        add = 0.
+    elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
+        add = 180.
+    elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
+        add = 270.
+    profile_azimuth += add
+    # profile_azimuth = np.arctan2(profile_y_length, profile_x_length) * 180.0 / np.pi
 
     stn_params = {}
     angle_norm = profile_azimuth % 90
