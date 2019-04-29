@@ -33,9 +33,9 @@ if PY2:
 else:
     import pickle as pkl
 
-USE_PICKLE = False
+USE_PICKLE = True
 
-def plot_ccp(matrx, length, max_depth, spacing, ofile=None):
+def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None):
     """
     plot results of CCP stacking procedure
     """
@@ -43,8 +43,10 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None):
     tickstep_y = 25
 
     plt.figure(figsize=(16,9))
-    # plt.imshow(matrx, aspect='equal', cmap='jet', vmin=-0.15, vmax=0.15)
-    plt.imshow(matrx, aspect='equal', cmap='jet', vmin=-0.05, vmax=0.05)
+    if vlims is not None:
+        plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1])
+    else:
+        plt.imshow(matrx, aspect='equal', cmap='jet')
 
     plt.ylim([int(max_depth/spacing), 0])
 
@@ -221,6 +223,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     m.plot([x1, x2], [y1, y2], 'r--')
 
     # TODO: Precompute the station parameters for a given code, as this is the same for every trace.
+    print("Computing included stations...")
     stn_params = {}
     angle_norm = az % 90
     xstart = 0
@@ -273,6 +276,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     pbar.close()
 
     # Processing/extraction of rf_stream data
+    print("Projecting included stations to slice...")
     model = TauPyModel(model=v_background)
     pbar = tqdm(total=len(rf_stream), ascii=True)
     # TARGET_STNS = ['BS24', 'BS25', 'BS26', 'BS27', 'BS28']
@@ -322,9 +326,10 @@ if __name__ == "__main__":
     start_latlon = (-22.0, 133.0)
     end_latlon = (-19.0, 133.0)
 
-    width = 20.0
-    spacing = 2.0
-    max_depth = 150.0
+    width = 50.0
+    spacing = 1.0
+    max_depth = 200.0
+    vmin, vmax = (-0.10, 0.10)
 
     rf_file_base, _ = os.path.splitext(rf_file)
     pkl_file = rf_file_base + '.pkl'
@@ -332,6 +337,7 @@ if __name__ == "__main__":
         with open(pkl_file, 'rb') as f:
             matrix_norm, length = pkl.load(f)
     else:
+        print("Reading HDF5 file...")
         stream = rf.read_rf(rf_file, 'H5')
         matrix_norm, length = ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth)
         with open(pkl_file, 'wb') as f:
@@ -339,4 +345,4 @@ if __name__ == "__main__":
 
     if matrix_norm is not None:
         outfile = rf_file_base + '.png'
-        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=outfile)
+        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=outfile, vlims=(vmin, vmax))
