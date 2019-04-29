@@ -5,7 +5,7 @@ import os.path as path
 #inspired by tutorial at https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
 
 class DataGenerator(keras.utils.Sequence):
-    def __init__(self,list_IDs,labels,dataDir,batch_size=32,dim=(6002,),n_channels=1,n_classes=3,shuffle=True):
+    def __init__(self,list_IDs,labels,dataDir,batch_size=32,dim=(6002,),n_channels=1,n_classes=2,shuffle=True):
         #initialise data generator
         self.dim=dim
         self.batch_size=batch_size

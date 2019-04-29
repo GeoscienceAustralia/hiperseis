@@ -8,7 +8,7 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as keras
 from keras.activations import softmax
 
-num_classes=3
+num_classes=2
 
 def shakenet(pretrained_weights = None,input_size = (6002,1)):
     inputs = Input(input_size)

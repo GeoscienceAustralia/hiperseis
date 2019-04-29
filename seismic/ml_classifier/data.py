@@ -13,17 +13,13 @@ for fname in files:
 
 labels={}
 Sctr=0
-Pctr=0
 Nctr=0
 for ID in IDs:
     if ID.endswith('_S'):
         labels[ID]=0
         Sctr+=1
-    elif ID.endswith('_P'):
+else:
         labels[ID]=1
-        Pctr+=1
-    else:
-        labels[ID]=2
         Nctr+=1
 
 seed(0)
@@ -34,13 +30,13 @@ partition={}
 partition['train'],partition['val'],partition['test']=IDs[0:trainLen],IDs[trainLen:trainLen+valLen],IDs[trainLen+valLen:]
 
 
-#create ID lists for P, S, N wave test cases
+#create ID lists for S, N wave test cases
 
-inv_labels=[[],[],[]]
+inv_labels=[[],[]]
 for ID in partition['test']:
     inv_labels[labels[ID]].append(ID)
 
-print 'dataset contains '+str(Sctr)+' S waves, '+str(Pctr)+' P waves and '+str(Nctr)+' noise waveforms.'
+print 'dataset contains '+str(Sctr)+' S waves and '+str(Nctr)+' noise waveforms.'
 print 'training set contains '+str(len(partition['train']))+' waveforms and test set contains '+str(len(partition['test']))+' waveforms.'
 
 
@@ -62,11 +58,8 @@ def testGenerator(batch_size):
 def SGenerator(batch_size):
     return DataGenerator(inv_labels[0],labels,datafolder,batch_size=batch_size)
 
-def PGenerator(batch_size):
-    return DataGenerator(inv_labels[1],labels,datafolder,batch_size=batch_size)
-
 def NGenerator(batch_size):
-    return DataGenerator(inv_labels[2],labels,datafolder,batch_size=batch_size)
+    return DataGenerator(inv_labels[1],labels,datafolder,batch_size=batch_size)
 
 def getIDs(category):
     return inv_labels[category]
