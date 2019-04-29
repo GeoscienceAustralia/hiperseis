@@ -33,6 +33,7 @@ if PY2:
 else:
     import pickle as pkl
 
+USE_PICKLE = True
 
 def plot_ccp(matrx, length, max_depth, spacing, ofile=None):
     """
@@ -42,8 +43,8 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None):
     tickstep_y = 25
 
     plt.figure(figsize=(16,9))
-    # plt.imshow(matrx, aspect='equal', vmin=-0.15, vmax=0.15)
-    plt.imshow(matrx, aspect='equal', vmin=-0.05, vmax=0.05)
+    # plt.imshow(matrx, aspect='equal', cmap='jet', vmin=-0.15, vmax=0.15)
+    plt.imshow(matrx, aspect='equal', cmap='jet', vmin=-0.05, vmax=0.05)
 
     plt.ylim([int(max_depth/spacing), 0])
 
@@ -177,22 +178,23 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     dy = (ybig - ysmall) * KM_PER_DEG
     length = np.sqrt(dx**2 + dy**2)
 
-    # try:
-    #     # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
-    #     az = (np.arctan(dy / (float(dx))) * 180.0) / np.pi
-    # except ZeroDivisionError:
-    #     az = 0.0
-    # #find quadrant (additive term to angle...)
-    # if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
-    #     add = 90.
-    # elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
-    #     add = 0.
-    # elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
-    #     add = 180.
-    # elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
-    #     add = 270.
-    # az += add
-    az = np.arctan2(dy, dx) * 180.0 / np.pi
+    # TODO: Reverse engineer the undocumented coordinate system here. Maybe zero azimuth is cartographic north? Clockwise like a compass bearing?
+    try:
+        # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
+        az = (np.arctan(dy / (float(dx))) * 180.0) / np.pi
+    except ZeroDivisionError:
+        az = 0.0
+    #find quadrant (additive term to angle...)
+    if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
+        add = 90.
+    elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
+        add = 0.
+    elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
+        add = 180.
+    elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
+        add = 270.
+    az += add
+    # az = np.arctan2(dy, dx) * 180.0 / np.pi
 
     #set velocity model (other options can be added) 
     if v_background == 'ak135':
@@ -222,16 +224,22 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     angle_norm = az % 90
     model = TauPyModel(model=v_background)
     pbar = tqdm(total=len(rf_stream), ascii=True)
+    # TARGET_STNS = ['BS24', 'BS25', 'BS26', 'BS27', 'BS28']
     for tr in rf_stream:
         pbar.update()
         stat_code = tr.stats.station
+        # if stat_code not in TARGET_STNS:
+        #     continue
         pbar.set_description("{} event {}".format(stat_code, tr.stats.event_id))
         sta_lat = tr.stats.station_latitude
         sta_lon = tr.stats.station_longitude
 
+        # TODO: Replace obfuscated trigonometric calculations here with vector geometry and projection calculations.
+        #       (eliminate the trig and improve code transparency)
+
         #calculate position on profile (length)
-        sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / np.sin(angle_norm*np.pi/180.)
-        sta_offset_e = -((startpoint[1] - sta_lon) * KM_PER_DEG * np.cos(startpoint[0] * np.pi / 180.)) / np.sin((90.-angle_norm)*np.pi/180.)
+        sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / np.sin(angle_norm * np.pi/180.)
+        sta_offset_e = -((startpoint[1] - sta_lon) * KM_PER_DEG * np.cos(startpoint[0] * np.pi / 180.)) / np.sin((90. - angle_norm) * np.pi / 180.)
 
         xstart = 0
         ystart = 0
@@ -240,9 +248,11 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
         xstat = (sta_lon - startpoint[1]) * KM_PER_DEG * np.cos((sta_lon + startpoint[1])/2. * np.pi / 180.)
         ystat = (sta_lat - startpoint[0]) * KM_PER_DEG
 
+        # Assumption to make sense of undocumented code: "dist" here is the orthogonal Euclidean distance of the station from the profile line.
         dist = ((yend - ystart) * xstat - (xend - xstart) * ystat + xend*ystart - yend*xstart) / np.sqrt((yend - ystart)**2 + (xend - xstart)**2)
 
         if abs(dist) <= width:
+        # if True:
             if abs(az - 90.) > 30. and abs(az - 270.) > 30.:
                 n_correction = dist / np.tan(angle_norm*np.pi/180.)
                 sta_offset = sta_offset_n + n_correction
@@ -252,6 +262,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
             # end if
             
             if sta_offset > 0 and sta_offset < length:
+            # if True:
                 pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
                 #add station to CCP stack
                 x, y = m(sta_lon, sta_lat)
@@ -308,7 +319,7 @@ if __name__ == "__main__":
 
     rf_file_base, _ = os.path.splitext(rf_file)
     pkl_file = rf_file_base + '.pkl'
-    if os.path.exists(pkl_file):
+    if os.path.exists(pkl_file) and USE_PICKLE:
         with open(pkl_file, 'rb') as f:
             matrix_norm, length = pkl.load(f)
     else:
