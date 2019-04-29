@@ -14,10 +14,9 @@ import numpy as np
 #[fname] - file where picks are stored
 
 class pickLoader:
-    def __init__(self,dataset,irisclient,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt'):
+    def __init__(self,dataset,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt'):
         self.f=open(fname,'r')
         self.fds=dataset
-        self.ic=irisclient
 
     def __iter__(self):
         return self    
@@ -27,7 +26,7 @@ class pickLoader:
         if not pick:
             self.f.close()
             raise StopIteration
-        data=_getData(pick,self.fds,self.ic)
+        data=_getData(pick,self.fds)
         if data is not None:
             ret=[pick,data]
         else:
@@ -35,12 +34,10 @@ class pickLoader:
         return ret
 
 class pickLoaderRand:
-    def __init__(self,dataset,irisclient,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt'):
+    def __init__(self,dataset,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt'):
         #read the whole file
         with open(fname,'r') as f:
             self.picks = [line.split() for line in f]
-        self.fds=dataset
-        self.ic=irisclient
     
     def getPick(self,ind): #get the pick on line number ind
         pick=self.picks[ind]
@@ -53,7 +50,7 @@ class pickLoaderRand:
 
 
 #global method to get a waveform from a pick
-def _getData(pick,fds,ic):
+def _getData(pick,fds):
     if pick[0][0]=='#': #this line is commented
         return None
     net=pick[6]
@@ -82,23 +79,12 @@ def _getData(pick,fds,ic):
                 raise Exception('no appropriate horizontal channels found')
 
             stream=fds.get_waveforms(net,st,chan[2],chan[3],starttime,endtime)
-            wf1=stream[0]
-            if wf1.stats['channel'][-1] == '1':
-                wf2=fds.get_waveforms(net,st,chan[2],chan[3][0:-1]+'2',starttime,endtime)[0]
-                wfz=fds.get_waveforms(net,st,chan[2],chan[3][0:-1]+'Z',starttime,endtime)[0]
-
-                stream=Stream(traces=[wfz,wf1,wf2])
-                #this is a necessary hack - ASDF inventories do not have orientation data for
-                #the 1 and 2 channels so it is impossible to rotate to ZNE accurately. Therefore
-                #we get station data off IRIS. All the OA installations have ZNE data provided,
-                #so only the permanent stations need to rotate 12->NE, and being permanent they should
-                #have metadata available through IRIS.
-                IRISinv=ic.get_stations(network=net,station=st,channel=ch,level="channel")
-                stream=stream.rotate(method="->ZNE",inventory=IRISinv)
-                
-            else:
-                wf2=fds.get_waveforms(net,st,chan[2],chan[3][0:-1]+'E',starttime,endtime)[0]
-                stream=Stream(traces=[wf1,wf2])
+            wf1=stream[0]            
+            wf2=fds.get_waveforms(net,st,chan[2],chan[3][0:-1]+'E',starttime,endtime)[0]
+            #this is a hack and wrong. Hopefully 1 and 2 are only off from N and E by a few degrees max
+            wf1.id=wf1.id[:-1]+'N'
+            wf2.id=wf2.id[:-1]+'E'
+            stream=Stream(traces=[wf1,wf2])
         except Exception as e:
             #handle data missing
             print >> sys.stderr, e

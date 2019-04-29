@@ -2,12 +2,10 @@
 import sys
 sys.path.append('/g/data1a/ha3/rakib/seismic/pst/passive-seismic')
 from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from autopicks import pickLoader
+from autopicks_approx import pickLoader
 
-from obspy.clients.fdsn.client import Client
-ic=Client("IRIS")
 fds=FederatedASDFDataSet('/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', variant='db', use_json_db=True, logger=None)
-pickIt=pickLoader(fds,ic)
+pickIt=pickLoader(fds)
 
 import numpy as np
 
