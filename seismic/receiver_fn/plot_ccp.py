@@ -33,7 +33,7 @@ if PY2:
 else:
     import pickle as pkl
 
-USE_PICKLE = True
+USE_PICKLE = False
 
 def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None):
     """
@@ -169,23 +169,36 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
     return indx_x, indx_y
 
 
-def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_background='ak135'):
-    # rf_stream should be of type rf.rfstream.RFStream
-
+def bounding_box(startpoint, endpoint):
     ybig = max(startpoint[0], endpoint[0])
     ysmall = min(startpoint[0], endpoint[0])
     xbig = max(startpoint[1], endpoint[1])
     xsmall = min(startpoint[1], endpoint[1])
-    dx = (xbig - xsmall) * KM_PER_DEG * np.cos((ybig + ysmall) / 2. * np.pi / 180.)
-    dy = (ybig - ysmall) * KM_PER_DEG
-    length = np.sqrt(dx**2 + dy**2)
+    return (xsmall, ysmall, xbig, ybig)
+
+
+def equirectangular_size(xsmall, ysmall, xbig, ybig):
+    # This length calculation uses the forward equirectangular projection (https://en.wikipedia.org/wiki/Equirectangular_projection)
+    # (See also https://www.movable-type.co.uk/scripts/latlong.html)
+    profile_x_length = (xbig - xsmall) * KM_PER_DEG * np.cos((ybig + ysmall) / 2. * np.pi / 180.)
+    profile_y_length = (ybig - ysmall) * KM_PER_DEG
+    # This is an approximate great circle arc length
+    length = np.sqrt(profile_x_length**2 + profile_y_length**2)
+
+    return profile_x_length, profile_y_length, length
+
+
+def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
+
+    xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
+    profile_x_length, profile_y_length, length = equirectangular_size(xsmall, ysmall, xbig, ybig)
 
     # TODO: Reverse engineer the undocumented coordinate system here. Maybe zero azimuth is cartographic north? Clockwise like a compass bearing?
     # try:
     #     # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
-    #     az = (np.arctan(dy / (float(dx))) * 180.0) / np.pi
+    #     profile_azimuth = (np.arctan(profile_y_length / (float(profile_x_length))) * 180.0) / np.pi
     # except ZeroDivisionError:
-    #     az = 0.0
+    #     profile_azimuth = 0.0
     # #find quadrant (additive term to angle...)
     # if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
     #     add = 90.
@@ -195,37 +208,11 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     #     add = 180.
     # elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
     #     add = 270.
-    # az += add
-    az = np.arctan2(dy, dx) * 180.0 / np.pi
+    # profile_azimuth += add
+    profile_azimuth = np.arctan2(profile_y_length, profile_x_length) * 180.0 / np.pi
 
-    #set velocity model (other options can be added) 
-    if v_background == 'ak135':
-        b_lay = [0., 20., 35., 77.5, 120., 165., 210., 260.,
-                 310., 360., 410., 460., 510., 560., 610., 660.]
-        vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
-              8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
-        vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
-              4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
-        vmod = (b_lay, vp, vs)
-
-    #first set up a matrix
-    matrx, depstep, lenstep = setup_ccp_profile(length, spacing, max_depth)
-
-    # snapshot of initial matrix
-    matrx_entry = matrx.copy()
-
-    #create map plot file
-    m = basemap.Basemap(projection='merc', urcrnrlat=ybig + 1.0, urcrnrlon=xbig + 1.0,
-                        llcrnrlon=xsmall - 1.0, llcrnrlat=ysmall - 1.0, resolution='i')
-    m.drawcoastlines()
-    x1, y1 = m(startpoint[1], startpoint[0])
-    x2, y2 = m(endpoint[1], endpoint[0])
-    m.plot([x1, x2], [y1, y2], 'r--')
-
-    # TODO: Precompute the station parameters for a given code, as this is the same for every trace.
-    print("Computing included stations...")
     stn_params = {}
-    angle_norm = az % 90
+    angle_norm = profile_azimuth % 90
     xstart = 0
     ystart = 0
     xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * np.cos((endpoint[1] + startpoint[1])/2. * np.pi / 180.)
@@ -247,7 +234,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
             within_dist_tolerance = (abs(dist) <= width)
             within_profile_length = False
             if within_dist_tolerance:
-                if abs(az - 90.) > 30. and abs(az - 270.) > 30.:
+                if abs(profile_azimuth - 90.) > 30. and abs(profile_azimuth - 270.) > 30.:
                     #calculate position on profile (length)
                     sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / np.sin(angle_norm * np.pi/180.)
                     n_correction = dist / np.tan(angle_norm*np.pi/180.)
@@ -263,17 +250,54 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
             if within_dist_tolerance and within_profile_length:
                 pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
                 #add station to CCP stack
-                x, y = m(sta_lon, sta_lat)
-                m.plot(x, y, 'ro')
+                x, y = bm(sta_lon, sta_lat)
+                bm.plot(x, y, 'ro')
                 stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
             else:
-                x, y = m(sta_lon, sta_lat)
-                m.plot(x, y, 'k^')
+                x, y = bm(sta_lon, sta_lat)
+                bm.plot(x, y, 'k^')
                 stn_params[stat_code] = None
             # end if
         # end if
     # end for
     pbar.close()
+
+    return stn_params
+
+
+def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_background='ak135'):
+    # rf_stream should be of type rf.rfstream.RFStream
+
+    xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
+    _, _, length = equirectangular_size(xsmall, ysmall, xbig, ybig)
+
+    #set velocity model (other options can be added) 
+    if v_background == 'ak135':
+        b_lay = [0., 20., 35., 77.5, 120., 165., 210., 260.,
+                 310., 360., 410., 460., 510., 560., 610., 660.]
+        vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
+              8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
+        vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
+              4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
+        vmod = (b_lay, vp, vs)
+
+    #first set up a matrix
+    profile_mesh, depstep, lenstep = setup_ccp_profile(length, spacing, max_depth)
+
+    # snapshot of initial matrix
+    mesh_entries = profile_mesh.copy()
+
+    #create map plot file
+    m = basemap.Basemap(projection='merc', urcrnrlat=ybig + 1.0, urcrnrlon=xbig + 1.0,
+                        llcrnrlon=xsmall - 1.0, llcrnrlat=ysmall - 1.0, resolution='i')
+    m.drawcoastlines()
+    x1, y1 = m(startpoint[1], startpoint[0])
+    x2, y2 = m(endpoint[1], endpoint[0])
+    m.plot([x1, x2], [y1, y2], 'r--')
+
+    # TODO: Precompute the station parameters for a given code, as this is the same for every trace.
+    print("Computing included stations...")
+    stn_params = ccp_compute_station_params(rf_stream, startpoint, endpoint, width, m)
 
     # Processing/extraction of rf_stream data
     print("Projecting included stations to slice...")
@@ -291,11 +315,11 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
             # Updating of matrix
             sta_offset = stn_params[stat_code]['sta_offset']
             try:
-                azi = tr.stats.back_azimuth
+                back_azi = tr.stats.back_azimuth
                 arr_p = model.get_travel_times(tr.stats.event_depth, tr.stats.distance, phase_list=['P'])
                 inc_p = arr_p[0].incident_angle
-                matrx, matrx_entry = add_ccp_trace(tr, inc_p, matrx, matrx_entry, vmod,
-                                                    depstep, lenstep, sta_offset, azi)
+                profile_mesh, mesh_entries = add_ccp_trace(tr, inc_p, profile_mesh, mesh_entries, vmod,
+                                                           depstep, lenstep, sta_offset, back_azi)
             except IndexError as err:
                 print(err)
                 pass
@@ -307,9 +331,9 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     plt.show()
     plt.close()
 
-    if not np.all(matrx_entry[:] == 0):
+    if not np.all(mesh_entries[:] == 0):
         #normalize, then plot
-        matrx_norm = (matrx / matrx_entry).transpose()
+        matrx_norm = (profile_mesh / mesh_entries).transpose()
         return matrx_norm, length
     else:
         return None, 0
