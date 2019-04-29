@@ -154,7 +154,8 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
     return indx_x, indx_y
 
 
-def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_background='ak135'):
+def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_background='ak135',
+                 output_file=None):
     # rf_stream should be of type rf.rfstream.RFStream
 
     ybig = max(startpoint[0], endpoint[0])
@@ -270,8 +271,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     if not np.all(matrx_entry[:] == 0):
         #normalize, then plot
         matrx_norm = (matrx / matrx_entry).transpose()
-        # plot_ccp(matrx_norm, length, max_depth, spacing, ofile='test.pdf')
-        plot_ccp(matrx_norm, length, max_depth, spacing)
+        plot_ccp(matrx_norm, length, max_depth, spacing, output_file)
     else:
         plt.show()
         plt.close()
@@ -288,4 +288,6 @@ if __name__ == "__main__":
     # end_latlon = (-18.5, 139.0)
     start_latlon = (-22.0, 133.0)
     end_latlon = (-19.0, 133.0)
-    ccp_generate(stream, start_latlon, end_latlon, width=50.0, spacing=1.0, max_depth=200.0)
+    outfile = '/local/p25/am7399/tmp/OA-ZRT-R-cleaned.png'
+    ccp_generate(stream, start_latlon, end_latlon, width=50.0, spacing=1.0, max_depth=200.0,
+                 output_file=outfile)

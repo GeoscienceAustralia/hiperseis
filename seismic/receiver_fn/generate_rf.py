@@ -89,7 +89,7 @@ if RUN_PARALLEL:
 
 # Read source data
 print("Reading source file...")
-data = read_rf('/local/p25/am7399/tmp/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot.h5', 'H5')
+data = read_rf('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot.h5', 'H5')
 #data = read_rf('/local/p25/am7399/tmp/OA_event_waveforms_for_rf_20171001T120000-20171015T120000.h5', 'H5')
 
 # exclude bad stations
@@ -113,6 +113,6 @@ print("Generating output file...")
 stream = RFStream()
 for rf in rf_streams:
     stream.extend(rf)
+stream.write('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot_ZRT.h5', 'H5')
 #stream.write('/local/p25/am7399/tmp/test_rf_ZRT.h5', 'H5')
-stream.write('/local/p25/am7399/tmp/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot_ZRT.h5', 'H5')
 print("SUCCESS!")

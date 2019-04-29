@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     print("Reading the input file...")
     # Input file
-    stream = rf.read_rf('/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20171001T120000-20171015T120000_ZRT.h5', 'H5')
+    stream = rf.read_rf('/local/p25/am7399/tmp/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot_ZRT.h5', 'H5')
     print("Reading is done...")
     # output file naming --> look at the end of the code
 
@@ -295,5 +295,5 @@ if __name__ == '__main__':
     '''
 
     # Output file
-    ofile = '/g/data/ha3/am7399/shared/' + net + '-' + rf_type.strip() + '-cleaned.h5'
+    ofile = '/local/p25/am7399/tmp/' + net + '-' + rf_type.strip() + '-cleaned.h5'
     out_file.write(ofile, 'H5')
