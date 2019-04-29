@@ -33,7 +33,7 @@ if PY2:
 else:
     import pickle as pkl
 
-USE_PICKLE = True
+USE_PICKLE = False
 
 def plot_ccp(matrx, length, max_depth, spacing, ofile=None):
     """
@@ -179,22 +179,22 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     length = np.sqrt(dx**2 + dy**2)
 
     # TODO: Reverse engineer the undocumented coordinate system here. Maybe zero azimuth is cartographic north? Clockwise like a compass bearing?
-    try:
-        # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
-        az = (np.arctan(dy / (float(dx))) * 180.0) / np.pi
-    except ZeroDivisionError:
-        az = 0.0
-    #find quadrant (additive term to angle...)
-    if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
-        add = 90.
-    elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
-        add = 0.
-    elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
-        add = 180.
-    elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
-        add = 270.
-    az += add
-    # az = np.arctan2(dy, dx) * 180.0 / np.pi
+    # try:
+    #     # Why not using atan2 here? Then we wouldn't need to "find quadrant" block below.
+    #     az = (np.arctan(dy / (float(dx))) * 180.0) / np.pi
+    # except ZeroDivisionError:
+    #     az = 0.0
+    # #find quadrant (additive term to angle...)
+    # if startpoint[0] >= endpoint[0] and startpoint[1] < endpoint[1]:
+    #     add = 90.
+    # elif startpoint[0] < endpoint[0] and startpoint[1] <= endpoint[1]:
+    #     add = 0.
+    # elif startpoint[0] > endpoint[0] and startpoint[1] >= endpoint[1]:
+    #     add = 180.
+    # elif startpoint[0] <= endpoint[0] and startpoint[1] > endpoint[1]:
+    #     add = 270.
+    # az += add
+    az = np.arctan2(dy, dx) * 180.0 / np.pi
 
     #set velocity model (other options can be added) 
     if v_background == 'ak135':
@@ -220,8 +220,59 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
 
-    # Processing/extraction of rf_stream data
+    # TODO: Precompute the station parameters for a given code, as this is the same for every trace.
+    stn_params = {}
     angle_norm = az % 90
+    xstart = 0
+    ystart = 0
+    xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * np.cos((endpoint[1] + startpoint[1])/2. * np.pi / 180.)
+    yend = (endpoint[0] - startpoint[0]) * KM_PER_DEG
+    pbar = tqdm(total=len(rf_stream), ascii=True)
+    for tr in rf_stream:
+        pbar.update()
+        stat_code = tr.stats.station
+        pbar.set_description("Station {}".format(stat_code))
+        if stat_code not in stn_params:
+            # TODO: Replace obfuscated trigonometric calculations here with vector geometry and projection calculations.
+            #       (eliminate the trig and improve code transparency)
+            sta_lat = tr.stats.station_latitude
+            sta_lon = tr.stats.station_longitude
+            xstat = (sta_lon - startpoint[1]) * KM_PER_DEG * np.cos((sta_lon + startpoint[1])/2. * np.pi / 180.)
+            ystat = (sta_lat - startpoint[0]) * KM_PER_DEG
+            # Assumption to make sense of undocumented code: "dist" here is the orthogonal Euclidean distance of the station from the profile line.
+            dist = ((yend - ystart) * xstat - (xend - xstart) * ystat + xend*ystart - yend*xstart) / np.sqrt((yend - ystart)**2 + (xend - xstart)**2)
+            within_dist_tolerance = (abs(dist) <= width)
+            within_profile_length = False
+            if within_dist_tolerance:
+                if abs(az - 90.) > 30. and abs(az - 270.) > 30.:
+                    #calculate position on profile (length)
+                    sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / np.sin(angle_norm * np.pi/180.)
+                    n_correction = dist / np.tan(angle_norm*np.pi/180.)
+                    sta_offset = sta_offset_n + n_correction
+                else:
+                    sta_offset_e = -((startpoint[1] - sta_lon) * KM_PER_DEG * np.cos(startpoint[0] * np.pi / 180.)) / np.sin((90. - angle_norm) * np.pi / 180.)
+                    e_correction = dist / np.tan((90 - angle_norm)*np.pi/180.)
+                    sta_offset = sta_offset_e - e_correction
+                # end if
+                within_profile_length = (sta_offset > 0 and sta_offset < length)
+            # end if
+            
+            if within_dist_tolerance and within_profile_length:
+                pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
+                #add station to CCP stack
+                x, y = m(sta_lon, sta_lat)
+                m.plot(x, y, 'ro')
+                stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
+            else:
+                x, y = m(sta_lon, sta_lat)
+                m.plot(x, y, 'k^')
+                stn_params[stat_code] = None
+            # end if
+        # end if
+    # end for
+    pbar.close()
+
+    # Processing/extraction of rf_stream data
     model = TauPyModel(model=v_background)
     pbar = tqdm(total=len(rf_stream), ascii=True)
     # TARGET_STNS = ['BS24', 'BS25', 'BS26', 'BS27', 'BS28']
@@ -231,61 +282,19 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
         # if stat_code not in TARGET_STNS:
         #     continue
         pbar.set_description("{} event {}".format(stat_code, tr.stats.event_id))
-        sta_lat = tr.stats.station_latitude
-        sta_lon = tr.stats.station_longitude
 
-        # TODO: Replace obfuscated trigonometric calculations here with vector geometry and projection calculations.
-        #       (eliminate the trig and improve code transparency)
-
-        #calculate position on profile (length)
-        sta_offset_n = ((startpoint[0] - sta_lat) * KM_PER_DEG) / np.sin(angle_norm * np.pi/180.)
-        sta_offset_e = -((startpoint[1] - sta_lon) * KM_PER_DEG * np.cos(startpoint[0] * np.pi / 180.)) / np.sin((90. - angle_norm) * np.pi / 180.)
-
-        xstart = 0
-        ystart = 0
-        xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * np.cos((endpoint[1] + startpoint[1])/2. * np.pi / 180.)
-        yend = (endpoint[0] - startpoint[0]) * KM_PER_DEG
-        xstat = (sta_lon - startpoint[1]) * KM_PER_DEG * np.cos((sta_lon + startpoint[1])/2. * np.pi / 180.)
-        ystat = (sta_lat - startpoint[0]) * KM_PER_DEG
-
-        # Assumption to make sense of undocumented code: "dist" here is the orthogonal Euclidean distance of the station from the profile line.
-        dist = ((yend - ystart) * xstat - (xend - xstart) * ystat + xend*ystart - yend*xstart) / np.sqrt((yend - ystart)**2 + (xend - xstart)**2)
-
-        if abs(dist) <= width:
-        # if True:
-            if abs(az - 90.) > 30. and abs(az - 270.) > 30.:
-                n_correction = dist / np.tan(angle_norm*np.pi/180.)
-                sta_offset = sta_offset_n + n_correction
-            else:
-                e_correction = dist / np.tan((90 - angle_norm)*np.pi/180.)
-                sta_offset = sta_offset_e - e_correction
-            # end if
-            
-            if sta_offset > 0 and sta_offset < length:
-            # if True:
-                pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
-                #add station to CCP stack
-                x, y = m(sta_lon, sta_lat)
-                m.plot(x, y, 'ro')
-
-                # Updating of matrix
-                try:
-                    azi = tr.stats.back_azimuth
-                    arr_p = model.get_travel_times(tr.stats.event_depth, tr.stats.distance, phase_list=['P'])
-                    inc_p = arr_p[0].incident_angle
-                    matrx, matrx_entry = add_ccp_trace(tr, inc_p, matrx, matrx_entry, vmod,
-                                                       depstep, lenstep, sta_offset, azi)
-                except IndexError as err:
-                    print(err)
-                    pass
-            else:
-                x, y = m(sta_lon, sta_lat)
-                m.plot(x, y, 'k^')
-            # end if
-
-        else:
-            x, y = m(sta_lon, sta_lat)
-            m.plot(x, y, 'k^')
+        if stn_params[stat_code] is not None:
+            # Updating of matrix
+            sta_offset = stn_params[stat_code]['sta_offset']
+            try:
+                azi = tr.stats.back_azimuth
+                arr_p = model.get_travel_times(tr.stats.event_depth, tr.stats.distance, phase_list=['P'])
+                inc_p = arr_p[0].incident_angle
+                matrx, matrx_entry = add_ccp_trace(tr, inc_p, matrx, matrx_entry, vmod,
+                                                    depstep, lenstep, sta_offset, azi)
+            except IndexError as err:
+                print(err)
+                pass
         # end if
     # end for
     pbar.close()
