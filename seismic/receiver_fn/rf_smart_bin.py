@@ -89,7 +89,7 @@ def rf_group_by_similarity(swipe, similarity_eps):
     # First check that distance between points
     index = np.array(index)
     distance = np.array(distance)
-    matrix = np.zeros((np.amax(index)+1, 1+np.amax(index)))+np.amax(distance)
+    matrix = np.zeros((np.amax(index) + 1, 1 + np.amax(index))) + np.amax(distance)
 #   print(matrix[index].shape,distance.shape,index.shape)
     matrix[index[:, 0], index[:, 1]] = distance[:]
     clustering = DBSCAN(eps=similarity_eps, min_samples=2, metric='precomputed').fit(matrix)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
         o_swipe = np.array(o_swipe)
 
         print("Processing ", swipe.shape[0], " events")
-        # we sue clustering technique to find similar signals
+        # we use clustering technique to find similar signals
         if swipe.shape[0] > 1:
             ind = rf_group_by_similarity(swipe, similarity_eps)
         else:

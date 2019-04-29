@@ -78,11 +78,11 @@ def timestamp_filename(fname, t0, t1):
 
 @click.command()
 @click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Path to input inventory file corresponding to waveform file, '
-              'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
+              help=r'Path to input inventory file corresponding to waveform file, '
+              r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Path to input h5 waveform file from which to extract traces for RF analysis, '
-              'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\).h5".')
+              help=r'Path to input h5 waveform file from which to extract traces for RF analysis, '
+              r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\).h5".')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
               'If file already exists, it will be loaded, otherwise it will be created. '

@@ -5,6 +5,9 @@ transect through Central Australia", Technophysics 676 (2016), pp.56-69,
 DOI https://doi.org/10.1016/j.tecto.2016.03.031*
 
 This code adapted from Christian Sippl's original code.
+
+Workflow:
+    prepare_rf_data.py --> generate_rf.py --> rf_smart_bin.py --> plot_ccp.py (this script)
 """
 
 # Remove this after initial development
@@ -77,9 +80,9 @@ def get_amplitude(trace, time, rf_offset=5.0):
 
 def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_offset, az):
     """
-    project amplitudes from all RFs in indict onto the profile...2D rot: 
+    project amplitudes from all RFs onto the profile...2D rot:
     """
-    #start at zero: inc_p given, inc_s needs to be calculated  
+    # start at zero: inc_p given, inc_s needs to be calculated  
     h = 0
     c = 0
     d = 0
@@ -95,16 +98,16 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
         else:
             h = depstep[j] - depstep[j - 1]
             h_tot += h
-        #check in velocity model
+        # check in velocity model
         for f in range(len(vmod[0])):
             if vmod[0][f] < depstep[j]:
                 d = f
 
-        #derive P incidence from previous P incidence, then current S from current P
+        # derive P incidence from previous P incidence, then current S from current P
         inc_p = np.arcsin((np.sin(inc_p * np.pi/180.) * vmod[1][d]) / vmod[1][c]) * 180 / np.pi
         inc_s = np.arcsin((np.sin(inc_p * np.pi/180.) * vmod[2][d]) / vmod[1][d]) * 180 / np.pi
 
-        #horizontal distances (attention: still needs azimuth normalization)
+        # horizontal distances (attention: still needs azimuth normalization)
         rpz += h*np.tan(inc_p/180.*np.pi)
         rsz += h*np.tan(inc_s/180.*np.pi)
 
@@ -114,12 +117,12 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
         tsz += h/np.cos(inc_s/180.*np.pi) * (1/vmod[2][d])
 
         td = np.sin(inc_p/180.*np.pi)/vmod[1][d] * rd
-        #check if velocity jump, if yes get new angles
+        # check if velocity jump, if yes get new angles
         tps = tsz + td - tpz
 
         amp = get_amplitude(trace, tps)
 
-        #project, put into correct bin in matrix
+        # project, put into correct bin in matrix
         xsz = rsz * np.cos(az * np.pi / 180.)  # relative to station
         indx_x, indx_y = matrx_lookup(xsz, sta_offset, h_tot, depstep, lenstep)
 
@@ -288,6 +291,6 @@ if __name__ == "__main__":
     # end_latlon = (-18.5, 139.0)
     start_latlon = (-22.0, 133.0)
     end_latlon = (-19.0, 133.0)
-    outfile = '/local/p25/am7399/tmp/OA-ZRT-R-cleaned.png'
+    outfile = 'seismic/receiver_fn/DATA/OA-ZRT-R-cleaned.png'
     ccp_generate(stream, start_latlon, end_latlon, width=50.0, spacing=1.0, max_depth=200.0,
                  output_file=outfile)

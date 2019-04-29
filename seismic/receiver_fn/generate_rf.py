@@ -29,6 +29,15 @@ EXCLUDE_STATION_CODE = ['MIJ2', 'MIL2']
 RUN_PARALLEL = True
 
 def generate_rf(i, stream3c):
+    """Generate receiver function for a single 3-channel stream.
+
+    :param i: The event id
+    :type i: int
+    :param stream3c: Stream with 3 components of trace data
+    :type stream3c: rf.RFStream
+    :return: Stream containing receiver function
+    :rtype: rf.RFStream
+    """
     stream3c.detrend('linear').interpolate(RESAMPLE_RATE_HZ)
     stream3c.taper(TAPER_LIMIT)
     stream3c.filter('bandpass', freqmin=FILTER_BAND_HZ[0], freqmax=FILTER_BAND_HZ[1], corners=2, zerophase=True)
@@ -64,19 +73,16 @@ def generate_rf(i, stream3c):
     stream3c[0].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[0].data)}
     stream3c[0].stats.update(amax)
-#   stream3c[0].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
 #   stream3c[0].data = stream3c[0].data*(amax['amax']/np.amax(stream3c[0].data))
 
     stream3c[1].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[1].data)}
     stream3c[1].stats.update(amax)
-#   stream3c[1].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
 #   stream3c[1].data = stream3c[0].data*(amax['amax']/np.amax(stream3c[0].data))  # Is this supposed to be zero index here?
 
     stream3c[2].stats.update(event_id)
     amax = {'amax': np.amax(stream3c[2].data)}
     stream3c[2].stats.update(amax)
-#   stream3c[2].filter('bandpass', freqmin=0.03, freqmax=1.00, corners=2, zerophase=True)
 #   stream3c[2].data = stream3c[0].data*(amax['amax']/np.amax(stream3c[0].data))  # Is this supposed to be zero index here?
 
     stream3c.trim2(TRIM_START_TIME_SEC, TRIM_END_TIME_SEC, 'onset')
