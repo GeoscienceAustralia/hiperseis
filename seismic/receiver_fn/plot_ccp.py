@@ -45,9 +45,10 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
 
     plt.figure(figsize=(16,9))
     if vlims is not None:
-        plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1])
+        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1])
     else:
-        plt.imshow(matrx, aspect='equal', cmap='jet')
+        im = plt.imshow(matrx, aspect='equal', cmap='jet')
+    plt.colorbar(im)
 
     plt.ylim([int(max_depth/spacing), 0])
 
