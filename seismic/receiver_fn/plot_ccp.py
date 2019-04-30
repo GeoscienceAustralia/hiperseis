@@ -177,11 +177,11 @@ def bounding_box(startpoint, endpoint):
     return (xsmall, ysmall, xbig, ybig)
 
 
-def equirectangular_size(xsmall, ysmall, xbig, ybig):
-    # This length calculation uses the forward equirectangular projection (https://en.wikipedia.org/wiki/Equirectangular_projection)
+def equirectangular_projection(x0, y0, x1, y1):
+    # This length calculation appears to use the forward equirectangular projection (https://en.wikipedia.org/wiki/Equirectangular_projection)
     # (See also https://www.movable-type.co.uk/scripts/latlong.html)
-    profile_x_length = (xbig - xsmall) * KM_PER_DEG * np.cos((ybig + ysmall) / 2. * np.pi / 180.)
-    profile_y_length = (ybig - ysmall) * KM_PER_DEG
+    profile_x_length = (x1 - x0) * KM_PER_DEG * np.cos((y1 + y0) / 2. * np.pi / 180.)
+    profile_y_length = (y1 - y0) * KM_PER_DEG
     # This is an approximate great circle arc length
     length = np.sqrt(profile_x_length**2 + profile_y_length**2)
 
@@ -191,7 +191,7 @@ def equirectangular_size(xsmall, ysmall, xbig, ybig):
 def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
 
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
-    profile_x_length, profile_y_length, length = equirectangular_size(xsmall, ysmall, xbig, ybig)
+    profile_x_length, profile_y_length, length = equirectangular_projection(xsmall, ysmall, xbig, ybig)
 
     # TODO: Reverse engineer the undocumented coordinate system here. Maybe zero azimuth is cartographic north? Clockwise like a compass bearing?
     try:
@@ -215,8 +215,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
     angle_norm = profile_azimuth % 90
     xstart = 0
     ystart = 0
-    xend = (endpoint[1] - startpoint[1]) * KM_PER_DEG * np.cos((endpoint[1] + startpoint[1])/2. * np.pi / 180.)
-    yend = (endpoint[0] - startpoint[0]) * KM_PER_DEG
+    xend, yend, _ = equirectangular_projection(startpoint[1], startpoint[0], endpoint[1], endpoint[0])
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -227,8 +226,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
             #       (eliminate the trig and improve code transparency)
             sta_lat = tr.stats.station_latitude
             sta_lon = tr.stats.station_longitude
-            xstat = (sta_lon - startpoint[1]) * KM_PER_DEG * np.cos((sta_lon + startpoint[1])/2. * np.pi / 180.)
-            ystat = (sta_lat - startpoint[0]) * KM_PER_DEG
+            xstat, ystat, _ = equirectangular_projection(startpoint[1], startpoint[0], sta_lon, sta_lat)
             # Assumption to make sense of undocumented code: "dist" here is the orthogonal Euclidean distance of the station from the profile line.
             dist = ((yend - ystart) * xstat - (xend - xstart) * ystat + xend*ystart - yend*xstart) / np.sqrt((yend - ystart)**2 + (xend - xstart)**2)
             within_dist_tolerance = (abs(dist) <= width)
@@ -269,7 +267,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     # rf_stream should be of type rf.rfstream.RFStream
 
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
-    _, _, length = equirectangular_size(xsmall, ysmall, xbig, ybig)
+    _, _, length = equirectangular_projection(xsmall, ysmall, xbig, ybig)
 
     #set velocity model (other options can be added) 
     if v_background == 'ak135':
@@ -295,7 +293,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
 
-    # TODO: Precompute the station parameters for a given code, as this is the same for every trace.
+    # Precompute the station parameters for a given code, as this is the same for every trace.
     print("Computing included stations...")
     stn_params = ccp_compute_station_params(rf_stream, startpoint, endpoint, width, m)
 
