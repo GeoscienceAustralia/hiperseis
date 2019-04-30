@@ -110,7 +110,7 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
 #    lonlat = [133.88, -23.69]
     # Approx. centroid of OA
     lonlat = [137.00, -19.50]
-    min_dist_deg = 30
+    min_dist_deg = 15
     max_dist_deg = 90
 
     inventory = read_inventory(inventory_file)

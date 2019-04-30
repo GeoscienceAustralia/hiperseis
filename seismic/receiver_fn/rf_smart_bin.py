@@ -140,14 +140,14 @@ def knive(swipe, k_level1, sn_level2):
     return knive < k_level, sn > sn_level
 
 
-def remove_small_s2n(stream, ratio):
+def remove_small_s2n(stream, ratio, teleseismic_cutout):
     noise = stream.slice2(-5, -2, 'onset')
     signal = stream.slice2(-1, 2, 'onset')
     newstream = rf.RFStream()
     for i in xrange(len(stream)):
         rms = np.sqrt(
             np.mean(np.square(signal[i].data)))/np.sqrt(np.mean(np.square(noise[i].data)))
-        if rms > ratio and stream[i].stats.distance > 35.:
+        if rms > ratio and stream[i].stats.distance > teleseismic_cutout:
             newstream.append(stream[i])
     return newstream
 
@@ -163,12 +163,15 @@ if __name__ == '__main__':
        should be applied to use this technique
     3. knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout
        should be applied to use this technique
-    Note - teleseismic cut out (35 degrees) is hardwired in remove_small_s2n
     '''
 
     # Settings
 #    similarity_eps = 3.0
     similarity_eps = 8.0
+
+    min_snr = 1.5
+    # teleseismic cut out (35 degrees) for remove_small_s2n
+    min_teleseismic_dist = 35.0
 
     print("Reading the input file...")
     # Input file
@@ -189,7 +192,7 @@ if __name__ == '__main__':
 
     # first lets just remove plainly bad data
     print("Number of traces before S/N cut out is: ", len(o_stream))
-    o_stream = remove_small_s2n(o_stream, 1.5)
+    o_stream = remove_small_s2n(o_stream, min_snr, min_teleseismic_dist)
     print("Number of traces after S/N cut out is: ", len(o_stream))
 
     # then accumulate secondary components
