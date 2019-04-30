@@ -16,6 +16,7 @@ Workflow:
 import os
 import sys
 import numpy as np
+from future.utils import iteritems
 
 import click
 import obspy
@@ -33,9 +34,9 @@ if PY2:
 else:
     import pickle as pkl
 
-USE_PICKLE = False
+USE_PICKLE = True
 
-def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None):
+def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None):
     """
     plot results of CCP stacking procedure
     """
@@ -55,6 +56,14 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None):
 
     plt.xticks(range(0, int(length/spacing), int(tickstep_x/spacing)), range(0, int(length), tickstep_x))
     plt.yticks(range(0, int(max_depth/spacing), int(tickstep_y/spacing)), range(0, int(max_depth), tickstep_y))
+
+    if metadata is not None:
+        for stn, meta in iteritems(metadata):
+            if meta is None:
+                continue
+            x = meta['sta_offset']
+            y = -1
+            plt.text(x, y, stn, horizontalalignment='center', verticalalignment='bottom', fontsize=12)
 
     if ofile:
         plt.savefig(ofile, dpi=300)
@@ -452,9 +461,9 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     if not np.all(mesh_entries[:] == 0):
         #normalize, then plot
         matrx_norm = (profile_mesh / mesh_entries).transpose()
-        return matrx_norm, length
+        return matrx_norm, length, stn_params
     else:
-        return None, 0
+        return None, 0, stn_params
 
 
 # ---------------- MAIN ----------------
@@ -477,14 +486,14 @@ if __name__ == "__main__":
     pkl_file = rf_file_base + '.pkl'
     if os.path.exists(pkl_file) and USE_PICKLE:
         with open(pkl_file, 'rb') as f:
-            matrix_norm, length = pkl.load(f)
+            matrix_norm, length, stn_params = pkl.load(f)
     else:
         print("Reading HDF5 file...")
         stream = rf.read_rf(rf_file, 'H5')
-        matrix_norm, length = ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth)
+        matrix_norm, length, stn_params = ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth)
         with open(pkl_file, 'wb') as f:
-            pkl.dump((matrix_norm, length), f, pkl.HIGHEST_PROTOCOL)
+            pkl.dump((matrix_norm, length, stn_params), f, pkl.HIGHEST_PROTOCOL)
 
     if matrix_norm is not None:
         outfile = rf_file_base + '.png'
-        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=outfile, vlims=(vmin, vmax))
+        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=outfile, vlims=(vmin, vmax), metadata=stn_params)
