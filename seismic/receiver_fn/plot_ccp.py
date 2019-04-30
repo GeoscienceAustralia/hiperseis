@@ -159,8 +159,8 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
     """
     distance_offset = sta_offset - xsz # because zero is in the north
 
-    diff_x = 999.0
-    diff_y = 999.0
+    diff_x = 9999.0
+    diff_y = 9999.0
     indx_x = 0
     indx_y = 0
 
@@ -480,7 +480,7 @@ if __name__ == "__main__":
     width = 40.0
     spacing = 1.0
     max_depth = 200.0
-    vmin, vmax = (-0.10, 0.10)
+    vmin, vmax = (-0.15, 0.15)
 
     rf_file_base, _ = os.path.splitext(rf_file)
     pkl_file = rf_file_base + '.pkl'

@@ -22,15 +22,17 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, early_exit=
     if os.path.exists(cat_file):
         catalog = read_events(cat_file)
     else:
+        min_magnitude = 5.5
+        max_magnitude = 6.5
         client = Client('ISC')
         kwargs = {'starttime': starttime, 'endtime': endtime, 
                   'latitude': lonlat[1], 'longitude': lonlat[0],
-                  # we can use distances from 15 degrees, see Levin et al.
                   'minradius': distance_range[0], 'maxradius': distance_range[1],
-                  'minmagnitude': 5.5, 'maxmagnitude': 6.5}
+                  'minmagnitude': min_magnitude, 'maxmagnitude': max_magnitude}
         print("Following parameters for earthquake extraction will be used:")
-        print('starttime', starttime, 'endtime', endtime, 'latitude', lonlat[1], 'longitude', 
-              lonlat[0], 'minradius: 15', 'maxradius: 90', 'minmagnitude: 5.5', 'maxmagnitude : 6.5')
+        print('starttime', starttime, 'endtime', endtime, 'latitude', lonlat[1], 'longitude',
+              lonlat[0], 'minradius', distance_range[0], 'maxradius', distance_range[1],
+              'minmagnitude', min_magnitude, 'maxmagnitude', max_magnitude)
         catalog = client.get_events(**kwargs)
         catalog.write(cat_file, 'QUAKEML')
         print("Catalog loaded")
