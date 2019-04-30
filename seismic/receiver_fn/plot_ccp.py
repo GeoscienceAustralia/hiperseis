@@ -188,7 +188,126 @@ def equirectangular_projection(x0, y0, x1, y1):
     return profile_x_length, profile_y_length, length
 
 
-def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
+def bearing(p1, p2):
+    """Compute bearing (forward azimuth) in degrees from p1 to p2.
+
+    Math reference: https://www.movable-type.co.uk/scripts/latlong.html
+
+    :param p1: (latitude, longitude) in degrees
+    :type p1: tuple(float, float)
+    :param p2: (latitude, longitude) in degrees
+    :type p2: tuple(float, float)
+    """
+    p1_rad = (p1[0]*np.pi/180.0, p1[1]*np.pi/180.0)
+    p2_rad = (p2[0]*np.pi/180.0, p2[1]*np.pi/180.0)
+    delta_long = p2_rad[1] - p1_rad[1]
+    y = np.sin(delta_long)*np.cos(p2_rad[0])
+    x = np.cos(p1_rad[0]) * np.sin(p2_rad[0]) - np.sin(p1_rad[0]) * np.cos(p2_rad[0]) * np.cos(delta_long)
+    b = np.arctan2(y, x)
+    b = b * 180.0 / np.pi
+    b = (b + 360.0) % 360.0
+    return b
+
+
+def angular_distance(p1, p2):
+    """Compute the angular distance (in degrees) between two points p1 and p2 using Haversine formula.
+
+    Math reference: https://www.movable-type.co.uk/scripts/latlong.html
+
+    :param p1: (latitude, longitude) in degrees
+    :type p1: tuple(float, float)
+    :param p2: (latitude, longitude) in degrees
+    :type p2: tuple(float, float)
+    """
+    p1_rad = (p1[0]*np.pi/180.0, p1[1]*np.pi/180.0)
+    p2_rad = (p2[0]*np.pi/180.0, p2[1]*np.pi/180.0)
+    delta_lat = p2_rad[0] - p1_rad[0]
+    delta_long = p2_rad[1] - p1_rad[1]
+    sin_dlat = np.sin(0.5*delta_lat)
+    sin_dlong = np.sin(0.5*delta_long)
+    a = sin_dlat*sin_dlat + np.cos(p1_rad[0]) * np.cos(p2_rad[0]) * sin_dlong * sin_dlong
+    a = np.clip(a, 0.0, 1.0)
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
+    c = c * 180.0 / np.pi
+    return c
+
+
+def cross_along_track_distance(p1, p2, p3):
+    """Compute the cross-track distance and the along-track distance of p3 in relation to great circle from p1 to p2.
+
+    Math reference: https://www.movable-type.co.uk/scripts/latlong.html
+
+    :param p1: (latitude, longitude) in degrees
+    :type p1: tuple(float, float)
+    :param p2: (latitude, longitude) in degrees
+    :type p2: tuple(float, float)
+    :param p3: (latitude, longitude) in degrees
+    :type p3: tuple(float, float)
+    """
+    delta_13 = angular_distance(p1, p3) * np.pi / 180.0
+    theta_13 = bearing(p1, p3) * np.pi / 180.0
+    theta_12 = bearing(p1, p2) * np.pi / 180.0
+    ct_angle = np.arcsin(np.sin(delta_13) * np.sin(theta_13 - theta_12))
+    at_angle = np.arccos(np.cos(delta_13) / np.cos(ct_angle))
+    ct_angle = ct_angle * 180.0 / np.pi
+    at_angle = at_angle * 180.0 / np.pi
+    return (ct_angle * KM_PER_DEG, at_angle * KM_PER_DEG)
+
+
+def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
+    """Determines which stations are between startpoint and endpoint great circle profile line,
+       and within *width* distance of that profile line. Generates a dictionary of distance
+       along profile line (*sta_offset*) and orthogonal distance from profile line (*dist*).
+       For stations outside the region of interest, dictionary has the value None.
+
+    :param rf_stream: RFStreams whose stations will be processed.
+    :type rf_stream: rf.rfstream.RFStream
+    :param startpoint: (latitude, longitude) in degrees of the profile line start point.
+    :type startpoint: tuple(float, float)
+    :param endpoint: (latitude, longitude) in degrees of the profile line end point.
+    :type endpoint: tuple(float, float)
+    :param width: Width of ROI in km to either side of the profile line.
+    :type width: float
+    :param bm: Optional basemap upon which to plot stations coded according to whether they are within the ROI.
+    :type bm: mpl_toolkits.basemap.Basemap
+    :return: Dictionary keyed by station code containing distances relative to profile line, or
+        None if station is outside the ROI.
+    :rtype: dict
+    """
+    stn_params = {}
+    pbar = tqdm(total=len(rf_stream), ascii=True)
+    for tr in rf_stream:
+        pbar.update()
+        stat_code = tr.stats.station
+        pbar.set_description("Station {}".format(stat_code))
+        if stat_code not in stn_params:
+            sta_lat = tr.stats.station_latitude
+            sta_lon = tr.stats.station_longitude
+            length = angular_distance(startpoint, endpoint) * KM_PER_DEG
+            (dist, sta_offset) = cross_along_track_distance(startpoint, endpoint, (sta_lat, sta_lon))
+            within_dist_tolerance = (abs(dist) <= width)
+            within_profile_length = (sta_offset > 0 and sta_offset < length)
+
+            if within_dist_tolerance and within_profile_length:
+                pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
+                if bm is not None:
+                    x, y = bm(sta_lon, sta_lat)
+                    bm.plot(x, y, 'ro')
+                stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
+            else:
+                if bm is not None:
+                    x, y = bm(sta_lon, sta_lat)
+                    bm.plot(x, y, 'k^')
+                stn_params[stat_code] = None
+            # end if
+        # end if
+    # end for
+    pbar.close()
+
+    return stn_params
+
+
+def ccp_compute_station_params_legacy(rf_stream, startpoint, endpoint, width, bm):
 
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
     profile_x_length, profile_y_length, length = equirectangular_projection(xsmall, ysmall, xbig, ybig)
@@ -244,7 +363,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm):
                 # end if
                 within_profile_length = (sta_offset > 0 and sta_offset < length)
             # end if
-            
+
             if within_dist_tolerance and within_profile_length:
                 pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
                 #add station to CCP stack
@@ -295,6 +414,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
 
     # Precompute the station parameters for a given code, as this is the same for every trace.
     print("Computing included stations...")
+    # stn_params = ccp_compute_station_params_legacy(rf_stream, startpoint, endpoint, width, m)
     stn_params = ccp_compute_station_params(rf_stream, startpoint, endpoint, width, m)
 
     # Processing/extraction of rf_stream data
@@ -348,7 +468,7 @@ if __name__ == "__main__":
     start_latlon = (-22.0, 133.0)
     end_latlon = (-19.0, 133.0)
 
-    width = 50.0
+    width = 40.0
     spacing = 1.0
     max_depth = 200.0
     vmin, vmax = (-0.10, 0.10)
