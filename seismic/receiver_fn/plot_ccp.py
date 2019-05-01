@@ -16,7 +16,7 @@ Example usage:
         /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-T_CCP_stack_BS24-CF24_2km_spacing.png
 """
 
-# pylint: disable=too-many-locals,too-many-arguments
+# pylint: disable=too-many-locals,too-many-arguments,invalid-name
 
 import os
 import numpy as np
@@ -312,6 +312,10 @@ def cross_along_track_distance(p1, p2, p3):
     theta_12 = bearing(p1, p2) * np.pi / 180.0
     ct_angle = np.arcsin(np.sin(delta_13) * np.sin(theta_13 - theta_12))
     at_angle = np.arccos(np.cos(delta_13) / np.cos(ct_angle))
+    # If bearing from p1 to p3 is more than 90 degrees from bearing to p2, then the along-track angle
+    # is negative.
+    if np.abs(theta_13 - theta_12) > np.pi/2.0:
+        at_angle = -at_angle
     ct_angle = ct_angle * 180.0 / np.pi
     at_angle = at_angle * 180.0 / np.pi
     return (ct_angle * KM_PER_DEG, at_angle * KM_PER_DEG)
@@ -338,6 +342,8 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
     :rtype: dict
     """
     stn_params = {}
+    length = angular_distance(startpoint, endpoint) * KM_PER_DEG
+    print("Profile length = {} km".format(length))
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -346,10 +352,9 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
         if stat_code not in stn_params:
             sta_lat = tr.stats.station_latitude
             sta_lon = tr.stats.station_longitude
-            length = angular_distance(startpoint, endpoint) * KM_PER_DEG
             (dist, sta_offset) = cross_along_track_distance(startpoint, endpoint, (sta_lat, sta_lon))
             within_dist_tolerance = (abs(dist) <= width)
-            within_profile_length = (sta_offset > 0 and sta_offset < length)
+            within_profile_length = (sta_offset >= 0 and sta_offset <= length)
 
             if within_dist_tolerance and within_profile_length:
                 pbar.write("Station " + stat_code + " included: (offset, dist) = ({}, {})".format(sta_offset, dist))
@@ -360,7 +365,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
             else:
                 if bm is not None:
                     x, y = bm(sta_lon, sta_lat)
-                    bm.plot(x, y, 'k^')
+                    bm.plot(x, y, '^', color='#808080')
                 stn_params[stat_code] = None
             # end if
         # end if
@@ -427,6 +432,10 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
+    parallels = np.arange(np.floor(ysmall), np.ceil(ybig), 1)
+    m.drawparallels(parallels, color="#a0a0a0", labels=[1, 1, 0, 0])
+    meridians = np.arange(np.floor(xsmall), np.ceil(xbig), 1)
+    m.drawmeridians(meridians, rotation=45, color="#a0a0a0", labels=[0, 0, 1, 1])
 
     # Precompute the station parameters for a given code, as this is the same for every trace.
     print("Computing included stations...")
@@ -530,7 +539,7 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
             sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
             median_samples = sc[len(sc)//2]
             plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
-                     metadata=stn_params, title=title + ' [sample density]')
+                     metadata=stn_params, title=title + ' [sample density]' if title else None)
 
 
 # ---------------- MAIN ----------------
