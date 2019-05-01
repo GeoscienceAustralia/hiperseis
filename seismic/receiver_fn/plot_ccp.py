@@ -8,10 +8,13 @@ This code adapted from Christian Sippl's original code.
 
 Workflow:
     prepare_rf_data.py --> generate_rf.py --> rf_smart_bin.py --> plot_ccp.py (this script)
-"""
 
-# Remove this after initial development
-# pylint: skip-file
+Example usage:
+    python seismic/receiver_fn/plot_ccp.py --start-latlon -19.5 133.0 --end-latlon -19.5 140.0 --width 120 \
+        --channels T --stacked-scale 0.3 --title "Network OA CCP T-stacking (profile BS24-CF24)" \
+        /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-cleaned.h5 \
+        /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-T_CCP_stack_BS24-CF24_2km_spacing.png
+"""
 
 import os
 import sys
@@ -25,35 +28,33 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 import rf
 
-from rf_util import KM_PER_DEG
+from seismic.receiver_fn.rf_util import KM_PER_DEG
 from tqdm import tqdm
 
-PY2 = sys.version_info[0] < 3
-if PY2:
-    import cPickle as pkl
-else:
-    import pickle as pkl
 
-USE_PICKLE = True
-
-def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None):
+def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None):
     """
     plot results of CCP stacking procedure
     """
     tickstep_x = 50
     tickstep_y = 25
 
-    plt.figure(figsize=(16,9))
+    plt.figure(figsize=(16, 9))
+    interpolation = 'bilinear'
     if vlims is not None:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1])
+        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1], interpolation=interpolation)
     else:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet')
-    plt.colorbar(im)
+        im = plt.imshow(matrx, aspect='equal', cmap='jet', interpolation=interpolation)
+    cb = plt.colorbar(im)
+    cb.set_label('Stacked amplitude (arb. units)')
+
+    if title is not None:
+        plt.title(title)
 
     plt.ylim([int(max_depth/spacing), 0])
 
-    plt.xlabel('distance [km]')
-    plt.ylabel('depth [km]') 
+    plt.xlabel('Distance (km)')
+    plt.ylabel('Depth (km)')
 
     plt.xticks(range(0, int(length/spacing), int(tickstep_x/spacing)), range(0, int(length), tickstep_x))
     plt.yticks(range(0, int(max_depth/spacing), int(tickstep_y/spacing)), range(0, int(max_depth), tickstep_y))
@@ -62,9 +63,13 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
         for stn, meta in iteritems(metadata):
             if meta is None:
                 continue
-            x = meta['sta_offset']
-            y = -1
-            plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center', verticalalignment='bottom', fontsize=12)
+            # x = meta['sta_offset']
+            # y = -1
+            # th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
+            #               verticalalignment='bottom', fontsize=8)
+            # txt_handles.append(th)
+
+    plt.axis('tight')
 
     if ofile:
         plt.savefig(ofile, dpi=300)
@@ -392,7 +397,8 @@ def ccp_compute_station_params_legacy(rf_stream, startpoint, endpoint, width, bm
     return stn_params
 
 
-def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_background='ak135'):
+def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, channels=['R'], v_background='ak135',
+                 station_map_file=None):
     # rf_stream should be of type rf.rfstream.RFStream
 
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
@@ -415,8 +421,9 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     mesh_entries = profile_mesh.copy()
 
     #create map plot file
-    m = basemap.Basemap(projection='merc', urcrnrlat=ybig + 1.0, urcrnrlon=xbig + 1.0,
-                        llcrnrlon=xsmall - 1.0, llcrnrlat=ysmall - 1.0, resolution='i')
+    expand_width = 1.0 + width/KM_PER_DEG
+    m = basemap.Basemap(projection='merc', urcrnrlat=ybig + expand_width, urcrnrlon=xbig + expand_width,
+                        llcrnrlon=xsmall - expand_width, llcrnrlat=ysmall - expand_width, resolution='i')
     m.drawcoastlines()
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])
@@ -436,8 +443,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
         stat_code = tr.stats.station
         pbar.set_description("{} event {}".format(stat_code, tr.stats.event_id))
 
-        # Only want to use 'R' component for CCP stacking
-        if tr.stats.channel[-1] == 'R' and stn_params[stat_code] is not None:
+        if tr.stats.channel[-1] in channels and stn_params[stat_code] is not None:
             # Updating of matrix
             sta_offset = stn_params[stat_code]['sta_offset']
             try:
@@ -457,8 +463,20 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
     # end for
     pbar.close()
 
-    # Show basemap plot
-    plt.show()
+    # Plot parameters on the map
+    ax = plt.gca()
+    plt.text(0.01, 0.98, 'Start = {} deg'.format(str(startpoint)), verticalalignment='top',
+             transform=ax.transAxes, fontsize=8)
+    plt.text(0.01, 0.93, 'End = {} deg'.format(str(endpoint)), verticalalignment='top',
+             transform=ax.transAxes, fontsize=8)
+    plt.text(0.01, 0.88, 'Width = {} km'.format(str(width)), verticalalignment='top',
+             transform=ax.transAxes, fontsize=8)
+
+    # Show or save basemap plot
+    if station_map_file is None:
+        plt.show()
+    else:
+        plt.savefig(station_map_file, dpi=300)
     plt.close()
 
     if not np.all(mesh_entries[:] == 0):
@@ -471,42 +489,61 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, v_b
 
 # ---------------- MAIN ----------------
 @click.command()
-@click.option('--rf-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Path to receiver function (RF) input file')
-def main(rf_file):
+@click.option('--start-latlon', nargs=2, type=float, required=True,
+    help='Start coordinates of the profile line as latitude longitude (degrees), using space as separator, e.g. -22 133')
+@click.option('--end-latlon', nargs=2, type=float, required=True,
+    help='End coordinates of the profile line as latitude longitude (degrees), using space as separator, e.g. -19 140')
+@click.option('--width', type=float, default=100.0, help='Width of the strip around the profile line (km)')
+@click.option('--spacing', type=float, default=2.0,
+    help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
+@click.option('--max-depth', type=float, default=200.0, help='Maximum depth of slice below the profile line (km)')
+@click.option('--stacked-scale', type=float, default=0.15,
+    help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
+@click.option('--channels', type=str, default='R', help='Comma separated list of channels to use for stacking, e.g. R,T')
+@click.option('--title', type=str, help='Title text applied to the plots.')
+@click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
+def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, stacked_scale, channels, title=None):
     # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_smart_bin.py
-    # rf_file = 'seismic/receiver_fn/DATA/OA-ZRT-R-cleaned.h5'
 
     # start_latlon = (-21.5, 133.0)
     # end_latlon = (-18.5, 139.0)
-    start_latlon = (-22.0, 133.0)
-    end_latlon = (-19.0, 133.0)
+    # OA western boundary
+    # start_latlon = (-22.0, 133.0)
+    # end_latlon = (-19.0, 133.0)
+    # OA central latitude
+    # start_latlon = (-19.5, 133.0)
+    # end_latlon = (-19.5, 140.0)
 
-    width = 40.0
-    spacing = 1.0
-    max_depth = 200.0
-    vmin, vmax = (-0.15, 0.15)
+    # width = 120.0
+    # spacing = 2.0
+    # max_depth = 200.0
 
-    rf_file_base, _ = os.path.splitext(rf_file)
-    pkl_file = rf_file_base + '.pkl'
-    if os.path.exists(pkl_file) and USE_PICKLE:
-        with open(pkl_file, 'rb') as f:
-            matrix_norm, sample_density, length, stn_params = pkl.load(f)
-    else:
-        print("Reading HDF5 file...")
-        stream = rf.read_rf(rf_file, 'H5')
-        matrix_norm, sample_density, length, stn_params = ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth)
-        with open(pkl_file, 'wb') as f:
-            pkl.dump((matrix_norm, sample_density, length, stn_params), f, pkl.HIGHEST_PROTOCOL)
+    channels = channels.split(',')
+
+    # Range of stacked amplitude for imshow to get best contrast
+    vmin, vmax = (-stacked_scale, stacked_scale)
+
+    output_file_base, ext = os.path.splitext(output_file)
+    if ext != ".png":
+        output_file += ".png"
+    print("Reading HDF5 file...")
+    stream = rf.read_rf(rf_file, 'H5')
+    matrix_norm, sample_density, length, stn_params = ccp_generate(stream, start_latlon, end_latlon,
+        width=width, spacing=spacing, max_depth=max_depth, channels=channels, station_map_file=output_file_base + '_MAP.png')
 
     if matrix_norm is not None:
-        outfile = rf_file_base + '.png'
-        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=outfile, vlims=(vmin, vmax), metadata=stn_params)
+        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=(vmin, vmax), metadata=stn_params,
+                 title=title)
         if sample_density is not None:
-            sample_density_file = rf_file_base + '_SAMPLE_DENSITY.png'
-            plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, metadata=stn_params)
+            sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
+            # Use median of number of events per station to set the scale range.
+            sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
+            median_samples = sc[len(sc)//2]
+            plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
+                     metadata=stn_params, title=title + ' [sample density]')
 
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
