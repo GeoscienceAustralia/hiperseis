@@ -489,7 +489,8 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 # ---------------- MAIN ----------------
 @click.command()
 @click.option('--start-latlon', nargs=2, type=float, required=True,
-    help='Start coordinates of the profile line as latitude longitude (degrees), using space as separator, e.g. -22 133')
+    help='Start coordinates of the profile line as latitude longitude (degrees),'
+         ' using space as separator, e.g. -22 133')
 @click.option('--end-latlon', nargs=2, type=float, required=True,
     help='End coordinates of the profile line as latitude longitude (degrees), using space as separator, e.g. -19 140')
 @click.option('--width', type=float, default=100.0, help='Width of the strip around the profile line (km)')
@@ -498,7 +499,8 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 @click.option('--max-depth', type=float, default=200.0, help='Maximum depth of slice below the profile line (km)')
 @click.option('--stacked-scale', type=float, default=0.15,
     help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
-@click.option('--channels', type=str, default='R', help='Comma separated list of channels to use for stacking, e.g. R,T')
+@click.option('--channels', type=str, default='R',
+    help='Comma separated list of channels to use for stacking, e.g. R,T')
 @click.option('--title', type=str, help='Title text applied to the plots.')
 @click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
@@ -515,9 +517,9 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
         output_file += ".png"
     print("Reading HDF5 file...")
     stream = rf.read_rf(rf_file, 'H5')
-    matrix_norm, sample_density, length, stn_params = ccp_generate(stream, start_latlon, end_latlon,
-        width=width, spacing=spacing, max_depth=max_depth, channels=channels,
-        station_map_file=output_file_base + '_MAP.png')
+    matrix_norm, sample_density, length, stn_params = \
+        ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
+                     channels=channels, station_map_file=output_file_base + '_MAP.png')
 
     if matrix_norm is not None:
         plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=(vmin, vmax), metadata=stn_params,
