@@ -381,44 +381,55 @@ def apply_filters(csv_data, phase):
                                     gt=time.mktime(time.strptime(filters['excl_start_date'].ix[i], ('%Y-%M-%d'))),
                                     lt=time.mktime(time.strptime(filters['excl_end_date'].ix[i],   ('%Y-%M-%d'))))
 
+        print("After FILTER.csv the CSV size=", csv_data.shape)
 
-    # Other filter: remove shallow event originDepth<0.01KM?
+    # Add Other filter?
 
+######### Code blocks For S wave filter
     # Save P-wave events to file to use as quality reference for S-wave picks
     if phase.upper() == 'P':
-        p_events = {}
-        for n in list(set(csv_data['net'].values)):
-            sub = csv_data[csv_data['net'] == n]
-            for s in list(set(sub['sta'].values)):
-                sub = sub[sub['sta'] == s]
-                p_events[n+':'+s] = np.array(list(set(sub['#eventID'].values)))
-#        p_events = np.array(list(set(csv_data['#eventID'].values)))
-        np.save('P_EVENTS.npy', p_events)
+        p_events = []
+        for index, row in csv_data.iterrows():
+            p_ray_key = "%s_%s_%s"%(row['net'],row['sta'], row['#eventID'])
+            p_events.append(p_ray_key)
+
+        print ("Final Number of P Rays = ", len(p_events), p_events[:5])
+
+        np.save('P_EVENTS.npy', np.array(p_events))
+
     elif phase.upper() == 'S':
-#        s_events = np.array(list(set(csv_data['#eventID'].values)))
+
         if os.path.exists('P_EVENTS.npy'):
-            p_events = np.load('P_EVENTS.npy')[()]
+            p_events = np.load('P_EVENTS.npy')
+            print("Total number of P-Rays = %s" % len(p_events), p_events[:5])
+
+            csv_data["ray_filter_flag"] = csv_data.apply(
+                lambda x: is_ray_in("%s_%s_%s"%(x.net,x.sta, x['#eventID']), p_events), axis=1)
+
+            # only keep the rows if ray_filter_flag is 1
+            csv_data = csv_data [csv_data["ray_filter_flag"] == 1 ]
+
+            os.remove('P_EVENTS.npy')
+
         else:
             print('Run P-wave clustering prior to S-wave clustering!')
-            raise Exception("Cannot filter S-wave picks to P-wave picks.")
-        for n in list(set(csv_data['net'].values)):
-            sub = csv_data[csv_data['net'] == n]
-            for s in list(set(sub['sta'].values)):
-                sub = sub[sub['sta'] == s]
-                for S_ID in np.array(list(set(sub['#eventID'].values))):
-                    if n+':'+s not in p_events.keys():
-                        S_bool = (csv_data['net']==n)*(csv_data['sta']==s)
-                        csv_data = csv_data[S_bool == False]
-                    elif S_ID not in p_events[n+':'+s]:
-                        S_bool = (csv_data['net']==n)*(csv_data['sta']==s)*(csv_data['#eventID']==S_ID)
-                        csv_data = csv_data[S_bool == False]
-#        for S_ID in s_events:
-#            S_bool = csv_data['#eventID'] == S_ID
-#            if S_ID not in p_events:
-#                csv_data = csv_data[S_bool == False]
-        os.remove('P_EVENTS.npy')
+            raise Exception("Cannot filter S-wave picks to P-wave picks, because P_EVENTS.npy NOT found")
+
+
 
     return csv_data
+
+def is_ray_in(ray_id, P_RAYS_ID_LIST):
+    """
+    check if an ray_id is in the P_RAYS_ID_LIST
+    :param ray_id: "net_sta_evtid"
+    :param P_RAYS_ID_LIST: a sequence of Ray_id of P waves.
+    :return: 1 if in; 0 if not in
+    """
+    if ray_id in P_RAYS_ID_LIST:
+        return 1
+    else:
+        return 0
 
 
 def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
