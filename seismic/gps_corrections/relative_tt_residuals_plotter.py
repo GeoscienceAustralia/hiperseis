@@ -573,7 +573,7 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
               help='Comma separated list of specific network 1 station codes to use.'
               'If empty, use all stations in network 1.')
 @click.option('--networks2', type=str, required=True, help='Comma separated list of network(s) '
-              'for which to compute residuals')
+              'for which to compute residuals. Can be same as network1 to use itself as reference.')
 @click.option('--stations2', type=str, required=False, help='Comma separated list of specific network 2 '
               'station codes to use. If empty, use all stations for each network in networks2. Should not '
               'be used unless networks2 has just a single network.')
