@@ -30,7 +30,7 @@ from netCDF4 import Dataset as NCDataset
 from tqdm.auto import tqdm
 
 from seismic.ASDFdatabase import FederatedASDFDataSet
-from analytic_plot_utils import distance
+from seismic.xcorqc.analytic_plot_utils import distance
 
 
 class XcorrPreprocessor:
