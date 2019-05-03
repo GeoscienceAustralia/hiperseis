@@ -32,10 +32,10 @@ Example:
 
 `python relative_tt_residuals_plotter.py --network1 AU --networks2 OA`
 
-This generates a folder `OA_strict` containing a subfolder `AU,GE,IR,IU,S`. This means network OA has been
-analyzed against AU,GE,IR,IU,S. *Why all these other network codes (GE,IR,IU,S) when only AU was requested?*
+This generates a folder `OA_strict` containing a subfolder `AU,GE,IR,IU`. This means network OA has been
+analyzed against AU,GE,IR,IU. *Why all these other network codes (GE,IR,IU) when only AU was requested?*
 Well AU is treated as a special case, because many Australian network events are catalogued under network
-codes GE,IR,IU,S. So when AU is requested, by default Australian stations from these other network codes
+codes GE,IR,IU. So when AU is requested, by default Australian stations from these other network codes
 are also added, so as to maximize the available data.
 
 See Options below for explanation of the `strict` qualifier in the folder name.
@@ -45,13 +45,6 @@ See Options below for explanation of the `strict` qualifier in the folder name.
 When performing the relative TT residual analysis, it is important to apply a certain degree of filtering
 to the candidate events that are common to a station pair, otherwise a large number of unreliable picks could
 be used and patterns of clock drift will be harder to see.
-
-Filtering uses the following thresholded criteria:
-* A
-* B
-* C
-* `--no-strict-filtering`
-* etc..
 
 See `python relative_tt_residuals_plotter.py --help` for documentation on these filter settings. The
 default thresholds for these settings will often suffice.
@@ -112,18 +105,18 @@ stations. The suggested resources to use:
 
 ## Clock correction
 
-See script `generateStationClockCorrections.ipynb`
+Generating a clock correction time series for a station is a semi-automated process based on
+iPython notebook `generateStationClockCorrections.ipynb`. The procedure consists of the following
+steps:
+1. Load the cross-correlation file (`.nc` format)
+1. Visualize the estimated raw correction to ensure it is feasible to fit lines to.
+1. Compute clusters of quasi-linear segments and iteratively tune the cluster distance coefficients
+   to ensure optimal clustering.
+1. Once happy with the clustering, perform linear regression on each cluster and re-check visual fit.
+1. Export the linearized clock corrections to csv file.
 
-TODO: Describe steps
-
-
-## Recommended workflow
-
-TODO: describe workflow(s)
-
-rel TT residual analysis --> x-corr --> correction
-
-Plus supporting scripts to visualize station and network metadata.
+The resultant clock corrections can then be ingested into other scripts, such as inversion codes or
+even the GPS clock analysis scripts themselves.
 
 
 ## Supporting scripts
@@ -164,7 +157,5 @@ Example network dates plot:
 
 ## References
 
-Babak's relative travel-time residual paper.
-
-Cross-correlation paper.
+[Cross-correlation.](https://academic.oup.com/gji/article/214/3/2014/5038378)
 

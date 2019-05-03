@@ -344,5 +344,5 @@ if __name__ == '__main__':
             clip_to_2std=True,
             one_bit_normalize=True)
     '''
-    main()
+    main()  # pylint: disable=no-value-for-parameter
 # end if
