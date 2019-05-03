@@ -50,7 +50,7 @@ Filtering uses the following thresholded criteria:
 * A
 * B
 * C
-* `--no-ref-filtering`
+* `--no-strict-filtering`
 * etc..
 
 See `python relative_tt_residuals_plotter.py --help` for documentation on these filter settings. The
@@ -58,11 +58,11 @@ default thresholds for these settings will often suffice.
 
 By default, these event filtering settings are applied to both the station being analyzed and the
 reference station. However sometimes this results in too few events being plotted to adequately assess
-potential clock drift. To allow more events to be plotted, there is an option `--no-ref-filtering` to
+potential clock drift. To allow more events to be plotted, there is an option `--no-strict-filtering` to
 not apply filter criteria to the reference station (they are still applied to the target station). This
 results in a much larger number of events being plotted, and can resolve ambiguity in interpretation.
 However it is better to start with strict filtering, and relax the filtering later if needed. The plot
-results for these two filtering modes are stored in separate folders, with `_strict` or `_no_ref_filtering`
+results for these two filtering modes are stored in separate folders, with `_strict` or `_no_strict`
 appended to the folder name.
 
 ### Limitations
@@ -133,15 +133,13 @@ on the stations and networks in question. The following supporting scripts gener
 of network and station metadata to aid in targetted analysis and resolving ambiguity in possible root
 causes of clock anomalies.
 
----------------------------------------------------
 | File name | Purpose | Notes                     |
----------------------------------------------------
+|-----------|---------|---------------------------|
 | `notebooks/plotNetworkMap.ipynb` | Generate maps of networks showing labelled stations |  |
 | `notebooks/study_event_catalog_representation.ipynb` | Plot min and max station dates from an event catalog. |  |
 | `notebooks/surveyStationActivityDates.ipynb` | Generate a per-station barcode plotting showing dates that station was active and inactive |  |
 | `notebooks/tt_residuals_clock_correction_proto.ipynb` | UNMAINTAINED  | N/A |
 | `notebooks/tt_residuals_quality_filtering_study.ipynb` | UNMAINTAINED  | N/A |
----------------------------------------------------
 
 Script `notebooks/study_event_catalog_representation.ipynb` does not determine which dates between min and
 max when a station was inactive, so in general `notebooks/surveyStationActivityDates.ipynb` gives more detail.

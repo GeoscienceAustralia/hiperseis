@@ -37,31 +37,51 @@ CHANNEL_PREF_BALANCED = CHANNEL_PREF_NO_SHZ + ['S?Z', 'SHZ']
 CHANNEL_PREF_GREEDY = CHANNEL_PREF_BALANCED + ['???', '?']
 CHANNEL_PREF = CHANNEL_PREF_BALANCED
 
-# TODO: Bundle these filter settings into a NamedTuple or class
-MIN_REF_SNR = 10
-# MIN_REF_SNR = 0
+# -- default filter options
+DEFAULT_MIN_DISTANCE = 30.0
+DEFAULT_MAX_DISTANCE = 90.0
+DEFAULT_MIN_EVENT_SNR = 10
+DEFAULT_CWT_CUTOFF = 15
+DEFAULT_SLOPE_CUTOFF = 3
+DEFAULT_NSIGMA_CUTOFF = 4
+DEFAULT_MIN_EVENT_MAG = 5.5
+DEFAULT_STRICT_FILTERING = True
+# -- display options
+# DISPLAY_HISTORICAL_EVENTS = True
+# SHOW_DEPLOYMENTS = True
 
-CWT_CUTOFF = 15
-SLOPE_CUTOFF = 3
-NSIGMA_CUTOFF = 4
-# CWT_CUTOFF = 0
-# slope_cutoff = 0
-# nsigma_cutoff = 0
-
-# This only applies when pick quality stats are all zero.
-MIN_EVENT_MAG = 5.5
-# MIN_EVENT_MAG = 4.0
-# MIN_EVENT_MAG = 0.0
-
-DISPLAY_HISTORICAL_EVENTS = True
+# IRIS format station catalogs providing additional station metadata to merge with the target network.
+# Useful for pulling in additional results from comprehensive networks such as GE, IR and IU.
+IRIS_ALTERNATE_STATIONS_FILE = {
+    "AU": "AU_irisws-fedcatalog_20190305T012747Z.txt"
+    }
 
 DATE_FILTER_TEMP_DEPLOYMENTS = True
 
-# This gets populated by main()
-TEMP_DEPLOYMENTS = {}
+TEMP_DEPLOYMENTS = {}  # TODO: Remove from global scope
 
 
-# Trivial container class for passing options around
+class FilterOptions:
+    """Simple container type for filtering options.
+    """
+    def __init(self):
+        self.strict_filtering = DEFAULT_STRICT_FILTERING
+        self.min_event_snr = DEFAULT_MIN_EVENT_SNR
+        self.cwt_cutoff = DEFAULT_CWT_CUTOFF
+        self.slope_cutoff = DEFAULT_SLOPE_CUTOFF
+        self.nsigma_cutoff = DEFAULT_NSIGMA_CUTOFF
+        self.min_event_mag = DEFAULT_MIN_EVENT_MAG
+
+
+class DisplayOptions:
+    """Simple container type for display options.
+    """
+    def __init(self):
+        self.show_deployments = False
+        # Historical events to add to the plot
+        self.events = None
+
+
 class BatchOptions:
     """
     Simple container type for run time options.
@@ -70,10 +90,7 @@ class BatchOptions:
         self.save_file = True
         # Setting this to False will generate a lot more events per station chart, sometimes making it
         # easier to spot drift. But it may also add many events with significant non-zero residual.
-        self.ref_filtering = False
-        self.show_deployments = False
         self.batch_label = ''
-        self.events = None
         # X-axis time range
         self.x_range = None
 
@@ -273,10 +290,11 @@ def pandas_timestamp_to_plottable_datetime(data):
     return data.transform(datetime.datetime.utcfromtimestamp).astype('datetime64[ms]').dt.to_pydatetime()
 
 
-def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, snr_scale=(0, 60), annotator=None):
+def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_options, tt_scale=50,
+                                       snr_scale=(0, 60), annotator=None):
 
-    file_label = options.batch_label
-    save_file = options.save_file
+    file_label = batch_options.batch_label
+    save_file = batch_options.save_file
 
     def _plot_dataset(ds, net_code, ref_code):
         # Sort ds rows by SNR, so that the weakest SNR points are drawn first and the high SNR point last,
@@ -289,9 +307,10 @@ def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, sn
         mag = ds['mag'].values - min_mag
         ylabel = 'Relative TT residual (sec)'
         title = r"Station {} TT residuals relative to network {} (filtering: ref SNR$\geq${}, CWT$\geq${}, "\
-                r"slope$\geq${}, $n\sigma\geq{}$)".format(ref_code, net_code, str(MIN_REF_SNR),
-                                                          str(CWT_CUTOFF), str(SLOPE_CUTOFF),
-                                                          str(NSIGMA_CUTOFF))
+                r"slope$\geq${}, $n\sigma\geq{}$)".format(ref_code, net_code, str(filter_options.min_event_snr),
+                                                          str(filter_options.cwt_cutoff),
+                                                          str(filter_options.slope_cutoff),
+                                                          str(filter_options.nsigma_cutoff))
         if vals.any():
             plt.figure(figsize=(32, 9))
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
@@ -332,8 +351,8 @@ def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, sn
     # end plot_dataset
 
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
-    if options.x_range is not None:
-        time_range = options.x_range
+    if batch_options.x_range is not None:
+        time_range = batch_options.x_range
     else:
         time_range = (df_times.min(), df_times.max())
     ref_code = ".".join([ref['net'][0], ref['sta'][0]])
@@ -350,7 +369,7 @@ def _plot_target_network_rel_residuals(df, target, ref, options, tt_scale=50, sn
     _plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
 
-def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
+def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options):
     """
     Compute relative residuals and send to plotting function.
 
@@ -363,6 +382,10 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
     :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
     :param batch_options: Runtime options.
     :type batch_options: class BatchOptions
+    :param filter_options: Filter options.
+    :type filter_options: class FilterOptions
+    :param display_options: Display options.
+    :type display_options: class DisplayOptions
     """
     # Create column for entire table first
     df_plot['ttResidualRef'] = np.nan
@@ -422,8 +445,8 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, options):
         if opts.show_deployments:
             _add_temporary_deployment_intervals()
 
-    _plot_target_network_rel_residuals(df_plot, target_stns, ref, options,
-                                       annotator=lambda: _plot_decorator(options))
+    _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options,
+                                       annotator=lambda: _plot_decorator(display_options))
 
 
 def _add_event_marker_lines(events):
@@ -476,44 +499,41 @@ def _add_temporary_deployment_intervals():
         stagger = -stagger
 
 
-def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
+def apply_event_quality_filtering(df, ref_stn, filter_options):
     """
     Apply event quality requirements to pick events.
-
-    :param ref_network: Network and station codes for reference network
-    :type ref_network: dict of corresponding network and station codes under keys 'net' and 'sta'
 
     :param df: Pandas dataframe loaded from a pick event ensemble
     :type df: pandas.DataFrame
     :param ref_stn: Network and station codes for reference network (expected to be just one entry)
     :type ref_stn: dict of corresponding network and station codes under keys 'net' and 'sta'
          (expected to be just one entry)
-    :param apply_quality_to_ref: Whether to apply quality criteria to the reference station events, defaults to True
-    :param apply_quality_to_ref: bool, optional
+    :param filter_options: Filter options.
+    :type filter_options: class FilterOptions
     :return: Filtered dataframe of pick events
     :rtype: pandas.DataFrame
     """
     # Remove records where the SNR is too low
-    mask_snr = (df['snr'] >= MIN_REF_SNR)
+    mask_snr = (df['snr'] >= filter_options.min_event_snr)
 
     # Filter to constrained quality metrics
-    mask_cwt = (df['qualityMeasureCWT'] >= CWT_CUTOFF)
-    mask_slope = (df['qualityMeasureSlope'] >= SLOPE_CUTOFF)
-    mask_sigma = (df['nSigma'] >= NSIGMA_CUTOFF)
+    mask_cwt = (df['qualityMeasureCWT'] >= filter_options.cwt_cutoff)
+    mask_slope = (df['qualityMeasureSlope'] >= filter_options.slope_cutoff)
+    mask_sigma = (df['nSigma'] >= filter_options.nsigma_cutoff)
 
     # For events from ISC catalogs the quality metrics are zero, so we use event magnitude instead.
     mask_zero_quality_stats = (df[['snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']] == 0).all(axis=1)
-    mask_origin_mag = (df['mag'] >= MIN_EVENT_MAG)
+    mask_origin_mag = (df['mag'] >= filter_options.min_event_mag)
 
     quality_mask = (mask_snr & mask_cwt & mask_slope & mask_sigma) | (mask_zero_quality_stats & mask_origin_mag)
 
     mask_ref = df[list(ref_stn)].isin(ref_stn).all(axis=1)
-    if apply_quality_to_ref:
+    if filter_options.strict_filtering:
         # But never apply quality mask to ref stations that have all zero quality stats, as we just can't judge quality
         # and don't want to arbitrarily exclude them.
         quality_mask = (mask_zero_quality_stats & mask_ref) | quality_mask
     else:
-        # Only apply quality mask stations that are not the reference station, i.e. use all ref station events
+        # Only apply quality mask to stations that are not the reference station, i.e. use all ref station events
         # regardless of pick quality at the ref station. This gives more results, but possibly more noise.
         quality_mask = mask_ref | (~mask_ref & quality_mask)
 
@@ -522,7 +542,7 @@ def apply_event_quality_filtering(df, ref_stn, apply_quality_to_ref=True):
     return df_qual
 
 
-def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options):
+def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options, filter_options, display_options):
     """
     Analyze a single (reference) station's residuals relative to all the other stations
     in a (target) network.
@@ -536,9 +556,13 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
     :param batch_options: Runtime options.
     :type batch_options: class BatchOptions
+    :param filter_options: Filter options.
+    :type filter_options: class FilterOptions
+    :param display_options: Display options.
+    :type display_options: class DisplayOptions
     """
     # Event quality filtering
-    df_qual = apply_event_quality_filtering(df_picks, ref_stn, apply_quality_to_ref=batch_options.ref_filtering)
+    df_qual = apply_event_quality_filtering(df_picks, ref_stn, filter_options)
 
     # Filter to desired ref and target networks
     mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1)
@@ -563,7 +587,8 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     ds_final = df_nets
     # print(getOverlappingDateRange(ds_final, ref_stn, target_stns))
 
-    plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options)
+    plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options, filter_options,
+                                         display_options)
 
 
 @click.command()
@@ -577,7 +602,35 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
 @click.option('--stations2', type=str, required=False, help='Comma separated list of specific network 2 '
               'station codes to use. If empty, use all stations for each network in networks2. Should not '
               'be used unless networks2 has just a single network.')
-def main(picks_file, network1, networks2, stations1=None, stations2=None):
+@click.option('--min-distance', type=float, default=DEFAULT_MIN_DISTANCE,
+              help='Minimum teleseismic distance (degrees) of events to plot')
+@click.option('--max-distance', type=float, default=DEFAULT_MAX_DISTANCE,
+              help='Maximum teleseismic distance (degrees) of events to plot')
+@click.option('--min-event-snr', type=float, default=DEFAULT_MIN_EVENT_SNR,
+              help='Filter out events with signal-to-noise ratio less than this')
+@click.option('--cwt-cutoff', type=float, default=DEFAULT_CWT_CUTOFF,
+              help='Filter out events with CWT quality value less than this')
+@click.option('--slope-cutoff', type=float, default=DEFAULT_SLOPE_CUTOFF,
+              help='Filter out events with slope quality value less than this')
+@click.option('--nsigma-cutoff', type=int, default=DEFAULT_NSIGMA_CUTOFF,
+              help='Filter out events with nsigma quality value less than this')
+@click.option('--min-event-magnitude', type=float, default=DEFAULT_MIN_EVENT_MAG,
+              help='Filter out events with magnitude value less than this. '
+                   '(Only applies when pick quality stats are all zero.)')
+@click.option('--strict-filtering/--no-strict-filtering', default=DEFAULT_STRICT_FILTERING,
+              help='Whether to strictly apply quality filters to reference station.')
+@click.option('--show-deployments', is_flag=True, default=False,
+              help='Show temporary deployments time durations on the plots.')
+@click.option('--show-historical/--no-show-historical', default=True,
+              help='Show historical events on the plots.')
+@click.option('--include-alternate-catalog/--no-include-alternate-catalog', default=True,
+              help='Add matching stations from alternate networks in IRIS catalog')
+def main(picks_file, network1, networks2, stations1=None, stations2=None, 
+         min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
+         min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
+         slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
+         min_event_magnitude=DEFAULT_MIN_EVENT_MAG, strict_filtering=DEFAULT_STRICT_FILTERING,
+         show_deployments=False, show_historical=True, include_alternate_catalog=True):
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings:
@@ -629,7 +682,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None):
     print("Number of raw picks: {}".format(len(df_raw_picks)))
 
     # Generate catalog of major regional events (mag 8+) for overlays
-    if DISPLAY_HISTORICAL_EVENTS:
+    if show_historical:
         df_mag8 = df_raw_picks[df_raw_picks['mag'] >= 8.0]
         df_mag8['day'] = df_mag8['originTimestamp'].transform(datetime.datetime.utcfromtimestamp)\
             .transform(lambda x: x.strftime("%Y-%m-%d"))
@@ -659,8 +712,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None):
         significant_events.loc['2014-04-01', 'name'] = '2014 Iquique earthquake'
         significant_events.loc['2015-09-16', 'name'] = '2015 Illapel earthquake'
         significant_events.loc['2016-08-24', 'name'] = '2016 Myanmar earthquake'
-
-        # print(significant_events)
+    # end if
 
     # Populate temporary deployments details
     TEMP_DEPLOYMENTS['7X'] = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
@@ -708,7 +760,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None):
 
     # Filter to teleseismic events.
     # 'distance' is angular distance (degrees) between event and station.
-    mask_tele = (df_picks['distance'] >= 30.0) & (df_picks['distance'] <= 90.0)
+    mask_tele = (df_picks['distance'] >= min_distance) & (df_picks['distance'] <= max_distance)
     df_picks = df_picks.loc[mask_tele]
     print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
@@ -717,32 +769,32 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None):
     TARGET_STNS = {'net': [TARGET_NET] * len(TARGET_STN), 'sta': [s for s in TARGET_STN]}
 
     # Find additional network.station codes that match AU network, and add them to target
-    if TARGET_NET == 'AU':
-        # TODO: Make this a command line argument.
-        IRIS_AU_STATIONS_FILE = "AU_irisws-fedcatalog_20190305T012747Z.txt"
-        new_nets, new_stas = determine_alternate_matching_codes(df_picks, IRIS_AU_STATIONS_FILE, TARGET_NET)
-        print("Adding {} more stations from alternate networks file {}".format(len(new_nets), IRIS_AU_STATIONS_FILE))
+    if include_alternate_catalog and TARGET_NET in IRIS_ALTERNATE_STATIONS_FILE:
+        alt_file = IRIS_ALTERNATE_STATIONS_FILE[TARGET_NET]
+        new_nets, new_stas = determine_alternate_matching_codes(df_picks, alt_file, TARGET_NET)
+        print("Adding {} more stations from alternate networks file {}".format(len(new_nets), alt_file))
         TARGET_STNS['net'].extend(list(new_nets))
         TARGET_STNS['sta'].extend(list(new_stas))
-
-        # Add Australian Seismographs in Schools Network
-        SIS_NET = 'S'
-        mask_sis = (df_picks['net'] == SIS_NET)
-        SIS_CODES = sorted([c for c in df_picks.loc[mask_sis, 'sta'].unique() if c[0:2] == 'AU'])
-        print("Adding {} more stations from {} network".format(len(SIS_CODES), SIS_NET))
-        TARGET_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
-        TARGET_STNS['sta'].extend(SIS_CODES)
 
     REF_NETS = networks2.split(',')
     assert len(REF_NETS) == 1 or not stations2, \
         "Can't specify multiple networks and custom station list at the same time!"
-    options = BatchOptions()
-    options.events = significant_events
-    options.show_deployments = True
-    # TODO: Make REF_FILTERING a command line option
-    REF_FILTERING = True
-    options.ref_filtering = REF_FILTERING
-    options.batch_label = '_strict' if REF_FILTERING else '_no_ref_filtering'
+
+    filter_options = FilterOptions()
+    filter_options.strict_filtering = strict_filtering
+    filter_options.min_event_snr = min_event_snr
+    filter_options.min_event_mag = min_event_magnitude
+    filter_options.cwt_cutoff = cwt_cutoff
+    filter_options.slope_cutoff = slope_cutoff
+    filter_options.nsigma_cutoff = nsigma_cutoff
+
+    display_options = DisplayOptions()
+    if show_historical:
+        display_options.events = significant_events
+    display_options.show_deployments = show_deployments
+
+    batch_options = BatchOptions()
+    batch_options.batch_label = '_strict' if strict_filtering else '_no_strict'
     for REF_NET in REF_NETS:
         if len(REF_NETS) == 1 and stations2:
             REF_STN = stations2.split(',')
@@ -753,20 +805,19 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None):
         if REF_NET == 'AU' and TARGET_NET == 'AU':
             REF_STNS['net'].extend(list(new_nets))
             REF_STNS['sta'].extend(list(new_stas))
-            REF_STNS['net'].extend([SIS_NET] * len(SIS_CODES))
-            REF_STNS['sta'].extend(SIS_CODES)
 
         # For certain temporary deployments, force a fixed time range on the x-axis so that all stations
         # in the deployment can be compared on a common time range.
         if REF_NET in TEMP_DEPLOYMENTS:
-            options.x_range = (TEMP_DEPLOYMENTS[REF_NET][0], TEMP_DEPLOYMENTS[REF_NET][1])
+            batch_options.x_range = (TEMP_DEPLOYMENTS[REF_NET][0], TEMP_DEPLOYMENTS[REF_NET][1])
         else:
-            options.x_range = None
+            batch_options.x_range = None
 
         for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
             print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
             single_ref = {'net': [ref_net], 'sta': [ref_sta]}
-            analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, options)
+            analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, batch_options, filter_options,
+                                           display_options)
 
 
 if __name__ == "__main__":
