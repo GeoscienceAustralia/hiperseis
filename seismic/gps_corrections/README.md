@@ -11,6 +11,7 @@ The clock error identification script are automated batch scripts based on the f
 The clock correction is a semi-automated tool that facilitates easy fitting of piecewise linear
 functions to the clock error data, and exporting of the fitted functions to file.
 
+
 ## Relative TT residual analysis
 
 Script `relative_tt_residuals_plotter.py` generate timeline plots of seismic travel time residual
@@ -57,6 +58,14 @@ results in a much larger number of events being plotted, and can resolve ambigui
 However it is better to start with strict filtering, and relax the filtering later if needed. The plot
 results for these two filtering modes are stored in separate folders, with `_strict` or `_no_strict`
 appended to the folder name.
+
+#### Exporting
+
+If you pass the `--export-path` option to `relative_tt_residuals_plotter.py`, then the raw relative
+residuals will be exported to files in that folder, one file per station. For where more than one
+residual exists for the same origin timestamp, the median of the values is exported. These exported
+csv files can then be imported to the `generateStationClockCorrections.ipynb` script and processed
+to create a clock correction file.
 
 ### Limitations
 
@@ -108,15 +117,32 @@ stations. The suggested resources to use:
 Generating a clock correction time series for a station is a semi-automated process based on
 iPython notebook `generateStationClockCorrections.ipynb`. The procedure consists of the following
 steps:
-1. Load the cross-correlation file (`.nc` format)
-1. Visualize the estimated raw correction to ensure it is feasible to fit lines to.
-1. Compute clusters of quasi-linear segments and iteratively tune the cluster distance coefficients
+1. Load the cross-correlation file (`.nc` format) or raw relative residuals (`.csv` format)
+1. Visualize the estimated raw corrections to ensure they are feasible to fit lines to.
+1. Compute clusters of quasi-linear segments and *iteratively tune the cluster distance coefficients*
    to ensure optimal clustering.
 1. Once happy with the clustering, perform linear regression on each cluster and re-check visual fit.
 1. Export the linearized clock corrections to csv file.
 
 The resultant clock corrections can then be ingested into other scripts, such as inversion codes or
 even the GPS clock analysis scripts themselves.
+
+### Cluster detection coefficients
+
+To date, we have not shown an automatic method of cluster identification for linear segments of GPS
+clock drift. We use DBCSAN to perform clustering, but this uses a distance metric that requires some
+case-by-case tuning.
+
+The following procedure is suggested for optimizing the clustering:
+1. Set all coefficients to zero and confirm all points are allocated to a single cluster.
+1. Tune the first coefficient until points clusters that are separated along the time axis
+   are adequately discriminated.
+1. Tune the second coefficient until noisy points within each cluster are excluded from the parent
+   cluster.
+1. Only if necessary, tune the third coefficient to discriminate time segments with different slope
+   in the clock drift.
+
+Only when the clustering is adequate should the exporting part of the script be run.
 
 
 ## Supporting scripts
@@ -148,7 +174,7 @@ Example network dates plot:
 ![Sample network dates plot showing bounding station start and end dates](docs/example_network_range.png)
 
 
-## File index
+## Other files
 
 `au_island_stations.txt`: List of stations codes from Australian network which are located on islands.
 

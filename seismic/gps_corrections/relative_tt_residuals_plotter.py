@@ -378,7 +378,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             median_errors['originTimestamp'].append(origin_ts)
             median_errors['rawClockError'].append(df_event['relTtResidual'].median())
         df_export = pd.DataFrame(median_errors)
-        fname = ref_code + "_raw_clock_error.csv"
+        fname = ref_code + ".raw_clock_error.csv"
         fname = os.path.join(batch_options.export_path, fname)
         df_export.to_csv(fname, index=False)
 
