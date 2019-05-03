@@ -28,6 +28,7 @@ import tqdm
 import obspy
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
+# pylint: disable=attribute-defined-outside-init
 
 register_matplotlib_converters()
 
@@ -37,7 +38,7 @@ CHANNEL_PREF_BALANCED = CHANNEL_PREF_NO_SHZ + ['S?Z', 'SHZ']
 CHANNEL_PREF_GREEDY = CHANNEL_PREF_BALANCED + ['???', '?']
 CHANNEL_PREF = CHANNEL_PREF_BALANCED
 
-# -- default filter options
+# Default filter options
 DEFAULT_MIN_DISTANCE = 30.0
 DEFAULT_MAX_DISTANCE = 90.0
 DEFAULT_MIN_EVENT_SNR = 10
@@ -46,9 +47,6 @@ DEFAULT_SLOPE_CUTOFF = 3
 DEFAULT_NSIGMA_CUTOFF = 4
 DEFAULT_MIN_EVENT_MAG = 5.5
 DEFAULT_STRICT_FILTERING = True
-# -- display options
-# DISPLAY_HISTORICAL_EVENTS = True
-# SHOW_DEPLOYMENTS = True
 
 # IRIS format station catalogs providing additional station metadata to merge with the target network.
 # Useful for pulling in additional results from comprehensive networks such as GE, IR and IU.
@@ -93,6 +91,8 @@ class BatchOptions:
         self.batch_label = ''
         # X-axis time range
         self.x_range = None
+        # Path to folder in which to save the clock errors to csv file
+        self.export_path = None
 
 
 def get_network_stations(df, netcode):
@@ -368,6 +368,20 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
     df_agg = df[(mask_targ) & (~mask_ref)]
     _plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
+    # Export median error for each origin event if export path is provided
+    if batch_options.export_path is not None:
+        os.makedirs(batch_options.export_path, exist_ok=True)
+        df_agg = df_agg.sort_values('originTimestamp')
+        df_export = df_agg[['originTimestamp', 'relTtResidual']]
+        median_errors = {'originTimestamp': [], 'rawClockError': []}
+        for origin_ts, df_event in df_export.groupby('originTimestamp'):
+            median_errors['originTimestamp'].append(origin_ts)
+            median_errors['rawClockError'].append(df_event['relTtResidual'].median())
+        df_export = pd.DataFrame(median_errors)
+        fname = ref_code + "_raw_clock_error.csv"
+        fname = os.path.join(batch_options.export_path, fname)
+        df_export.to_csv(fname, index=False)
+
 
 def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options):
     """
@@ -602,35 +616,38 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
 @click.option('--stations2', type=str, required=False, help='Comma separated list of specific network 2 '
               'station codes to use. If empty, use all stations for each network in networks2. Should not '
               'be used unless networks2 has just a single network.')
-@click.option('--min-distance', type=float, default=DEFAULT_MIN_DISTANCE,
+@click.option('--min-distance', type=float, default=DEFAULT_MIN_DISTANCE, show_default=True,
               help='Minimum teleseismic distance (degrees) of events to plot')
-@click.option('--max-distance', type=float, default=DEFAULT_MAX_DISTANCE,
+@click.option('--max-distance', type=float, default=DEFAULT_MAX_DISTANCE, show_default=True,
               help='Maximum teleseismic distance (degrees) of events to plot')
-@click.option('--min-event-snr', type=float, default=DEFAULT_MIN_EVENT_SNR,
+@click.option('--min-event-snr', type=float, default=DEFAULT_MIN_EVENT_SNR, show_default=True,
               help='Filter out events with signal-to-noise ratio less than this')
-@click.option('--cwt-cutoff', type=float, default=DEFAULT_CWT_CUTOFF,
+@click.option('--cwt-cutoff', type=float, default=DEFAULT_CWT_CUTOFF, show_default=True,
               help='Filter out events with CWT quality value less than this')
-@click.option('--slope-cutoff', type=float, default=DEFAULT_SLOPE_CUTOFF,
+@click.option('--slope-cutoff', type=float, default=DEFAULT_SLOPE_CUTOFF, show_default=True,
               help='Filter out events with slope quality value less than this')
-@click.option('--nsigma-cutoff', type=int, default=DEFAULT_NSIGMA_CUTOFF,
+@click.option('--nsigma-cutoff', type=int, default=DEFAULT_NSIGMA_CUTOFF, show_default=True,
               help='Filter out events with nsigma quality value less than this')
-@click.option('--min-event-magnitude', type=float, default=DEFAULT_MIN_EVENT_MAG,
+@click.option('--min-event-magnitude', type=float, default=DEFAULT_MIN_EVENT_MAG, show_default=True,
               help='Filter out events with magnitude value less than this. '
                    '(Only applies when pick quality stats are all zero.)')
-@click.option('--strict-filtering/--no-strict-filtering', default=DEFAULT_STRICT_FILTERING,
+@click.option('--strict-filtering/--no-strict-filtering', default=DEFAULT_STRICT_FILTERING, show_default=True,
               help='Whether to strictly apply quality filters to reference station.')
-@click.option('--show-deployments', is_flag=True, default=False,
+@click.option('--show-deployments', is_flag=True, default=False, show_default=True,
               help='Show temporary deployments time durations on the plots.')
-@click.option('--show-historical/--no-show-historical', default=True,
+@click.option('--show-historical/--no-show-historical', default=True, show_default=True,
               help='Show historical events on the plots.')
-@click.option('--include-alternate-catalog/--no-include-alternate-catalog', default=True,
+@click.option('--include-alternate-catalog/--no-include-alternate-catalog', default=True, show_default=True,
               help='Add matching stations from alternate networks in IRIS catalog')
+@click.option('--export-path', type=click.Path(file_okay=False),
+              help='Folder in which to store raw time series of TT residuals')
 def main(picks_file, network1, networks2, stations1=None, stations2=None, 
          min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
          min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
          min_event_magnitude=DEFAULT_MIN_EVENT_MAG, strict_filtering=DEFAULT_STRICT_FILTERING,
-         show_deployments=False, show_historical=True, include_alternate_catalog=True):
+         show_deployments=False, show_historical=True, include_alternate_catalog=True,
+         export_path=None):
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings:
@@ -795,6 +812,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
 
     batch_options = BatchOptions()
     batch_options.batch_label = '_strict' if strict_filtering else '_no_strict'
+    batch_options.export_path = export_path
     for REF_NET in REF_NETS:
         if len(REF_NETS) == 1 and stations2:
             REF_STN = stations2.split(',')
