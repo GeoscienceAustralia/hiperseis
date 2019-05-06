@@ -19,12 +19,12 @@ from math import sqrt
 
 import numpy as np
 from scipy.spatial import cKDTree
+import click
 
 from mpi4py import MPI
 from obspy import UTCDateTime
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
-import click
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
@@ -344,5 +344,5 @@ if __name__ == '__main__':
             clip_to_2std=True,
             one_bit_normalize=True)
     '''
-    main()
+    main()  # pylint: disable=no-value-for-parameter
 # end if

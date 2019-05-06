@@ -448,7 +448,7 @@ def IntervalStackXCorr(refds, tempds,
                 # end try
             # end for
         except Exception as e:
-            print e
+            print(e)
             logger.warn('\tError encountered while fetching data. Skipping along..')
 
         if (refSt is None):
@@ -494,7 +494,7 @@ def IntervalStackXCorr(refds, tempds,
                 # end try
             # end if
         except Exception as e:
-            print e
+            print(e)
             logger.warn('\tError encountered while fetching data. Skipping along..')
         # end try
 
