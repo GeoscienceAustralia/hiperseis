@@ -400,7 +400,7 @@ def apply_filters(csv_data, phase):
     elif phase.upper() == 'S':
 
         if os.path.exists('P_EVENTS.npy'):
-            p_events = np.load('P_EVENTS.npy')
+            p_events = np.load('P_EVENTS.npy',allow_pickle=True)
             print("Total number of P-Rays = %s" % len(p_events), p_events[:5])
 
             csv_data["ray_filter_flag"] = csv_data.apply(

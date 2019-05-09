@@ -881,7 +881,7 @@ def main(iris_xml_file):
     if not TEST_MODE:
         sc3ml_output_folder = "networks_sc3ml"
         try:
-            toSc3ml(output_folder, sc3ml_output_folder)
+            toSc3ml(output_folder, sc3ml_output_folder, None)
         except OSError:
             print("WARNING: Unable to convert to sc3ml, possibly seiscomp not available on platform!")
             if os.path.isdir(sc3ml_output_folder):

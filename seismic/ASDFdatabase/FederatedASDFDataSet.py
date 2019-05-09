@@ -11,7 +11,7 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-from mpi4py import MPI
+# from mpi4py import MPI
 import os
 import glob
 import atexit
@@ -26,7 +26,7 @@ import ujson as json
 from scipy.spatial import cKDTree
 from collections import defaultdict
 from seismic.ASDFdatabase.utils import rtp2xyz
-from FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
+from seismic.ASDFdatabase.FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
 
 HAS_RTREE = True
 try:

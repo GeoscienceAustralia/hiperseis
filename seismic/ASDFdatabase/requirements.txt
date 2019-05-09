@@ -1,0 +1,7 @@
+numpy
+scipy
+mpi4py
+pyasdf
+obspy
+ujson
+Rtree

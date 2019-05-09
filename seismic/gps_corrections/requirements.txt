@@ -3,3 +3,5 @@ pandas
 pyproj==1.9.6
 basemap
 obspy
+tqdm
+pytz
