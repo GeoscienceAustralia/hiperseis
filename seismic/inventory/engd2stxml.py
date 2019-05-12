@@ -17,20 +17,22 @@ Cleanup steps applied:
 * Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3 rejects such overlapping dates.
 """
 
+# pylint: disable=too-many-locals, invalid-name
+
 from __future__ import division
 from __future__ import print_function
 
 import os
 import sys
 import argparse
+from collections import namedtuple, defaultdict
+import time
+import datetime
 
 import numpy as np
 import scipy as sp
-import datetime
 import pandas as pd
-from collections import namedtuple, defaultdict
 import requests as req
-import time
 
 import obspy
 from obspy import read_inventory
@@ -61,7 +63,7 @@ print("Using obspy version {}".format(obspy.__version__))
 try:
     import tqdm
     show_progress = True
-except:
+except ImportError:
     show_progress = False
     print("Run 'pip install tqdm' to see progress bar.")
 
@@ -220,7 +222,7 @@ def read_isc(fname):
                     df_all = pkl.load(f)
                     reportStationCount(df_all)
                     return df_all
-            except:
+            except Exception:
                 reportUnpickleFail(pkl_name)
 
     print("Parsing " + fname)
@@ -560,7 +562,6 @@ def mergeOverlappingChannelEpochs(df):
         df.drop(removal_index, inplace=True)
 
 
-
 def cleanupDatabase(df):
     """
     Main cleanup function encompassing the sequential data cleanup steps.
@@ -571,6 +572,7 @@ def cleanupDatabase(df):
     :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     """
     # Returns cleaned up df.
+
     print("Removing stations with illegal station code...")
     num_before = len(df)
     removeIllegalStationNames(df)
@@ -686,7 +688,7 @@ def exportNetworkPlots(df, plot_folder):
         saveNetworkLocalPlots(df, plot_folder, pbar.update)
         if show_progress:
             pbar.close()
-    except:
+    except Exception:
         if show_progress:
             pbar.close()
         raise
@@ -898,7 +900,7 @@ def main(iris_xml_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file to use to exclude station codes from STN sources.")
+    parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file.")
     args = parser.parse_args()
     if args.iris is None:
         print("Running test mode")
