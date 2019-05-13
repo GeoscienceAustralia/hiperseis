@@ -9,23 +9,17 @@ Can be used as a standalone tool as well:
 import os
 import sys
 import subprocess
+import tempfile
+
 import click
 from seismic.inventory.response import ResponseFactory
-import tempfile
-from collections import defaultdict
 from obspy import read_inventory
 
 sc3_converter_app = "fdsnxml2inv"
 sc3_converter_options = ("--quiet", "--formatted")
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.argument('src_path', type=click.Path('r'))
-@click.argument('dst_path', type=str)
-@click.option('--response-fdsnxml', default=None, 
-              type=click.Path('r'),
-              help="Inject 'bogus' responses from an FDSNXML file containing a valid response")
-def toSc3ml(src_path, dst_path, response_fdsnxml):
+
+def toSc3ml(src_path, dst_path, response_fdsnxml=None):
     """
     Convert file(s) in src_path from FDSN station XML to SC3ML and emit result(s) to dst_path.
 
@@ -47,9 +41,9 @@ def toSc3ml(src_path, dst_path, response_fdsnxml):
 
     if not os.path.exists(src_path):
         raise FileNotFoundError(src_path)
-    
+
     response = None
-    if(response_fdsnxml):
+    if response_fdsnxml is not None:
         rf = ResponseFactory()
         rf.CreateFromStationXML('resp', response_fdsnxml)
         response = rf.getResponse('resp')
@@ -143,5 +137,16 @@ def _reportConversion(success_files_list, failed_files_list):
             print("  " + f)
 
 
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('src_path', type=click.Path('r'))
+@click.argument('dst_path', type=str)
+@click.option('--response-fdsnxml', default=None, 
+              type=click.Path('r'),
+              help="Inject 'bogus' responses from an FDSNXML file containing a valid response")
+def main(src_path, dst_path, response_fdsnxml):
+    toSc3ml(src_path, dst_path, response_fdsnxml)
+
+
 if __name__ == "__main__":
-    toSc3ml()
+    main()  # pylint: disable=no-value-for-parameter
