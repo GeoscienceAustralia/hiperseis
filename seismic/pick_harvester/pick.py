@@ -30,7 +30,7 @@ from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, Catalog, CatalogCSV, ProgressTracker
+from utils import EventParser, Catalog, CatalogCSV, ProgressTracker, recursive_glob
 import psutil
 import gc
 
@@ -597,6 +597,45 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
     print 'Processing complete on rank %d'%(rank)
 
     del fds
+
+    # Ensuring all processes have completed before merging results
+    comm.Barrier()
+
+    # Merge results on proc 0
+    if(rank==0):
+        merge_results(output_path)
+    # end if
+# end func
+
+def merge_results(output_path):
+    search_strings = ['p_arrivals*', 's_arrivals*']
+    output_fns = ['p_combined.txt', 's_combined.txt']
+
+    for ss, ofn in zip(search_strings, output_fns):
+        files = recursive_glob(output_path, ss)
+        ofn = open('%s/%s' % (output_path, ofn), 'w+')
+
+        data = set()
+        for i, fn in enumerate(files):
+            lines = open(fn, 'r').readlines()
+
+            if (i == 0):
+                ofn.write(lines[0])
+            # end if
+
+            for j in range(1, len(lines)):
+                data.add(lines[j])
+            # end for
+
+            os.system('rm %s'%(fn))
+        # end for
+
+        for l in data:
+            ofn.write(l)
+        # end for
+
+        ofn.close()
+    # end for
 # end func
 
 if (__name__ == '__main__'):

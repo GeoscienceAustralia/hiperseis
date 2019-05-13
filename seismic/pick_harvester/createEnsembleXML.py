@@ -41,32 +41,7 @@ from pykml import parser
 import uuid, copy
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 
-def recursive_glob(treeroot, pattern):
-    results = []
-    for base, dirs, files in os.walk(treeroot):
-        goodfiles = fnmatch.filter(files, pattern)
-        results.extend(os.path.join(base, f) for f in goodfiles)
-    return results
-# end func
-
-def split_list(lst, npartitions):
-    result = []
-    for i in np.arange(npartitions):
-        result.append([])
-    # end for
-    count = 0
-    for iproc in np.arange(npartitions):
-        for i in np.arange(np.divide(len(lst), npartitions)):
-            result[iproc].append(lst[count])
-            count += 1
-    # end for
-    for iproc in np.arange(np.mod(len(lst), npartitions)):
-        result[iproc].append(lst[count])
-        count += 1
-    # end for
-
-    return result
-# end func
+from utils import recursive_glob, split_list
 
 class Origin:
     def __init__(self, utctime, lat, lon, depthkm):
@@ -194,7 +169,7 @@ class FDSNInv:
 # end class    
 
 class Catalog():
-    def __init__(self, isc_coords_file, fdsn_inventory, our_picks, event_folder, output_path):
+    def __init__(self, isc_coords_file, fdsn_inventory, our_picks, event_folder, output_path, discard_old_picks=False):
         
         self.event_folder = event_folder
         self.output_path = output_path
@@ -202,6 +177,7 @@ class Catalog():
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.counter = 0
+        self.discard_old_picks = discard_old_picks
         
         self.isc_coords_file = isc_coords_file
         k = parser.fromstring(open(self.isc_coords_file).read())
@@ -446,31 +422,33 @@ class Catalog():
             event.preferred_origin_id = origin.resource_id
             
             # Insert old picks
-            for a in e.preferred_origin.arrival_list:
-                if(type(self.fdsn_inventory.t[a.net][a.sta]) == defaultdict):
-                    missingStations[a.net+'.'+a.sta] += 1
-                    continue
-                # end if
-                oldPick  = OPick( resource_id=OResourceIdentifier(id=self.get_id()),
-                                  time=UTCDateTime(a.utctime),
-                                  waveform_id=OWaveformStreamID(network_code=a.net,
-                                                                station_code=a.sta,
-                                                                channel_code=a.cha),
-                                 methodID=OResourceIdentifier('unknown'),
-                                 phase_hint=a.phase,
-                                 evaluation_mode='automatic',
-                                 creation_info=ci )
+            if(not self.discard_old_picks):
+                for a in e.preferred_origin.arrival_list:
+                    if(type(self.fdsn_inventory.t[a.net][a.sta]) == defaultdict):
+                        missingStations[a.net+'.'+a.sta] += 1
+                        continue
+                    # end if
+                    oldPick  = OPick( resource_id=OResourceIdentifier(id=self.get_id()),
+                                      time=UTCDateTime(a.utctime),
+                                      waveform_id=OWaveformStreamID(network_code=a.net,
+                                                                    station_code=a.sta,
+                                                                    channel_code=a.cha),
+                                     methodID=OResourceIdentifier('unknown'),
+                                     phase_hint=a.phase,
+                                     evaluation_mode='automatic',
+                                     creation_info=ci )
 
-                oldArr = OArrival( resource_id=OResourceIdentifier(id=oldPick.resource_id.id+"#"),
-                                   pick_id=oldPick.resource_id,
-                                   phase=oldPick.phase_hint,
-                                   distance=a.distance,
-                                   earth_model_id=OResourceIdentifier('quakeml:ga.gov.au/earthmodel/iasp91'),
-                                   creation_info=ci )
-                
-                event.picks.append(oldPick)
-                event.preferred_origin().arrivals.append(oldArr)
-            # end for
+                    oldArr = OArrival( resource_id=OResourceIdentifier(id=oldPick.resource_id.id+"#"),
+                                       pick_id=oldPick.resource_id,
+                                       phase=oldPick.phase_hint,
+                                       distance=a.distance,
+                                       earth_model_id=OResourceIdentifier('quakeml:ga.gov.au/earthmodel/iasp91'),
+                                       creation_info=ci )
+
+                    event.picks.append(oldPick)
+                    event.preferred_origin().arrivals.append(oldArr)
+                # end for
+            # end if
 
             # Insert our picks
             opList = self.our_picks.picks[e.public_id]
@@ -506,20 +484,29 @@ class Catalog():
                 # end for
             # end if
 
-            quality= OOriginQuality(associated_phase_count= len(e.preferred_origin.arrival_list) + 
+            quality= OOriginQuality(associated_phase_count= len(e.preferred_origin.arrival_list) * \
+                                                            int(self.discard_old_picks) + \
                                                              len(self.our_picks.picks[e.public_id]),
-                                    used_phase_count=len(e.preferred_origin.arrival_list) + 
+                                    used_phase_count=len(e.preferred_origin.arrival_list) * \
+                                                     int(self.discard_old_picks) + \
                                                      len(self.our_picks.picks[e.public_id]))            
             event.preferred_origin().quality = quality
+
+            if(len(self.our_picks.picks[e.public_id])==0 and self.discard_old_picks):
+                continue
+            # end if
+
             oEvents.append(event)
         # end for // loop over e
 
         #print notFound
         print self.rank, missingStations
 
-        cat = OCatalog(events=oEvents)        
-        ofn = self.output_path + '/%d.xml'%(self.rank)
-        cat.write(ofn, format='SC3ML')
+        if(len(oEvents)):
+            cat = OCatalog(events=oEvents)
+            ofn = self.output_path + '/%d.xml'%(self.rank)
+            cat.write(ofn, format='SC3ML')
+        # end if
     # end func
 # end class
 
@@ -596,6 +583,53 @@ class OurPicks:
     # end func
 # end class
 
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('event-folder', required=True,
+                type=click.Path(exists=True))
+@click.argument('inventory', required=True,
+                type=click.Path(exists=True))
+@click.argument('isc-station-coords', required=True,
+                type=click.Path(exists=True))
+@click.argument('output-path', required=True,
+                type=click.Path(exists=True))
+@click.option('--p-arrivals', default=None, help='Text file containing p-arrivals')
+@click.option('--s-arrivals', default=None, help='Text file containing s-arrivals')
+@click.option('--discard-old-picks', default=False, is_flag=True, help='Discards picks in the events catalog; only keeps '
+                                                                       'picks provided through p- and s-arrivals')
+def process(event_folder, inventory, isc_station_coords, output_path, p_arrivals, s_arrivals, discard_old_picks):
+    """
+    EVENT_FOLDER: Folder containing a CSV Catalog
+    INVENTORY: Station inventory in FDSNstationxml format
+    ISC_STATION_COORDS: ISC station coordinates in kml format
+    OUTPUT_PATH: Path to output folder
+
+    usage: mpirun -np 112 python createEnsembleXML.py /g/data/ha3/Passive/Events/Unified/ sc3Inventory.xml stations.kml \
+           updatedEvents/ --p-arrivals p_combined.txt --s-arrivals s_combined.txt
+    """
+    arrival_files = []
+    arrival_types  = []
+
+    if (p_arrivals):
+        arrival_files.append(p_arrivals)
+        arrival_types.append('P')
+    if (s_arrivals):
+        arrival_files.append(s_arrivals)
+        arrival_types.append('S')
+
+    fi = FDSNInv(inventory)
+    op = OurPicks(arrival_files, arrival_types)
+    c = Catalog(isc_coords_file=isc_station_coords, fdsn_inventory=fi,
+                our_picks=op, event_folder=event_folder, output_path=output_path,
+                discard_old_picks=discard_old_picks)
+# end func
+
+if (__name__ == '__main__'):
+    process()
+# end if
+
+'''
 if __name__=="__main__":
     PATH = '/g/data/ha3/Passive/Events/Unified/'
     INV = '/g/data1a/ha3/rakib/seismic/pst/tests/output/sc3Inventory.xml'
@@ -616,4 +650,4 @@ if __name__=="__main__":
     # end if
     c = Catalog(ISC_COORDS_FILE, fi, op, PATH, OFPATH)
 # end if
-
+'''

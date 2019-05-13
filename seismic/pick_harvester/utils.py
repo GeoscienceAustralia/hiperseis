@@ -23,22 +23,8 @@ def recursive_glob(treeroot, pattern):
 # end func
 
 def split_list(lst, npartitions):
-    result = []
-    for i in np.arange(npartitions):
-        result.append([])
-    # end for
-    count = 0
-    for iproc in np.arange(npartitions):
-        for i in np.arange(np.divide(len(lst), npartitions)):
-            result[iproc].append(lst[count])
-            count += 1
-    # end for
-    for iproc in np.arange(np.mod(len(lst), npartitions)):
-        result[iproc].append(lst[count])
-        count += 1
-    # end for
-
-    return result
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
 # end func
 
 class Origin:
