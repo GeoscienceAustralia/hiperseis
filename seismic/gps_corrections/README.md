@@ -4,7 +4,7 @@ This package provides a suite of tools for analysis of GPS clock correctness acr
 There are tools to identify the existence of a GPS clock error on a station, and for analyzing the
 clock errors to generate clock time corrections.
 
-The clock error identification script are automated batch scripts based on the following techniques:
+The clock error identification scripts are automated batch scripts based on the following techniques:
 * relative travel-time (TT) residuals
 * ambient noise cross-correlation between station pairs
 
@@ -14,7 +14,7 @@ functions to the clock error data, and exporting of the fitted functions to file
 
 ## Relative TT residual analysis
 
-Script `relative_tt_residuals_plotter.py` generate timeline plots of seismic travel time residual
+Script `relative_tt_residuals_plotter.py` generates timeline plots of seismic travel time residual
 analysis of one network relative to another network to identify potential GPS clock drift. Given an
 ensemble of events common to a pair of networks, for each station its travel-time residual for each
 event is subtracted from the same event on all common stations of another network, and all such
@@ -31,7 +31,7 @@ and reliable due to the number of aggregated events that get plotted.
 
 Example:
 
-`python relative_tt_residuals_plotter.py --network1 AU --networks2 OA`
+`python relative_tt_residuals_plotter.py --network1 AU --networks2 OA ensemble_20190428.p.txt`
 
 This generates a folder `OA_strict` containing a subfolder `AU,GE,IR,IU`. This means network OA has been
 analyzed against AU,GE,IR,IU. *Why all these other network codes (GE,IR,IU) when only AU was requested?*
@@ -74,7 +74,7 @@ time window of only about ~50 seconds for picking p-wave arrivals. Therefore usi
 TT residuals we can only detect drifts less than about 50 seconds. For larger clock errors,
 cross-correlation analysis is required.
 
-In many cases clocks drift gradually, so residual can effectively detect the onset of drift and the
+In many cases clocks drift gradually, so residuals can effectively detect the onset of drift and the
 drift rate. It can also detect clock jumps of less than 50 seconds, but cannot detect sudden clock
 jumps of more than 50 seconds.
 
