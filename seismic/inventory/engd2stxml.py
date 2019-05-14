@@ -298,7 +298,7 @@ def read_isc(fname):
     return df_all
 
 
-def removeBlacklisted(df):
+def remove_blacklisted(df):
     """
     Remove network codes that are explicitly blacklisted due to QA issues or undesirable overlap
     with trusted FDSN station codes.
@@ -311,7 +311,7 @@ def removeBlacklisted(df):
     return df
 
 
-def removeIllegalStationNames(df):
+def remove_illegal_stationNames(df):
     """
     Remove records for station names that do not conform to expected naming convention.
     Such names can cause problems in downstream station, in particular names with asterisk.
@@ -333,7 +333,7 @@ def removeIllegalStationNames(df):
         df.drop(removal_index, inplace=True)
 
 
-def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
+def latlong_to_cosinedistance(latlong_deg_set1, latlong_deg_set2):
     """
     Compute the approximate cosine distance between each station of 2 sets.
 
@@ -383,7 +383,7 @@ def latLong2CosineDistance(latlong_deg_set1, latlong_deg_set2):
     return result
 
 
-def computeNeighboringStationMatrix(df):
+def compute_neighboring_station_matrix(df):
     """
     Compute sparse matrix representing index of neighboring stations.
 
@@ -403,14 +403,14 @@ def computeNeighboringStationMatrix(df):
     sparse_cos_dist = []
     num_splits = max(self_latlong.shape[0] // 2000, 1)
     for m in np.array_split(self_latlong, num_splits):
-        partial_result = latLong2CosineDistance(self_latlong, m)
+        partial_result = latlong_to_cosinedistance(self_latlong, m)
         partial_result = sp.sparse.csr_matrix(partial_result >= COSINE_DIST_TOLERANCE)
         sparse_cos_dist.append(partial_result)
     cos_dist = sp.sparse.hstack(sparse_cos_dist, "csr")
     return cos_dist
 
 
-def removeDuplicateStations(df, neighbor_matrix):
+def remove_duplicate_stations(df, neighbor_matrix):
     """
     Remove stations which are identified as duplicates:
     * Removes duplicated stations in df based on station code and locality of lat/long coordinates.
@@ -487,19 +487,21 @@ def removeDuplicateStations(df, neighbor_matrix):
                 index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
                 duplicate_index = data.index[index_mask]
                 if not duplicate_index.empty:
-                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(data.loc[[row_index]], data.loc[duplicate_index]))
+                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(
+                              data.loc[[row_index]], data.loc[duplicate_index]))
                     removal_index.update(duplicate_index.tolist())
         if show_progress:
             pbar.close()
     removal_index = np.array(sorted(list(removal_index)))
     if removal_index.size > 0:
-        print("Removing following {0} duplicates due to undifferentiated network and station codes:\n{1}".format(len(removal_index), df.loc[removal_index]))
+        print("Removing following {0} duplicates due to undifferentiated network and station codes:\n{1}".format(
+              len(removal_index), df.loc[removal_index]))
         df.drop(removal_index, inplace=True)
 
     return df
 
 
-def populateDefaultStationDates(df):
+def populate_default_station_dates(df):
     """
     Replace all missing station start and end dates with default values.
     Replace all missing channel start and end dates with their corresponding station/end dates.
@@ -524,7 +526,7 @@ def populateDefaultStationDates(df):
     assert not np.any(df.ChannelEnd.isna())
 
 
-def mergeOverlappingChannelEpochs(df):
+def merge_overlapping_channel_epochs(df):
     """
     Removed overlapping time intervals for a given network.station.channel, as this
     needs to be unique.
@@ -564,7 +566,7 @@ def mergeOverlappingChannelEpochs(df):
         df.drop(removal_index, inplace=True)
 
 
-def cleanupDatabase(df):
+def cleanup_database(df):
     """
     Main cleanup function encompassing the sequential data cleanup steps.
 
@@ -577,25 +579,25 @@ def cleanupDatabase(df):
 
     print("Removing stations with illegal station code...")
     num_before = len(df)
-    removeIllegalStationNames(df)
+    remove_illegal_stationNames(df)
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
         print("Removed {0}/{1} stations because their station codes are not compliant".format(num_before - len(df), num_before))
 
     print("Cleaning up station duplicates...")
     num_before = len(df)
-    neighbor_matrix = computeNeighboringStationMatrix(df)
-    df = removeDuplicateStations(df, neighbor_matrix)
+    neighbor_matrix = compute_neighboring_station_matrix(df)
+    df = remove_duplicate_stations(df, neighbor_matrix)
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
         print("Removed {0}/{1} stations flagged as duplicates".format(num_before - len(df), num_before))
 
     print("Filling in missing station dates with defaults...")
-    populateDefaultStationDates(df)
+    populate_default_station_dates(df)
 
     print("Merging overlapping channel epochs...")
     num_before = len(df)
-    mergeOverlappingChannelEpochs(df)
+    merge_overlapping_channel_epochs(df)
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
         print("Merged {0}/{1} channel records with overlapping epochs".format(num_before - len(df), num_before))
@@ -603,9 +605,9 @@ def cleanupDatabase(df):
     return df
 
 
-def exportToFDSNStationXml(df, nominal_instruments, filename):
+def export_to_fdsn_station_xml(df, nominal_instruments, filename):
     """Export dataframe of station metadata to FDSN station xml file
-    
+
     :param df: Dataframe containing all the station records to export.
     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
@@ -632,57 +634,57 @@ def exportToFDSNStationXml(df, nominal_instruments, filename):
     global_inventory.write(filename, format="stationxml")
 
 
-def exportStationXml(df, nominal_instruments, output_folder, filename_base):
-    """
-    Export the dataset in df to FDSN Station XML format.
+# def exportStationXml(df, nominal_instruments, output_folder, filename_base):
+#     """
+#     Export the dataset in df to FDSN Station XML format.
 
-    Given a dataframe containing network and station codes grouped by network, for each
-    network create an obspy inventory object and export to FDSN station XML file. Also
-    write an overall list of stations based on global inventory to stations.txt.
+#     Given a dataframe containing network and station codes grouped by network, for each
+#     network create an obspy inventory object and export to FDSN station XML file. Also
+#     write an overall list of stations based on global inventory to stations.txt.
 
-    :param df: Dataframe containing all the station records to export.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
-        characterization
-    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
-        obspy.core.inventory.response.Response) }
-    :param output_folder: Name of output folder in which to place the exported XML files
-    :type output_folder: str or pathlib.Path
-    :param filename_base: Base name of each output file. Exported filename is appended with the
-        network code, plus .xml extension.
-    :type filename_base: str
-    """
-    pathlib.Path(output_folder).mkdir(exist_ok=True)
-    print("Exporting stations to folder {0}".format(output_folder))
+#     :param df: Dataframe containing all the station records to export.
+#     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+#     :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
+#         characterization
+#     :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
+#         obspy.core.inventory.response.Response) }
+#     :param output_folder: Name of output folder in which to place the exported XML files
+#     :type output_folder: str or pathlib.Path
+#     :param filename_base: Base name of each output file. Exported filename is appended with the
+#         network code, plus .xml extension.
+#     :type filename_base: str
+#     """
+#     pathlib.Path(output_folder).mkdir(exist_ok=True)
+#     print("Exporting stations to folder {0}".format(output_folder))
 
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-        progressor = pbar.update
-        std_print = pbar.write
-    else:
-        progressor = None
-        std_print = print
+#     if show_progress:
+#         pbar = tqdm.tqdm(total=len(df), ascii=True)
+#         progressor = pbar.update
+#         std_print = pbar.write
+#     else:
+#         progressor = None
+#         std_print = print
 
-    global_inventory = Inventory(networks=[], source='EHB')
-    for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
-        net_inv = Inventory(networks=[net], source=global_inventory.source)
-        global_inventory.networks.append(net)
-        fname = "{0}{1}.xml".format(filename_base, netcode)
-        try:
-            net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
-        except Exception as e:
-            std_print(e)
-            std_print("FAILED writing file {0} for network {1}, continuing".format(fname, netcode))
-            continue
-    if show_progress:
-        pbar.close()
+#     global_inventory = Inventory(networks=[], source='EHB')
+#     for netcode, data in df.groupby('NetworkCode'):
+#         net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
+#         net_inv = Inventory(networks=[net], source=global_inventory.source)
+#         global_inventory.networks.append(net)
+#         fname = "{0}{1}.xml".format(filename_base, netcode)
+#         try:
+#             net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
+#         except Exception as e:
+#             std_print(e)
+#             std_print("FAILED writing file {0} for network {1}, continuing".format(fname, netcode))
+#             continue
+#     if show_progress:
+#         pbar.close()
 
-    # Write global inventory text file in FDSN stationtxt inventory format.
-    global_inventory.write("station.txt", format="stationtxt")
+#     # Write global inventory text file in FDSN stationtxt inventory format.
+#     global_inventory.write("station.txt", format="stationtxt")
 
 
-def writeFinalInventory(df, fname):
+def write_portable_inventory(df, fname):
     """
     Write the final database to re-usable file formats.
 
@@ -723,7 +725,7 @@ def writeFinalInventory(df, fname):
 #         raise
 
 
-def obtainNominalInstrumentResponses(netcode, statcode, chcode):
+def obtain_nominal_instrument_response(netcode, statcode, chcode):
     """
     For given network, station and channel code, find a suitable response in IRIS database and
     return as obspy instrument response.
@@ -772,7 +774,7 @@ def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     return responses
 
 
-def extractUniqueSensorsResponses(inv):
+def extract_unique_sensors_responses(inv):
     """
     For the channel codes in the given inventory, determine a nominal instrument response suitable
     for that code. Note that no attempt is made here to determine an ACTUAL correct response for
@@ -797,7 +799,7 @@ def extractUniqueSensorsResponses(inv):
     print("Preparing common instrument response database from networks {} (this may take a while)...".format(reference_networks))
     for query in reference_networks:
         print("  querying {} as {}.{}.{}".format(query[0], *query))
-        nominal_instruments.update(obtainNominalInstrumentResponses(*query))
+        nominal_instruments.update(obtain_nominal_instrument_response(*query))
 
     if show_progress:
         num_entries = sum(len(sta.channels) for net in inv.networks for sta in net.stations)
@@ -822,7 +824,7 @@ def extractUniqueSensorsResponses(inv):
                 assert isinstance(cha.code, basestring), type(cha.code)
                 # For each channel code, obtain a nominal instrument response by IRIS query.
                 if cha.code not in nominal_instruments:
-                    response = obtainNominalInstrumentResponses(net.code, sta.code, cha.code)
+                    response = obtain_nominal_instrument_response(net.code, sta.code, cha.code)
                     nominal_instruments.update(response)
                     if cha.code in response:
                         std_print("Found nominal instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
@@ -881,7 +883,7 @@ def main(iris_xml_file):
     db = pd.concat([ehb, isc], sort=False)
 
     print("Removing blacklisted networks...")
-    db = removeBlacklisted(db)
+    db = remove_blacklisted(db)
 
     # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
     # the record with the least NaT values will be favored to be kept.
@@ -889,7 +891,7 @@ def main(iris_xml_file):
     db.reset_index(drop=True, inplace=True)
 
     # Perform cleanup on each database
-    db = cleanupDatabase(db)
+    db = cleanup_database(db)
 
     # Read IRIS station database.
     print("Reading " + iris_xml_file)
@@ -902,7 +904,7 @@ def main(iris_xml_file):
             iris_inv = read_inventory(f)
 
     # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
-    nominal_instruments = extractUniqueSensorsResponses(iris_inv)
+    nominal_instruments = extract_unique_sensors_responses(iris_inv)
 
     # if TEST_MODE:
     #     output_folder = "output_test"
@@ -912,7 +914,7 @@ def main(iris_xml_file):
     #     plot_folder = "plots"
 
     # Write whole database to FDSN station xml file
-    exportToFDSNStationXml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
+    export_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
     # exportStationXml(db, nominal_instruments, output_folder, "network_")
 
     # if not TEST_MODE:
@@ -928,7 +930,7 @@ def main(iris_xml_file):
     #             os.rename(sc3ml_output_folder, stashed_name)
 
     # Write whole database in portable csv and hdf5 formats
-    writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
+    write_portable_inventory(db, "INVENTORY_" + rt_timestamp)
 
     # print("Exporting network plots to folder {0}".format(plot_folder))
     # exportNetworkPlots(db, plot_folder)

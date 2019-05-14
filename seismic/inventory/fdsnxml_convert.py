@@ -36,7 +36,7 @@ def toSc3ml(src_path, dst_path, response_fdsnxml=None):
     :type dst_path: str or pathlib.Path
     :raises: OSError, FileNotFoundError, RuntimeError, FileExistsError
     """
-    if not _checkConverterAvailability():
+    if not sc3_conversion_available():
         raise OSError(2, "No such application found on path", sc3_converter_app)
 
     if not os.path.exists(src_path):
@@ -119,12 +119,13 @@ def _folderToSc3ml(src_folder, dst_folder, response=None):
     return success_files, failed_files
 
 
-def _checkConverterAvailability():
+def sc3_conversion_available():
     if (sys.version_info >= (3, 0)):
         from shutil import which
         return which(sc3_converter_app) is not None
     else:
         return True # assume it exists
+
 
 def _reportConversion(success_files_list, failed_files_list):
     num_success = len(success_files_list)
