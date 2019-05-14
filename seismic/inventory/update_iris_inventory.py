@@ -99,7 +99,6 @@ def update_iris_station_xml(output_file, output_format, options=None):
         except:
             cleanup(ifile.name)
             raise
-
         cleanup(ifile.name)
     elif output_format == 'FDSN':
         with open(output_file, 'w') as f:

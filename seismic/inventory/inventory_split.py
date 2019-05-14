@@ -26,7 +26,7 @@ except ImportError:
     print("Run 'pip install tqdm' to see progress bar.")
 
 
-def split_inventory_by_network(obspy_inv, output_folder, sc3ml_convert=False):
+def split_inventory_by_network(obspy_inv, output_folder, sc3ml_convert=False, validate=False):
 
     pathlib.Path(output_folder).mkdir(exist_ok=True)
 
@@ -37,13 +37,15 @@ def split_inventory_by_network(obspy_inv, output_folder, sc3ml_convert=False):
         std_print = print
 
     for network in obspy_inv:
-        pbar.update()
+        if show_progress:
+            pbar.update()
+            pbar.set_description("Network {}".format(network.code))
         net_inv = Inventory(networks=[network], source=obspy_inv.source)
         fname = "network_{}.xml".format(network.code)
         try:
-            net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
+            net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=validate)
         except Exception as e:
-            std_print(e)
+            std_print(str(e))
             std_print("FAILED writing file {0} for network {1}, continuing".format(fname, network.code))
             continue
     if show_progress:
