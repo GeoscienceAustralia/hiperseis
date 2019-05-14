@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
 ==================================================
-Engdahl and ISC STN data conversion to station XML
+Engdahl and ISC STN data conversion to FDSN station XML
 ==================================================
 
-Creates database of stations from .STN files which are not in IRIS database,
+Creates database of stations from .STN files,
 curates the data using heuristic rules, and exports new stations to FDSN
 station XML format network with non-empty, nominal instrument response data.
 
@@ -14,7 +14,7 @@ Cleanup steps applied:
 * Make "future" station end dates consistent to max Pandas timestamp.
 * Remove records with illegal station codes.
 * Remove duplicate station records.
-* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch, since seiscomp3 rejects such overlapping dates.
+* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch.
 """
 
 # pylint: disable=too-many-locals, invalid-name
@@ -36,12 +36,14 @@ import requests as req
 
 import obspy
 from obspy import read_inventory
+from obspy.core.inventory import Inventory
 from obspy.geodetics.base import locations2degrees
 from seismic.inventory.pdconvert import pd2Network
 from seismic.inventory.plotting import saveNetworkLocalPlots
 from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
 from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
 from seismic.inventory.fdsnxml_convert import toSc3ml
+from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
 
 PY2 = sys.version_info[0] < 3
 
@@ -93,7 +95,6 @@ pd.set_option('display.width', 240)
 # Global constants. Assumption of spherical earth model. This is quite a weak assumption, but
 # the obspy function locations2degrees() uses spherical earth model too, so no difference to
 # distance method used here.
-NOMINAL_EARTH_RADIUS_KM = 6378.1370
 DIST_TOLERANCE_KM = 2.0
 DIST_TOLERANCE_RAD = DIST_TOLERANCE_KM / NOMINAL_EARTH_RADIUS_KM
 COSINE_DIST_TOLERANCE = np.cos(DIST_TOLERANCE_RAD)
@@ -277,9 +278,10 @@ def read_isc(fname):
                 df_list.append(hdr)
                 hdr = None
             # Read header row
-            if len(line) > 0:
+            if line:
                 line_input = sio.StringIO(line)
-                hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA, parse_dates=[4, 5])
+                hdr = pd.read_fwf(line_input, colspecs=header_colspec, names=header_cols, nrows=1, dtype=TABLE_SCHEMA,
+                                  parse_dates=[4, 5])
                 line = f.readline()
             else:
                 hdr = None
@@ -601,6 +603,35 @@ def cleanupDatabase(df):
     return df
 
 
+def exportToFDSNStationXml(df, nominal_instruments, filename):
+    """Export dataframe of station metadata to FDSN station xml file
+    
+    :param df: Dataframe containing all the station records to export.
+    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
+        characterization
+    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
+        obspy.core.inventory.response.Response) }
+    :param filename: Output filename
+    :type filename: str or path
+    """
+    if show_progress:
+        pbar = tqdm.tqdm(total=len(df), ascii=True)
+        progressor = pbar.update
+    else:
+        progressor = None
+
+    global_inventory = Inventory(networks=[], source='EHB')
+    for netcode, data in df.groupby('NetworkCode'):
+        net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
+        global_inventory.networks.append(net)
+    if show_progress:
+        pbar.close()
+
+    # Write global inventory text file in FDSN stationxml inventory format.
+    global_inventory.write(filename, format="stationxml")
+
+
 def exportStationXml(df, nominal_instruments, output_folder, filename_base):
     """
     Export the dataset in df to FDSN Station XML format.
@@ -621,8 +652,6 @@ def exportStationXml(df, nominal_instruments, output_folder, filename_base):
         network code, plus .xml extension.
     :type filename_base: str
     """
-    from obspy.core.inventory import Inventory
-
     pathlib.Path(output_folder).mkdir(exist_ok=True)
     print("Exporting stations to folder {0}".format(output_folder))
 
@@ -672,26 +701,26 @@ def writeFinalInventory(df, fname):
             f.write(inv_str)
 
 
-def exportNetworkPlots(df, plot_folder):
-    """
-    Export visual map plots of each network for reference purposes.
+# def exportNetworkPlots(df, plot_folder):
+#     """
+#     Export visual map plots of each network for reference purposes.
 
-    :param df: Dataframe containing complete inventory of station records.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param plot_folder: Name of folder in which to put the output files.
-    :type plot_folder: str
-    """
+#     :param df: Dataframe containing complete inventory of station records.
+#     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+#     :param plot_folder: Name of folder in which to put the output files.
+#     :type plot_folder: str
+#     """
 
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-    try:
-        saveNetworkLocalPlots(df, plot_folder, pbar.update)
-        if show_progress:
-            pbar.close()
-    except Exception:
-        if show_progress:
-            pbar.close()
-        raise
+#     if show_progress:
+#         pbar = tqdm.tqdm(total=len(df), ascii=True)
+#     try:
+#         saveNetworkLocalPlots(df, plot_folder, pbar.update)
+#         if show_progress:
+#             pbar.close()
+#     except Exception:
+#         if show_progress:
+#             pbar.close()
+#         raise
 
 
 def obtainNominalInstrumentResponses(netcode, statcode, chcode):
@@ -725,17 +754,21 @@ def obtainNominalInstrumentResponses(netcode, statcode, chcode):
     setTextEncoding(response_xml, quiet=True)
     # This line decodes when .text attribute is extracted, then encodes to utf-8
     obspy_input = bio.BytesIO(response_xml.text.encode('utf-8'))
-    channel_data = read_inventory(obspy_input)
-    responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks
-                 for sta in net.stations for cha in sta.channels if cha.code is not None and cha.response is not None}
-    # Make responses valid for Seiscomp3
-    for inst in responses.values():
-        assert inst.response
-        for rs in inst.response.response_stages:
-            if rs.decimation_delay is None:
-                rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
-            if rs.decimation_correction is None:
-                rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+    try:
+        channel_data = read_inventory(obspy_input)
+        responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks
+                     for sta in net.stations for cha in sta.channels
+                     if cha.code is not None and cha.response is not None}
+        # Make responses valid for Seiscomp3
+        for inst in responses.values():
+            assert inst.response
+            for rs in inst.response.response_stages:
+                if rs.decimation_delay is None:
+                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
+                if rs.decimation_correction is None:
+                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
+    except ValueError:
+        responses = {}
     return responses
 
 
@@ -852,7 +885,6 @@ def main(iris_xml_file):
 
     # Include date columns in sort so that NaT values sink to the bottom. This means when duplicates are removed,
     # the record with the least NaT values will be favored to be kept.
-    SORT_ORDERING = ['NetworkCode', 'StationCode', 'StationStart', 'StationEnd', 'ChannelCode', 'ChannelStart', 'ChannelEnd']
     db.sort_values(SORT_ORDERING, inplace=True)
     db.reset_index(drop=True, inplace=True)
 
@@ -872,30 +904,34 @@ def main(iris_xml_file):
     # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
     nominal_instruments = extractUniqueSensorsResponses(iris_inv)
 
-    if TEST_MODE:
-        output_folder = "output_test"
-        plot_folder = "plots_test"
-    else:
-        output_folder = "output"
-        plot_folder = "plots"
+    # if TEST_MODE:
+    #     output_folder = "output_test"
+    #     plot_folder = "plots_test"
+    # else:
+    #     output_folder = "output"
+    #     plot_folder = "plots"
 
-    exportStationXml(db, nominal_instruments, output_folder, "network_")
-    if not TEST_MODE:
-        sc3ml_output_folder = "networks_sc3ml"
-        try:
-            toSc3ml(output_folder, sc3ml_output_folder, None)
-        except OSError:
-            print("WARNING: Unable to convert to sc3ml, possibly seiscomp not available on platform!")
-            if os.path.isdir(sc3ml_output_folder):
-                import uuid
-                print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
-                stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
-                os.rename(sc3ml_output_folder, stashed_name)
+    # Write whole database to FDSN station xml file
+    exportToFDSNStationXml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
+    # exportStationXml(db, nominal_instruments, output_folder, "network_")
 
+    # if not TEST_MODE:
+    #     sc3ml_output_folder = "networks_sc3ml"
+    #     try:
+    #         toSc3ml(output_folder, sc3ml_output_folder, None)
+    #     except OSError:
+    #         print("WARNING: Unable to convert to sc3ml, possibly seiscomp not available on platform!")
+    #         if os.path.isdir(sc3ml_output_folder):
+    #             import uuid
+    #             print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
+    #             stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
+    #             os.rename(sc3ml_output_folder, stashed_name)
+
+    # Write whole database in portable csv and hdf5 formats
     writeFinalInventory(db, "INVENTORY_" + rt_timestamp)
 
-    print("Exporting network plots to folder {0}".format(plot_folder))
-    exportNetworkPlots(db, plot_folder)
+    # print("Exporting network plots to folder {0}".format(plot_folder))
+    # exportNetworkPlots(db, plot_folder)
 
 
 if __name__ == "__main__":

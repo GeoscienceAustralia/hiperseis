@@ -63,7 +63,7 @@ def _fileToSc3ml(src_file, dst_file, response=None):
         raise FileExistsError("{} already exists as a folder".format(dst_file))
 
     # Inject responses
-    inv  = read_inventory(src_file)
+    inv = read_inventory(src_file)
     for n in inv.networks:
         for s in n.stations:
             if(not s.start_date): s.start_date = n.start_date

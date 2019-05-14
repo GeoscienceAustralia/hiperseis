@@ -110,6 +110,7 @@ def inventory2Dataframe(inv_object, show_progress=True):
         num_entries = sum(len(station.channels) for network in inv_object.networks for station in network.stations)
         pbar = tqdm.tqdm(total=num_entries, ascii=True)
 
+    max_end_timestamp = np.datetime64(str(PANDAS_MAX_TIMESTAMP), 's')
     d = defaultdict(list)
     for network in inv_object.networks:
         for station in network.stations:
@@ -125,10 +126,10 @@ def inventory2Dataframe(inv_object, show_progress=True):
                 d['Longitude'].append(lon)
                 d['Elevation'].append(ele)
                 d['StationStart'].append(np.datetime64(station.start_date))
-                d['StationEnd'].append(np.datetime64(station.end_date))
+                d['StationEnd'].append(min(np.datetime64(station.end_date, 's'), max_end_timestamp))
                 d['ChannelCode'].append(channel.code)
                 d['ChannelStart'].append(np.datetime64(channel.start_date))
-                d['ChannelEnd'].append(np.datetime64(channel.end_date))
+                d['ChannelEnd'].append(min(np.datetime64(channel.end_date, 's'), max_end_timestamp))
     if show_progress:
         pbar.close()
     df = pd.DataFrame.from_dict(d)
