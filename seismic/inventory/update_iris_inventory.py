@@ -57,7 +57,7 @@ def cleanup(tmp_filename):
         print("WARNING: Failed to remove temporary file " + tmp_filename)
 
 
-def update_iris_station_xml(output_file, output_format, options=None):
+def update_iris_station_xml(output_file, output_format, sc3_compatible,  options=None):
     """
     Pull the latest IRIS complete station inventory (down to station level, not including
     instrument responses) from IRIS web service and save to file in chosen format.
@@ -81,11 +81,12 @@ def update_iris_station_xml(output_file, output_format, options=None):
         return
 
     # Repair errors with IRIS data
+    sc3_format = (output_format == 'SC3')
     print("Correcting known data errors...")
-    iris_fixed = repair_iris_metadata(iris)
+    iris_fixed = repair_iris_metadata(iris, sc3_compatible=(sc3_format or sc3_compatible))
     iris.close()
 
-    if output_format == 'SC3':
+    if sc3_format:
         try:
             # Since there are not available Python bindings for the conversion, we have to dump FDSN stxml to file
             # first, then convert to seiscomp3 stxml inventory using system call.
@@ -112,11 +113,16 @@ def update_iris_station_xml(output_file, output_format, options=None):
     regenerate_human_readable(iris_fixed, output_txt)
 
 
-def repair_iris_metadata(iris):
-    """Perform text subtitutions to fix known errors in station xml returned from IRIS
+def repair_iris_metadata(iris, sc3_compatible=False):
+    """Perform text subtitutions to fix known errors in station xml returned from IRIS.
+       If sc3_compatible:
+       * Add a non-empty nominal instrument response where missing.
+       * Replace empty station and channel dates with dates based on parent.
 
     :param iris: [description]
     :type iris: [type]
+    :param sc3_compatible: [description]
+    :type sc3_compatible: [type]
     :return: [description]
     :rtype: [type]
     """
@@ -130,6 +136,11 @@ def repair_iris_metadata(iris):
     # This code repairs illegal data matching KNOWN_ILLEGAL_ELEMENTS_PATTERNS from iris.text
     matcher = re.compile("|".join(list(KNOWN_ILLEGAL_ELEMENTS_PATTERNS.keys())))
     iris_text_fixed = matcher.sub(repair_match, iris.text)
+
+    if sc3_compatible:
+        # TODO: functionalize the response and date cleanup code from fdsnxml_convert.py and apply here.
+        pass
+
     return iris_text_fixed
 
 
@@ -184,10 +195,13 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--chanmask", help="Filter mask to apply to channel codes.")
     parser.add_argument("-o", "--output", help="Name of output file.", default=DEFAULT_OUTPUT_FILE)
     parser.add_argument("-f", "--format", default="SC3", help="Output format, from {}".format(OUTPUT_FORMATS))
+    parser.add_argument("--sc3-compatible", action="store_true",
+                        help="Make sure output is patched for SC3 compatibility (regardless of output format")
     args = vars(parser.parse_args())
-    filter_args = {k: v for k, v in args.items() if v is not None and k not in ["output", "format"]}
+    filter_args = {k: v for k, v in args.items() if v is not None and k in ["netmask", "statmask", "chanmask"]}
     output_filename = args['output']
     output_format = args['format']
+    sc3_compat = args['sc3_compatible']
     if output_format not in OUTPUT_FORMATS:
         print("Allowed output formats: {}".format(OUTPUT_FORMATS))
         exit(0)
@@ -195,6 +209,6 @@ if __name__ == "__main__":
     time.sleep(1)
 
     if filter_args:
-        update_iris_station_xml(output_filename, output_format, filter_args)
+        update_iris_station_xml(output_filename, output_format, sc3_compat, filter_args)
     else:
-        update_iris_station_xml(output_filename, output_format)
+        update_iris_station_xml(output_filename, output_format, sc3_compat)

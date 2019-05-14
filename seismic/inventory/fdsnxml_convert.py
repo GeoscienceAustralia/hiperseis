@@ -9,17 +9,17 @@ Can be used as a standalone tool as well:
 import os
 import sys
 import subprocess
-import tempfile
+# import tempfile
 
 import click
-from seismic.inventory.response import ResponseFactory
-from obspy import read_inventory
+# from seismic.inventory.response import ResponseFactory
+# from obspy import read_inventory
 
 sc3_converter_app = "fdsnxml2inv"
 sc3_converter_options = ("--quiet", "--formatted")
 
 
-def toSc3ml(src_path, dst_path, response_fdsnxml=None):
+def toSc3ml(src_path, dst_path):
     """
     Convert file(s) in src_path from FDSN station XML to SC3ML and emit result(s) to dst_path.
 
@@ -42,40 +42,42 @@ def toSc3ml(src_path, dst_path, response_fdsnxml=None):
     if not os.path.exists(src_path):
         raise FileNotFoundError(src_path)
 
-    response = None
-    if response_fdsnxml is not None:
-        rf = ResponseFactory()
-        rf.CreateFromStationXML('resp', response_fdsnxml)
-        response = rf.getResponse('resp')
+    # response = None
+    # if response_fdsnxml is not None:
+    #     rf = ResponseFactory()
+    #     rf.CreateFromStationXML('resp', response_fdsnxml)
+    #     response = rf.getResponse('resp')
 
     if os.path.isfile(src_path):
-        _fileToSc3ml(src_path, dst_path, response)
+        # _fileToSc3ml(src_path, dst_path, response)
+        _fileToSc3ml(src_path, dst_path)
         _reportConversion([src_path], [])
     elif os.path.isdir(src_path):
-        _reportConversion(*_folderToSc3ml(src_path, dst_path, response))
+        # _reportConversion(*_folderToSc3ml(src_path, dst_path, response))
+        _reportConversion(*_folderToSc3ml(src_path, dst_path))
     else:
         raise RuntimeError("Unsupported file type for {}".format(src_path))
 
 
-def _fileToSc3ml(src_file, dst_file, response=None):
+def _fileToSc3ml(src_file, dst_file):
     assert os.path.isfile(src_file)
     if os.path.exists(dst_file) and os.path.isdir(dst_file):
         raise FileExistsError("{} already exists as a folder".format(dst_file))
 
-    # Inject responses
-    inv = read_inventory(src_file)
-    for n in inv.networks:
-        for s in n.stations:
-            if(not s.start_date): s.start_date = n.start_date
-            if(not s.end_date): s.end_date = n.end_date
-            for c in s.channels:
-                if(not c.start_date): c.start_date = s.start_date
-                if(not c.end_date): c.end_date = s.end_date
-                if(response and not c.response): c.response = response
+    # # Repair dates and inject responses if needed.
+    # inv = read_inventory(src_file)
+    # for n in inv.networks:
+    #     for s in n.stations:
+    #         if(not s.start_date): s.start_date = n.start_date
+    #         if(not s.end_date): s.end_date = n.end_date
+    #         for c in s.channels:
+    #             if(not c.start_date): c.start_date = s.start_date
+    #             if(not c.end_date): c.end_date = s.end_date
+    #             if(response and not c.response): c.response = response
 
-        fn = os.path.join(tempfile.gettempdir(), os.path.basename(src_file))
-        inv.write(fn, format='STATIONXML')
-        src_file = fn
+    #     fn = os.path.join(tempfile.gettempdir(), os.path.basename(src_file))
+    #     inv.write(fn, format='STATIONXML')
+    #     src_file = fn
 
     cmd = [sc3_converter_app] + list(sc3_converter_options) + [src_file, dst_file]
     # Convert using system call
@@ -85,13 +87,15 @@ def _fileToSc3ml(src_file, dst_file, response=None):
     else:
         subprocess.check_call(cmd, timeout=3600)
 
+
 def _makedirs(path, exist_ok=True):
     if (sys.version_info >= (3, 0)):
         os.makedirs(path, exist_ok=exist_ok)
     else:
         if not os.path.exists(path): os.makedirs(path)
-    
-def _folderToSc3ml(src_folder, dst_folder, response=None):
+
+
+def _folderToSc3ml(src_folder, dst_folder):
     assert os.path.isdir(src_folder)
     if os.path.exists(dst_folder) and os.path.isfile(dst_folder):
         raise FileExistsError("{} already exists as a file".format(dst_folder))
@@ -111,7 +115,8 @@ def _folderToSc3ml(src_folder, dst_folder, response=None):
             _makedirs(dst_tree, exist_ok=True)
             dst_file = os.path.join(dst_tree, f)
             try:
-                _fileToSc3ml(src_file, dst_file, response)
+                # _fileToSc3ml(src_file, dst_file, response)
+                _fileToSc3ml(src_file, dst_file)
                 success_files.append(src_file)
             except subprocess.CalledProcessError:
                 failed_files.append(src_file)
@@ -142,11 +147,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('src_path', type=click.Path('r'))
 @click.argument('dst_path', type=str)
-@click.option('--response-fdsnxml', default=None, 
-              type=click.Path('r'),
-              help="Inject 'bogus' responses from an FDSNXML file containing a valid response")
-def main(src_path, dst_path, response_fdsnxml):
-    toSc3ml(src_path, dst_path, response_fdsnxml)
+def main(src_path, dst_path):
+    toSc3ml(src_path, dst_path)
 
 
 if __name__ == "__main__":
