@@ -4,11 +4,12 @@
 
 import os
 import sys
-import pandas as pd
-from seismic.inventory.pdconvert import pd2Network
+from collections import defaultdict
+
 from obspy.core.inventory import Inventory
 import matplotlib.pyplot as plt
-from collections import defaultdict
+
+from seismic.inventory.pdconvert import pd2Network
 
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib  # pylint: disable=import-error
@@ -18,7 +19,7 @@ else:
 no_instruments = defaultdict(lambda: None)
 
 
-def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
+def save_network_local_plots(df, plot_folder, progressor=None, include_stations_list=True):
     """
     Save visual map plot per network, saved to file netcode.png.
 
@@ -38,9 +39,10 @@ def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_lis
         net = pd2Network(netcode, data, no_instruments)
         plot_fname = os.path.join(dest_path, netcode + ".png")
         try:
-            fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0", water_fill_color="#d0d0ff", color="#c08080")
+            fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0",
+                           water_fill_color="#d0d0ff", color="#c08080")
             plt.close(fig)
-        except:
+        except Exception:
             failed.append(netcode)
 
         if include_stations_list:
@@ -57,7 +59,7 @@ def saveNetworkLocalPlots(df, plot_folder, progressor=None, include_stations_lis
         print("SUCCESS!")
 
 
-def saveStationLocalPlots(df, plot_folder, progressor=None, include_stations_list=True):
+def save_station_local_plots(df, plot_folder, progressor=None, include_stations_list=True):
     """
     Save visual map plot per station, saved to file netcode.stationcode.png.
 
@@ -78,9 +80,10 @@ def saveStationLocalPlots(df, plot_folder, progressor=None, include_stations_lis
         station_name = ".".join([netcode, statcode])
         plot_fname = os.path.join(dest_path, station_name + ".png")
         try:
-            fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0", water_fill_color="#d0d0ff", color="#c08080")
+            fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0",
+                           water_fill_color="#d0d0ff", color="#c08080")
             plt.close(fig)
-        except:
+        except Exception:
             failed.append(station_name)
 
         if include_stations_list:

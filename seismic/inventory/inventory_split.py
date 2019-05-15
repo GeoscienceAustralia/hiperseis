@@ -27,7 +27,15 @@ except ImportError:
 
 
 def split_inventory_by_network(obspy_inv, output_folder, validate=False):
+    """Export a station XML file per network for each network in given obspy Inventory.
 
+    :param obspy_inv: Obspy Inventory containing the networks to export to file.
+    :type obspy_inv: obspy.core.inventory.inventory.Inventory
+    :param output_folder: Folder in which to output the per-network XML files. Will be created if doesn't yet exist.
+    :type output_folder: str or Path
+    :param validate: Whether to validate the station data on write, defaults to False
+    :type validate: bool, optional
+    """
     pathlib.Path(output_folder).mkdir(exist_ok=True)
 
     if show_progress:
@@ -59,6 +67,8 @@ def split_inventory_by_network(obspy_inv, output_folder, validate=False):
               help='Folder where per-network station xml files will be generated.')
 @click.option('--sc3ml', is_flag=True, help='Try to convert output files to sc3ml format if possible using seiscomp3.')
 def main(inv_file, output_folder, sc3ml=False):
+    """Main function.
+    """
     print("Loading file {}".format(inv_file))
     stn_inventory = load_station_xml(inv_file)
     print("Splitting inventory into folder {}".format(output_folder))

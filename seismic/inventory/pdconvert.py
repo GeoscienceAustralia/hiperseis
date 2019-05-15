@@ -4,15 +4,16 @@ Helper functions for converting between Pandas dataframe and FDSN Inventory,
 Network, Station and Channel objects.
 """
 
+# pylint: disable=too-many-locals
+
 from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from obspy import read_inventory
 from obspy.core import utcdatetime
-from obspy.core.inventory import Inventory, Network, Station, Channel, Site
+from obspy.core.inventory import Network, Station, Channel, Site
 
-from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+from seismic.inventory.table_format import TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
 def pd2Station(statcode, station_df, instrument_register=None):
@@ -24,7 +25,7 @@ def pd2Station(statcode, station_df, instrument_register=None):
     :param station_df: Dataframe containing records for a single station code.
     :type station_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :return: Station object containing the station information from the dataframe
     :rtype: obspy.core.inventory.station.Station
@@ -77,7 +78,7 @@ def pd2Network(netcode, network_df, instrument_register, progressor=None):
     :param network_df: Dataframe containing records for a single network code.
     :type network_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :param progressor: Progress bar functor to receive progress updates, defaults to None
     :param progressor: Callable object receiving incremental update on progress, optional

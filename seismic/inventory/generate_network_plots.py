@@ -14,7 +14,7 @@ import os
 import sys
 import pandas as pd
 
-from seismic.inventory.plotting import saveNetworkLocalPlots, saveStationLocalPlots
+from seismic.inventory.plotting import save_network_local_plots, save_station_local_plots
 
 try:
     import tqdm
@@ -41,6 +41,6 @@ else:
     progressor = None
 
 # Save network plots to files
-saveNetworkLocalPlots(db, folder_name, progressor=progressor)
+save_network_local_plots(db, folder_name, progressor=progressor)
 if show_progress:
     pbar.close()

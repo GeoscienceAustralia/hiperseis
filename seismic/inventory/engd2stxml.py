@@ -37,12 +37,12 @@ import requests as req
 import obspy
 from obspy import read_inventory
 from obspy.core.inventory import Inventory
-from obspy.geodetics.base import locations2degrees
 from seismic.inventory.pdconvert import pd2Network
-from seismic.inventory.plotting import saveNetworkLocalPlots
-from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP, DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP
+# from seismic.inventory.plotting import saveNetworkLocalPlots
+from seismic.inventory.table_format import (TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP,
+                                            DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP)
 from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
-from seismic.inventory.fdsnxml_convert import toSc3ml
+# from seismic.inventory.fdsnxml_convert import toSc3ml
 from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
 
 PY2 = sys.version_info[0] < 3
@@ -50,13 +50,13 @@ PY2 = sys.version_info[0] < 3
 if PY2:
     import cStringIO as sio  # pylint: disable=import-error
     import io as bio
-    import pathlib2 as pathlib  # pylint: disable=import-error
+    # import pathlib2 as pathlib  # pylint: disable=import-error
     import cPickle as pkl  # pylint: disable=import-error
 else:
     import io as sio
-    bio = sio
-    import pathlib  # pylint: disable=import-error
+    # import pathlib  # pylint: disable=import-error
     import pickle as pkl
+    bio = sio
     basestring = str
 
 print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
@@ -164,7 +164,6 @@ def reportUnpickleFail(filename):
     print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. Falling back to full parse.".format(filename))
 
 
-# @profile
 def read_isc(fname):
     """
     Read ISC station inventory having such format and convert to Pandas DataFrame:
@@ -448,17 +447,20 @@ def remove_duplicate_stations(df, neighbor_matrix):
             key = df.loc[i, matching_criteria]
             # Check which of the nearby stations match network and station code. We only remove rows if these match,
             # otherwise just raise warning.
-            attrs_match = np.array([((k[1] == key) | (k[1].isna() & key.isna())) for k in df.loc[neighbors, matching_criteria].iterrows()])
+            attrs_match = np.array([((k[1] == key) | (k[1].isna() & key.isna()))
+                                    for k in df.loc[neighbors, matching_criteria].iterrows()])
             duplicate_mask = np.all(attrs_match, axis=1)
             if np.any(duplicate_mask):
                 duplicate_index = neighbors[duplicate_mask]
-                log.write("WARNING: Duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(df.loc[[i]], df.loc[duplicate_index]))
+                log.write("WARNING: Duplicates of\n{0}\nare "
+                          "being removed:\n{1}\n----\n".format(df.loc[[i]], df.loc[duplicate_index]))
                 removal_rows.update(duplicate_index)
         if show_progress:
             pbar.close()
     removal_rows = np.array(sorted(list(removal_rows)))
     if removal_rows.size > 0:
-        print("Removing following {0} duplicates due to identical network, station and channel data:\n{1}".format(len(removal_rows), df.loc[removal_rows]))
+        print("Removing following {0} duplicates due to identical network, station and "
+              "channel data:\n{1}".format(len(removal_rows), df.loc[removal_rows]))
         df.drop(removal_rows, inplace=True)
 
     # Secondly, remove stations with same network and station code, but which are further away than the threshold distance
@@ -487,15 +489,15 @@ def remove_duplicate_stations(df, neighbor_matrix):
                 index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
                 duplicate_index = data.index[index_mask]
                 if not duplicate_index.empty:
-                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n----\n".format(
-                              data.loc[[row_index]], data.loc[duplicate_index]))
+                    log.write("WARNING: Apparent duplicates of\n{0}\nare being removed:\n{1}\n"
+                              "----\n".format(data.loc[[row_index]], data.loc[duplicate_index]))
                     removal_index.update(duplicate_index.tolist())
         if show_progress:
             pbar.close()
     removal_index = np.array(sorted(list(removal_index)))
     if removal_index.size > 0:
-        print("Removing following {0} duplicates due to undifferentiated network and station codes:\n{1}".format(
-              len(removal_index), df.loc[removal_index]))
+        print("Removing following {0} duplicates due to undifferentiated network and station "
+              "codes:\n{1}".format(len(removal_index), df.loc[removal_index]))
         df.drop(removal_index, inplace=True)
 
     return df
@@ -582,7 +584,8 @@ def cleanup_database(df):
     remove_illegal_stationNames(df)
     df.reset_index(drop=True, inplace=True)
     if len(df) < num_before:
-        print("Removed {0}/{1} stations because their station codes are not compliant".format(num_before - len(df), num_before))
+        print("Removed {0}/{1} stations because their station codes are not "
+              "compliant".format(num_before - len(df), num_before))
 
     print("Cleaning up station duplicates...")
     num_before = len(df)
@@ -634,56 +637,6 @@ def export_to_fdsn_station_xml(df, nominal_instruments, filename):
     global_inventory.write(filename, format="stationxml")
 
 
-# def exportStationXml(df, nominal_instruments, output_folder, filename_base):
-#     """
-#     Export the dataset in df to FDSN Station XML format.
-
-#     Given a dataframe containing network and station codes grouped by network, for each
-#     network create an obspy inventory object and export to FDSN station XML file. Also
-#     write an overall list of stations based on global inventory to stations.txt.
-
-#     :param df: Dataframe containing all the station records to export.
-#     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-#     :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
-#         characterization
-#     :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
-#         obspy.core.inventory.response.Response) }
-#     :param output_folder: Name of output folder in which to place the exported XML files
-#     :type output_folder: str or pathlib.Path
-#     :param filename_base: Base name of each output file. Exported filename is appended with the
-#         network code, plus .xml extension.
-#     :type filename_base: str
-#     """
-#     pathlib.Path(output_folder).mkdir(exist_ok=True)
-#     print("Exporting stations to folder {0}".format(output_folder))
-
-#     if show_progress:
-#         pbar = tqdm.tqdm(total=len(df), ascii=True)
-#         progressor = pbar.update
-#         std_print = pbar.write
-#     else:
-#         progressor = None
-#         std_print = print
-
-#     global_inventory = Inventory(networks=[], source='EHB')
-#     for netcode, data in df.groupby('NetworkCode'):
-#         net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
-#         net_inv = Inventory(networks=[net], source=global_inventory.source)
-#         global_inventory.networks.append(net)
-#         fname = "{0}{1}.xml".format(filename_base, netcode)
-#         try:
-#             net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=True)
-#         except Exception as e:
-#             std_print(e)
-#             std_print("FAILED writing file {0} for network {1}, continuing".format(fname, netcode))
-#             continue
-#     if show_progress:
-#         pbar.close()
-
-#     # Write global inventory text file in FDSN stationtxt inventory format.
-#     global_inventory.write("station.txt", format="stationtxt")
-
-
 def write_portable_inventory(df, fname):
     """
     Write the final database to re-usable file formats.
@@ -701,28 +654,6 @@ def write_portable_inventory(df, fname):
         inv_str = str(df)
         with open(fname + ".txt", "w") as f:
             f.write(inv_str)
-
-
-# def exportNetworkPlots(df, plot_folder):
-#     """
-#     Export visual map plots of each network for reference purposes.
-
-#     :param df: Dataframe containing complete inventory of station records.
-#     :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-#     :param plot_folder: Name of folder in which to put the output files.
-#     :type plot_folder: str
-#     """
-
-#     if show_progress:
-#         pbar = tqdm.tqdm(total=len(df), ascii=True)
-#     try:
-#         saveNetworkLocalPlots(df, plot_folder, pbar.update)
-#         if show_progress:
-#             pbar.close()
-#     except Exception:
-#         if show_progress:
-#             pbar.close()
-#         raise
 
 
 def obtain_nominal_instrument_response(netcode, statcode, chcode):
@@ -796,7 +727,8 @@ def extract_unique_sensors_responses(inv):
         reference_networks = (('GE', '*', '*HZ'),)  # trailing comma required to make it a tuple
     else:
         reference_networks = (('GE', '*', '*'), ('IU', '*', '*'), ('BK', '*', '*'))
-    print("Preparing common instrument response database from networks {} (this may take a while)...".format(reference_networks))
+    print("Preparing common instrument response database from networks {} "
+          "(this may take a while)...".format(reference_networks))
     for query in reference_networks:
         print("  querying {} as {}.{}.{}".format(query[0], *query))
         nominal_instruments.update(obtain_nominal_instrument_response(*query))
@@ -827,9 +759,11 @@ def extract_unique_sensors_responses(inv):
                     response = obtain_nominal_instrument_response(net.code, sta.code, cha.code)
                     nominal_instruments.update(response)
                     if cha.code in response:
-                        std_print("Found nominal instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
+                        std_print("Found nominal instrument response for channel code {} in "
+                                  "{}.{}".format(cha.code, net.code, sta.code))
                     else:
-                        std_print("Failed to acquire instrument response for channel code {} in {}.{}".format(cha.code, net.code, sta.code))
+                        std_print("Failed to acquire instrument response for channel code {} "
+                                  "in {}.{}".format(cha.code, net.code, sta.code))
                         failed_codes.add(cha.code)
     if show_progress:
         pbar.close()
@@ -906,34 +840,11 @@ def main(iris_xml_file):
     # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
     nominal_instruments = extract_unique_sensors_responses(iris_inv)
 
-    # if TEST_MODE:
-    #     output_folder = "output_test"
-    #     plot_folder = "plots_test"
-    # else:
-    #     output_folder = "output"
-    #     plot_folder = "plots"
-
     # Write whole database to FDSN station xml file
     export_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
-    # exportStationXml(db, nominal_instruments, output_folder, "network_")
-
-    # if not TEST_MODE:
-    #     sc3ml_output_folder = "networks_sc3ml"
-    #     try:
-    #         toSc3ml(output_folder, sc3ml_output_folder, None)
-    #     except OSError:
-    #         print("WARNING: Unable to convert to sc3ml, possibly seiscomp not available on platform!")
-    #         if os.path.isdir(sc3ml_output_folder):
-    #             import uuid
-    #             print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
-    #             stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
-    #             os.rename(sc3ml_output_folder, stashed_name)
 
     # Write whole database in portable csv and hdf5 formats
     write_portable_inventory(db, "INVENTORY_" + rt_timestamp)
-
-    # print("Exporting network plots to folder {0}".format(plot_folder))
-    # exportNetworkPlots(db, plot_folder)
 
 
 if __name__ == "__main__":
