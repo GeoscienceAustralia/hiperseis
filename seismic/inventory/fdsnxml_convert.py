@@ -118,8 +118,8 @@ def _folderToSc3ml(src_folder, dst_folder):
                 # _fileToSc3ml(src_file, dst_file, response)
                 _fileToSc3ml(src_file, dst_file)
                 success_files.append(src_file)
-            except subprocess.CalledProcessError:
-                failed_files.append(src_file)
+            except (subprocess.CalledProcessError, OSError) as e:
+                failed_files.append((src_file, str(e)))
 
     return success_files, failed_files
 
@@ -139,8 +139,8 @@ def _reportConversion(success_files_list, failed_files_list):
         print("Successfully converted {} files to sc3ml".format(num_success))
     if num_failed > 0:
         print("Following {} files failed conversion:".format(num_failed))
-        for f in failed_files_list:
-            print("  " + f)
+        for f, e in failed_files_list:
+            print("  {} ({})".format(f, e))
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
