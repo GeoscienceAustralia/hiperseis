@@ -26,7 +26,7 @@ except ImportError:
     print("Run 'pip install tqdm' to see progress bar.")
 
 
-def split_inventory_by_network(obspy_inv, output_folder, sc3ml_convert=False, validate=False):
+def split_inventory_by_network(obspy_inv, output_folder, validate=False):
 
     pathlib.Path(output_folder).mkdir(exist_ok=True)
 
@@ -51,19 +51,6 @@ def split_inventory_by_network(obspy_inv, output_folder, sc3ml_convert=False, va
     if show_progress:
         pbar.close()
 
-    # Perform sc3ml conversion if requested and if supported.
-    if sc3ml_convert and sc3_conversion_available():
-        sc3ml_output_folder = output_folder + "_sc3ml"
-        try:
-            toSc3ml(output_folder, sc3ml_output_folder)
-        except OSError:
-            print("WARNING: Unable to convert to sc3ml!")
-            if os.path.isdir(sc3ml_output_folder):
-                import uuid
-                print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
-                stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
-                os.rename(sc3ml_output_folder, stashed_name)
-
 
 @click.command()
 @click.option('--inv-file', type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True), required=True,
@@ -75,7 +62,23 @@ def main(inv_file, output_folder, sc3ml=False):
     print("Loading file {}".format(inv_file))
     stn_inventory = load_station_xml(inv_file)
     print("Splitting inventory into folder {}".format(output_folder))
-    split_inventory_by_network(stn_inventory, output_folder, sc3ml_convert=sc3ml)
+    split_inventory_by_network(stn_inventory, output_folder)
+    # Can be large in memory, so release as soon as no longer needed.
+    del stn_inventory
+
+    # Perform sc3ml conversion if requested and if supported.
+    if sc3ml and sc3_conversion_available():
+        sc3ml_output_folder = output_folder + "_sc3ml"
+        try:
+            toSc3ml(output_folder, sc3ml_output_folder)
+        except OSError as e:
+            print("WARNING: Unable to convert to sc3ml!")
+            print(str(e))
+            if os.path.isdir(sc3ml_output_folder):
+                import uuid
+                print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
+                stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
+                os.rename(sc3ml_output_folder, stashed_name)
 
 
 if __name__ == "__main__":
