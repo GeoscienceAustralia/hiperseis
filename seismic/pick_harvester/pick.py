@@ -434,9 +434,9 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
             if(eventIndices.shape[0]>0):
                 totalTraceCount += 1
                 stations = fds.get_stations(curr, curr + day, network=nc, station=sc)
-                stations_zch = [s for s in stations if 'Z' in s[3]]  # only Z channels
-                stations_nch = [s for s in stations if 'N' in s[3] or '1' in s[3]]  # only N channels
-                stations_ech = [s for s in stations if 'E' in s[3] or '2' in s[3]]  # only E channels
+                stations_zch = [s for s in stations if 'Z' == s[3][-1].upper()]  # only Z channels
+                stations_nch = [s for s in stations if 'N' == s[3][-1].upper() or '1' == s[3][-1]]  # only N channels
+                stations_ech = [s for s in stations if 'E' == s[3][-1].upper() or '2' == s[3][-1]]  # only E channels
 
                 for codes in stations_zch:
                     if(progTracker.increment()): pass
