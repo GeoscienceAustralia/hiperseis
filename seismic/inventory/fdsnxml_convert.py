@@ -91,8 +91,8 @@ def _fileToSc3ml(src_file, dst_file):
 def _makedirs(path, exist_ok=True):
     if (sys.version_info >= (3, 0)):
         os.makedirs(path, exist_ok=exist_ok)
-    else:
-        if not os.path.exists(path): os.makedirs(path)
+    elif not os.path.exists(path):
+        os.makedirs(path)
 
 
 def _folderToSc3ml(src_folder, dst_folder):
