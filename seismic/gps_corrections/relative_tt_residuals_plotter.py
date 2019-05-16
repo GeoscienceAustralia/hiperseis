@@ -11,6 +11,7 @@ AU network:
 """
 
 import os
+import sys
 import datetime
 import numpy as np
 import pandas as pd
@@ -26,6 +27,11 @@ import click
 import tqdm
 
 import obspy
+
+if sys.version_info[0] < 3:
+    import pathlib2 as pathlib  # pylint: disable=import-error
+else:
+    import pathlib  # pylint: disable=import-error
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init
@@ -341,7 +347,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             if save_file:
                 subfolder = os.path.join(ref_code.split('.')[0] + file_label, net_code)
                 # subfolder = net_code
-                os.makedirs(subfolder, exist_ok=True)
+                pathlib.Path(subfolder).mkdir(exist_ok=True)
                 plt_file = os.path.join(subfolder, '_'.join([ref_code, net_code]) + '_' +
                                         ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
@@ -370,7 +376,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
 
     # Export median error for each origin event if export path is provided
     if batch_options.export_path is not None:
-        os.makedirs(batch_options.export_path, exist_ok=True)
+        pathlib.Path(batch_options.export_path).mkdir(exist_ok=True)
         df_agg = df_agg.sort_values('originTimestamp')
         df_export = df_agg[['originTimestamp', 'relTtResidual']]
         median_errors = {'originTimestamp': [], 'rawClockError': []}
