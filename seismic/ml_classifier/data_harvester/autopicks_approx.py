@@ -6,6 +6,8 @@ import re
 
 import sys
 
+sys.setrecursionlimit(int(1e6))
+
 import numpy as np
 
 #initialiser arguments:
@@ -14,9 +16,10 @@ import numpy as np
 #[fname] - file where picks are stored
 
 class pickLoader:
-    def __init__(self,dataset,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt'):
+    def __init__(self,dataset,fname='/g/data/ha3/mwh547/Picks/20190320/ensemble.s.txt',mintime=None):
         self.f=open(fname,'r')
         self.fds=dataset
+        self.mintime=mintime
 
     def __iter__(self):
         return self    
@@ -26,7 +29,7 @@ class pickLoader:
         if not pick:
             self.f.close()
             raise StopIteration
-        data=_getData(pick,self.fds)
+        data=_getData(pick,self.fds,self.mintime)
         if data is not None:
             ret=[pick,data]
         else:
@@ -50,13 +53,16 @@ class pickLoaderRand:
 
 
 #global method to get a waveform from a pick
-def _getData(pick,fds):
+def _getData(pick,fds,mintime):
     if pick[0][0]=='#': #this line is commented
         return None
     net=pick[6]
     st=pick[7]
     ch=pick[8]
     time=UTCDateTime(float(pick[9]))
+    if mintime:
+        if time < mintime:
+            return None
 
     starttime=time-20
     endtime=time+40

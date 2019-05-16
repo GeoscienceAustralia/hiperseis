@@ -2,7 +2,7 @@ from datagenerator import DataGenerator
 import os
 from random import shuffle,seed
 #this is hardcoded, maybe make a more general version that gets the IDs from the folder in the future
-datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/'
+datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
 
 #build a list of IDs and dictionary of labels
 files=os.listdir(datafolder)
@@ -18,7 +18,7 @@ for ID in IDs:
     if ID.endswith('_S'):
         labels[ID]=0
         Sctr+=1
-else:
+    else:
         labels[ID]=1
         Nctr+=1
 

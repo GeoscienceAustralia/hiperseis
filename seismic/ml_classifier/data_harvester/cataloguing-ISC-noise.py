@@ -26,7 +26,7 @@ from obspy.geodetics.base import gps2dist_azimuth as distaz
 irisclient=Client("IRIS")
 #load ISC pick catalogue CSV
 
-saveDir="/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/"
+saveDir="/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/"
 
 Sctr=0
 wfctr=0
@@ -56,6 +56,7 @@ with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
             endtime=at+100
             succ=False
             if '?' in ch:
+                continue
                 #Many (perhaps most) of the picks have no assigned channel.
                 #use the iris client's ability to parse lists of channels to get
                 #an appropriate waveform.
