@@ -2,6 +2,8 @@
 """Split a station inventory file into a separate file per network.
 """
 
+from __future__ import print_function
+
 import os
 import sys
 

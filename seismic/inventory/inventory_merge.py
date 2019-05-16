@@ -175,6 +175,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                           site=station.site, creation_date=station.creation_date,
                           termination_date=station.termination_date, description=station.description,
                           comments=station.comments, start_date=station.start_date, end_date=station.end_date)
+            add_station = False
             for channel in station.channels:
                 lat = channel.latitude if channel.latitude else station.latitude
                 lon = channel.longitude if channel.longitude else station.longitude
@@ -194,12 +195,13 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                     db_match = db_other[mask]
                     assert len(db_match) == 1, 'Found multiple matches, expected only one for {}'.format(db_match)
                     add_network = True
+                    add_station = True
                     num_added += 1
                     if show_progress:
                         pbar.set_description("Matched {}/{}".format(num_added, len(db_other)))
                     sta.channels.append(channel)
             # end for
-            if add_network:
+            if add_station:
                 net.stations.append(sta)
         # end for
         if add_network:
