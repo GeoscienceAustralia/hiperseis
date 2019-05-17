@@ -59,7 +59,7 @@ def prune_iris_duplicates(db_other, db_iris):
     :rtype: pandas.DataFrame
     """
 
-    def earth_distance(row):
+    def _earth_distance(row):
         lat0 = row['Latitude_left']
         long0 = row['Longitude_left']
         lat1 = row['Latitude_right']
@@ -70,7 +70,7 @@ def prune_iris_duplicates(db_other, db_iris):
     db_iris['Index'] = db_iris.index
     df_m = db_other.reset_index().merge(db_iris, on=['StationCode', 'ChannelCode'], suffixes=('_left', '_right')
                                         ).set_index('index')
-    dist = df_m.apply(earth_distance, axis=1)
+    dist = df_m.apply(_earth_distance, axis=1)
     df_m['Distance'] = dist
     # Reorder columns for easier visual comparison
     df_m = df_m[['NetworkCode_left', 'NetworkCode_right', 'StationCode', 'ChannelCode',
@@ -95,6 +95,25 @@ def prune_iris_duplicates(db_other, db_iris):
     db_pruned = db_other.loc[index_to_keep]
 
     return db_pruned
+
+
+def mean_lat_long(network):
+    """Compute mean of station lat/long coordinates within a network
+
+    :param network: Network on which to compute mean lat/long
+    :type network: obspy.core.inventory.network.Network
+    """
+    lats, longs = zip(*[(s.latitude, s.longitude) for s in network.stations])
+    return np.mean(np.array(lats)), np.mean(np.array(longs))
+
+
+def get_matching_net(search_space, item_to_find):
+    find_contents = item_to_find.get_contents()
+    for candidate in search_space:
+        if candidate.get_contents() == find_contents:
+            return candidate
+    print("WARNING: Not matching network found for {}".format(item_to_find.code))
+    return None
 
 
 @click.command()
@@ -162,6 +181,10 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
         num_entries = sum(len(station.channels) for network in inv_other.networks for station in network.stations)
         pbar = tqdm.tqdm(total=num_entries, ascii=True)
         pbar.set_description("Matched {}/{}".format(num_added, len(db_other)))
+    # Filter inv_other records according to what records remain in db_other.
+    # When a matching record from inv_other is found, we have to make sure we that we only add it to
+    # the IRIS network of the same code if the station locations are nearby, otherwise it is assumed to be
+    # a different network with the same network code.
     for network in inv_other.networks:
         # Duplicate network data, but keep stations empty
         net = Network(network.code, stations=[], description=network.description, comments=network.comments,
@@ -177,6 +200,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                           comments=station.comments, start_date=station.start_date, end_date=station.end_date)
             add_station = False
             for channel in station.channels:
+                # See if the record is in db_other. If so, flag it has needing to be added.
                 lat = channel.latitude if channel.latitude else station.latitude
                 lon = channel.longitude if channel.longitude else station.longitude
                 ele = channel.elevation if channel.elevation else station.elevation
@@ -194,7 +218,6 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                 if np.any(mask):
                     db_match = db_other[mask]
                     assert len(db_match) == 1, 'Found multiple matches, expected only one for {}'.format(db_match)
-                    add_network = True
                     add_station = True
                     num_added += 1
                     if show_progress:
@@ -202,10 +225,37 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                     sta.channels.append(channel)
             # end for
             if add_station:
+                add_network = True
                 net.stations.append(sta)
         # end for
         if add_network:
-            inv_merged += net
+            # If the network code is new, add it directly to the inventory.
+            # Otherwise, if it is spatially within an existing network add the stations to that network,
+            # or add it as a new network if it is not near an esisting network of the same network code.
+            existing_networks = inv_merged.select(network=net.code)
+            found = False
+            if existing_networks:
+                # Found network code already in the inventory. If net is proximate to existing network, then append
+                # to the existing network. Otherwise add it as a new network.
+                # existing_networks.networks[0].stations.extend(net.stations)
+                net_mean_latlong = mean_lat_long(net)
+                for existing_net in existing_networks:
+                    temp_mean_latlong = mean_lat_long(existing_net)
+                    dist_apart = np.deg2rad(locations2degrees(net_mean_latlong[0], net_mean_latlong[1],
+                                                              temp_mean_latlong[0], temp_mean_latlong[1])) \
+                                                              * NOMINAL_EARTH_RADIUS_KM
+                    if dist_apart < DIST_TOLERANCE_KM:
+                        found = True
+                        # Unfortunately existing_net here is NOT a reference to the original object within inv_merged,
+                        # so we still need to search for the same network in inv_merged
+                        same_source_net = get_matching_net(inv_merged, existing_net)
+                        if same_source_net is not None:
+                            same_source_net.stations.extend(net.stations)
+                            same_source_net.total_number_of_stations = len(same_source_net.stations)
+                        break
+            # Network code is new in the inventory.
+            if not found:
+                inv_merged += net
     # end for
     if show_progress:
         pbar.close()

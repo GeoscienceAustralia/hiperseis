@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import os
 import sys
+from collections import defaultdict
 
 import click
 from obspy.core.inventory import Inventory
@@ -46,12 +47,16 @@ def split_inventory_by_network(obspy_inv, output_folder, validate=False):
     else:
         std_print = print
 
+    # Since duplicate network codes can occur, we ensure that output file names are unique by keeping an instance
+    # count for the occurrences of each network, and appending this to the file name.
+    network_count = defaultdict(int)
     for network in obspy_inv:
         if show_progress:
             pbar.update()
             pbar.set_description("Network {}".format(network.code))
         net_inv = Inventory(networks=[network], source=obspy_inv.source)
-        fname = "network_{}.xml".format(network.code)
+        fname = "network_{}_{}.xml".format(network.code, network_count[network.code])
+        network_count[network.code] += 1
         try:
             net_inv.write(os.path.join(output_folder, fname), format="stationxml", validate=validate)
         except Exception as e:
