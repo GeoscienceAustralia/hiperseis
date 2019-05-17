@@ -38,11 +38,9 @@ import obspy
 from obspy import read_inventory
 from obspy.core.inventory import Inventory
 from seismic.inventory.pdconvert import pd2Network
-# from seismic.inventory.plotting import saveNetworkLocalPlots
 from seismic.inventory.table_format import (TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP,
                                             DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP)
 from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
-# from seismic.inventory.fdsnxml_convert import toSc3ml
 from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
 
 PY2 = sys.version_info[0] < 3
@@ -50,11 +48,9 @@ PY2 = sys.version_info[0] < 3
 if PY2:
     import cStringIO as sio  # pylint: disable=import-error
     import io as bio
-    # import pathlib2 as pathlib  # pylint: disable=import-error
     import cPickle as pkl  # pylint: disable=import-error
 else:
     import io as sio
-    # import pathlib  # pylint: disable=import-error
     import pickle as pkl
     bio = sio
     basestring = str
