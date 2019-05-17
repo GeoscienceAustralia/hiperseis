@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from netCDF4 import Dataset as NetCDFFile
 from matplotlib.colors import LightSource
 import matplotlib as mpl
@@ -6,9 +7,9 @@ mpl.use('Agg')
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
-#from mpl_toolkits.basemap import Basemap
+from mpl_toolkits.basemap import Basemap
 # below is work around of NCI python Basemap configuration problem, use line above for normal setup
-from mympl_toolkits.basemap import Basemap
+# from mympl_toolkits.basemap import Basemap
 
 def gmtColormap(fileName):
       """ Borrowed from AndrewStraw, scipy-cookbook
@@ -19,7 +20,7 @@ def gmtColormap(fileName):
       try:
           f = open(fileName)
       except:
-          print "file ",fileName, "not found"
+          print("file ",fileName, "not found")
           return None
 
       lines = f.readlines()
@@ -161,12 +162,10 @@ def get_stations(stream):
 #-------------Main---------------------------------
 
 if __name__=='__main__':
-    
-    
     """ It is an example of how to plot nice maps """
 
     import rf
-    streams=rf.read_rf('DATA/7X-LQT-Q-cleaned.h5','H5')
+    streams=rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5','H5')
     # Lets see intersection of rays at 50km depth
     ppoints=streams.ppoints(50.)
     
@@ -204,7 +203,7 @@ if __name__=='__main__':
     from adjustText import adjust_text
     adjust_text(labels,add_object=markers,ha='center',va='bottom')
 
-    net=streams[0].stats.network.encode('utf-8')
+    net=streams[0].stats.network
 
     pdffile=net+'-map.pdf'
     pdf=PdfPages(pdffile)

@@ -11,8 +11,9 @@ The RF workflow is based on the following main steps:
  - Perform 1D Earth structure inversion 
 
 There are a number of manuals and literature about RF. You can refer to examples provided by
-[Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html) or manuals
-distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/).
+[Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html), manuals
+distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/) or [chapter 4.1 of
+Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNodeServlet/FUDISS_derivate_000000014929/dissertation_richter.pdf).
 
 ## Data preparation
 
@@ -44,25 +45,23 @@ The parameters to specify are:
  - stations to exclude if any
  - sampling rate to interpolate
 
-There is a work-around to preserve H5 header information due to a obspy library bug [!REF?].
-It was reported and will be fixed soon.
-
-The parallelized version of the same program is `generate_rf_parallel.py`.
-
-
 ## Filtering and removing bad RF
 
 There are number of ways to select good results and remove bad ones. 
 Currently there are three methods implemented:
-  - grouping by similarity - grouping method based on calculation of Euclidean distances and clustering by similarity (aca machine learning approach)
-  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be applied to use this technique.
-  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be applied to use this technique.
+  - grouping by similarity - grouping method based on calculation of Euclidean distances and clustering by similarity
+    (aca machine learning approach)
+  - coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout should be
+    applied to use this technique.
+  - knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout should be
+    applied to use this technique.
 
 In the last two approaches, RFs are compared to the median and, consequently, the moveout should be applied to built one.
 Currently it works with LQT convention that can be changed within the program. Existing libraries allow one to tailor
 the process and more options can be easily added.
 
-The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate the process.
+The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate
+the process.
 
 The actual program that works with RF is `rf_smart_bin.py`.
 
@@ -78,7 +77,7 @@ Please feel free to change and modify this code. Output RF are cut -5 to 60 seco
 
 Vespagrams are images of receiver functions ordered by distance or slowness. The character (shapes) of conversion distribution
 could tell if they are direct conversions such as Pms or its multiples such as PpPms or PpSms.
-The good reading about application of vespagrams is * Tian et al. GRL 2005 VOL. 32, L08301, doi:10.1029/2004GL021885 *
+The good reading about application of vespagrams is *Tian et al. GRL 2005 VOL. 32, L08301, doi:10.1029/2004GL021885*.
 
 The tool to plot vespagrams is `rf_slow_stack.py` and it takes set of RF stored in H5 file (python rf package). 
 The file name must be specified within program body as well as set of parameters. Currently the plotting is set from -5 to 20 seconds and 5 to 9 s/degrees.
@@ -96,13 +95,13 @@ Fri Nov 23 09:43:51 AEDT 2018
 
 ## Plotting station map and the ray piercing points
 
-The **plot_map.py** draws a station map and piercing points of the receiver functions. It is highly adaptable plotting routine with use of high-resolution topography and automatic adjustment of the station name positions. It requires installation of `https://github.com/Phlya/adjustText` for better results.
+The `plot_map.py` draws a station map and piercing points of the receiver functions. It is highly adaptable plotting routine with use of high-resolution topography and automatic adjustment of the station name positions. It requires installation of `https://github.com/Phlya/adjustText` for better results.
 
 ## Visualization and extraction of RF for inversion
 
-The program to visualize and extract RF for inversion is **extract_rf.py**
+The program to visualize and extract RF for inversion is `extract_rf.py`.
 The RF input file must be specified within the body of the program.
-It shows different stacking options and allows to extract specific station as ASCII file for further inversion 
+It shows different stacking options and allows to extract specific station as ASCII file for further inversion.
 
 
 ## Configuration and used modules on NCI
