@@ -148,6 +148,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
         with open(os.path.splitext(iris_inv)[0] + ".pkl", 'wb') as f:
             pkl.dump(inv_iris, f, pkl.HIGHEST_PROTOCOL)
             pkl.dump(db_iris, f, pkl.HIGHEST_PROTOCOL)
+    # end if
 
     # Load custom inventory
     print("Loading {}...".format(custom_inv))
@@ -162,10 +163,10 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
         with open(os.path.splitext(custom_inv)[0] + ".pkl", 'wb') as f:
             pkl.dump(inv_other, f, pkl.HIGHEST_PROTOCOL)
             pkl.dump(db_other, f, pkl.HIGHEST_PROTOCOL)
+    # end if
 
     print("Merging {} IRIS records with {} custom records...".format(len(db_iris), len(db_other)))
     num_before = len(db_other)
-    # removeIrisDuplicates(db_other, db_iris)
     db_other = prune_iris_duplicates(db_other, db_iris)
     db_other.sort_values(SORT_ORDERING, inplace=True)
     db_other.reset_index(drop=True, inplace=True)
@@ -181,10 +182,10 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
         num_entries = sum(len(station.channels) for network in inv_other.networks for station in network.stations)
         pbar = tqdm.tqdm(total=num_entries, ascii=True)
         pbar.set_description("Matched {}/{}".format(num_added, len(db_other)))
+    # end if
     # Filter inv_other records according to what records remain in db_other.
-    # When a matching record from inv_other is found, we have to make sure we that we only add it to
-    # the IRIS network of the same code if the station locations are nearby, otherwise it is assumed to be
-    # a different network with the same network code.
+    # When a matching record(s) from inv_other is found, we add it to the nearest IRIS network of the same code
+    # (based on centroid distance).
     for network in inv_other.networks:
         # Duplicate network data, but keep stations empty
         net = Network(network.code, stations=[], description=network.description, comments=network.comments,
@@ -193,6 +194,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
         for station in network.stations:
             if show_progress:
                 pbar.update(len(station.channels))
+            # end if
             # Duplicate station data, but keep channels empty
             sta = Station(station.code, station.latitude, station.longitude, station.elevation, channels=[],
                           site=station.site, creation_date=station.creation_date,
@@ -223,39 +225,44 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
                     if show_progress:
                         pbar.set_description("Matched {}/{}".format(num_added, len(db_other)))
                     sta.channels.append(channel)
+                # end if
             # end for
             if add_station:
                 add_network = True
                 net.stations.append(sta)
+            # end if
         # end for
         if add_network:
             # If the network code is new, add it directly to the inventory.
-            # Otherwise, if it is spatially within an existing network add the stations to that network,
-            # or add it as a new network if it is not near an esisting network of the same network code.
+            # Otherwise, add it to the nearest network of the same network code.
             existing_networks = inv_merged.select(network=net.code)
-            found = False
             if existing_networks:
-                # Found network code already in the inventory. If net is proximate to existing network, then append
-                # to the existing network. Otherwise add it as a new network.
-                # existing_networks.networks[0].stations.extend(net.stations)
+                # Add to nearest existing network
                 net_mean_latlong = mean_lat_long(net)
+                nearest_distance = 1.0e+20
                 for existing_net in existing_networks:
                     temp_mean_latlong = mean_lat_long(existing_net)
                     dist_apart = np.deg2rad(locations2degrees(net_mean_latlong[0], net_mean_latlong[1],
                                                               temp_mean_latlong[0], temp_mean_latlong[1])) \
                                                               * NOMINAL_EARTH_RADIUS_KM
-                    if dist_apart < DIST_TOLERANCE_KM:
-                        found = True
-                        # Unfortunately existing_net here is NOT a reference to the original object within inv_merged,
-                        # so we still need to search for the same network in inv_merged
-                        same_source_net = get_matching_net(inv_merged, existing_net)
-                        if same_source_net is not None:
-                            same_source_net.stations.extend(net.stations)
-                            same_source_net.total_number_of_stations = len(same_source_net.stations)
-                        break
-            # Network code is new in the inventory.
-            if not found:
+                    if dist_apart < nearest_distance:
+                        nearest_distance = dist_apart
+                        nearest_existing = existing_net
+                    # end if
+                # end for
+
+                # Unfortunately existing_net here is NOT a reference to the original object within inv_merged,
+                # so we still need to search for the same network in inv_merged
+                same_source_net = get_matching_net(inv_merged, nearest_existing)
+                if same_source_net is not None:
+                    same_source_net.stations.extend(net.stations)
+                    same_source_net.total_number_of_stations = len(same_source_net.stations)
+                # end if
+            else:
+                # Network code is new in the inventory.
                 inv_merged += net
+            # end if
+        # end if
     # end for
     if show_progress:
         pbar.close()
