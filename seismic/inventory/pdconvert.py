@@ -4,15 +4,16 @@ Helper functions for converting between Pandas dataframe and FDSN Inventory,
 Network, Station and Channel objects.
 """
 
+# pylint: disable=too-many-locals
+
 from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from obspy import read_inventory
 from obspy.core import utcdatetime
-from obspy.core.inventory import Inventory, Network, Station, Channel, Site
+from obspy.core.inventory import Network, Station, Channel, Site
 
-from seismic.inventory.table_format import TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
+from seismic.inventory.table_format import TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
 def pd2Station(statcode, station_df, instrument_register=None):
@@ -24,7 +25,7 @@ def pd2Station(statcode, station_df, instrument_register=None):
     :param station_df: Dataframe containing records for a single station code.
     :type station_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :return: Station object containing the station information from the dataframe
     :rtype: obspy.core.inventory.station.Station
@@ -77,7 +78,7 @@ def pd2Network(netcode, network_df, instrument_register, progressor=None):
     :param network_df: Dataframe containing records for a single network code.
     :type network_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment, 
+    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :param progressor: Progress bar functor to receive progress updates, defaults to None
     :param progressor: Callable object receiving incremental update on progress, optional
@@ -110,6 +111,7 @@ def inventory2Dataframe(inv_object, show_progress=True):
         num_entries = sum(len(station.channels) for network in inv_object.networks for station in network.stations)
         pbar = tqdm.tqdm(total=num_entries, ascii=True)
 
+    max_end_timestamp = np.datetime64(str(PANDAS_MAX_TIMESTAMP), 's')
     d = defaultdict(list)
     for network in inv_object.networks:
         for station in network.stations:
@@ -125,10 +127,10 @@ def inventory2Dataframe(inv_object, show_progress=True):
                 d['Longitude'].append(lon)
                 d['Elevation'].append(ele)
                 d['StationStart'].append(np.datetime64(station.start_date))
-                d['StationEnd'].append(np.datetime64(station.end_date))
+                d['StationEnd'].append(min(np.datetime64(station.end_date, 's'), max_end_timestamp))
                 d['ChannelCode'].append(channel.code)
                 d['ChannelStart'].append(np.datetime64(channel.start_date))
-                d['ChannelEnd'].append(np.datetime64(channel.end_date))
+                d['ChannelEnd'].append(min(np.datetime64(channel.end_date, 's'), max_end_timestamp))
     if show_progress:
         pbar.close()
     df = pd.DataFrame.from_dict(d)

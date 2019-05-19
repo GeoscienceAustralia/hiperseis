@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 """Automatically update IRIS-ALL.xml file from IRIS web portal.
 
-   IRIS-ALL.xml file is saved as Seiscomp3 station xml.
+   Outout file is saved as FDSN station xml.
    Script also generates human readable form as IRIS-ALL.txt.
-   Requires seiscomp3 to be available in the system path.
 
    Example usages:
    ---------------
@@ -19,26 +18,24 @@
 
 import os
 import sys
-
-import requests as req
-import tempfile as tmp
-import subprocess
 import argparse
 import time
 import re
+
+import requests as req
 from seismic.inventory.iris_query import formChannelRequestUrl, setTextEncoding
-from seismic.inventory.fdsnxml_convert import toSc3ml
 
+default_output_file = "IRIS-ALL.xml"
 
-DEFAULT_OUTPUT_FILE = "IRIS-ALL.xml"
-
-# Tuple of known illegal XML elements that obspy will reject if ingested. All such substrings
-# are removed prior to ingestion into obspy.
-KNOWN_ILLEGAL_ELEMENTS_PATTERNS = (
-    r"<Azimuth>360\.[1-9]\d*</Azimuth>",
-    r"<Azimuth>36[1-9](\.\d*)?</Azimuth>",
-    r"<Azimuth>3[7-9]\d(\.\d*)?</Azimuth>",
-)
+# Dictionary of known illegal XML elements that obspy will reject if ingested. All such substrings
+# are replaced with their replacement prior to ingestion into obspy.
+KNOWN_ILLEGAL_ELEMENTS_PATTERNS = {  # pylint: disable=invalid-name
+    r"<Azimuth>360\.[1-9]\d*</Azimuth>": "",
+    r"<Azimuth>36[1-9](\.\d*)?</Azimuth>": "",
+    r"<Azimuth>3[7-9]\d(\.\d*)?</Azimuth>": "",
+    r"<Azimuth>-90</Azimuth>": "",
+    r"<Latitude>-90.878944</Latitude>": r"<Latitude>-90</Latitude>",
+}
 
 
 def cleanup(tmp_filename):
@@ -50,16 +47,16 @@ def cleanup(tmp_filename):
     """
     try:
         os.remove(tmp_filename)
-    except:
+    except OSError:
         print("WARNING: Failed to remove temporary file " + tmp_filename)
 
 
-def updateIrisStationXml(output_file, options=None):
+def update_iris_station_xml(output_file, options=None):
     """
     Pull the latest IRIS complete station inventory (down to station level, not including
-    instrument responses) from IRIS web service and save to file in sc3ml format.
+    instrument responses) from IRIS web service and save to file in FDSN station xml format.
 
-    :param output_file: Destination sc3ml file to generate
+    :param output_file: Destination file to generate
     :type output_file: str
     :param options: Filtering options for network, station and channel codes, defaults to None
     :param options: Python dict of key-values pairs matching command line options, optional
@@ -70,37 +67,52 @@ def updateIrisStationXml(output_file, options=None):
         print("Requesting data from server...")
         iris = req.get(iris_url)
         setTextEncoding(iris)
-    except:
+    except req.exceptions.RequestException:
         print("FAILED to retrieve URL content at " + iris_url)
         return
 
-    try:
-        # Since there are not available Python bindings for the conversion, we have to dump FDSN stxml to file
-        # first, then convert to seiscomp3 stxml inventory using system call.
-        ifile = tmp.NamedTemporaryFile("w", delete=False)
-        ifile.write(iris.text)
-        ifile.close()
-        # Convert using helper module
-        print("Converting to SC3 format...")
-        toSc3ml(ifile.name, output_file)
-        print("Successfully updated file " + output_file)
-    except:
-        cleanup(ifile.name)
-        raise
+    # Repair errors with IRIS data
+    print("Correcting known data errors...")
+    iris_fixed = repair_iris_metadata(iris)
+    # Close the query to free resources
+    iris.close()
 
-    cleanup(ifile.name)
+    with open(output_file, 'w') as f:
+        f.write(iris_fixed, format='stationxml')
 
     # Create human-readable text form of the IRIS station inventory (Pandas stringified table)
     output_txt = os.path.splitext(output_file)[0] + ".txt"
-    regenerateHumanReadable(iris, output_txt)
+    regenerate_human_readable(iris_fixed, output_txt)
 
 
-def regenerateHumanReadable(iris, outfile):
+def repair_iris_metadata(iris):
+    """Perform text subtitutions to fix known errors in station xml returned from IRIS.
+
+    :param iris: Response to IRIS query request containing response text
+    :type iris: requests.models.Response
+    :return: The text from the response with known faulty data substituted with fixed data.
+    :rtype: str (Python 3) or unicode (Python 2)
+    """
+
+    def repair_match(match):
+        for pattern, replacement in KNOWN_ILLEGAL_ELEMENTS_PATTERNS.items():
+            if re.match(pattern, match.group()):
+                return replacement
+        return ""
+
+    # This code repairs illegal data matching KNOWN_ILLEGAL_ELEMENTS_PATTERNS from iris.text
+    matcher = re.compile("|".join(list(KNOWN_ILLEGAL_ELEMENTS_PATTERNS.keys())))
+    iris_text_fixed = matcher.sub(repair_match, iris.text)
+
+    return iris_text_fixed
+
+
+def regenerate_human_readable(iris_data, outfile):
     """
     Generate human readable, tabular version of the IRIS database.
 
-    :param iris: Query response object containing result string returned from IRIS query.
-    :type iris: requests.Response
+    :param iris_data: String containing result string returned from IRIS query (without data errors).
+    :type iris_data: str
     :param outfile: Output text file name
     :type outfile: str
     """
@@ -111,22 +123,19 @@ def regenerateHumanReadable(iris, outfile):
     from obspy import read_inventory
 
     if sys.version_info[0] < 3:
-        import cStringIO as sio  # pylint: disable=import-error
+        from cStringIO import StringIO as sio  # pylint: disable=import-error
     else:
-        import io as sio
+        from io import BytesIO as sio
 
+    iris_str = iris_data.encode('utf-8')
     print("  Ingesting query response into obspy...")
-    # This code removes all instances of the substrings matching KNOWN_ILLEGAL_ELEMENTS_PATTERNS from iris.text,
-    # then encodes it as UTF-8.
-    matcher = re.compile("|".join(KNOWN_ILLEGAL_ELEMENTS_PATTERNS))
-    iris_str = matcher.sub("", iris.text).encode('utf-8')
-    obspy_input = sio.BytesIO(iris_str)
+    obspy_input = sio(iris_str)
     try:
         station_inv = read_inventory(obspy_input)
     except:
-        DUMPFILE = 'fdsn_stn_inv_dump.xml'
-        print("FAILED ingesting server response into obspy, dumping server response string to " + DUMPFILE)
-        with open(DUMPFILE, 'w') as f:
+        dumpfile = 'fdsn_stn_inv_dump.xml'
+        print("FAILED ingesting server response into obspy, dumping server response string to " + dumpfile)
+        with open(dumpfile, 'w') as f:
             f.write(iris_str.decode('utf-8'))
         raise
 
@@ -142,17 +151,19 @@ def regenerateHumanReadable(iris, outfile):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--netmask", help="Filter mask to apply to network codes, e.g. U* to get all network codes starting with \"U\"")
-    parser.add_argument("-s", "--statmask", help="Filter mask to apply to station codes. Filter strings should not include quotation marks.")
+    parser.add_argument("-n", "--netmask", help="Filter mask to apply to network codes, "
+                        "e.g. U* to get all network codes starting with \"U\"")
+    parser.add_argument("-s", "--statmask", help="Filter mask to apply to station codes. "
+                        "Filter strings should not include quotation marks.")
     parser.add_argument("-c", "--chanmask", help="Filter mask to apply to channel codes.")
-    parser.add_argument("-o", "--output", help="Name of output file.", default=DEFAULT_OUTPUT_FILE)
+    parser.add_argument("-o", "--output", help="Name of output file.", default=default_output_file)
     args = vars(parser.parse_args())
-    filter_args = {k: v for k, v in args.items() if v is not None and k != "output"}
+    filter_args = {k: v for k, v in args.items() if v is not None and k in ["netmask", "statmask", "chanmask"]}
     output_filename = args['output']
     print("Destination file: " + output_filename)
     time.sleep(1)
 
     if filter_args:
-        updateIrisStationXml(output_filename, filter_args)
+        update_iris_station_xml(output_filename, filter_args)
     else:
-        updateIrisStationXml(output_filename)
+        update_iris_station_xml(output_filename)
