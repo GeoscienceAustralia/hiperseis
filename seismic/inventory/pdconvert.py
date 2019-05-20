@@ -62,9 +62,8 @@ def pd2Station(statcode, station_df, instrument_register=None):
             sensor = None
             response = None
         cha = Channel(ch_code, '', float(d['Latitude']), float(d['Longitude']), float(d['Elevation']),
-                      depth=0.0, azimuth=0.0, dip=-90.0,
-                      start_date=ch_start, end_date=ch_end,
-                      sensor=sensor, response=response)
+                      depth=0.0, azimuth=0.0, dip=-90.0, sample_rate=0.0, clock_drift_in_seconds_per_sample=0.0,
+                      start_date=ch_start, end_date=ch_end, sensor=sensor, response=response)
         station.channels.append(cha)
     return station
 
