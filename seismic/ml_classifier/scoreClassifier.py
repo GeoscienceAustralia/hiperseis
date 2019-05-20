@@ -26,12 +26,12 @@ for result in nRes:
     else:
         tN+=1
 
-print "S recall = "+str(float(tS)/len(sRes))+", S precision = "+str(float(tS)/(tS+fS))
-print "N recall = "+str(float(tN)/len(nRes))+", N precision = "+str(float(tN)/(tN+fN))
+print("S recall = "+str(float(tS)/len(sRes))+", S precision = "+str(float(tS)/(tS+fS)))
+print("N recall = "+str(float(tN)/len(nRes))+", N precision = "+str(float(tN)/(tN+fN)))
 
 tGen=testGenerator(16)
 
 results = model.evaluate_generator(tGen,steps=len(tGen))
 
-print "Test set loss: "+str(results[0])
-print "Test set accuracy: "+str(results[1])
+print("Test set loss: "+str(results[0]))
+print("Test set accuracy: "+str(results[1]))

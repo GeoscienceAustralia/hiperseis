@@ -1,8 +1,8 @@
-from data_harvester.autopicks import pickLoader
+from .data_harvester.autopicks import pickLoader
 
-import model
+from . import model
 import numpy as np
-import autopick_data
+from . import autopick_data
 
 network=model.shakenet(pretrained_weights='shakenet-model.hdf5')
 
@@ -18,5 +18,5 @@ with open(outfile,'w') as f:
 
     results=network.predict_generator(datagen)
 
-print len(results)
+print(len(results))
 

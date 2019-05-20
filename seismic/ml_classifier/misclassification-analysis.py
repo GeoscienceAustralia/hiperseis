@@ -1,5 +1,5 @@
-from model import *
-from data import *
+from .model import *
+from .data import *
 import os.path as path
 import matplotlib
 matplotlib.use('Agg')

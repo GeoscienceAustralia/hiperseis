@@ -1,5 +1,5 @@
 #load the first test object and run it through the trained network to see what happens
-from model import *
+from .model import *
 import numpy as np
 import matplotlib.pyplot as plt
 

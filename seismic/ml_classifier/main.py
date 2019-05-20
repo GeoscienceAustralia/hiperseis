@@ -1,5 +1,5 @@
 from model import *
-from data import *
+from seismic.ml_classifier.data import *
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -16,5 +16,5 @@ model.fit_generator(myGene,steps_per_epoch=len(myGene),epochs=60,callbacks=[mode
 
 results = model.evaluate_generator(testGene,steps=len(testGene))
 
-print "Test set loss: "+str(results[0])
-print "Test set accuracy: "+str(results[1])
+print("Test set loss: "+str(results[0]))
+print("Test set accuracy: "+str(results[1]))

@@ -2,7 +2,8 @@ from datagenerator import DataGenerator
 import os
 from random import shuffle,seed
 #this is hardcoded, maybe make a more general version that gets the IDs from the folder in the future
-datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
+#datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
+datafolder='/home/ubuntu/seismic_waves_4_ml'
 
 #build a list of IDs and dictionary of labels
 files=os.listdir(datafolder)
@@ -36,8 +37,8 @@ inv_labels=[[],[]]
 for ID in partition['test']:
     inv_labels[labels[ID]].append(ID)
 
-print 'dataset contains '+str(Sctr)+' S waves and '+str(Nctr)+' noise waveforms.'
-print 'training set contains '+str(len(partition['train']))+' waveforms and test set contains '+str(len(partition['test']))+' waveforms.'
+print('dataset contains '+str(Sctr)+' S waves and '+str(Nctr)+' noise waveforms.')
+print('training set contains '+str(len(partition['train']))+' waveforms and test set contains '+str(len(partition['test']))+' waveforms.')
 
 
 
