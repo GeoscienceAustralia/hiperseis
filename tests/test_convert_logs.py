@@ -3,7 +3,7 @@ import os
 from os.path import join, splitext
 import json
 import pytest
-from scripts.convert_logs.decode_datfile import decode_anulog, _make_outdir, \
+from legacy.convert_logs.decode_datfile import decode_anulog, _make_outdir, \
     _dump, _parallel_decode_anulog
 
 TESTS = os.path.dirname(__file__)
