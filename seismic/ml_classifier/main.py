@@ -1,5 +1,5 @@
 from model import *
-from seismic.ml_classifier.data import *
+from data import *
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

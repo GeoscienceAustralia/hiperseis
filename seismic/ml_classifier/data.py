@@ -2,8 +2,8 @@ from datagenerator import DataGenerator
 import os
 from random import shuffle,seed
 #this is hardcoded, maybe make a more general version that gets the IDs from the folder in the future
-#datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
-datafolder='/home/ubuntu/seismic_waves_4_ml'
+datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
+#datafolder='/home/ubuntu/seismic_waves_4_ml'  #aws test sample data dir
 
 #build a list of IDs and dictionary of labels
 files=os.listdir(datafolder)
