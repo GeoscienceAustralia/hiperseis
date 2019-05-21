@@ -8,4 +8,5 @@ pytest
 click
 pandas
 deprecated
+pyyaml
 

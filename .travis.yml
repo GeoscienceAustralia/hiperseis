@@ -2,19 +2,21 @@ dist: trusty
 sudo: required  # use VM instead of docker
 
 language: python
+
 virtualenv:
   system_site_packages: true
+
 python:
 - '2.7'
 - '3.5'
 - '3.6'
+
 install:
 - pip install -r requirements.txt
+
 script:
-- pytest  tests/test_dum_success.py
-- pytest  -v tests/test_event.py
-- pytest  -v tests/test_config.py
-# - coverage run test/test_operations.py
+- pytest
+
 after_success: coveralls
 
 #after_script: cd ~

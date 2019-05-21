@@ -2,7 +2,7 @@ import os
 import pytest
 from obspy.core import read as obspy_read, Stream
 # from obspy.core.event import Event, read_events
-from seismic.pickers import pickermaps
+from legacy.pickers_integration.pickers import pickermaps
 
 algos = list(pickermaps.keys())
 
