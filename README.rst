@@ -63,7 +63,7 @@ HiPerSeis is licensed under the GPL version 3
    :target: https://travis-ci.org/GeoscienceAustralia/hiperseis
    
 .. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg?branch=andrew-medlin%2FPST-361-inventory-unit-testing
-   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=develop
+   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=andrew-medlin%2FPST-361-inventory-unit-testing
 
 .. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
    :target: http://hiperseis.readthedocs.io/en/develop/
