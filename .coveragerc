@@ -4,6 +4,7 @@ branch = True
 source =
     seismic
     convert_logs
+    legacy
 concurrency = multiprocessing
 parallel = True
 
