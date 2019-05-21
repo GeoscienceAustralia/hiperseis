@@ -9,4 +9,6 @@ click
 pandas
 deprecated
 pyyaml
+Cython --install-option="--no-cython-compile"  # On NCI, use module load
+#mpi4py # On NCI, use module load
 
