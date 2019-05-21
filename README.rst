@@ -49,7 +49,8 @@ Setup Guide for Developers
 - ``git submodule update``
 
    - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
-  
+
+To subsequently update submodule folders to latest remote version, run ``git submodule update --remote``
 
 
 License
@@ -59,11 +60,11 @@ HiPerSeis is licensed under the GPL version 3
 
 
 
-.. |Build Status| image:: https://travis-ci.org/GeoscienceAustralia/hiperseis.svg?branch=andrew-medlin%2FPST-361-inventory-unit-testing
+.. |Build Status| image:: https://travis-ci.org/GeoscienceAustralia/hiperseis.svg?branch=develop
    :target: https://travis-ci.org/GeoscienceAustralia/hiperseis
    
-.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg?branch=andrew-medlin%2FPST-361-inventory-unit-testing
-   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=andrew-medlin%2FPST-361-inventory-unit-testing
+.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg
+   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis
 
 .. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
    :target: http://hiperseis.readthedocs.io/en/develop/
