@@ -12,4 +12,4 @@ pyyaml
 requests
 Cython  # On NCI, use module load
 #mpi4py # On NCI, use module load
-
+tqdm
