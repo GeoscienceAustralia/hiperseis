@@ -10,7 +10,8 @@ testGene = testGenerator(128)
 
 model = shakenet()
 model_checkpoint = ModelCheckpoint('shakenet-model.hdf5', monitor='val_acc',verbose=1, save_best_only=True, mode='max')
-model.fit_generator(myGene,steps_per_epoch=len(myGene),epochs=60,callbacks=[model_checkpoint],validation_data=valGene,nb_val_samples=len(valGene))
+#model.fit_generator(myGene,steps_per_epoch=len(myGene),epochs=60,callbacks=[model_checkpoint],validation_data=valGene,nb_val_samples=len(valGene))
+model.fit_generator(myGene,steps_per_epoch=len(myGene),epochs=30,callbacks=[model_checkpoint],validation_data=valGene,nb_val_samples=len(valGene))
 
 
 
