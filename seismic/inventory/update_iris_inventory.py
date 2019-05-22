@@ -22,8 +22,8 @@ import argparse
 import time
 import re
 
-import requests as req
-from seismic.inventory.iris_query import formChannelRequestUrl, setTextEncoding
+import requests
+from seismic.inventory.iris_query import form_channel_request_url, set_text_encoding
 
 default_output_file = "IRIS-ALL.xml"
 
@@ -51,22 +51,24 @@ def cleanup(tmp_filename):
         print("WARNING: Failed to remove temporary file " + tmp_filename)
 
 
-def update_iris_station_xml(output_file, options=None):
+def update_iris_station_xml(req, output_file, options=None):
     """
     Pull the latest IRIS complete station inventory (down to station level, not including
     instrument responses) from IRIS web service and save to file in FDSN station xml format.
 
+    :param req: Request object to use for URI query
+    :type req: Object conforming to interface of 'requests' library
     :param output_file: Destination file to generate
     :type output_file: str
     :param options: Filtering options for network, station and channel codes, defaults to None
     :param options: Python dict of key-values pairs matching command line options, optional
     """
-    iris_url = formChannelRequestUrl() if options is None else formChannelRequestUrl(**options)
+    iris_url = form_channel_request_url() if options is None else form_channel_request_url(**options)
     # Download latest IRIS station database as FDSN station xml.
     try:
         print("Requesting data from server...")
         iris = req.get(iris_url)
-        setTextEncoding(iris)
+        set_text_encoding(iris)
     except req.exceptions.RequestException:
         print("FAILED to retrieve URL content at " + iris_url)
         return
@@ -78,7 +80,7 @@ def update_iris_station_xml(output_file, options=None):
     iris.close()
 
     with open(output_file, 'w') as f:
-        f.write(iris_fixed, format='stationxml')
+        f.write(iris_fixed)
 
     # Create human-readable text form of the IRIS station inventory (Pandas stringified table)
     output_txt = os.path.splitext(output_file)[0] + ".txt"
@@ -164,6 +166,6 @@ if __name__ == "__main__":
     time.sleep(1)
 
     if filter_args:
-        update_iris_station_xml(output_filename, filter_args)
+        update_iris_station_xml(requests, output_filename, filter_args)
     else:
-        update_iris_station_xml(output_filename)
+        update_iris_station_xml(requests, output_filename)

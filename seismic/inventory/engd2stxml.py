@@ -32,7 +32,7 @@ import datetime
 import numpy as np
 import scipy as sp
 import pandas as pd
-import requests as req
+import requests
 
 import obspy
 from obspy import read_inventory
@@ -40,7 +40,7 @@ from obspy.core.inventory import Inventory
 from seismic.inventory.pdconvert import pd2Network
 from seismic.inventory.table_format import (TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP,
                                             DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP)
-from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
+from seismic.inventory.iris_query import set_text_encoding, form_response_request_url
 from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
 
 PY2 = sys.version_info[0] < 3
@@ -652,7 +652,7 @@ def write_portable_inventory(df, fname):
             f.write(inv_str)
 
 
-def obtain_nominal_instrument_response(netcode, statcode, chcode):
+def obtain_nominal_instrument_response(netcode, statcode, chcode, req):
     """
     For given network, station and channel code, find a suitable response in IRIS database and
     return as obspy instrument response.
@@ -663,12 +663,14 @@ def obtain_nominal_instrument_response(netcode, statcode, chcode):
     :type statcode: str
     :param chcode: Channel code
     :type chcode: str
+    :param req: Request object to use for URI query
+    :type req: Object conforming to interface of 'requests' library
     :return: Dictionary of instrument responses from IRIS for given network(s), station(s) and channel(s).
     :rtype: dict of {str, Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)}
     """
     from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
 
-    query_url = formResponseRequestUrl(netcode, statcode, chcode)
+    query_url = form_response_request_url(netcode, statcode, chcode)
     tries = 10
     while tries > 0:
         try:
@@ -680,7 +682,7 @@ def obtain_nominal_instrument_response(netcode, statcode, chcode):
         except req.exceptions.RequestException as e:  # pylint: disable=unused-variable
             time.sleep(1)
     assert tries > 0
-    setTextEncoding(response_xml, quiet=True)
+    set_text_encoding(response_xml, quiet=True)
     # This line decodes when .text attribute is extracted, then encodes to utf-8
     obspy_input = bio.BytesIO(response_xml.text.encode('utf-8'))
     try:
@@ -701,7 +703,7 @@ def obtain_nominal_instrument_response(netcode, statcode, chcode):
     return responses
 
 
-def extract_unique_sensors_responses(inv):
+def extract_unique_sensors_responses(inv, req):
     """
     For the channel codes in the given inventory, determine a nominal instrument response suitable
     for that code. Note that no attempt is made here to determine an ACTUAL correct response for
@@ -711,6 +713,8 @@ def extract_unique_sensors_responses(inv):
 
     :param inv: Seismic station inventory
     :type inv: obspy.Inventory
+    :param req: Request object to use for URI query
+    :type req: Object conforming to interface of 'requests' library
     :return: Python dict of (obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)
         indexed by str representing channel code
     :rtype: {str: Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response) }
@@ -727,7 +731,7 @@ def extract_unique_sensors_responses(inv):
           "(this may take a while)...".format(reference_networks))
     for query in reference_networks:
         print("  querying {} as {}.{}.{}".format(query[0], *query))
-        nominal_instruments.update(obtain_nominal_instrument_response(*query))
+        nominal_instruments.update(obtain_nominal_instrument_response(*query, req))
 
     if show_progress:
         num_entries = sum(len(sta.channels) for net in inv.networks for sta in net.stations)
@@ -752,7 +756,7 @@ def extract_unique_sensors_responses(inv):
                 assert isinstance(cha.code, basestring), type(cha.code)
                 # For each channel code, obtain a nominal instrument response by IRIS query.
                 if cha.code not in nominal_instruments:
-                    response = obtain_nominal_instrument_response(net.code, sta.code, cha.code)
+                    response = obtain_nominal_instrument_response(net.code, sta.code, cha.code, req)
                     nominal_instruments.update(response)
                     if cha.code in response:
                         std_print("Found nominal instrument response for channel code {} in "
@@ -833,8 +837,8 @@ def main(iris_xml_file):
         with open(iris_xml_file, mode='r', encoding='utf-8') as f:
             iris_inv = read_inventory(f)
 
-    # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
-    nominal_instruments = extract_unique_sensors_responses(iris_inv)
+    # Extract nominal sensor and response data from inventory, indexed by channel code.
+    nominal_instruments = extract_unique_sensors_responses(iris_inv, requests)
 
     # Write whole database to FDSN station xml file
     export_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")

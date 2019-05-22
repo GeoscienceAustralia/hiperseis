@@ -36,6 +36,7 @@ System Requirements
 - Python 2.7
 - Python 3.5 or higher
 
+
 Setup Guide for Developers
 ==========================
 
@@ -50,7 +51,17 @@ Setup Guide for Developers
 
    - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
 
-To subsequently update submodule folders to latest remote version, run ``git submodule update --remote``
+To subsequently update submodule folders to latest remote version, run:
+
+- ``git submodule update --remote``
+
+and if any updates are made, re-run the pip install step.
+
+If you are using the library without ``pip install``-ing it, then make sure the ``hiperseis`` folder
+is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/hiperseis`` is where
+``hiperseis`` was checked out:
+
+- ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
 
 
 License
