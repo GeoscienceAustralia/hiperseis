@@ -2,9 +2,8 @@ sphinx>=1.8
 obspy==1.1.0
 pyasdf
 #geopandas
-pytest
+pytest>=4.2.0
 joblib
-pytest
 click
 pandas
 deprecated
