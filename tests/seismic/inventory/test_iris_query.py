@@ -1,4 +1,4 @@
-# import obspy
+#!/usr/bin/env python
 
 import os
 import requests
@@ -33,7 +33,6 @@ def test_set_text_encoding(requests_mock):
     default_channel_query = iris_query.form_channel_request_url()
     with open(iris_data_file, 'rb') as f:
         original_response = f.read().decode('utf-8')
-    print(original_response[0:100])
     requests_mock.get(default_channel_query, text=original_response)
     response = requests.get(default_channel_query)
     assert response.encoding != "ISO-8859-1"

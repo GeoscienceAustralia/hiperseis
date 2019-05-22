@@ -84,3 +84,4 @@ seismic/receiver_fn/DATA/*
 seismic/xcorqc/**/*.nc
 seismic/xcorqc/**/*.cfg
 seismic/xcorqc/**/*.pbs
+**/junk.*
