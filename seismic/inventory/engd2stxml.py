@@ -36,8 +36,7 @@ import requests
 
 import obspy
 from obspy import read_inventory
-from obspy.core.inventory import Inventory
-from seismic.inventory.pdconvert import pd2Network
+from seismic.inventory.pdconvert import dataframe_to_fdsn_station_xml
 from seismic.inventory.table_format import (TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP,
                                             DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP)
 from seismic.inventory.iris_query import set_text_encoding, form_response_request_url
@@ -604,35 +603,6 @@ def cleanup_database(df):
     return df
 
 
-def export_to_fdsn_station_xml(df, nominal_instruments, filename):
-    """Export dataframe of station metadata to FDSN station xml file
-
-    :param df: Dataframe containing all the station records to export.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
-        characterization
-    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
-        obspy.core.inventory.response.Response) }
-    :param filename: Output filename
-    :type filename: str or path
-    """
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-        progressor = pbar.update
-    else:
-        progressor = None
-
-    global_inventory = Inventory(networks=[], source='EHB')
-    for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
-        global_inventory.networks.append(net)
-    if show_progress:
-        pbar.close()
-
-    # Write global inventory text file in FDSN stationxml inventory format.
-    global_inventory.write(filename, format="stationxml")
-
-
 def write_portable_inventory(df, fname):
     """
     Write the final database to re-usable file formats.
@@ -841,7 +811,7 @@ def main(iris_xml_file):
     nominal_instruments = extract_unique_sensors_responses(iris_inv, requests)
 
     # Write whole database to FDSN station xml file
-    export_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
+    dataframe_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
 
     # Write whole database in portable csv and hdf5 formats
     write_portable_inventory(db, "INVENTORY_" + rt_timestamp)

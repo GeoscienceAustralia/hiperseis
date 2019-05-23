@@ -9,7 +9,7 @@ from collections import defaultdict
 from obspy.core.inventory import Inventory
 import matplotlib.pyplot as plt
 
-from seismic.inventory.pdconvert import pd2Network
+from seismic.inventory.pdconvert import dataframe_to_network
 
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib  # pylint: disable=import-error
@@ -36,7 +36,7 @@ def save_network_local_plots(df, plot_folder, progressor=None, include_stations_
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
     for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data, no_instruments)
+        net = dataframe_to_network(netcode, data, no_instruments)
         plot_fname = os.path.join(dest_path, netcode + ".png")
         try:
             fig = net.plot(projection="local", resolution="l", outfile=plot_fname, continent_fill_color="#e0e0e0",
@@ -76,7 +76,7 @@ def save_station_local_plots(df, plot_folder, progressor=None, include_stations_
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
     failed = []
     for (netcode, statcode), data in df.groupby(['NetworkCode', 'StationCode']):
-        net = pd2Network(netcode, data, no_instruments)
+        net = dataframe_to_network(netcode, data, no_instruments)
         station_name = ".".join([netcode, statcode])
         plot_fname = os.path.join(dest_path, station_name + ".png")
         try:

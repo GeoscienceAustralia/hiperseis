@@ -120,7 +120,7 @@ def regenerate_human_readable(iris_data, outfile):
     """
 
     print("Generating human readable version...")
-    from seismic.inventory.pdconvert import inventory2Dataframe
+    from seismic.inventory.pdconvert import inventory_to_dataframe
     import pandas as pd
     from obspy import read_inventory
 
@@ -142,7 +142,7 @@ def regenerate_human_readable(iris_data, outfile):
         raise
 
     print("  Converting to dataframe...")
-    inv_df = inventory2Dataframe(station_inv)
+    inv_df = inventory_to_dataframe(station_inv)
 
     with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 1000):
         print("  Converting to tabular text file " + outfile)

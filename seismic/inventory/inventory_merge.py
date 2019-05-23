@@ -14,7 +14,7 @@ import pandas as pd
 from obspy.core.inventory import Network, Station
 from obspy.geodetics.base import locations2degrees
 
-from seismic.inventory.pdconvert import inventory2Dataframe
+from seismic.inventory.pdconvert import inventory_to_dataframe
 from seismic.inventory.inventory_split import split_inventory_by_network
 from seismic.inventory.inventory_util import load_station_xml, NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
 
@@ -144,7 +144,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
     else:
         inv_iris = load_station_xml(iris_inv)
         # and convert to Pandas dataframe
-        db_iris = inventory2Dataframe(inv_iris)
+        db_iris = inventory_to_dataframe(inv_iris)
         with open(os.path.splitext(iris_inv)[0] + ".pkl", 'wb') as f:
             pkl.dump(inv_iris, f, pkl.HIGHEST_PROTOCOL)
             pkl.dump(db_iris, f, pkl.HIGHEST_PROTOCOL)
@@ -159,7 +159,7 @@ def main(iris_inv, custom_inv, output_file, split_output_folder=None):
     else:
         inv_other = load_station_xml(custom_inv)
         # and convert to Pandas dataframe
-        db_other = inventory2Dataframe(inv_other)
+        db_other = inventory_to_dataframe(inv_other)
         with open(os.path.splitext(custom_inv)[0] + ".pkl", 'wb') as f:
             pkl.dump(inv_other, f, pkl.HIGHEST_PROTOCOL)
             pkl.dump(db_other, f, pkl.HIGHEST_PROTOCOL)
