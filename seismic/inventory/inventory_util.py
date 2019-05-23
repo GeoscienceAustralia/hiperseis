@@ -130,7 +130,7 @@ def extract_unique_sensors_responses(inv, req, show_progress=True, blacklisted_n
           "(this may take a while)...".format(reference_networks))
     for query in reference_networks:
         print("  querying {} as {}.{}.{}".format(query[0], *query))
-        nominal_instruments.update(obtain_nominal_instrument_response(*query, req))
+        nominal_instruments.update(obtain_nominal_instrument_response(*query, req=req))
 
     if show_progress:
         import tqdm
