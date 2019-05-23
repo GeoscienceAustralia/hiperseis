@@ -5,6 +5,7 @@ import os
 # import requests
 import requests_mock
 
+
 class MockIrisResponse(requests_mock.Mocker):
     """Class to conveniently generate consistent mock request responses for FDSN station xml
        data across the test suites.

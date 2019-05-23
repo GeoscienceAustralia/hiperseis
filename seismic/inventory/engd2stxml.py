@@ -49,7 +49,7 @@ if PY2:
     import io as bio
     import cPickle as pkl  # pylint: disable=import-error
 else:
-    import io as sio
+    import io as sio  # pylint: disable=ungrouped-imports
     import pickle as pkl
     bio = sio
     basestring = str
@@ -156,7 +156,8 @@ def reportUnpickleFail(filename):
     :param filename: The name of the file that failed to unpickle.
     :type filename: str
     """
-    print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. Falling back to full parse.".format(filename))
+    print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. "
+          "Falling back to full parse.".format(filename))
 
 
 def read_isc(fname):
@@ -206,7 +207,8 @@ def read_isc(fname):
         """
         num_unique_networks = len(df['NetworkCode'].unique())
         num_unique_stations = len(df['StationCode'].unique())
-        print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks, num_unique_stations))
+        print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks,
+                                                                               num_unique_stations))
 
     if USE_PICKLE:
         pkl_name = fname + ".pkl"
@@ -458,9 +460,10 @@ def remove_duplicate_stations(df, neighbor_matrix):
               "channel data:\n{1}".format(len(removal_rows), df.loc[removal_rows]))
         df.drop(removal_rows, inplace=True)
 
-    # Secondly, remove stations with same network and station code, but which are further away than the threshold distance
-    # and have no distinguishing channel data. We deliberately exclude station start and end dates from consideration here,
-    # as these are extended during file read to cover range of contained channels, and therefore might not match in code dupes.
+    # Secondly, remove stations with same network and station code, but which are further away than the
+    # threshold distance and have no distinguishing channel data. We deliberately exclude station start
+    # and end dates from consideration here, as these are extended during file read to cover range of
+    # contained channels, and therefore might not match in code dupes.
     matching_criteria = ["ChannelCode", "ChannelStart", "ChannelEnd"]
     removal_index = set()
     print("  CODE duplicates...")
@@ -477,9 +480,9 @@ def remove_duplicate_stations(df, neighbor_matrix):
                     continue
                 key = channel[matching_criteria]
                 # Consider a likely duplicate if all matching criteria are same as the key.
-                # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
-                # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
-                # not duplicates.
+                # Note that NA fields will compare False even if both are NA, which is what we want here
+                # since we don't want to treat records with same codes as duplicates if the matching_criteria
+                # are NA, as this removes records that are obviously not duplicates.
                 duplicate_mask = (data[matching_criteria] == key)
                 index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
                 duplicate_index = data.index[index_mask]
