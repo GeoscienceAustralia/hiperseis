@@ -111,8 +111,10 @@ def whiten(x, sr, fmin=None, fmax=None):
     return xnew
 # end func
 
-def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
-           resample_rate=None, flo=None, fhi=None, clip_to_2std=False, whitening=False,
+def xcorr2(tr1, tr2, sta1_inv, sta2_inv,
+           window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
+           resample_rate=None, flo=None, fhi=None,
+           clip_to_2std=False, whitening=False,
            one_bit_normalize=False, envelope_normalize=False,
            verbose=1, logger=None):
 
@@ -182,6 +184,43 @@ def xcorr2(tr1, tr2, window_seconds=3600, window_overlap=0.1, interval_seconds=8
                     tr2_d = Trace(data=tr2_d,
                                   header=Stats(header={'sampling_rate':sr2_orig,
                                                        'npts':window_samples_2})).resample(resample_rate).data
+                # end if
+
+                # remove response
+                if(sta1_inv):
+                    tr1 = Trace(data=tr1_d,
+                                header=Stats(header={'sampling_rate':resample_rate if resample_rate else sr1_orig,
+                                                     'npts':len(tr1_d),
+                                                     'network':tr1.stats.network,
+                                                     'station': tr1.stats.station,
+                                                     'location': tr1.stats.location,
+                                                     'channel': tr1.stats.channel,
+                                                     'starttime': tr1.stats.starttime + wtr1s,
+                                                     'endtime': tr1.stats.starttime + wtr1e}))
+                    try:
+                        tr1.remove_response(inventory=sta1_inv, water_level=50)
+                    except Exception as e:
+                        print (e)
+                    # end try
+                    tr1_d = tr1.data
+                # end if
+
+                if(sta2_inv):
+                    tr2 = Trace(data=tr2_d,
+                                header=Stats(header={'sampling_rate':resample_rate if resample_rate else sr2_orig,
+                                                     'npts':len(tr2_d),
+                                                     'network': tr2.stats.network,
+                                                     'station': tr2.stats.station,
+                                                     'location': tr2.stats.location,
+                                                     'channel': tr2.stats.channel,
+                                                     'starttime': tr2.stats.starttime + wtr2s,
+                                                     'endtime': tr2.stats.starttime + wtr2e}))
+                    try:
+                        tr2.remove_response(inventory=sta2_inv, water_level=50)
+                    except Exception as e:
+                        print (e)
+                    # end try
+                    tr2_d = tr2.data
                 # end if
 
                 # detrend
@@ -317,6 +356,7 @@ def dropBogusTraces(st, sampling_rate_cutoff=1):
 def IntervalStackXCorr(refds, tempds,
                        start_time, end_time,
                        ref_net_sta, temp_net_sta,
+                       ref_sta_inv, temp_sta_inv,
                        ref_cha,
                        temp_cha,
                        resample_rate=None,
@@ -353,6 +393,10 @@ def IntervalStackXCorr(refds, tempds,
     :param ref_net_sta: Network.Station for the reference Dataset.
     :type temp_net_sta: str
     :param temp_net_sta: Network.Station for the temporary Dataset.
+    :type ref_sta_inv: Inventory
+    :param ref_sta_inv: Inventory containing instrument response for station
+    :type temp_sta_inv: Inventory
+    :param temp_sta_inv: Inventory containing instrument response for station
     :type ref_cha: str
     :param ref_cha: Channel name for the reference Dataset
     :type temp_cha: str
@@ -518,7 +562,8 @@ def IntervalStackXCorr(refds, tempds,
         logger.info('\tCross-correlating station-pair: %s' % (stationPair))
         xcl, winsPerInterval, \
         intervalStartSeconds, intervalEndSeconds = \
-            xcorr2(refSt[0], tempSt[0], window_seconds=window_seconds,
+            xcorr2(refSt[0], tempSt[0], ref_sta_inv, temp_sta_inv,
+                   window_seconds=window_seconds,
                    interval_seconds=interval_seconds,
                    resample_rate=resample_rate,
                    flo=flo, fhi=fhi,
