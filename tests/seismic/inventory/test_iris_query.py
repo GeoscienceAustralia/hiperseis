@@ -5,6 +5,8 @@ import requests
 
 from seismic.inventory import iris_query
 
+# TODO: Factor this out into MockIrisResponse class that derives from requests_mock.Mocker,
+# and provides access to this 'full' IRIS response and minimal response from test_update_iris_inventory.
 iris_data_file = os.path.join(os.path.dirname(__file__), "iris_db_test_chan_GE.xml")
 
 
