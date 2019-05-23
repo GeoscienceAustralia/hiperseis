@@ -2,6 +2,8 @@
 """Utility functions and constants shared amongst inventory management modules.
 """
 
+from __future__ import print_function
+
 import sys
 from collections import namedtuple, defaultdict
 import time
