@@ -5,12 +5,14 @@ source =
     seismic
     convert_logs
     legacy
+omit =
+    legacy/engdahl/*
+    # Exclude file that requires seiscomp3, not supported in testing runtime environment:
+    seismic/inventory/fdsnxml_convert.py
 concurrency = multiprocessing
 parallel = True
 
 [report]
-omit =
-    legacy/engdahl/*
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Have to re-enable the standard pragma
