@@ -8,7 +8,7 @@ source =
 omit =
     legacy/engdahl/*
     seismic/inventory/legacy/*
-    seismic/receiver_fn/c_sippl_reference
+    seismic/receiver_fn/c_sippl_reference/*
     # Exclude file that requires seiscomp3, not supported in testing runtime environment:
     seismic/inventory/fdsnxml_convert.py
 concurrency = multiprocessing
