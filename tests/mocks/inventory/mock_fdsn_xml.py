@@ -94,7 +94,7 @@ class MockIrisResponse(requests_mock.Mocker):
         # pass to select(), then use that result to generate FDSN stationxml string response.
         match_result = self.url_query_matcher.search(request_str)
         assert match_result
-        net, sta, cha = match_result[1], match_result[2], match_result[3]
+        net, sta, cha = match_result.group(1, 2, 3)
         query_result = self.obspy_inv.select(network=net, station=sta, channel=cha)
         if query_result.networks:
             context.status_code = 200
