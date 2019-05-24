@@ -51,14 +51,14 @@ def load_station_xml(inventory_file):
 
 def obtain_nominal_instrument_response(netcode, statcode, chcode, req):
     """
-    For given network, station and channel code, find a suitable response in IRIS database and
-    return as obspy instrument response.
+    For given network, station and channel code, find suitable response(s) in IRIS database and
+    return as dict of obspy instrument responses.
 
-    :param netcode: Network code
+    :param netcode: Network code (may include wildcards)
     :type netcode: str
-    :param statcode: Station code
+    :param statcode: Station code (may include wildcards)
     :type statcode: str
-    :param chcode: Channel code
+    :param chcode: Channel code (may include wildcards)
     :type chcode: str
     :param req: Request object to use for URI query
     :type req: Object conforming to interface of 'requests' library

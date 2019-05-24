@@ -1,9 +1,22 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import re
 
 # import requests
 import requests_mock
+
+PY2 = sys.version_info[0] < 3  # pylint: disable=invalid-name
+
+if PY2:
+    import cStringIO as sio  # pylint: disable=import-error
+    import io as bio
+else:
+    import io as sio  # pylint: disable=ungrouped-imports
+    bio = sio
+
+from obspy import read_inventory
 
 
 class MockIrisResponse(requests_mock.Mocker):
@@ -18,6 +31,15 @@ class MockIrisResponse(requests_mock.Mocker):
         with open(self.iris_data_file, 'rb') as f:
             self.full_test_response = f.read().decode('utf-8')
 
+        invalid_response_file = os.path.join(os.path.dirname(__file__), "iris_db_invalid_response.xml")
+        with open(invalid_response_file, 'rb') as f:
+            self.invalid_response_template = f.read().decode('utf-8')
+
+        self.obspy_inv = None
+
+        iris_record_pattern = r'net=(.+?)&sta=(.+?)&cha=(.+?)&'
+        self.url_query_matcher = re.compile(iris_record_pattern)
+
 
     def get_full_response(self):
         """Getter for full station XML response
@@ -26,6 +48,62 @@ class MockIrisResponse(requests_mock.Mocker):
             str -- Detailed test station XMl with multiple stations and channels
         """
         return self.full_test_response
+
+
+    def get_invalid_response(self, netcode, statcode='*', chcode='*'):
+        """Get the response string for a channel level query for records that don't exist.
+
+        :param netcode: The network code to query
+        :type netcode: str
+        :param statcode: The station code to query, defaults to '*'
+        :type statcode: str, optional
+        :param chcode: The channel code to query, defaults to '*'
+        :type chcode: str, optional
+        :return: Simulated IRIS response when the query cannot be fulfilled (404 error)
+        :rtype: str
+        """
+        return self.invalid_response_template.format(netcode, statcode, chcode)
+
+
+    def setup_internal_inv(self, response_functor):
+        """Using given callable response generator response_function, obtain the
+           response and convert it into an internal obspy inventory for later
+           dynamic query.
+
+        :param response_functor: Callable object to generate query response string (emulating IRIS web query)
+            for a station inventory.
+        :type response_functor: Any callable generating readable inventory string for ingestion into obspy.
+        """
+        resp = response_functor().encode('utf-8')
+        self.obspy_inv = read_inventory(bio.BytesIO(resp))
+
+
+    def dynamic_query(self, req, context):
+        """Dynamically generate a simulated request response.
+
+        :param req: The dynamic request.
+        :type req: requests.Request
+        :param context: Container for response data
+        :type context: requests_mock.response._Context mimmicking fields of requests.Response
+        :return: Emulated query response string
+        :rtype: str
+        """
+        assert self.obspy_inv is not None, "Initialize self.obspy_inv by calling setup_internal_inv"
+        request_str = req.url
+        # Get network, station and channel query fields out of request_str and
+        # pass to select(), then use that result to generate FDSN stationxml string response.
+        match_result = self.url_query_matcher.search(request_str)
+        assert match_result
+        net, sta, cha = match_result[1], match_result[2], match_result[3]
+        query_result = self.obspy_inv.select(network=net, station=sta, channel=cha)
+        if query_result.networks:
+            context.status_code = 200
+            byte_buffer = bio.BytesIO()
+            query_result.write(byte_buffer, "stationxml")
+            return byte_buffer.getvalue().decode('utf-8')
+        # No resource found matching the query
+        context.status_code = 404
+        return self.get_invalid_response(net, sta, cha)
 
 
     def get_minimal_response(self):

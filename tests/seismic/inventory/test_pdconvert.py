@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import os
 import io
 
@@ -56,8 +55,8 @@ def test_dataframe_to_inventory(iris_mocker, tmp_path):
         expected_query = "https://service.iris.edu/fdsnws/station/1/query?net=GE&sta=*&cha=*HZ&level=response" \
                          "&format=xml&includerestricted=false&includecomments=false&nodata=404"
         iris_mocker.get(expected_query, text=iris_mocker.get_minimal_response())
-        instruments = extract_unique_sensors_responses(obspy_inv, requests, show_progress=False, test_mode=True)
-        dataframe_to_fdsn_station_xml(test_df, instruments, outfile, show_progress=False)
+        instruments = extract_unique_sensors_responses(obspy_inv, requests, show_progress=True, test_mode=True)
+        dataframe_to_fdsn_station_xml(test_df, instruments, outfile, show_progress=True)
     assert os.path.exists(outfile)
     # Test that the expected network/station/channel codes are there and that each channel
     # has an instrument response.

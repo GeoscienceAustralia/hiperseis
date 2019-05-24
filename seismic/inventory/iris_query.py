@@ -60,7 +60,7 @@ def set_text_encoding(resp, quiet=False):
     :param resp: Query response object returned by response.get()
     :type resp: requests.Response
     """
-    encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
+    encoding_pattern = r"^<\?xml .* encoding=[\"'](.+)[\"']"
     matcher = re.compile(encoding_pattern)
     first_line = sio.StringIO(resp.text).readline().rstrip()
     match = matcher.search(first_line)
