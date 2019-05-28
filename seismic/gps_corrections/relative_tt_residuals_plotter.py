@@ -39,7 +39,7 @@ else:
 register_matplotlib_converters()
 
 # Priority order of trusted channels
-CHANNEL_PREF_NO_SHZ = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z']
+CHANNEL_PREF_NO_SHZ = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'EHZ']
 CHANNEL_PREF_BALANCED = CHANNEL_PREF_NO_SHZ + ['S?Z', 'SHZ']
 CHANNEL_PREF_GREEDY = CHANNEL_PREF_BALANCED + ['???', '?']
 CHANNEL_PREF = CHANNEL_PREF_BALANCED
