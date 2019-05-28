@@ -19,3 +19,7 @@ def test_engd2stxml_main(tmp_path):
     engd2stxml.main(os.path.join(test_data_path, "IRIS-ALL_tiny.xml"),
                     stations_folder, str(tmp_path), test_mode=True)
     assert os.path.exists(os.path.join(str(tmp_path), "INVENTORY_" + rt_timestamp + ".xml"))
+
+# TODO: Add additional test functions that:
+#   * test individual functions from engd2stxml module
+#   * test the correctness of the content in the output INVENTORY_*.xml file
