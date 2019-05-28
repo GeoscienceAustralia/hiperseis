@@ -1,5 +1,7 @@
 sphinx>=1.8
 numpy>=1.14.2
+pytables; sys_platform=="win32"
+tables; sys_platform!="win32"
 obspy==1.1.0
 pyasdf
 #geopandas
@@ -7,6 +9,7 @@ pytest>=4.2.0
 joblib
 click
 pandas
+h5py
 deprecated
 pyyaml
 requests
