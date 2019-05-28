@@ -1,4 +1,5 @@
 sphinx>=1.8
+numpy>=1.14.2
 obspy==1.1.0
 pyasdf
 #geopandas
