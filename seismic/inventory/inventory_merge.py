@@ -129,7 +129,7 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
     """
     # Load IRIS inventory
     print("Loading {}...".format(iris_inv))
-    if not test_mode and os.path.exists(os.path.splitext(iris_inv)[0] + ".pkl"):
+    if not test_mode and os.path.exists(os.path.splitext(iris_inv)[0] + ".pkl"):  # pragma: no cover
         with open(os.path.splitext(iris_inv)[0] + ".pkl", 'rb') as f:
             inv_iris = pkl.load(f)
             db_iris = pkl.load(f)
@@ -137,7 +137,7 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
         inv_iris = load_station_xml(iris_inv)
         # and convert to Pandas dataframe
         db_iris = inventory_to_dataframe(inv_iris)
-        if not test_mode:
+        if not test_mode:  # pragma: no cover
             with open(os.path.splitext(iris_inv)[0] + ".pkl", 'wb') as f:
                 pkl.dump(inv_iris, f, pkl.HIGHEST_PROTOCOL)
                 pkl.dump(db_iris, f, pkl.HIGHEST_PROTOCOL)
@@ -145,7 +145,7 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
 
     # Load custom inventory
     print("Loading {}...".format(custom_inv))
-    if not test_mode and os.path.exists(os.path.splitext(custom_inv)[0] + ".pkl"):
+    if not test_mode and os.path.exists(os.path.splitext(custom_inv)[0] + ".pkl"):  # pragma: no cover
         with open(os.path.splitext(custom_inv)[0] + ".pkl", 'rb') as f:
             inv_other = pkl.load(f)
             db_other = pkl.load(f)
@@ -153,7 +153,7 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
         inv_other = load_station_xml(custom_inv)
         # and convert to Pandas dataframe
         db_other = inventory_to_dataframe(inv_other)
-        if not test_mode:
+        if not test_mode:  # pragma: no cover
             with open(os.path.splitext(custom_inv)[0] + ".pkl", 'wb') as f:
                 pkl.dump(inv_other, f, pkl.HIGHEST_PROTOCOL)
                 pkl.dump(db_other, f, pkl.HIGHEST_PROTOCOL)
@@ -278,7 +278,7 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
               help='Custom inventory file in FDSN stationxml format to merge with the IRIS inventory.')
 @click.option('--output-file', type=click.Path(exists=False, dir_okay=False), required=True,
               help='Name of file to output final result to.')
-def main(iris_inv, custom_inv, output_file, split_output_folder=None):
+def main(iris_inv, custom_inv, output_file, split_output_folder=None):  # pragma: no cover
     """Main entry point for CLI call to inventory_merge. See documentation for function inventory_merge().
 
     :param split_output_folder: If provided, also split the inventory into per-network files in given folder,

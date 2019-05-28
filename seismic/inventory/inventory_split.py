@@ -24,7 +24,7 @@ else:
 try:
     import tqdm
     show_progress = True
-except ImportError:
+except ImportError:  # pragma: no cover
     show_progress = False
     print("Run 'pip install tqdm' to see progress bar.")
 

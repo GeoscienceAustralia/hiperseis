@@ -124,7 +124,7 @@ def extract_unique_sensors_responses(inv, req, show_progress=True, blacklisted_n
     nominal_instruments = defaultdict(lambda: None)
     if test_mode:
         reference_networks = (('GE', '*', '*HZ'),)  # trailing comma required to make it a tuple
-    else:
+    else:  # pragma: no cover
         reference_networks = (('GE', '*', '*'), ('IU', '*', '*'), ('BK', '*', '*'))
     print("Preparing common instrument response database from networks {} "
           "(this may take a while)...".format(reference_networks))

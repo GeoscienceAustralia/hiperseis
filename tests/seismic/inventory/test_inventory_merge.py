@@ -17,3 +17,7 @@ def test_inventory_merge_main(tmp_path):
     assert not os.path.exists(output_path)
     inventory_merge(iris_file, custom_file, output_path, test_mode=True)
     assert os.path.exists(output_path)
+
+# TODO: Add additional test functions that:
+#   * test individual functions from inventory_merge module
+#   * test the correctness of the content in the output_path file

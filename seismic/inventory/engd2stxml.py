@@ -61,7 +61,7 @@ except ImportError:
 # demonstrated on multiple platforms with lower versions of numpy.
 vparts = np.version.version.split('.', 2)
 (major, minor, maint) = [int(x) for x in vparts]
-if major < 1 or (major == 1 and minor < 14):
+if major < 1 or (major == 1 and minor < 14):  # pragma: no cover
     print("Not supported error: Requires numpy >= 1.14.2, found numpy {0}".format(".".join(vparts)))
     sys.exit(1)
 else:
@@ -133,7 +133,7 @@ def read_eng(fname):
     return data_frame
 
 
-def reportUnpickleFail(filename):
+def reportUnpickleFail(filename):  # pragma: no cover
     """
     Standard failure report message when trying to unpickle file.
 
@@ -194,7 +194,7 @@ def read_isc(fname, use_pickle=False):
         print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks,
                                                                                num_unique_stations))
 
-    if use_pickle:
+    if use_pickle:  # pragma: no cover
         pkl_name = fname + ".pkl"
         if os.path.exists(pkl_name):
             print("Reading cached " + fname)
@@ -271,7 +271,7 @@ def read_isc(fname, use_pickle=False):
         pbar.close()
     print("Concatenating records...")
     df_all = pd.concat(df_list, sort=False)
-    if use_pickle:
+    if use_pickle:  # pragma: no cover
         with open(fname + ".pkl", "wb") as f:
             pkl.dump(df_all, f, pkl.HIGHEST_PROTOCOL)
     reportStationCount(df_all)
@@ -620,7 +620,7 @@ def main(iris_xml_file, stations_folder, output_directory, test_mode=False):
     """
     if test_mode:
         use_pickle = False
-    else:
+    else:  # pragma: no cover
         use_pickle = True
 
     # Read station database from ad-hoc formats
