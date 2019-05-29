@@ -13,10 +13,11 @@ AU network:
 import os
 import sys
 import datetime
+import logging
+
 import numpy as np
 import pandas as pd
 from pandas.plotting import register_matplotlib_converters
-
 import pytz
 import matplotlib
 import matplotlib.dates
@@ -25,13 +26,16 @@ import matplotlib.pyplot as plt
 import click
 # Progress bar helper to indicate that slow tasks have not stalled
 import tqdm
-
 import obspy
 
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib  # pylint: disable=import-error
 else:
     import pathlib  # pylint: disable=import-error
+
+from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
+                                                        get_network_stations,
+                                                        generate_large_events_catalog)
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init
@@ -101,105 +105,6 @@ class BatchOptions:
         self.export_path = None
 
 
-def get_network_stations(df, netcode):
-    """
-    Get the unique station codes belonging to a given network from a Pandas DataFrame
-
-    :param df: Pandas dataframe loaded from a pick event ensemble
-    :type df: pandas.DataFrame
-    :param netcode: Network code for which station codes will be returned
-    :type netcode: str
-    :return: Sorted list of station code strings extracted from df
-    :rtype: list(str)
-    """
-    return sorted(df[df['net'] == netcode]['sta'].unique().tolist())
-
-
-def get_network_mean(df, netcode):
-    """
-    Get the mean station latitude and longitude coordinates for all stations in a given network.
-
-    :param df: Pandas dataframe loaded from a pick event ensemble
-    :type df: pandas.DataFrame
-    :param netcode: Network code for which mean coordinates will be returned
-    :type netcode: str
-    :return: Mean (latitude, longitude) coordinates of stations in the network
-    :rtype: tuple(float, float)
-    """
-    mean_lat = df[df['net'] == netcode]['stationLat'].mean()
-    mean_lon = df[df['net'] == netcode]['stationLon'].mean()
-    return (mean_lat, mean_lon)
-
-
-def get_network_date_range(df, netcode):
-    """
-    Get the date range of pick events in df for a given network code
-
-    :param df: Pandas dataframe loaded from a pick event ensemble
-    :type df: pandas.DataFrame
-    :param netcode: Network code whose pick event dates min and max will be returned
-    :type netcode: str
-    :return: Min and max dates of picks for given network
-    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
-    """
-    mask = (df['net'] == netcode)
-    df_net = df.loc[mask]
-    min_date = df_net['originTimestamp'].min()
-    max_date = df_net['originTimestamp'].max()
-    return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
-
-
-def get_station_date_range(df, netcode, statcode):
-    """
-    Get the date range of pick events in df for a given network and station code
-
-    :param df: Pandas dataframe loaded from a pick event ensemble
-    :type df: pandas.DataFrame
-    :param netcode: Network code
-    :type netcode: str
-    :param statcode: Station code
-    :type statcode: str
-    :return: Min and max dates of picks for given network and station
-    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
-    """
-    mask = (df['net'] == netcode)
-    df_net = df.loc[mask]
-    mask = (df_net['sta'] == statcode)
-    df_sta = df_net.loc[mask]
-    min_date = df_sta['originTimestamp'].min()
-    max_date = df_sta['originTimestamp'].max()
-    return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
-
-
-def get_overlapping_date_range(df, ref_network, target_network):
-    """
-    Get the range of dates for which pick events in df from ref_network overlap with
-    any picks from target_network
-
-    :param df: Pandas dataframe loaded from a pick event ensemble
-    :type df: pandas.DataFrame
-    :param ref_network: Network and station codes for reference network
-    :type ref_network: dict of corresponding network and station codes under keys 'net' and 'sta'
-    :param target_network: Network and station codes for target network
-    :type target_network: dict of corresponding network and station codes under keys 'net' and 'sta'
-    :return: Start and end dates of datetime range during which pick events overlap for
-        ref_network and target_network
-    :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
-    """
-    mask_ref = df[list(ref_network)].isin(ref_network).all(axis=1)
-    mask_targ = df[list(target_network)].isin(target_network).all(axis=1)
-    mask = mask_ref | mask_targ
-    if not np.any(mask):
-        return (None, None)
-    df_nets = df.loc[mask]
-    keep_events = [e for e, d in df_nets.groupby('#eventID')
-                   if np.any(d[list(ref_network)].isin(ref_network).all(axis=1)) and
-                   np.any(d[list(target_network)].isin(target_network).all(axis=1))]
-    event_mask = df_nets['#eventID'].isin(keep_events)
-    df_nets = df_nets[event_mask]
-    return (obspy.UTCDateTime(df_nets['originTimestamp'].min()), obspy.UTCDateTime(df_nets['originTimestamp'].max()))
-
-
 def get_iris_station_codes(src_file, original_network):
     """
     Extract the station codes for a given network code from a IRIS query result file.
@@ -250,6 +155,8 @@ def determine_alternate_matching_codes(df, iris_file, original_network):
     :return: Matching sequences of network and station codes
     :rtype: tuple(str), tuple(str)
     """
+    log = logging.getLogger(__name__)
+
     # Get all the IRIS station codes for the given network
     matching_network_stn_iris_df = get_iris_station_codes(iris_file, original_network)
 
@@ -271,7 +178,7 @@ def determine_alternate_matching_codes(df, iris_file, original_network):
 
     # For each station code, compute its distance in degrees from the same station code location in IRIS.
     # If distance is too far away, station will be considered different from the AU network same station code.
-    print("Computing distances to original network station locations...")
+    log.info("Computing distances to original network station locations...")
     distances_from_orig = df_orig_stns_codes.apply(lambda r: dist_to_orig_stn(r, matching_network_stn_iris_df), axis=1)
 
     # Only keep stations which are close to the same station code from original network.
@@ -362,8 +269,9 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
     else:
         time_range = (df_times.min(), df_times.max())
     ref_code = ".".join([ref['net'][0], ref['sta'][0]])
-    print("Plotting time range " + " to ".join([t.strftime("%Y-%m-%d %H:%M:%S") for t in time_range]) +
-          " for " + ref_code)
+    log = logging.getLogger(__name__)
+    log.info("Plotting time range " + " to ".join([t.strftime("%Y-%m-%d %H:%M:%S") for t in time_range]) +
+             " for " + ref_code)
     yaxis = 'relTtResidual'
     xlabel = 'Event Origin Timestamp'
 
@@ -429,7 +337,8 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_option
                 break
         # We must find a channel
         if cha is None:
-            print("WARNING: Channels {} are not amongst allowed channels {}".format(available_cha, CHANNEL_PREF))
+            log = logging.getLogger(__name__)
+            log.warning("Channels {} are not amongst allowed channels {}".format(available_cha, CHANNEL_PREF))
             continue
         cha_mask = (grp_ref['cha'] == cha)
         grp_cha = grp_ref[cha_mask]
@@ -592,20 +501,21 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     df_nets = df_qual.loc[mask]
 
     # Filter out events in which ref_stn and TARGET stations are not both present
-    print("Narrowing dataframe to events common to REF and TARGET networks...")
+    log = logging.getLogger(__name__)
+    log.info("Narrowing dataframe to events common to REF and TARGET networks...")
     df_nets['ref_match'] = df_nets[list(ref_stn)].isin(ref_stn).all(axis=1)
     df_nets['target_match'] = df_nets[list(target_stns)].isin(target_stns).all(axis=1)
     keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d['ref_match']) and np.any(d['target_match'])]
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
-    print("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
+    log.info("Remaining picks after narrowing to common events: {}".format(len(df_nets)))
     if df_nets.empty:
-        print("WARNING: no events left to analyze!")
+        log.warning("No events left to analyze!")
         return
 
     # Alias for dataset at the end of all filtering, a static name that can be used from here onwards.
     ds_final = df_nets
-    # print(getOverlappingDateRange(ds_final, ref_stn, target_stns))
+    # print(get_overlapping_date_range(ds_final, ref_stn, target_stns))
 
     plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options, filter_options,
                                          display_options)
@@ -673,70 +583,19 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
         in networks2. Otherwise should not be used. Defaults to None.
     :param stations2: str, optional
     """
+    log = logging.getLogger(__name__)
 
-    print("Pandas version: " + pd.__version__)
-    print("Matplotlib version: " + matplotlib.__version__)
-
-    dtype = {'#eventID': object,
-             'originTimestamp': np.float64,
-             'mag': np.float64,
-             'originLon': np.float64,
-             'originLat': np.float64,
-             'originDepthKm': np.float64,
-             'net': object,
-             'sta': object,
-             'cha': object,
-             'pickTimestamp': np.float64,
-             'phase': object,
-             'stationLon': np.float64,
-             'stationLat': np.float64,
-             'az': np.float64,
-             'baz': np.float64,
-             'distance': np.float64,
-             'ttResidual': np.float64,
-             'snr': np.float64,
-             'qualityMeasureCWT': np.float64,
-             'domFreq': np.float64,
-             'qualityMeasureSlope': np.float64,
-             'bandIndex': np.int64,
-             'nSigma': np.int64}
+    log.info("Pandas version: " + pd.__version__)
+    log.info("Matplotlib version: " + matplotlib.__version__)
 
     # Load in event ensemble
-    print("Loading picks file {}".format(picks_file))
-    df_raw_picks = pd.read_csv(picks_file, ' ', header=0, dtype=dtype)
-    print("Number of raw picks: {}".format(len(df_raw_picks)))
+    log.info("Loading picks file {}".format(picks_file))
+    df_raw_picks = read_picks_ensemble(picks_file)
+    log.debug("Number of raw picks: {}".format(len(df_raw_picks)))
 
     # Generate catalog of major regional events (mag 8+) for overlays
     if show_historical:
-        df_mag8 = df_raw_picks[df_raw_picks['mag'] >= 8.0]
-        df_mag8['day'] = df_mag8['originTimestamp'].transform(datetime.datetime.utcfromtimestamp)\
-            .transform(lambda x: x.strftime("%Y-%m-%d"))
-        df_mag8 = df_mag8.sort_values(['day', 'originTimestamp'])
-
-        day_mag8_count = [(day, len(df_day)) for day, df_day in df_mag8.groupby('day')]
-        dates, counts = zip(*day_mag8_count)
-        mag8_dict = {'date': dates, 'counts': counts}
-        mag8_events_df = pd.DataFrame(mag8_dict, columns=['date', 'counts'])
-
-        event_count_threshold = 400
-        significant_events = mag8_events_df[mag8_events_df['counts'] >= event_count_threshold]
-        significant_events = significant_events.set_index('date')
-
-        significant_events.loc['2001-06-23', 'name'] = '2001 South Peru Earthquake'
-        significant_events.loc['2001-11-14', 'name'] = '2001 Kunlun earthquake'
-        significant_events.loc['2002-11-03', 'name'] = '2002 Denali earthquake'
-        significant_events.loc['2003-09-25', 'name'] = '2003 Tokachi-Oki earthquake'
-        significant_events.loc['2004-12-26', 'name'] = '2004 Indian Ocean earthquake and tsunami'
-        significant_events.loc['2005-03-28', 'name'] = '2005 Nias-Simeulue earthquake'
-        significant_events.loc['2009-09-29', 'name'] = '2009 Samoa earthquake and tsunami'
-        significant_events.loc['2010-02-27', 'name'] = '2010 Chile earthquake'
-        significant_events.loc['2011-03-11', 'name'] = '2011 Tohoku earthquake and tsunami'
-        significant_events.loc['2012-04-11', 'name'] = '2012 Indian Ocean earthquakes'
-        significant_events.loc['2013-02-06', 'name'] = '2013 Solomon Islands earthquakes'
-        significant_events.loc['2013-09-24', 'name'] = '2013 Balochistan earthquakes'
-        significant_events.loc['2014-04-01', 'name'] = '2014 Iquique earthquake'
-        significant_events.loc['2015-09-16', 'name'] = '2015 Illapel earthquake'
-        significant_events.loc['2016-08-24', 'name'] = '2016 Myanmar earthquake'
+        significant_events = generate_large_events_catalog(df_raw_picks, 8.0)
     # end if
 
     # Populate temporary deployments details
@@ -757,12 +616,12 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
                               'C8', 'Deployment OA')
 
     # Query time period for source dataset
-    print("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
-                                                  obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
+    log.debug("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
+                                                      obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
 
     # Remove unwanted channels as their picks are not considered reliable enough to use
     df_picks = df_raw_picks[df_raw_picks['cha'].isin(CHANNEL_PREF)].reset_index()
-    print("Remaining picks after channel filter: {}".format(len(df_picks)))
+    log.debug("Remaining picks after channel filter: {}".format(len(df_picks)))
 
     # Remove unused columns
     df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
@@ -781,13 +640,13 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
             date_mask = (df_picks['net'] == net) & (df_picks['originTimestamp'] < min_date.timestamp())
             df_picks = df_picks[~date_mask]
         after = len(df_picks)
-        print('Removed {} events due to known invalid timestamps'.format(before - after))
+        log.info('Removed {} events due to known invalid timestamps'.format(before - after))
 
     # Filter to teleseismic events.
     # 'distance' is angular distance (degrees) between event and station.
     mask_tele = (df_picks['distance'] >= min_distance) & (df_picks['distance'] <= max_distance)
     df_picks = df_picks.loc[mask_tele]
-    print("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
+    log.debug("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
 
     TARGET_NET = network1
     TARGET_STN = stations1.split(',') if stations1 else get_network_stations(df_picks, TARGET_NET)
@@ -797,7 +656,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     if include_alternate_catalog and TARGET_NET in IRIS_ALTERNATE_STATIONS_FILE:
         alt_file = IRIS_ALTERNATE_STATIONS_FILE[TARGET_NET]
         new_nets, new_stas = determine_alternate_matching_codes(df_picks, alt_file, TARGET_NET)
-        print("Adding {} more stations from alternate networks file {}".format(len(new_nets), alt_file))
+        log.info("Adding {} more stations from alternate networks file {}".format(len(new_nets), alt_file))
         TARGET_STNS['net'].extend(list(new_nets))
         TARGET_STNS['sta'].extend(list(new_stas))
 
@@ -840,7 +699,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
             batch_options.x_range = None
 
         for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
-            print("Plotting against REF: " + ".".join([ref_net, ref_sta]))
+            log.info("Plotting against REF: " + ".".join([ref_net, ref_sta]))
             single_ref = {'net': [ref_net], 'sta': [ref_sta]}
             analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, batch_options, filter_options,
                                            display_options)
