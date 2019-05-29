@@ -2,9 +2,12 @@
 """Common format for Pandas Dataframe column ordering of Network, Station and Channel metadata.
 """
 
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
+
+# pylint: disable=invalid-name
 
 TABLE_SCHEMA = OrderedDict((
     ('NetworkCode', str),

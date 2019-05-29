@@ -1,0 +1,8 @@
+Error 404: No data found!
+
+Request:
+http://service.iris.edu/fdsnws/station/1/query?net={0}&sta={1}&cha={2}&level=channel&format=xml&includerestricted=false&includecomments=false&nodata=404
+
+Service version:
+Service: fdsnws-station  version: 1.1.36
+

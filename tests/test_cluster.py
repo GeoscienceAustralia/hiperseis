@@ -22,6 +22,7 @@ from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from pytest import approx
+pytest.importorskip('legacy.cluster.cluster', 'Maybe ellipcorr is not set up')
 from legacy.cluster.cluster import (process_event,
                                      process_many_events,
                                      Grid,

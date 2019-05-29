@@ -29,9 +29,9 @@ from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
 from obspy.geodetics.base import WGS84_A as RADIUS
 from seismic.traveltime import pslog
-from seismic import mpiops
+from seismic.traveltime import mpiops
 import ellipcorr
-from seismic.inventory.parse_inventory import read_all_stations
+from seismic.inventory.legacy.parse_inventory import read_all_stations
 
 DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)

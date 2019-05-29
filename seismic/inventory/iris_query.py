@@ -11,7 +11,7 @@ else:
     import io as sio
 
 
-def formChannelRequestUrl(netmask="*", statmask="*", chanmask="*"):
+def form_channel_request_url(netmask="*", statmask="*", chanmask="*"):
     """
     Form request URL to download station inventory in stationxml format, down to channel level,
     with the given filters applied to network codes, station codes and channel codes.
@@ -26,13 +26,13 @@ def formChannelRequestUrl(netmask="*", statmask="*", chanmask="*"):
     :rtype: str
     """
     # Hardwired to exclude restricted channels and exclude comments to reduce file size.
-    return "http://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
+    return "https://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
            "&sta=" + statmask + \
            "&cha=" + chanmask + \
            "&level=channel&format=xml&includerestricted=false&includecomments=false&nodata=404"
 
 
-def formResponseRequestUrl(netmask, statmask, chanmask):
+def form_response_request_url(netmask, statmask, chanmask):
     """
     Form request URL to download station inventory in stationxml format, down to response level,
     for the given network, station and channel codes.
@@ -47,23 +47,22 @@ def formResponseRequestUrl(netmask, statmask, chanmask):
     :rtype: str
     """
     # Hardwired to exclude restricted channels and exclude comments to reduce file size.
-    return "http://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
+    return "https://service.iris.edu/fdsnws/station/1/query?net=" + netmask + \
            "&sta=" + statmask + \
            "&cha=" + chanmask + \
            "&level=response&format=xml&includerestricted=false&includecomments=false&nodata=404"
 
 
-def setTextEncoding(resp, quiet=False):
+def set_text_encoding(resp, quiet=False):
     """
     For the given response object, set its encoding from the contents of the text returned from server.
 
     :param resp: Query response object returned by response.get()
     :type resp: requests.Response
     """
-    encoding_pattern = r"^<\?xml .* encoding=\"(.+)\""
+    encoding_pattern = r"^<\?xml .* encoding=[\"'](.+)[\"']"
     matcher = re.compile(encoding_pattern)
     first_line = sio.StringIO(resp.text).readline().rstrip()
-    # first_line = resp.text.split('\n', 1)[0]
     match = matcher.search(first_line)
     assert match
     encoding = match.group(1)
