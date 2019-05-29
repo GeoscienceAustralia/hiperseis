@@ -5,3 +5,5 @@ basemap
 obspy
 tqdm
 pytz
+pathlib
+pathlib2
