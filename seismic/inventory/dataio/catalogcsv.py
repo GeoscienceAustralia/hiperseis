@@ -18,7 +18,7 @@ import numpy as np
 import scipy
 from tqdm.auto import tqdm
 
-from event_attrs import Origin, Event, Magnitude, Arrival
+from seismic.inventory.dataio.event_attrs import Origin, Event, Magnitude, Arrival
 
 
 def recursive_glob(treeroot, pattern):

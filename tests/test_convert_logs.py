@@ -3,12 +3,12 @@ import os
 from os.path import join, splitext
 import json
 import pytest
-from scripts.convert_logs.decode_datfile import decode_anulog, _make_outdir, \
+from legacy.convert_logs.decode_datfile import decode_anulog, _make_outdir, \
     _dump, _parallel_decode_anulog
 
 TESTS = os.path.dirname(__file__)
 PASSIVE = os.path.dirname(TESTS)
-LOGS = join(PASSIVE, 'convert_logs')
+LOGS = join(PASSIVE, 'legacy', 'convert_logs')
 TESTDATA = join(LOGS, 'testdata')
 
 test_dat_files = ['SQ2F2LOGFILE.dat', 'AQ3G4LOGFILE.dat']

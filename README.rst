@@ -1,7 +1,7 @@
 HiPerSeis: High Performance Software Package for Seismology Data/Metadata Processing and Analysis
 =================================================================================================
 
-|Build Status|  |Documentation Status|
+|Build Status| |Coverage Status| |Documentation Status|
 
 
 Overview
@@ -36,19 +36,32 @@ System Requirements
 - Python 2.7
 - Python 3.5 or higher
 
+
 Setup Guide for Developers
 ==========================
 
 1. Install Python environment and dependency packages. See Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
 
-
 2. Obtain the source code from https://github.com/GeoscienceAustralia/hiperseis
 
 -  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
 - ``cd hiperseis``
+- ``git submodule init``
+- ``git submodule update``
 
    - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
-  
+
+To subsequently update submodule folders to latest remote version, run:
+
+- ``git submodule update --remote``
+
+and if any updates are made, re-run the pip install step.
+
+If you are using the library without ``pip install``-ing it, then make sure the ``hiperseis`` folder
+is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/hiperseis`` is where
+``hiperseis`` was checked out:
+
+- ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
 
 
 License
@@ -61,10 +74,9 @@ HiPerSeis is licensed under the GPL version 3
 .. |Build Status| image:: https://travis-ci.org/GeoscienceAustralia/hiperseis.svg?branch=develop
    :target: https://travis-ci.org/GeoscienceAustralia/hiperseis
    
-.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg?branch=develop
-   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis?branch=develop
+.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg
+   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis
 
 .. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
    :target: http://hiperseis.readthedocs.io/en/develop/
-
 
