@@ -7,3 +7,7 @@ tqdm
 pytz
 pathlib
 pathlib2
+netCDF4
+ujson
+psutil
+scikit-learn
