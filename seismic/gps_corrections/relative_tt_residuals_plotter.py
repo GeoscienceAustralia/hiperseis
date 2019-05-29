@@ -638,7 +638,9 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
               help='Filter out events with magnitude value less than this. '
                    '(Only applies when pick quality stats are all zero.)')
 @click.option('--strict-filtering/--no-strict-filtering', default=DEFAULT_STRICT_FILTERING, show_default=True,
-              help='Whether to strictly apply quality filters to reference station.')
+              help='Whether to apply quality filters to picks of the station being analyzed/plotted.'
+                   'If False, quality filters are still applied to the reference station picks, but'
+                   'not to the target station, resulting in a larger number of plotted events per station.')
 @click.option('--show-deployments', is_flag=True, default=False, show_default=True,
               help='Show temporary deployments time durations on the plots.')
 @click.option('--show-historical/--no-show-historical', default=True, show_default=True,

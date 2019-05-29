@@ -20,40 +20,32 @@ Cleanup steps applied:
 # pylint: disable=too-many-locals, invalid-name
 
 from __future__ import division
-from __future__ import print_function
 
 import os
 import sys
 import argparse
-from collections import namedtuple, defaultdict
-import time
 import datetime
 
 import numpy as np
 import scipy as sp
 import pandas as pd
-import requests as req
+import requests
 
 import obspy
 from obspy import read_inventory
-from obspy.core.inventory import Inventory
-from seismic.inventory.pdconvert import pd2Network
+from seismic.inventory.pdconvert import dataframe_to_fdsn_station_xml
 from seismic.inventory.table_format import (TABLE_SCHEMA, TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP,
                                             DEFAULT_START_TIMESTAMP, DEFAULT_END_TIMESTAMP)
-from seismic.inventory.iris_query import setTextEncoding, formResponseRequestUrl
-from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING
+from seismic.inventory.inventory_util import NOMINAL_EARTH_RADIUS_KM, SORT_ORDERING, extract_unique_sensors_responses
 
 PY2 = sys.version_info[0] < 3
 
 if PY2:
     import cStringIO as sio  # pylint: disable=import-error
-    import io as bio
     import cPickle as pkl  # pylint: disable=import-error
 else:
-    import io as sio
+    import io as sio  # pylint: disable=ungrouped-imports
     import pickle as pkl
-    bio = sio
-    basestring = str
 
 print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
 print("Using obspy version {}".format(obspy.__version__))
@@ -69,17 +61,11 @@ except ImportError:
 # demonstrated on multiple platforms with lower versions of numpy.
 vparts = np.version.version.split('.', 2)
 (major, minor, maint) = [int(x) for x in vparts]
-if major < 1 or (major == 1 and minor < 14):
+if major < 1 or (major == 1 and minor < 14):  # pragma: no cover
     print("Not supported error: Requires numpy >= 1.14.2, found numpy {0}".format(".".join(vparts)))
     sys.exit(1)
 else:
     print("Using numpy {0}".format(".".join(vparts)))
-
-# Whether or not to convert loaded STN files into pickled versions, for faster loading next time.
-USE_PICKLE = True
-
-# Set true to work with smaller, faster datasets.
-TEST_MODE = False
 
 # Pandas table display options to reduce aggressiveness of truncation. Due to size of data sometimes we
 # need to see more details in the table.
@@ -103,9 +89,6 @@ BLACKLISTED_NETWORKS = ("CI", "7B", "7D", "7F", "7G", "7W", "7X")
 
 # Timestamp to be added to output file names, so that each run generates unique log files.
 rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
-
-# Bundled container for related sensor and response.
-Instrument = namedtuple("Instrument", ['sensor', 'response'])
 
 
 def read_eng(fname):
@@ -150,17 +133,18 @@ def read_eng(fname):
     return data_frame
 
 
-def reportUnpickleFail(filename):
+def reportUnpickleFail(filename):  # pragma: no cover
     """
     Standard failure report message when trying to unpickle file.
 
     :param filename: The name of the file that failed to unpickle.
     :type filename: str
     """
-    print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. Falling back to full parse.".format(filename))
+    print("PKL LOAD FAILED: {} file incompatible or corrupt, please delete. "
+          "Falling back to full parse.".format(filename))
 
 
-def read_isc(fname):
+def read_isc(fname, use_pickle=False):
     """
     Read ISC station inventory having such format and convert to Pandas DataFrame:
 
@@ -207,9 +191,10 @@ def read_isc(fname):
         """
         num_unique_networks = len(df['NetworkCode'].unique())
         num_unique_stations = len(df['StationCode'].unique())
-        print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks, num_unique_stations))
+        print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks,
+                                                                               num_unique_stations))
 
-    if USE_PICKLE:
+    if use_pickle:  # pragma: no cover
         pkl_name = fname + ".pkl"
         if os.path.exists(pkl_name):
             print("Reading cached " + fname)
@@ -286,7 +271,7 @@ def read_isc(fname):
         pbar.close()
     print("Concatenating records...")
     df_all = pd.concat(df_list, sort=False)
-    if USE_PICKLE:
+    if use_pickle:  # pragma: no cover
         with open(fname + ".pkl", "wb") as f:
             pkl.dump(df_all, f, pkl.HIGHEST_PROTOCOL)
     reportStationCount(df_all)
@@ -459,9 +444,10 @@ def remove_duplicate_stations(df, neighbor_matrix):
               "channel data:\n{1}".format(len(removal_rows), df.loc[removal_rows]))
         df.drop(removal_rows, inplace=True)
 
-    # Secondly, remove stations with same network and station code, but which are further away than the threshold distance
-    # and have no distinguishing channel data. We deliberately exclude station start and end dates from consideration here,
-    # as these are extended during file read to cover range of contained channels, and therefore might not match in code dupes.
+    # Secondly, remove stations with same network and station code, but which are further away than the
+    # threshold distance and have no distinguishing channel data. We deliberately exclude station start
+    # and end dates from consideration here, as these are extended during file read to cover range of
+    # contained channels, and therefore might not match in code dupes.
     matching_criteria = ["ChannelCode", "ChannelStart", "ChannelEnd"]
     removal_index = set()
     print("  CODE duplicates...")
@@ -478,9 +464,9 @@ def remove_duplicate_stations(df, neighbor_matrix):
                     continue
                 key = channel[matching_criteria]
                 # Consider a likely duplicate if all matching criteria are same as the key.
-                # Note that NA fields will compare False even if both are NA, which is what we want here since we don't want to treat
-                # records with same codes as duplicates if the matching_criteria are NA, as this removes records that are obviously
-                # not duplicates.
+                # Note that NA fields will compare False even if both are NA, which is what we want here
+                # since we don't want to treat records with same codes as duplicates if the matching_criteria
+                # are NA, as this removes records that are obviously not duplicates.
                 duplicate_mask = (data[matching_criteria] == key)
                 index_mask = np.all(duplicate_mask, axis=1) & (data.index > row_index)
                 duplicate_index = data.index[index_mask]
@@ -604,35 +590,6 @@ def cleanup_database(df):
     return df
 
 
-def export_to_fdsn_station_xml(df, nominal_instruments, filename):
-    """Export dataframe of station metadata to FDSN station xml file
-
-    :param df: Dataframe containing all the station records to export.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
-    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
-        characterization
-    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
-        obspy.core.inventory.response.Response) }
-    :param filename: Output filename
-    :type filename: str or path
-    """
-    if show_progress:
-        pbar = tqdm.tqdm(total=len(df), ascii=True)
-        progressor = pbar.update
-    else:
-        progressor = None
-
-    global_inventory = Inventory(networks=[], source='EHB')
-    for netcode, data in df.groupby('NetworkCode'):
-        net = pd2Network(netcode, data, nominal_instruments, progressor=progressor)
-        global_inventory.networks.append(net)
-    if show_progress:
-        pbar.close()
-
-    # Write global inventory text file in FDSN stationxml inventory format.
-    global_inventory.write(filename, format="stationxml")
-
-
 def write_portable_inventory(df, fname):
     """
     Write the final database to re-usable file formats.
@@ -652,162 +609,27 @@ def write_portable_inventory(df, fname):
             f.write(inv_str)
 
 
-def obtain_nominal_instrument_response(netcode, statcode, chcode):
-    """
-    For given network, station and channel code, find a suitable response in IRIS database and
-    return as obspy instrument response.
-
-    :param netcode: Network code
-    :type netcode: str
-    :param statcode: Station code
-    :type statcode: str
-    :param chcode: Channel code
-    :type chcode: str
-    :return: Dictionary of instrument responses from IRIS for given network(s), station(s) and channel(s).
-    :rtype: dict of {str, Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)}
-    """
-    from obspy.core.util.obspy_types import FloatWithUncertaintiesAndUnit
-
-    query_url = formResponseRequestUrl(netcode, statcode, chcode)
-    tries = 10
-    while tries > 0:
-        try:
-            tries -= 1
-            response_xml = req.get(query_url)
-            first_line = sio.StringIO(response_xml.text).readline().rstrip()
-            assert 'Error 404' not in first_line
-            break
-        except req.exceptions.RequestException as e:  # pylint: disable=unused-variable
-            time.sleep(1)
-    assert tries > 0
-    setTextEncoding(response_xml, quiet=True)
-    # This line decodes when .text attribute is extracted, then encodes to utf-8
-    obspy_input = bio.BytesIO(response_xml.text.encode('utf-8'))
-    try:
-        channel_data = read_inventory(obspy_input)
-        responses = {cha.code: Instrument(cha.sensor, cha.response) for net in channel_data.networks
-                     for sta in net.stations for cha in sta.channels
-                     if cha.code is not None and cha.response is not None}
-        # Make responses valid for Seiscomp3
-        for inst in responses.values():
-            assert inst.response
-            for rs in inst.response.response_stages:
-                if rs.decimation_delay is None:
-                    rs.decimation_delay = FloatWithUncertaintiesAndUnit(0)
-                if rs.decimation_correction is None:
-                    rs.decimation_correction = FloatWithUncertaintiesAndUnit(0)
-    except ValueError:
-        responses = {}
-    return responses
-
-
-def extract_unique_sensors_responses(inv):
-    """
-    For the channel codes in the given inventory, determine a nominal instrument response suitable
-    for that code. Note that no attempt is made here to determine an ACTUAL correct response for
-    a given network and station. The only requirement here is to populate a plausible, non-empty
-    response for a given channel code, to placate Seiscomp3 which requires that an instrument
-    response always be present.
-
-    :param inv: Seismic station inventory
-    :type inv: obspy.Inventory
-    :return: Python dict of (obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)
-        indexed by str representing channel code
-    :rtype: {str: Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response) }
-        where Instrument is a namedtuple("Instrument", ['sensor', 'response'])
-    """
-
-    # Create like this so if later indexed with invalid key, returns None instead of exception.
-    nominal_instruments = defaultdict(lambda: None)
-    if TEST_MODE:
-        reference_networks = (('GE', '*', '*HZ'),)  # trailing comma required to make it a tuple
-    else:
-        reference_networks = (('GE', '*', '*'), ('IU', '*', '*'), ('BK', '*', '*'))
-    print("Preparing common instrument response database from networks {} "
-          "(this may take a while)...".format(reference_networks))
-    for query in reference_networks:
-        print("  querying {} as {}.{}.{}".format(query[0], *query))
-        nominal_instruments.update(obtain_nominal_instrument_response(*query))
-
-    if show_progress:
-        num_entries = sum(len(sta.channels) for net in inv.networks for sta in net.stations)
-        pbar = tqdm.tqdm(total=num_entries, ascii=True, desc="Finding additional instrument responses")
-        std_print = tqdm.tqdm.write
-    else:
-        std_print = print
-
-    failed_codes = set()
-    for net in inv.networks:
-        if net.code in BLACKLISTED_NETWORKS:
-            if show_progress:
-                for sta in net.stations:
-                    pbar.update(len(sta.channels))
-            continue
-        for sta in net.stations:
-            if show_progress:
-                pbar.update(len(sta.channels))
-            for cha in sta.channels:
-                if cha.code is None or cha.code in nominal_instruments:
-                    continue
-                assert isinstance(cha.code, basestring), type(cha.code)
-                # For each channel code, obtain a nominal instrument response by IRIS query.
-                if cha.code not in nominal_instruments:
-                    response = obtain_nominal_instrument_response(net.code, sta.code, cha.code)
-                    nominal_instruments.update(response)
-                    if cha.code in response:
-                        std_print("Found nominal instrument response for channel code {} in "
-                                  "{}.{}".format(cha.code, net.code, sta.code))
-                    else:
-                        std_print("Failed to acquire instrument response for channel code {} "
-                                  "in {}.{}".format(cha.code, net.code, sta.code))
-                        failed_codes.add(cha.code)
-    if show_progress:
-        pbar.close()
-
-    # Flag a fallback response of last resort for channel codes for which we find no valid response from IRIS.
-    last_resort_responses = ['BHE', 'BHN', 'BHZ', 'HHE', 'HHN', 'HHZ', 'LHE', 'LHN', 'LHZ', 'SHE', 'SHN', 'SHZ', None]
-    for last_resort_response in last_resort_responses:
-        assert last_resort_response is not None
-        if last_resort_response in nominal_instruments:
-            nominal_instruments['LAST_RESORT'] = nominal_instruments[last_resort_response]
-            print("Last resort response code: {}".format(last_resort_response))
-            assert nominal_instruments['LAST_RESORT'] is not None
-            break
-
-    # Report on channel codes for which no response could be found
-    failed_codes = sorted(list(failed_codes - set(nominal_instruments.keys())))
-    if len(failed_codes) > 0:
-        print("WARNING: No instrument response could be determined for these channel codes:\n{}".format(failed_codes))
-        print("         {} selected as response of last resort.".format(last_resort_response))
-
-    return nominal_instruments
-
-
-def main(iris_xml_file):
+def main(iris_xml_file, stations_folder, output_directory, test_mode=False):
     """
     Main entry point.
 
     :param iris_xml_file: Name of IRIS xml file to load (generated by script update_iris_inventory.py)
     :type iris_xml_file: str or pathlib.Path
+    :param stations_folder: Path to folder containing STN files to process
+    :type stations_folder: str or pathlib.Path
     """
+    if test_mode:
+        use_pickle = False
+    else:  # pragma: no cover
+        use_pickle = True
 
     # Read station database from ad-hoc formats
-    self_path = os.path.dirname(os.path.abspath(__file__))
-    stations_folder_name = os.path.join(self_path, 'stations')
-    if TEST_MODE:
-        ehb_data_bmg = read_eng(os.path.join(stations_folder_name, 'test', 'BMG_test.STN'))
-        ehb_data_isc = read_eng(os.path.join(stations_folder_name, 'test', 'ISC_test.STN'))
-    else:
-        ehb_data_bmg = read_eng(os.path.join(stations_folder_name, 'BMG.STN'))
-        ehb_data_isc = read_eng(os.path.join(stations_folder_name, 'ISC.STN'))
+    ehb_data_bmg = read_eng(os.path.join(stations_folder, 'BMG.STN'))
+    ehb_data_isc = read_eng(os.path.join(stations_folder, 'ISC.STN'))
     ehb = pd.concat([ehb_data_bmg, ehb_data_isc], sort=False)
 
-    if TEST_MODE:
-        isc1 = read_isc(os.path.join(stations_folder_name, 'test', 'ehb_test.stn'))
-        isc2 = read_isc(os.path.join(stations_folder_name, 'test', 'iscehb_test.stn'))
-    else:
-        isc1 = read_isc(os.path.join(stations_folder_name, 'ehb.stn'))
-        isc2 = read_isc(os.path.join(stations_folder_name, 'iscehb.stn'))
+    isc1 = read_isc(os.path.join(stations_folder, 'ehb.stn'), use_pickle)
+    isc2 = read_isc(os.path.join(stations_folder, 'iscehb.stn'), use_pickle)
     isc = pd.concat([isc1, isc2], sort=False)
 
     db = pd.concat([ehb, isc], sort=False)
@@ -833,28 +655,33 @@ def main(iris_xml_file):
         with open(iris_xml_file, mode='r', encoding='utf-8') as f:
             iris_inv = read_inventory(f)
 
-    # Extract nominal sensor and response data from sc3ml inventory, indexed by channel code.
-    nominal_instruments = extract_unique_sensors_responses(iris_inv)
+    # Extract nominal sensor and response data from inventory, indexed by channel code.
+    nominal_instruments = extract_unique_sensors_responses(iris_inv, requests,
+                                                           blacklisted_networks=BLACKLISTED_NETWORKS,
+                                                           test_mode=test_mode)
 
     # Write whole database to FDSN station xml file
-    export_to_fdsn_station_xml(db, nominal_instruments, "INVENTORY_" + rt_timestamp + ".xml")
+    outfile_base = os.path.join(output_directory, "INVENTORY_" + rt_timestamp)
+    dataframe_to_fdsn_station_xml(db, nominal_instruments, outfile_base + ".xml")
 
     # Write whole database in portable csv and hdf5 formats
-    write_portable_inventory(db, "INVENTORY_" + rt_timestamp)
+    write_portable_inventory(db, outfile_base)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file.")
+    parser.add_argument("-s", "--stations-path", help="Path to folder containing STN files.")
+    parser.add_argument("-o", "--output-path", help="Path to folder in which output inventory file(s) should be saved.")
     args = parser.parse_args()
-    if args.iris is None:
-        print("Running test mode")
-        TEST_MODE = True
-        USE_PICKLE = False
-        self_path = os.path.dirname(os.path.abspath(__file__))
-        iris_xml_file = os.path.join(self_path, 'test', "IRIS-ALL_tiny.xml")
-    else:
-        iris_xml_file = args.iris.strip()
-        print("Using IRIS source " + iris_xml_file)
+    assert args.iris is not None
+    assert args.stations_path is not None
+    assert args.output_path is not None
+    iris_file = args.iris.strip()
+    stations_path = args.stations_path.strip()
+    output_path = args.output_path.strip()
+    print("Using IRIS source " + iris_file)
+    print("Using STN files from " + stations_path)
+    print("Output path is " + output_path)
 
-    main(iris_xml_file)
+    main(iris_file, stations_path, output_path)

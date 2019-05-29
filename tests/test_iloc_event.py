@@ -7,6 +7,7 @@ from obspy.geodetics import locations2degrees
 from obspy import read_events, UTCDateTime
 from obspy.core.event import (ResourceIdentifier, WaveformStreamID, Pick,
                               Arrival)
+pytest.importorskip('iloc_rstt.iloc_event', 'Maybe iloc is not set up')
 from iloc_rstt.iloc_event import ILocCatalog, DELTA, stations, stations_dict,\
     ILocEvent, STATION_CODE, NETWORK_CODE, DBFLAG
 

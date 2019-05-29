@@ -4,12 +4,13 @@ branch = True
 source =
     seismic
     convert_logs
+    legacy
 omit =
-    # omit everything in
-    # seismic/tasks/*
-    # omit these files
-    seismic/pslog.py
-    seismic/scripts/event.py
+    legacy/engdahl/*
+    seismic/inventory/legacy/*
+    seismic/receiver_fn/c_sippl_reference/*
+    # Exclude file that requires seiscomp3, not supported in testing runtime environment:
+    seismic/inventory/fdsnxml_convert.py
 concurrency = multiprocessing
 parallel = True
 
@@ -44,5 +45,5 @@ exclude_lines =
 
 ignore_errors = True
 
-# [html]
-# rectory = coverage_html_report
+[html]
+directory = coverage_html_report

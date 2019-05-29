@@ -24,7 +24,7 @@ else:
 try:
     import tqdm
     show_progress = True
-except ImportError:
+except ImportError:  # pragma: no cover
     show_progress = False
     print("Run 'pip install tqdm' to see progress bar.")
 
@@ -67,14 +67,15 @@ def split_inventory_by_network(obspy_inv, output_folder, validate=False):
         pbar.close()
 
 
-@click.command()
-@click.option('--inv-file', type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True), required=True,
-              help='Station inventory to be split. This file is not changed by the script.')
-@click.option('--output-folder', type=click.Path(exists=False, dir_okay=True), required=True,
-              help='Folder where per-network station xml files will be generated.')
-@click.option('--sc3ml', is_flag=True, help='Try to convert output files to sc3ml format if possible using seiscomp3.')
-def main(inv_file, output_folder, sc3ml=False):
-    """Main function.
+def inventory_split(inv_file, output_folder, sc3ml=False):
+    """Split an inventory file (station XML) into separate inventory file per network, stored in folder output_folder.
+
+    :param inv_file: Station inventory to be split. This file is not changed by the script.
+    :type inv_file: str or path
+    :param output_folder: Folder where per-network station xml files will be generated.
+    :type output_folder: str or path to folder
+    :param sc3ml: If True, try to convert output files to sc3ml format if possible using seiscomp3. Defaults to False.
+    :type sc3ml: bool, optional
     """
     print("Loading file {}".format(inv_file))
     stn_inventory = load_station_xml(inv_file)
@@ -96,6 +97,19 @@ def main(inv_file, output_folder, sc3ml=False):
                 print("         Renaming {} to avoid accidental use!".format(sc3ml_output_folder))
                 stashed_name = sc3ml_output_folder + ".BAD." + str(uuid.uuid4())[-8:]
                 os.rename(sc3ml_output_folder, stashed_name)
+
+
+@click.command()
+@click.option('--inv-file', type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True), required=True,
+              help='Station inventory to be split. This file is not changed by the script.')
+@click.option('--output-folder', type=click.Path(exists=False, dir_okay=True), required=True,
+              help='Folder where per-network station xml files will be generated.')
+@click.option('--sc3ml', is_flag=True, default=False, show_default=True,
+              help='Try to convert output files to sc3ml format if possible using seiscomp3.')
+def main(inv_file, output_folder, sc3ml=False):  # pragma: no cover
+    """Main function.
+    """
+    inventory_split(inv_file, output_folder, sc3ml)
 
 
 if __name__ == "__main__":
