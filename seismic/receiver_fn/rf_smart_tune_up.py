@@ -1,3 +1,6 @@
+import os
+from past.builtins import xrange
+
 import numpy as np
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
@@ -13,12 +16,14 @@ def compare_pairs(data):
     distance, _ = fastdtw(data[0], data[1], dist=euclidean)
     return distance
 
+
 def crossSpectrum(x, y):
 
 #-------------------Remove mean-------------------
-    nperseg = x.size/20
+    assert x.size % 20 == 0
+    nperseg = int(x.size / 20)
     cross = np.zeros(nperseg, dtype='complex128')
-    for ind in range(x.size / nperseg):
+    for ind in range(int(x.size / nperseg)):
 
         xp = x[ind * nperseg: (ind + 1)*nperseg]
         yp = y[ind * nperseg: (ind + 1)*nperseg]
@@ -48,19 +53,20 @@ def coh(y,y2):
 #   show()
 #   return coh[freq > 0]
 
-    return  freq[freq > 0], coh[freq > 0]
+    return freq[freq > 0], coh[freq > 0]
 
 
 # -------------Main---------------------------------
 
 if __name__ == '__main__':
-    t=[]
-    x=[]
-    with open('rf_test.dat') as fin:
-         for line in fin:
-             a, b = line.split()
-             t.append(a)
-             x.append(b)
+    script_path, _ = os.path.split(__file__)
+    t = []
+    x = []
+    with open(os.path.join(script_path, 'rf_test.dat')) as fin:
+        for line in fin:
+            a, b = line.split()
+            t.append(a)
+            x.append(b)
 
     t = np.array(t, dtype='float')
     x = np.array(x, dtype='float')
@@ -88,8 +94,7 @@ if __name__ == '__main__':
     gs1.update(left=0.01,right=0.01)
     ax1=subplot2grid((5,6),(0,0),rowspan=4)
     for i in xrange(swipe.shape[0]):
-
-         ax1.plot(t,swipe[i,:]+i)
+        ax1.plot(t,swipe[i,:]+i)
 
     ax1.set_ylabel('RF number')
 
@@ -100,13 +105,13 @@ if __name__ == '__main__':
     ax3=subplot2grid((5,6),(0,2),colspan=4,rowspan=3)
 
     for i in xrange(swipe.shape[0]):
-          ax3.plot(coh(average,swipe[i,:])[0],coh(average,swipe[i,:])[1],label=str(i))
+        ax3.plot(coh(average, swipe[i, :])[0], coh(average, swipe[i, :])[1], label=str(i))
     ax3.legend()
     ax3.set_xlabel('Apparent frequency')
     ax3.set_ylabel('Coherence with median')
 
 
-    # Next method is remove one trace and se its contribution to average, if not changed then is similar to main group
+    # Next method is remove one trace and see its contribution to average, if not changed then is similar to main group
     ax4=subplot2grid((5,6),(3,2),colspan=2,rowspan=2)
     ind=np.ones((swipe.shape[0],),bool)
     dev=[]
@@ -133,19 +138,20 @@ if __name__ == '__main__':
 
     # Another method is to find shape similarity between each RF
 
-    ax5=subplot2grid((5,6),(3,4),colspan=2,rowspan=2)
+    ax5 = subplot2grid((5, 6), (3, 4), colspan=2, rowspan=2)
 
-    distance=map(compare_pairs,iter.combinations(swipe,2))
-    index=list((i,j) for ((i,_),(j,_)) in iter.combinations(enumerate(swipe),2))
+    distance = list(map(compare_pairs, iter.combinations(swipe, 2)))
+    index = list((i, j)
+                 for ((i, _), (j, _)) in iter.combinations(enumerate(swipe), 2))
 #   for i in xrange(len(index)):
 #         print index[i],distance[i]
     # First check that distance betwen points
-    index=np.array(index)
-    distance=np.array(distance)
-    matrix=np.zeros((np.amax(index)+1 ,1+np.amax(index)))+np.amax(distance)
+    index = np.array(index)
+    distance = np.array(distance)
+    matrix = np.zeros((np.amax(index)+1, 1+np.amax(index)))+np.amax(distance)
 #   print matrix[index].shape,distance.shape,index.shape
-    matrix[index[:,0],index[:,1]]=distance[:]
-    clustering=DBSCAN(eps=3,min_samples=2,metric='precomputed').fit(matrix)
+    matrix[index[:, 0], index[:, 1]] = distance[:]
+    clustering = DBSCAN(eps=3, min_samples=2, metric='precomputed').fit(matrix)
 
     ax5.plot(list(range(len(list(clustering.labels_)))),list(clustering.labels_))
     ax5.set_xlabel('RF number')

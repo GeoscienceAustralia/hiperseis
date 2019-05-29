@@ -1,7 +1,7 @@
 """
 Description:
     Implements a Class for reading/storing responses from a number of sources.
-    The ResponseFactory class is used for attaching 'bugus' responses to 
+    The ResponseFactory class is used for attaching 'bogus' responses to
     station inventories that lack them.
 References:
 CreationDate:   14/02/19
@@ -14,14 +14,10 @@ Revision History:
 import time
 from os.path import join, exists, basename, isdir, dirname
 from os import remove, mkdir
-import json
 from collections import Counter, defaultdict
 
-import glob
-import numpy as np
 from obspy.core import inventory, read, UTCDateTime
 from obspy import read_inventory
-import sys
 
 
 class ResponseFactory:
@@ -45,24 +41,36 @@ class ResponseFactory:
     
     def __init__(self):
         self.m_responseInventory = defaultdict(list)
-
     # end func
 
-    class ResponseFromStationXML:
-        def __init__(self, respFileName):
-            self.m_inventory = read_inventory(respFileName)
+    class ResponseFromInventory(object):
+        """Helper class to get Obspy Response object from an Inventory
+
+        :raises RuntimeError: Raises error if response not found
+        """
+        def __init__(self, source_inventory):
+            """Constructor
+
+            :param source_inventory: Inventory from which to extract response
+            :type source_inventory: obspy.core.inventory.inventory.Inventory
+            """
+            self.m_inventory = source_inventory
+            self._get_response_from_inventory()
+        #end func
+
+        def _get_response_from_inventory(self):
             n = None
             s = None
             c = None
             found = 0
             # Extract network, station and channel codes
-            if (len(self.m_inventory.networks)):
+            if self.m_inventory.networks:
                 n = self.m_inventory.networks[0]
                 found += 1
-                if (len(n.stations)):
+                if n.stations:
                     s = n.stations[0]
                     found += 1
-                    if (len(n.stations[0].channels)):
+                    if n.stations[0].channels:
                         c = n.stations[0].channels[0]
                         found += 1
                     # end if
@@ -71,12 +79,26 @@ class ResponseFactory:
 
             if (found < 3):
                 msg = 'Network, station or channel information missing in RESP file.'
-                raise Exception(msg)
+                raise RuntimeError(msg)
             # end if
 
-            seedId = '%s.%s..%s' % (n.code, s.code, c.code)
-            self.m_response = self.m_inventory.get_response(seedId, s.start_date)
+            seed_id = '%s.%s..%s' % (n.code, s.code, c.code)
+            self.m_response = self.m_inventory.get_response(seed_id, s.start_date)
         #end func
+
+    # end class
+
+    class ResponseFromStationXML(ResponseFromInventory):
+        """Helper class to get Obspy Response object from a station xml file
+        """
+        def __init__(self, respFileName):
+            """Constructor
+
+            :param respFileName: XML file to load
+            :type respFileName: str
+            """
+            xml_inventory = read_inventory(respFileName)
+            super(ResponseFactory.ResponseFromStationXML, self).__init__(xml_inventory)
     # end class
 
     class ResponseFromPAZ:
@@ -178,7 +200,7 @@ class ResponseFactory:
                     </Station>
                 </Network>
             </FDSNStationXML>
-            ''';
+            '''
 
             self.m_response = None
             self.m_pzTransferFunctionType = pzTransferFunctionType
@@ -208,8 +230,25 @@ class ResponseFactory:
         # end func
     # end class
 
-    def CreateFromStationXML(self, name, respFileName):
+    def CreateFromInventory(self, name, obspy_inventory):
+        """Create response from an Inventory
 
+        :param name: Name of the response for later retrieval
+        :type name: str
+        :param obspy_inventory: Inventory from which to extract response
+        :type obspy_inventory: obspy.core.inventory.inventory.Inventory
+        """
+        self.m_responseInventory[name] = ResponseFactory.ResponseFromInventory(obspy_inventory)
+    # end func
+
+    def CreateFromStationXML(self, name, respFileName):
+        """Create response from an XML file
+
+        :param name: Name of the response for later retrieval
+        :type name: str
+        :param respFileName: XML file to load
+        :type respFileName: str
+        """
         self.m_responseInventory[name] = ResponseFactory.ResponseFromStationXML(respFileName)
     # end func
 
@@ -232,12 +271,19 @@ class ResponseFactory:
     #end func
 
     def getResponse(self, name):
+        """Retrieve response by name
 
+        :param name: Name given to response at creation time
+        :type name: str
+        :raises RuntimeError: Raises error if name is not recognized
+        :return: The requested response
+        :rtype: obspy.core.inventory.response.Response
+        """
         if (name in self.m_responseInventory.keys()):
             return self.m_responseInventory[name].m_response
         else:
             msg = "Response with name: %s not found.." % (name)
-            raise Exception(msg)
+            raise RuntimeError(msg)
         # end if
     # end func
 # end class
