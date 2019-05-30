@@ -69,6 +69,8 @@ class FilterOptions:
     """Simple container type for filtering options.
     """
     def __init__(self):
+        # Setting strict_filtering to False will generate a lot more events per station chart, sometimes making it
+        # easier to spot drift. But it may also add many events with significant non-zero residual (e.g. poor picks).
         self.strict_filtering = DEFAULT_STRICT_FILTERING
         self.min_event_snr = DEFAULT_MIN_EVENT_SNR
         self.cwt_cutoff = DEFAULT_CWT_CUTOFF
@@ -92,8 +94,6 @@ class BatchOptions:
     """
     def __init__(self):
         self.save_file = True
-        # Setting this to False will generate a lot more events per station chart, sometimes making it
-        # easier to spot drift. But it may also add many events with significant non-zero residual.
         self.batch_label = ''
         # X-axis time range
         self.x_range = None

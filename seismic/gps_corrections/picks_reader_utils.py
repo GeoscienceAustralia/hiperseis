@@ -77,8 +77,8 @@ def get_network_location_mean(df, netcode):
     :return: Mean (latitude, longitude) coordinates of stations in the network
     :rtype: tuple(float, float)
     """
-    mean_lat = df[df['net'] == netcode]['stationLat'].mean()
-    mean_lon = df[df['net'] == netcode]['stationLon'].mean()
+    mean_lat = df[df['net'].str.upper() == netcode.upper()]['stationLat'].mean()
+    mean_lon = df[df['net'].str.upper() == netcode.upper()]['stationLon'].mean()
     return (mean_lat, mean_lon)
 
 
@@ -122,33 +122,33 @@ def get_station_date_range(df, netcode, statcode):
     return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
 
 
-def get_overlapping_date_range(df, ref_network, target_network):
+def get_overlapping_date_range(df, network_1, network_2):
     """
-    Get the range of dates for which pick events in df from ref_network overlap with
-    any picks from target_network
+    Get the range of dates for which pick events in df from network_1 overlap with
+    any picks from network_2
 
     :param df: Pandas dataframe loaded from a pick event ensemble
     :type df: pandas.DataFrame
-    :param ref_network: Network and station codes for reference network
-    :type ref_network: dict of corresponding network and station codes under keys 'net' and 'sta'
-    :param target_network: Network and station codes for target network
-    :type target_network: dict of corresponding network and station codes under keys 'net' and 'sta'
+    :param network_1: Network and station codes for reference network
+    :type network_1: dict of corresponding network and station codes under keys 'net' and 'sta'
+    :param network_2: Network and station codes for target network
+    :type network_2: dict of corresponding network and station codes under keys 'net' and 'sta'
     :return: Start and end dates of datetime range during which pick events overlap for
-        ref_network and target_network
+        network_1 and network_2
     :rtype: tuple(obspy.UTCDateTime, obspy.UTCDateTime)
     """
-    mask_ref = df[list(ref_network)].isin(ref_network).all(axis=1)
-    mask_targ = df[list(target_network)].isin(target_network).all(axis=1)
-    mask = mask_ref | mask_targ
+    mask_1 = df[list(network_1)].isin(network_1).all(axis=1)
+    mask_2 = df[list(network_2)].isin(network_2).all(axis=1)
+    mask = mask_1 | mask_2
     if not np.any(mask):
         return (None, None)
-    df_nets = df.loc[mask]
-    keep_events = [e for e, d in df_nets.groupby('#eventID')
-                   if np.any(d[list(ref_network)].isin(ref_network).all(axis=1)) and
-                   np.any(d[list(target_network)].isin(target_network).all(axis=1))]
-    event_mask = df_nets['#eventID'].isin(keep_events)
-    df_nets = df_nets[event_mask]
-    return (obspy.UTCDateTime(df_nets['originTimestamp'].min()), obspy.UTCDateTime(df_nets['originTimestamp'].max()))
+    df_both = df.loc[mask]
+    keep_events = [e for e, d in df_both.groupby('#eventID')
+                   if np.any(d[list(network_1)].isin(network_1).all(axis=1)) and
+                   np.any(d[list(network_2)].isin(network_2).all(axis=1))]
+    event_mask = df_both['#eventID'].isin(keep_events)
+    df_both = df_both[event_mask]
+    return (obspy.UTCDateTime(df_both['originTimestamp'].min()), obspy.UTCDateTime(df_both['originTimestamp'].max()))
 
 
 def generate_large_events_catalog(df_picks, min_magnitude=8.0, label_historical_events=True):
