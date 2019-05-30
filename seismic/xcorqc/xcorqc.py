@@ -42,6 +42,7 @@ from scipy import signal
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from netCDF4 import Dataset
+from functools import reduce
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -611,7 +612,7 @@ def IntervalStackXCorr(refds, tempds,
     x = None
     skippedCount = 0
     # Concatenate results
-    for k in xcorrResultsDict.keys():
+    for k in list(xcorrResultsDict.keys()):
         combinedXcorrResults = None
         combinedWindowCountResults = None
         combinedIntervalStartTimes = None
@@ -675,7 +676,7 @@ def IntervalStackXCorr(refds, tempds,
     # end for
 
     # Save Results
-    for i, k in enumerate(xcorrResultsDict.keys()):
+    for i, k in enumerate(list(xcorrResultsDict.keys())):
         fn = os.path.join(outputPath, '%s.nc'%(k if not tracking_tag else '.'.join([k, tracking_tag])))
 
         root_grp = Dataset(fn, 'w', format='NETCDF4')
