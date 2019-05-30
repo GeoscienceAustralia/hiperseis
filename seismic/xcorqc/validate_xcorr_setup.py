@@ -48,7 +48,7 @@ def test_setup():
 
     try:
         print("Opening ASDF file for reading")
-        afile = pyasdf.ASDFDataSet('test/test_data_ARMA.h5', mode='r')
+        afile = pyasdf.ASDFDataSet('../../tests/seismic/xcorqc/data/test_data_CMSA.h5', mode='r')
         print("SUCCESS!")
     except:
         print("Failed opening ASDF file")
@@ -58,7 +58,7 @@ def test_setup():
 
     try:
         print("Reading trace from ASDF file")
-        stream, inv = afile.get_data_for_tag('AU.ARMA', 'data')
+        stream, inv = afile.get_data_for_tag('AU.CMSA', 'raw_recording')
         print(inv)
         print(stream[0])
         print("SUCCESS!")

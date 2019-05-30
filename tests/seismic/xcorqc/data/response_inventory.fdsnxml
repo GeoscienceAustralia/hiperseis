@@ -1,0 +1,1636 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0">
+  <Source>SeisComP3</Source>
+  <Sender>NA</Sender>
+  <Created>2019-05-29T07:12:40</Created>
+  <Network code="AU" startDate="1994-01-01T00:00:00" restrictedStatus="open">
+    <Description>Geoscience Australia</Description>
+    <Station code="ARMA" startDate="2004-03-19T00:00:00" endDate="2007-11-19T00:00:00" restrictedStatus="open">
+      <Latitude>-30.4198</Latitude>
+      <Longitude>151.628</Longitude>
+      <Elevation>1112</Elevation>
+      <Site>
+        <Name>Armidale, New South Wales</Name>
+      </Site>
+      <CreationDate>2004-03-19T00:00:00</CreationDate>
+      <Channel code="BHZ" startDate="2004-03-19T00:00:00" endDate="2004-10-27T23:59:59" restrictedStatus="open" locationCode="">
+        <Latitude>-30.4198</Latitude>
+        <Longitude>151.628006</Longitude>
+        <Elevation>1112</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>20</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>20</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.667147.10">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667103.9"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>75116800</Value>
+            <Frequency>0.2</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>20</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2004-10-28T00:00:00" endDate="2006-12-05T23:59:59" restrictedStatus="open" locationCode="">
+        <Latitude>-30.4198</Latitude>
+        <Longitude>151.628006</Longitude>
+        <Elevation>1112</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>20</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>20</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.667556.16">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667509.15"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>161484000</Value>
+            <Frequency>0.3</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>20</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2006-12-06T00:00:00" endDate="2007-11-18T23:59:59" restrictedStatus="open" locationCode="">
+        <Latitude>-30.4198</Latitude>
+        <Longitude>151.628006</Longitude>
+        <Elevation>1112</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>20</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>20</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.66794.22">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667897.21"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>161484000</Value>
+            <Frequency>0.3</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>20</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="ARMA" startDate="2007-11-19T00:00:00" restrictedStatus="open">
+      <Latitude>-30.4183</Latitude>
+      <Longitude>151.6293</Longitude>
+      <Elevation>1112</Elevation>
+      <Site>
+        <Name>Armidale, New South Wales</Name>
+      </Site>
+      <CreationDate>2007-11-19T00:00:00</CreationDate>
+      <Channel code="BHZ" startDate="2007-11-19T00:00:00" restrictedStatus="open" locationCode="">
+        <Latitude>-30.418301</Latitude>
+        <Longitude>151.629303</Longitude>
+        <Elevation>1112</Elevation>
+        <Depth>3</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>40</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>40</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.668618.32">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.668573.31"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>2506580000</Value>
+            <Frequency>5</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>40</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="ARMA" startDate="1991-09-21T15:19:49">
+      <Latitude>-30.4188</Latitude>
+      <Longitude>151.628</Longitude>
+      <Elevation>1130</Elevation>
+      <Site>
+        <Name>AU-ARMA</Name>
+      </Site>
+      <CreationDate>1991-09-21T15:19:49</CreationDate>
+      <Channel code="BHZ" startDate="2004-03-19T00:00:00" endDate="2004-10-27T23:59:59" locationCode="">
+        <Latitude>-30.4188</Latitude>
+        <Longitude>151.628</Longitude>
+        <Elevation>1130</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.667147.10">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667103.9"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2004-10-28T00:00:00" endDate="2006-12-05T23:59:59" locationCode="">
+        <Latitude>-30.4188</Latitude>
+        <Longitude>151.628</Longitude>
+        <Elevation>1130</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.667556.16">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667509.15"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2006-12-06T00:00:00" endDate="2007-11-18T23:59:59" locationCode="">
+        <Latitude>-30.4188</Latitude>
+        <Longitude>151.628</Longitude>
+        <Elevation>1130</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.66794.22">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.667897.21"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2007-11-19T00:00:00" locationCode="">
+        <Latitude>-30.4188</Latitude>
+        <Longitude>151.628</Longitude>
+        <Elevation>1130</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.668618.32">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.668573.31"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+  </Station>
+    <Station code="QLP" startDate="2003-11-13T00:00:00" restrictedStatus="open">
+      <Latitude>-26.5837</Latitude>
+      <Longitude>144.235</Longitude>
+      <Elevation>210</Elevation>
+      <Site>
+        <Name>Quilpie, QLD</Name>
+      </Site>
+      <CreationDate>2003-11-13T00:00:00</CreationDate>
+      <Channel code="BHZ" startDate="2009-07-10T00:00:00" endDate="2013-06-25T00:00:00" restrictedStatus="open" locationCode="">
+        <Latitude>-26.5837</Latitude>
+        <Longitude>144.235001</Longitude>
+        <Elevation>210</Elevation>
+        <Depth>87</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>40</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>40</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.938626.3495">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.938578.3494"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>4006990000</Value>
+            <Frequency>0.1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>40</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2013-06-25T00:00:00" endDate="2013-06-26T00:00:00" restrictedStatus="open" locationCode="">
+        <Latitude>-26.5837</Latitude>
+        <Longitude>144.235001</Longitude>
+        <Elevation>210</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>40</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>40</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0.00025</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.941507.3535">
+          <Description>Streckeisen STS-2 G3/Quanterra 330 Linear Phase Co</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.941444.3534"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>627192000</Value>
+            <Frequency>0.2</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>40</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>0</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2013-06-26T00:00:00" restrictedStatus="open" locationCode="">
+        <Latitude>-26.5837</Latitude>
+        <Longitude>144.235001</Longitude>
+        <Elevation>210</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>40</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>40</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>0</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.943891.3569">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.943846.3568"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>2508770000</Value>
+            <Frequency>0.2</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>40</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+    </Station>
+    <Station code="QLP" startDate="1989-08-17T11:03:13">
+      <Latitude>-26.5827</Latitude>
+      <Longitude>144.235</Longitude>
+      <Elevation>210</Elevation>
+      <Site>
+        <Name>AU-QLP</Name>
+      </Site>
+      <CreationDate>1989-08-17T11:03:13</CreationDate>
+      <Channel code="BHZ" startDate="2009-07-10T00:00:00" endDate="2013-06-25T00:00:00" locationCode="">
+        <Latitude>-26.5827</Latitude>
+        <Longitude>144.235</Longitude>
+        <Elevation>210</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.938626.3495">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.938578.3494"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+      <Channel code="BHZ" startDate="2013-06-26T00:00:00" locationCode="">
+        <Latitude>-26.5827</Latitude>
+        <Longitude>144.235</Longitude>
+        <Elevation>210</Elevation>
+        <Depth>0</Depth>
+        <Azimuth>0</Azimuth>
+        <Dip>-90</Dip>
+        <SampleRate>0</SampleRate>
+        <SampleRateRatio>
+          <NumberSamples>0</NumberSamples>
+          <NumberSeconds>1</NumberSeconds>
+        </SampleRateRatio>
+        <ClockDrift>-nan</ClockDrift>
+        <Sensor resourceId="Sensor#20190520023109.943891.3569">
+          <Description>Streckeisen STS-2 VBB Tri-Axial Seismometer</Description>
+        </Sensor>
+        <DataLogger resourceId="Datalogger#20190520023109.943846.3568"/>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>8388610000</Value>
+            <Frequency>1</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros resourceId="ResponsePAZ#20190520023110.032005.4776" name="ResponsePAZ#20190520023110.032005.4776">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>48624600</NormalizationFactor>
+              <NormalizationFrequency>1</NormalizationFrequency>
+              <Pole number="0">
+                <Real>-0.0370237</Real>
+                <Imaginary>0.0370244</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-0.0370237</Real>
+                <Imaginary>-0.0370244</Imaginary>
+              </Pole>
+              <Pole number="2">
+                <Real>-118.752</Real>
+                <Imaginary>423.488</Imaginary>
+              </Pole>
+              <Pole number="3">
+                <Real>-118.752</Real>
+                <Imaginary>-423.488</Imaginary>
+              </Pole>
+              <Pole number="4">
+                <Real>-251.327</Real>
+                <Imaginary>0</Imaginary>
+              </Pole>
+              <Zero number="5">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+              <Zero number="6">
+                <Real>0</Real>
+                <Imaginary>0</Imaginary>
+              </Zero>
+            </PolesZeros>
+            <StageGain>
+              <Value>20000</Value>
+              <Frequency>1</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients>
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0</Delay>
+              <Correction>0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>419430</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="3">
+            <FIR resourceId="ResponseFIR#20190520023100.075694.232" name="FIR_FLBELOW100_40">
+              <InputUnits>
+                <Name>COUNTS</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <Symmetry>NONE</Symmetry>
+              <NumeratorCoefficient i="0">4.1895179e-13</NumeratorCoefficient>
+              <NumeratorCoefficient i="1">0.00033031761</NumeratorCoefficient>
+              <NumeratorCoefficient i="2">0.0010292126</NumeratorCoefficient>
+              <NumeratorCoefficient i="3">-0.003141228</NumeratorCoefficient>
+              <NumeratorCoefficient i="4">0.00020570927</NumeratorCoefficient>
+              <NumeratorCoefficient i="5">0.0015252131</NumeratorCoefficient>
+              <NumeratorCoefficient i="6">-0.0062319267</NumeratorCoefficient>
+              <NumeratorCoefficient i="7">0.010480133</NumeratorCoefficient>
+              <NumeratorCoefficient i="8">-0.013120247</NumeratorCoefficient>
+              <NumeratorCoefficient i="9">0.010782143</NumeratorCoefficient>
+              <NumeratorCoefficient i="10">-0.00144455</NumeratorCoefficient>
+              <NumeratorCoefficient i="11">-0.015872946</NumeratorCoefficient>
+              <NumeratorCoefficient i="12">0.039507404</NumeratorCoefficient>
+              <NumeratorCoefficient i="13">-0.06510363</NumeratorCoefficient>
+              <NumeratorCoefficient i="14">0.085371559</NumeratorCoefficient>
+              <NumeratorCoefficient i="15">-0.089191342</NumeratorCoefficient>
+              <NumeratorCoefficient i="16">0.050061889</NumeratorCoefficient>
+              <NumeratorCoefficient i="17">0.83723276</NumeratorCoefficient>
+              <NumeratorCoefficient i="18">0.26672305</NumeratorCoefficient>
+              <NumeratorCoefficient i="19">-0.16669311</NumeratorCoefficient>
+              <NumeratorCoefficient i="20">0.095283986</NumeratorCoefficient>
+              <NumeratorCoefficient i="21">-0.050921772</NumeratorCoefficient>
+              <NumeratorCoefficient i="22">0.016145837</NumeratorCoefficient>
+              <NumeratorCoefficient i="23">0.007063624</NumeratorCoefficient>
+              <NumeratorCoefficient i="24">-0.018387713</NumeratorCoefficient>
+              <NumeratorCoefficient i="25">0.01994141</NumeratorCoefficient>
+              <NumeratorCoefficient i="26">-0.015489507</NumeratorCoefficient>
+              <NumeratorCoefficient i="27">0.0085273541</NumeratorCoefficient>
+              <NumeratorCoefficient i="28">-0.0025578868</NumeratorCoefficient>
+              <NumeratorCoefficient i="29">-0.0018110264</NumeratorCoefficient>
+              <NumeratorCoefficient i="30">0.0024264926</NumeratorCoefficient>
+              <NumeratorCoefficient i="31">-0.0037576946</NumeratorCoefficient>
+              <NumeratorCoefficient i="32">0.00046729273</NumeratorCoefficient>
+              <NumeratorCoefficient i="33">0.00063307212</NumeratorCoefficient>
+              <NumeratorCoefficient i="34">-1.5687414e-06</NumeratorCoefficient>
+              <NumeratorCoefficient i="35">-1.2547978e-05</NumeratorCoefficient>
+              <NumeratorCoefficient i="36">3.2104054e-07</NumeratorCoefficient>
+              <NumeratorCoefficient i="37">-2.633241e-08</NumeratorCoefficient>
+              <NumeratorCoefficient i="38">-5.0999748e-08</NumeratorCoefficient>
+            </FIR>
+            <Decimation>
+              <InputSampleRate>0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>inf</Delay>
+              <Correction>inf</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>1</Value>
+              <Frequency>0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+    </Station>
+  </Network>
+</FDSNStationXML>

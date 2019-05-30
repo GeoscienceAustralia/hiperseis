@@ -55,14 +55,14 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.setLevel(level)
     logger.addHandler(handler)
     return logger
-
+# end func
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
     padded = np.zeros(padlen)
     padded[0:tr.shape[0]] = tr
     return padded
-
+# end func
 
 def zeropad_ba(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -70,15 +70,7 @@ def zeropad_ba(tr, padlen):
     s = int((padlen - tr.shape[0]) / 2)
     padded[s:(s + tr.shape[0])] = scipy.fftpack.fftshift(tr)
     return scipy.fftpack.ifftshift(padded)
-
-
-def zeropad_ba_old(tr, padlen):
-    assert (tr.shape[0] < padlen)
-    padded = np.zeros(padlen, dtype=np.complex_)
-    s = int((padlen - tr.shape[0]) / 2)
-    padded[s:(s + tr.shape[0])] = tr
-    return padded
-
+# end func
 
 def taper(tr, taperlen):
     tr[0:taperlen] *= 0.5 * (1 + np.cos(np.linspace(-math.pi, 0, taperlen)))
@@ -111,7 +103,7 @@ def whiten(x, sr, fmin=None, fmax=None):
     return xnew
 # end func
 
-def xcorr2(tr1, tr2, sta1_inv, sta2_inv,
+def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
            window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
            resample_rate=None, flo=None, fhi=None,
            clip_to_2std=False, whitening=False,
@@ -266,6 +258,17 @@ def xcorr2(tr1, tr2, sta1_inv, sta2_inv,
                     tr2_d = np.sign(tr2_d)
                 # end if
 
+                # Apply Rhys Hawkins-style default time domain normalization
+                if (clip_to_2std == 0 and one_bit_normalize == 0):
+                    # 0-mean
+                    tr1_d -= np.mean(tr1_d)
+                    tr2_d -= np.mean(tr2_d)
+
+                    # unit-std
+                    tr1_d /= np.std(tr1_d)
+                    tr2_d /= np.std(tr2_d)
+                # end if
+
                 if (sr1 < sr2):
                     fftlen2 = fftlen
                     fftlen1 = int((fftlen2 * 1.0 * sr1) / sr)
@@ -404,7 +407,7 @@ def IntervalStackXCorr(refds, tempds,
     :type resample_rate: int
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type buffer_seconds: int
-    :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, becuase
+    :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because
                            we may not be able to fetch all the data (from start_time to end_time) at
                            once. The default is set to 10 days and should be a multiple of
                            interval_seconds.
@@ -441,11 +444,27 @@ def IntervalStackXCorr(refds, tempds,
                 interval_seconds period, for each station-pair. These Window-counts could be helpful
                 in assessing robustness of results.
     """
+    #######################################
+    # check consistency of parameterization
+    #######################################
+    if(whitening and (ref_sta_inv or temp_sta_inv)):
+        raise RuntimeError('Mutually exclusive parameterization: specify either spectral whitening or '
+                           'instrument response removal')
+    # end if
+
+    if(clip_to_2std and one_bit_normalize):
+        raise RuntimeError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
+                           'together is redundant')
+    # end if
+
     # setup logger
     stationPair = '%s.%s'%(ref_net_sta, temp_net_sta)
     fn = os.path.join(outputPath, '%s.log'%(stationPair if not tracking_tag else '.'.join([stationPair, tracking_tag])))
     logger = setup_logger('%s.%s'%(ref_net_sta, temp_net_sta), fn)
 
+    #######################################
+    # Initialize variables for main loop
+    #######################################
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
 
@@ -487,13 +506,13 @@ def IntervalStackXCorr(refds, tempds,
                 try:
                     refSt.merge()
                 except:
-                    logger.warn('\tFailed to merge traces..')
+                    logger.warning('\tFailed to merge traces..')
                     refSt = None
                 # end try
             # end for
         except Exception as e:
             print(e)
-            logger.warn('\tError encountered while fetching data. Skipping along..')
+            logger.warning('\tError encountered while fetching data. Skipping along..')
 
         if (refSt is None):
             logger.info('Failed to fetch data..')
@@ -533,13 +552,13 @@ def IntervalStackXCorr(refds, tempds,
                 try:
                     tempSt.merge()
                 except:
-                    logger.warn('\tFailed to merge traces..')
+                    logger.warning('\tFailed to merge traces..')
                     tempSt = None
                 # end try
             # end if
         except Exception as e:
             print(e)
-            logger.warn('\tError encountered while fetching data. Skipping along..')
+            logger.warning('\tError encountered while fetching data. Skipping along..')
         # end try
 
         if (tempSt is None):
@@ -574,7 +593,7 @@ def IntervalStackXCorr(refds, tempds,
 
         # Continue if no results were returned due to data-gaps
         if (xcl is None):
-            logger.warn("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
+            logger.warning("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
                   (stationPair) + " due to gaps in data.")
             cTime += cStep
             continue
@@ -637,7 +656,7 @@ def IntervalStackXCorr(refds, tempds,
                                                                np.zeros((xcorrResultsDict[k][i].shape[0],
                                                                          combinedXcorrResults.shape[1]))))
                     # end if
-                    logger.warn("\t\tVariable sample rates detected. Current station-pair: %s"%(k))
+                    logger.warning("\t\tVariable sample rates detected. Current station-pair: %s"%(k))
                 # end if
                 combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
                                                              windowCountResultsDict[k][i]))
@@ -703,104 +722,3 @@ def IntervalStackXCorr(refds, tempds,
     return x, xcorrResultsDict, windowCountResultsDict
 # end func
 
-
-# # Leaving the earlier implementation and associated tests as is for the time being.
-# # This should be cleaned up and tests implemented in another ticket.
-
-# def IntervalStackXCorr(refstn, st,
-#                        window_seconds=3600,
-#                        interval_seconds=86400, flo=0.9, fhi=1.1):
-#     comp_list = []
-#     a_list = []
-#     b_list = []
-#     ref_list = []
-#     stn_list = []
-#     xcorr_list = []
-#     xcorr_x_list = []
-#     for tr_1 in refstn:
-#         station_1 = tr_1.stats.station
-
-#         for tr_2 in st:
-#             station_2 = tr_2.stats.station
-
-#             comp_list.append(station_2 + '_' + station_1)
-
-#             xcorr_func = xcorr2(tr_1, tr_2, window_seconds, interval_seconds, flo, fhi)
-
-#             tr_1_len = tr_1.stats.endtime.timestamp - tr_1.stats.starttime.timestamp
-#             tr_2_len = tr_2.stats.endtime.timestamp - tr_2.stats.starttime.timestamp
-#             xcorr_len = tr_2_len - tr_1_len
-#             xcorr_start = tr_2.stats.starttime.timestamp
-
-#             X = np.linspace(-window_seconds, window_seconds, xcorr_func.shape[1])
-#             ref_list.append(tr_1)
-#             stn_list.append(tr_2)
-#             xcorr_list.append(xcorr_func)
-#             xcorr_x_list.append(X)
-#     return [xcorr_list, xcorr_x_list, comp_list]
-
-
-# def saveXCorr(xcorr_list, xcorr_x_list, xcor_output_dir, figname):
-#     os.chdir(xcor_output_dir)
-#     for i, l in enumerate(xcorr_list):
-#         np.savetxt(figname + '.xcor', xcorr_list[i])
-
-
-# def saveXCorrPlot(xcorr_list, xcorr_x_list, plot_output_dir, figname, comp_list):
-#     nplots = len(comp_list)
-#     if nplots == 0:
-#         return
-#     fig, ax = plt.subplots(1, nplots, squeeze=False)
-#     fig.set_figheight(23.39)  # 11.69)
-#     fig.set_figwidth(16.53)  # 8.27)
-
-#     for i, comp_xcorr in enumerate(comp_list):
-#         ax[0, i].pcolormesh(xcorr_x_list[i], np.arange(xcorr_list[i].shape[0] + 1), xcorr_list[i], vmin=0, vmax=1,
-#                             cmap='jet')  # , label=comp_xcorr, lw=1.2)
-#         ax[0, i].set_ylabel('Day')
-#         ax[0, i].set_xlabel('Lag (s)')
-#         ax[0, i].set_title(comp_xcorr)
-#         ax[0, i].invert_yaxis()
-
-#     os.chdir(plot_output_dir)
-#     plt.savefig(figname + '.png', dpi=300)
-#     plt.clf()
-
-# if __name__ == "__main__":
-#     sdr = '/g/data/ha3/Passive/Ref/'
-#     fn1 = 'AUQLP__BHZ__-14-05-23-00-00-00.msd'
-#     fn1b = 'AUQLP__BHZ__-14-05-24-00-00-00.msd'
-#     fn2 = 'AUINKA_BHZ__-14-05-23-00-00-00.msd'
-#     fn2b = 'AUINKA_BHZ__-14-05-24-00-00-00.msd'
-#     st1 = read(sdr + fn1)
-#     st1 += read(sdr + fn1b)
-#     st1.merge()
-#     st2 = read(sdr + fn2)
-#     st2 += read(sdr + fn2b)
-#     st2.merge()
-#     st2.resample(80.0, no_filter=True)
-#     print(st1)
-#     print(st2)
-#     ylist, x, comp_list = IntervalStackXCorr(st1, st2)
-#     print ylist
-#     print x
-#     print comp_list
-#     st1.resample(80.0, no_filter=True)
-#     ylist2, x2, comp_list2 = IntervalStackXCorr(st1, st2)
-#     print ylist2
-#     print x2
-#     print comp_list2
-#     # confirm the error is zero
-#     # stdyratio = np.std(ylist2[0]/ylist[0])
-#     maxdiff = np.max(np.abs(ylist2[0] - ylist[0]))
-#     saveXCorrPlot(ylist, x, '/g/data/ha3/', 'outxcor_dsr4', comp_list)
-#     saveXCorr(ylist, x2, '/g/data/ha3/', 'outxcor_8040')
-#     saveXCorr(ylist2, x2, '/g/data/ha3/', 'outxcor_8080')
-#     # print "Std y ratio = " + str(stdyratio)
-#     print "Max diff = " + str(maxdiff)
-#     # plt.subplot(211)
-#     # plt.plot(ylist[0][179999:180001])
-#     # plt.subplot(212)
-#     # plt.plot(ylist2[0][179999:180001])
-#     # plt.show()
-#     assert maxdiff < 0.05, "The xcor after resampling is not the same"
