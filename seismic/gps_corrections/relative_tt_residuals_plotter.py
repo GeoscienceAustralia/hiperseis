@@ -714,6 +714,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     batch_options = BatchOptions()
     batch_options.batch_label = '_strict' if strict_filtering else '_no_strict'
     batch_options.export_path = export_path
+    assert len(TARGET_STNS['net']) == len(TARGET_STNS['sta'])
     for ref_net in REF_NETS:
         if len(REF_NETS) == 1 and stations2:
             REF_STN = stations2.split(',')
@@ -733,6 +734,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
         else:
             batch_options.x_range = None
 
+        assert len(REF_STNS['net']) == len(REF_STNS['sta'])
         for net, sta in zip(REF_STNS['net'], REF_STNS['sta']):
             log.info("Plotting against REF: " + ".".join([net, sta]))
             single_ref = {'net': [net], 'sta': [sta]}
