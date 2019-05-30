@@ -77,8 +77,19 @@ def get_network_location_mean(df, netcode):
     :return: Mean (latitude, longitude) coordinates of stations in the network
     :rtype: tuple(float, float)
     """
-    mean_lat = df[df['net'].str.upper() == netcode.upper()]['stationLat'].mean()
-    mean_lon = df[df['net'].str.upper() == netcode.upper()]['stationLon'].mean()
+    # If a network.station pair appears more than once, we have to make sure we only count it once in the mean.
+    # Since each network.station pair might not have the same coordinates, we compute the location of a given
+    # network.station as the mean of its records.
+    mean_lat = 0.0
+    mean_lon = 0.0
+    count = 0
+    df_net = df.loc[(df['net'].str.upper() == netcode.upper()), ['sta', 'stationLat', 'stationLon']]
+    for _, r in df_net.groupby('sta'):
+        mean_lat += r['stationLat'].mean()
+        mean_lon += r['stationLon'].mean()
+        count += 1
+    mean_lat = mean_lat/count
+    mean_lon = mean_lon/count
     return (mean_lat, mean_lon)
 
 

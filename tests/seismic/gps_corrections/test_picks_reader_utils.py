@@ -34,7 +34,7 @@ def test_get_network_location_mean(df_picks):
     assert g_mean_2 == g_mean
     # Test mean of network for which a station appears multiple times. Should only count once towards the mean location.
     au_mean = pru.get_network_location_mean(df_picks, 'AU')
-    assert au_mean == (-20.91066, 135.3442)
+    assert np.allclose(au_mean, (-20.91066, 135.3442))
 
 
 if __name__ == "__main__":
