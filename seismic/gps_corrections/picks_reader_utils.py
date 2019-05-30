@@ -166,25 +166,40 @@ def get_overlapping_date_range(df, network_1, network_2):
         raise KeyError('Expect \'net\' in dict keys')
     if 'sta' not in network_1 or 'sta' not in network_2:
         raise KeyError('Expect \'sta\' in dict keys')
+    # TODO: Change data structures so that such a mismatch as this is not possible.
     if (len(network_1['net']) != len(network_1['sta'])) or (len(network_2['net']) != len(network_2['sta'])):
         raise ValueError('Expect net and sta list to be same length')
 
-    mask_1 = df[list(network_1)].isin(network_1).all(axis=1)
-    mask_2 = df[list(network_2)].isin(network_2).all(axis=1)
+    # Function to match net.sta pairs from input dict
+    def _match_net_sta(_df, _net):
+        _df = _df[['net', 'sta']]
+        mask = np.array([False]*len(_df))
+        for n, s in zip(_net['net'], _net['sta']):
+            mask = (mask | ((_df['net'] == n) & (_df['sta'] == s)))
+        return mask
+
+    # Find sets of records that match the two input station sets.
+    mask_1 = _match_net_sta(df, network_1)
+    mask_2 = _match_net_sta(df, network_2)
     mask = (mask_1 | mask_2)
     if not np.any(mask):
         return (None, None)
-    df_both = df.loc[mask]
-    keep_events = [e for e, d in df_both.groupby('#eventID')
-                   if np.any(d[list(network_1)].isin(network_1).all(axis=1)) and
-                   np.any(d[list(network_2)].isin(network_2).all(axis=1))]
-    event_mask = df_both['#eventID'].isin(keep_events)
-    df_both = df_both[event_mask]
-    if not df_both.empty:
-        return (obspy.UTCDateTime(df_both['originTimestamp'].min()),
-                obspy.UTCDateTime(df_both['originTimestamp'].max()))
-    else:
-        return (None, None)
+
+    # Find which event IDs are common to both sets of records
+    ev_1 = set(df.loc[mask_1, "#eventID"].values)
+    ev_2 = set(df.loc[mask_2, "#eventID"].values)
+    common_events = ev_1 & ev_2
+    event_mask = df['#eventID'].isin(list(common_events))
+    # Combine the common events with the networks of interest
+    event_and_net_mask = (event_mask & (mask_1 | mask_2))
+    df_masked = df[event_and_net_mask]
+
+    # Extract the min and max timestamps
+    if not df_masked.empty:
+        return (obspy.UTCDateTime(df_masked['originTimestamp'].min()),
+                obspy.UTCDateTime(df_masked['originTimestamp'].max()))
+
+    return (None, None)
 
 
 def generate_large_events_catalog(df_picks, min_magnitude=8.0, label_historical_events=True):
