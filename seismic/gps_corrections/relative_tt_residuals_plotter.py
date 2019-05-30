@@ -38,7 +38,7 @@ from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
                                                         generate_large_events_catalog)
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
-# pylint: disable=attribute-defined-outside-init
+# pylint: disable=attribute-defined-outside-init, logging-format-interpolation, logging-not-lazy
 
 register_matplotlib_converters()
 
@@ -64,15 +64,11 @@ IRIS_ALTERNATE_STATIONS_FILE = {
     "AU": "AU_irisws-fedcatalog_20190305T012747Z.txt"
     }
 
-DATE_FILTER_TEMP_DEPLOYMENTS = True
-
-TEMP_DEPLOYMENTS = {}  # TODO: Remove from global scope
-
 
 class FilterOptions:
     """Simple container type for filtering options.
     """
-    def __init(self):
+    def __init__(self):
         self.strict_filtering = DEFAULT_STRICT_FILTERING
         self.min_event_snr = DEFAULT_MIN_EVENT_SNR
         self.cwt_cutoff = DEFAULT_CWT_CUTOFF
@@ -84,8 +80,8 @@ class FilterOptions:
 class DisplayOptions:
     """Simple container type for display options.
     """
-    def __init(self):
-        self.show_deployments = False
+    def __init__(self):
+        self.deployments = None
         # Historical events to add to the plot
         self.events = None
 
@@ -319,7 +315,7 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_option
     df_plot['ttResidualRef'] = np.nan
 
     pbar = tqdm.tqdm(total=len(df_plot), ascii=True)
-    pbar.set_description("Broadcasting REF STN residuals")
+    pbar.set_description("Broadcasting {}.{} residuals".format(ref['net'][0], ref['sta'][0]))
     # Assuming we only process one ref station at a time.
     df_plot['match_ref'] = (df_plot['net'] == ref['net'][0]) & (df_plot['sta'] == ref['sta'][0])
     for _, grp in df_plot.groupby('#eventID'):
@@ -371,8 +367,8 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_option
     def _plot_decorator(opts):
         if opts.events is not None:
             _add_event_marker_lines(opts.events)
-        if opts.show_deployments:
-            _add_temporary_deployment_intervals()
+        if opts.deployments is not None:
+            _add_temporary_deployment_intervals(opts.deployments)
 
     _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options,
                                        annotator=lambda: _plot_decorator(display_options))
@@ -405,7 +401,7 @@ def utc_time_string_to_plottable_datetime(utc_timestamp_str):
     return pytz.utc.localize(datetime.datetime.utcfromtimestamp(float(utc_time)))
 
 
-def _add_temporary_deployment_intervals():
+def _add_temporary_deployment_intervals(deployments):
     """
     Graphical decorator for the TT residual charts to add visual indication of the time intervals
     during which selected temporary network deployments took place.
@@ -417,12 +413,11 @@ def _add_temporary_deployment_intervals():
         plt.text(rec_x, rec_y + rec_height / 2.0, text, fontsize=12, verticalalignment='center', clip_on=True)
 
     # Keep these in chronological order of start date to ensure optimal y-position staggering
-    deployments = (TEMP_DEPLOYMENTS['7X'], TEMP_DEPLOYMENTS['7D'], TEMP_DEPLOYMENTS['7F'],
-                   TEMP_DEPLOYMENTS['7G'], TEMP_DEPLOYMENTS['OA'])
+    sorted_deployments = sorted(deployments, key=lambda v: v[0])
     height = 5
     base_ypos = -40 - height / 2.0
     stagger = height / 2.0
-    for d in deployments:
+    for d in sorted_deployments:
         ypos = base_ypos + stagger
         _render_deployment_interval(d[0], ypos, (d[1] - d[0]), height, d[2], d[3])
         stagger = -stagger
@@ -521,6 +516,76 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
                                          display_options)
 
 
+def filter_limit_channels(df_picks):
+    """Filter picks dataframe to a limited range of preferred channel types.
+
+    :param df_picks: Picks dataframe to filter
+    :type df_picks: pandas.DataFrame
+    :return: Filtered picks dataframe with only preferred channels
+    :rtype: pandas.DataFrame
+    """
+    df_picks = df_picks[df_picks['cha'].isin(CHANNEL_PREF)].reset_index()
+    return df_picks
+
+
+def filter_duplicated_network_codes(df_picks):
+    """Filter picks dataframe to remove records for selected known duplicate network codes based on date
+    of the records we want to keep.
+
+    :param df_picks: Picks dataframe to filter
+    :type df_picks: pandas.DataFrame
+    :return: Filtered picks dataframe with unwanted records removed.
+    :rtype: pandas.DataFrame
+    """
+    DATE_FILTER = (
+        ('7D', pd.Timestamp(datetime.datetime(2010, 1, 1))),
+        ('7G', pd.Timestamp(datetime.datetime(2010, 1, 1))),
+    )
+    for net, min_date in DATE_FILTER:
+        date_mask = (df_picks['net'] == net) & (df_picks['originTimestamp'] < min_date.timestamp())
+        df_picks = df_picks[~date_mask]
+    return df_picks
+
+
+def filter_to_teleseismic(df_picks, min_dist_deg, max_dist_deg):
+    """Filter picks dataframe to limited range of teleseismic distances of the original events.
+
+    :param df_picks: Picks dataframe to filter
+    :type df_picks: pandas.DataFrame
+    :param min_dist_deg: Minimum teleseismic distance (degrees)
+    :type min_dist_deg: float
+    :param max_dist_deg: Maximum teleseismic distance (degrees)
+    :type max_dist_deg: float
+    :return: Filtered picks dataframe containing only events with limited range of teleseismic distance.
+    :rtype: pandas.DataFrame
+    """
+    mask_tele = (df_picks['distance'] >= min_dist_deg) & (df_picks['distance'] <= max_dist_deg)
+    df_picks = df_picks.loc[mask_tele]
+    return df_picks
+
+
+def _get_known_temporary_deployments():
+    # TODO: Change implementation to read this data from JSON file
+    temp_deps = {}
+    # Data fields are (start date, end date, plot color, plot label)
+    temp_deps['7X'] = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
+                       utc_time_string_to_plottable_datetime('2011-04-01T23:18:49.000000Z'),
+                       'C7', 'Deployment 7X')
+    temp_deps['7D'] = (utc_time_string_to_plottable_datetime('2012-01-01T00:01:36.000000Z'),
+                       utc_time_string_to_plottable_datetime('2014-03-27T15:09:51.000000Z'),
+                       'C1', 'Deployment 7D')
+    temp_deps['7F'] = (utc_time_string_to_plottable_datetime('2012-12-31T23:59:59.000000Z'),
+                       utc_time_string_to_plottable_datetime('2014-11-15T00:43:14.000000Z'),
+                       'C3', 'Deployment 7F')
+    temp_deps['7G'] = (utc_time_string_to_plottable_datetime('2014-01-01T00:00:06.000000Z'),
+                       utc_time_string_to_plottable_datetime('2016-02-09T21:04:29.000000Z'),
+                       'C4', 'Deployment 7G')
+    temp_deps['OA'] = (utc_time_string_to_plottable_datetime('2017-09-13T23:59:13.000000Z'),
+                       utc_time_string_to_plottable_datetime('2018-11-28T01:11:14.000000Z'),
+                       'C8', 'Deployment OA')
+    return temp_deps
+
+
 @click.command()
 @click.argument('picks-file', type=click.Path('r'), required=True)
 @click.option('--network1', type=str, required=True, help='Network against which to compute residuals')
@@ -568,8 +633,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
          export_path=None):
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
-    have column headings:
-    `#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma`
+    have column headings in accordance with picks_reader_utils.PICKS_TABLE_SCHEMA.
 
     :param picks_file: Picks ensemble file
     :type picks_file: str or path
@@ -583,6 +647,9 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
         in networks2. Otherwise should not be used. Defaults to None.
     :param stations2: str, optional
     """
+    # TODO: invert naming of "target" and "reference" in the code. The main help documentation is correct,
+    #       but internal naming is actually swapped.
+
     log = logging.getLogger(__name__)
 
     log.info("Pandas version: " + pd.__version__)
@@ -591,62 +658,27 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     # Load in event ensemble
     log.info("Loading picks file {}".format(picks_file))
     df_raw_picks = read_picks_ensemble(picks_file)
+    # Remove unused columns
+    df_raw_picks = df_raw_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
+                                 'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'az',
+                                 'baz', 'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope',
+                                 'nSigma']]
     log.debug("Number of raw picks: {}".format(len(df_raw_picks)))
-
-    # Generate catalog of major regional events (mag 8+) for overlays
-    if show_historical:
-        significant_events = generate_large_events_catalog(df_raw_picks, 8.0)
-    # end if
-
-    # Populate temporary deployments details
-    TEMP_DEPLOYMENTS['7X'] = (utc_time_string_to_plottable_datetime('2009-06-16T03:42:00.000000Z'),
-                              utc_time_string_to_plottable_datetime('2011-04-01T23:18:49.000000Z'),
-                              'C7', 'Deployment 7X')
-    TEMP_DEPLOYMENTS['7D'] = (utc_time_string_to_plottable_datetime('2012-01-01T00:01:36.000000Z'),
-                              utc_time_string_to_plottable_datetime('2014-03-27T15:09:51.000000Z'),
-                              'C1', 'Deployment 7D')
-    TEMP_DEPLOYMENTS['7F'] = (utc_time_string_to_plottable_datetime('2012-12-31T23:59:59.000000Z'),
-                              utc_time_string_to_plottable_datetime('2014-11-15T00:43:14.000000Z'),
-                              'C3', 'Deployment 7F')
-    TEMP_DEPLOYMENTS['7G'] = (utc_time_string_to_plottable_datetime('2014-01-01T00:00:06.000000Z'),
-                              utc_time_string_to_plottable_datetime('2016-02-09T21:04:29.000000Z'),
-                              'C4', 'Deployment 7G')
-    TEMP_DEPLOYMENTS['OA'] = (utc_time_string_to_plottable_datetime('2017-09-13T23:59:13.000000Z'),
-                              utc_time_string_to_plottable_datetime('2018-11-28T01:11:14.000000Z'),
-                              'C8', 'Deployment OA')
-
-    # Query time period for source dataset
+    # Log time period for source dataset
     log.debug("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
                                                       obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
 
-    # Remove unwanted channels as their picks are not considered reliable enough to use
-    df_picks = df_raw_picks[df_raw_picks['cha'].isin(CHANNEL_PREF)].reset_index()
-    log.debug("Remaining picks after channel filter: {}".format(len(df_picks)))
+    # Perform series of global filters on picks
+    df_picks = df_raw_picks
+    log.debug("Picks before global filter: {}".format(len(df_picks)))
+    filter_chain = [filter_limit_channels, filter_duplicated_network_codes,
+                    lambda _df: filter_to_teleseismic(_df, min_distance, max_distance)]
+    for f in filter_chain:
+        df_picks = f(df_picks)
+    log.debug("Picks after global filter: {}".format(len(df_picks)))
 
-    # Remove unused columns
-    df_picks = df_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
-                         'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'az', 'baz',
-                         'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
-
-    if DATE_FILTER_TEMP_DEPLOYMENTS:
-        # Some select stations require custom date filters to remove events outside the known valid
-        # date range of a network
-        DATE_FILTER = (
-            ('7D', pd.Timestamp(datetime.datetime(2010, 1, 1))),
-            ('7G', pd.Timestamp(datetime.datetime(2010, 1, 1))),
-        )
-        before = len(df_picks)
-        for net, min_date in DATE_FILTER:
-            date_mask = (df_picks['net'] == net) & (df_picks['originTimestamp'] < min_date.timestamp())
-            df_picks = df_picks[~date_mask]
-        after = len(df_picks)
-        log.info('Removed {} events due to known invalid timestamps'.format(before - after))
-
-    # Filter to teleseismic events.
-    # 'distance' is angular distance (degrees) between event and station.
-    mask_tele = (df_picks['distance'] >= min_distance) & (df_picks['distance'] <= max_distance)
-    df_picks = df_picks.loc[mask_tele]
-    log.debug("Remaining picks after filtering to teleseismic distances: {}".format(len(df_picks)))
+    # Populate temporary deployments details
+    temporary_deployments = _get_known_temporary_deployments()
 
     TARGET_NET = network1
     TARGET_STN = stations1.split(',') if stations1 else get_network_stations(df_picks, TARGET_NET)
@@ -674,35 +706,40 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
 
     display_options = DisplayOptions()
     if show_historical:
-        display_options.events = significant_events
-    display_options.show_deployments = show_deployments
+        # Generate catalog of major regional events (mag 8+) for overlays
+        display_options.events = generate_large_events_catalog(df_raw_picks, 8.0)
+    if show_deployments:
+        display_options.deployments = temporary_deployments
 
     batch_options = BatchOptions()
     batch_options.batch_label = '_strict' if strict_filtering else '_no_strict'
     batch_options.export_path = export_path
-    for REF_NET in REF_NETS:
+    for ref_net in REF_NETS:
         if len(REF_NETS) == 1 and stations2:
             REF_STN = stations2.split(',')
         else:
-            REF_STN = get_network_stations(df_picks, REF_NET)
-        REF_STNS = {'net': [REF_NET] * len(REF_STN), 'sta': [s for s in REF_STN]}
+            REF_STN = get_network_stations(df_picks, ref_net)
+        # end if
+        REF_STNS = {'net': [ref_net] * len(REF_STN), 'sta': [s for s in REF_STN]}
 
-        if REF_NET == 'AU' and TARGET_NET == 'AU':
+        if ref_net == 'AU' and TARGET_NET == 'AU':
             REF_STNS['net'].extend(list(new_nets))
             REF_STNS['sta'].extend(list(new_stas))
 
         # For certain temporary deployments, force a fixed time range on the x-axis so that all stations
         # in the deployment can be compared on a common time range.
-        if REF_NET in TEMP_DEPLOYMENTS:
-            batch_options.x_range = (TEMP_DEPLOYMENTS[REF_NET][0], TEMP_DEPLOYMENTS[REF_NET][1])
+        if ref_net in temporary_deployments:
+            batch_options.x_range = (temporary_deployments[ref_net][0], temporary_deployments[ref_net][1])
         else:
             batch_options.x_range = None
 
-        for ref_net, ref_sta in zip(REF_STNS['net'], REF_STNS['sta']):
-            log.info("Plotting against REF: " + ".".join([ref_net, ref_sta]))
-            single_ref = {'net': [ref_net], 'sta': [ref_sta]}
+        for net, sta in zip(REF_STNS['net'], REF_STNS['sta']):
+            log.info("Plotting against REF: " + ".".join([net, sta]))
+            single_ref = {'net': [net], 'sta': [sta]}
             analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, batch_options, filter_options,
                                            display_options)
+        # end for
+    # end for
 
 
 if __name__ == "__main__":
