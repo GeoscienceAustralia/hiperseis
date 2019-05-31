@@ -1,8 +1,8 @@
 #!/usr/env python
 """
 Description:
-    Reads waveform data from a folder containing mseeds dumped from CWB server and
-    dumps out an ASDF file.
+    Reads waveform data from a folder containing demultiplexed mseeds and
+    outputs an ASDF file.
 References:
 
 CreationDate:   02/04/19
@@ -125,6 +125,9 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
     if (rank == 0):
         trccountlist = np.array([item for sublist in trccountlist for item in sublist])
 
+        # Some mseed files can be problematic in terms of having way too many traces --
+        # e.g. 250k+ traces, each a couple of samples long, for a day mseed file. We
+        # need to blacklist them and exclude them from the ASDF file.
         print (('Blacklisted %d files out of %d files; ' \
               'average trace-count %f, std: %f'%(np.sum(trccountlist>ntraces_per_file),
                                                  len(trccountlist),

@@ -1,7 +1,7 @@
 #!/bin/env python
 """
 Description:
-    Small utility for running demultiplex in parallel.
+    Small utility for running the demultiplex binary in parallel.
 References:
 
 CreationDate:   09/04/19
