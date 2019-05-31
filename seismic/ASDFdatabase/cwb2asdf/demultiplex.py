@@ -45,7 +45,7 @@ def runprocess(cmd, get_results=False):
 def split_list(lst, npartitions):
     random.shuffle(lst)
     k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -86,7 +86,7 @@ def process(input_folder, output_folder, extension):
         
         ec, results = runprocess(cmd, get_results=True)
 
-        print ec, results
+        print ((ec, results))
     # end for
 # end func
 

@@ -121,7 +121,11 @@ int main(int argc, char **argv)
         {
             MSTraceGroup *mstg = tgiter->second;
 
-            /* Combine traces */
+            /* Combine traces
+             * Some day mseed files can have as many as 250k traces!
+             * These mseed files causes parallel runs to get bogged
+             * down. TODO: filter these mseed files out.
+             */
             mst_groupheal(mstg, timetol, sampratetol);
 
             char ofn[512] = {0};

@@ -29,7 +29,7 @@ import random
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 def make_ASDF_tag(tr, tag):
@@ -68,7 +68,7 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
     try:
         inv = read_inventory(inventory)
     except Exception as e:
-        print e
+        print (e)
     # end try
 
     files = np.array(glob.glob(input_folder+'/*.mseed'))
@@ -99,7 +99,7 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
             net, sta = ustation.split('.')
             sinv = inv.select(network=net, station=sta)
             if(not len(sinv.networks)):
-                print net + '.' + sta
+                print (('Missing station: %s.%s'%(net, sta)))
                 ustationInv[ustation] = None
             else:
                 ustationInv[ustation] = sinv
@@ -116,7 +116,7 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
             mytrccountlist[ifile] = len(st)
             # end if
         except Exception as e:
-            print e
+            print (e)
         # end try
     # end for
 
@@ -125,18 +125,17 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
     if (rank == 0):
         trccountlist = np.array([item for sublist in trccountlist for item in sublist])
 
-        print 'Blacklisted %d files out of %d files; ' \
+        print (('Blacklisted %d files out of %d files; ' \
               'average trace-count %f, std: %f'%(np.sum(trccountlist>ntraces_per_file),
                                                  len(trccountlist),
                                                  np.mean(trccountlist),
-                                                 np.std(trccountlist))
+                                                 np.std(trccountlist))))
         f = open(str(os.path.splitext(output_file_name)[0] + '.trccount.txt'), 'w+')
         for i in range(len(files)):
             f.write('%s\t%d\n'%(files[i], trccountlist[i]))
         # end for
         f.close()
 
-        #exit(0)
         if (os.path.exists(output_file_name)): os.remove(output_file_name)
         ds = pyasdf.ASDFDataSet(output_file_name, compression='gzip-3', mpi=False)
 
@@ -148,7 +147,7 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
                 try:
                     st = read(file)
                 except Exception as e:
-                    print e
+                    print (e)
                     continue
                 # end try
             # end if
@@ -163,10 +162,10 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
                             try:
                                 st = st.merge(method=1, fill_value='interpolate')
                             except:
-                                print 'Failed to merge traces. Moving along..'
+                                print ('Failed to merge traces. Moving along..')
                                 continue
                             # end try
-                            print 'Merging stream with %d traces'%(ntraces)
+                            print (('Merging stream with %d traces'%(ntraces)))
                         # end if
                     # end if
                 # end if
@@ -183,22 +182,22 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
                     try:
                         ds.add_waveforms(tr, tag='raw_recording')
                     except Exception as e:
-                        print e
-                        print 'Failed to append trace:'
-                        print tr
+                        print (e)
+                        print ('Failed to append trace:')
+                        print (tr)
                     # end try
                 # end for
 
                 try:
                     ds.add_stationxml(ustationInv[netsta])
                 except Exception as e:
-                    print e
-                    print 'Failed to append inventory:'
-                    print ustationInv[netsta]
+                    print (e)
+                    print ('Failed to append inventory:')
+                    print ((ustationInv[netsta]))
                 # end try
             # end if
         # end for
-        print 'Closing asdf file..'
+        print ('Closing asdf file..')
         del ds
     # end if
 # end func
