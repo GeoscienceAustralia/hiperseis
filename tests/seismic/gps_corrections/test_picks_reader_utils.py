@@ -3,9 +3,7 @@ from __future__ import absolute_import
 
 # pylint: disable=invalid-name
 
-# import os
 import numpy as np
-# import pandas as pd
 import pytest
 
 from obspy import UTCDateTime
@@ -215,5 +213,6 @@ def test_generate_large_events_catalog(df_picks):
 if __name__ == "__main__":
     # Select explicit test to run.
     # import conftest
-    # test_get_overlapping_date_range(conftest._read_picks())
+    # picks = conftest._read_picks()
+    # test_get_overlapping_date_range(picks)
     pass

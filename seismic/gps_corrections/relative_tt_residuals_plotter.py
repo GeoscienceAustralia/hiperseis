@@ -105,7 +105,7 @@ def get_iris_station_codes(src_file, original_network):
     """
     Extract the station codes for a given network code from a IRIS query result file.
 
-    :param src_file: IRIS catalog query result file containing network and station information
+    :param src_file: IRIS catalog query result file containing network and station information, in stationtxt format
     :type src_file: str or path
     :param original_network: Network code whose station codes will be extracted from IRIS file
     :type original_network: str
@@ -144,7 +144,7 @@ def determine_alternate_matching_codes(df, iris_file, original_network):
 
     :param df: Pandas dataframe loaded from a pick event ensemble
     :type df: pandas.DataFrame
-    :param iris_file: IRIS catalog query result file containing network and station information
+    :param iris_file: IRIS catalog query result file containing network and station information in stationtxt format
     :type iris_file: str or path
     :param original_network: Network code whose station codes will be extracted from IRIS file
     :type original_network: str
