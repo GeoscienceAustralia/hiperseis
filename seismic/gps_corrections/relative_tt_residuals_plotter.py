@@ -35,6 +35,7 @@ else:
 
 from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
                                                         get_network_stations,
+                                                        compute_matching_network_mask,
                                                         generate_large_events_catalog)
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
@@ -273,8 +274,8 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
 
     # Remove reference station from target set before producing composite image.
     # The reference station may not be there, but remove it if it is.
-    mask_ref = df[list(ref)].isin(ref).all(axis=1)          # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
-    mask_targ = df[list(target)].isin(target).all(axis=1)   # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    mask_ref = compute_matching_network_mask(df, ref)
+    mask_targ = compute_matching_network_mask(df, target)
     df_agg = df[(mask_targ) & (~mask_ref)]
     _plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
@@ -293,7 +294,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
         df_export.to_csv(fname, index=False)
 
 
-def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options):
+def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options):
     """
     Compute relative residuals and send to plotting function.
 
@@ -311,48 +312,6 @@ def plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_option
     :param display_options: Display options.
     :type display_options: class DisplayOptions
     """
-    # Create column for entire table first
-    df_plot['ttResidualRef'] = np.nan
-
-    pbar = tqdm.tqdm(total=len(df_plot), ascii=True)
-    pbar.set_description("Broadcasting {}.{} residuals".format(ref['net'][0], ref['sta'][0]))
-    # Assuming we only process one ref station at a time.
-    df_plot['match_ref'] = (df_plot['net'] == ref['net'][0]) & (df_plot['sta'] == ref['sta'][0])
-    for _, grp in df_plot.groupby('#eventID'):
-        pbar.update(len(grp))
-        ref_mask = grp['match_ref']
-        grp_ref = grp[ref_mask]
-        if grp_ref.empty:
-            continue
-        # Choose most favourable channel
-        cha = None
-        available_cha = grp_ref['cha'].values
-        for c in CHANNEL_PREF:
-            if c in available_cha:
-                cha = c
-                break
-        # We must find a channel
-        if cha is None:
-            log = logging.getLogger(__name__)
-            log.warning("Channels {} are not amongst allowed channels {}".format(available_cha, CHANNEL_PREF))
-            continue
-        cha_mask = (grp_ref['cha'] == cha)
-        grp_cha = grp_ref[cha_mask]
-        tt_ref_series = grp_cha['ttResidual'].unique()
-        if len(tt_ref_series) > 1:
-            # print("WARNING: Multiple reference times found for event {}\n{},"
-            #       " choosing smallest absolute residual".format(eventid, grp_cha))
-            # In this case, choose the smallest reference tt residual
-            grp_cha['absTTResidual'] = np.abs(grp_cha['ttResidual'].values)
-            grp_cha = grp_cha.sort_values('absTTResidual')
-            tt_ref_series = grp_cha['ttResidual'].unique()
-        ref_time = tt_ref_series[0]
-        df_plot.loc[grp.index, 'ttResidualRef'] = ref_time
-    pbar.close()
-
-    # Quality check - each event should have only one unique reference tt residual
-    assert np.all([len(df['ttResidualRef'].unique()) == 1 for e, df in df_plot.groupby('#eventID')])
-
     df_plot['relTtResidual'] = df_plot['ttResidual'] - df_plot['ttResidualRef']
 
     # Re-order columns
@@ -451,7 +410,7 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
 
     quality_mask = (mask_snr & mask_cwt & mask_slope & mask_sigma) | (mask_zero_quality_stats & mask_origin_mag)
 
-    mask_ref = df[list(ref_stn)].isin(ref_stn).all(axis=1)  # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    mask_ref = compute_matching_network_mask(df, ref_stn)
     if filter_options.strict_filtering:
         # But never apply quality mask to ref stations that have all zero quality stats, as we just can't judge quality
         # and don't want to arbitrarily exclude them.
@@ -464,6 +423,64 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
     assert np.sum(quality_mask) > 100, 'Not enough points left after quality filtering'
     df_qual = df[quality_mask]
     return df_qual
+
+
+def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode):
+    """For each event in the dataframe, figure out the best reference residual and add it to new column 'ttResidualRef'
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param ref_netcode: The reference network code
+    :type ref_netcode: str
+    :param ref_stacode: The reference station code
+    :type ref_stacode: str
+    :return: Dataframe with a consistent reference residual populated for each event for given reference station.
+    :rtype: pandas.DataFrame
+    """
+    # Create column for entire table first
+    df_plot['ttResidualRef'] = np.nan
+    log = logging.getLogger(__name__)
+
+    pbar = tqdm.tqdm(total=len(df_plot), ascii=True)
+    pbar.set_description("Broadcasting {}.{} residuals".format(ref_netcode, ref_stacode))
+    # Assuming we only process one ref station at a time.
+    df_plot['match_ref'] = (df_plot['net'] == ref_netcode) & (df_plot['sta'] == ref_stacode)
+    for eventid, grp in df_plot.groupby('#eventID'):
+        pbar.update(len(grp))
+        ref_mask = grp['match_ref']
+        grp_ref = grp[ref_mask]
+        if grp_ref.empty:
+            continue
+        # Choose most favourable channel
+        cha = None
+        available_cha = grp_ref['cha'].values
+        for c in CHANNEL_PREF:
+            if c in available_cha:
+                cha = c
+                break
+        # We must find a channel
+        if cha is None:
+            log.warning("Channels {} are not amongst allowed channels {}".format(available_cha, CHANNEL_PREF))
+            continue
+        cha_mask = (grp_ref['cha'] == cha)
+        grp_cha = grp_ref[cha_mask]
+        tt_ref_series = grp_cha['ttResidual'].unique()
+        if len(tt_ref_series) > 1:
+            log.warning("WARNING: Multiple reference times found for event {}\n{},"
+                        " choosing smallest absolute residual".format(eventid, tt_ref_series))
+            # In this case, choose the smallest reference tt residual
+            grp_cha['absTTResidual'] = np.abs(grp_cha['ttResidual'].values)
+            grp_cha = grp_cha.sort_values('absTTResidual')
+            tt_ref_series = grp_cha['ttResidual'].unique()
+        ref_time = tt_ref_series[0]
+        assert not np.isnan(ref_time)
+        df_plot.loc[grp.index, 'ttResidualRef'] = ref_time
+    pbar.close()
+
+    # Quality check - each event should have only one unique reference tt residual
+    assert np.all([len(df['ttResidualRef'].unique()) == 1 for e, df in df_plot.groupby('#eventID')])
+
+    return df_plot
 
 
 def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options, filter_options, display_options):
@@ -485,12 +502,14 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     :param display_options: Display options.
     :type display_options: class DisplayOptions
     """
+    assert len(ref_stn['net']) == 1
+    assert len(ref_stn['sta']) == 1
     # Event quality filtering
     df_qual = apply_event_quality_filtering(df_picks, ref_stn, filter_options)
 
     # Filter to desired ref and target networks
-    mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
-    mask_targ = df_qual[list(target_stns)].isin(target_stns).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    mask_ref = compute_matching_network_mask(df_qual, ref_stn)
+    mask_targ = compute_matching_network_mask(df_qual, target_stns)
     mask = mask_ref | mask_targ
     np.any(mask)
     df_nets = df_qual.loc[mask]
@@ -498,8 +517,8 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     # Filter out events in which ref_stn and TARGET stations are not both present
     log = logging.getLogger(__name__)
     log.info("Narrowing dataframe to events common to REF and TARGET networks...")
-    df_nets['ref_match'] = df_nets[list(ref_stn)].isin(ref_stn).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
-    df_nets['target_match'] = df_nets[list(target_stns)].isin(target_stns).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    df_nets['ref_match'] = compute_matching_network_mask(df_nets, ref_stn)
+    df_nets['target_match'] = compute_matching_network_mask(df_nets, target_stns)
     keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d['ref_match']) and np.any(d['target_match'])]
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
@@ -507,13 +526,14 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     if df_nets.empty:
         log.warning("No events left to analyze!")
         return
+    # print(get_overlapping_date_range(df_nets, ref_stn, target_stns))
 
-    # Alias for dataset at the end of all filtering, a static name that can be used from here onwards.
-    ds_final = df_nets
-    # print(get_overlapping_date_range(ds_final, ref_stn, target_stns))
+    # Compute the reference TT residual for each event and store in new column
+    ds_final = broadcast_ref_residual_per_event(df_nets, ref_stn['net'][0], ref_stn['sta'][0])
+    assert 'ttResidualRef' in ds_final.columns
 
-    plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options, filter_options,
-                                         display_options)
+    _plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options, filter_options,
+                                          display_options)
 
 
 def filter_limit_channels(df_picks):

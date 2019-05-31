@@ -142,6 +142,16 @@ def get_station_date_range(df, netcode, statcode):
         return (None, None)
 
 
+# TODO: Add unit test for this function
+def compute_matching_network_mask(df, net):
+    # Function to match net.sta pairs from input dict.
+    _df = df[['net', 'sta']]
+    mask = np.array([False]*len(_df))
+    for n, s in zip(net['net'], net['sta']):
+        mask = (mask | ((_df['net'] == n) & (_df['sta'] == s)))
+    return mask
+
+
 def get_overlapping_date_range(df, network_1, network_2):
     """
     Get the range of dates for which pick events in df from network_1 set of stations overlap with
@@ -170,17 +180,9 @@ def get_overlapping_date_range(df, network_1, network_2):
     if (len(network_1['net']) != len(network_1['sta'])) or (len(network_2['net']) != len(network_2['sta'])):
         raise ValueError('Expect net and sta list to be same length')
 
-    # Function to match net.sta pairs from input dict
-    def _match_net_sta(_df, _net):
-        _df = _df[['net', 'sta']]
-        mask = np.array([False]*len(_df))
-        for n, s in zip(_net['net'], _net['sta']):
-            mask = (mask | ((_df['net'] == n) & (_df['sta'] == s)))
-        return mask
-
     # Find sets of records that match the two input station sets.
-    mask_1 = _match_net_sta(df, network_1)
-    mask_2 = _match_net_sta(df, network_2)
+    mask_1 = compute_matching_network_mask(df, network_1)
+    mask_2 = compute_matching_network_mask(df, network_2)
     mask = (mask_1 | mask_2)
     if not np.any(mask):
         return (None, None)

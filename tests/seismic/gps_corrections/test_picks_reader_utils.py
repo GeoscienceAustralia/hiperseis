@@ -28,7 +28,7 @@ def test_get_network_stations(df_picks):
     assert net_stations == ['CAN']
     net_stations = pru.get_network_stations(df_picks, 'GE')
     assert net_stations == ['ARMA', 'CHN', 'CNB', 'FUQ', 'KAPI', 'KMBL', 'MEEK', 'NAH1',
-                            'NGO1', 'NJ2', 'NZJ', 'PMG', 'SSE', 'TIA', 'WSI']
+                            'NGO1', 'NJ2', 'NZJ', 'SSE', 'TIA', 'WSI']
 
 
 def test_get_network_location_mean(df_picks):
