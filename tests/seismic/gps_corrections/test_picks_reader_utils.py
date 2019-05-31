@@ -58,13 +58,13 @@ def test_get_network_date_range(df_picks):
 
     # Get dates of picks for network with a single record.
     date_range = pru.get_network_date_range(df_picks, 'G')
-    assert date_range == (UTCDateTime(1197051882.89), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(777031773.378))
 
     # Get dates for other networks.
     date_range = pru.get_network_date_range(df_picks, 'GE')
     assert date_range == (UTCDateTime(742222992.735), UTCDateTime(1197051882.89))
     date_range = pru.get_network_date_range(df_picks, 'AU')
-    assert date_range == (UTCDateTime(1175528404.0), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(1175528404.0))
 
     # Repeat with lowercase netcode, results should be the same
     date_range_2 = pru.get_network_date_range(df_picks, 'au')
@@ -84,7 +84,7 @@ def test_get_station_date_range(df_picks):
 
     # Get dates of picks spanning more than one event
     date_range = pru.get_station_date_range(df_picks, 'AU', 'KNA')
-    assert date_range == (UTCDateTime(1175528404.0), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(1175528404.0))
     date_range_2 = pru.get_station_date_range(df_picks, 'au', 'KNA')
     date_range_3 = pru.get_station_date_range(df_picks, 'AU', 'kna')
     assert date_range == date_range_2 == date_range_3
@@ -129,10 +129,10 @@ def test_get_overlapping_date_range(df_picks):
 
     # Query degenerate cases querying what events are common to same station.
     date_range = pru.get_overlapping_date_range(df_picks, set1, set1)
-    assert date_range == (UTCDateTime(1197051882.89), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(777031773.378))
     set2 = {'net': ['AU'], 'sta': ['KNA']}
     date_range = pru.get_overlapping_date_range(df_picks, set2, set2)
-    assert date_range == (UTCDateTime(1175528404.0), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(1175528404.0))
 
     # Check that when the network code exists and the station code exists, but not in the
     # same record, then it is not generating a matched record.
@@ -167,7 +167,7 @@ def test_get_overlapping_date_range(df_picks):
     set_B['net'].append('GE')   # --> set_B = {'net': ['CD', 'GE'], 'sta': ['HIA']}
     set_B['sta'].append('WSI')  # --> set_B = {'net': ['CD', 'GE'], 'sta': ['HIA', 'WSI']}
     date_range = pru.get_overlapping_date_range(df_picks, set_A, set_B)
-    assert date_range == (UTCDateTime(1197051882.89), UTCDateTime(1197051882.89))
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(777031773.378))
     # Add station IR.SKR to set_A, which brings in event3 as another common event.
     set_A['net'].append('IR')   # --> set_A = {'net': ['IR', 'IR'], 'sta': ['MBWA']}
     set_A['sta'].append('SKR')  # --> set_A = {'net': ['IR', 'IR'], 'sta': ['MBWA', 'SKR']}
@@ -175,6 +175,41 @@ def test_get_overlapping_date_range(df_picks):
     assert date_range == (UTCDateTime(777031773.378), UTCDateTime(1197051882.89))
     date_range_2 = pru.get_overlapping_date_range(df_picks, set_B, set_A)
     assert date_range_2 == date_range
+    # Add station XC.QRZ to set_A. This does not change the events in common with set_A and set_B.
+    set_A['net'].append('XC')   # --> set_A = {'net': ['IR', 'IR', 'XC'], 'sta': ['MBWA', 'SKR']}
+    set_A['sta'].append('QRZ')  # --> set_A = {'net': ['IR', 'IR', 'XC'], 'sta': ['MBWA', 'SKR', 'QRZ']}
+    date_range = pru.get_overlapping_date_range(df_picks, set_A, set_B)
+    assert date_range == (UTCDateTime(777031773.378), UTCDateTime(1197051882.89))
+    # Add station GE.CNB to set_B, which brings in event1 as another common event.
+    set_B['net'].append('GE')   # --> set_B = {'net': ['CD', 'GE', 'GE'], 'sta': ['HIA', 'WSI']}
+    set_B['sta'].append('CNB')  # --> set_B = {'net': ['CD', 'GE', 'GE'], 'sta': ['HIA', 'WSI', 'CNB']}
+    date_range = pru.get_overlapping_date_range(df_picks, set_A, set_B)
+    assert date_range == (UTCDateTime(742222992.735), UTCDateTime(1197051882.89))
+    date_range_2 = pru.get_overlapping_date_range(df_picks, set_B, set_A)
+    assert date_range_2 == date_range
+    # Adding new common event with date between current range results in no change in query result.
+    # Add IR.BAO to both sets to bring in event2 with timestamp 829873172.636.
+    set_A['net'].append('IR')
+    set_A['sta'].append('BAO')
+    set_B['net'].append('IR')
+    set_B['sta'].append('BAO')
+    date_range = pru.get_overlapping_date_range(df_picks, set_A, set_B)
+    assert date_range == (UTCDateTime(742222992.735), UTCDateTime(1197051882.89))
+
+
+def test_generate_large_events_catalog(df_picks):
+    event_cat = pru.generate_large_events_catalog(df_picks, min_magnitude=8.0, label_historical_events=False)
+    # No result, since min record count is too big for test dataset.
+    assert event_cat.empty
+    # Repeat with min record count set to 1.
+    event_cat = pru.generate_large_events_catalog(df_picks, min_magnitude=8.0, min_record_count=1,
+                                                  label_historical_events=False)
+    assert len(event_cat) == 1
+    event_cat = pru.generate_large_events_catalog(df_picks, min_magnitude=7.0, min_record_count=1,
+                                                  label_historical_events=False)
+    assert len(event_cat) == 3
+    event_cat = pru.generate_large_events_catalog(df_picks, min_magnitude=7.0, min_record_count=1)
+    assert len(event_cat) > 3
 
 
 if __name__ == "__main__":

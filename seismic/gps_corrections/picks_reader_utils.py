@@ -202,21 +202,25 @@ def get_overlapping_date_range(df, network_1, network_2):
     return (None, None)
 
 
-def generate_large_events_catalog(df_picks, min_magnitude=8.0, label_historical_events=True):
+def generate_large_events_catalog(df_picks, min_magnitude=8.0, min_record_count=400, label_historical_events=True):
     """Use input picks dataset to identify dates of large seismic events
 
     :param df_picks: Dataframe of picks data following PICKS_TABLE_SCHEMA
     :type df_picks: pandas.DataFrame
     :param min_magnitude: Minimum seismic magnitude to be considered 'large' event, defaults to 8.0
     :type min_magnitude: float, optional
+    :param min_record_count: Minimum number of records per day required with magnitude >= min_magnitude to be included
+        in the event catalog, defaults to 400
+    :type min_record_count: int, optional
     :param label_historical_events: Whether to populate fixed list of known historical events, defaults to True
     :type label_historical_events: bool, optional
     :return: Dataframe of large seismic events indexed by date.
     :rtype: pandas.DataFrame
     """
     df_largemag = df_picks[df_picks['mag'] >= min_magnitude]
-    df_largemag['day'] = df_largemag['originTimestamp'].transform(datetime.datetime.utcfromtimestamp)\
-        .transform(lambda x: x.strftime("%Y-%m-%d"))
+    temp = df_largemag['originTimestamp'].transform(datetime.datetime.utcfromtimestamp)
+    temp = temp.transform(lambda x: x.strftime("%Y-%m-%d"))
+    df_largemag = df_largemag.assign(day=temp)
     df_largemag = df_largemag.sort_values(['day', 'originTimestamp'])
 
     day_largemag_count = [(day, len(df_day)) for day, df_day in df_largemag.groupby('day')]
@@ -224,8 +228,7 @@ def generate_large_events_catalog(df_picks, min_magnitude=8.0, label_historical_
     largemag_dict = {'date': dates, 'counts': counts, 'name': ['unknown']*len(counts)}
     largemag_events_df = pd.DataFrame(largemag_dict, columns=['date', 'counts', 'name'])
 
-    anonymous_event_count_threshold = 400
-    significant_events = largemag_events_df[largemag_events_df['counts'] >= anonymous_event_count_threshold]
+    significant_events = largemag_events_df[largemag_events_df['counts'] >= min_record_count]
     significant_events = significant_events.set_index('date')
 
     if label_historical_events:

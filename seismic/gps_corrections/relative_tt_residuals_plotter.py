@@ -273,8 +273,8 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
 
     # Remove reference station from target set before producing composite image.
     # The reference station may not be there, but remove it if it is.
-    mask_ref = df[list(ref)].isin(ref).all(axis=1)
-    mask_targ = df[list(target)].isin(target).all(axis=1)
+    mask_ref = df[list(ref)].isin(ref).all(axis=1)          # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    mask_targ = df[list(target)].isin(target).all(axis=1)   # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
     df_agg = df[(mask_targ) & (~mask_ref)]
     _plot_dataset(df_agg, ','.join(np.unique(target['net'])), ref_code)
 
@@ -451,7 +451,7 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
 
     quality_mask = (mask_snr & mask_cwt & mask_slope & mask_sigma) | (mask_zero_quality_stats & mask_origin_mag)
 
-    mask_ref = df[list(ref_stn)].isin(ref_stn).all(axis=1)
+    mask_ref = df[list(ref_stn)].isin(ref_stn).all(axis=1)  # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
     if filter_options.strict_filtering:
         # But never apply quality mask to ref stations that have all zero quality stats, as we just can't judge quality
         # and don't want to arbitrarily exclude them.
@@ -489,8 +489,8 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     df_qual = apply_event_quality_filtering(df_picks, ref_stn, filter_options)
 
     # Filter to desired ref and target networks
-    mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1)
-    mask_targ = df_qual[list(target_stns)].isin(target_stns).all(axis=1)
+    mask_ref = df_qual[list(ref_stn)].isin(ref_stn).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    mask_targ = df_qual[list(target_stns)].isin(target_stns).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
     mask = mask_ref | mask_targ
     np.any(mask)
     df_nets = df_qual.loc[mask]
@@ -498,8 +498,8 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     # Filter out events in which ref_stn and TARGET stations are not both present
     log = logging.getLogger(__name__)
     log.info("Narrowing dataframe to events common to REF and TARGET networks...")
-    df_nets['ref_match'] = df_nets[list(ref_stn)].isin(ref_stn).all(axis=1)
-    df_nets['target_match'] = df_nets[list(target_stns)].isin(target_stns).all(axis=1)
+    df_nets['ref_match'] = df_nets[list(ref_stn)].isin(ref_stn).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
+    df_nets['target_match'] = df_nets[list(target_stns)].isin(target_stns).all(axis=1) # FIXME: Dangerous use of isin with multiple columns (see fixes in get_overlapping_date_range)
     keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d['ref_match']) and np.any(d['target_match'])]
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]
