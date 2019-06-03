@@ -207,14 +207,39 @@ def test_apply_event_quality_filtering(df_picks):
 
 
 def test_broadcast_ref_residual_per_event(df_picks):
-    pass
+    filter_options = rttr.FilterOptions()
+    df_ref = rttr.broadcast_ref_residual_per_event(df_picks, 'AU', 'MEEK', filter_options)
+    # AU.MEEK is only there in event4, so only that event will have a non-Nan reference residual.
+    expected_residual = 1.029852
+    assert np.all(df_ref.loc[df_ref['#eventID'] == 'event4', 'ttResidualRef'] == expected_residual)
+    assert np.all(df_ref.loc[df_ref['#eventID'] != 'event4', 'ttResidualRef'].isnull())
 
-# Maybe:
-#   analyze_target_relative_to_ref
+    # Repeat with a station that appears in multiple events
+    df_ref = rttr.broadcast_ref_residual_per_event(df_picks, 'AU', 'KNA', filter_options)
+    expected_event0_residual = -0.134955
+    expected_event4_residual = 1.192448
+    assert np.allclose(df_ref.loc[df_ref['#eventID'] == 'event0', 'ttResidualRef'], expected_event0_residual)
+    assert np.allclose(df_ref.loc[df_ref['#eventID'] == 'event4', 'ttResidualRef'], expected_event4_residual)
+    assert np.all(df_ref.loc[(df_ref['#eventID'] != 'event0') & (df_ref['#eventID'] != 'event4'),
+                             'ttResidualRef'].isnull())
+
+    # Repeat with NWAO which is common to event1 and event4
+    df_ref = rttr.broadcast_ref_residual_per_event(df_picks, 'IR', 'NWAO', filter_options)
+    expected_event1_residual = -1.786222
+    expected_event4_residual = -0.692545
+    assert np.allclose(df_ref.loc[df_ref['#eventID'] == 'event1', 'ttResidualRef'], expected_event1_residual)
+    assert np.allclose(df_ref.loc[df_ref['#eventID'] == 'event4', 'ttResidualRef'], expected_event4_residual)
+    assert np.all(df_ref.loc[(df_ref['#eventID'] != 'event1') & (df_ref['#eventID'] != 'event4'),
+                             'ttResidualRef'].isnull())
+
+
+def test_analyze_target_relative_to_ref(df_picks):
+    filter_options = rttr.FilterOptions()
+
 
 if __name__ == "__main__":
     # Select explicit test to run.
-    # import conftest
-    # picks = conftest._read_picks()
-    # test_apply_event_quality_filtering(picks)
+    import conftest
+    picks = conftest._read_picks()
+    test_broadcast_ref_residual_per_event(picks)
     pass
