@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, missing-docstring
 
 import numpy as np
 import pytest
@@ -23,7 +23,7 @@ def test_get_network_stations(df_picks):
     net_stations = pru.get_network_stations(df_picks, 'NONEXIST')
     assert not net_stations
     net_stations = pru.get_network_stations(df_picks, 'AU')
-    assert net_stations == ['AS01', 'FITZ', 'KNA', 'QIS', 'RMQ']
+    assert net_stations == ['AS01', 'FITZ', 'KNA', 'MEEK', 'QIS', 'RMQ']
     net_stations = pru.get_network_stations(df_picks, 'G')
     assert net_stations == ['CAN']
     net_stations = pru.get_network_stations(df_picks, 'GE')
@@ -46,7 +46,7 @@ def test_get_network_location_mean(df_picks):
 
     # Test mean of network for which a station appears multiple times. Should only count once towards the mean location.
     au_mean = pru.get_network_location_mean(df_picks, 'AU')
-    assert np.allclose(au_mean, (-20.91066, 135.3442))
+    assert np.allclose(au_mean, (-21.86503, 132.556))
 
 
 def test_get_network_date_range(df_picks):
@@ -208,6 +208,28 @@ def test_generate_large_events_catalog(df_picks):
     assert len(event_cat) == 3
     event_cat = pru.generate_large_events_catalog(df_picks, min_magnitude=7.0, min_record_count=1)
     assert len(event_cat) > 3
+
+
+def test_compute_matching_network_mask(df_picks):
+    set_crossed = {'net': ['AU'], 'sta': ['FORT']}
+    mask = pru.compute_matching_network_mask(df_picks, set_crossed)
+    assert len(mask) == len(df_picks)
+    assert not np.any(mask)
+
+    set_crossed = {'net': ['AU', 'IR'], 'sta': ['FORT', 'KNA']}
+    mask = pru.compute_matching_network_mask(df_picks, set_crossed)
+    assert not np.any(mask)
+
+    set_aligned = {'net': ['AU'], 'sta': ['MEEK']}
+    mask = pru.compute_matching_network_mask(df_picks, set_aligned)
+    assert np.sum(mask) == 1
+
+    set_mismatched = {'net': ['AU', 'GE'], 'sta': ['MEEK']}
+    pytest.raises(ValueError, pru.compute_matching_network_mask, df_picks, set_mismatched)
+
+    set_aligned = {'net': ['AU', 'GE'], 'sta': ['MEEK', 'MEEK']}
+    mask = pru.compute_matching_network_mask(df_picks, set_aligned)
+    assert np.sum(mask) == 3
 
 
 if __name__ == "__main__":

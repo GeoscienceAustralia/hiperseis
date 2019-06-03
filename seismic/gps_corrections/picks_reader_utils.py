@@ -142,12 +142,27 @@ def get_station_date_range(df, netcode, statcode):
         return (None, None)
 
 
-# TODO: Add unit test for this function
-def compute_matching_network_mask(df, net):
-    # Function to match net.sta pairs from input dict.
+def compute_matching_network_mask(df, net_dict):
+    """Compute the mask for df of network codes and station codes that match the sequence
+    specified in net_dict.
+
+    This function differs from `pandas.DataFrame.isin()` function in that it only matches net.sta pairs from
+    the same index in the 'net' and 'sta' lists from net_dict, whereas `isin()` matches net.sta pairs from
+    arbitrary different positions in the lists.
+
+    :param df: Pandas dataframe loaded from a pick event ensemble
+    :type df: pandas.DataFrame
+    :param net_dict: Lists of corresponding network and station codes to match pariwise against columns 'net and 'sta'.
+    :type net_dict: dict of corresponding network and station codes under keys 'net' and 'sta' respectively.
+    :return: Row mask for df haev value True in rows whose ['net', 'sta'] columns match one of the ('net', 'sta')
+        pairs generated from net_dict.
+    :rtype: numpy.array(bool)
+    """
+    if len(net_dict['net']) != len(net_dict['sta']):
+        raise ValueError('Expect net and sta list to be same length')
     _df = df[['net', 'sta']]
     mask = np.array([False]*len(_df))
-    for n, s in zip(net['net'], net['sta']):
+    for n, s in zip(net_dict['net'], net_dict['sta']):
         mask = (mask | ((_df['net'] == n) & (_df['sta'] == s)))
     return mask
 
