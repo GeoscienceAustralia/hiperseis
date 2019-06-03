@@ -94,7 +94,7 @@ class BatchOptions:
     """
     Simple container type for run time options.
     """
-    def __init__(self):
+    def __init__(self):  # pragma: no cover
         self.save_file = True
         self.batch_label = ''
         # X-axis time range
@@ -252,7 +252,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             if save_file:
                 subfolder = os.path.join(ref_code.split('.')[0] + file_label, net_code)
                 # subfolder = net_code
-                pathlib.Path(subfolder).mkdir(exist_ok=True)
+                pathlib.Path(subfolder).mkdir(exist_ok=True, parents=True)
                 plt_file = os.path.join(subfolder, '_'.join([ref_code, net_code]) + '_' +
                                         ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
@@ -377,7 +377,8 @@ def _add_temporary_deployment_intervals(deployments):
     height = 5
     base_ypos = -40 - height / 2.0
     stagger = height / 2.0
-    for d in sorted_deployments:
+    for k in sorted_deployments:
+        d = deployments[k]
         ypos = base_ypos + stagger
         _render_deployment_interval(d[0], ypos, (d[1] - d[0]), height, d[2], d[3])
         stagger = -stagger
@@ -662,7 +663,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
          min_event_magnitude=DEFAULT_MIN_EVENT_MAG, strict_filtering=DEFAULT_STRICT_FILTERING,
          show_deployments=False, show_historical=True, include_alternate_catalog=True,
-         export_path=None):
+         export_path=None):  # pragma: no cover
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings in accordance with picks_reader_utils.PICKS_TABLE_SCHEMA.

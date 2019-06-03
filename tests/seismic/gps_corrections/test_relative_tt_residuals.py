@@ -256,6 +256,15 @@ def test_analyze_target_relative_to_ref(df_picks):
     assert np.all(np.all(df_plottable.loc[df_plottable['#eventID'] == 'event4', ['net', 'sta']].values ==
                          np.array([['AU', 'KNA'], ['GE', 'KAPI'], ['GE', 'MEEK']]), axis=1))
 
+    # Exercise the code path for plotting to detect some regressions.
+    batch_options = rttr.BatchOptions()
+    batch_options.batch_label = '_strict'
+    display_options = rttr.DisplayOptions()
+    display_options.events = rttr.generate_large_events_catalog(df_picks, 8.0)
+    display_options.deployments = rttr._get_known_temporary_deployments()  # pylint: disable=protected-access
+    rttr._plot_network_relative_to_ref_station(df_plottable, target_net_sta, ref_net_sta,  # pylint: disable=protected-access
+                                               batch_options, filter_options, display_options)
+
 
 if __name__ == "__main__":
     # Select explicit test to run.
