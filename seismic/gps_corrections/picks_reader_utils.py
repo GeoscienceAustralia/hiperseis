@@ -48,7 +48,7 @@ def read_picks_ensemble(csv_file):
     :param csv_file: Input file containing picks ensemble
     :type csv_file: str or path
     """
-    df_raw_picks = pd.read_csv(csv_file, ' ', header=0, dtype=PICKS_TABLE_SCHEMA)
+    df_raw_picks = pd.read_csv(csv_file, r'\s+', header=0, dtype=PICKS_TABLE_SCHEMA)
     return df_raw_picks
 
 

@@ -78,6 +78,7 @@ class FilterOptions:
         self.slope_cutoff = DEFAULT_SLOPE_CUTOFF
         self.nsigma_cutoff = DEFAULT_NSIGMA_CUTOFF
         self.min_event_mag = DEFAULT_MIN_EVENT_MAG
+        self.channel_preference = CHANNEL_PREF
 
 
 class DisplayOptions:
@@ -239,7 +240,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             plt.clim(snr_scale)
             plt.title(title, fontsize=18)
             plt.legend(['Point size = Mag - {}, Color = SNR'.format(min_mag)], fontsize=12, loc=1)
-            plt.text(0.01, 0.96, "Channel selection: {}".format(CHANNEL_PREF),
+            plt.text(0.01, 0.96, "Channel selection: {}".format(filter_options.channel_preference),
                      transform=plt.gca().transAxes, fontsize=12)
             plt.text(0.01, 0.92, "Start date: {}".format(str(time_range[0])),
                      transform=plt.gca().transAxes, fontsize=12)
@@ -425,7 +426,7 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
     return df_qual
 
 
-def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode):
+def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode, filter_options):
     """For each event in the dataframe, figure out the best reference residual and add it to new column 'ttResidualRef'
 
     :param df: Pandas dataframe loaded from a pick event ensemble
@@ -434,6 +435,8 @@ def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode):
     :type ref_netcode: str
     :param ref_stacode: The reference station code
     :type ref_stacode: str
+    :param filter_options: Filter options.
+    :type filter_options: class FilterOptions
     :return: Dataframe with a consistent reference residual populated for each event for given reference station.
     :rtype: pandas.DataFrame
     """
@@ -454,13 +457,14 @@ def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode):
         # Choose most favourable channel
         cha = None
         available_cha = grp_ref['cha'].values
-        for c in CHANNEL_PREF:
+        for c in filter_options.channel_preference:
             if c in available_cha:
                 cha = c
                 break
         # We must find a channel
         if cha is None:
-            log.warning("Channels {} are not amongst allowed channels {}".format(available_cha, CHANNEL_PREF))
+            log.warning("Channels {} are not amongst allowed channels {}".format(available_cha,
+                                                                                 filter_options.channel_preference))
             continue
         cha_mask = (grp_ref['cha'] == cha)
         grp_cha = grp_ref[cha_mask]
@@ -483,7 +487,7 @@ def broadcast_ref_residual_per_event(df_plot, ref_netcode, ref_stacode):
     return df_plot
 
 
-def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options, filter_options, display_options):
+def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, filter_options):
     """
     Analyze a single (reference) station's residuals relative to all the other stations
     in a (target) network.
@@ -495,12 +499,10 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
          (expected to be just one entry)
     :param target_stns: Network and station codes for target network
     :type target_stns: dict of corresponding network and station codes under keys 'net' and 'sta'
-    :param batch_options: Runtime options.
-    :type batch_options: class BatchOptions
     :param filter_options: Filter options.
     :type filter_options: class FilterOptions
-    :param display_options: Display options.
-    :type display_options: class DisplayOptions
+    :return: Dataframe with filtering applied and reference residual populated ready for plotting.
+    :rtype: pandas.DataFrame
     """
     assert len(ref_stn['net']) == 1
     assert len(ref_stn['sta']) == 1
@@ -529,14 +531,13 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, batch_options
     # print(get_overlapping_date_range(df_nets, ref_stn, target_stns))
 
     # Compute the reference TT residual for each event and store in new column
-    ds_final = broadcast_ref_residual_per_event(df_nets, ref_stn['net'][0], ref_stn['sta'][0])
-    assert 'ttResidualRef' in ds_final.columns
+    df_final = broadcast_ref_residual_per_event(df_nets, ref_stn['net'][0], ref_stn['sta'][0], filter_options)
+    assert 'ttResidualRef' in df_final.columns
 
-    _plot_network_relative_to_ref_station(ds_final, ref_stn, target_stns, batch_options, filter_options,
-                                          display_options)
+    return df_final
 
 
-def filter_limit_channels(df_picks):
+def filter_limit_channels(df_picks, channel_pref):
     """Filter picks dataframe to a limited range of preferred channel types.
 
     :param df_picks: Picks dataframe to filter
@@ -544,7 +545,7 @@ def filter_limit_channels(df_picks):
     :return: Filtered picks dataframe with only preferred channels
     :rtype: pandas.DataFrame
     """
-    df_picks = df_picks[df_picks['cha'].isin(CHANNEL_PREF)].reset_index()
+    df_picks = df_picks[df_picks['cha'].isin(channel_pref)].reset_index()
     return df_picks
 
 
@@ -758,8 +759,11 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
         for net, sta in zip(REF_STNS['net'], REF_STNS['sta']):
             log.info("Plotting against REF: " + ".".join([net, sta]))
             single_ref = {'net': [net], 'sta': [sta]}
-            analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, batch_options, filter_options,
-                                           display_options)
+            # Peform analysis
+            df_final = analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, filter_options)
+            # Plot results
+            _plot_network_relative_to_ref_station(df_final, single_ref, TARGET_STNS, batch_options,
+                                                  filter_options, display_options)
         # end for
     # end for
 
