@@ -257,7 +257,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
                                         ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
                 plt.close()
-            else:
+            else:  # pragma: no cover
                 plt.show()
     # end plot_dataset
 
