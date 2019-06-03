@@ -385,7 +385,9 @@ def _add_temporary_deployment_intervals(deployments):
 
 def apply_event_quality_filtering(df, ref_stn, filter_options):
     """
-    Apply event quality requirements to pick events.
+    Apply event quality requirements to pick events. The event magnitude threshold is only used to
+    filter rows where the quality metrics ['snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']
+    are all zero.
 
     :param df: Pandas dataframe loaded from a pick event ensemble
     :type df: pandas.DataFrame
@@ -397,6 +399,15 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
     :return: Filtered dataframe of pick events
     :rtype: pandas.DataFrame
     """
+
+    if 'net' not in ref_stn:
+        raise KeyError('Expect \'net\' in dict keys')
+    if 'sta' not in ref_stn:
+        raise KeyError('Expect \'sta\' in dict keys')
+
+    if not len(ref_stn['net']) == len(ref_stn['sta']) == 1:
+        raise ValueError('Expect only one network and station code when calling apply_event_quality_filtering')
+
     # Remove records where the SNR is too low
     mask_snr = (df['snr'] >= filter_options.min_event_snr)
 
@@ -409,7 +420,8 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
     mask_zero_quality_stats = (df[['snr', 'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']] == 0).all(axis=1)
     mask_origin_mag = (df['mag'] >= filter_options.min_event_mag)
 
-    quality_mask = (mask_snr & mask_cwt & mask_slope & mask_sigma) | (mask_zero_quality_stats & mask_origin_mag)
+    quality_mask = ((~mask_zero_quality_stats & mask_snr & mask_cwt & mask_slope & mask_sigma) |
+                    (mask_zero_quality_stats & mask_origin_mag))
 
     mask_ref = compute_matching_network_mask(df, ref_stn)
     if filter_options.strict_filtering:
@@ -421,7 +433,6 @@ def apply_event_quality_filtering(df, ref_stn, filter_options):
         # regardless of pick quality at the ref station. This gives more results, but possibly more noise.
         quality_mask = mask_ref | (~mask_ref & quality_mask)
 
-    assert np.sum(quality_mask) > 100, 'Not enough points left after quality filtering'
     df_qual = df[quality_mask]
     return df_qual
 
