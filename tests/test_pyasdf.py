@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import numpy as np
 import pytest
 
-pytest.importorskip('mpi4py', 'mpi4py unavailable')
+#pytest.importorskip('mpi4py', 'mpi4py unavailable')
 from seismic.traveltime.mpiops import rank, size, comm, run_once
 
 try:
