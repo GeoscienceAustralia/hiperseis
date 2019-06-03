@@ -125,5 +125,12 @@ def test_interval_stack_xcorr_(tmpdir, inv1, inv2, interval_seconds, window_seco
     de = Dataset(fn)
     xcorr_e = de.variables['xcorr'][:]
 
-    assert np.allclose(xcorr_c, xcorr_e, rtol=1e-2, atol=1e-2)
+    rtol = 1e-2
+    atol = 1e-2
+    if(clip_to_2std):
+        rtol *= 10
+        atol *= 10
+    # end if
+
+    assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
 # end func
