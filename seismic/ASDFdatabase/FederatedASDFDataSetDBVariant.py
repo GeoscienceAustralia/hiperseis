@@ -11,6 +11,7 @@ Revision History:
     LastUpdate:     03/19/18   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
+from builtins import range
 
 from mpi4py import MPI
 import os
@@ -47,7 +48,7 @@ def setup_logger(name, log_file, level=logging.INFO):
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 def split_list_by_timespan(l, n):
@@ -173,7 +174,7 @@ class FederatedASDFDataSetDBVariant():
             for ids, ds in enumerate(self.asdf_datasets):
                 print('Creating index for %s..' % (self.asdf_file_names[ids]))
 
-                keys = ds.get_all_coordinates().keys()
+                keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
 
                 data = []
