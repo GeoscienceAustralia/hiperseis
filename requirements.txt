@@ -12,6 +12,7 @@ joblib
 click
 pandas
 h5py
+netcdf4
 ujson
 deprecated
 pyyaml
