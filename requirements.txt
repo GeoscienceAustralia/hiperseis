@@ -4,6 +4,7 @@ pytables; sys_platform=="win32"
 tables; sys_platform!="win32"
 obspy==1.1.0
 mpi4py
+psutil
 pyasdf
 #geopandas
 pytest>=4.2.0
