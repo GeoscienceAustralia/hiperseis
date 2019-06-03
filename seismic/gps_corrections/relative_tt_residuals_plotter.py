@@ -313,7 +313,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
     :param display_options: Display options.
     :type display_options: class DisplayOptions
     """
-    df_plot['relTtResidual'] = df_plot['ttResidual'] - df_plot['ttResidualRef']
+    df_plot = df_plot.assign(relTtResidual=(df_plot['ttResidual'] - df_plot['ttResidualRef']))
 
     # Re-order columns
     df_plot = df_plot[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
@@ -524,14 +524,14 @@ def analyze_target_relative_to_ref(df_picks, ref_stn, target_stns, filter_option
     mask_ref = compute_matching_network_mask(df_qual, ref_stn)
     mask_targ = compute_matching_network_mask(df_qual, target_stns)
     mask = mask_ref | mask_targ
-    np.any(mask)
+    # np.any(mask)
     df_nets = df_qual.loc[mask]
 
     # Filter out events in which ref_stn and TARGET stations are not both present
     log = logging.getLogger(__name__)
     log.info("Narrowing dataframe to events common to REF and TARGET networks...")
-    df_nets['ref_match'] = compute_matching_network_mask(df_nets, ref_stn)
-    df_nets['target_match'] = compute_matching_network_mask(df_nets, target_stns)
+    df_nets = df_nets.assign(ref_match=compute_matching_network_mask(df_nets, ref_stn))
+    df_nets = df_nets.assign(target_match=compute_matching_network_mask(df_nets, target_stns))
     keep_events = [e for e, d in df_nets.groupby('#eventID') if np.any(d['ref_match']) and np.any(d['target_match'])]
     event_mask = df_nets['#eventID'].isin(keep_events)
     df_nets = df_nets[event_mask]

@@ -5,7 +5,6 @@ from __future__ import absolute_import
 
 import numpy as np
 import pytest
-# import pandas as pd
 
 from seismic.gps_corrections import relative_tt_residuals_plotter as rttr
 
@@ -235,11 +234,32 @@ def test_broadcast_ref_residual_per_event(df_picks):
 
 def test_analyze_target_relative_to_ref(df_picks):
     filter_options = rttr.FilterOptions()
+    # Set filter params to include the events on AU.KNA
+    filter_options.min_event_snr = 5.0
+    filter_options.cwt_cutoff = 5.0
+    filter_options.slope_cutoff = 2.0
+    target_net_sta = {'net': ['AU'], 'sta': ['KNA']}
+    # Analyze AU.MEEK relative to all the GE stations
+    ref_net_sta = {'net': ['GE']*15,
+                   'sta': ['WSI', 'ARMA', 'MEEK', 'CNB', 'CHN', 'FUQ', 'NZJ', 'NGO1', 'NAH1', 'SSE',
+                           'NJ2', 'TIA', 'KAPI', 'KMBL', 'MEEK']
+                  }
+    df_plottable = rttr.analyze_target_relative_to_ref(df_picks, target_net_sta, ref_net_sta, filter_options)
+    assert 'ttResidualRef' in df_plottable
+    assert list(df_plottable['#eventID'].unique()) == ['event0', 'event4']
+    assert list(df_plottable['ttResidualRef'].unique()) == [-0.134955, 1.192448]
+    # For event0, only GE.WSI and GE.ARMA are present, and both pass the filtering criteria.
+    assert np.all(np.all(df_plottable.loc[df_plottable['#eventID'] == 'event0', ['net', 'sta']].values ==
+                         np.array([['AU', 'KNA'], ['GE', 'WSI'], ['GE', 'ARMA']]), axis=1))
+    # For event4, GE.KAPI, GE.KMBL and GE.MEEK are present, but GE.KMBL does not pass the filtering criteria
+    # due to slope metric.
+    assert np.all(np.all(df_plottable.loc[df_plottable['#eventID'] == 'event4', ['net', 'sta']].values ==
+                         np.array([['AU', 'KNA'], ['GE', 'KAPI'], ['GE', 'MEEK']]), axis=1))
 
 
 if __name__ == "__main__":
     # Select explicit test to run.
-    import conftest
-    picks = conftest._read_picks()
-    test_broadcast_ref_residual_per_event(picks)
+    # import conftest
+    # picks = conftest._read_picks()
+    # test_analyze_target_relative_to_ref(picks)
     pass
