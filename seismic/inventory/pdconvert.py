@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 
 from obspy.core import utcdatetime
-from obspy.core.inventory import Network, Station, Channel, Site
+from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 
 from seismic.inventory.table_format import TABLE_COLUMNS, PANDAS_MAX_TIMESTAMP
 
 
-def pd2Station(statcode, station_df, instrument_register=None):
+def _dataframe_to_station(statcode, station_df, instrument_register=None):
     """
     Convert Pandas dataframe with unique station code to obspy Station object.
 
@@ -68,7 +68,7 @@ def pd2Station(statcode, station_df, instrument_register=None):
     return station
 
 
-def pd2Network(netcode, network_df, instrument_register, progressor=None):
+def dataframe_to_network(netcode, network_df, instrument_register, progressor=None):
     """
     Convert Pandas dataframe with unique network code to obspy Network object.
 
@@ -84,16 +84,49 @@ def pd2Network(netcode, network_df, instrument_register, progressor=None):
     :return: Network object containing the network information from the dataframe
     :rtype: obspy.core.inventory.network.Network
     """
+    netcodes = network_df['NetworkCode'].unique()
+    assert len(netcodes) == 1, "Non-unique network codes in network_df: {}".format(netcodes)
+    assert netcodes[0] == netcode, "Network code mismatch, check netcode {} != {}".format(netcode, netcodes[0])
     net = Network(netcode, stations=[], description=' ')
     for statcode, ch_data in network_df.groupby('StationCode'):
-        station = pd2Station(statcode, ch_data, instrument_register)
+        station = _dataframe_to_station(statcode, ch_data, instrument_register)
         net.stations.append(station)
         if progressor:
             progressor(len(ch_data))
     return net
 
 
-def inventory2Dataframe(inv_object, show_progress=True):
+def dataframe_to_fdsn_station_xml(inventory_df, nominal_instruments, filename, show_progress=True):
+    """Export dataframe of station metadata to FDSN station xml file
+
+    :param inventory_df: Dataframe containing all the station records to export.
+    :type inventory_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
+        characterization
+    :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
+        obspy.core.inventory.response.Response) }
+    :param filename: Output filename
+    :type filename: str or path
+    """
+    if show_progress:
+        import tqdm
+        pbar = tqdm.tqdm(total=len(inventory_df), ascii=True)
+        progressor = pbar.update
+    else:
+        progressor = None
+
+    global_inventory = Inventory(networks=[], source='EHB')
+    for netcode, data in inventory_df.groupby('NetworkCode'):
+        net = dataframe_to_network(netcode, data, nominal_instruments, progressor=progressor)
+        global_inventory.networks.append(net)
+    if show_progress:
+        pbar.close()
+
+    # Write global inventory text file in FDSN stationxml inventory format.
+    global_inventory.write(filename, format="stationxml")
+
+
+def inventory_to_dataframe(inv_object, show_progress=True):
     """
     Convert a obspy Inventory object to a Pandas Dataframe.
 
@@ -132,8 +165,8 @@ def inventory2Dataframe(inv_object, show_progress=True):
                 d['ChannelEnd'].append(min(np.datetime64(channel.end_date, 's'), max_end_timestamp))
     if show_progress:
         pbar.close()
-    df = pd.DataFrame.from_dict(d)
-    df = df[list(TABLE_COLUMNS)]
-    df.sort_values(['NetworkCode', 'StationCode'], inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    return df
+    inventory_df = pd.DataFrame.from_dict(d)
+    inventory_df = inventory_df[list(TABLE_COLUMNS)]
+    inventory_df.sort_values(['NetworkCode', 'StationCode'], inplace=True)
+    inventory_df.reset_index(drop=True, inplace=True)
+    return inventory_df

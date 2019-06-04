@@ -1,0 +1,1044 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0" xsi:schemaLocation="http://www.fdsn.org/xml/station/1 http://www.fdsn.org/xml/station/fdsn-station-1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iris="http://www.fdsn.org/xml/station/1/iris">
+ <Source>IRIS-DMC</Source>
+ <Sender>IRIS-DMC</Sender>
+ <Module>IRIS WEB SERVICE: fdsnws-station | version: 1.1.36</Module>
+ <ModuleURI>http://service.iris.edu/fdsnws/station/1/query?net=AU,ES&amp;sta=M*,E*&amp;cha=BHZ&amp;level=channel&amp;format=xml&amp;includerestricted=false&amp;includecomments=false&amp;nodata=404</ModuleURI>
+ <Created>2019-05-28T06:00:27</Created>
+ <Network code="AU" startDate="1994-01-01T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open">
+  <Description>Geoscience Australia</Description>
+  <TotalNumberStations>172</TotalNumberStations>
+  <SelectedNumberStations>11</SelectedNumberStations>
+  <Station code="EIDS" startDate="2003-06-23T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-25.3691</Latitude>
+   <Longitude>151.0817</Longitude>
+   <Elevation>216.0</Elevation>
+   <Site>
+    <Name>Eidsvold, Queensland</Name>
+   </Site>
+   <CreationDate>2003-06-23T00:00:00</CreationDate>
+   <TotalNumberChannels>18</TotalNumberChannels>
+   <SelectedNumberChannels>2</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2007-08-02T23:59:59" locationCode="" restrictedStatus="open" startDate="2003-06-23T00:00:00">
+    <Latitude>-25.369101</Latitude>
+    <Longitude>151.081696</Longitude>
+    <Elevation>216</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>2E01</SampleRate>
+    <ClockDrift>5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3ESP_60sec/GDAS</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>4.01286E8</Value>
+      <Frequency>3E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2007-08-03T00:00:00">
+    <Latitude>-25.369101</Latitude>
+    <Longitude>151.081696</Longitude>
+    <Elevation>216</Elevation>
+    <Depth>3</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50658E9</Value>
+      <Frequency>5E0</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MANU" startDate="2009-05-26T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes=".SPACIFIC,_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-2.0432</Latitude>
+   <Longitude>147.3662</Longitude>
+   <Elevation>141.5</Elevation>
+   <Site>
+    <Name>Manus Island, Papua New Guinea</Name>
+   </Site>
+   <CreationDate>2009-05-26T00:00:00</CreationDate>
+   <TotalNumberChannels>49</TotalNumberChannels>
+   <SelectedNumberChannels>4</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2012-09-08T00:00:00" locationCode="" restrictedStatus="open" startDate="2009-05-26T00:00:00">
+    <Latitude>-2.0432</Latitude>
+    <Longitude>147.366196</Longitude>
+    <Elevation>141.5</Elevation>
+    <Depth>3</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.51704E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2012-09-08T00:00:00">
+    <Latitude>-2.0432</Latitude>
+    <Longitude>147.366196</Longitude>
+    <Elevation>141.5</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2 G3/Quanterra 330HR Linear Phase</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50877E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="00" restrictedStatus="open" startDate="2018-07-18T00:00:00">
+    <Latitude>-2.0432</Latitude>
+    <Longitude>147.366196</Longitude>
+    <Elevation>141.5</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2 G3/Centaur Standard 47k</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>1.49534E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="01" restrictedStatus="open" startDate="2018-07-18T00:00:00">
+    <Latitude>-2.0432</Latitude>
+    <Longitude>147.366196</Longitude>
+    <Elevation>141.5</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>trillium_compact_OBS_SIO/Centaur Standard 47k</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>7.47789E8</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MAW" startDate="2003-01-31T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN,_ANTARCTICA,_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-67.604</Latitude>
+   <Longitude>62.871</Longitude>
+   <Elevation>12.0</Elevation>
+   <Site>
+    <Name>Mawson, Antarctica</Name>
+   </Site>
+   <CreationDate>2003-01-31T00:00:00</CreationDate>
+   <TotalNumberChannels>3</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2003-01-31T00:00:00">
+    <Latitude>-67.603996</Latitude>
+    <Longitude>62.870998</Longitude>
+    <Elevation>12</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Nanometric Trident Datalogger</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.40044E10</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MCQ" startDate="2004-06-28T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_GSN-BROADBAND,_FDSN-ALL,_REALTIME,.UNRESTRICTED,_GSN">
+   <Latitude>-54.4986</Latitude>
+   <Longitude>158.9561</Longitude>
+   <Elevation>14.0</Elevation>
+   <Site>
+    <Name>Macquarie Island, Australia</Name>
+   </Site>
+   <CreationDate>2004-06-28T00:00:00</CreationDate>
+   <TotalNumberChannels>18</TotalNumberChannels>
+   <SelectedNumberChannels>2</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2008-04-27T23:59:59" locationCode="" restrictedStatus="open" startDate="2004-06-28T00:00:00">
+    <Latitude>-54.4986</Latitude>
+    <Longitude>158.9561</Longitude>
+    <Elevation>14</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>2E01</SampleRate>
+    <ClockDrift>5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2 G3 20000V/M/S/GDAS</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.97645E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2008-04-28T00:00:00">
+    <Latitude>-54.4986</Latitude>
+    <Longitude>158.9561</Longitude>
+    <Elevation>14</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2 G3 20000V/M/S/Quanterra 330HR Li</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.33982E10</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MEEK" startDate="2003-06-25T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-26.638</Latitude>
+   <Longitude>118.615</Longitude>
+   <Elevation>530.0</Elevation>
+   <Site>
+    <Name>Meekatharra, Western Australia</Name>
+   </Site>
+   <CreationDate>2003-06-25T00:00:00</CreationDate>
+   <TotalNumberChannels>18</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2008-05-12T00:00:00">
+    <Latitude>-26.6376</Latitude>
+    <Longitude>118.613503</Longitude>
+    <Elevation>529</Elevation>
+    <Depth>3</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50658E9</Value>
+      <Frequency>5E0</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MILA" startDate="2001-07-16T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-37.0547</Latitude>
+   <Longitude>149.155</Longitude>
+   <Elevation>785.0</Elevation>
+   <Site>
+    <Name>Mila, NSW</Name>
+   </Site>
+   <CreationDate>2001-07-16T00:00:00</CreationDate>
+   <TotalNumberChannels>80</TotalNumberChannels>
+   <SelectedNumberChannels>5</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2013-02-21T00:00:00" locationCode="" restrictedStatus="open" startDate="2012-11-27T00:00:00">
+    <Latitude>-37.054699</Latitude>
+    <Longitude>149.154999</Longitude>
+    <Elevation>785</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3ESP_120sec/Quanterra 330HR Linear Phase</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.34328E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2014-12-01T00:00:00" locationCode="" restrictedStatus="open" startDate="2013-02-21T00:00:00">
+    <Latitude>-37.054699</Latitude>
+    <Longitude>149.154999</Longitude>
+    <Elevation>785</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3T_120sec/Quanterra 330HR Linear Phase B</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.34328E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2016-06-22T00:00:00" locationCode="" restrictedStatus="open" startDate="2014-12-01T00:00:00">
+    <Latitude>-37.054699</Latitude>
+    <Longitude>149.154999</Longitude>
+    <Elevation>785</Elevation>
+    <Depth>30</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Geotech KS2000M Broad-band/Quanterra 330HR Linear</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.35684E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2018-10-12T00:00:00" locationCode="" restrictedStatus="open" startDate="2016-06-22T00:00:00">
+    <Latitude>-37.054699</Latitude>
+    <Longitude>149.154999</Longitude>
+    <Elevation>785</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Geotech KS2000M Broad-band/Quanterra 330HR Linear</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.35684E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="00" restrictedStatus="open" startDate="2018-10-12T00:00:00">
+    <Latitude>-37.054699</Latitude>
+    <Longitude>149.154999</Longitude>
+    <Elevation>785</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Geotech KS2000M Broad-band/Centaur Standard 47k</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.00083E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MOO" startDate="2005-05-13T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-42.4417</Latitude>
+   <Longitude>147.1903</Longitude>
+   <Elevation>325.0</Elevation>
+   <Site>
+    <Name>Moorlands, Tasmania</Name>
+   </Site>
+   <CreationDate>2005-05-13T00:00:00</CreationDate>
+   <TotalNumberChannels>18</TotalNumberChannels>
+   <SelectedNumberChannels>2</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2007-01-24T23:59:59" locationCode="" restrictedStatus="open" startDate="2005-05-13T00:00:00">
+    <Latitude>-42.4417</Latitude>
+    <Longitude>147.190308</Longitude>
+    <Elevation>325</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>2E01</SampleRate>
+    <ClockDrift>5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG40T_60sec/GDAS</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>1.61646E8</Value>
+      <Frequency>3E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2007-01-25T00:00:00">
+    <Latitude>-42.4417</Latitude>
+    <Longitude>147.190308</Longitude>
+    <Elevation>325</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50658E9</Value>
+      <Frequency>5E0</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MORW" startDate="2008-04-28T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-29.0679</Latitude>
+   <Longitude>116.0403</Longitude>
+   <Elevation>296.0</Elevation>
+   <Site>
+    <Name>Morawa, Western Australia</Name>
+   </Site>
+   <CreationDate>2003-05-26T00:00:00</CreationDate>
+   <TotalNumberChannels>15</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2008-04-28T00:00:00">
+    <Latitude>-29.0679</Latitude>
+    <Longitude>116.040298</Longitude>
+    <Elevation>296</Elevation>
+    <Depth>3</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50658E9</Value>
+      <Frequency>5E0</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MTN" startDate="2006-08-11T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-12.8436</Latitude>
+   <Longitude>131.1327</Longitude>
+   <Elevation>137.39999389648438</Elevation>
+   <Site>
+    <Name>Manton Dam, Northern Territory</Name>
+   </Site>
+   <CreationDate>2006-08-11T00:00:00</CreationDate>
+   <TotalNumberChannels>15</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2006-08-11T00:00:00">
+    <Latitude>-12.8436</Latitude>
+    <Longitude>131.132706</Longitude>
+    <Elevation>137.4</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2/Quanterra 330HR Linear Phase Bel</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50658E9</Value>
+      <Frequency>5E0</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MULG" startDate="2013-05-28T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-30.2818</Latitude>
+   <Longitude>134.0585</Longitude>
+   <Elevation>254.6999969482422</Elevation>
+   <Site>
+    <Name>Mulgathing, South Australia</Name>
+   </Site>
+   <CreationDate>2013-05-28T00:00:00</CreationDate>
+   <TotalNumberChannels>23</TotalNumberChannels>
+   <SelectedNumberChannels>2</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2013-05-28T00:00:00">
+    <Latitude>-30.281799</Latitude>
+    <Longitude>134.058502</Longitude>
+    <Elevation>254.7</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3ESP_120sec/Quanterra 330HR Linear Phase</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>3.36026E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="00" restrictedStatus="open" startDate="2019-02-01T00:00:00">
+    <Latitude>-30.281799</Latitude>
+    <Longitude>134.058502</Longitude>
+    <Elevation>254.7</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3ESP_120sec/Centaur Standard 47k</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.00287E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="MUN" startDate="2001-05-31T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open" iris:alternateNetworkCodes="_FDSN-ALL,_REALTIME,.UNRESTRICTED">
+   <Latitude>-31.9783</Latitude>
+   <Longitude>116.2083</Longitude>
+   <Elevation>253.0</Elevation>
+   <Site>
+    <Name>Mundaring, Western Australia</Name>
+   </Site>
+   <CreationDate>2001-05-31T00:00:00</CreationDate>
+   <TotalNumberChannels>17</TotalNumberChannels>
+   <SelectedNumberChannels>2</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2008-04-21T00:00:00" locationCode="" restrictedStatus="open" startDate="2001-05-31T00:00:00">
+    <Latitude>-31.9783</Latitude>
+    <Longitude>116.208298</Longitude>
+    <Elevation>253</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>2E01</SampleRate>
+    <ClockDrift>5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Guralp CMG3T/BlueBoxII</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>1.13372E9</Value>
+      <Frequency>3E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+   <Channel code="BHZ" endDate="2599-12-31T23:59:59" locationCode="" restrictedStatus="open" startDate="2010-11-18T00:00:00">
+    <Latitude>-31.9783</Latitude>
+    <Longitude>116.208298</Longitude>
+    <Elevation>253</Elevation>
+    <Depth>2</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>-90</Dip>
+    <Type>GEOPHYSICAL</Type>
+    <SampleRate>4E01</SampleRate>
+    <ClockDrift>2.5E-04</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>emf in volts</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>Streckeisen STS-2 G3/Quanterra 330HR Linear Phase</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>2.50877E9</Value>
+      <Frequency>2E-1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>velocity in meters per second</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>digital counts</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+ </Network>
+ <Network code="ES" startDate="2000-01-01T00:00:00" endDate="2599-12-31T23:59:59" restrictedStatus="open">
+  <Description>Spanish Digital Seismic Network</Description>
+  <TotalNumberStations>4</TotalNumberStations>
+  <SelectedNumberStations>4</SelectedNumberStations>
+  <Station code="ECAL" startDate="2000-01-01T00:00:00" endDate="2035-01-01T00:00:00" restrictedStatus="open" iris:alternateNetworkCodes=".UNRESTRICTED">
+   <Latitude>41.941299</Latitude>
+   <Longitude>-6.7371</Longitude>
+   <Elevation>950.0</Elevation>
+   <Site>
+    <Name>CALABOR, SPAIN</Name>
+   </Site>
+   <CreationDate>2000-01-01T00:00:00</CreationDate>
+   <TotalNumberChannels>3</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2035-01-01T00:00:00" locationCode="" restrictedStatus="open" startDate="2000-01-01T00:00:00">
+    <Latitude>41.941299</Latitude>
+    <Longitude>-6.7371</Longitude>
+    <Elevation>950</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>90</Dip>
+    <SampleRate>8E01</SampleRate>
+    <ClockDrift>0E00</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>VOLTS</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>CMG3T</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>6.32132E8</Value>
+      <Frequency>1E1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>VELOCITY IN METER PER SECOND</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>DIGITAL COUNTS</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="EJON" startDate="2000-01-01T00:00:00" endDate="2035-01-01T00:00:00" restrictedStatus="open" iris:alternateNetworkCodes=".UNRESTRICTED">
+   <Latitude>42.4487</Latitude>
+   <Longitude>2.8886</Longitude>
+   <Elevation>570.0</Elevation>
+   <Site>
+    <Name>LA JONQUERA, SPAIN</Name>
+   </Site>
+   <CreationDate>2000-01-01T00:00:00</CreationDate>
+   <TotalNumberChannels>3</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2035-01-01T00:00:00" locationCode="" restrictedStatus="open" startDate="2000-01-01T00:00:00">
+    <Latitude>42.4487</Latitude>
+    <Longitude>2.8886</Longitude>
+    <Elevation>570</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>90</Dip>
+    <SampleRate>8E01</SampleRate>
+    <ClockDrift>0E00</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>VOLTS</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>CMG3T</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>4.37798E8</Value>
+      <Frequency>1E1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>VELOCITY IN METER PER SECOND</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>DIGITAL COUNTS</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="EMUR" startDate="2000-01-01T00:00:00" endDate="2035-01-01T00:00:00" restrictedStatus="open" iris:alternateNetworkCodes=".UNRESTRICTED">
+   <Latitude>37.842201</Latitude>
+   <Longitude>-1.2405</Longitude>
+   <Elevation>574.0</Elevation>
+   <Site>
+    <Name>LA MURTA, SPAIN</Name>
+   </Site>
+   <CreationDate>2000-01-01T00:00:00</CreationDate>
+   <TotalNumberChannels>3</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2035-01-01T00:00:00" locationCode="" restrictedStatus="open" startDate="2000-01-01T00:00:00">
+    <Latitude>37.842201</Latitude>
+    <Longitude>-1.2405</Longitude>
+    <Elevation>574</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>90</Dip>
+    <SampleRate>8E01</SampleRate>
+    <ClockDrift>0E00</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>VOLTS</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>CMG3T</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>6.42617E8</Value>
+      <Frequency>1E1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>VELOCITY IN METER PER SECOND</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>DIGITAL COUNTS</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+  <Station code="EOSO" startDate="2000-01-01T00:00:00" endDate="2035-01-01T00:00:00" restrictedStatus="open" iris:alternateNetworkCodes=".UNRESTRICTED">
+   <Latitude>28.0718</Latitude>
+   <Longitude>-15.5525</Longitude>
+   <Elevation>760.0</Elevation>
+   <Site>
+    <Name>OSORIO, SPAIN</Name>
+   </Site>
+   <CreationDate>2000-01-01T00:00:00</CreationDate>
+   <TotalNumberChannels>3</TotalNumberChannels>
+   <SelectedNumberChannels>1</SelectedNumberChannels>
+   <Channel code="BHZ" endDate="2035-01-01T00:00:00" locationCode="" restrictedStatus="open" startDate="2000-01-01T00:00:00">
+    <Latitude>28.0718</Latitude>
+    <Longitude>-15.5525</Longitude>
+    <Elevation>760</Elevation>
+    <Depth>0</Depth>
+    <Azimuth>0</Azimuth>
+    <Dip>90</Dip>
+    <SampleRate>8E01</SampleRate>
+    <ClockDrift>0E00</ClockDrift>
+    <CalibrationUnits>
+     <Name>V</Name>
+     <Description>VOLTS</Description>
+    </CalibrationUnits>
+    <Sensor>
+     <Description>CMG3T</Description>
+    </Sensor>
+    <Response>
+     <InstrumentSensitivity>
+      <Value>6.31758E8</Value>
+      <Frequency>1E1</Frequency>
+      <InputUnits>
+       <Name>M/S</Name>
+       <Description>VELOCITY IN METER PER SECOND</Description>
+      </InputUnits>
+      <OutputUnits>
+       <Name>COUNTS</Name>
+       <Description>DIGITAL COUNTS</Description>
+      </OutputUnits>
+     </InstrumentSensitivity>
+    </Response>
+   </Channel>
+  </Station>
+ </Network>
+</FDSNStationXML>

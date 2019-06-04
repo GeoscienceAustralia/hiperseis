@@ -1,11 +1,18 @@
 sphinx>=1.8
-obspy==1.1.0
-pyasdf
-#geopandas
-pytest
-joblib
-pytest
-click
+numpy>=1.14.2
 pandas
+h5py
+pyasdf
+obspy==1.1.0
+pytables; sys_platform=="win32"
+tables; sys_platform!="win32"
+#geopandas
+pytest>=4.2.0
+joblib
+click
 deprecated
-
+pyyaml
+requests
+Cython  # On NCI, use module load
+#mpi4py # On NCI, use module load
+tqdm
