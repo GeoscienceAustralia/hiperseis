@@ -282,7 +282,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
 
     # Export median error for each origin event if export path is provided
     if batch_options.export_path is not None:
-        pathlib.Path(batch_options.export_path).mkdir(exist_ok=True)
+        pathlib.Path(batch_options.export_path).mkdir(parents=True, exist_ok=True)
         df_agg = df_agg.sort_values('originTimestamp')
         df_export = df_agg[['originTimestamp', 'relTtResidual']]
         median_errors = {'originTimestamp': [], 'rawClockError': []}

@@ -12,6 +12,7 @@ python:
 
 before_install:
 - sudo apt-get install -y libhdf5-dev
+- sudo apt-get install -y mpich
 - pip install Cython --install-option="--no-cython-compile"
 - pip install pytest-cov
 - pip install coveralls

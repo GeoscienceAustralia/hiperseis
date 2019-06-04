@@ -22,7 +22,7 @@ from scipy.spatial import cKDTree
 import click
 
 from mpi4py import MPI
-from obspy import UTCDateTime
+from obspy import UTCDateTime, read_inventory, Inventory
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 
@@ -145,6 +145,26 @@ class Dataset:
     # end func
 # end class
 
+def getStationInventory(master_inventory, inventory_cache, netsta):
+    netstaInv = None
+    if (master_inventory):
+        if (inventory_cache is None): inventory_cache = defaultdict(list)
+        net, sta = netsta.split('.')
+
+        if (isinstance(inventory_cache[netsta], Inventory)):
+            netstaInv = inventory_cache[netsta]
+        else:
+            inv = master_inventory.select(network=net, station=sta)
+            if(len(inv.networks)):
+                inventory_cache[netsta] = inv
+                netstaInv = inv
+            # end if
+        # end if
+    # end if
+
+    return netstaInv, inventory_cache
+# end func
+
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
@@ -155,6 +175,7 @@ def process(data_source1, data_source2, output_path,
             resample_rate=None, nearest_neighbours=1,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*',
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
+            instrument_response_inventory=None,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
@@ -206,6 +227,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t: %s\n' % ('--station-names2', netsta_list2))
             f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
             f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%25s\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
             f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
             f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
             f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
@@ -225,13 +247,28 @@ def process(data_source1, data_source2, output_path,
     proc_stations = comm.bcast(proc_stations, root=0)
     time_tag = comm.bcast(time_tag, root=0)
 
+    # read inventory
+    inv = None
+    stationInvCache = defaultdict(list)
+    if(instrument_response_inventory):
+        try:
+            inv = read_inventory(instrument_response_inventory)
+        except Exception as e:
+            print (e)
+        # end try
+    # end if
+
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
     for pair in proc_stations[rank]:
-        st1, st2 = pair
+        netsta1, netsta2 = pair
+
+        netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
+        netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
 
         x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
-                                                        endTime, st1, st2, ds1_zchan, ds2_zchan,
+                                                        endTime, netsta1, netsta2, netsta1inv, netsta2inv,
+                                                        ds1_zchan, ds2_zchan,
                                                         resample_rate, read_buffer_size, interval_seconds,
                                                         window_seconds, fmin, fmax, clip_to_2std, whitening,
                                                         one_bit_normalize, envelope_normalize, ensemble_stack,
@@ -271,6 +308,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--end-time', default='2100-01-01T00:00:00',
               type=str,
               help="Date and time (in UTC format) to stop at; default is year 2100.")
+@click.option('--instrument-response-inventory', default=None,
+              type=click.Path('r'),
+              help="FDSNxml inventory containing instrument response information. Note that when this parameter is provided "
+                   ", instrument response corrections are automatically applied for matching stations with response "
+                   "information.")
 @click.option('--clip-to-2std', is_flag=True,
               help="Clip data in each window to +/- 2 standard deviations")
 @click.option('--whitening', is_flag=True,
@@ -303,15 +345,16 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--envelope-normalize', is_flag=True, help="Envelope (via Hilbert transform) and normalize CCs. "
                                                          "This procedure is useful for clock-error detection "
                                                          "workflows")
-@click.option('--ensemble-stack', is_flag=True, help="Outputs a single ensemble CC function over all data for "
+@click.option('--ensemble-stack', is_flag=True, help="Outputs a single ensemble CC function over all data "
                                                      "for a given station-pair. In other words, stacks over "
                                                      "'interval-seconds' are in turn stacked to produce a "
-                                                     "single CC function.")
+                                                     "single CC function, aimed at producing empirical Greens "
+                                                     "functions for surface wave tomography.")
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-         end_time, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
-         ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
-         ensemble_stack):
+         end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize,
+         read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
+         envelope_normalize, ensemble_stack):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -327,7 +370,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
+            end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
             ensemble_stack)
 # end func

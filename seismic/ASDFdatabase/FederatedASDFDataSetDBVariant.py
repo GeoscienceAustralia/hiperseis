@@ -175,7 +175,7 @@ class FederatedASDFDataSetDBVariant():
             for ids, ds in enumerate(self.asdf_datasets):
                 print('Creating index for %s..' % (self.asdf_file_names[ids]))
 
-                keys = ds.get_all_coordinates().keys()
+                keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
 
                 data = []
@@ -206,6 +206,7 @@ class FederatedASDFDataSetDBVariant():
             if(self.rank==0):
                 self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
                 self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
+                self.conn.commit()
                 print('Created database on rank %d for %d waveforms (%5.2f MB)' % \
                       (self.rank, tagsCount, round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
 

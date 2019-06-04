@@ -4,3 +4,6 @@
 [submodule "ellip-corr"]
 	path = ellip-corr
 	url = https://github.com/GeoscienceAustralia/ellip-corr
+[submodule "libmseed"]
+	path = libmseed
+	url = https://github.com/iris-edu/libmseed
