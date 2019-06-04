@@ -20,7 +20,7 @@ def logfile(request):
     return request.param
 
 
-@pytest.mark.skipif(PY3, reason='only supported in py27')
+@pytest.mark.skipif(PY3, reason='Decoding needs to be ported to Python 3')
 def test_convert_logs(random_filename, logfile):
     output_dir = os.path.dirname(random_filename())
     logfile = join(TESTDATA, logfile)
@@ -34,7 +34,7 @@ def test_convert_logs(random_filename, logfile):
     assert d_out == d_stored
 
 
-@pytest.mark.skipif(PY3, reason='only supported in py27')
+@pytest.mark.skipif(PY3, reason='Decoding needs to be ported to Python 3')
 def test_convert_logs_parallel(random_filename):
     output_dir = os.path.dirname(random_filename())
     logfiles = [join(TESTDATA, f) for f in test_dat_files]
