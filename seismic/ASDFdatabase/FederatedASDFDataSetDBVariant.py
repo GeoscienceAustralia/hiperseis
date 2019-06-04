@@ -205,13 +205,12 @@ class FederatedASDFDataSetDBVariant():
             if(self.rank==0):
                 self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
                 self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
-
+                self.conn.commit()
                 print('Created database on rank %d for %d waveforms (%5.2f MB)' % \
                       (self.rank, tagsCount, round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
 
                 if (self.rank == 0): self.conn.close()
             # end if
-            self.conn.commit()
             self.comm.Barrier()
             self.conn = sqlite3.connect(self.db_fn)
         # end if
