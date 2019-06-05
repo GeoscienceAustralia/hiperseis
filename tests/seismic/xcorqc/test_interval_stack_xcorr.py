@@ -84,7 +84,6 @@ def inv1(request):
 def inv2(request):
     return request.param
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
 def test_interval_stack_xcorr_(tmpdir, inv1, inv2, interval_seconds, window_seconds,
                                clip_to_2std, whitening, one_bit_normalize,
                                envelope_normalize, ensemble_stack):

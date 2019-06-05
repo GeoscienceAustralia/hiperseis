@@ -657,13 +657,16 @@ def _get_known_temporary_deployments():
               help='Add matching stations from alternate networks in IRIS catalog')
 @click.option('--export-path', type=click.Path(file_okay=False),
               help='Folder in which to store raw time series of TT residuals')
+@click.option('--interactive', is_flag=True, default=False, show_default=True,
+              help='If True, plots will be displayed as popup windows instead of saving to file. '
+                   'Use this option to interact with the data.')
 def main(picks_file, network1, networks2, stations1=None, stations2=None, 
          min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
          min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
          min_event_magnitude=DEFAULT_MIN_EVENT_MAG, strict_filtering=DEFAULT_STRICT_FILTERING,
          show_deployments=False, show_historical=True, include_alternate_catalog=True,
-         export_path=None):  # pragma: no cover
+         export_path=None, interactive=False):  # pragma: no cover
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings in accordance with picks_reader_utils.PICKS_TABLE_SCHEMA.
@@ -745,6 +748,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
         display_options.deployments = temporary_deployments
 
     batch_options = BatchOptions()
+    batch_options.save_file = not interactive
     batch_options.batch_label = '_strict' if strict_filtering else '_no_strict'
     batch_options.export_path = export_path
     assert len(TARGET_STNS['net']) == len(TARGET_STNS['sta'])
