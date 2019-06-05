@@ -591,7 +591,7 @@ def _report_failed_files(failed_files):
 
 @click.command()
 @click.argument('paths', type=click.Path('r'), required=True, nargs=-1)
-@click.option('--dataset', default=None, required=True, type=click.Path('r'), help='Federated ASDF dataset filename')
+@click.option('--dataset', default=None, type=click.Path('r'), help='Federated ASDF dataset filename')
 @click.option('--time-window', default=300, type=int, show_default=True, help='Duration of time lag window to consider')
 @click.option('--snr-threshold', default=6, type=float, show_default=True,
               help='Minimum sample SNR to include in clock correction estimate')
@@ -609,6 +609,14 @@ def main(paths, dataset, time_window, snr_threshold):
     :param snr_threshold: Minimum sample SNR to include in clock correction estimate
     :type snr_threshold: float
     """
+
+    # Hardwired default path for now for GA application.
+    if dataset is None:
+        dataset = "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"
+
+    if not os.path.exists(dataset):
+        print("ERROR: Dataset path {} not found!".format(dataset))
+        exit(1)
 
     files = []
     dirs = []
