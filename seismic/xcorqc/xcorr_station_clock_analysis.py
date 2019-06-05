@@ -592,8 +592,8 @@ def _report_failed_files(failed_files):
 @click.command()
 @click.argument('paths', type=click.Path('r'), required=True, nargs=-1)
 @click.option('--dataset', default=None, required=True, type=click.Path('r'), help='Federated ASDF dataset filename')
-@click.option('--time-window', default=300, type=int, help='Duration of time lag window to consider')
-@click.option('--snr-threshold', default=6, type=float,
+@click.option('--time-window', default=300, type=int, show_default=True, help='Duration of time lag window to consider')
+@click.option('--snr-threshold', default=6, type=float, show_default=True,
               help='Minimum sample SNR to include in clock correction estimate')
 def main(paths, dataset, time_window, snr_threshold):
     """

@@ -11,6 +11,39 @@ The clock error identification scripts are automated batch scripts based on the 
 The clock correction is a semi-automated tool that facilitates easy fitting of piecewise linear
 functions to the clock error data, and exporting of the fitted functions to file.
 
+## Clock correction procedure
+
+The follow steps outline the overall procedure for generating clock corrections for the "low hanging fruit",
+i.e. cases where there is an obvious clock drift or jump.
+
+1. Run relative TT residual analysis using script `relative_tt_residuals_plotter.py` on select stations
+   or entire networks.
+1. Survey the relative TT residual plots to identify candidate clock drift time intervals on a per-station basis.
+1. For each station's candidate time interval, run cross-correlation `correlator.py` on the target station
+   with respect to a carefully selected reference station over a time range that encompasses the suspected clock
+   drift time interval.
+   * Selection of the reference station requires user judgement and cross-referencing against maps and station
+     deployment dates, followed by some trial and error.
+   * You need to make sure the cross-correlation time interval includes substantiall time buffers before and
+     after the suspected clock drift interval, to make sure the [RCF](#Cross-correlation) is sufficiently sharp.
+   * As a rule of thumb, make sure the time buffers are at least as long as the drift time interval.
+1. Visualize the cross-correlation result using `xcorr_station_clock_analysis.py` to determine if any clock drift
+   is adequately resolved to proceed to next phase.
+   * We want to see a clear clock drift signal with sufficiently low noise that a regression curve could be fitted
+     to the drift signal.
+   * If drift is not well resolved, try tweaking the cross-correlation parameters (such as frequency range) to
+     try to improve the result. As a starting point, the frequency range 0.3-1.0 Hz is recommended.
+1. Using the best available cross-correlation result, load it into the interactive ipython notebook script
+   `generateStationClockCorrections.ipynb` to generate the final clock correction estimates. There are two stages
+   of manual tuning required in this script:
+   1. Tune the DBSCAN clustering parameters to achieve clean clustering of the time intervals with different
+      characteristics. Inline visualizations in the notebook can be used to assess the quality of clustering.
+   1. Tune the order of spline regressions to ensure smooth, well fitting curve fit to each cluster. Inline
+      visualizations in the notebook can be used to assess the quality of curve fit.
+   1. Once the above tuning steps are achieved, run the remaining cells in the notebook to export the clock
+      correction results.
+
+Details on the tools to achieve these steps are provided below.
 
 ## Relative TT residual analysis
 
@@ -67,6 +100,12 @@ residual exists for the same origin timestamp, the median of the values is expor
 csv files can then be imported to the `generateStationClockCorrections.ipynb` script and processed
 to create a clock correction file.
 
+#### Interacting with the data
+
+The `--interactive` option will suppress the generation of output `.png` files and instead pop up the
+graphical plots in interactive matplotlib wwindows. This gives the user the possibility to interact with
+the data in a GUI and examine the results in more detail.
+
 ### Limitations
 
 Relative travel-time residual analysis is based on picks, and the picking algorithm itself has a
@@ -90,6 +129,14 @@ they are common to two stations, which can only happen if they were deployed at 
 This should be mainly documented in `seismic/xcorqc/Readme.md`. The script to use for running
 cross-correlation analysis is `seismic/xcorqc/correlator.py`. For detailed documentation of
 this script, see help from `seismic/xcorqc/correlator.py --help`.
+
+The output of the cross-correlation computation is a netCDF4 file with extension `.nc`, as
+per the command line arguments passed to `seismic/xcorqc/correlator.py`. In order to visualize
+the results of a `.nc` file, use script `seismic/xcorqc/xcorr_station_clock_analysis.py` to
+generate `.png` file graphical visualizations of the cross-correlation. The `xcorr_station_clock_analysis.py`
+script supports batch mode recursive processing of all `.nc` files in a folder hierarchy, since
+cross-correlation computations are often run in batches of multiple stations or multiple
+cross-correlation parameters.
 
 Cross-correlation analysis can detect much longer time drifts than relative TT residuals,
 and is also the means to generate inputs to the clock correction iPython notebook
@@ -121,8 +168,8 @@ steps:
 1. Visualize the estimated raw corrections to ensure they are feasible to fit lines to.
 1. Compute clusters of quasi-linear segments and *iteratively tune the cluster distance coefficients*
    to ensure optimal clustering.
-1. Once happy with the clustering, perform linear regression on each cluster and re-check visual fit.
-1. Export the linearized clock corrections to csv file.
+1. Once happy with the clustering, perform spline curve regression on each cluster and re-check visual fit.
+1. Export the regressed (smoothed) clock corrections to csv file.
 
 The resultant clock corrections can then be ingested into other scripts, such as inversion codes or
 even the GPS clock analysis scripts themselves.
@@ -183,5 +230,5 @@ Example network dates plot:
 
 ## References
 
-[Cross-correlation.](https://academic.oup.com/gji/article/214/3/2014/5038378)
+[Cross-correlation](https://academic.oup.com/gji/article/214/3/2014/5038378)
 
