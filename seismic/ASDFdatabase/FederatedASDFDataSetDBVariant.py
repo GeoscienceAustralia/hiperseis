@@ -11,6 +11,7 @@ Revision History:
     LastUpdate:     03/19/18   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
+from future.utils import iteritems
 from builtins import range
 
 from mpi4py import MPI
@@ -373,8 +374,8 @@ class FederatedASDFDataSetDBVariant():
         # end if
 
         workload = self.comm.scatter(workload, root=0)
-        for (nk, nv) in workload.iteritems():
-            for (sk, sv) in nv.iteritems():
+        for (nk, nv) in iteritems(workload):
+            for (sk, sv) in iteritems(nv):
                 start_time = None
                 end_time = None
                 try:
