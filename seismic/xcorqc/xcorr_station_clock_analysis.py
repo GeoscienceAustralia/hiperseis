@@ -25,6 +25,9 @@ import matplotlib.pyplot as plt
 from dateutil import rrule
 import click
 
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
+
 # import obspy
 from netCDF4 import Dataset as NCDataset
 from tqdm.auto import tqdm
@@ -428,16 +431,20 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     if show:
         plt.show()
 
-    # Need to clean all this up explicitly, otherwise huge memory leaks when run
-    # from ipython notebook.
-    ax1.clear()
-    ax2.clear()
-    ax3.clear()
-    ax4.clear()
-    ax5.clear()
-    ax6.clear()
-    fig.clf()
-    plt.close('all')
+    # If no output options, return the figure handle for further use by caller
+    if pdf_file is None and png_file is None and not show:
+        return fig
+    else:
+        # Need to clean all this up explicitly, otherwise huge memory leaks when run
+        # from ipython notebook.
+        ax1.clear()
+        ax2.clear()
+        ax3.clear()
+        ax4.clear()
+        ax5.clear()
+        ax6.clear()
+        fig.clf()
+        plt.close('all')
 
 
 def read_correlator_config(nc_file):
@@ -472,7 +479,8 @@ def read_correlator_config(nc_file):
     return settings_df, title_tag
 
 
-def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plots=True, underlay_rcf_xcorr=False):
+def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plots=True, underlay_rcf_xcorr=False,
+                        force_save=False):
     """
     Process a batch of .nc files to generate standard visualization graphics. PNG files are output alongside the
     source .nc file. To suppress file output, set save_plots=False.
@@ -523,7 +531,7 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plo
                     src_file_time = os.path.getmtime(src_file)
                     png_file_time = os.path.getmtime(png_file)
                     png_file_size = os.stat(png_file).st_size
-                    if png_file_time > src_file_time and png_file_size > 0:
+                    if not force_save and (png_file_time > src_file_time) and (png_file_size > 0):
                         tqdm.write("PNG file {} is more recent than source file {}, skipping!".format(
                             os.path.split(png_file)[1], os.path.split(src_file)[1]))
                         found_preexisting = True
