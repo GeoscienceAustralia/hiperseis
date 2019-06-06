@@ -89,10 +89,10 @@ class XcorrPreprocessor:
         # print("Date range for file {}:\n    {} -- {}".format(self.src_file, start_time, end_time))
 
         # Extract primary data
-        lag_indices = np.squeeze(np.argwhere(np.fabs(np.round(xc_lag, decimals=2)) == self.time_window))
+        lag_indices = np.squeeze(np.argwhere(np.fabs(np.round(xc_lag, decimals=2)) <= self.time_window))
         self.start_times = xc_start_times
-        self.lag = xc_lag[lag_indices[0]:lag_indices[1]]
-        self.ccf = xc_xcorr[:, lag_indices[0]:lag_indices[1]]
+        self.lag = xc_lag[lag_indices[0]:lag_indices[-1]]
+        self.ccf = xc_xcorr[:, lag_indices[0]:lag_indices[-1]]
         self.nsw = xc_num_stacked_windows
 
         # Compute derived quantities used by multiple axes

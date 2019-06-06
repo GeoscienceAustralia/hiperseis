@@ -137,7 +137,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.TIME_WINDOW_LABEL = tk.Label(self.TIME_WINDOW_PANE, text="Time window (s)")
         self.TIME_WINDOW_LABEL.pack(side=tk.LEFT)
         self.TIME_WINDOW_PANE.add(self.TIME_WINDOW_LABEL)
-        self.TIME_WINDOW_ENTRY = tk.Scale(self.TIME_WINDOW_PANE, from_=30, to=1800, resolution=30,
+        self.TIME_WINDOW_ENTRY = tk.Scale(self.TIME_WINDOW_PANE, from_=30, to=1800, resolution=10,
                                           orient=tk.HORIZONTAL, width=200)
         self.TIME_WINDOW_ENTRY.set(self.time_window.get())
         self.TIME_WINDOW_ENTRY['variable'] = self.time_window
@@ -211,6 +211,7 @@ class GpsClockCorrectionApp(tk.Frame):
     def _saveStep1AndContinue(self):
         if self.current_step == 1:
             self.NEXT['state'] = tk.DISABLED
+            self.update()
             batch_process_xcorr([self.nc_file.get()], self.fds, self.time_window.get(), self.snr_threshold.get(),
                                 save_plots=True, force_save=True)
             self._gotoStep2()
