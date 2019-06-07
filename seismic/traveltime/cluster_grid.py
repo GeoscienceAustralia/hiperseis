@@ -349,7 +349,7 @@ class Grid2:
         mylist=[]
         for k in sorted_keys:
             #print('%-10s' % (str(k)) + ':', my_grid.__dict__[k])
-            mylist.append("%s : %s "%(str(k), my_grid.__dict__[k]))
+            mylist.append("%s : %s "%(str(k), self.__dict__[k]))
 
         return str(mylist)
 
