@@ -36,12 +36,24 @@ from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.xcorqc.analytic_plot_utils import distance
 
 
-class XcorrPreprocessor:
+class XcorrClockAnalyzer:
     """
     Helper class for bundling of preprocessed cross-correlation data before plotting
     or subsequent processing.
     """
-    def __init__(self, src_file, time_window, snr_threshold):
+    def __init__(self, src_file, time_window, snr_threshold, pcf_cutoff_threshold):
+        """Constructor
+
+        :param src_file: Source .nc file
+        :type src_file: str
+        :param time_window: Time window to analyze (maximum detectable time shift), in seconds
+        :type time_window: int
+        :param snr_threshold: Minimum SNR threshold for a given day to include in stacked correlation function (RCF)
+        :type snr_threshold: int
+        :param pcf_cutoff_threshold: Minimum Pearson correlation factor (RCF * CCF) to accept for generating a time
+            shift estimate for a given day, between 0.0 and 1.0.
+        :type pcf_cutoff_threshold: float
+        """
         # INPUTS
         # Input file
         self.src_file = src_file
@@ -49,27 +61,34 @@ class XcorrPreprocessor:
         self.time_window = time_window
         # Minimum SNR per sample
         self.snr_threshold = snr_threshold
+        # Minimum Pearson correlation factor to accept for a given day's CCF
+        self.pcf_cutoff_threshold = pcf_cutoff_threshold
 
         # OUTPUTS
-        # Reference correlation function
+        # Reference correlation function (RCF) as per Hable et. al (2018)
+        # :type rcf: np.array
         self.rcf = None
         # Timestamps corresponding to the time series data in ccf, lag, nsw
         self.start_times = None
         # Cross-correlation function sample
         self.ccf = None
         # Masked ccf according to quality criteria
+        # :type ccf_masked: numpy.ma.masked_array
         self.ccf_masked = None
         # Signal to noise ratio
         self.snr = None
-        # Mask of when snr meets quality criteria
+        # Mask of which samples meet minimum SNR criteria
+        # :type snr_mask: numpy array mask
         self.snr_mask = None
         # Horizontal axis values (lag window)
+        # :type lag: numpy.array
         self.lag = None
         # Number of stacked windows per sample
         self.nsw = None
 
         # Generate outputs
         self._preprocess()
+    # end func
 
     def _preprocess(self):
         xcdata = NCDataset(self.src_file, 'r')
@@ -105,6 +124,76 @@ class XcorrPreprocessor:
         if np.any(self.snr > self.snr_threshold):
             self.snr_mask = (self.snr > self.snr_threshold)
             self.rcf = np.nanmean(self.ccf_masked[self.snr_mask, :], axis=0)
+    # end func
+
+    def compute_estimated_clock_corrections(self):
+        """
+        Compute the estimated GPS clock corrections given series of cross-correlation functions
+        and an overall reference correlation function (rcf, the mean of valid samples of the
+        cross-correlation time series).
+
+        :return: Corrected RCF after first order corrections; estimated clock corrections;
+                 final per-sample cross-correlation between corrected RCF and each sample
+        :rtype: (numpy.array [1D], numpy.array [1D], numpy.array [2D])
+        """
+        # Make an initial estimate of the shift, and only mask out a row if the Pearson coefficient
+        # is less than the threshold AFTER applying the shift. Otherwise we will be masking out
+        # some of the most interesting regions where shifts occur.
+        correction = []
+        ccf_shifted = []
+        for row in self.ccf_masked:
+            if np.ma.is_masked(row) or self.rcf is None:
+                correction.append(np.nan)
+                ccf_shifted.append(np.array([np.nan] * self.ccf_masked.shape[1]))
+                continue
+
+            # The logic here needs to be expanded to allow for possible mirroring of the CCF
+            # as well as a shift.
+            c3 = scipy.signal.correlate(self.rcf, row, mode='same')
+            c3 /= np.max(c3)
+            peak_index = np.argmax(c3)
+            shift_size = int(peak_index - len(c3) / 2)
+            row_shifted = np.roll(row, shift_size)
+            # Zero the rolled in values
+            if shift_size > 0:
+                row_shifted[0:shift_size] = 0
+            elif shift_size < 0:
+                row_shifted[shift_size:] = 0
+            ccf_shifted.append(row_shifted)
+            # Store first order corrections.
+            peak_lag = self.lag[peak_index]
+            correction.append(peak_lag)
+        # end for
+        correction = np.array(correction)
+        ccf_shifted = np.array(ccf_shifted)
+        # Recompute the RCF with first order clock corrections.
+        rcf_corrected = np.nanmean(ccf_shifted[self.snr_mask, :], axis=0)
+
+        # For the Pearson coeff threshold, apply it against the CORRECTED RCF after the application
+        # of estimated clock corrections.
+        row_rcf_crosscorr = []
+        for i, row in enumerate(self.ccf_masked):
+            if np.ma.is_masked(row) or self.rcf is None:
+                row_rcf_crosscorr.append([np.nan] * self.ccf_masked.shape[1])
+                continue
+
+            pcf_corrected, _ = scipy.stats.pearsonr(rcf_corrected, ccf_shifted[i, :])
+            if pcf_corrected < self.pcf_cutoff_threshold:
+                correction[i] = np.nan
+                row_rcf_crosscorr.append([np.nan] * self.ccf_masked.shape[1])
+                continue
+            # Compute second order corrections based on first order corrected RCF
+            c3 = scipy.signal.correlate(rcf_corrected, row, mode='same')
+            c3 /= np.max(c3)
+            peak_index = np.argmax(c3)
+            peak_lag = self.lag[peak_index]
+            correction[i] = peak_lag
+            row_rcf_crosscorr.append(c3)
+        # end for
+        row_rcf_crosscorr = np.array(row_rcf_crosscorr)
+
+        return rcf_corrected, correction, row_rcf_crosscorr
+    # end func
 
 
 def station_codes(filename):
@@ -142,86 +231,6 @@ def station_distance(federated_ds, code1, code2):
     coords1 = federated_ds.unique_coordinates[code1]
     coords2 = federated_ds.unique_coordinates[code2]
     return distance(coords1, coords2)
-
-
-def compute_estimated_clock_corrections(rcf, snr_mask, ccf_masked, x_lag, pcf_cutoff_threshold):
-    """
-    Compute the estimated GPS clock corrections given series of cross-correlation functions
-    and an overall reference correlation function (rcf, the mean of valid samples of the
-    cross-correlation time series).
-
-    :param rcf: Pre-computed reference correlation function (RCF) as per Hable et. al (2018)
-    :type rcf: np.array
-    :param snr_mask: Mask of which samples meet minimum SNR criteria
-    :type snr_mask: numpy array mask
-    :param ccf_masked: Time series of cross-correlation functions, masked by
-                       externally decided validity flags.
-    :type ccf_masked: numpy.ma.masked_array
-    :param x_lag: The x-axis, the lag
-    :type x_lag: numpy.array
-    :param pcf_cutoff_threshold: Minimum threshold for Pearson correlation factor.
-    :type pcf_cutoff_threshold: float
-    :return: Corrected RCF after first order corrections; estimated clock corrections;
-             final per-sample cross-correlation between corrected RCF and each sample
-    :rtype: (numpy.array [1D], numpy.array [1D], numpy.array [2D])
-    """
-    # Make an initial estimate of the shift, and only mask out a row if the Pearson coefficient
-    # is less than the threshold AFTER applying the shift. Otherwise we will be masking out
-    # some of the most interesting regions where shifts occur.
-    correction = []
-    ccf_shifted = []
-    for row in ccf_masked:
-        if np.ma.is_masked(row) or rcf is None:
-            correction.append(np.nan)
-            ccf_shifted.append(np.array([np.nan] * ccf_masked.shape[1]))
-            continue
-
-        # The logic here needs to be expanded to allow for possible mirroring of the CCF
-        # as well as a shift.
-        c3 = scipy.signal.correlate(rcf, row, mode='same')
-        c3 /= np.max(c3)
-        peak_index = np.argmax(c3)
-        shift_size = int(peak_index - len(c3) / 2)
-        row_shifted = np.roll(row, shift_size)
-        # Zero the rolled in values
-        if shift_size > 0:
-            row_shifted[0:shift_size] = 0
-        elif shift_size < 0:
-            row_shifted[shift_size:] = 0
-        ccf_shifted.append(row_shifted)
-        # Store first order corrections.
-        peak_lag = x_lag[peak_index]
-        correction.append(peak_lag)
-    # end for
-    correction = np.array(correction)
-    ccf_shifted = np.array(ccf_shifted)
-    # Recompute the RCF with first order clock corrections.
-    rcf_corrected = np.nanmean(ccf_shifted[snr_mask, :], axis=0)
-
-    # For the Pearson coeff threshold, apply it against the CORRECTED RCF after the application
-    # of estimated clock corrections.
-    row_rcf_crosscorr = []
-    for i, row in enumerate(ccf_masked):
-        if np.ma.is_masked(row) or rcf is None:
-            row_rcf_crosscorr.append([np.nan] * ccf_masked.shape[1])
-            continue
-
-        pcf_corrected, _ = scipy.stats.pearsonr(rcf_corrected, ccf_shifted[i, :])
-        if pcf_corrected < pcf_cutoff_threshold:
-            correction[i] = np.nan
-            row_rcf_crosscorr.append([np.nan] * ccf_masked.shape[1])
-            continue
-        # Compute second order corrections based on first order corrected RCF
-        c3 = scipy.signal.correlate(rcf_corrected, row, mode='same')
-        c3 /= np.max(c3)
-        peak_index = np.argmax(c3)
-        peak_lag = x_lag[peak_index]
-        correction[i] = peak_lag
-        row_rcf_crosscorr.append(c3)
-    # end for
-    row_rcf_crosscorr = np.array(row_rcf_crosscorr)
-
-    return rcf_corrected, correction, row_rcf_crosscorr
 
 
 def plot_xcorr_time_series(ax, x_lag, y_times, xcorr_data, use_formatter=False):
@@ -349,21 +358,17 @@ def plot_estimated_timeshift(ax, x_lag, y_times, correction, annotation=None, ro
                 verticalalignment='top', transform=ax.transAxes, rotation=90)
 
 
-def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_threshold,
+def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_threshold, pearson_correlation_factor,
                                    show=True, underlay_rcf_xcorr=False,
                                    pdf_file=None, png_file=None, title_tag='',
                                    settings=None):
     # Read and preprocess xcorr data
-    xcorr_pp = XcorrPreprocessor(src_file, time_window, snr_threshold)
+    xcorr_ca = XcorrClockAnalyzer(src_file, time_window, snr_threshold, pearson_correlation_factor)
 
     origin_code, dest_code = station_codes(src_file)
     dist = station_distance(asdf_dataset, origin_code, dest_code)
 
-    PCF_CUTOFF_THRESHOLD = 0.5
-    rcf_corrected, correction, row_rcf_crosscorr = \
-        compute_estimated_clock_corrections(xcorr_pp.rcf, xcorr_pp.snr_mask,
-                                            xcorr_pp.ccf_masked, xcorr_pp.lag,
-                                            PCF_CUTOFF_THRESHOLD)
+    rcf_corrected, correction, row_rcf_crosscorr = xcorr_ca.compute_estimated_clock_corrections()
 
     # -----------------------------------------------------------------------
     # Master layout and plotting code
@@ -382,10 +387,10 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     ax6 = fig.add_axes([0.8, 0.075, 0.195, 0.725])  # estimate timeshifts
 
     # Plot CCF image =======================
-    plot_xcorr_time_series(ax1, xcorr_pp.lag, xcorr_pp.start_times, xcorr_pp.ccf)
+    plot_xcorr_time_series(ax1, xcorr_ca.lag, xcorr_ca.start_times, xcorr_ca.ccf)
 
     # Plot CCF-template (reference CCF) ===========
-    plot_reference_correlation_function(ax2, xcorr_pp.lag, xcorr_pp.rcf, rcf_corrected, snr_threshold)
+    plot_reference_correlation_function(ax2, xcorr_ca.lag, xcorr_ca.rcf, rcf_corrected, snr_threshold)
 
     # If settings are provided, plot them as text box overlay in ax2
     if settings is not None:
@@ -402,21 +407,21 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
                  transform=ax2.transAxes, bbox=dict(fc='#e0e0e080', ec='#80808080'))
 
     # Plot number of stacked windows ==============
-    plot_stacked_window_count(ax3, xcorr_pp.nsw, xcorr_pp.start_times)
+    plot_stacked_window_count(ax3, xcorr_ca.nsw, xcorr_ca.start_times)
 
     # Plot histogram
-    plot_snr_histogram(ax4, xcorr_pp.snr, time_window)
+    plot_snr_histogram(ax4, xcorr_ca.snr, time_window)
 
     # Plot Pearson correlation coefficient=========
-    plot_pearson_corr_coeff(ax5, xcorr_pp.rcf, xcorr_pp.ccf_masked, xcorr_pp.start_times)
+    plot_pearson_corr_coeff(ax5, xcorr_ca.rcf, xcorr_ca.ccf_masked, xcorr_ca.start_times)
 
     # plot Timeshift =====================
-    annotation = 'Min. corrected Pearson Coeff={:3.3f}'.format(PCF_CUTOFF_THRESHOLD)
+    annotation = 'Min. corrected Pearson Coeff={:3.3f}'.format(pearson_correlation_factor)
     if underlay_rcf_xcorr:
-        plot_estimated_timeshift(ax6, xcorr_pp.lag, xcorr_pp.start_times, correction, annotation=annotation,
+        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, correction, annotation=annotation,
                                  row_rcf_crosscorr=row_rcf_crosscorr)
     else:
-        plot_estimated_timeshift(ax6, xcorr_pp.lag, xcorr_pp.start_times, correction, annotation=annotation)
+        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, correction, annotation=annotation)
 
     # Print and display
     if pdf_file is not None:
@@ -433,7 +438,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
 
     # If no output options, return the figure handle for further use by caller
     if pdf_file is None and png_file is None and not show:
-        return fig
+        return xcorr_ca, fig
     else:
         # Need to clean all this up explicitly, otherwise huge memory leaks when run
         # from ipython notebook.
@@ -445,6 +450,7 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
         ax6.clear()
         fig.clf()
         plt.close('all')
+        return xcorr_ca, None
 
 
 def read_correlator_config(nc_file):
@@ -479,8 +485,8 @@ def read_correlator_config(nc_file):
     return settings_df, title_tag
 
 
-def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plots=True, underlay_rcf_xcorr=False,
-                        force_save=False):
+def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, pearson_cutoff_factor=0.5, save_plots=True,
+                        underlay_rcf_xcorr=False, force_save=False):
     """
     Process a batch of .nc files to generate standard visualization graphics. PNG files are output alongside the
     source .nc file. To suppress file output, set save_plots=False.
@@ -538,11 +544,11 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plo
                         skipped_count += 1
                         pbar.update()
                         continue
-                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, png_file=png_file,
-                                               show=False, underlay_rcf_xcorr=underlay_rcf_xcorr,
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, pearson_cutoff_factor,
+                                               png_file=png_file, show=False, underlay_rcf_xcorr=underlay_rcf_xcorr,
                                                title_tag=title_tag, settings=settings)
             else:
-                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold,
+                plot_xcorr_file_clock_analysis(src_file, dataset, time_window, snr_threshold, pearson_cutoff_factor,
                                                underlay_rcf_xcorr=underlay_rcf_xcorr, title_tag=title_tag,
                                                settings=settings)
             success_count += 1
@@ -565,7 +571,7 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, save_plo
     return failed_files
 
 
-def batch_process_folder(folder_name, dataset, time_window, snr_threshold, save_plots=True):
+def batch_process_folder(folder_name, dataset, time_window, snr_threshold, pearson_cutoff_factor=0.5, save_plots=True):
     """
     Process all the .nc files in a given folder into graphical visualizations.
 
@@ -583,8 +589,8 @@ def batch_process_folder(folder_name, dataset, time_window, snr_threshold, save_
     src_files = glob.glob(os.path.join(folder_name, '*.nc'))
     print("Found {} .nc files in {}".format(len(src_files), folder_name))
 
-    failed_files = batch_process_xcorr(src_files, dataset, time_window=time_window,
-                                       snr_threshold=snr_threshold, save_plots=save_plots)
+    failed_files = batch_process_xcorr(src_files, dataset, time_window=time_window, snr_threshold=snr_threshold,
+                                       pearson_cutoff_factor=pearson_cutoff_factor, save_plots=save_plots)
     _report_failed_files(failed_files)
 
 

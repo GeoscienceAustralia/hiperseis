@@ -40,6 +40,8 @@ class GpsClockCorrectionApp(tk.Frame):
         self.station_code = ''
         self.time_window = tk.IntVar(self, value=300)
         self.snr_threshold = tk.IntVar(self, value=6)
+        self.pearson_cutoff_factor = 0.5
+        self.xcorr_ca = None
         self.xcorr_fig = None
         self.fig_canv = None
 
@@ -171,8 +173,8 @@ class GpsClockCorrectionApp(tk.Frame):
         self.LEFT_PANE_1.add(self.REFRESH)
 
         self.NEXT = tk.Button(self.LEFT_PANE_1)
-        self.NEXT['text'] = "Next..."
-        self.NEXT['command'] = self._saveStep1AndContinue
+        self.NEXT['text'] = "Save and Continue..."
+        self.NEXT['command'] = self._gotoStep2
         self.NEXT.pack(side=tk.TOP, fill=tk.X)
         self.LEFT_PANE_1.add(self.NEXT)
 
@@ -198,9 +200,10 @@ class GpsClockCorrectionApp(tk.Frame):
         if self.fig_canv is not None:
             self.fig_canv.get_tk_widget().destroy()
         self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
-        self.xcorr_fig = plot_xcorr_file_clock_analysis(self.nc_file.get(), self.fds, self.time_window.get(),
-                                                        self.snr_threshold.get(), show=False,
-                                                        title_tag=self.xcorr_title_tag, settings=self.xcorr_settings)
+        self.xcorr_ca, self.xcorr_fig = \
+            plot_xcorr_file_clock_analysis(self.nc_file.get(), self.fds, self.time_window.get(),
+                                           self.pearson_cutoff_factor, self.snr_threshold.get(), show=False,
+                                           title_tag=self.xcorr_title_tag, settings=self.xcorr_settings)
         self.fig_canv = FigureCanvasTkAgg(self.xcorr_fig, master=self.RIGHT_FIGURE_CANVAS_1)
         self.fig_canv.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         self.RIGHT_FIGURE_CANVAS_1.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
@@ -208,16 +211,9 @@ class GpsClockCorrectionApp(tk.Frame):
         self.NEXT['state'] = tk.NORMAL
         self.update()
 
-    def _saveStep1AndContinue(self):
-        if self.current_step == 1:
-            self.NEXT['state'] = tk.DISABLED
-            self.update()
-            batch_process_xcorr([self.nc_file.get()], self.fds, self.time_window.get(), self.snr_threshold.get(),
-                                save_plots=True, force_save=True)
-            self._gotoStep2()
-
     def _gotoStep2(self):
         if self.current_step == 1:
+            self.NEXT['state'] = tk.DISABLED
             # for child in self.TOP_PANE_0.winfo_children():
             #     self.child.destroy()
             if self.xcorr_fig is not None:
@@ -230,10 +226,29 @@ class GpsClockCorrectionApp(tk.Frame):
             self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
             self.TOP_PANE_1.destroy()
             self.TOP_PANE_1 = None
+            self.update()
+
+            info_label = tk.Label(self, text="Saving plot to graphical file...")
+            info_label.pack()
+            self.update()
+
+            batch_process_xcorr([self.nc_file.get()], self.fds, self.time_window.get(), self.snr_threshold.get(),
+                                pearson_cutoff_factor=self.pearson_cutoff_factor, save_plots=True, force_save=True)
+
+            info_label.destroy()
+
             self._createStep2Widgets()
 
     def _createStep2Widgets(self):
         self.current_step = 2
+        assert self.xcorr_ca is not None
+
+        self.QUIT = tk.Button(self)
+        self.QUIT['text'] = "Quit"
+        self.QUIT['command'] = self.quit
+        self.QUIT.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.update()
 
 #end class
 
