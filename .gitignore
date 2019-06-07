@@ -85,3 +85,5 @@ seismic/xcorqc/**/*.nc
 seismic/xcorqc/**/*.cfg
 seismic/xcorqc/**/*.pbs
 **/junk.*
+**/LOG_CODE_DUPES_*.txt
+**/LOG_LOCATION_DUPES_*.txt

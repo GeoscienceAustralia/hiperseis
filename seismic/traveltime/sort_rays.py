@@ -349,26 +349,29 @@ def apply_filters(csv_data, phase):
         raise Exception("Phase < %s >  Not Recognised! " % (phase))
 
     # Marcus filter code block
-    print("CSV size=", csv_data.shape)
-    log.info('Select useful rows/rays by applying filters.')
+    print("The initial CSV size=", csv_data.shape)
+
+    # make a manual_picks_flag=1 if all six colums =0.0
+    csv_data["manual_picks_flag"] = csv_data.apply(lambda x: is_manual_pick(x), axis=1)
+
+    log.info('Select reliable seismic picks/rays by applying quality filters.')
 
     # Filter any remaining outlier traveltime residuals
     csv_data = csv_data[abs(csv_data['tt_residual']) < residual_cutoff]
-    print("CSV size=", csv_data.shape)
+    print("After residual cutoff, CSV size=", csv_data.shape)
 
     # Temporarily remove network 7D until clock errors have been fixed.
     #csv_data = _filter_data(csv_data, 'originTimestamp', network='7D', gt=time.mktime(time.strptime('2000-01-01', ('%Y-%M-%d'))))
-    print("CSV size=", csv_data.shape)
 
     # Filter to remove lowest quality picks
-    csv_data = csv_data[(csv_data['qualityMeasureCWT'] >= qualityMeasureCWT_cutoff)]
-    print ("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['qualityMeasureCWT'] >= qualityMeasureCWT_cutoff) | (csv_data["manual_picks_flag"]==1) ]
+    print ("After qualityMeasureCWT, CSV size=", csv_data.shape)
 
-    csv_data = csv_data[(csv_data['qualityMeasureSlope'] >= qualityMeasureSlope_cutoff)]
-    print("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['qualityMeasureSlope'] >= qualityMeasureSlope_cutoff) | (csv_data["manual_picks_flag"]==1)]
+    print("After qualityMeasureSlope, CSV size=", csv_data.shape)
 
-    csv_data = csv_data[(csv_data['nSigma'] >= nSigma_cutoff)]
-    print("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['nSigma'] >= nSigma_cutoff) | (csv_data["manual_picks_flag"]==1)]
+    print("After nSigma, CSV size=", csv_data.shape)
 
     # Filter out known time-shifts from station records
     if os.path.exists('FILTER.csv'):
@@ -407,7 +410,7 @@ def apply_filters(csv_data, phase):
                 lambda x: is_ray_in("%s_%s_%s"%(x.net,x.sta, x['#eventID']), p_events), axis=1)
 
             # only keep the rows if ray_filter_flag is 1
-            csv_data = csv_data [csv_data["ray_filter_flag"] == 1 ]
+            csv_data = csv_data.loc[csv_data["ray_filter_flag"] == 1]
 
             os.remove('P_EVENTS.npy')
 
@@ -418,6 +421,15 @@ def apply_filters(csv_data, phase):
 
 
     return csv_data
+
+def is_manual_pick(x):
+    #["snr", "qualityMeasureCWT", "domFreq", "qualityMeasureSlope", "bandIndex", and "nSigma"]
+
+    if(x.snr == 0.0 and x.qualityMeasureCWT == 0.0 and x.domFreq==0.0 and x.qualityMeasureSlope==0.0
+        and x.bandIndex ==0.0 and x.nSigma==0.0 ):
+        return 1
+    else:
+        return 0
 
 def is_ray_in(ray_id, P_RAYS_ID_LIST):
     """
@@ -602,5 +614,5 @@ if __name__ == "__main__":
     # mygrid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/param2x2')
     mygrid = Grid2(param_file=in_param_file)
 
-    sort_csv_in_grid(inf, outf, phase, mygrid,
-                     columns_dict)  # residual_cutoff=5 for Pwave. residual_cutoff=10 for Swave
+    sort_csv_in_grid(inf, outf, phase, mygrid, columns_dict)
+
