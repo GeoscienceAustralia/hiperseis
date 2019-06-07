@@ -30,9 +30,9 @@ from obspy.geodetics import gps2dist_azimuth, locations2degrees
 from seismic.traveltime import pslog
 from seismic.traveltime.cluster_grid import Grid2
 
-DPI = asin(1.0) / 90.0
-R2D = 90. / asin(1.)
-FLOAT_FORMAT = '%.4f'
+# DPI = asin(1.0) / 90.0
+# R2D = 90. / asin(1.)
+# FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
