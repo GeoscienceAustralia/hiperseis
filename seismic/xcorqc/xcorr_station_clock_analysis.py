@@ -35,7 +35,7 @@ from netCDF4 import Dataset as NCDataset
 from tqdm.auto import tqdm
 
 from seismic.ASDFdatabase import FederatedASDFDataSet
-from seismic.xcorqc.analytic_plot_utils import distance
+from seismic.xcorqc.analytic_plot_utils import distance, timestamps_to_plottable_datetimes
 
 
 class XcorrClockAnalyzer:
@@ -258,6 +258,32 @@ class XcorrClockAnalyzer:
         self.rcf_corrected = rcf_corrected
         self.row_rcf_crosscorr = row_rcf_crosscorr
     # end func
+
+    def plot_clusters(self, ax, ids, coeffs, stn_code=''):
+        """
+
+        :param ax:
+        :param ids:
+        :param coeffs:
+        :return:
+        """
+        plot_times = timestamps_to_plottable_datetimes(self.correction_times_clean)
+        ax.plot(plot_times, self.corrections_clean, 'x', color="#808080")
+        for i in range(max(ids) + 1):
+            mask_group = (ids == i)
+            ax.plot(plot_times[mask_group], self.corrections_clean[mask_group], 'o-',
+                    color='C{}'.format(i), markersize=6, fillstyle='none', alpha=0.7)
+
+        time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
+        ax.xaxis.set_major_formatter(time_formatter)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.grid(':', color="#808080", zorder=0, alpha=0.5)
+        ax.set_xlabel('Day', fontsize=14)
+        ax.set_ylabel('Correction (sec)', fontsize=14)
+        ax.text(0.02, 0.96, "Cluster coeffs: {}".format(coeffs), fontsize=12, color="#606060",
+                transform=ax.transAxes)
+        if stn_code:
+            ax.set_title("Station {} first order corrections groups".format(stn_code), fontsize=20)
 
 
 def station_codes(filename):

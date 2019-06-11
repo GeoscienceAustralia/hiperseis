@@ -15,6 +15,7 @@ import tkFileDialog
 import matplotlib
 matplotlib.use("TkAgg")
 # import matplotlib.backends.tkagg as tkagg
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # from matplotlib.figure import Figure
 
@@ -43,6 +44,12 @@ class GpsClockCorrectionApp(tk.Frame):
         self.xcorr_ca = None
         self.xcorr_fig = None
         self.fig_canv = None
+        self.cluster_fig = None
+        self.cluster_fig_canv = None
+        self.cluster_coeff0 = tk.DoubleVar(self, value=1.0)
+        self.cluster_coeff1 = tk.DoubleVar(self, value=1.0)
+        self.cluster_coeff2 = tk.DoubleVar(self, value=0.0)
+        self.cluster_ids = None
 
         self._createStep0Widgets()
 
@@ -168,7 +175,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.REFRESH.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
         self.NEXT = tk.Button(self.LEFT_FRAME_1)
-        self.NEXT['text'] = "Save and Continue..."
+        self.NEXT['text'] = "Save and Next..."
         self.NEXT['command'] = self._gotoStep2
         self.NEXT.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
@@ -190,6 +197,12 @@ class GpsClockCorrectionApp(tk.Frame):
         if self.fig_canv is not None:
             self.fig_canv.get_tk_widget().destroy()
             self.fig_canv = None
+        if self.cluster_fig is not None:
+            self.cluster_fig.clear()
+            self.cluster_fig = None
+        if self.cluster_fig_canv is not None:
+            self.cluster_fig_canv.get_tk_widget().destroy()
+            self.cluster_fig_canv = None
 
     def _updateStep1Canvas(self):
         self.REFRESH['state'] = tk.DISABLED
@@ -231,14 +244,117 @@ class GpsClockCorrectionApp(tk.Frame):
 
     def _createStep2Widgets(self):
         self.current_step = 2
+
         assert self.xcorr_ca is not None
 
-        self.QUIT = tk.Button(self)
+        self.ROOT_FRAME_2 = tk.Frame(self)
+        self.ROOT_FRAME_2.pack(fill=tk.BOTH, expand=1)
+
+        self.UPPER_FRAME_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Station code: " + self.station_code)
+        self.UPPER_FRAME_2.pack(anchor=tk.N, side=tk.TOP)
+
+        self.COEFF_WIDGETS_FRAME_2 = tk.Frame(self.UPPER_FRAME_2)
+        self.COEFF_WIDGETS_FRAME_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2)
+
+        self.COEFF_WIDGETS_LABEL = tk.Label(self.COEFF_WIDGETS_FRAME_2, font=8,
+                                            text="Tune coefficients to optimize clustering and filtering of outliers")
+        self.COEFF_WIDGETS_LABEL.pack(anchor=tk.W, side=tk.TOP, pady=2)
+
+        self.COEFF0_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 0 (x-separation)")
+        self.COEFF0_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        self.COEFF0_SPINBOX = tk.Spinbox(self.COEFF0_LABEL, from_=0.0, to=100.0, increment=0.1,
+                                         textvariable=self.cluster_coeff0)
+        self.COEFF0_SPINBOX.pack(padx=2, pady=2)
+
+        self.COEFF1_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 1 (y-separation)")
+        self.COEFF1_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        self.COEFF1_SPINBOX = tk.Spinbox(self.COEFF1_LABEL, from_=0.0, to=100.0, increment=0.1,
+                                         textvariable=self.cluster_coeff1)
+        self.COEFF1_SPINBOX.pack(padx=2, pady=2)
+
+        self.COEFF2_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 2 (slope)")
+        self.COEFF2_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        self.COEFF2_SPINBOX = tk.Spinbox(self.COEFF2_LABEL, from_=0.0, to=100.0, increment=0.1,
+                                         textvariable=self.cluster_coeff2)
+        self.COEFF2_SPINBOX.pack(padx=2, pady=2)
+
+        self.CONTROL_BUTTONS_FRAME_2 = tk.Frame(self.UPPER_FRAME_2)
+        self.CONTROL_BUTTONS_FRAME_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2, fill=tk.X)
+
+        self.NEXT = tk.Button(self.CONTROL_BUTTONS_FRAME_2)
+        self.NEXT['text'] = "Next..."
+        self.NEXT['command'] = self._gotoStep3
+        self.NEXT.pack(anchor=tk.NW, side=tk.LEFT)
+
+        self.QUIT = tk.Button(self.CONTROL_BUTTONS_FRAME_2)
         self.QUIT['text'] = "Quit"
         self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(side=tk.BOTTOM, fill=tk.X)
+        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT)
+
+        self.LOWER_FRAME_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Clustering Result")
+        self.LOWER_FRAME_2.pack(anchor=tk.N, side=tk.TOP)
+
+        self.CLUSTER_FIGURE_CANVAS_2 = tk.Canvas(self.LOWER_FRAME_2)
+        self.CLUSTER_FIGURE_CANVAS_2.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+        self._refreshClusteringCanvas()
 
         self.update()
+
+        self.COEFF0_SPINBOX['command'] = self._refreshClusteringCanvas
+        self.COEFF1_SPINBOX['command'] = self._refreshClusteringCanvas
+        self.COEFF2_SPINBOX['command'] = self._refreshClusteringCanvas
+
+    def _refreshClusteringCanvas(self):
+        if self.cluster_fig_canv:
+            self.cluster_fig_canv.get_tk_widget().destroy()
+        self.CLUSTER_FIGURE_CANVAS_2.delete(tk.ALL)
+        self._redrawClusteringFigure()
+        self.cluster_fig_canv = FigureCanvasTkAgg(self.cluster_fig, master=self.CLUSTER_FIGURE_CANVAS_2)
+        self.cluster_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.CLUSTER_FIGURE_CANVAS_2.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.update()
+
+    def _redrawClusteringFigure(self):
+        cluster_coeffs = (self.cluster_coeff0.get(), self.cluster_coeff1.get(), self.cluster_coeff2.get())
+        _, self.cluster_ids = self.xcorr_ca.do_clustering(cluster_coeffs)
+
+        if self.cluster_fig is not None:
+            self.cluster_fig.clear()
+        else:
+            self.cluster_fig = plt.figure(figsize=(16,9))
+
+        self.xcorr_ca.plot_clusters(self.cluster_fig.gca(), self.cluster_ids, cluster_coeffs, self.station_code)
+        self.cluster_fig.tight_layout()
+        self.cluster_fig.autofmt_xdate()
+
+    def _gotoStep3(self):
+        if self.current_step == 2:
+
+            assert self.cluster_ids is not None
+
+            self.NEXT['state'] = tk.DISABLED
+
+            self._destroyFigures()
+
+            self.CLUSTER_FIGURE_CANVAS_2.delete(tk.ALL)
+            self.ROOT_FRAME_2.destroy()
+            self.ROOT_FRAME_2 = None
+            self.update()
+
+            self._createStep3Widgets()
+
+    def _createStep3Widgets(self):
+        self.current_step = 3
+
+        self.ROOT_FRAME_3 = tk.Frame(self)
+        self.ROOT_FRAME_3.pack(fill=tk.BOTH, expand=1)
+
+        self.QUIT = tk.Button(self.ROOT_FRAME_3)
+        self.QUIT['text'] = "Quit"
+        self.QUIT['command'] = self._quitApp
+        self.QUIT.pack(anchor=tk.SE, side=tk.BOTTOM)
+
 
 #end class
 
