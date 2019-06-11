@@ -34,7 +34,6 @@ class GpsClockCorrectionApp(tk.Frame):
         self.nc_file = tk.StringVar(self)
         self.pack()
         self._last_dir = None
-        self._createStep0Widgets()
         self.fds = FederatedASDFDataSet.FederatedASDFDataSet(dataset)
         self.current_step = 0
         self.station_code = ''
@@ -44,6 +43,8 @@ class GpsClockCorrectionApp(tk.Frame):
         self.xcorr_ca = None
         self.xcorr_fig = None
         self.fig_canv = None
+
+        self._createStep0Widgets()
 
     def _createStep0Widgets(self):
         self.ROOT_FRAME_0 = tk.Frame(self)
@@ -185,9 +186,10 @@ class GpsClockCorrectionApp(tk.Frame):
     def _destroyFigures(self):
         if self.xcorr_fig is not None:
             self.xcorr_fig.clear()
-            del self.xcorr_fig
+            self.xcorr_fig = None
         if self.fig_canv is not None:
             self.fig_canv.get_tk_widget().destroy()
+            self.fig_canv = None
 
     def _updateStep1Canvas(self):
         self.REFRESH['state'] = tk.DISABLED
@@ -196,7 +198,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
         self.xcorr_ca, self.xcorr_fig = \
             plot_xcorr_file_clock_analysis(self.nc_file.get(), self.fds, self.time_window.get(),
-                                           self.pearson_cutoff_factor, self.snr_threshold.get(), show=False,
+                                           self.snr_threshold.get(), self.pearson_cutoff_factor, show=False,
                                            title_tag=self.xcorr_title_tag, settings=self.xcorr_settings)
         self.fig_canv = FigureCanvasTkAgg(self.xcorr_fig, master=self.RIGHT_FIGURE_CANVAS_1)
         self.fig_canv.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
@@ -207,15 +209,9 @@ class GpsClockCorrectionApp(tk.Frame):
     def _gotoStep2(self):
         if self.current_step == 1:
             self.NEXT['state'] = tk.DISABLED
-            # for child in self.TOP_PANE_0.winfo_children():
-            #     self.child.destroy()
-            if self.xcorr_fig is not None:
-                self.xcorr_fig.clear()
-                del self.xcorr_fig
-                self.xcorr_fig = None
-            if self.fig_canv is not None:
-                self.fig_canv.get_tk_widget().destroy()
-                self.fig_canv = None
+
+            self._destroyFigures()
+
             self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
             self.ROOT_FRAME_1.destroy()
             self.ROOT_FRAME_1 = None
@@ -225,6 +221,7 @@ class GpsClockCorrectionApp(tk.Frame):
             info_label.pack()
             self.update()
 
+            # Generate PNG file for the .nc file using the current settings.
             batch_process_xcorr([self.nc_file.get()], self.fds, self.time_window.get(), self.snr_threshold.get(),
                                 pearson_cutoff_factor=self.pearson_cutoff_factor, save_plots=True, force_save=True)
 

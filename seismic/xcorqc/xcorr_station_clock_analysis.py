@@ -11,6 +11,7 @@ import os
 import sys
 import datetime
 import time
+import math
 import gc
 import glob
 
@@ -24,7 +25,8 @@ import matplotlib.dates
 import matplotlib.pyplot as plt
 from dateutil import rrule
 import click
-
+from sklearn.cluster import dbscan
+from scipy.interpolate import LSQUnivariateSpline
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -62,6 +64,7 @@ class XcorrClockAnalyzer:
         # Minimum SNR per sample
         self.snr_threshold = snr_threshold
         # Minimum Pearson correlation factor to accept for a given day's CCF
+        assert pcf_cutoff_threshold >= 0.0 and pcf_cutoff_threshold <= 1.0
         self.pcf_cutoff_threshold = pcf_cutoff_threshold
 
         # OUTPUTS
@@ -88,7 +91,64 @@ class XcorrClockAnalyzer:
 
         # Generate outputs
         self._preprocess()
+        self._compute_estimated_clock_corrections()
+
+        # Get analytical time series usable for clustering
+        nan_mask = np.isnan(self.raw_correction)
+        self.correction_times_clean = self.float_start_times[~nan_mask]
+        self.corrections_clean = self.raw_correction[~nan_mask]
+        # Compute a median filtered slope metric
+        grad = np.gradient(self.corrections_clean, self.correction_times_clean, edge_order=1)
+        grad_med5 = signal.medfilt(grad, 5)
+        self.corrections_slope = grad_med5
     # end func
+
+    def get_corrections_time_series(self):
+        return self.correction_times_clean, self.corrections_clean
+
+    def do_clustering(self, coeffs):
+        """
+        Do DBSCAN clustering on the corrections.
+
+        :param coeffs: Triplet of distance coefficients, corresponding to the sensitivity of the clustering to point
+            separation along 1) x-axis (time), 2) y-axis (correction) and 3) slope (drift rate)
+        :type coeffs: tuple(float, float, float)
+        :return: Results of sklearn.cluster.dbscan (refer to third party documentation)
+        """
+        sec_per_week = 7 * 24 * 3600
+        def _temporalDist2DSlope(p0, p1, coeffs):
+            return math.sqrt((coeffs[0] * (p1[0] - p0[0])) ** 2 +
+                             (coeffs[1] * sec_per_week * (p1[1] - p0[1])) ** 2 +
+                             (coeffs[2] * sec_per_week * sec_per_week * (p1[2] - p0[2])) ** 2)
+
+        data = np.column_stack((self.correction_times_clean, self.corrections_clean, self.corrections_slope))
+        ind, ids = dbscan(data, eps=2 * sec_per_week, min_samples=7,
+                          metric=lambda p0, p1: _temporalDist2DSlope(p0, p1, coeffs))
+        return ind, ids
+
+    def do_spline_regression(self, group_ids, regression_degree):
+        """
+        Do univariate spline regression on each cluster of points.
+
+        :param group_ids: Cluster IDS generated from do_clustering()
+        :param regression_degree: Desired degree of curve fit for each cluster, one for each non-negative cluster ID
+        :return: dict of regressors that can be applied to arbitrary time values
+        """
+        regressions = {}
+        num_segments = len(set(group_ids[group_ids != -1]))
+        for i in range(num_segments):
+            degree = regression_degree[i]
+            mask_group = (group_ids == i)
+            # Perform regression
+            x = self.correction_times_clean[mask_group]
+            y = self.corrections_clean[mask_group]
+            # Constrain the knot frequency to be proportional to the order, so that we don't overfit
+            # to high frequency variations in the data just for the sake of lowering the spline residual.
+            t = np.linspace(x[0], x[-1], degree - 1)
+            r = LSQUnivariateSpline(x, y, t[1:-1], k=degree)
+            regressions[i] = r
+
+        return regressions
 
     def _preprocess(self):
         xcdata = NCDataset(self.src_file, 'r')
@@ -124,26 +184,28 @@ class XcorrClockAnalyzer:
         if np.any(self.snr > self.snr_threshold):
             self.snr_mask = (self.snr > self.snr_threshold)
             self.rcf = np.nanmean(self.ccf_masked[self.snr_mask, :], axis=0)
+        self.float_start_times = np.array([float(v) for v in self.start_times])
+
     # end func
 
-    def compute_estimated_clock_corrections(self):
+    def _compute_estimated_clock_corrections(self):
         """
         Compute the estimated GPS clock corrections given series of cross-correlation functions
         and an overall reference correlation function (rcf, the mean of valid samples of the
         cross-correlation time series).
 
-        :return: Corrected RCF after first order corrections; estimated clock corrections;
+        :return: Corrected RCF after first order corrections; raw estimated clock corrections;
                  final per-sample cross-correlation between corrected RCF and each sample
-        :rtype: (numpy.array [1D], numpy.array [1D], numpy.array [2D])
+        :rtype: numpy.array [1D]
         """
         # Make an initial estimate of the shift, and only mask out a row if the Pearson coefficient
         # is less than the threshold AFTER applying the shift. Otherwise we will be masking out
         # some of the most interesting regions where shifts occur.
-        correction = []
+        raw_correction = []
         ccf_shifted = []
         for row in self.ccf_masked:
             if np.ma.is_masked(row) or self.rcf is None:
-                correction.append(np.nan)
+                raw_correction.append(np.nan)
                 ccf_shifted.append(np.array([np.nan] * self.ccf_masked.shape[1]))
                 continue
 
@@ -162,9 +224,9 @@ class XcorrClockAnalyzer:
             ccf_shifted.append(row_shifted)
             # Store first order corrections.
             peak_lag = self.lag[peak_index]
-            correction.append(peak_lag)
+            raw_correction.append(peak_lag)
         # end for
-        correction = np.array(correction)
+        raw_correction = np.array(raw_correction)
         ccf_shifted = np.array(ccf_shifted)
         # Recompute the RCF with first order clock corrections.
         rcf_corrected = np.nanmean(ccf_shifted[self.snr_mask, :], axis=0)
@@ -179,7 +241,7 @@ class XcorrClockAnalyzer:
 
             pcf_corrected, _ = scipy.stats.pearsonr(rcf_corrected, ccf_shifted[i, :])
             if pcf_corrected < self.pcf_cutoff_threshold:
-                correction[i] = np.nan
+                raw_correction[i] = np.nan
                 row_rcf_crosscorr.append([np.nan] * self.ccf_masked.shape[1])
                 continue
             # Compute second order corrections based on first order corrected RCF
@@ -187,12 +249,14 @@ class XcorrClockAnalyzer:
             c3 /= np.max(c3)
             peak_index = np.argmax(c3)
             peak_lag = self.lag[peak_index]
-            correction[i] = peak_lag
+            raw_correction[i] = peak_lag
             row_rcf_crosscorr.append(c3)
         # end for
         row_rcf_crosscorr = np.array(row_rcf_crosscorr)
 
-        return rcf_corrected, correction, row_rcf_crosscorr
+        self.raw_correction = raw_correction
+        self.rcf_corrected = rcf_corrected
+        self.row_rcf_crosscorr = row_rcf_crosscorr
     # end func
 
 
@@ -364,11 +428,12 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
                                    settings=None):
     # Read and preprocess xcorr data
     xcorr_ca = XcorrClockAnalyzer(src_file, time_window, snr_threshold, pearson_correlation_factor)
+    raw_correction = xcorr_ca.raw_correction
+    rcf_corrected = xcorr_ca.rcf_corrected
+    row_rcf_crosscorr = xcorr_ca.row_rcf_crosscorr
 
     origin_code, dest_code = station_codes(src_file)
     dist = station_distance(asdf_dataset, origin_code, dest_code)
-
-    rcf_corrected, correction, row_rcf_crosscorr = xcorr_ca.compute_estimated_clock_corrections()
 
     # -----------------------------------------------------------------------
     # Master layout and plotting code
@@ -418,10 +483,10 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
     # plot Timeshift =====================
     annotation = 'Min. corrected Pearson Coeff={:3.3f}'.format(pearson_correlation_factor)
     if underlay_rcf_xcorr:
-        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, correction, annotation=annotation,
+        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, raw_correction, annotation=annotation,
                                  row_rcf_crosscorr=row_rcf_crosscorr)
     else:
-        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, correction, annotation=annotation)
+        plot_estimated_timeshift(ax6, xcorr_ca.lag, xcorr_ca.start_times, raw_correction, annotation=annotation)
 
     # Print and display
     if pdf_file is not None:
