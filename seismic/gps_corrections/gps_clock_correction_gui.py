@@ -50,6 +50,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.cluster_coeff1 = tk.DoubleVar(self, value=1.0)
         self.cluster_coeff2 = tk.DoubleVar(self, value=0.0)
         self.cluster_ids = None
+        self.degrees = None
 
         self._createStep0Widgets()
 
@@ -330,10 +331,11 @@ class GpsClockCorrectionApp(tk.Frame):
 
     def _gotoStep3(self):
         if self.current_step == 2:
+            self.NEXT['state'] = tk.DISABLED
 
             assert self.cluster_ids is not None
-
-            self.NEXT['state'] = tk.DISABLED
+            num_clusters = len(set(self.cluster_ids[self.cluster_ids != -1]))
+            self.degrees = [1]*num_clusters
 
             self._destroyFigures()
 
@@ -347,16 +349,68 @@ class GpsClockCorrectionApp(tk.Frame):
     def _createStep3Widgets(self):
         self.current_step = 3
 
+        assert self.degrees is not None
+
         self.ROOT_FRAME_3 = tk.Frame(self)
         self.ROOT_FRAME_3.pack(fill=tk.BOTH, expand=1)
 
-        self.QUIT = tk.Button(self.ROOT_FRAME_3)
+        self.LEFT_FRAME_3 = tk.LabelFrame(self.ROOT_FRAME_3, text="Station code: " + self.station_code)
+        self.LEFT_FRAME_3.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X)
+
+        self.DEGREE_CONTROLS = []
+        for i, d in enumerate(self.degrees):
+            dc = SplineDegreeWidget(i, d, self.LEFT_FRAME_3)
+            dc.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=4)
+            self.DEGREE_CONTROLS.append(dc)
+
+        self.EXPORT = tk.Button(self.LEFT_FRAME_3)
+        self.EXPORT['text'] = "Export..."
+        # self.EXPORT['command'] = self._exportCorrections
+        self.EXPORT.pack(anchor=tk.SW, side=tk.LEFT)
+
+        self.QUIT = tk.Button(self.LEFT_FRAME_3)
         self.QUIT['text'] = "Quit"
         self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SE, side=tk.BOTTOM)
+        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT)
 
+        self.RIGHT_FRAME_3 = tk.Frame(self.ROOT_FRAME_3)
+        self.RIGHT_FRAME_3.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH)
+
+        self.RIGHT_UPPER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Regression curves overlay")
+        self.RIGHT_UPPER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP)
+
+        self.RIGHT_LOWER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Resampled regression curves")
+        self.RIGHT_LOWER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP)
 
 #end class
+
+
+class SplineDegreeWidget(tk.LabelFrame):
+    def __init__(self, index, initial_value=1, master=None):
+        MAX_DEGREE = 5
+        tk.LabelFrame.__init__(self, master, text="Spline {}".format(index))
+        self.enabled = tk.BooleanVar(self, True)
+        self.degree = tk.IntVar(self, initial_value)
+        self.ENABLE_TOGGLE = tk.Checkbutton(self, variable=self.enabled)
+        self.ENABLE_TOGGLE['command'] = self._toggled
+        self.ENABLE_TOGGLE.pack(anchor=tk.E, side=tk.LEFT)
+        self.DEGREE_LABEL = tk.Label(self, text="Spline order:")
+        self.DEGREE_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=2)
+        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL)
+        self.DEGREE_CHOOSER = tk.Listbox(self, selectmode=tk.BROWSE, exportselection=0, height=1, listvariable=self.degree)
+        scrollbar.config(command=self.DEGREE_CHOOSER)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.DEGREE_CHOOSER.pack(anchor=tk.E, side=tk.LEFT, padx=2, fill=tk.BOTH, expand=1)
+        for i in range(MAX_DEGREE):
+            self.DEGREE_CHOOSER.insert(tk.END, i + 1)
+
+    def _toggled(self):
+        if self.enabled.get():
+            self.DEGREE_LABEL['state'] = tk.NORMAL
+            self.DEGREE_CHOOSER['state'] = tk.NORMAL
+        else:
+            self.DEGREE_LABEL['state'] = tk.DISABLED
+            self.DEGREE_CHOOSER['state'] = tk.DISABLED
 
 
 tk_root = tk.Tk()
