@@ -125,6 +125,7 @@ class XcorrClockAnalyzer:
         ind, ids = dbscan(data, eps=2 * sec_per_week, min_samples=7,
                           metric=lambda p0, p1: _temporalDist2DSlope(p0, p1, coeffs))
         return ind, ids
+    # end func
 
     def do_spline_regression(self, group_ids, regression_degree):
         """
@@ -149,6 +150,33 @@ class XcorrClockAnalyzer:
             regressions[i] = r
 
         return regressions
+    # end func
+
+    def do_spline_resampling(self, group_ids, regressors, sampling_period_seconds):
+        """Using pre-computed regressors, resample every cluster at a prescribed frequency
+
+        :param group_ids:
+        :param regressors:
+        :param sampling_period_seconds:
+        :return:
+        """
+        # Dict of daily spaced time values and computed correction, since source data time
+        # points might not be uniformly distributed. Keyed by group ID.
+        regular_corrections = {}
+        num_segments = len(set(group_ids[group_ids != -1]))
+        for i in range(num_segments):
+            mask_group = (group_ids == i)
+            # Generate uniform daily times at which to compute corrections
+            x = self.correction_times_clean[mask_group]
+            timestamp_min = min(x)
+            timestamp_max = max(x)
+            num_samples = np.round((timestamp_max - timestamp_min) / sampling_period_seconds)
+            lin_times = np.linspace(timestamp_min, timestamp_max, num_samples + 1)
+            lin_corrections = regressors[i](lin_times)
+            regular_corrections[i] = {'times': lin_times, 'corrections': lin_corrections}
+
+        return regular_corrections
+    # end func
 
     def _preprocess(self):
         xcdata = NCDataset(self.src_file, 'r')
@@ -260,7 +288,7 @@ class XcorrClockAnalyzer:
     # end func
 
     def plot_clusters(self, ax, ids, coeffs, stn_code=''):
-        """
+        """Plot the distinct clusters color coded by cluster ID, with underlying corrections shown in gray.
 
         :param ax:
         :param ids:
@@ -284,7 +312,74 @@ class XcorrClockAnalyzer:
                 transform=ax.transAxes)
         if stn_code:
             ax.set_title("Station {} first order corrections groups".format(stn_code), fontsize=20)
+    # end func
 
+    def plot_regressors(self, ax, ids, regressors, stn_code=''):
+        """Plot regressor functions on top of original data
+
+        :param ax:
+        :param ids:
+        :param regressors:
+        :param stn_code:
+        :return:
+        """
+        num_segments = len(set(ids[ids != -1]))
+        # Corrections from regression function fit
+        correction_fit = np.zeros_like(self.corrections_clean)
+        correction_fit[:] = np.nan
+        for i in range(num_segments):
+            mask_group = (ids == i)
+            # Apply regression
+            x = self.correction_times_clean[mask_group]
+            # Compute fitted values
+            correction_fit[mask_group] = regressors[i](x)
+
+        plot_times = timestamps_to_plottable_datetimes(self.correction_times_clean)
+        for i in range(num_segments):
+            mask_group = (ids == i)
+            ax.plot(plot_times[mask_group], self.corrections_clean[mask_group], 'o', color='C{}'.format(i),
+                     markersize=5, fillstyle='none')
+            ax.plot(plot_times[mask_group], correction_fit[mask_group], color='C{}'.format(i))
+
+        time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
+        ax.xaxis.set_major_formatter(time_formatter)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.grid(':', color="#808080", zorder=0, alpha=0.5)
+        ax.set_xlabel('Day', fontsize=14)
+        ax.set_ylabel('Correction (sec)', fontsize=14)
+        if stn_code:
+            ax.set_title("Station {} corrections groups with regressions to sample times".format(stn_code), fontsize=20)
+    # end func
+
+    def plot_resampled_clusters(self, ax, ids, resampled_corrections, stn_code=''): # ax, ids, regular_corrections, FULL_CODE
+        """Plot resampled regressor functions per cluster on top of original data
+
+        :param ax:
+        :param ids:
+        :param regressors:
+        :param stn_code:
+        :return:
+        """
+        num_segments = len(set(ids[ids != -1]))
+        plot_times = timestamps_to_plottable_datetimes(self.correction_times_clean)
+        for i in range(num_segments):
+            mask_group = (ids == i)
+            ax.plot(plot_times[mask_group], self.corrections_clean[mask_group], 'o', color='#808080'.format(i),
+                    markersize=5, fillstyle='none')
+            plt_times_i = timestamps_to_plottable_datetimes(resampled_corrections[i]['times'])
+            ax.plot(plt_times_i, resampled_corrections[i]['corrections'], 'o', color='C{}'.format(i), fillstyle='none')
+
+        time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
+        ax.xaxis.set_major_formatter(time_formatter)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.grid(':', color="#808080", zorder=0, alpha=0.5)
+        ax.set_xlabel('Day', fontsize=14)
+        ax.set_ylabel('Correction (sec)', fontsize=14)
+        if stn_code:
+            ax.set_title("Station {} corrections groups with regressions to daily samples".format(stn_code), fontsize=20)
+    # end func
+
+#end class
 
 def station_codes(filename):
     """
