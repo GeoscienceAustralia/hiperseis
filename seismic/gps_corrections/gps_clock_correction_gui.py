@@ -4,6 +4,7 @@ GUI interface to generating clock corrections from x-corr results.
 """
 
 import os
+import copy
 
 try:
     import tkinter as tk
@@ -50,7 +51,14 @@ class GpsClockCorrectionApp(tk.Frame):
         self.cluster_coeff1 = tk.DoubleVar(self, value=1.0)
         self.cluster_coeff2 = tk.DoubleVar(self, value=0.0)
         self.cluster_ids = None
+        self.selected_cluster_ids = None
         self.degrees = None
+        self.resampling_period_days = tk.DoubleVar(self, value=1.0)
+        self.regression_fig = None
+        self.regression_fig_canv = None
+        self.resampling_fig = None
+        self.resampling_fig_canv = None
+        self.display_dpi = 50
 
         self._createStep0Widgets()
 
@@ -70,7 +78,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.NC_FILE_LABEL = tk.Label(self.UPPER_FRAME_0, text="Cross-correlation file:")
         self.NC_FILE_LABEL.pack(anchor=tk.E, side=tk.LEFT, pady=2)
 
-        self.NC_FILE_ENTRY = tk.Entry(self.UPPER_FRAME_0)
+        self.NC_FILE_ENTRY = tk.Entry(self.UPPER_FRAME_0, exportselection=False)
         self.NC_FILE_ENTRY['width'] = 64
         self.NC_FILE_ENTRY.pack(anchor=tk.W, padx=5, pady=2, side=tk.LEFT)
         self.NC_FILE_ENTRY['textvariable'] = self.nc_file
@@ -81,7 +89,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.OPEN.pack(anchor=tk.SW, side=tk.LEFT)
 
         self.NEXT = tk.Button(self.LOWER_FRAME_0)
-        self.NEXT['text'] = "Next..."
+        self.NEXT['text'] = "Continue..."
         self.NEXT['state'] = tk.DISABLED
         self.NEXT['command'] = self._gotoStep1
         self.NEXT.pack(anchor=tk.SW, side=tk.LEFT)
@@ -138,7 +146,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.ROOT_FRAME_1.pack(fill=tk.BOTH, expand=1)
 
         self.LEFT_FRAME_1 = tk.LabelFrame(self.ROOT_FRAME_1, width=800)
-        self.LEFT_FRAME_1.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X)
+        self.LEFT_FRAME_1.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
 
         self.STN_CODE_LABEL = tk.Label(self.LEFT_FRAME_1, text="Station code: " + self.station_code, font=8)
         self.STN_CODE_LABEL.pack(anchor=tk.W, side=tk.TOP)
@@ -176,14 +184,14 @@ class GpsClockCorrectionApp(tk.Frame):
         self.REFRESH.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
         self.NEXT = tk.Button(self.LEFT_FRAME_1)
-        self.NEXT['text'] = "Save and Next..."
+        self.NEXT['text'] = "Continue..."
         self.NEXT['command'] = self._gotoStep2
-        self.NEXT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
+        self.NEXT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=(16,2))
 
         self.QUIT = tk.Button(self.LEFT_FRAME_1)
         self.QUIT['text'] = "Quit"
         self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.E, side=tk.RIGHT, padx=2, pady=2)
+        self.QUIT.pack(anchor=tk.E, side=tk.RIGHT, padx=2, pady=(16,2))
 
         self.xcorr_settings, self.xcorr_title_tag = read_correlator_config(self.nc_file.get())
         self._updateStep1Canvas()
@@ -204,6 +212,18 @@ class GpsClockCorrectionApp(tk.Frame):
         if self.cluster_fig_canv is not None:
             self.cluster_fig_canv.get_tk_widget().destroy()
             self.cluster_fig_canv = None
+        if self.regression_fig is not None:
+            self.regression_fig.clear()
+            self.regression_fig = None
+        if self.regression_fig_canv is not None:
+            self.regression_fig_canv.get_tk_widget().destroy()
+            self.regression_fig_canv = None
+        if self.resampling_fig is not None:
+            self.resampling_fig.clear()
+            self.resampling_fig = None
+        if self.resampling_fig_canv is not None:
+            self.resampling_fig_canv.get_tk_widget().destroy()
+            self.resampling_fig_canv = None
 
     def _updateStep1Canvas(self):
         self.REFRESH['state'] = tk.DISABLED
@@ -231,7 +251,7 @@ class GpsClockCorrectionApp(tk.Frame):
             self.ROOT_FRAME_1 = None
             self.update()
 
-            info_label = tk.Label(self, text="Saving plot to graphical file...")
+            info_label = tk.Label(self, text="Saving plot...")
             info_label.pack()
             self.update()
 
@@ -283,7 +303,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.CONTROL_BUTTONS_FRAME_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2, fill=tk.X)
 
         self.NEXT = tk.Button(self.CONTROL_BUTTONS_FRAME_2)
-        self.NEXT['text'] = "Next..."
+        self.NEXT['text'] = "Continue..."
         self.NEXT['command'] = self._gotoStep3
         self.NEXT.pack(anchor=tk.NW, side=tk.LEFT)
 
@@ -335,7 +355,7 @@ class GpsClockCorrectionApp(tk.Frame):
 
             assert self.cluster_ids is not None
             num_clusters = len(set(self.cluster_ids[self.cluster_ids != -1]))
-            self.degrees = [1]*num_clusters
+            self.degrees = dict(zip(range(num_clusters), [1]*num_clusters))
 
             self._destroyFigures()
 
@@ -355,35 +375,137 @@ class GpsClockCorrectionApp(tk.Frame):
         self.ROOT_FRAME_3.pack(fill=tk.BOTH, expand=1)
 
         self.LEFT_FRAME_3 = tk.LabelFrame(self.ROOT_FRAME_3, text="Station code: " + self.station_code)
-        self.LEFT_FRAME_3.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X)
+        self.LEFT_FRAME_3.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
 
         self.DEGREE_CONTROLS = []
-        for i, d in enumerate(self.degrees):
+        for i, d in self.degrees.items():
             dc = SplineDegreeWidget(i, d, self.LEFT_FRAME_3, self._refreshSplineCanvas)
             dc.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=4)
             self.DEGREE_CONTROLS.append(dc)
 
+        self.RESAMPLING_PERIOD_LABEL = tk.Label(self.LEFT_FRAME_3, text="Enter resampling period (days):")
+        self.RESAMPLING_PERIOD_LABEL.pack(anchor=tk.W, padx=2, pady=2, side=tk.TOP)
+
+        self.RESAMPLING_PERIOD_ENTRY = tk.Entry(self.LEFT_FRAME_3, textvariable=self.resampling_period_days,
+                                                exportselection=False)
+        self.RESAMPLING_PERIOD_ENTRY['width'] = 8
+        self.RESAMPLING_PERIOD_ENTRY.pack(anchor=tk.E, padx=5, pady=2, side=tk.TOP)
+        self.resampling_period_days.trace_variable('w', self._resampleRateChanged)
+
         self.EXPORT = tk.Button(self.LEFT_FRAME_3)
         self.EXPORT['text'] = "Export..."
-        # self.EXPORT['command'] = self._exportCorrections
-        self.EXPORT.pack(anchor=tk.SW, side=tk.LEFT)
+        self.EXPORT['command'] = self._exportCorrections
+        self.EXPORT.pack(anchor=tk.SW, side=tk.LEFT, padx=2, pady=(16, 2))
 
         self.QUIT = tk.Button(self.LEFT_FRAME_3)
         self.QUIT['text'] = "Quit"
         self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT)
+        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT, padx=2, pady=(16, 2))
 
         self.RIGHT_FRAME_3 = tk.Frame(self.ROOT_FRAME_3)
         self.RIGHT_FRAME_3.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH)
 
         self.RIGHT_UPPER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Regression curves overlay")
-        self.RIGHT_UPPER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP)
+        self.RIGHT_UPPER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
+        self.CURVE_FIGURE_CANVAS_3 = tk.Canvas(self.RIGHT_UPPER_FRAME_3)
+        self.CURVE_FIGURE_CANVAS_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
 
         self.RIGHT_LOWER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Resampled regression curves")
-        self.RIGHT_LOWER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP)
+        self.RIGHT_LOWER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
+        self.RESAMPLE_FIGURE_CANVAS_3 = tk.Canvas(self.RIGHT_LOWER_FRAME_3)
+        self.RESAMPLE_FIGURE_CANVAS_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
 
-    def _refreshSplineCanvas(self, new_val):
-        print("Refresh spline {}".format(new_val))
+        self.regression_fig_lims = None
+        self.resampling_fig_lims = None
+        self._refreshSplineCanvas(None)
+
+    def _resampleRateChanged(self, _1, _2, _3):
+        # if float(self.resampling_period_days.get()) <= 0:
+        #     self.resampling_period_days.set(1.0)
+        self._refreshResamplingCanvas()
+
+    def _refreshRegressionCanvas(self):
+        if self.regression_fig_canv:
+            self.regression_fig_canv.get_tk_widget().destroy()
+        self.CURVE_FIGURE_CANVAS_3.delete(tk.ALL)
+        self._redrawRegressionFigure()
+        if self.regression_fig_lims is not None:
+            self.regression_fig.gca().set_xlim(self.regression_fig_lims[0])
+            self.regression_fig.gca().set_ylim(self.regression_fig_lims[1])
+        else:
+            ax = self.regression_fig.gca()
+            self.regression_fig_lims = (ax.get_xlim(), ax.get_ylim())
+        self.regression_fig_canv = FigureCanvasTkAgg(self.regression_fig, master=self.CURVE_FIGURE_CANVAS_3)
+        self.regression_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.CURVE_FIGURE_CANVAS_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.update()
+
+    def _redrawRegressionFigure(self):
+        # Harvest settings from widgets, then run regression
+        self.degrees = {}
+        self.selected_cluster_ids = copy.copy(self.cluster_ids)
+        for i, c in enumerate(self.DEGREE_CONTROLS):
+            if c.is_enabled:
+                self.degrees[i] = c.spline_degree
+            else:
+                self.selected_cluster_ids[self.selected_cluster_ids == i] = -1
+        self.regression_curves = self.xcorr_ca.do_spline_regression(self.selected_cluster_ids, self.degrees)
+
+        if self.regression_fig is not None:
+            self.regression_fig.clear()
+        else:
+            self.regression_fig = plt.figure(figsize=(16, 9), dpi=self.display_dpi)
+            # self.regression_fig = plt.figure()
+
+        self.xcorr_ca.plot_regressors(self.regression_fig.gca(), self.selected_cluster_ids, self.regression_curves,
+                                      self.station_code)
+        self.regression_fig.tight_layout()
+        self.regression_fig.autofmt_xdate()
+        # TODO: Add auto-saving to file
+
+    def _refreshResamplingCanvas(self):
+        if self.resampling_fig_canv:
+            self.resampling_fig_canv.get_tk_widget().destroy()
+        self.RESAMPLE_FIGURE_CANVAS_3.delete(tk.ALL)
+        self._redrawResamplingFigure()
+        if self.resampling_fig_lims is not None:
+            self.resampling_fig.gca().set_xlim(self.resampling_fig_lims[0])
+            self.resampling_fig.gca().set_ylim(self.resampling_fig_lims[1])
+        else:
+            ax = self.resampling_fig.gca()
+            self.resampling_fig_lims = (ax.get_xlim(), ax.get_ylim())
+        self.resampling_fig_canv = FigureCanvasTkAgg(self.resampling_fig, master=self.RESAMPLE_FIGURE_CANVAS_3)
+        self.resampling_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.RESAMPLE_FIGURE_CANVAS_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.update()
+
+    def _redrawResamplingFigure(self):
+        # Harvest settings from widgets, then run resampling
+        sec_per_day = 24*3600.0
+        sample_period = self.resampling_period_days.get()*sec_per_day
+        self.regular_corrections = self.xcorr_ca.do_spline_resampling(self.selected_cluster_ids, self.regression_curves,
+                                                                      sample_period)
+
+        if self.resampling_fig is not None:
+            self.resampling_fig.clear()
+        else:
+            self.resampling_fig = plt.figure(figsize=(16, 9), dpi=self.display_dpi)
+            # self.resampling_fig = plt.figure()
+
+        self.xcorr_ca.plot_resampled_clusters(self.resampling_fig.gca(), self.selected_cluster_ids,
+                                              self.regular_corrections, self.station_code)
+        self.resampling_fig.tight_layout()
+        self.resampling_fig.autofmt_xdate()
+        # TODO: Add auto-saving to file
+
+    def _refreshSplineCanvas(self, _new_val_unused):
+        self._refreshRegressionCanvas()
+        self._refreshResamplingCanvas()
+
+    def _exportCorrections(self):
+        print("Export corrections")
+        # Save plots to PNG files.
+        # Save resampled data to csv.
         pass
 
 #end class
@@ -428,7 +550,7 @@ class SplineDegreeWidget(tk.LabelFrame):
 tk_root = tk.Tk()
 app = GpsClockCorrectionApp(master=tk_root)
 app.master.title("GPS Clock Correction Workflow")
-app.master.minsize(320, 160)
+app.master.minsize(320, 120)
 app.master.columnconfigure(0, weight=1)
 app.master.rowconfigure(0, weight=1)
 app.mainloop()

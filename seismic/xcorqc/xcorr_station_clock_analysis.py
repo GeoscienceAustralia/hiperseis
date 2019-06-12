@@ -135,9 +135,10 @@ class XcorrClockAnalyzer:
         :param regression_degree: Desired degree of curve fit for each cluster, one for each non-negative cluster ID
         :return: dict of regressors that can be applied to arbitrary time values
         """
+        assert isinstance(regression_degree, dict)
         regressions = {}
-        num_segments = len(set(group_ids[group_ids != -1]))
-        for i in range(num_segments):
+        gids = set(group_ids[group_ids != -1])
+        for i in gids:
             degree = regression_degree[i]
             mask_group = (group_ids == i)
             # Perform regression
@@ -163,8 +164,8 @@ class XcorrClockAnalyzer:
         # Dict of daily spaced time values and computed correction, since source data time
         # points might not be uniformly distributed. Keyed by group ID.
         regular_corrections = {}
-        num_segments = len(set(group_ids[group_ids != -1]))
-        for i in range(num_segments):
+        gids = set(group_ids[group_ids != -1])
+        for i in gids:
             mask_group = (group_ids == i)
             # Generate uniform daily times at which to compute corrections
             x = self.correction_times_clean[mask_group]
@@ -323,11 +324,12 @@ class XcorrClockAnalyzer:
         :param stn_code:
         :return:
         """
-        num_segments = len(set(ids[ids != -1]))
+        assert isinstance(regressors, dict)
+        gids = set(ids[ids != -1])
         # Corrections from regression function fit
         correction_fit = np.zeros_like(self.corrections_clean)
         correction_fit[:] = np.nan
-        for i in range(num_segments):
+        for i in gids:
             mask_group = (ids == i)
             # Apply regression
             x = self.correction_times_clean[mask_group]
@@ -335,7 +337,7 @@ class XcorrClockAnalyzer:
             correction_fit[mask_group] = regressors[i](x)
 
         plot_times = timestamps_to_plottable_datetimes(self.correction_times_clean)
-        for i in range(num_segments):
+        for i in gids:
             mask_group = (ids == i)
             ax.plot(plot_times[mask_group], self.corrections_clean[mask_group], 'o', color='C{}'.format(i),
                      markersize=5, fillstyle='none')
@@ -360,9 +362,10 @@ class XcorrClockAnalyzer:
         :param stn_code:
         :return:
         """
-        num_segments = len(set(ids[ids != -1]))
+        assert isinstance(resampled_corrections, dict)
+        gids = set(ids[ids != -1])
         plot_times = timestamps_to_plottable_datetimes(self.correction_times_clean)
-        for i in range(num_segments):
+        for i in gids:
             mask_group = (ids == i)
             ax.plot(plot_times[mask_group], self.corrections_clean[mask_group], 'o', color='#808080'.format(i),
                     markersize=5, fillstyle='none')
