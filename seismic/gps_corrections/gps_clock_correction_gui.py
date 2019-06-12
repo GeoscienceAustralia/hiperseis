@@ -178,12 +178,12 @@ class GpsClockCorrectionApp(tk.Frame):
         self.NEXT = tk.Button(self.LEFT_FRAME_1)
         self.NEXT['text'] = "Save and Next..."
         self.NEXT['command'] = self._gotoStep2
-        self.NEXT.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
+        self.NEXT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
 
         self.QUIT = tk.Button(self.LEFT_FRAME_1)
         self.QUIT['text'] = "Quit"
         self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SW, side=tk.BOTTOM, fill=tk.X, padx=2, pady=16)
+        self.QUIT.pack(anchor=tk.E, side=tk.RIGHT, padx=2, pady=2)
 
         self.xcorr_settings, self.xcorr_title_tag = read_correlator_config(self.nc_file.get())
         self._updateStep1Canvas()
@@ -359,7 +359,7 @@ class GpsClockCorrectionApp(tk.Frame):
 
         self.DEGREE_CONTROLS = []
         for i, d in enumerate(self.degrees):
-            dc = SplineDegreeWidget(i, d, self.LEFT_FRAME_3)
+            dc = SplineDegreeWidget(i, d, self.LEFT_FRAME_3, self._refreshSplineCanvas)
             dc.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=4)
             self.DEGREE_CONTROLS.append(dc)
 
@@ -382,12 +382,16 @@ class GpsClockCorrectionApp(tk.Frame):
         self.RIGHT_LOWER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Resampled regression curves")
         self.RIGHT_LOWER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP)
 
+    def _refreshSplineCanvas(self, new_val):
+        print("Refresh spline {}".format(new_val))
+        pass
+
 #end class
 
 
 class SplineDegreeWidget(tk.LabelFrame):
-    def __init__(self, index, initial_value=1, master=None):
-        MAX_DEGREE = 5
+    def __init__(self, index, initial_value, master=None, command=None):
+        assert initial_value >= 1 and initial_value <= 5
         tk.LabelFrame.__init__(self, master, text="Spline {}".format(index))
         self.enabled = tk.BooleanVar(self, True)
         self.degree = tk.IntVar(self, initial_value)
@@ -396,21 +400,29 @@ class SplineDegreeWidget(tk.LabelFrame):
         self.ENABLE_TOGGLE.pack(anchor=tk.E, side=tk.LEFT)
         self.DEGREE_LABEL = tk.Label(self, text="Spline order:")
         self.DEGREE_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=2)
-        scrollbar = tk.Scrollbar(self, orient=tk.VERTICAL)
-        self.DEGREE_CHOOSER = tk.Listbox(self, selectmode=tk.BROWSE, exportselection=0, height=1, listvariable=self.degree)
-        scrollbar.config(command=self.DEGREE_CHOOSER)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.DEGREE_CHOOSER.pack(anchor=tk.E, side=tk.LEFT, padx=2, fill=tk.BOTH, expand=1)
-        for i in range(MAX_DEGREE):
-            self.DEGREE_CHOOSER.insert(tk.END, i + 1)
+        self.DEGREE_CHOOSER = tk.OptionMenu(self, self.degree, 1, 2, 3, 4, 5, command=command)
+        self.DEGREE_CHOOSER.pack(anchor=tk.E, side=tk.LEFT, padx=2, fill=tk.X, expand=1)
+        self.command_handler = command
 
     def _toggled(self):
         if self.enabled.get():
             self.DEGREE_LABEL['state'] = tk.NORMAL
             self.DEGREE_CHOOSER['state'] = tk.NORMAL
+            if self.command_handler is not None:
+                self.command_handler(True)
         else:
             self.DEGREE_LABEL['state'] = tk.DISABLED
             self.DEGREE_CHOOSER['state'] = tk.DISABLED
+            if self.command_handler is not None:
+                self.command_handler(False)
+
+    @property
+    def is_enabled(self):
+        return self.enabled.get()
+
+    @property
+    def spline_degree(self):
+        return self.degree.get()
 
 
 tk_root = tk.Tk()
