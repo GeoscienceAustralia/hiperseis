@@ -69,7 +69,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.display_dpi = 50
         self.pack()
 
-        self._createStep0Widgets()
+        self._create_step0_widgets()
 
     def busy(self):
         tk_root.config(cursor="watch")
@@ -78,65 +78,56 @@ class GpsClockCorrectionApp(tk.Frame):
     def not_busy(self):
         tk_root.config(cursor="")
 
-    def _createStep0Widgets(self):
+    def _create_step0_widgets(self):
         self.ROOT_FRAME_0 = tk.Frame(self)
         self.ROOT_FRAME_0.pack(fill=tk.BOTH, expand=1)
 
-        self.UPPER_FRAME_0 = tk.LabelFrame(self.ROOT_FRAME_0, text="File selection", borderwidth=2)
-        self.UPPER_FRAME_0.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, padx=2, pady=2)
+        upper_frame_0 = tk.LabelFrame(self.ROOT_FRAME_0, text="File selection", borderwidth=2)
+        upper_frame_0.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
-        self.STN_CODE_LABEL = tk.Label(self.ROOT_FRAME_0, text="Station code: ", font=8)
-        self.STN_CODE_LABEL.pack(side=tk.TOP, fill=tk.X, padx=2, pady=8)
+        self.stn_code_label = tk.Label(self.ROOT_FRAME_0, text="Station code: ", font=8)
+        self.stn_code_label.pack(side=tk.TOP, fill=tk.X, padx=2, pady=8)
 
-        self.LOWER_FRAME_0 = tk.Frame(self.ROOT_FRAME_0)
-        self.LOWER_FRAME_0.pack(anchor=tk.S, side=tk.BOTTOM, fill=tk.X, padx=2, pady=2)
+        lower_frame_0 = tk.Frame(self.ROOT_FRAME_0)
+        lower_frame_0.pack(anchor=tk.S, side=tk.BOTTOM, fill=tk.X, padx=2, pady=2)
 
-        file_entry_frame = tk.Frame(self.UPPER_FRAME_0)
+        file_entry_frame = tk.Frame(upper_frame_0)
         file_entry_frame.pack(anchor=tk.E, side=tk.TOP, fill=tk.X)
-        self.OPEN = tk.Button(file_entry_frame, width=10)
-        self.OPEN['text'] = "Open..."
-        self.OPEN['command'] = self._openNcFile
-        self.OPEN.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
+        open_button = tk.Button(file_entry_frame, width=10, text="Open...", command=self._open_nc_file)
+        open_button.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
 
-        self.NC_FILE_LABEL = tk.Label(file_entry_frame, text="Cross-correlation file:")
-        self.NC_FILE_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
+        nc_file_label = tk.Label(file_entry_frame, text="Cross-correlation file:")
+        nc_file_label.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
 
-        self.NC_FILE_ENTRY = tk.Entry(file_entry_frame, exportselection=False, width=64)
-        self.NC_FILE_ENTRY.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
-        self.NC_FILE_ENTRY['textvariable'] = self.nc_file
+        nc_file_entry = tk.Entry(file_entry_frame, exportselection=False, width=64)
+        nc_file_entry.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
+        nc_file_entry['textvariable'] = self.nc_file
 
-        output_folder_frame = tk.Frame(self.UPPER_FRAME_0)
+        output_folder_frame = tk.Frame(upper_frame_0)
         output_folder_frame.pack(anchor=tk.E, side=tk.TOP, fill=tk.X)
-        self.SELECT = tk.Button(output_folder_frame, width=10)
-        self.SELECT['text'] = "Choose..."
-        self.SELECT['command'] = self._chooseOutputFolder
-        self.SELECT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
+        select_button = tk.Button(output_folder_frame, width=10, text="Choose...", command=self._choose_output_folder)
+        select_button.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
 
-        self.OUTPUT_FOLDER_LABEL = tk.Label(output_folder_frame, text="Output folder:")
-        self.OUTPUT_FOLDER_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
+        output_folder_label = tk.Label(output_folder_frame, text="Output folder:")
+        output_folder_label.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
 
-        self.OUTPUT_FOLDER_ENTRY = tk.Entry(output_folder_frame, exportselection=False, width=64)
-        self.OUTPUT_FOLDER_ENTRY.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
-        self.OUTPUT_FOLDER_ENTRY['textvariable'] = self.output_folder
+        output_folder_entry = tk.Entry(output_folder_frame, exportselection=False, width=64)
+        output_folder_entry.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
+        output_folder_entry['textvariable'] = self.output_folder
 
-        self.NEXT = tk.Button(self.LOWER_FRAME_0)
-        self.NEXT['text'] = "Continue..."
-        self.NEXT['state'] = tk.DISABLED
-        self.NEXT['command'] = self._gotoStep1
-        self.NEXT.pack(anchor=tk.SW, side=tk.LEFT)
-        self.nc_file.trace_variable('w', self._updateNextButton)
-        self.output_folder.trace_variable('w', self._updateNextButton)
+        self.next_button = tk.Button(lower_frame_0, text="Continue...", state=tk.DISABLED, command=self._goto_step1)
+        self.next_button.pack(anchor=tk.SW, side=tk.LEFT)
+        self.nc_file.trace_variable('w', self._update_next_button)
+        self.output_folder.trace_variable('w', self._update_next_button)
 
-        self.QUIT = tk.Button(self.LOWER_FRAME_0)
-        self.QUIT['text'] = "Quit"
-        self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT)
+        self.quit_button = tk.Button(lower_frame_0, text="Quit", command=self._quit_app)
+        self.quit_button.pack(anchor=tk.SE, side=tk.RIGHT)
 
-    def _quitApp(self):
-        self._destroyFigures()
+    def _quit_app(self):
+        self._destroy_figures()
         self.quit()
 
-    def _extractCodeFromFilename(self, src_file):
+    def _extract_code_from_filename(self, src_file):
         _, basename = os.path.split(src_file)
         _, file_type = os.path.splitext(src_file)
         name_parts = basename.split('.')
@@ -145,19 +136,19 @@ class GpsClockCorrectionApp(tk.Frame):
         full_code = '.'.join([netcode, statcode])
         return full_code
 
-    def _updateNextButton(self, _1, _2, _3):
+    def _update_next_button(self, *_unused):
         nc_file_value = self.nc_file.get()
         nc_file_valid = bool(nc_file_value) and os.path.isfile(nc_file_value)
         if nc_file_valid:
-            self.station_code= self._extractCodeFromFilename(nc_file_value)
+            self.station_code= self._extract_code_from_filename(nc_file_value)
         else:
             self.station_code = ''
-        self.STN_CODE_LABEL['text'] = "Station code: " + self.station_code
+        self.stn_code_label['text'] = "Station code: " + self.station_code
         output_folder_value = self.output_folder.get()
         output_folder_valid = bool(output_folder_value) and os.path.isdir(output_folder_value)
-        self.NEXT['state'] = tk.NORMAL if (nc_file_valid and output_folder_valid) else tk.DISABLED
+        self.next_button['state'] = tk.NORMAL if (nc_file_valid and output_folder_valid) else tk.DISABLED
 
-    def _openNcFile(self):
+    def _open_nc_file(self):
         initial_dir = self.nc_file.get()
         if not initial_dir:
             initial_dir = '/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/xcorr'
@@ -167,7 +158,7 @@ class GpsClockCorrectionApp(tk.Frame):
         if file_name:
             self.nc_file.set(file_name)
 
-    def _chooseOutputFolder(self):
+    def _choose_output_folder(self):
         initial_dir = self.output_folder.get()
         if not initial_dir:
             initial_dir = '/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections'
@@ -175,76 +166,78 @@ class GpsClockCorrectionApp(tk.Frame):
         if folder:
             self.output_folder.set(folder)
 
-    def _gotoStep1(self):
+    def _goto_step1(self):
         if self.current_step == 0:
             # for child in self.TOP_PANE_0.winfo_children():
             #     self.child.destroy()
             self.ROOT_FRAME_0.destroy()
             self.ROOT_FRAME_0 = None
-            self._createStep1Widgets()
+            self._create_step1_widgets()
 
-    def _createStep1Widgets(self):
+    def _create_step1_widgets(self):
         self.busy()
         self.current_step = 1
+
         self.ROOT_FRAME_1 = tk.Frame(self)
         self.ROOT_FRAME_1.pack(fill=tk.BOTH, expand=1)
 
-        self.LEFT_FRAME_1 = tk.LabelFrame(self.ROOT_FRAME_1, width=800)
-        self.LEFT_FRAME_1.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
+        left_frame_1 = tk.LabelFrame(self.ROOT_FRAME_1, width=800)
+        left_frame_1.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
 
-        self.STN_CODE_LABEL = tk.Label(self.LEFT_FRAME_1, text="Station code: " + self.station_code, font=8)
-        self.STN_CODE_LABEL.pack(anchor=tk.W, side=tk.TOP)
+        self.stn_code_label = tk.Label(left_frame_1, text="Station code: " + self.station_code, font=8)
+        self.stn_code_label.pack(anchor=tk.W, side=tk.TOP)
 
-        self.TIME_WINDOW_FRAME = tk.LabelFrame(self.LEFT_FRAME_1, borderwidth=2)
-        self.TIME_WINDOW_FRAME.pack(anchor=tk.W, side=tk.TOP, fill=tk.X, padx=2, pady=2)
+        time_window_frame = tk.LabelFrame(left_frame_1, borderwidth=2)
+        time_window_frame.pack(anchor=tk.W, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
-        self.TIME_WINDOW_LABEL = tk.Label(self.TIME_WINDOW_FRAME, text="Time window (s)")
-        self.TIME_WINDOW_LABEL.pack(anchor=tk.NW, side=tk.TOP)
-        self.TIME_WINDOW_ENTRY = tk.Scale(self.TIME_WINDOW_FRAME, from_=30, to=1800, resolution=10,
-                                          orient=tk.HORIZONTAL, length=500)
-        self.TIME_WINDOW_ENTRY.set(self.time_window.get())
-        self.TIME_WINDOW_ENTRY['variable'] = self.time_window
-        self.TIME_WINDOW_ENTRY['command'] = self._enableRefresh
-        self.TIME_WINDOW_ENTRY.pack(anchor=tk.SW, side=tk.BOTTOM, fill=tk.X)
+        time_window_label = tk.Label(time_window_frame, text="Time window (s)")
+        time_window_label.pack(anchor=tk.NW, side=tk.TOP)
+        time_window_entry = tk.Scale(time_window_frame, from_=30, to=1800, resolution=10,
+                                     orient=tk.HORIZONTAL, length=500)
+        time_window_entry.set(self.time_window.get())
+        time_window_entry['variable'] = self.time_window
+        time_window_entry['command'] = self._enable_refresh
+        time_window_entry.pack(anchor=tk.SW, side=tk.BOTTOM, fill=tk.X)
 
-        self.SNR_FRAME = tk.LabelFrame(self.LEFT_FRAME_1, borderwidth=2)
-        self.SNR_FRAME.pack(anchor=tk.W, side=tk.TOP, fill=tk.X, padx=2, pady=2)
+        snr_frame = tk.LabelFrame(left_frame_1, borderwidth=2)
+        snr_frame.pack(anchor=tk.W, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
-        self.SNR_LABEL = tk.Label(self.SNR_FRAME, text="SNR")
-        self.SNR_LABEL.pack(anchor=tk.NW, side=tk.TOP)
-        self.SNR_ENTRY = tk.Scale(self.SNR_FRAME, from_=0, to=100, resolution=1, orient=tk.HORIZONTAL, length=500)
-        self.SNR_ENTRY.set(self.snr_threshold.get())
-        self.SNR_ENTRY['variable'] = self.snr_threshold
-        self.SNR_ENTRY['command'] = self._enableRefresh
-        self.SNR_ENTRY.pack(anchor=tk.SW, side=tk.BOTTOM, fill=tk.X)
+        snr_label = tk.Label(snr_frame, text="SNR")
+        snr_label.pack(anchor=tk.NW, side=tk.TOP)
+        snr_entry = tk.Scale(snr_frame, from_=0, to=100, resolution=1, orient=tk.HORIZONTAL, length=500)
+        snr_entry.set(self.snr_threshold.get())
+        snr_entry['variable'] = self.snr_threshold
+        snr_entry['command'] = self._enable_refresh
+        snr_entry.pack(anchor=tk.SW, side=tk.BOTTOM, fill=tk.X)
 
-        self.RIGHT_FIGURE_CANVAS_1 = tk.Canvas(self.ROOT_FRAME_1)
-        self.RIGHT_FIGURE_CANVAS_1.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self.right_figure_canvas_1 = tk.Canvas(self.ROOT_FRAME_1)
+        self.right_figure_canvas_1.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=4, pady=4)
 
-        self.REFRESH = tk.Button(self.LEFT_FRAME_1)
-        self.REFRESH['text'] = "Refresh"
-        self.REFRESH['state'] = tk.DISABLED
-        self.REFRESH['command'] = self._updateStep1Canvas
-        self.REFRESH.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
+        self.refresh_button = tk.Button(left_frame_1, text="Refresh", state=tk.DISABLED,
+                                        command=self._update_step1_canvas)
+        self.refresh_button.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
-        self.NEXT = tk.Button(self.LEFT_FRAME_1)
-        self.NEXT['text'] = "Continue..."
-        self.NEXT['command'] = self._gotoStep2
-        self.NEXT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=(16,2))
+        self.next_button = tk.Button(left_frame_1, text="Continue...", command=self._goto_step2)
+        self.next_button.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=(16, 2))
 
-        self.QUIT = tk.Button(self.LEFT_FRAME_1)
-        self.QUIT['text'] = "Quit"
-        self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.E, side=tk.RIGHT, padx=2, pady=(16,2))
+        self.quit_button = tk.Button(left_frame_1, text="Quit", command=self._quit_app)
+        self.quit_button.pack(anchor=tk.E, side=tk.RIGHT, padx=2, pady=(16, 2))
 
         self.xcorr_settings, self.xcorr_title_tag = read_correlator_config(self.nc_file.get())
-        self._updateStep1Canvas()
         self.not_busy()
 
-    def _enableRefresh(self, _new_val):
-        self.REFRESH['state'] = tk.NORMAL
+        self.next_button['state'] = tk.DISABLED
+        self.next_button.update()
+        self.quit_button['state'] = tk.DISABLED
+        self.quit_button.update()
+        self._update_step1_canvas()
+        self.next_button['state'] = tk.NORMAL
+        self.quit_button['state'] = tk.NORMAL
 
-    def _destroyFigures(self):
+    def _enable_refresh(self, _new_val):
+        self.refresh_button['state'] = tk.NORMAL
+
+    def _destroy_figures(self):
         if self.xcorr_fig is not None:
             self.xcorr_fig.clear()
             self.xcorr_fig = None
@@ -270,34 +263,37 @@ class GpsClockCorrectionApp(tk.Frame):
             self.resampling_fig_canv.get_tk_widget().destroy()
             self.resampling_fig_canv = None
 
-    def _updateStep1Canvas(self):
-        self.REFRESH['state'] = tk.DISABLED
-        self.NEXT['state'] = tk.DISABLED
-        self._destroyFigures()
-        self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
+    def _update_step1_canvas(self):
+        self.busy()
+        self.refresh_button['state'] = tk.DISABLED
+        self.next_button['state'] = tk.DISABLED
+        self._destroy_figures()
+        self.right_figure_canvas_1.delete(tk.ALL)
         self.xcorr_ca, self.xcorr_fig = \
             plot_xcorr_file_clock_analysis(self.nc_file.get(), self.fds, self.time_window.get(),
                                            self.snr_threshold.get(), self.pearson_cutoff_factor, show=False,
                                            title_tag=self.xcorr_title_tag, settings=self.xcorr_settings)
-        self.fig_canv = FigureCanvasTkAgg(self.xcorr_fig, master=self.RIGHT_FIGURE_CANVAS_1)
+        self.fig_canv = FigureCanvasTkAgg(self.xcorr_fig, master=self.right_figure_canvas_1)
         self.fig_canv.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        self.RIGHT_FIGURE_CANVAS_1.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        self.NEXT['state'] = tk.NORMAL
+        self.right_figure_canvas_1.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.next_button['state'] = tk.NORMAL
+        self.not_busy()
         self.update()
 
-    def _gotoStep2(self):
+    def _goto_step2(self):
         if self.current_step == 1:
-            self.NEXT['state'] = tk.DISABLED
+            self.next_button['state'] = tk.DISABLED
 
-            self._destroyFigures()
+            self._destroy_figures()
 
-            self.RIGHT_FIGURE_CANVAS_1.delete(tk.ALL)
+            self.right_figure_canvas_1.delete(tk.ALL)
+            self.right_figure_canvas_1 = None
             self.ROOT_FRAME_1.destroy()
             self.ROOT_FRAME_1 = None
             self.update()
 
-            info_label = tk.Label(self, text="Saving plot...")
-            info_label.pack()
+            info_label = tk.Label(self, text="Saving xcorr plot...")
+            info_label.pack(pady=16)
             self.update()
 
             # Generate PNG file for the .nc file using the current settings.
@@ -308,9 +304,9 @@ class GpsClockCorrectionApp(tk.Frame):
 
             info_label.destroy()
 
-            self._createStep2Widgets()
+            self._create_step2_widgets()
 
-    def _createStep2Widgets(self):
+    def _create_step2_widgets(self):
         self.current_step = 2
 
         assert self.xcorr_ca is not None
@@ -318,72 +314,78 @@ class GpsClockCorrectionApp(tk.Frame):
         self.ROOT_FRAME_2 = tk.Frame(self)
         self.ROOT_FRAME_2.pack(fill=tk.BOTH, expand=1)
 
-        self.UPPER_FRAME_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Station code: " + self.station_code)
-        self.UPPER_FRAME_2.pack(anchor=tk.N, side=tk.TOP)
+        upper_frame_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Station code: " + self.station_code)
+        upper_frame_2.pack(anchor=tk.N, side=tk.TOP)
 
-        self.COEFF_WIDGETS_FRAME_2 = tk.Frame(self.UPPER_FRAME_2)
-        self.COEFF_WIDGETS_FRAME_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2)
+        coeff_widgets_frame_2 = tk.Frame(upper_frame_2)
+        coeff_widgets_frame_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2)
 
-        self.COEFF_WIDGETS_LABEL = tk.Label(self.COEFF_WIDGETS_FRAME_2, font=8,
-                                            text="Tune coefficients to optimize clustering and filtering of outliers")
-        self.COEFF_WIDGETS_LABEL.pack(anchor=tk.W, side=tk.TOP, pady=2)
+        coeff_widgets_label = tk.Label(coeff_widgets_frame_2, font=8,
+                                       text="Tune coefficients to optimize clustering and filtering of outliers")
+        coeff_widgets_label.pack(anchor=tk.W, side=tk.TOP, pady=2)
 
-        self.COEFF0_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 0 (x-separation)")
-        self.COEFF0_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
-        self.COEFF0_SPINBOX = tk.Spinbox(self.COEFF0_LABEL, from_=0.0, to=100.0, increment=0.1,
-                                         textvariable=self.cluster_coeff0)
-        self.COEFF0_SPINBOX.pack(padx=2, pady=2)
+        coeff0_label = tk.LabelFrame(coeff_widgets_frame_2, text="Coefficient 0 (x-separation)")
+        coeff0_label.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        coeff0_spinbox = tk.Spinbox(coeff0_label, from_=0.0, to=100.0, increment=0.1,
+                                    textvariable=self.cluster_coeff0)
+        coeff0_spinbox.pack(padx=2, pady=2)
 
-        self.COEFF1_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 1 (y-separation)")
-        self.COEFF1_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
-        self.COEFF1_SPINBOX = tk.Spinbox(self.COEFF1_LABEL, from_=0.0, to=100.0, increment=0.1,
+        coeff1_label = tk.LabelFrame(coeff_widgets_frame_2, text="Coefficient 1 (y-separation)")
+        coeff1_label.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        coeff1_spinbox = tk.Spinbox(coeff1_label, from_=0.0, to=100.0, increment=0.1,
                                          textvariable=self.cluster_coeff1)
-        self.COEFF1_SPINBOX.pack(padx=2, pady=2)
+        coeff1_spinbox.pack(padx=2, pady=2)
 
-        self.COEFF2_LABEL = tk.LabelFrame(self.COEFF_WIDGETS_FRAME_2, text="Coefficient 2 (slope)")
-        self.COEFF2_LABEL.pack(anchor=tk.W, side=tk.LEFT, padx=2)
-        self.COEFF2_SPINBOX = tk.Spinbox(self.COEFF2_LABEL, from_=0.0, to=100.0, increment=0.1,
-                                         textvariable=self.cluster_coeff2)
-        self.COEFF2_SPINBOX.pack(padx=2, pady=2)
+        coeff2_label = tk.LabelFrame(coeff_widgets_frame_2, text="Coefficient 2 (slope)")
+        coeff2_label.pack(anchor=tk.W, side=tk.LEFT, padx=2)
+        coeff2_spinbox = tk.Spinbox(coeff2_label, from_=0.0, to=100.0, increment=0.1,
+                                    textvariable=self.cluster_coeff2)
+        coeff2_spinbox.pack(padx=2, pady=2)
 
-        self.CONTROL_BUTTONS_FRAME_2 = tk.Frame(self.UPPER_FRAME_2)
-        self.CONTROL_BUTTONS_FRAME_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2, fill=tk.X)
+        control_buttons_frame_2 = tk.Frame(upper_frame_2)
+        control_buttons_frame_2.pack(anchor=tk.NW, side=tk.TOP, padx=2, pady=2, fill=tk.X)
 
-        self.NEXT = tk.Button(self.CONTROL_BUTTONS_FRAME_2)
-        self.NEXT['text'] = "Continue..."
-        self.NEXT['command'] = self._gotoStep3
-        self.NEXT.pack(anchor=tk.NW, side=tk.LEFT)
+        self.next_button = tk.Button(control_buttons_frame_2)
+        self.next_button['text'] = "Continue..."
+        self.next_button['command'] = self._goto_step3
+        self.next_button.pack(anchor=tk.NW, side=tk.LEFT)
 
-        self.QUIT = tk.Button(self.CONTROL_BUTTONS_FRAME_2)
-        self.QUIT['text'] = "Quit"
-        self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT)
+        self.quit_button = tk.Button(control_buttons_frame_2)
+        self.quit_button['text'] = "Quit"
+        self.quit_button['command'] = self._quit_app
+        self.quit_button.pack(anchor=tk.SE, side=tk.RIGHT)
 
-        self.LOWER_FRAME_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Clustering Result")
-        self.LOWER_FRAME_2.pack(anchor=tk.N, side=tk.TOP)
+        lower_frame_2 = tk.LabelFrame(self.ROOT_FRAME_2, text="Clustering Result")
+        lower_frame_2.pack(anchor=tk.N, side=tk.TOP)
 
-        self.CLUSTER_FIGURE_CANVAS_2 = tk.Canvas(self.LOWER_FRAME_2)
-        self.CLUSTER_FIGURE_CANVAS_2.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self.cluster_figure_canvas_2 = tk.Canvas(lower_frame_2)
+        self.cluster_figure_canvas_2.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
 
-        self._refreshClusteringCanvas()
+        self._refresh_clustering_canvas()
 
         self.update()
 
-        self.COEFF0_SPINBOX['command'] = self._refreshClusteringCanvas
-        self.COEFF1_SPINBOX['command'] = self._refreshClusteringCanvas
-        self.COEFF2_SPINBOX['command'] = self._refreshClusteringCanvas
+        coeff0_spinbox['command'] = self._refresh_clustering_canvas
+        coeff1_spinbox['command'] = self._refresh_clustering_canvas
+        coeff2_spinbox['command'] = self._refresh_clustering_canvas
+        coeff0_spinbox.bind('<FocusOut>', self._refresh_clustering_canvas)
+        coeff0_spinbox.bind('<Return>', self._refresh_clustering_canvas)
+        coeff1_spinbox.bind('<FocusOut>', self._refresh_clustering_canvas)
+        coeff1_spinbox.bind('<Return>', self._refresh_clustering_canvas)
+        coeff2_spinbox.bind('<FocusOut>', self._refresh_clustering_canvas)
+        coeff2_spinbox.bind('<Return>', self._refresh_clustering_canvas)
 
-    def _refreshClusteringCanvas(self):
+    def _refresh_clustering_canvas(self, *_unused):
         if self.cluster_fig_canv:
             self.cluster_fig_canv.get_tk_widget().destroy()
-        self.CLUSTER_FIGURE_CANVAS_2.delete(tk.ALL)
-        self._redrawClusteringFigure()
-        self.cluster_fig_canv = FigureCanvasTkAgg(self.cluster_fig, master=self.CLUSTER_FIGURE_CANVAS_2)
+        self.cluster_figure_canvas_2.delete(tk.ALL)
+        self._redraw_clustering_figure()
+        self.cluster_fig_canv = FigureCanvasTkAgg(self.cluster_fig, master=self.cluster_figure_canvas_2)
         self.cluster_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.CLUSTER_FIGURE_CANVAS_2.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.cluster_figure_canvas_2.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         self.update()
 
-    def _redrawClusteringFigure(self):
+    def _redraw_clustering_figure(self):
         cluster_coeffs = (self.cluster_coeff0.get(), self.cluster_coeff1.get(), self.cluster_coeff2.get())
         _, self.cluster_ids = self.xcorr_ca.do_clustering(cluster_coeffs)
 
@@ -396,27 +398,28 @@ class GpsClockCorrectionApp(tk.Frame):
         self.cluster_fig.tight_layout()
         self.cluster_fig.autofmt_xdate()
 
-    def _gotoStep3(self):
+    def _goto_step3(self):
         if self.current_step == 2:
-            self.NEXT['state'] = tk.DISABLED
+            self.next_button['state'] = tk.DISABLED
 
-            cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_clustering_profile.png")
-            self.cluster_fig.savefig(cluster_fig_file, dpi=300)
+            self.cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_clustering_profile.png")
+            self.cluster_fig.savefig(self.cluster_fig_file, dpi=300)
 
             assert self.cluster_ids is not None
             num_clusters = len(set(self.cluster_ids[self.cluster_ids != -1]))
             self.degrees = dict(zip(range(num_clusters), [1]*num_clusters))
 
-            self._destroyFigures()
+            self._destroy_figures()
 
-            self.CLUSTER_FIGURE_CANVAS_2.delete(tk.ALL)
+            self.cluster_figure_canvas_2.delete(tk.ALL)
+            self.cluster_figure_canvas_2 = None
             self.ROOT_FRAME_2.destroy()
             self.ROOT_FRAME_2 = None
             self.update()
 
-            self._createStep3Widgets()
+            self._create_step3_widgets()
 
-    def _createStep3Widgets(self):
+    def _create_step3_widgets(self):
         self.current_step = 3
 
         assert self.degrees is not None
@@ -424,77 +427,77 @@ class GpsClockCorrectionApp(tk.Frame):
         self.ROOT_FRAME_3 = tk.Frame(self)
         self.ROOT_FRAME_3.pack(fill=tk.BOTH, expand=1)
 
-        self.LEFT_FRAME_3 = tk.LabelFrame(self.ROOT_FRAME_3, text="Station code: " + self.station_code)
-        self.LEFT_FRAME_3.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
+        left_frame_3 = tk.LabelFrame(self.ROOT_FRAME_3, text="Station code: " + self.station_code)
+        left_frame_3.pack(anchor=tk.NW, side=tk.LEFT, fill=tk.X, padx=2, pady=2)
 
-        self.DEGREE_CONTROLS = []
+        self.degree_controls = []
         for i, d in self.degrees.items():
-            dc = SplineDegreeWidget(i, d, self.LEFT_FRAME_3, self._refreshSplineCanvas)
+            dc = SplineDegreeWidget(i, d, left_frame_3, self._refresh_spline_canvas)
             dc.pack(anchor=tk.NW, side=tk.TOP, fill=tk.X, padx=4)
-            self.DEGREE_CONTROLS.append(dc)
+            self.degree_controls.append(dc)
 
-        self.RESAMPLING_PERIOD_LABEL = tk.Label(self.LEFT_FRAME_3, text="Enter resampling period (days):")
-        self.RESAMPLING_PERIOD_LABEL.pack(anchor=tk.W, padx=2, pady=2, side=tk.TOP)
+        resampling_period_label = tk.Label(left_frame_3, text="Enter resampling period (days):")
+        resampling_period_label.pack(anchor=tk.W, padx=2, pady=2, side=tk.TOP)
 
-        self.RESAMPLING_PERIOD_ENTRY = tk.Entry(self.LEFT_FRAME_3, textvariable=self.resampling_period_days,
-                                                exportselection=False)
-        self.RESAMPLING_PERIOD_ENTRY['width'] = 8
-        self.RESAMPLING_PERIOD_ENTRY.pack(anchor=tk.E, padx=5, pady=2, side=tk.TOP)
-        self.resampling_period_days.trace_variable('w', self._resampleRateChanged)
+        resampling_period_entry = tk.Entry(left_frame_3, textvariable=self.resampling_period_days,
+                                           exportselection=False)
+        resampling_period_entry['width'] = 8
+        resampling_period_entry.pack(anchor=tk.E, padx=5, pady=2, side=tk.TOP)
+        self.resampling_period_days.trace_variable('w', self._resample_rate_changed)
 
-        self.EXPORT = tk.Button(self.LEFT_FRAME_3)
-        self.EXPORT['text'] = "Export..."
-        self.EXPORT['command'] = self._exportCorrections
-        self.EXPORT.pack(anchor=tk.SW, side=tk.LEFT, padx=2, pady=(16, 2))
+        self.export_button = tk.Button(left_frame_3, text="Export...", command=self._export_corrections)
+        self.export_button.pack(anchor=tk.SW, side=tk.LEFT, padx=2, pady=(16, 2))
 
-        self.QUIT = tk.Button(self.LEFT_FRAME_3)
-        self.QUIT['text'] = "Quit"
-        self.QUIT['command'] = self._quitApp
-        self.QUIT.pack(anchor=tk.SE, side=tk.RIGHT, padx=2, pady=(16, 2))
+        self.quit_button = tk.Button(left_frame_3, text="Quit", command=self._quit_app)
+        self.quit_button.pack(anchor=tk.SE, side=tk.RIGHT, padx=2, pady=(16, 2))
 
-        self.RIGHT_FRAME_3 = tk.Frame(self.ROOT_FRAME_3)
-        self.RIGHT_FRAME_3.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH)
+        right_frame_3 = tk.Frame(self.ROOT_FRAME_3)
+        right_frame_3.pack(anchor=tk.NE, side=tk.RIGHT, fill=tk.BOTH)
 
-        self.RIGHT_UPPER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Regression curves overlay")
-        self.RIGHT_UPPER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
-        self.CURVE_FIGURE_CANVAS_3 = tk.Canvas(self.RIGHT_UPPER_FRAME_3)
-        self.CURVE_FIGURE_CANVAS_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        right_upper_frame_3 = tk.LabelFrame(right_frame_3, text="Regression curves overlay")
+        right_upper_frame_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
+        self.curve_figure_canvas_3 = tk.Canvas(right_upper_frame_3)
+        self.curve_figure_canvas_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
 
-        self.RIGHT_LOWER_FRAME_3 = tk.LabelFrame(self.RIGHT_FRAME_3, text="Resampled regression curves")
-        self.RIGHT_LOWER_FRAME_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
-        self.RESAMPLE_FIGURE_CANVAS_3 = tk.Canvas(self.RIGHT_LOWER_FRAME_3)
-        self.RESAMPLE_FIGURE_CANVAS_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        right_lower_frame_3 = tk.LabelFrame(right_frame_3, text="Resampled regression curves")
+        right_lower_frame_3.pack(anchor=tk.NE, side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
+        self.resample_figure_canvas_3 = tk.Canvas(right_lower_frame_3)
+        self.resample_figure_canvas_3.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=2)
 
         self.regression_fig_lims = None
         self.resampling_fig_lims = None
-        self._refreshSplineCanvas(None)
+        self._refresh_spline_canvas(None)
 
-    def _resampleRateChanged(self, _1, _2, _3):
+    def _resample_rate_changed(self, *_unused):
         # if float(self.resampling_period_days.get()) <= 0:
         #     self.resampling_period_days.set(1.0)
-        self._refreshResamplingCanvas()
+        self._refresh_resampling_canvas()
 
-    def _refreshRegressionCanvas(self):
+    def _refresh_spline_canvas(self, _new_val_unused):
+        self._refresh_regression_canvas()
+        self._refresh_resampling_canvas()
+
+    def _refresh_regression_canvas(self):
         if self.regression_fig_canv:
             self.regression_fig_canv.get_tk_widget().destroy()
-        self.CURVE_FIGURE_CANVAS_3.delete(tk.ALL)
-        self._redrawRegressionFigure()
+        self.curve_figure_canvas_3.delete(tk.ALL)
+        self._redraw_regression_figure()
         if self.regression_fig_lims is not None:
             self.regression_fig.gca().set_xlim(self.regression_fig_lims[0])
             self.regression_fig.gca().set_ylim(self.regression_fig_lims[1])
         else:
             ax = self.regression_fig.gca()
             self.regression_fig_lims = (ax.get_xlim(), ax.get_ylim())
-        self.regression_fig_canv = FigureCanvasTkAgg(self.regression_fig, master=self.CURVE_FIGURE_CANVAS_3)
+        self.regression_fig_canv = FigureCanvasTkAgg(self.regression_fig, master=self.curve_figure_canvas_3)
         self.regression_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.CURVE_FIGURE_CANVAS_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.curve_figure_canvas_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         self.update()
 
-    def _redrawRegressionFigure(self):
+    def _redraw_regression_figure(self):
         # Harvest settings from widgets, then run regression
         self.degrees = {}
         self.selected_cluster_ids = copy.copy(self.cluster_ids)
-        for i, c in enumerate(self.DEGREE_CONTROLS):
+        for i, c in enumerate(self.degree_controls):
             if c.is_enabled:
                 self.degrees[i] = c.spline_degree
             else:
@@ -511,25 +514,24 @@ class GpsClockCorrectionApp(tk.Frame):
                                       self.station_code)
         self.regression_fig.tight_layout()
         self.regression_fig.autofmt_xdate()
-        # TODO: Add auto-saving to file
 
-    def _refreshResamplingCanvas(self):
+    def _refresh_resampling_canvas(self):
         if self.resampling_fig_canv:
             self.resampling_fig_canv.get_tk_widget().destroy()
-        self.RESAMPLE_FIGURE_CANVAS_3.delete(tk.ALL)
-        self._redrawResamplingFigure()
+        self.resample_figure_canvas_3.delete(tk.ALL)
+        self._redraw_resampling_figure()
         if self.resampling_fig_lims is not None:
             self.resampling_fig.gca().set_xlim(self.resampling_fig_lims[0])
             self.resampling_fig.gca().set_ylim(self.resampling_fig_lims[1])
         else:
             ax = self.resampling_fig.gca()
             self.resampling_fig_lims = (ax.get_xlim(), ax.get_ylim())
-        self.resampling_fig_canv = FigureCanvasTkAgg(self.resampling_fig, master=self.RESAMPLE_FIGURE_CANVAS_3)
+        self.resampling_fig_canv = FigureCanvasTkAgg(self.resampling_fig, master=self.resample_figure_canvas_3)
         self.resampling_fig_canv.get_tk_widget().pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.RESAMPLE_FIGURE_CANVAS_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.resample_figure_canvas_3.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         self.update()
 
-    def _redrawResamplingFigure(self):
+    def _redraw_resampling_figure(self):
         # Harvest settings from widgets, then run resampling
         sec_per_day = 24*3600.0
         sample_period = self.resampling_period_days.get()*sec_per_day
@@ -546,15 +548,12 @@ class GpsClockCorrectionApp(tk.Frame):
                                               self.regular_corrections, self.station_code)
         self.resampling_fig.tight_layout()
         self.resampling_fig.autofmt_xdate()
-        # TODO: Add auto-saving to file
 
-    def _refreshSplineCanvas(self, _new_val_unused):
-        self._refreshRegressionCanvas()
-        self._refreshResamplingCanvas()
-
-    def _exportCorrections(self):
+    def _export_corrections(self):
         # Save plots to PNG files.
         try:
+            self.export_button['state'] = tk.DISABLED
+            self.update()
             self.busy()
             regression_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_regression_profile.png")
             self.regression_fig.savefig(regression_fig_file, dpi=300)
@@ -582,17 +581,21 @@ class GpsClockCorrectionApp(tk.Frame):
             df.to_csv(output_file, index=False)
 
             self.not_busy()
-            messagebox.showinfo("Export success", "Saved following files:\n{}\n{}\n{}".format(
-                regression_fig_file, resampling_fig_file, output_file), width=100)
+            messagebox.showinfo("Export success", "Saved following files:\n{}\n{}\n{}\n{}".format(
+                self.cluster_fig_file, regression_fig_file, resampling_fig_file, output_file))
         except Exception as e:
             self.not_busy()
             messagebox.showerror("Export error", "Error occurred during exported - results might not be saved!\n"
                                                  "Error:\n{}".format(str(e)))
             return
 
+        self.curve_figure_canvas_3.delete(tk.ALL)
+        self.curve_figure_canvas_3 = None
+        self.resample_figure_canvas_3.delete(tk.ALL)
+        self.resample_figure_canvas_3 = None
         self.ROOT_FRAME_3.destroy()
         self.ROOT_FRAME_3 = None
-        self._quitApp()
+        self._quit_app()
 
 #end class
 
