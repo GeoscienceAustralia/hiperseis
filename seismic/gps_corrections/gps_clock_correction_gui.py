@@ -7,11 +7,16 @@ import os
 import copy
 
 try:
-    import tkinter as tk
-except ImportError:
     import Tkinter as tk
+except ImportError:
+    import tkinter as tk
 
-import tkFileDialog
+try:
+    import tkFileDialog as filedialog
+    import tkMessageBox as messagebox
+except ImportError:
+    from tkinter import filedialog
+    from tkinter import messagebox
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -19,6 +24,10 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # from matplotlib.figure import Figure
+
+import numpy as np
+import pandas as pd
+import obspy
 
 from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.xcorqc.xcorr_station_clock_analysis import (plot_xcorr_file_clock_analysis,
@@ -34,8 +43,7 @@ class GpsClockCorrectionApp(tk.Frame):
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
         self.nc_file = tk.StringVar(self)
-        self.pack()
-        self._last_dir = None
+        self.output_folder = tk.StringVar(self)
         self.fds = FederatedASDFDataSet.FederatedASDFDataSet(dataset)
         self.current_step = 0
         self.station_code = ''
@@ -59,14 +67,22 @@ class GpsClockCorrectionApp(tk.Frame):
         self.resampling_fig = None
         self.resampling_fig_canv = None
         self.display_dpi = 50
+        self.pack()
 
         self._createStep0Widgets()
+
+    def busy(self):
+        tk_root.config(cursor="watch")
+        tk_root.update()
+
+    def not_busy(self):
+        tk_root.config(cursor="")
 
     def _createStep0Widgets(self):
         self.ROOT_FRAME_0 = tk.Frame(self)
         self.ROOT_FRAME_0.pack(fill=tk.BOTH, expand=1)
 
-        self.UPPER_FRAME_0 = tk.LabelFrame(self.ROOT_FRAME_0, text="Input file selection", borderwidth=2)
+        self.UPPER_FRAME_0 = tk.LabelFrame(self.ROOT_FRAME_0, text="File selection", borderwidth=2)
         self.UPPER_FRAME_0.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
         self.STN_CODE_LABEL = tk.Label(self.ROOT_FRAME_0, text="Station code: ", font=8)
@@ -75,18 +91,33 @@ class GpsClockCorrectionApp(tk.Frame):
         self.LOWER_FRAME_0 = tk.Frame(self.ROOT_FRAME_0)
         self.LOWER_FRAME_0.pack(anchor=tk.S, side=tk.BOTTOM, fill=tk.X, padx=2, pady=2)
 
-        self.NC_FILE_LABEL = tk.Label(self.UPPER_FRAME_0, text="Cross-correlation file:")
-        self.NC_FILE_LABEL.pack(anchor=tk.E, side=tk.LEFT, pady=2)
-
-        self.NC_FILE_ENTRY = tk.Entry(self.UPPER_FRAME_0, exportselection=False)
-        self.NC_FILE_ENTRY['width'] = 64
-        self.NC_FILE_ENTRY.pack(anchor=tk.W, padx=5, pady=2, side=tk.LEFT)
-        self.NC_FILE_ENTRY['textvariable'] = self.nc_file
-
-        self.OPEN = tk.Button(self.LOWER_FRAME_0)
+        file_entry_frame = tk.Frame(self.UPPER_FRAME_0)
+        file_entry_frame.pack(anchor=tk.E, side=tk.TOP, fill=tk.X)
+        self.OPEN = tk.Button(file_entry_frame, width=10)
         self.OPEN['text'] = "Open..."
         self.OPEN['command'] = self._openNcFile
-        self.OPEN.pack(anchor=tk.SW, side=tk.LEFT)
+        self.OPEN.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
+
+        self.NC_FILE_LABEL = tk.Label(file_entry_frame, text="Cross-correlation file:")
+        self.NC_FILE_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
+
+        self.NC_FILE_ENTRY = tk.Entry(file_entry_frame, exportselection=False, width=64)
+        self.NC_FILE_ENTRY.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
+        self.NC_FILE_ENTRY['textvariable'] = self.nc_file
+
+        output_folder_frame = tk.Frame(self.UPPER_FRAME_0)
+        output_folder_frame.pack(anchor=tk.E, side=tk.TOP, fill=tk.X)
+        self.SELECT = tk.Button(output_folder_frame, width=10)
+        self.SELECT['text'] = "Choose..."
+        self.SELECT['command'] = self._chooseOutputFolder
+        self.SELECT.pack(anchor=tk.W, side=tk.LEFT, padx=2, pady=2)
+
+        self.OUTPUT_FOLDER_LABEL = tk.Label(output_folder_frame, text="Output folder:")
+        self.OUTPUT_FOLDER_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=(8,0), pady=2)
+
+        self.OUTPUT_FOLDER_ENTRY = tk.Entry(output_folder_frame, exportselection=False, width=64)
+        self.OUTPUT_FOLDER_ENTRY.pack(anchor=tk.E, padx=(2,4), pady=2, side=tk.TOP, fill=tk.X)
+        self.OUTPUT_FOLDER_ENTRY['textvariable'] = self.output_folder
 
         self.NEXT = tk.Button(self.LOWER_FRAME_0)
         self.NEXT['text'] = "Continue..."
@@ -94,6 +125,7 @@ class GpsClockCorrectionApp(tk.Frame):
         self.NEXT['command'] = self._gotoStep1
         self.NEXT.pack(anchor=tk.SW, side=tk.LEFT)
         self.nc_file.trace_variable('w', self._updateNextButton)
+        self.output_folder.trace_variable('w', self._updateNextButton)
 
         self.QUIT = tk.Button(self.LOWER_FRAME_0)
         self.QUIT['text'] = "Quit"
@@ -115,22 +147,33 @@ class GpsClockCorrectionApp(tk.Frame):
 
     def _updateNextButton(self, _1, _2, _3):
         nc_file_value = self.nc_file.get()
-        nc_file_valid = bool(nc_file_value) and os.path.exists(nc_file_value)
-        self.NEXT['state'] = tk.NORMAL if nc_file_valid else tk.DISABLED
+        nc_file_valid = bool(nc_file_value) and os.path.isfile(nc_file_value)
         if nc_file_valid:
             self.station_code= self._extractCodeFromFilename(nc_file_value)
         else:
             self.station_code = ''
         self.STN_CODE_LABEL['text'] = "Station code: " + self.station_code
+        output_folder_value = self.output_folder.get()
+        output_folder_valid = bool(output_folder_value) and os.path.isdir(output_folder_value)
+        self.NEXT['state'] = tk.NORMAL if (nc_file_valid and output_folder_valid) else tk.DISABLED
 
     def _openNcFile(self):
-        initial_dir = '/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/xcorr' if self._last_dir is None else self._last_dir
-        file_name = tkFileDialog.askopenfilename(initialdir=initial_dir,
-                                                 title='Select .nc file to analyze',
-                                                 filetypes=(("nc files", "*.nc"), ("all files", "*")))
+        initial_dir = self.nc_file.get()
+        if not initial_dir:
+            initial_dir = '/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/xcorr'
+        file_name = filedialog.askopenfilename(initialdir=initial_dir,
+                                               title='Select .nc file to analyze',
+                                               filetypes=(("nc files", "*.nc"), ("all files", "*")))
         if file_name:
-            self._last_dir = os.path.split(file_name)[0]
             self.nc_file.set(file_name)
+
+    def _chooseOutputFolder(self):
+        initial_dir = self.output_folder.get()
+        if not initial_dir:
+            initial_dir = '/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections'
+        folder = filedialog.askdirectory(initialdir=initial_dir, title='Select output folder', mustexist=True)
+        if folder:
+            self.output_folder.set(folder)
 
     def _gotoStep1(self):
         if self.current_step == 0:
@@ -141,6 +184,7 @@ class GpsClockCorrectionApp(tk.Frame):
             self._createStep1Widgets()
 
     def _createStep1Widgets(self):
+        self.busy()
         self.current_step = 1
         self.ROOT_FRAME_1 = tk.Frame(self)
         self.ROOT_FRAME_1.pack(fill=tk.BOTH, expand=1)
@@ -195,6 +239,7 @@ class GpsClockCorrectionApp(tk.Frame):
 
         self.xcorr_settings, self.xcorr_title_tag = read_correlator_config(self.nc_file.get())
         self._updateStep1Canvas()
+        self.not_busy()
 
     def _enableRefresh(self, _new_val):
         self.REFRESH['state'] = tk.NORMAL
@@ -256,8 +301,10 @@ class GpsClockCorrectionApp(tk.Frame):
             self.update()
 
             # Generate PNG file for the .nc file using the current settings.
+            self.busy()
             batch_process_xcorr([self.nc_file.get()], self.fds, self.time_window.get(), self.snr_threshold.get(),
                                 pearson_cutoff_factor=self.pearson_cutoff_factor, save_plots=True, force_save=True)
+            self.not_busy()
 
             info_label.destroy()
 
@@ -352,6 +399,9 @@ class GpsClockCorrectionApp(tk.Frame):
     def _gotoStep3(self):
         if self.current_step == 2:
             self.NEXT['state'] = tk.DISABLED
+
+            cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_clustering_profile.png")
+            self.cluster_fig.savefig(cluster_fig_file, dpi=300)
 
             assert self.cluster_ids is not None
             num_clusters = len(set(self.cluster_ids[self.cluster_ids != -1]))
@@ -503,10 +553,46 @@ class GpsClockCorrectionApp(tk.Frame):
         self._refreshResamplingCanvas()
 
     def _exportCorrections(self):
-        print("Export corrections")
         # Save plots to PNG files.
-        # Save resampled data to csv.
-        pass
+        try:
+            self.busy()
+            regression_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_regression_profile.png")
+            self.regression_fig.savefig(regression_fig_file, dpi=300)
+            resampling_fig_file = os.path.join(self.output_folder.get(),
+                                               self.station_code + "_clock_correction_profile.png")
+            self.resampling_fig.savefig(resampling_fig_file, dpi=300)
+
+            # Save resampled data to csv.
+            data_blocks = []
+            for c in self.regular_corrections.values():
+                # BEWARE: The 'corrections' array sign is negated there, since the correction
+                # we have computed up to this point is actually the clock *error*. Subtraction
+                # of an error is the same as addition of a correction of opposite sign.
+                data_blocks.append(pd.DataFrame(np.column_stack([c['times'], -c['corrections']]),
+                                                columns=['timestamp', 'clock_correction']))
+            df = pd.concat(data_blocks)
+
+            df['date'] = df['timestamp'].apply(obspy.UTCDateTime).apply(lambda x: x.date)
+            net, sta = self.station_code.split('.')
+            df['net'] = net
+            df['sta'] = sta
+            df = df[['net', 'sta', 'date', 'clock_correction']]
+
+            output_file = os.path.join(self.output_folder.get(), self.station_code + "_clock_correction.csv")
+            df.to_csv(output_file, index=False)
+
+            self.not_busy()
+            messagebox.showinfo("Export success", "Saved following files:\n{}\n{}\n{}".format(
+                regression_fig_file, resampling_fig_file, output_file), width=100)
+        except Exception as e:
+            self.not_busy()
+            messagebox.showerror("Export error", "Error occurred during exported - results might not be saved!\n"
+                                                 "Error:\n{}".format(str(e)))
+            return
+
+        self.ROOT_FRAME_3.destroy()
+        self.ROOT_FRAME_3 = None
+        self._quitApp()
 
 #end class
 
