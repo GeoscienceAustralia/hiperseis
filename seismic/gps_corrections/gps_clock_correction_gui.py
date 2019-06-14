@@ -5,6 +5,7 @@ GUI interface to generating clock corrections from x-corr results.
 
 import os
 import copy
+import stat
 
 try:
     import Tkinter as tk
@@ -405,6 +406,8 @@ class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
 
             self.cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_1_clustering_profile.png")
             self.cluster_fig.savefig(self.cluster_fig_file, dpi=300)
+            # Change permissions so that others in same group can read and write over this file.
+            os.chmod(self.cluster_fig_file, (stat.S_IRGRP | stat.S_IWGRP))
 
             assert self.cluster_ids is not None
             num_clusters = len(set(self.cluster_ids[self.cluster_ids != -1]))
@@ -571,9 +574,12 @@ class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
             self.busy()
             regression_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_2_regression_profile.png")
             self.regression_fig.savefig(regression_fig_file, dpi=300)
+            # Change permissions so that others in same group can read and write over this file.
+            os.chmod(regression_fig_file, (stat.S_IRGRP | stat.S_IWGRP))
             resampling_fig_file = os.path.join(self.output_folder.get(),
                                                self.station_code + "_3_clock_correction_profile.png")
             self.resampling_fig.savefig(resampling_fig_file, dpi=300)
+            os.chmod(resampling_fig_file, (stat.S_IRGRP | stat.S_IWGRP))
 
             # Save resampled data to csv.
             data_blocks = []
@@ -593,6 +599,8 @@ class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
 
             output_file = os.path.join(self.output_folder.get(), self.station_code + "_clock_correction.csv")
             df.to_csv(output_file, index=False)
+            # Change permissions so that others in same group can read and write over this file.
+            os.chmod(output_file, (stat.S_IRGRP | stat.S_IWGRP))
 
             self.not_busy()
             messagebox.showinfo("Export success", "Saved following files:\n{}\n{}\n{}\n{}".format(

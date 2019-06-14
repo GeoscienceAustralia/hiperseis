@@ -9,6 +9,7 @@ and plotting in standard layout.
 
 import os
 import sys
+import stat
 import datetime
 import time
 import math
@@ -622,9 +623,13 @@ def plot_xcorr_file_clock_analysis(src_file, asdf_dataset, time_window, snr_thre
         pdf_out = PdfPages(pdf_file)
         pdf_out.savefig(plt.gcf(), dpi=600)
         pdf_out.close()
+        # Change permissions so that others in same group can read and write over this file.
+        os.chmod(pdf_file, (stat.S_IRGRP | stat.S_IWGRP))
 
     if png_file is not None:
         plt.savefig(png_file, dpi=150)
+        # Change permissions so that others in same group can read and write over this file.
+        os.chmod(png_file, (stat.S_IRGRP | stat.S_IWGRP))
 
     if show:
         plt.show()
