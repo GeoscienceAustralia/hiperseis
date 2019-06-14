@@ -3,6 +3,9 @@
 GUI interface to generating clock corrections from x-corr results.
 """
 
+# Don't expect unit test code coverage in GUI app.
+# pragma: no cover
+
 import os
 import copy
 
