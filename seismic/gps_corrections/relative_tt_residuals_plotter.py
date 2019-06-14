@@ -723,6 +723,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     # Find additional network.station codes that match AU network, and add them to target
     if include_alternate_catalog and TARGET_NET in IRIS_ALTERNATE_STATIONS_FILE:
         alt_file = IRIS_ALTERNATE_STATIONS_FILE[TARGET_NET]
+        alt_file = os.path.join(os.path.split(__file__)[0], alt_file)
         new_nets, new_stas = determine_alternate_matching_codes(df_picks, alt_file, TARGET_NET)
         log.info("Adding {} more stations from alternate networks file {}".format(len(new_nets), alt_file))
         TARGET_STNS['net'].extend(list(new_nets))
