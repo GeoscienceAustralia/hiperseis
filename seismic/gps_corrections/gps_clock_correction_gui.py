@@ -236,6 +236,7 @@ class GpsClockCorrectionApp(tk.Frame):
 
     def _enable_refresh(self, _new_val):
         self.refresh_button['state'] = tk.NORMAL
+        self.next_button['state'] = tk.DISABLED
 
     def _destroy_figures(self):
         if self.xcorr_fig is not None:
@@ -293,7 +294,7 @@ class GpsClockCorrectionApp(tk.Frame):
             self.update()
 
             info_label = tk.Label(self, text="Saving xcorr plot...")
-            info_label.pack(pady=16)
+            info_label.pack(pady=30)
             self.update()
 
             # Generate PNG file for the .nc file using the current settings.
@@ -473,9 +474,22 @@ class GpsClockCorrectionApp(tk.Frame):
         #     self.resampling_period_days.set(1.0)
         self._refresh_resampling_canvas()
 
+    def _update_export_button_state(self):
+        export_enabled = False
+        for c in self.degree_controls:
+            export_enabled = export_enabled or c.is_enabled
+        self.export_button['state'] = tk.NORMAL if export_enabled else tk.DISABLED
+
     def _refresh_spline_canvas(self, _new_val_unused):
-        self._refresh_regression_canvas()
-        self._refresh_resampling_canvas()
+        self._update_export_button_state()
+        try:
+            self._refresh_regression_canvas()
+        except ValueError:
+            pass
+        try:
+            self._refresh_resampling_canvas()
+        except ValueError:
+            pass
 
     def _refresh_regression_canvas(self):
         if self.regression_fig_canv:
@@ -508,12 +522,12 @@ class GpsClockCorrectionApp(tk.Frame):
             self.regression_fig.clear()
         else:
             self.regression_fig = plt.figure(figsize=(16, 9), dpi=self.display_dpi)
-            # self.regression_fig = plt.figure()
 
-        self.xcorr_ca.plot_regressors(self.regression_fig.gca(), self.selected_cluster_ids, self.regression_curves,
-                                      self.station_code)
-        self.regression_fig.tight_layout()
-        self.regression_fig.autofmt_xdate()
+        if self.regression_curves:
+            self.xcorr_ca.plot_regressors(self.regression_fig.gca(), self.selected_cluster_ids, self.regression_curves,
+                                          self.station_code)
+            self.regression_fig.tight_layout()
+            self.regression_fig.autofmt_xdate()
 
     def _refresh_resampling_canvas(self):
         if self.resampling_fig_canv:
@@ -542,12 +556,12 @@ class GpsClockCorrectionApp(tk.Frame):
             self.resampling_fig.clear()
         else:
             self.resampling_fig = plt.figure(figsize=(16, 9), dpi=self.display_dpi)
-            # self.resampling_fig = plt.figure()
 
-        self.xcorr_ca.plot_resampled_clusters(self.resampling_fig.gca(), self.selected_cluster_ids,
-                                              self.regular_corrections, self.station_code)
-        self.resampling_fig.tight_layout()
-        self.resampling_fig.autofmt_xdate()
+        if self.regular_corrections:
+            self.xcorr_ca.plot_resampled_clusters(self.resampling_fig.gca(), self.selected_cluster_ids,
+                                                  self.regular_corrections, self.station_code)
+            self.resampling_fig.tight_layout()
+            self.resampling_fig.autofmt_xdate()
 
     def _export_corrections(self):
         # Save plots to PNG files.
@@ -604,19 +618,19 @@ class SplineDegreeWidget(tk.LabelFrame):
     def __init__(self, index, initial_value, master=None, command=None):
         assert initial_value >= 1 and initial_value <= 5
         tk.LabelFrame.__init__(self, master, text="Spline {}".format(index))
-        self.enabled = tk.BooleanVar(self, True)
-        self.degree = tk.IntVar(self, initial_value)
-        self.ENABLE_TOGGLE = tk.Checkbutton(self, variable=self.enabled)
+        self._enabled = tk.BooleanVar(self, True)
+        self._degree = tk.IntVar(self, initial_value)
+        self.ENABLE_TOGGLE = tk.Checkbutton(self, variable=self._enabled)
         self.ENABLE_TOGGLE['command'] = self._toggled
         self.ENABLE_TOGGLE.pack(anchor=tk.E, side=tk.LEFT)
         self.DEGREE_LABEL = tk.Label(self, text="Spline order:")
         self.DEGREE_LABEL.pack(anchor=tk.E, side=tk.LEFT, padx=2)
-        self.DEGREE_CHOOSER = tk.OptionMenu(self, self.degree, 1, 2, 3, 4, 5, command=command)
+        self.DEGREE_CHOOSER = tk.OptionMenu(self, self._degree, 1, 2, 3, 4, 5, command=command)
         self.DEGREE_CHOOSER.pack(anchor=tk.E, side=tk.LEFT, padx=2, fill=tk.X, expand=1)
         self.command_handler = command
 
     def _toggled(self):
-        if self.enabled.get():
+        if self._enabled.get():
             self.DEGREE_LABEL['state'] = tk.NORMAL
             self.DEGREE_CHOOSER['state'] = tk.NORMAL
             if self.command_handler is not None:
@@ -629,11 +643,11 @@ class SplineDegreeWidget(tk.LabelFrame):
 
     @property
     def is_enabled(self):
-        return self.enabled.get()
+        return self._enabled.get()
 
     @property
     def spline_degree(self):
-        return self.degree.get()
+        return self._degree.get()
 
 
 tk_root = tk.Tk()

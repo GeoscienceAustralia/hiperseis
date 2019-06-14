@@ -97,8 +97,12 @@ class XcorrClockAnalyzer:
         nan_mask = np.isnan(self.raw_correction)
         self.correction_times_clean = self.float_start_times[~nan_mask]
         self.corrections_clean = self.raw_correction[~nan_mask]
-        # Compute a median filtered slope metric
-        grad = np.gradient(self.corrections_clean, self.correction_times_clean, edge_order=1)
+        assert len(self.correction_times_clean) == len(self.corrections_clean)
+        if len(self.corrections_clean) > 1:
+            # Compute a median filtered slope metric
+            grad = np.gradient(self.corrections_clean, self.correction_times_clean, edge_order=1)
+        else:
+            grad = np.array([])
         grad_med5 = signal.medfilt(grad, 5)
         self.corrections_slope = grad_med5
     # end func
