@@ -3,9 +3,6 @@
 GUI interface to generating clock corrections from x-corr results.
 """
 
-# Don't expect unit test code coverage in GUI app.
-# pragma: no cover
-
 import os
 import copy
 
@@ -41,7 +38,7 @@ from seismic.xcorqc.xcorr_station_clock_analysis import (plot_xcorr_file_clock_a
 dataset = "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"
 
 
-class GpsClockCorrectionApp(tk.Frame):
+class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
 
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
@@ -617,7 +614,7 @@ class GpsClockCorrectionApp(tk.Frame):
 #end class
 
 
-class SplineDegreeWidget(tk.LabelFrame):
+class SplineDegreeWidget(tk.LabelFrame):  # pragma: no cover
     def __init__(self, index, initial_value, master=None, command=None):
         assert initial_value >= 1 and initial_value <= 5
         tk.LabelFrame.__init__(self, master, text="Spline {}".format(index))
@@ -653,11 +650,13 @@ class SplineDegreeWidget(tk.LabelFrame):
         return self._degree.get()
 
 
-tk_root = tk.Tk()
-app = GpsClockCorrectionApp(master=tk_root)
-app.master.title("GPS Clock Correction Workflow")
-app.master.minsize(320, 120)
-app.master.columnconfigure(0, weight=1)
-app.master.rowconfigure(0, weight=1)
-app.mainloop()
-# tk_root.destroy()
+# Non-conditional 'if' used here to create a code block to tag as 'no cover'
+if True:  # pragma: no cover
+    tk_root = tk.Tk()
+    app = GpsClockCorrectionApp(master=tk_root)
+    app.master.title("GPS Clock Correction Workflow")
+    app.master.minsize(320, 120)
+    app.master.columnconfigure(0, weight=1)
+    app.master.rowconfigure(0, weight=1)
+    app.mainloop()
+    # tk_root.destroy()
