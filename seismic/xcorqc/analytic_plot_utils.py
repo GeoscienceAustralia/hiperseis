@@ -4,6 +4,7 @@ Utility functions supporting plotting for cross-correlation visualizations.
 """
 
 import math
+import datetime
 import numpy as np
 
 from shapely.geometry import Polygon
@@ -58,3 +59,17 @@ def drawBBox(min_lon, min_lat, max_lon, max_lat, base_map, **kwargs):
     xy = zip(x, y)
     poly = Polygon(xy)
     base_map.ax.add_patch(PolygonPatch(poly, **kwargs))
+
+
+def timestamps_to_plottable_datetimes(time_series):
+    """
+    Convert a series of float (or equivalent) timestamp values to matplotlib plottable datetimes.
+
+    :param time_series: Series of timestamps
+    :type time_series: iterable container
+    :return: Equivalent series of plottable timestamps
+    :rtype: numpy.array('datetime64[ms]') with millisecond resolution
+    """
+    plt_times = np.array([datetime.datetime.utcfromtimestamp(v)
+                          for v in time_series]).astype('datetime64[ms]')
+    return plt_times
