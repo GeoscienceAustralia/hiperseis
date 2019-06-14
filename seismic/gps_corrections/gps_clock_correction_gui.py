@@ -403,7 +403,7 @@ class GpsClockCorrectionApp(tk.Frame):
         if self.current_step == 2:
             self.next_button['state'] = tk.DISABLED
 
-            self.cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_clustering_profile.png")
+            self.cluster_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_1_clustering_profile.png")
             self.cluster_fig.savefig(self.cluster_fig_file, dpi=300)
 
             assert self.cluster_ids is not None
@@ -569,10 +569,10 @@ class GpsClockCorrectionApp(tk.Frame):
             self.export_button['state'] = tk.DISABLED
             self.update()
             self.busy()
-            regression_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_regression_profile.png")
+            regression_fig_file = os.path.join(self.output_folder.get(), self.station_code + "_2_regression_profile.png")
             self.regression_fig.savefig(regression_fig_file, dpi=300)
             resampling_fig_file = os.path.join(self.output_folder.get(),
-                                               self.station_code + "_clock_correction_profile.png")
+                                               self.station_code + "_3_clock_correction_profile.png")
             self.resampling_fig.savefig(resampling_fig_file, dpi=300)
 
             # Save resampled data to csv.
