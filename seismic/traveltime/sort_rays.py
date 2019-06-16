@@ -389,18 +389,23 @@ def apply_filters(csv_data, phase):
     # Add Other filter?
 
 ######### Code blocks For S wave filter
-    # Save P-wave events to file to use as quality reference for S-wave picks
+    # Save the P-wave events to a file to be used for filtering S-wave picks.
     if phase.upper() == 'P':
         p_events = []
         for index, row in csv_data.iterrows():
             p_ray_key = "%s_%s_%s"%(row['net'],row['sta'], row['#eventID'])
             p_events.append(p_ray_key)
 
-        print ("Final Number of P Rays = ", len(p_events), p_events[:5])
-
+        print ("The Number of Saved P Rays = ", len(p_events), p_events[:3])
         np.save('P_EVENTS.npy', np.array(p_events))
 
-    elif phase.upper() == 'S':
+        # Alternatively, save the pandas keys.
+        pevents_df = csv_data[['#eventID', 'net','sta']]
+        pevents_df.to_csv('P_EVENTS.csv', header=True, index=False, sep=',')  # use comma separator,
+
+
+    elif phase.upper() == 'S':  # Now use P_EVENTS to filter S-picks
+        csv_data = filter_S_by_P(csv_data, 'P_EVENTS.csv')
 
         if os.path.exists('P_EVENTS.npy'):
             p_events = np.load('P_EVENTS.npy',allow_pickle=True)
@@ -415,12 +420,21 @@ def apply_filters(csv_data, phase):
             os.remove('P_EVENTS.npy')
 
         else:
-            print('Run P-wave clustering prior to S-wave clustering!')
-            raise Exception("Cannot filter S-wave picks to P-wave picks, because P_EVENTS.npy NOT found")
-
-
+            print('You must run P-wave clustering prior to S-wave clustering!')
+            raise Exception("Cannot filter S-wave picks, because P_EVENTS.npy NOT found")
 
     return csv_data
+
+def filter_S_by_P(inpdf, pevents_csv):
+    """
+    Filter the S picks by P events
+    :param inpdf:  input pdf
+    :param pevents_csv: Pevents csv file with 3 columns: ['#eventID', 'net','sta']
+    :return: a new csv pdf after the filtering
+    """
+
+    return inpdf
+
 
 def is_manual_pick(x):
     #["snr", "qualityMeasureCWT", "domFreq", "qualityMeasureSlope", "bandIndex", and "nSigma"]
