@@ -1,4 +1,6 @@
 numpy
+matplotlib
+basemap
 obspy
-# util
-iris
+# util_c_sippl # Not a 3rd party requirement
+# iris_c_sippl # Not a 3rd party requirement

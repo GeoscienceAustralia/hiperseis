@@ -10,12 +10,26 @@ This code used for this publication by Christian Sippl:
 
 # pylint: skip-file
 
-from numpy import *
-import glob, os, ausrem, util, cPickle, iris
-from pylab import *
+import os
+import sys
+import glob
+
+if sys.version_info[0] < 3:
+    import cPickle as pkl
+else:
+    import pickle as pkl
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.mlab import griddata
+
 # from obspy.sac import SacIO
 from obspy.io.sac.sactrace import SACTrace
-from obspy.core.util.geodetics import gps2DistAzimuth
+from obspy.geodetics.base import gps2dist_azimuth
+
+# import ausrem
+import util_c_sippl
+import iris_c_sippl
 
 
 def HK_stack(stat, vp=6.5, H=[15., 100., 0.05], K=[1.5, 2.0, 0.001], weight=[0.33, 0.33, 0.33], smooth=0.1, n_stack=4,
@@ -107,7 +121,7 @@ def read_outfiles(outpath):
                 hkdict[j]['b_' + num] = float(data[18].split(None)[5].strip(','))
                 hkdict[j]['alpha_' + num] = float(data[18].split(None)[-1].strip('\n'))
 
-                hkdict[j]['matrix'] = zeros([hkdict[j]['K_steps'], hkdict[j]['H_steps']])
+                hkdict[j]['matrix'] = np.zeros([hkdict[j]['K_steps'], hkdict[j]['H_steps']])
 
         try:
             sfl = open(glob.glob(outpath + '/sfr2d*.x' + str(j))[0], 'r')
@@ -130,15 +144,15 @@ def get_hist(matrix):
     """
 
     # rows first (K)
-    ln = shape(matrix)[0]
-    wd = shape(matrix)[1]
-    ln_ar = zeros(ln)
-    wd_ar = zeros(wd)
+    ln = np.shape(matrix)[0]
+    wd = np.shape(matrix)[1]
+    ln_ar = np.zeros(ln)
+    wd_ar = np.zeros(wd)
     for k in range(len(ln_ar)):
         ln_ar[k] = matrix[k].sum()
 
     # now the columns
-    wd_ar = zeros(wd)
+    wd_ar = np.zeros(wd)
     for u in range(len(wd_ar)):
         wd_ar[u] = matrix[:, u].sum()
 
@@ -154,7 +168,7 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
 
         if not hkdict[j].has_key('matrix'):
             continue
-        figure(figsize=(12, 12))
+        plt.figure(figsize=(12, 12))
 
         # get axes configuration
         left, width = 0.07, 0.75
@@ -165,20 +179,20 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
         histx_ax = [left, bottom_h, width, 0.12]
         histy_ax = [left_h, bottom, 0.12, height]
 
-        axMain = axes(main_ax)
+        axMain = plt.axes(main_ax)
 
-        x_ar_depth = arange(hkdict[j]['K_min'], hkdict[j]['K_max'] + hkdict[j]['K_inc'], 0.1)
-        y_ar_depth = arange(hkdict[j]['H_max'], hkdict[j]['H_min'] - hkdict[j]['H_inc'], -5)
+        x_ar_depth = np.arange(hkdict[j]['K_min'], hkdict[j]['K_max'] + hkdict[j]['K_inc'], 0.1)
+        y_ar_depth = np.arange(hkdict[j]['H_max'], hkdict[j]['H_min'] - hkdict[j]['H_inc'], -5)
 
-        x_ar_num = arange(0, hkdict[j]['K_steps'] + 1, (1 / float(hkdict[j]['K_inc'])) * 0.1)
-        y_ar_num = arange(0, hkdict[j]['H_steps'] + 1, (1 / float(hkdict[j]['H_inc'])) * 5)
+        x_ar_num = np.arange(0, hkdict[j]['K_steps'] + 1, (1 / float(hkdict[j]['K_inc'])) * 0.1)
+        y_ar_num = np.arange(0, hkdict[j]['H_steps'] + 1, (1 / float(hkdict[j]['H_inc'])) * 5)
 
         axMain.imshow(hkdict[j]['matrix'].transpose(), aspect='auto', interpolation='none')
 
-        xticks(x_ar_num, x_ar_depth)
-        xlabel('Vp/Vs ratio')
-        yticks(y_ar_num, y_ar_depth)
-        ylabel('Moho depth [km]')
+        plt.xticks(x_ar_num, x_ar_depth)
+        plt.xlabel('Vp/Vs ratio')
+        plt.yticks(y_ar_num, y_ar_depth)
+        plt.ylabel('Moho depth [km]')
 
         # contouring levels
         V = [0.1, 0.25, 0.5, 0.75, 0.85, 0.9, 0.95]
@@ -212,44 +226,44 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
         ln_ar /= ln_ar.max()  # normalization
         wd_ar /= wd_ar.max()
 
-        axHistX = axes(histx_ax)
+        axHistX = plt.axes(histx_ax)
         axHistX.plot(ln_ar, 'r--')
-        yticks([0, 0.25, 0.5, 0.75, 1.])
-        xticks([])
-        ylabel('normalized amplitude')
-        ylim([0, 1.03])
+        plt.yticks([0, 0.25, 0.5, 0.75, 1.])
+        plt.xticks([])
+        plt.ylabel('normalized amplitude')
+        plt.ylim([0, 1.03])
 
-        y_ar = arange(1100, -1, -1)
-        axHistY = axes(histy_ax)
+        y_ar = np.arange(1100, -1, -1)
+        axHistY = plt.axes(histy_ax)
         axHistY.plot(wd_ar, y_ar, 'r--')
-        ylim([0, 1100])
-        xlim([0, 1.03])
-        yticks([])
-        xticks([0, 0.25, 0.5, 0.75, 1], rotation=45)
-        xlabel('normalized amplitude')
+        plt.ylim([0, 1100])
+        plt.xlim([0, 1.03])
+        plt.yticks([])
+        plt.xticks([0, 0.25, 0.5, 0.75, 1], rotation=45)
+        plt.xlabel('normalized amplitude')
 
         outf_name = outf_dir + '/' + stat + '_' + wgt + '_' + str(j) + '.pdf'
-        savefig(outf_name)
+        plt.savefig(outf_name, dpi=300)
 
 
-def get_ausrem_avg(stat, info_file='/home/christian/info_WOMBAT'):
-    """
-    retrieve average vp from ausrem
-    """
-    lat, lon, elev = util.get_stat_coords(stat, info_file)
-    vp = ausrem.read_infiles(typ='vp')
-    v, d = ausrem.get_1D_prof(vp, lat, lon, dep=[0, 60], interpolate=False)
-
-    # sum up values until vp>7.5
-    vp_all = 0
-    count = 0
-    for i in range(len(v)):
-        if float(v[i]) < 7.5:
-            vp_all += v[i]
-            count += 1
-
-    avg_vp = vp_all / float(count)
-    return avg_vp
+# def get_ausrem_avg(stat, info_file='/home/christian/info_WOMBAT'):
+#     """
+#     retrieve average vp from ausrem
+#     """
+#     lat, lon, elev = util_c_sippl.get_stat_coords(stat, info_file)
+#     vp = ausrem.read_infiles(typ='vp')
+#     v, d = ausrem.get_1D_prof(vp, lat, lon, dep=[0, 60], interpolate=False)
+#
+#     # sum up values until vp>7.5
+#     vp_all = 0
+#     count = 0
+#     for i in range(len(v)):
+#         if float(v[i]) < 7.5:
+#             vp_all += v[i]
+#             count += 1
+#
+#     avg_vp = vp_all / float(count)
+#     return avg_vp
 
 
 def automat_HK(flder):
@@ -259,12 +273,12 @@ def automat_HK(flder):
 
     diclist = glob.glob(flder + '/*[rR][fF]_sel*.bin')
     # turn dicts to (temporary) SAC files
-    """
-    try:
-      os.mkdir(flder+'/temp')
-    except OSError: #already exists
-      pass
-    """
+
+    # try:
+    #   os.mkdir(flder+'/temp')
+    # except OSError: #already exists
+    #   pass
+
     write_files_from_dict(diclist, outfolder=flder + '/HK_stacks_new')
 
     os.chdir(flder + '/HK_stacks_new')
@@ -276,18 +290,18 @@ def automat_HK(flder):
         call_HK(stat, dirct=flder + '/HK_stacks_new', X=7, info_file='/home/christian/info_file')
     # read everything in and set up giant dict
     dic = dict_setup(info_file='/home/christian/info_file')
-    cPickle.dump(dic, open('te', 'wb'))
-    """
-    dic = cPickle.load(open('te','rb'))
-    dic_new = pick_max(dic)
-    nit = range(5)
-    for i in nit:
-      if i == 0:
-        #do initial weighting, pick max again
-        dic_2 = mask_primary(dic_new,H_coarse=[25.,55.],H_fine=[30.,45.],K_coarse=[1.6,1.95],K_fine=[1.65,1.85])
-        dic_2_new = pick_max(dic_2,apply_mask=True)
-    return dic,dic_new,dic_2_new
-    """
+    pkl.dump(dic, open('te', 'wb'))
+
+    # dic = pkl.load(open('te','rb'))
+    # dic_new = pick_max(dic)
+    # nit = range(5)
+    # for i in nit:
+    #   if i == 0:
+    #     #do initial weighting, pick max again
+    #     dic_2 = mask_primary(dic_new,H_coarse=[25.,55.],H_fine=[30.,45.],K_coarse=[1.6,1.95],K_fine=[1.65,1.85])
+    #     dic_2_new = pick_max(dic_2,apply_mask=True)
+    # return dic,dic_new,dic_2_new
+
     # read_outfiles()
     # now the magic has to happen
 
@@ -317,14 +331,14 @@ def dict_setup(flder='.', X=7, info_file='/home/christian/info_file'):
         bigdict[sta]['header']['H_steps'] = mtrx['H_steps']
         bigdict[sta]['header']['H_inc'] = mtrx['H_inc']
         bigdict[sta]['header']['K_inc'] = mtrx['K_inc']
-        bigdict[sta]['mask'] = ones(shape(bigdict[sta]['matrix']))
+        bigdict[sta]['mask'] = np.ones(np.shape(bigdict[sta]['matrix']))
         # inter-station distances
         bigdict[sta]['distances'] = {}
-        lat_s, lon_s, el_s = util.get_stat_coords(sta, info_file)
+        lat_s, lon_s, el_s = util_c_sippl.get_stat_coords(sta, info_file)
         for k in statlst:
             if not k == sta:  # that's obviously 0
-                lat1, lon1, el1 = util.get_stat_coords(k, info_file)
-                distkm = round(gps2DistAzimuth(lat1, lon1, lat_s, lon_s)[0] / 1000., 3)
+                lat1, lon1, el1 = util_c_sippl.get_stat_coords(k, info_file)
+                distkm = round(gps2dist_azimuth(lat1, lon1, lat_s, lon_s)[0] / 1000., 3)
                 bigdict[sta]['distances'][k] = distkm
 
     return bigdict
@@ -343,7 +357,7 @@ def pick_max(dic, apply_mask=False):
         mtx = dic_n[sta]['matrix']
 
         mx = mtx.max()
-        k, h = shape(mtx)
+        k, h = np.shape(mtx)
         for i in range(k):
             for j in range(h):
                 if mtx[i, j] == mx:
@@ -368,13 +382,13 @@ def mask_primary(bigdict, H_coarse=[25., 55.], H_fine=[30., 45.], K_coarse=[1.6,
 
         mtrx = bigdict2[i]['mask'].copy()
 
-        H_lst = array([bigdict2[i]['header']['H_max'] - H_coarse[1], H_coarse[1] - H_fine[1], H_fine[1] - H_fine[0],
-                       H_fine[0] - H_coarse[0], H_coarse[0] - bigdict2[i]['header']['H_min']])
+        H_lst = np.array([bigdict2[i]['header']['H_max'] - H_coarse[1], H_coarse[1] - H_fine[1], H_fine[1] - H_fine[0],
+                          H_fine[0] - H_coarse[0], H_coarse[0] - bigdict2[i]['header']['H_min']])
         H_lst *= 1 / bigdict2[i]['header']['H_inc']
 
         # same for K
-        K_lst = array([K_coarse[0] - bigdict2[i]['header']['K_min'], K_fine[0] - K_coarse[0], K_fine[1] - K_fine[0],
-                       K_coarse[1] - K_fine[1], bigdict2[i]['header']['K_max'] - K_coarse[1]])
+        K_lst = np.array([K_coarse[0] - bigdict2[i]['header']['K_min'], K_fine[0] - K_coarse[0], K_fine[1] - K_fine[0],
+                          K_coarse[1] - K_fine[1], bigdict2[i]['header']['K_max'] - K_coarse[1]])
         K_lst *= 1 / bigdict2[i]['header']['K_inc']
 
         # now first the outer shell
@@ -450,7 +464,7 @@ def change_mask(bigdict, rad_H=8.):
         # define region around these values, modify mask
         for u in range(len(hlist)):
             dist = rad_H / 0.05
-            k, h = shape(bigdict[i]['mask'])
+            k, h = np.shape(bigdict[i]['mask'])
             bigdict[i]['mask'][:, 0:(hlist[u] - dist)] *= 0.5
             bigdict[i]['mask'][:, (hlist[u] + dist):] *= 0.5
             for a in range(k):
@@ -489,7 +503,7 @@ def write_files_from_dict(dat, stat, outfolder='.'):
     """
     num = 1
     #  for dic in indict:
-    #    dat = cPickle.load(open(dic,'rb'))
+    #    dat = pkl.load(open(dic,'rb'))
     #    stat = dic.split('/')[-1].split('_')[0]
     outf = open(outfolder + '/' + stat + '__allRFs.list', 'w')
     for entry in dat.keys():
@@ -509,7 +523,7 @@ def write_files_from_dict(dat, stat, outfolder='.'):
         hd.evdp = dat[entry]['event_depth']
         hd.write(outfolder + '/' + name_full, headonly=True)
         # and write list file for each station
-        raytr = iris.ttime_dict(dat[entry]['event_lat'], dat[entry]['event_lon'], dat[entry]['event_depth'],
+        raytr = iris_c_sippl.ttime_dict(dat[entry]['event_lat'], dat[entry]['event_lon'], dat[entry]['event_depth'],
                                 dat[entry]['station_lat'], dat[entry]['station_lon'], phase='P')
         outf.write(name_full + '  ' + str(round(raytr['rayp'], 5)) + '  0.00  ' + str(
             round(dat[entry]['Backazimuth'], 3)) + '  ' + str(round(raytr['dist'], 3)) + '\n')
@@ -588,15 +602,15 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
         dic = dict_setup(flder=flder)
         dic_picked = pick_max(dic)
 
-        # cPickle.dump(dic_picked,open('storage_dic','wb'))
-        # dic_picked = cPickle.load(open('storage_dic','rb'))
+        # pkl.dump(dic_picked,open('storage_dic','wb'))
+        # dic_picked = pkl.load(open('storage_dic','rb'))
 
         # now station-wise...get coordinates, store in 4-tuples (lat,lon,H,K)
         xvals = []
         yvals = []
         zvals = []
         for stat in dic_picked.keys():
-            lat, lon, elev = util.get_stat_coords(stat, info_file)
+            lat, lon, elev = util_c_sippl.get_stat_coords(stat, info_file)
             H = dic_picked[stat]['header']['max_HK'][0][1]
             K = dic_picked[stat]['header']['max_HK'][0][0]
             if float(lat) >= latrange[0] and float(lat) <= latrange[1] and float(lon) >= lonrange[0] and float(lon) <= \
@@ -609,7 +623,7 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
                     zvals.append(K)
 
                     # set control nodes (at 40 km)
-    for x in arange(lonrange[0], lonrange[1], 0.25):
+    for x in np.arange(lonrange[0], lonrange[1], 0.25):
         for y in [latrange[0] - 0.25, latrange[1] + 0.25]:
             xvals.append(x)
             yvals.append(y)
@@ -618,7 +632,7 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
             elif z == 'K':
                 zvals.append(1.73)
 
-    for y in arange(latrange[0], latrange[1], 0.25):
+    for y in np.arange(latrange[0], latrange[1], 0.25):
         for x in [lonrange[0] - 0.25, lonrange[1] + 0.25]:
             xvals.append(x)
             yvals.append(y)
@@ -629,12 +643,12 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
 
     print(xvals, yvals)
 
-    yi = linspace(latrange[0], latrange[1], 500)
-    xi = linspace(lonrange[0], lonrange[1], 500)
-    XI, YI = meshgrid(xi, yi)
+    yi = np.linspace(latrange[0], latrange[1], 500)
+    xi = np.linspace(lonrange[0], lonrange[1], 500)
+    XI, YI = np.meshgrid(xi, yi)
 
     from mpl_toolkits import basemap
-    figure(figsize=(12, 12))
+    plt.figure(figsize=(12, 12))
     m = basemap.Basemap(projection='merc', llcrnrlon=lonrange[0], llcrnrlat=latrange[0], urcrnrlon=lonrange[1],
                         urcrnrlat=latrange[1], resolution='h')
 
@@ -654,16 +668,16 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
                 str(round(XI[i][j], 3)) + ' ' + str(round(YI[i][j], 3)) + ' ' + str(round(ZI[i][j], 3)) + '\n')
 
     m.drawcoastlines()
-    # ylim([latrange[0],latrange[1]])
-    # xlim([lonrange[0],lonrange[1]])
+    # plt.ylim([latrange[0],latrange[1]])
+    # plt.xlim([lonrange[0],lonrange[1]])
     if gravity:
         # read in gravity grid, plot contours on top
-        gravdat = loadtxt('/home/sippl/sandbox/gravity.txt')
+        gravdat = np.loadtxt('/home/sippl/sandbox/gravity.txt')
 
         # convert to regular grid
-        gravxi = arange(120., 128.01, 0.01)
-        gravyi = arange(-34., -30.01, 0.01)
-        gravzi = griddata(gravdat[:, 0], gravdat[:, 1], gravdat[:, 2], gravxi, gravyi, interp='linear')
+        gravxi = np.arange(120., 128.01, 0.01)
+        gravyi = np.arange(-34., -30.01, 0.01)
+        gravzi = np.griddata(gravdat[:, 0], gravdat[:, 1], gravdat[:, 2], gravxi, gravyi, interp='linear')
 
         gravlon, gravlat = np.meshgrid(gravxi, gravyi)
         gravx, gravy = m(gravlon, gravlat)
@@ -682,19 +696,19 @@ def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_fi
 
     m.scatter(xvals_map, yvals_map, 120, zvals, cmap='jet', vmin=32, vmax=52)
 
-    lat_draw = arange(latrange[0], latrange[1], 1)
-    lon_draw = arange(lonrange[0], lonrange[1], 1)
+    lat_draw = np.arange(latrange[0], latrange[1], 1)
+    lon_draw = np.arange(lonrange[0], lonrange[1], 1)
 
     m.drawmeridians(lon_draw, labels=[0, 0, 0, 1])
     m.drawparallels(lat_draw, labels=[1, 0, 0, 0])
 
     if z == 'H':
-        colorbar(shrink=0.7, label='Moho depth [km]')
+        plt.colorbar(shrink=0.7, label='Moho depth [km]')
     elif z == 'K':
-        colorbar(shrink=0.7, label='vp/vs')
+        plt.colorbar(shrink=0.7, label='vp/vs')
 
     if save:
-        savefig('Mohomap_Vers1.pdf')
+        plt.savefig('Mohomap_Vers1.pdf', dpi=300)
 
 
 """
@@ -706,3 +720,11 @@ def plot_RF_phases():
 
 def get_arrivals():
 """
+
+
+if __name__ == "__main__":
+    # Example usage
+    HK_stack('test')
+    plot_HK_map()
+    # TODO: work out how automat_HK() is supposed to be used.
+    # automat_HK('test_folder')
