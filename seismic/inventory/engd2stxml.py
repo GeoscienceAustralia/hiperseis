@@ -497,15 +497,15 @@ def populate_default_station_dates(df):
     # overlapping other time intervals and discard records.
     st_isna_start_mask = df.StationStart.isna()
     st_isna_end_mask = df.StationEnd.isna()
-    df.StationStart[st_isna_start_mask] = DEFAULT_START_TIMESTAMP
-    df.StationEnd[st_isna_end_mask] = DEFAULT_END_TIMESTAMP
+    df.loc[st_isna_start_mask, 'StationStart'] = DEFAULT_START_TIMESTAMP
+    df.loc[st_isna_end_mask, 'StationEnd'] = DEFAULT_END_TIMESTAMP
     assert not np.any(df.StationStart.isna())
     assert not np.any(df.StationEnd.isna())
 
     ch_isna_start_mask = df.ChannelStart.isna()
     ch_isna_end_mask = df.ChannelEnd.isna()
-    df.ChannelStart[ch_isna_start_mask] = df.StationStart[ch_isna_start_mask]
-    df.ChannelEnd[ch_isna_end_mask] = df.StationEnd[ch_isna_end_mask]
+    df.loc[ch_isna_start_mask, 'ChannelStart'] = df.StationStart[ch_isna_start_mask]
+    df.loc[ch_isna_end_mask, 'ChannelEnd'] = df.StationEnd[ch_isna_end_mask]
     assert not np.any(df.ChannelStart.isna())
     assert not np.any(df.ChannelEnd.isna())
 

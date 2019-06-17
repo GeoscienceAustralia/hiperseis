@@ -19,7 +19,7 @@ from obspy.core import Trace, Stats
 from seismic.xcorqc.xcorqc import taper, whiten, zeropad_ba, xcorr2
 import pytest
 import numpy as np
-import sys
+
 
 @pytest.fixture(params=[100, 2000, 5000])
 def trace_length(request):
@@ -41,7 +41,7 @@ def pad_length_factor(request):
 def taper_fraction(request):
     return request.param
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
+
 def test_whiten(trace_length, sampling_rate):
     trc = np.zeros(trace_length)
 
@@ -53,7 +53,7 @@ def test_whiten(trace_length, sampling_rate):
     assert np.allclose(np.mean(result), 1./float(trace_length), atol=1e-4)
 # end func
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
+
 def test_zeropad_ba(trace_length, pad_length_factor):
     trc = np.random.random(trace_length)
 
@@ -65,7 +65,7 @@ def test_zeropad_ba(trace_length, pad_length_factor):
     assert np.allclose(np.sum(trc ** 2), np.sum(np.abs(fft_pad) ** 2) / float(trace_length))
 # end func
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
+
 def test_taper(trace_length, taper_fraction):
     taper_length = int(trace_length * taper_fraction)
     trc = np.random.random(trace_length)
@@ -79,7 +79,7 @@ def test_taper(trace_length, taper_fraction):
     assert np.allclose(trc[1:int(trace_length)-1], trc_untapered[1:int(trace_length)-1])
 # end func
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
+
 def test_xcorr(trace_length, sampling_rate, other_sampling_rate):
 
     # Testing x-correlation of traces with different sampling rates

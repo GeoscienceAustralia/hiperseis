@@ -3,10 +3,8 @@
 branch = True
 source =
     seismic
-    convert_logs
-    legacy
+    utils
 omit =
-    legacy/engdahl/*
     seismic/inventory/legacy/*
     seismic/receiver_fn/c_sippl_reference/*
     # Exclude file that requires seiscomp3, not supported in testing runtime environment:

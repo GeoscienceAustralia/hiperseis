@@ -30,9 +30,9 @@ from obspy.geodetics import gps2dist_azimuth, locations2degrees
 from seismic.traveltime import pslog
 from seismic.traveltime.cluster_grid import Grid2
 
-DPI = asin(1.0) / 90.0
-R2D = 90. / asin(1.)
-FLOAT_FORMAT = '%.4f'
+# DPI = asin(1.0) / 90.0
+# R2D = 90. / asin(1.)
+# FLOAT_FORMAT = '%.4f'
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -349,26 +349,29 @@ def apply_filters(csv_data, phase):
         raise Exception("Phase < %s >  Not Recognised! " % (phase))
 
     # Marcus filter code block
-    print("CSV size=", csv_data.shape)
-    log.info('Select useful rows/rays by applying filters.')
+    print("The initial CSV size=", csv_data.shape)
+
+    # make a manual_picks_flag=1 if all six colums =0.0
+    csv_data["manual_picks_flag"] = csv_data.apply(lambda x: is_manual_pick(x), axis=1)
+
+    log.info('Select reliable seismic picks/rays by applying quality filters.')
 
     # Filter any remaining outlier traveltime residuals
     csv_data = csv_data[abs(csv_data['tt_residual']) < residual_cutoff]
-    print("CSV size=", csv_data.shape)
+    print("After residual cutoff, CSV size=", csv_data.shape)
 
     # Temporarily remove network 7D until clock errors have been fixed.
     #csv_data = _filter_data(csv_data, 'originTimestamp', network='7D', gt=time.mktime(time.strptime('2000-01-01', ('%Y-%M-%d'))))
-    print("CSV size=", csv_data.shape)
 
     # Filter to remove lowest quality picks
-    csv_data = csv_data[(csv_data['qualityMeasureCWT'] >= qualityMeasureCWT_cutoff)]
-    print ("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['qualityMeasureCWT'] >= qualityMeasureCWT_cutoff) | (csv_data["manual_picks_flag"]==1) ]
+    print ("After qualityMeasureCWT, CSV size=", csv_data.shape)
 
-    csv_data = csv_data[(csv_data['qualityMeasureSlope'] >= qualityMeasureSlope_cutoff)]
-    print("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['qualityMeasureSlope'] >= qualityMeasureSlope_cutoff) | (csv_data["manual_picks_flag"]==1)]
+    print("After qualityMeasureSlope, CSV size=", csv_data.shape)
 
-    csv_data = csv_data[(csv_data['nSigma'] >= nSigma_cutoff)]
-    print("CSV size=", csv_data.shape)
+    csv_data = csv_data.loc[(csv_data['nSigma'] >= nSigma_cutoff) | (csv_data["manual_picks_flag"]==1)]
+    print("After nSigma, CSV size=", csv_data.shape)
 
     # Filter out known time-shifts from station records
     if os.path.exists('FILTER.csv'):
@@ -386,18 +389,23 @@ def apply_filters(csv_data, phase):
     # Add Other filter?
 
 ######### Code blocks For S wave filter
-    # Save P-wave events to file to use as quality reference for S-wave picks
+    # Save the P-wave events to a file to be used for filtering S-wave picks.
     if phase.upper() == 'P':
         p_events = []
         for index, row in csv_data.iterrows():
             p_ray_key = "%s_%s_%s"%(row['net'],row['sta'], row['#eventID'])
             p_events.append(p_ray_key)
 
-        print ("Final Number of P Rays = ", len(p_events), p_events[:5])
-
+        print ("The Number of Saved P Rays = ", len(p_events), p_events[:3])
         np.save('P_EVENTS.npy', np.array(p_events))
 
-    elif phase.upper() == 'S':
+        # Alternatively, save the pandas keys.
+        pevents_df = csv_data[['#eventID', 'net','sta']]
+        pevents_df.to_csv('P_EVENTS.csv', header=True, index=False, sep=',')  # use comma separator,
+
+
+    elif phase.upper() == 'S':  # Now use P_EVENTS to filter S-picks
+        csv_data = filter_S_by_P(csv_data, 'P_EVENTS.csv')
 
         if os.path.exists('P_EVENTS.npy'):
             p_events = np.load('P_EVENTS.npy',allow_pickle=True)
@@ -407,17 +415,35 @@ def apply_filters(csv_data, phase):
                 lambda x: is_ray_in("%s_%s_%s"%(x.net,x.sta, x['#eventID']), p_events), axis=1)
 
             # only keep the rows if ray_filter_flag is 1
-            csv_data = csv_data [csv_data["ray_filter_flag"] == 1 ]
+            csv_data = csv_data.loc[csv_data["ray_filter_flag"] == 1]
 
             os.remove('P_EVENTS.npy')
 
         else:
-            print('Run P-wave clustering prior to S-wave clustering!')
-            raise Exception("Cannot filter S-wave picks to P-wave picks, because P_EVENTS.npy NOT found")
-
-
+            print('You must run P-wave clustering prior to S-wave clustering!')
+            raise Exception("Cannot filter S-wave picks, because P_EVENTS.npy NOT found")
 
     return csv_data
+
+def filter_S_by_P(inpdf, pevents_csv):
+    """
+    Filter the S picks by P events
+    :param inpdf:  input pdf
+    :param pevents_csv: Pevents csv file with 3 columns: ['#eventID', 'net','sta']
+    :return: a new csv pdf after the filtering
+    """
+
+    return inpdf
+
+
+def is_manual_pick(x):
+    #["snr", "qualityMeasureCWT", "domFreq", "qualityMeasureSlope", "bandIndex", and "nSigma"]
+
+    if(x.snr == 0.0 and x.qualityMeasureCWT == 0.0 and x.domFreq==0.0 and x.qualityMeasureSlope==0.0
+        and x.bandIndex ==0.0 and x.nSigma==0.0 ):
+        return 1
+    else:
+        return 0
 
 def is_ray_in(ray_id, P_RAYS_ID_LIST):
     """
@@ -476,10 +502,12 @@ def sort_csv_in_grid(inputcsv, outputcsv, phase, mygrid, column_name_map):
 
     # Plugin the filter here
     csv_data = apply_filters(csv_data, phase)
+    print("The Filtered final CSV size=", csv_data.shape)
 
-    log.info('Apply a grid model to discretize the rays, before sorting clustering.')
-    print("Final CSV size=", csv_data.shape)
-    print(csv_data.head())
+    filtered_outputcsv = "Filtered_%s" % outputcsv
+    csv_data.to_csv(filtered_outputcsv, header=True, index=False, sep=',')  # use comma separator,
+
+    log.info('Apply a grid model to discretize the rays, the do sorting and clustering.')
 
     # # Re-define the source_block and station_block number according to the mygrid model
     # originLon
@@ -602,5 +630,5 @@ if __name__ == "__main__":
     # mygrid = Grid2(param_file='/g/data/ha3/fxz547/Githubz/passive-seismic/seismic/traveltime/param2x2')
     mygrid = Grid2(param_file=in_param_file)
 
-    sort_csv_in_grid(inf, outf, phase, mygrid,
-                     columns_dict)  # residual_cutoff=5 for Pwave. residual_cutoff=10 for Swave
+    sort_csv_in_grid(inf, outf, phase, mygrid, columns_dict)
+

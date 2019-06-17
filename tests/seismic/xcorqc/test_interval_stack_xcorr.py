@@ -17,6 +17,7 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from obspy import read_inventory
 import os, sys
+import tempfile
 import pytest
 from netCDF4 import Dataset
 import numpy as np
@@ -25,8 +26,10 @@ import numpy as np
 netsta1 = 'AU.ARMA'
 netsta2 = 'AU.QLP'
 cha = 'BHZ'
-asdf_file_list1 = '/tmp/asdf_file_list1.txt'
-asdf_file_list2 = '/tmp/asdf_file_list2.txt'
+# TODO: Fix resource management here so that asdf_files_dir gets deleted when tests finished/finalized.
+asdf_files_dir = tempfile.mkdtemp(suffix='_test')
+asdf_file_list1 = os.path.join(asdf_files_dir, 'asdf_file_list1.txt')
+asdf_file_list2 = os.path.join(asdf_files_dir, 'asdf_file_list2.txt')
 
 inv = None
 path = os.path.dirname(os.path.abspath(__file__))
@@ -81,7 +84,6 @@ def inv1(request):
 def inv2(request):
     return request.param
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason="Requires python2.7")
 def test_interval_stack_xcorr_(tmpdir, inv1, inv2, interval_seconds, window_seconds,
                                clip_to_2std, whitening, one_bit_normalize,
                                envelope_normalize, ensemble_stack):
