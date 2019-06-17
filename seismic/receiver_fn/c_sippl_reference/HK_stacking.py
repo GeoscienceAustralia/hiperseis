@@ -262,10 +262,10 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
         plt.ylabel('normalized amplitude')
         plt.ylim([0, 1.03])
 
-        y_ar = np.arange(1100, -1, -1)
+        y_ar = np.arange(len(wd_ar) - 1, -1, -1)
         axHistY = plt.axes(histy_ax)
         axHistY.plot(wd_ar, y_ar, 'r--')
-        plt.ylim([0, 1100])
+        plt.ylim([0, len(wd_ar) - 1])
         plt.xlim([0, 1.03])
         plt.yticks([])
         plt.xticks([0, 0.25, 0.5, 0.75, 1], rotation=45)
@@ -347,6 +347,15 @@ def dict_setup(flder='.', X=7, info_file='/home/christian/info_file'):
         statlst.append(stat)  # list of all utilized stations
     for j in fld_lst:
         mtrx = read_outfiles(j + '/0.33_0.33_0.33')[X]
+        assert 'matrix' in mtrx
+        assert 'K_min' in mtrx
+        assert 'K_max' in mtrx
+        assert 'H_max' in mtrx
+        assert 'H_min' in mtrx
+        assert 'K_steps' in mtrx
+        assert 'H_steps' in mtrx
+        assert 'H_inc' in mtrx
+        assert 'K_inc' in mtrx
         sta = j.split('/')[-1]
         print(sta)
         bigdict[sta] = {}
