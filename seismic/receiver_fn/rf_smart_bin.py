@@ -119,25 +119,25 @@ def coherence(swipe, level, f1, f2):
     return np.array(index)
 
 
-def knive(swipe, k_level1, sn_level2):
-    ind = np.ones((swipe.shape[0],), bool)
-    dev = []
-    ch = []
-    knive = []
-    sn = []
-    pulse_ind = np.max(t[t < 0])-1.
+# def knive(swipe, k_level1, sn_level2):
+#     ind = np.ones((swipe.shape[0],), bool)
+#     dev = []
+#     ch = []
+#     knive = []
+#     sn = []
+#     pulse_ind = np.max(t[t < 0])-1.
 
-    for i in xrange(swipe.shape[0]):
-        ch.append(np.amax(coh(average, swipe[i, :])))
-        dev.append(np.sum((swipe[i, :]-average)**2)/(swipe.shape[0]-1))
-        ind[i] = False
-        knive.append(np.std(swipe[ind]))
-        sn.append(np.std(swipe[i, t > pulse_ind]) /
-                  np.std(swipe[i, t < pulse_ind]))
+#     for i in xrange(swipe.shape[0]):
+#         ch.append(np.amax(coh(average, swipe[i, :])))
+#         dev.append(np.sum((swipe[i, :]-average)**2)/(swipe.shape[0]-1))
+#         ind[i] = False
+#         knive.append(np.std(swipe[ind]))
+#         sn.append(np.std(swipe[i, t > pulse_ind]) /
+#                   np.std(swipe[i, t < pulse_ind]))
 
-    knive = np.array(knive)
-    sn = np.array(sn)
-    return knive < k_level, sn > sn_level
+#     knive = np.array(knive)
+#     sn = np.array(sn)
+#     return knive < k_level, sn > sn_level
 
 
 def remove_small_s2n(stream, ratio, teleseismic_cutout):

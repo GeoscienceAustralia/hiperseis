@@ -262,7 +262,7 @@ def automat_HK(flder):
   #now call HK stacking for each station (initial run...determination of raw matrix)
   for item in diclist:
     stat = item.split('/')[-1].split('_')[0]  
-    print stat
+    print(stat)
     call_HK(stat,dirct=flder+'/HK_stacks_new',X=7,info_file='/home/christian/info_file')
   #read everything in and set up giant dict
   dic = dict_setup(info_file='/home/christian/info_file')
@@ -296,7 +296,7 @@ def dict_setup(flder='.',X=7,info_file='/home/christian/info_file'):
   for j in fld_lst:
     mtrx = read_outfiles(j+'/0.33_0.33_0.33')[X]
     sta = j.split('/')[-1]
-    print sta
+    print(sta)
     bigdict[sta] = {}
     bigdict[sta]['matrix'] = mtrx['matrix']
     bigdict[sta]['header'] = {} #store stuff like dimensions, translation to vp/vs and thickness values etc.
@@ -451,14 +451,13 @@ def change_mask(bigdict,rad_H=8.):
 
   return bigdict
 
-#add bootstrapping
-from random import shuffle
-from copy import deepcopy as cp
 
 def draw_nRFs(indict,stat,reps=100):
   """
 
   """
+  from random import shuffle
+  from copy import deepcopy as cp
   n = len(indict)
   for j in range(1,reps+1):
     os.system('mkdir '+str(j))
@@ -514,7 +513,7 @@ def call_HK(stat,vp,H=[30.,60.,0.05],K=[1.65,1.85,0.002],weight=[0.33,0.33,0.33]
   #outdir = get_folder_struct(stat,wgt)
   outdir = '.'
 
-  print outdir
+  print(outdir)
   #calculate HK stack
 
   cmd = 'hk2d -P '+str(vp)+' -Z '+str(H[0])+'/'+str(H[1])+'/'+str(H[2])+' -K '+str(K[0])+'/'+str(K[1])+'/'+str(K[2])+' -W '+str(weight[0])+'/'+str(weight[1])+'/'+str(weight[2])+' -T '+str(smooth)+' -N '+str(n_stack)+' -X '+str(X)+' -R '+str(baz[0])+'/'+str(baz[1])+' -I '+dirct+' -L '+dirct+'/'+stat+'__allRFs.list -D '+dirct+'/'+outdir+' -O sfr2d.AH.ANQ/hkr2d.AH.ANQ -o'
@@ -544,7 +543,7 @@ def plot_HK_map(flder='.',lonrange=[120.,125.],latrange=[-34.,-30.],info_file='/
     for j in dtt:
       if pval:
         sta,stat_lat,stat_lon,H,K,dum = j.strip('\n').split(None)
-        print sta
+        print(sta)
       else:
         sta,Ps = j.strip('\n').split(None)
       #stat_lat,stat_lon,stat_elev = util.get_stat_coords(sta,info_file)
@@ -605,7 +604,7 @@ def plot_HK_map(flder='.',lonrange=[120.,125.],latrange=[-34.,-30.],info_file='/
       elif z == 'K':
         zvals.append(1.73)   
 
-  print xvals, yvals
+  print(xvals, yvals)
 
 
   yi = linspace(latrange[0],latrange[1],500)
