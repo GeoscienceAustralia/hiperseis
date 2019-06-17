@@ -13,6 +13,7 @@ This code used for this publication by Christian Sippl:
 import os
 import sys
 import glob
+import subprocess
 
 if sys.version_info[0] < 3:
     import cPickle as pkl
@@ -32,8 +33,8 @@ from seismic.receiver_fn.c_sippl_reference import util_c_sippl
 from seismic.receiver_fn.c_sippl_reference import iris_c_sippl
 
 
-def HK_stack(stat, vp=6.5, H=[15., 100., 0.05], K=[1.5, 2.0, 0.001], weight=[0.33, 0.33, 0.33], smooth=0.1, n_stack=4,
-             X=0, baz=[0, 360], indir='.'):
+def HK_stack(stat, list_file, vp=6.5, H=(15., 100., 0.05), K=(1.5, 2.0, 0.001), weight=(0.33, 0.33, 0.33), smooth=0.1,
+             n_stack=4, X=0, baz=(0, 360), indir='.'):
     """
     call hk2d with input parameters
     """
@@ -46,12 +47,40 @@ def HK_stack(stat, vp=6.5, H=[15., 100., 0.05], K=[1.5, 2.0, 0.001], weight=[0.3
     cmd = 'hk2d -P ' + str(vp) + ' -Z ' + str(H[0]) + '/' + str(H[1]) + '/' + str(H[2]) + ' -K ' + str(K[0]) + '/' + \
           str(K[1]) + '/' + str(K[2]) + ' -W ' + str(weight[0]) + '/' + str(weight[1]) + '/' + str(weight[2]) + ' -T ' + \
           str(smooth) + ' -N ' + str(n_stack) + ' -X ' + str(X) + ' -R ' + str(baz[0]) + '/' + str(baz[1]) + \
-          ' -I ' + indir + ' -L ' + indir + '/' + stat + '__allRFs.list -D ' + outdir + ' -O sfr2d.AH.ANQ/hkr2d.AH.ANQ -o'
-    os.system(cmd)
+          ' -I ' + indir + ' -L ' + list_file + ' -D ' + outdir + ' -O sfr2d.AH.ANQ/hkr2d.AH.ANQ -o'
+    # Call below assumes there are no spaces in the paths!
+    status_code = subprocess.call(cmd.split(' '))
+    assert status_code == 0
 
     # plot results into folder
     hkdict = read_outfiles(outdir)
     plot_sfunc(hkdict, wgt, stat, outf_dir=outdir + '/plots')
+
+
+def call_HK(stat, vp, H=(30., 60., 0.05), K=(1.65, 1.85, 0.002), weight=(0.33, 0.33, 0.33), smooth=0.1, n_stack=4, X=0,
+            baz=(0, 360), dirct='.', info_file='/home/christian/info_WOMBAT'):
+    """
+    modified HK main code for automated usage
+    """
+
+    # get vp
+    # vp = round(get_ausrem_avg(stat,info_file=info_file),3)
+
+    wgt = str(weight[0]) + '_' + str(weight[1]) + '_' + str(weight[2])
+    # outdir = get_folder_struct(stat,wgt)
+    outdir = '.'
+
+    print(outdir)
+    # calculate HK stack
+
+    cmd = 'hk2d -P ' + str(vp) + ' -Z ' + str(H[0]) + '/' + str(H[1]) + '/' + str(H[2]) + ' -K ' + str(K[0]) + '/' + \
+          str(K[1]) + '/' + str(K[2]) + ' -W ' + str(weight[0]) + '/' + str(weight[1]) + '/' + str(weight[2]) + \
+          ' -T ' + str(smooth) + ' -N ' + str(n_stack) + ' -X ' + str(X) + ' -R ' + str(baz[0]) + '/' + str(baz[1]) + \
+          ' -I ' + dirct + ' -L ' + dirct + '/' + stat + '__allRFs.list -D ' + dirct + '/' + outdir + \
+          ' -O sfr2d.AH.ANQ/hkr2d.AH.ANQ -o'
+    # Call below assumes there are no spaces in the paths!
+    status_code = subprocess.call(cmd.split(' '))
+    assert status_code == 0
 
 
 def get_folder_struct(stat, weight, rootf='.'):
@@ -532,30 +561,6 @@ def write_files_from_dict(dat, stat, outfolder='.'):
     outf.close()
 
 
-def call_HK(stat, vp, H=[30., 60., 0.05], K=[1.65, 1.85, 0.002], weight=[0.33, 0.33, 0.33], smooth=0.1, n_stack=4, X=0,
-            baz=[0, 360], dirct='.', info_file='/home/christian/info_WOMBAT'):
-    """
-    modified HK main code for automated usage
-    """
-
-    # get vp
-    # vp = round(get_ausrem_avg(stat,info_file=info_file),3)
-
-    wgt = str(weight[0]) + '_' + str(weight[1]) + '_' + str(weight[2])
-    # outdir = get_folder_struct(stat,wgt)
-    outdir = '.'
-
-    print(outdir)
-    # calculate HK stack
-
-    cmd = 'hk2d -P ' + str(vp) + ' -Z ' + str(H[0]) + '/' + str(H[1]) + '/' + str(H[2]) + ' -K ' + str(K[0]) + '/' + \
-          str(K[1]) + '/' + str(K[2]) + ' -W ' + str(weight[0]) + '/' + str(weight[1]) + '/' + str(weight[2]) + \
-          ' -T ' + str(smooth) + ' -N ' + str(n_stack) + ' -X ' + str(X) + ' -R ' + str(baz[0]) + '/' + str(baz[1]) + \
-          ' -I ' + dirct + ' -L ' + dirct + '/' + stat + '__allRFs.list -D ' + dirct + '/' + outdir + \
-          ' -O sfr2d.AH.ANQ/hkr2d.AH.ANQ -o'
-    os.system(cmd)
-
-
 def plot_HK_map(flder='.', lonrange=[120., 125.], latrange=[-34., -30.], info_file='/home/christian/info_file', z='H',
                 gravity=False, smooth=0.1, eps=0.33, Ps=False, pval=False, save=False, mode='color'):
     """
@@ -725,8 +730,9 @@ def get_arrivals():
 if __name__ == "__main__":
     # Example usage
     dataset = 'KMBL'
-    src_dir = os.path.join(os.path.split(__file__)[0], 'test', 'data')
-    HK_stack(dataset, indir=src_dir)
+    src_dir = os.path.join(os.path.split(__file__)[0], 'test', 'data', dataset)
+    list_file = os.path.join(os.path.split(__file__)[0], 'test', 'KMBL__allRFs.list')
+    HK_stack(dataset, list_file, indir=src_dir)
     plot_HK_map()
     # TODO: work out how automat_HK() is supposed to be used.
     # automat_HK('test_folder')

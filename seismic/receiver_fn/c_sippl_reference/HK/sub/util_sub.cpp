@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cmath>
+#include <cerrno>
 
 #ifndef BUFSIZE
 #define BUFSIZE 	512
@@ -403,8 +404,9 @@ int mkpath(char *str, char token)
 	
 	if (ac == 0) {
 		if ((dp = opendir(av[0])) == NULL) {
-			if ((mdt = mkdir(av[0], 0777)) != 0) {
-				fprintf(stderr, "\nFail create dir %s code = %d!\n\n", av[0], mdt);
+		    printf("0: Trying to make dir %s\n", av[0]);
+			if ((mdt = mkdir(av[0], 0775)) != 0) {
+				fprintf(stderr, "\nFail create dir %s code = %d, errno = %d!\n\n", av[0], mdt, errno);
 				return -1;
 			}
 		}
@@ -414,11 +416,12 @@ int mkpath(char *str, char token)
 		}				
 	}
 	
-	sprintf(fodir, "/%s/", av[0]);
+	sprintf(fodir, "%s/", av[0]);
 	for (i = 0; i < ac; i++) {
 		if ((dp = opendir(fodir)) == NULL) {
-			if ((mdt = mkdir(fodir, 0777)) != 0) {
-				fprintf(stderr, "\nFail create dir %s code = %d!\n\n", fodir, mdt);
+		    printf("1: Trying to make dir %s\n", fodir);
+			if ((mdt = mkdir(fodir, 0775)) != 0) {
+				fprintf(stderr, "\nFail create dir %s code = %d, errno = %d!\n\n", fodir, mdt, errno);
 				return -1;
 			}
 		}
