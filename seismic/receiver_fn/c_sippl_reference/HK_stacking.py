@@ -195,7 +195,7 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
 
     for j in hkdict.keys():
 
-        if not hkdict[j].has_key('matrix'):
+        if not 'matrix' in hkdict[j]:
             continue
         plt.figure(figsize=(12, 12))
 
@@ -232,7 +232,7 @@ def plot_sfunc(hkdict, wgt, stat, outf_dir='.'):
         x_opt_list = []
         y_opt_list = []
         for a in range(9):
-            if hkdict[j].has_key('K_opt_0' + str(a)):
+            if ('K_opt_0' + str(a)) in hkdict[j]:
                 x_opt_list.append(hkdict[j]['K_opt_0' + str(a)])
                 y_opt_list.append(hkdict[j]['H_opt_0' + str(a)])
 

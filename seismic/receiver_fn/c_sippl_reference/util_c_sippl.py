@@ -192,7 +192,7 @@ def read_pha(infile):
                 if dat[k][0] == '#':
                     break
                 stat, tt, wgt, typ = dat[k].split(None)
-                if not ev.Picks.has_key(stat):
+                if not stat in ev.Picks:
                     ev.Picks[stat] = {}
                 if typ == 'P':
                     ev.Picks[stat]['P-pick'] = float(tt)
@@ -236,7 +236,7 @@ def write_pha(cat, outfile='blup.pha'):
         for stat in cat.events[j].Picks.keys():
             out.write('%-4s %4.2f %5.2f P\n' % (
             stat, cat.events[j].Picks[stat]['P-pick'], 1 - (cat.events[j].Picks[stat]['P-weight'] / 4.)))
-            if cat.events[j].Picks[stat].has_key('S-pick'):
+            if 'S-pick' in cat.events[j].Picks[stat]:
                 out.write('%-4s %4.2f %5.2f S\n' % (
                 stat, cat.events[j].Picks[stat]['S-pick'], 1 - (cat.events[j].Picks[stat]['S-weight'] / 4.)))
         num += 1
@@ -509,7 +509,7 @@ def get_cumsum(ev):
     """
     cumsum = 0
     for k in ev.Picks.keys():
-        if ev.Picks[k].has_key('P-pick'):
+        if 'P-pick' in ev.Picks[k]:
             if int(ev.Picks[k]['P-weight']) == 0:
                 cumsum += 4
             elif int(ev.Picks[k]['P-weight']) == 1:
@@ -518,7 +518,7 @@ def get_cumsum(ev):
                 cumsum += 2
             elif int(ev.Picks[k]['P-weight']) == 3:
                 cumsum += 1
-        if ev.Picks[k].has_key('S-pick'):
+        if 'S-pick' in ev.Picks[k]:
             if int(ev.Picks[k]['S-weight']) == 0:
                 cumsum += 8
             elif int(ev.Picks[k]['S-weight']) == 1:
@@ -537,7 +537,7 @@ def get_cumsumS(ev):
     """
     cumsumS = 0
     for k in ev.Picks.keys():
-        if ev.Picks[k].has_key('S-pick'):
+        if 'S-pick' in ev.Picks[k]:
             if int(ev.Picks[k]['S-weight']) == 0:
                 cumsumS += 8
             elif int(ev.Picks[k]['S-weight']) == 1:
@@ -560,11 +560,11 @@ def weedout_evdict(evdict, p_wt=[0, 1, 2, 3, 4], s_wt=[0, 1, 2, 3, 4]):
 
     for j in range(1, len(evdict) + 1):
         for k in evdict[j]['Picks'].keys():
-            if evdict[j]['Picks'][k].has_key('P-weight'):
+            if 'P-weight' in evdict[j]['Picks'][k]:
                 if not evdict[j]['Picks'][k]['P-weight'] in p_wt:
                     del evdict[j]['Picks'][k]  # delete whole station...
                 else:
-                    if evdict[j]['Picks'][k].has_key('S-weight'):
+                    if 'S-weight' in evdict[j]['Picks'][k]:
                         if not evdict[j]['Picks'][k]['S-weight'] in s_wt:
                             del evdict[j]['Picks'][k]['S-weight']  # only delete all S-pick-related stuff...
                             del evdict[j]['Picks'][k]['S-pick']
@@ -712,7 +712,7 @@ def write_cnv(cat, outfile, pol=True, statlen=4, date='date', velest=False, cums
         ofile.write(eventline)
         phase_strings = []
         for k in cat.events[i].Picks.keys():
-            if not cat.events[i].Picks[k].has_key('P-pick'):
+            if not 'P-pick' in cat.events[i].Picks[k]:
                 continue
             if statlen == 4:
                 if len(k) == 2:
@@ -752,7 +752,7 @@ def write_cnv(cat, outfile, pol=True, statlen=4, date='date', velest=False, cums
                     ky, cat.events[i].Picks[k]['P-pol'], cat.events[i].Picks[k]['P-weight'],
                     cat.events[i].Picks[k]['P-pick'])
             phase_strings.append(string1)
-            if cat.events[i].Picks[k].has_key('S-pick'):
+            if 'S-pick' in cat.events[i].Picks[k]:
                 try:
                     assert cat.events[i].Picks[k]['S-pick'] != '******'
                 except AssertionError:

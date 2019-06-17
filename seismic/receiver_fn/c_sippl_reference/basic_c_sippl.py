@@ -50,7 +50,7 @@ def read_info(info_path, header=False):
                 infodict[sta_new]['instruments']['config' + str(num)] = (seis, dig)
                 infodict[sta_new]['responses']['switch' + str(num - 1) + '_' + str(num)] = path
             continue
-        if not infodict.has_key(sta):
+        if not sta in infodict:
             infodict[sta] = {}
         else:
             sta_before = sta + '_' + infodict[sta]['network']
@@ -1141,9 +1141,9 @@ class Catalog:
         ns = 0
         for u in self.events.keys():
             for stat in self.events[u].Picks.keys():
-                if self.events[u].Picks[stat].has_key('P-pick'):
+                if 'P-pick' in self.events[u].Picks[stat]:
                     np += 1
-                if self.events[u].Picks[stat].has_key('S-pick'):
+                if 'S-pick' in self.events[u].Picks[stat]:
                     ns += 1
 
         ntot = np + ns
