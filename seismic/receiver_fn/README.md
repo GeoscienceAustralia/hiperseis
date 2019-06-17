@@ -6,7 +6,7 @@ The RF workflow is based on the following main steps:
 
  - Data preparation. Extract waveforms associated with moderate events.
  - Calculate RF performing deconvolution to ZRT or QLT coordinate system
- - Discard bad results
+ - Discard bad results by filtering
  - Analyse RF to identify multiples
  - Perform 1D Earth structure inversion 
 
@@ -112,6 +112,7 @@ It shows different stacking options and allows to extract specific station as AS
   2) gcc/4.9.0              5) gmt/5.1.0              8) szip/2.1              11) proj/4.9.3
   3) openmpi/1.8.4-debug    6) intel-mkl/17.0.1.132   9) hdf5/1.8.14       
 ```
+
 ### PIP Installed modules (pip freeze --user)
 ```
 adjustText==0.7.3
