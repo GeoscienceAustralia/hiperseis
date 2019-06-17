@@ -28,8 +28,8 @@ from obspy.io.sac.sactrace import SACTrace
 from obspy.geodetics.base import gps2dist_azimuth
 
 # import ausrem
-import util_c_sippl
-import iris_c_sippl
+from seismic.receiver_fn.c_sippl_reference import util_c_sippl
+from seismic.receiver_fn.c_sippl_reference import iris_c_sippl
 
 
 def HK_stack(stat, vp=6.5, H=[15., 100., 0.05], K=[1.5, 2.0, 0.001], weight=[0.33, 0.33, 0.33], smooth=0.1, n_stack=4,
@@ -724,7 +724,9 @@ def get_arrivals():
 
 if __name__ == "__main__":
     # Example usage
-    HK_stack('test')
+    dataset = 'KMBL'
+    src_dir = os.path.join(os.path.split(__file__)[0], 'test', 'data')
+    HK_stack(dataset, indir=src_dir)
     plot_HK_map()
     # TODO: work out how automat_HK() is supposed to be used.
     # automat_HK('test_folder')
