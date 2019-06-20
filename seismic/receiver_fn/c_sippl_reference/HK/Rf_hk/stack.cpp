@@ -70,8 +70,8 @@ void nth_stk(RECORD *rfrec, HKS_INFO *hks)
             }
             rfrec[irec].FreeData();
         }
-        // This loop looks like the calculation and application of the "semblance" scaling factor of
-        // Chen et al. (2010) for constraining the H-k domain search.
+        // This loop computes the mean, then raises each phase component to the power of nroot
+        // as per Muirhead (1968).
         for (izr = 0; izr < hks->nzr; izr++) {
                     
             hks->a_0p1s[izr] /= hks->nrfrec;
