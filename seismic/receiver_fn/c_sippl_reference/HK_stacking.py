@@ -741,7 +741,7 @@ if __name__ == "__main__":
     dataset = 'KMBL'
     src_dir = os.path.join(os.path.split(__file__)[0], 'test', 'data', dataset)
     list_file = os.path.join(os.path.split(__file__)[0], 'test', 'KMBL__allRFs.list')
-    HK_stack(dataset, list_file, indir=src_dir)
+    HK_stack(dataset, list_file, indir=src_dir, baz=(30, 90))
     plot_HK_map()
     # TODO: work out how automat_HK() is supposed to be used.
     # automat_HK('test_folder')

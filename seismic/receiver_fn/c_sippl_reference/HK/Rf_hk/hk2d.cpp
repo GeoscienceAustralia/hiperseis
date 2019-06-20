@@ -730,7 +730,7 @@ int main(int argc, char*argv[])
         }   
 
 /*----------------------------------------------------------------------------*/
-/* Search for the maximum, do statistics                                      */    
+/* Compute sum of phases, search for the maximum, do statistics               */
 /*----------------------------------------------------------------------------*/
         if (statis(hks)) return -1;
 
