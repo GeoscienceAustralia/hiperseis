@@ -498,18 +498,21 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 # ---------------- MAIN ----------------
 @click.command()
 @click.option('--start-latlon', nargs=2, type=float, required=True,
-    help='Start coordinates of the profile line as latitude longitude (degrees),'
-         ' using space as separator, e.g. -22 133')
+              help='Start coordinates of the profile line as latitude longitude (degrees),'
+                   ' using space as separator, e.g. -22 133')
 @click.option('--end-latlon', nargs=2, type=float, required=True,
-    help='End coordinates of the profile line as latitude longitude (degrees), using space as separator, e.g. -19 140')
-@click.option('--width', type=float, default=100.0, help='Width of the strip around the profile line (km)')
-@click.option('--spacing', type=float, default=2.0,
-    help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
-@click.option('--max-depth', type=float, default=200.0, help='Maximum depth of slice below the profile line (km)')
-@click.option('--stacked-scale', type=float, default=0.15,
-    help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
-@click.option('--channels', type=str, default='R',
-    help='Comma separated list of channels to use for stacking, e.g. R,T')
+              help='End coordinates of the profile line as latitude longitude (degrees),'
+                   ' using space as separator, e.g. -19 140')
+@click.option('--width', type=float, default=100.0, show_default=True,
+              help='Width of the strip around the profile line (km)')
+@click.option('--spacing', type=float, default=2.0, show_default=True,
+              help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
+@click.option('--max-depth', type=float, default=200.0, show_default=True,
+              help='Maximum depth of slice below the profile line (km)')
+@click.option('--stacked-scale', type=float, default=0.15, show_default=True,
+              help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
+@click.option('--channels', type=str, default='R', show_default=True,
+              help='Comma separated list of channels to use for stacking, e.g. R,T')
 @click.option('--title', type=str, help='Title text applied to the plots.')
 @click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
