@@ -11,15 +11,37 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 def phase_weights(stream):
+    """Phase weighting takes all the traces in a stream and computes a weighting for each sample in the
+       stream between 0 and 1. The weighting represents how consistent is the phase angle of the signal
+       at the same point in the time series across all streams.
 
-    tphase=[]
+       See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
+
+    :param stream: [description]
+    :type stream: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+    tphase = []
+    # For each trace
     for tr in stream: 
+        # Hilbert transform to separate complex amplitude from complex phase.
         analytic = hilbert(tr.data) 
+        # The complex part of the hilbert transform contains sine of the phase angle.
+        # numpy.angle extracts the angle in radians from the imaginary component.
         angle = np.angle(analytic) 
+        # Using just the phase angle component (throwing away the amplitude) generate complex number
+        # representing just the phase angle of the signal at each sample.
         iPhase = np.exp(1j * angle) 
         tphase.append(iPhase) 
-    tphase=np.array(tphase)
-    tphase=np.abs(np.mean(tphase,axis=0))
+    # end for
+    tphase = np.array(tphase)
+    # First compute the mean of all the complex phases. If they're random, due to summing in the complex
+    # domain they will tend to cancel out. If they're not random, they will tend to sum coherently and
+    # generated a large stacked complex amplitude.
+    tphase = np.abs(np.mean(tphase, axis=0))
+    # Return normalized result against max amplitude, so that the most coherent part of the signal
+    # has a scaling of 1.
     return tphase/np.max(tphase)
 
 def count_groups(stream):
