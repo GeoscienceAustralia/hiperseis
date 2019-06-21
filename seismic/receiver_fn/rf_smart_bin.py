@@ -212,7 +212,7 @@ if __name__ == '__main__':
 
     station_list = []
 
-    # here we collect station names but maybe ID is more appropriate in case of having the same 
+    # here we collect station names but maybe ID is more appropriate in case of having the same
     # station names in different deployments
 
     for i in xrange(len(q_stream)):
@@ -233,18 +233,18 @@ if __name__ == '__main__':
         traces = traces.trim2(-5, 20, 'onset')
 
         # but keep original traces as they are to use them at the end
-        o_traces = o_stream.select(station=station_code)
+        original_traces = o_stream.select(station=station_code)
 
         swipe = []
-        o_swipe = []
+        original_swipe = []
 
         for trace in traces:
             swipe.append(trace.data)
-        for trace in o_traces:
-            o_swipe.append(trace.data)
+        for trace in original_traces:
+            original_swipe.append(trace.data)
 
         swipe = np.array(swipe)
-        o_swipe = np.array(o_swipe)
+        original_swipe = np.array(original_swipe)
 
         print("Processing ", swipe.shape[0], " events")
         # we use clustering technique to find similar signals
@@ -257,36 +257,36 @@ if __name__ == '__main__':
         num_group = np.amax(ind)
         print("Number of detected groups: ", num_group + 1)
 
-# we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
+        # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
 
         for k in xrange(num_group + 1):
             # average can use weights and mean can work on masked arrays
-            stacked = np.average(o_swipe[ind == k, :], axis=0)
+            stacked = np.average(original_swipe[ind == k, :], axis=0)
 
             # we choose only traces that belong to detected group
 
-            for j in xrange(len(o_traces)):
-                rf_group = {'rf_group': k}
+            rf_group = {'rf_group': k}
+            for j in xrange(len(original_traces)):
                 if ind[j] == k:
-                    o_traces[j].stats.update(rf_group)
-                    out_file.append(o_traces[j])
+                    original_traces[j].stats.update(rf_group)
+                    out_file.append(original_traces[j])
                     for tr in t_stream:
-                        if tr.stats.event_id == o_traces[j].stats.event_id:
+                        if tr.stats.event_id == original_traces[j].stats.event_id:
                             tr.stats.update(rf_group)
                             out_file.append(tr)
                     for tr in z_stream:
-                        if tr.stats.event_id == o_traces[j].stats.event_id:
+                        if tr.stats.event_id == original_traces[j].stats.event_id:
                             tr.stats.update(rf_group)
                             out_file.append(tr)
 
             '''
             # or here we can make a trick - coherent signal comes from different directions or segments. Therefore we assign stacked RF back to its original azimuths and angle of incidence
-            for j in xrange(len(o_traces)):
+            for j in xrange(len(original_traces)):
                 if ind[j]==k:
                     # here we replace original data by stacked rays. However original RFs with assigned groups can be used as well and stacked later using migration image
                     # this option can be more favourable to highlight small signals. Comment out one line below to avoid stacking
-                    o_traces[j].data=stacked.copy()
-                    out_file.append(o_traces[j])
+                    original_traces[j].data=stacked.copy()
+                    out_file.append(original_traces[j])
             '''
 
     ''' Some plots if required

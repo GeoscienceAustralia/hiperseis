@@ -24,16 +24,16 @@ def phase_weights(stream):
     """
     tphase = []
     # For each trace
-    for tr in stream: 
+    for tr in stream:
         # Hilbert transform to separate complex amplitude from complex phase.
-        analytic = hilbert(tr.data) 
+        analytic = hilbert(tr.data)
         # The complex part of the hilbert transform contains sine of the phase angle.
         # numpy.angle extracts the angle in radians from the imaginary component.
-        angle = np.angle(analytic) 
+        angle = np.angle(analytic)
         # Using just the phase angle component (throwing away the amplitude) generate complex number
         # representing just the phase angle of the signal at each sample.
-        iPhase = np.exp(1j * angle) 
-        tphase.append(iPhase) 
+        iPhase = np.exp(1j * angle)
+        tphase.append(iPhase)
     # end for
     tphase = np.array(tphase)
     # First compute the mean of all the complex phases. If they're random, due to summing in the complex

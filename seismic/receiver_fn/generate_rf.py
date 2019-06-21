@@ -20,6 +20,9 @@ except ImportError:
 # pylint: disable=invalid-name
 
 RESAMPLE_RATE_HZ = 100
+# Upper limit here seems a bit low, since P-wave arrival and its' multiples are impulse-like
+# waveforms with a fair bit of energy in the high frequencies.  Other papers tend to use
+# upper cutoff of around 1.5 Hz.
 FILTER_BAND_HZ = (0.03, 0.80)
 TAPER_LIMIT = 0.01
 TRIM_START_TIME_SEC = -25.0

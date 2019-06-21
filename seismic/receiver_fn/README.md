@@ -35,7 +35,7 @@ time consuming process. If there is catalogue with specified dates it will conti
 
 ## Receiver function calculation
 
-Receiver function calculation is a very simple strightforward process using the `generate_rf.py` program.
+Receiver function calculation is a very simple straightforward process using the `generate_rf.py` program.
 It reads H5 file with waveform segments and generates LQT receiver functions without moveout.
 The parameters to specify are:
 
