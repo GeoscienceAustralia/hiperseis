@@ -1,60 +1,24 @@
 #!/usr/bin/env python
 
 import os
+import sys
+
 from past.builtins import xrange
 
 import numpy as np
-from scipy.signal import hilbert
 
 import rf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-def phase_weights(stream):
-    """Phase weighting takes all the traces in a stream and computes a weighting for each sample in the
-       stream between 0 and 1. The weighting represents how consistent is the phase angle of the signal
-       at the same point in the time series across all streams.
+from seismic.receiver_fn.rf_util import phase_weights, find_rf_group_ids
 
-       See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
-
-    :param stream: [description]
-    :type stream: [type]
-    :return: [description]
-    :rtype: [type]
-    """
-    tphase = []
-    # For each trace
-    for tr in stream:
-        # Hilbert transform to separate complex amplitude from complex phase.
-        analytic = hilbert(tr.data)
-        # The complex part of the hilbert transform contains sine of the phase angle.
-        # numpy.angle extracts the angle in radians from the imaginary component.
-        angle = np.angle(analytic)
-        # Using just the phase angle component (throwing away the amplitude) generate complex number
-        # representing just the phase angle of the signal at each sample.
-        iPhase = np.exp(1j * angle)
-        tphase.append(iPhase)
-    # end for
-    tphase = np.array(tphase)
-    # First compute the mean of all the complex phases. If they're random, due to summing in the complex
-    # domain they will tend to cancel out. If they're not random, they will tend to sum coherently and
-    # generated a large stacked complex amplitude.
-    tphase = np.abs(np.mean(tphase, axis=0))
-    # Return normalized result against max amplitude, so that the most coherent part of the signal
-    # has a scaling of 1.
-    return tphase/np.max(tphase)
-
-def count_groups(stream):
-    group=[]
-    for trace in stream:
-        group.append(trace.stats.rf_group)
-    group=np.array(group)
-    return group
+if sys.version_info[0] < 3:
+    from builtins import input  # pylint: disable=redefined-builtin
 
 #-------------Main---------------------------------
 
-if __name__=='__main__':
-
+def main():
     ''' @package extract_rf
     This code contains different approaches to extract RFs from H5 file in stacked form.
     Output is prepared for trans-dimensional inversion in ASCII format
@@ -78,8 +42,6 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 0.2                     0.1                                3.73
 
     '''
-    from builtins import input
-
     print("Reading the input file...")
     # Input file
     stream=rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5','H5')
@@ -182,7 +144,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
             # then we take the same for each similarity groups
 
-            groups=count_groups(station)
+            groups=find_rf_group_ids(station)
             max_grp=np.max(groups)
             print("Max grp ",max_grp)
 
@@ -239,3 +201,7 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             text_file.close()
         # end if
     # end for
+
+
+if __name__ == '__main__':
+    main()
