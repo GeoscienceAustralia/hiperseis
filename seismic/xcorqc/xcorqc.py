@@ -105,6 +105,7 @@ def whiten(x, sr, fmin=None, fmax=None):
 # end func
 
 def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
+           instrument_response_output='vel', water_level=50,
            window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
            resample_rate=None, flo=None, fhi=None,
            clip_to_2std=False, whitening=False,
@@ -191,7 +192,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                      'starttime': tr1.stats.starttime + wtr1s,
                                                      'endtime': tr1.stats.starttime + wtr1e}))
                     try:
-                        tr1.remove_response(inventory=sta1_inv, water_level=50)
+                        tr1.remove_response(inventory=sta1_inv, output=instrument_response_output.upper(),
+                                            water_level=water_level)
                     except Exception as e:
                         print (e)
                     # end try
@@ -209,7 +211,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                      'starttime': tr2.stats.starttime + wtr2s,
                                                      'endtime': tr2.stats.starttime + wtr2e}))
                     try:
-                        tr2.remove_response(inventory=sta2_inv, water_level=50)
+                        tr2.remove_response(inventory=sta2_inv, output=instrument_response_output.upper(),
+                                            water_level=water_level)
                     except Exception as e:
                         print (e)
                     # end try
@@ -361,6 +364,8 @@ def IntervalStackXCorr(refds, tempds,
                        start_time, end_time,
                        ref_net_sta, temp_net_sta,
                        ref_sta_inv, temp_sta_inv,
+                       instrument_response_output,
+                       water_level,
                        ref_cha,
                        temp_cha,
                        resample_rate=None,
@@ -401,6 +406,10 @@ def IntervalStackXCorr(refds, tempds,
     :param ref_sta_inv: Inventory containing instrument response for station
     :type temp_sta_inv: Inventory
     :param temp_sta_inv: Inventory containing instrument response for station
+    :type instrument_response_output: str
+    :param instrument_response_output: Output of instrument response correction; can be either 'vel' or 'disp'
+    :type water_level: float
+    :param water_level: Water-level used during instrument response correction
     :type ref_cha: str
     :param ref_cha: Channel name for the reference Dataset
     :type temp_cha: str
@@ -583,6 +592,8 @@ def IntervalStackXCorr(refds, tempds,
         xcl, winsPerInterval, \
         intervalStartSeconds, intervalEndSeconds = \
             xcorr2(refSt[0], tempSt[0], ref_sta_inv, temp_sta_inv,
+                   instrument_response_output=instrument_response_output,
+                   water_level=water_level,
                    window_seconds=window_seconds,
                    interval_seconds=interval_seconds,
                    resample_rate=resample_rate,
@@ -686,6 +697,20 @@ def IntervalStackXCorr(refds, tempds,
         root_grp.createDimension('lag', xcorrResultsDict[k].shape[1])
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
 
+        # Add metadata
+        sr = root_grp.createVariable('SampleRate', 'f4')
+        lon1 = root_grp.createVariable('Lon1', 'f4')
+        lat1 = root_grp.createVariable('Lat1', 'f4')
+        lon2 = root_grp.createVariable('Lon2', 'f4')
+        lat2 = root_grp.createVariable('Lat2', 'f4')
+
+        sr[:] = resample_rate
+        lon1[:] = refds.unique_coordinates[ref_net_sta][0] if len(refds.unique_coordinates[ref_net_sta]) else -999
+        lat1[:] = refds.unique_coordinates[ref_net_sta][1] if len(refds.unique_coordinates[ref_net_sta]) else -999
+        lon2[:] = refds.unique_coordinates[temp_net_sta][0] if len(refds.unique_coordinates[temp_net_sta]) else -999
+        lat2[:] = refds.unique_coordinates[temp_net_sta][1]  if len(refds.unique_coordinates[temp_net_sta]) else -999
+
+        # Add data
         if(ensemble_stack):
             nsw = root_grp.createVariable('NumStackedWindows', 'i8')
             ist = root_grp.createVariable('IntervalStartTime', 'i8')

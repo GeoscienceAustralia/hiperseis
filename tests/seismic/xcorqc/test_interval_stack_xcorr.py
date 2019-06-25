@@ -107,6 +107,8 @@ def test_interval_stack_xcorr_(tmpdir, inv1, inv2, interval_seconds, window_seco
                        netsta1, netsta2,
                        inv1,
                        inv2,
+                       'vel',
+                       50,
                        cha,
                        cha,
                        resample_rate=1,

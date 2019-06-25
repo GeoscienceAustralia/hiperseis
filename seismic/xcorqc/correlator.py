@@ -175,7 +175,7 @@ def process(data_source1, data_source2, output_path,
             resample_rate=None, nearest_neighbours=1,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*',
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
-            instrument_response_inventory=None,
+            instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
@@ -228,11 +228,14 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
             f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
             f.write('%25s\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
+            f.write('%25s\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
+            f.write('%25s\t\t: %s\n' % ('--water-level', water_level))
             f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
             f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
             f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
             f.write('%25s\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
             f.write('%25s\t\t: %s\n' % ('--whitening', whitening))
+            f.write('%25s\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
 
             f.close()
         # end func
@@ -268,6 +271,7 @@ def process(data_source1, data_source2, output_path,
 
         x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
                                                         endTime, netsta1, netsta2, netsta1inv, netsta2inv,
+                                                        instrument_response_output, water_level,
                                                         ds1_zchan, ds2_zchan,
                                                         resample_rate, read_buffer_size, interval_seconds,
                                                         window_seconds, fmin, fmax, clip_to_2std, whitening,
@@ -313,6 +317,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="FDSNxml inventory containing instrument response information. Note that when this parameter is provided "
                    ", instrument response corrections are automatically applied for matching stations with response "
                    "information.")
+@click.option('--instrument-response-output',
+              type=click.Choice(['vel', 'disp']),
+              default='vel', help="Output of instrument response correction; must be either 'vel' (default) for velocity"
+                                  " or 'disp' for displacement. Note, this parameter has no effect if instrument response"
+                                  " correction is not performed.")
+@click.option('--water-level', default=50., help="Water-level in dB to limit amplification during instrument response correction"
+                                                 "to a certain cut-off value. Note, this parameter has no effect if instrument"
+                                                 "response correction is not performed.")
 @click.option('--clip-to-2std', is_flag=True,
               help="Clip data in each window to +/- 2 standard deviations")
 @click.option('--whitening', is_flag=True,
@@ -352,9 +364,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "functions for surface wave tomography.")
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-         end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize,
-         read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
-         envelope_normalize, ensemble_stack):
+         end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
+         whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
+         ds2_nchan, ds2_echan, envelope_normalize, ensemble_stack):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -370,9 +382,9 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
-            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
-            ensemble_stack)
+            end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
+            whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
+            ds2_nchan, ds2_echan, envelope_normalize, ensemble_stack)
 # end func
 
 if __name__ == '__main__':
