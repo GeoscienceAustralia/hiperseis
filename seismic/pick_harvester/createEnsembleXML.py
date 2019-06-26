@@ -261,7 +261,7 @@ class Catalog():
                     try:
                         utctime = UTCDateTime(year, month, day,
                                               hour, minute, second)
-                    except:
+                    except Exception:
                         continue
                     # end try
 
@@ -306,7 +306,7 @@ class Catalog():
                 try:
                     utctime = UTCDateTime(year, month, day,
                                           hour, minute, second)
-                except:
+                except Exception:
                     continue
                 # end try
 
