@@ -139,7 +139,7 @@ class FederatedASDFDataSetDBVariant():
                 endttime  = UTCDateTime(tokens[2]).timestamp
 
                 return nc, sc, lc, cc, starttime, endttime
-            except:
+            except Exception:
                 return None
             # end func
         # end func
@@ -297,7 +297,8 @@ class FederatedASDFDataSetDBVariant():
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
 
-        query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
+        channel = channel.replace('?', '_')
+        query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha like '%s' " \
                 %(network, station, location, channel) + \
                 "and et>=%f and st<=%f" \
                  % (starttime, endtime)
@@ -316,8 +317,9 @@ class FederatedASDFDataSetDBVariant():
             ds_id, net, sta, loc, cha, st, et, tag = row
             station_data = self.asdf_datasets[ds_id].waveforms['%s.%s'%(net, sta)]
             try:
-                s += station_data[tag]
-            except:
+                data_segment = station_data.get_item(tag, UTCDateTime(starttime), UTCDateTime(endtime))
+                s += data_segment
+            except Exception as e:
                 pass
             # end try
         # end for
@@ -325,7 +327,7 @@ class FederatedASDFDataSetDBVariant():
         if(automerge):
             try:
                 s.merge(method=-1)
-            except:
+            except Exception as e:
                 pass
             # end try
         # end if
@@ -381,7 +383,7 @@ class FederatedASDFDataSetDBVariant():
                 try:
                     start_time = UTCDateTime(workload[nk][sk][0])
                     end_time = UTCDateTime(workload[nk][sk][1])
-                except:
+                except Exception:
                     continue
                 # end try
 
