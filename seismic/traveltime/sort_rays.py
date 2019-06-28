@@ -407,22 +407,6 @@ def apply_filters(csv_data, phase):
     elif phase.upper() == 'S':  # Now use P_EVENTS to filter S-picks
         csv_data = filter_S_by_P(csv_data, 'P_EVENTS.csv')
 
-        if os.path.exists('P_EVENTS.npy'):
-            p_events = np.load('P_EVENTS.npy',allow_pickle=True)
-            print("Total number of P-Rays = %s" % len(p_events), p_events[:5])
-
-            csv_data["ray_filter_flag"] = csv_data.apply(
-                lambda x: is_ray_in("%s_%s_%s"%(x.net,x.sta, x['#eventID']), p_events), axis=1)
-
-            # only keep the rows if ray_filter_flag is 1
-            csv_data = csv_data.loc[csv_data["ray_filter_flag"] == 1]
-
-            os.remove('P_EVENTS.npy')
-
-        else:
-            print('You must run P-wave clustering prior to S-wave clustering!')
-            raise Exception("Cannot filter S-wave picks, because P_EVENTS.npy NOT found")
-
     return csv_data
 
 def filter_S_by_P(inpdf, pevents_csv):
@@ -433,7 +417,48 @@ def filter_S_by_P(inpdf, pevents_csv):
     :return: a new csv pdf after the filtering
     """
 
-    return inpdf
+    # if os.path.exists('P_EVENTS.npy'):  # old algorithm using the saved P_EVENTS.npy. VERY slow!!
+    #     p_events = np.load('P_EVENTS.npy', allow_pickle=True)
+    #     print("Total number of P-Rays = %s" % len(p_events), p_events[:5])
+    #
+    #     inpdf["ray_filter_flag"] = inpdf.apply(
+    #         lambda x: is_ray_in("%s_%s_%s" % (x.net, x.sta, x['#eventID']), p_events), axis=1)
+    #
+    #     # only keep the rows if ray_filter_flag is 1
+    #     csv_data = inpdf.loc[inpdf["ray_filter_flag"] == 1]
+    #
+    #     os.remove('P_EVENTS.npy')
+    #
+    # else:
+    #     print('You must run P-wave clustering prior to S-wave clustering!')
+    #     raise Exception("Cannot filter S-wave picks, because P_EVENTS.npy NOT found")
+
+    if not os.path.exists(pevents_csv):
+        print('You must run P-wave processing prior to S-wave!')
+        raise Exception("%s NOT found, thus cannot filter S-wave picks "%pevents_csv)
+    else:
+        p_events_df = pd.read_csv(pevents_csv, header='infer')
+
+        print("before drop_duplicates() p_events_df.shape =", p_events_df.shape)
+
+        p_events_df.drop_duplicates()
+
+        print("After drop_duplicates() p_events_df.shape =", p_events_df.shape)
+        p_events_df = p_events_df.groupby(by=['#eventID', 'net', 'sta']).count().reset_index()
+
+        print("After reset_index p_events_df.shape =", p_events_df.shape)
+
+        print("The input pdf before merge", inpdf.shape)
+
+        merged_df = pd.merge(inpdf, p_events_df,
+                             how='inner',  # This matters a lot
+                             on=['#eventID', 'net', 'sta'])
+
+        print("The merged_df.shape  ", merged_df.shape)
+
+        os.remove(pevents_csv)
+
+    return merged_df
 
 
 def is_manual_pick(x):

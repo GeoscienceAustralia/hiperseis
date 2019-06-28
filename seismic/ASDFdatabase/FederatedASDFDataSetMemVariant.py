@@ -12,6 +12,8 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
+from future.utils import iteritems
+
 from mpi4py import MPI
 import os
 import glob
@@ -73,7 +75,7 @@ class FederatedASDFDataSetMemVariant():
     def hasOverlap(stime1, etime1, stime2, etime2):
         result = 0
 
-        #print stime1, etime1, stime2, etime2
+        #print(stime1, etime1, stime2, etime2)
 
         if (etime1 is None): etime1 = UTCDateTime.now().timestamp
         if (etime2 is None): etime2 = UTCDateTime.now().timestamp
@@ -117,7 +119,7 @@ class FederatedASDFDataSetMemVariant():
         if(type(asdf_source)==str):
             self.asdf_source = asdf_source
 
-            fileContents = filter(len, open(self.asdf_source).read().splitlines())
+            fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
 
             # collate file names
             for i in range(len(fileContents)):
@@ -177,15 +179,15 @@ class FederatedASDFDataSetMemVariant():
     # end func
 
     def extract_time_ranges(self):
-        print 'Extracting time ranges on rank %d'%(self.rank)
+        print('Extracting time ranges on rank %d'%(self.rank))
         for it, val in enumerate(self.tree_list):
             if(val):
                 self.net_sta_start_time[it] = tree()
                 self.net_sta_end_time[it] = tree()
                 min = []
                 max = []
-                for (nk, nv) in val.iteritems():
-                    for (sk, sv) in nv.iteritems():
+                for (nk, nv) in iteritems(val):
+                    for (sk, sv) in iteritems(nv):
 
                         if (type(self.net_sta_start_time[it][nk][sk]) == defaultdict):
                             self.net_sta_start_time[it][nk][sk] = 1e32
@@ -194,8 +196,8 @@ class FederatedASDFDataSetMemVariant():
                             self.net_sta_end_time[it][nk][sk] = -1e32
                         # end if
 
-                        for (lk, lv) in sv.iteritems():
-                            for (ck, cv) in lv.iteritems():
+                        for (lk, lv) in iteritems(sv):
+                            for (ck, cv) in iteritems(lv):
                                 if (type(cv) == index.Index):
                                     if (len(cv.leaves()[0][1])==0): continue
 
@@ -222,13 +224,13 @@ class FederatedASDFDataSetMemVariant():
     def create_index(self):
         for ifn, fn in enumerate(self.json_db_file_names):
             if(fn):
-                print 'Creating index for %s..'%(fn)
+                print('Creating index for %s..'%(fn))
                 d = json.load(open(fn, 'r'))
 
                 t = tree()
                 fieldMap = None
                 indices = []
-                for ki, (k, v) in enumerate(d.iteritems()):
+                for ki, (k, v) in enumerate(iteritems(d)):
 
                     if (fieldMap == None):
                         fieldMap = defaultdict()
@@ -243,7 +245,7 @@ class FederatedASDFDataSetMemVariant():
                                    fieldMap['tr_endtime']]
                     # end if
 
-                    values = v.values()
+                    values = list(v.values())
                     network = values[indices[0]]
                     station = values[indices[1]]
                     channel = values[indices[2]]
@@ -262,7 +264,7 @@ class FederatedASDFDataSetMemVariant():
                 self.asdf_tags_list[ifn] = d.keys()
 
                 del d
-                print 'Done creating index'
+                print('Done creating index')
             # end if
         # end for
         self.extract_time_ranges()
@@ -288,16 +290,16 @@ class FederatedASDFDataSetMemVariant():
 
         tagsCount = 0
         for ids, ds in enumerate(self.asdf_datasets):
-            print 'Creating index for %s..' % (self.asdf_file_names[ids])
+            print('Creating index for %s..' % (self.asdf_file_names[ids]))
 
-            keys = ds.get_all_coordinates().keys()
+            keys = list(ds.get_all_coordinates().keys())
             keys = split_list(keys, self.nproc)
 
             data = []
-            #print 'Found %d keys'%(len(keys))
+            #print('Found %d keys'%(len(keys)))
             for ikey, key in enumerate(keys[self.rank]):
                 sta = ds.waveforms[key]
-                #print 'Loading key number %d: %s'%(ikey, key)
+                #print('Loading key number %d: %s'%(ikey, key))
                 for tag in sta.list():
 
                     result = decode_tag(tag)
@@ -325,7 +327,9 @@ class FederatedASDFDataSetMemVariant():
                     t[network][station][location][channel] = index.Index()
                 # end if
 
+                assert isinstance(t[network][station][location][channel], index.Index)
                 t[network][station][location][channel].insert(ki, (tr_st, 1, tr_et, 1))
+                assert isinstance(t[network][station][location][channel], index.Index)
 
                 tags_list.append(tag)
                 ki += 1
@@ -336,7 +340,7 @@ class FederatedASDFDataSetMemVariant():
 
             tagsCount += len(data)
         # end for
-        print 'Created sparse indices on rank %d for %d waveforms' % (self.rank, tagsCount)
+        print('Created sparse indices on rank %d for %d waveforms' % (self.rank, tagsCount))
 
         self.extract_time_ranges()
     # end func
@@ -347,22 +351,22 @@ class FederatedASDFDataSetMemVariant():
 
         for val in self.tree_list:
             if(val):
-                for (nk, nv) in val.iteritems():
+                for (nk, nv) in iteritems(val):
                     if(network):
                         nk = network
                         nv = val[nk]
                     # end if
-                    for (sk, sv) in nv.iteritems():
+                    for (sk, sv) in iteritems(nv):
                         if (station):
                             sk = station
                             sv = nv[sk]
                         # end if
-                        for (lk, lv) in sv.iteritems():
+                        for (lk, lv) in iteritems(sv):
                             if (location):
                                 lk = location
                                 lv = sv[lk]
                             # end if
-                            for (ck, cv) in lv.iteritems():
+                            for (ck, cv) in iteritems(lv):
                                 if (channel):
                                     ck = channel
                                     cv = lv[ck]
@@ -402,28 +406,28 @@ class FederatedASDFDataSetMemVariant():
 
         results = []
         for i in dslistIndices:
-            #print 'Accessing file: %s'%(self.asdf_file_names[i])
+            #print('Accessing file: %s'%(self.asdf_file_names[i]))
 
             ds = self.asdf_datasets[i]
 
             val = self.tree_list[i]
             if(val): # has json db
-                for (nk, nv) in val.iteritems():
+                for (nk, nv) in iteritems(val):
                     if(network):
                         nk = network
                         nv = val[nk]
                     # end if
-                    for (sk, sv) in nv.iteritems():
+                    for (sk, sv) in iteritems(nv):
                         if (station):
                             sk = station
                             sv = nv[sk]
                         # end if
-                        for (lk, lv) in sv.iteritems():
+                        for (lk, lv) in iteritems(sv):
                             if (location):
                                 lk = location
                                 lv = sv[lk]
                             # end if
-                            for (ck, cv) in lv.iteritems():
+                            for (ck, cv) in iteritems(lv):
                                 if (channel):
                                     ck = channel
                                     cv = lv[ck]
@@ -477,7 +481,7 @@ class FederatedASDFDataSetMemVariant():
 
         s = Stream()
         for i in dslistIndices:
-            #print 'Accessing file: %s'%(self.asdf_file_names[i])
+            #print('Accessing file: %s'%(self.asdf_file_names[i]))
 
             ds = self.asdf_datasets[i]
 
@@ -529,8 +533,8 @@ class FederatedASDFDataSetMemVariant():
     def local_net_sta_list(self):
         for it, val in enumerate(self.tree_list):
             if(val):
-                for (nk, nv) in val.iteritems():
-                    for (sk, sv) in nv.iteritems():
+                for (nk, nv) in iteritems(val):
+                    for (sk, sv) in iteritems(nv):
                         start_time = None
                         end_time = None
                         try:
@@ -563,4 +567,4 @@ if __name__=="__main__":
     #s = fds.get_waveforms('AU', 'QIS', '*', 'BHZ',
     #                      '2010-06-01T00:00:00', '2010-06-01T00:06:00',
     #                      'raw_recording', automerge=False)
-    #print s
+    #print(s)

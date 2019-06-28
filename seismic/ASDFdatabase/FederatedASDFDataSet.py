@@ -30,8 +30,8 @@ from seismic.ASDFdatabase.FederatedASDFDataSetDBVariant import FederatedASDFData
 
 HAS_RTREE = True
 try:
-    from FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
-except:
+    from seismic.ASDFdatabase.FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
+except ImportError:
     HAS_RTREE = False
 # end if
 
@@ -184,7 +184,7 @@ class FederatedASDFDataSet():
         :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
         :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
         :param automerge: merge traces (default False)
-        :param trace_count_threshold: returns an empty Stream if the number of traces within the time-rage provided
+        :param trace_count_threshold: returns an empty Stream if the number of traces within the time-range provided
                                       exceeds the threshold (default 200). This is particularly useful for filtering
                                       out data from bad stations, e.g. those from the AU.Schools network
         :return: an Obspy Stream containing waveform data over the time-rage provided
