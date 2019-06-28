@@ -43,6 +43,7 @@ DPI = asin(1.0) / 90.0
 R2D = 90. / asin(1.)
 FLOAT_FORMAT = '%.4f'
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
 
 

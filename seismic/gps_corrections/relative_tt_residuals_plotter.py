@@ -43,6 +43,8 @@ from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
 
 register_matplotlib_converters()
 
+logging.basicConfig()
+
 # Priority order of trusted channels
 CHANNEL_PREF_NO_SHZ = ['HHZ', 'HHZ_10', 'H?Z', 'BHZ_00', 'BHZ', 'BHZ_10', 'B?Z', 'EHZ']
 CHANNEL_PREF_BALANCED = CHANNEL_PREF_NO_SHZ + ['S?Z', 'SHZ']

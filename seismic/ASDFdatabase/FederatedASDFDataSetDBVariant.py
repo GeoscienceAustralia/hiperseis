@@ -33,6 +33,8 @@ import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
+logging.basicConfig()
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow

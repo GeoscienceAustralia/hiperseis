@@ -44,6 +44,9 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from netCDF4 import Dataset
 from functools import reduce
 
+logging.basicConfig()
+
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
