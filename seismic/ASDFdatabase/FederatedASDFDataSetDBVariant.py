@@ -140,8 +140,10 @@ class FederatedASDFDataSetDBVariant():
 
                 return nc, sc, lc, cc, starttime, endttime
             except Exception:
+                if self.logger:
+                    self.logger.error("Failed to decode tag {}".format(tag))
                 return None
-            # end func
+            # end try
         # end func
 
         dbFound = os.path.exists(self.db_fn)
@@ -316,11 +318,17 @@ class FederatedASDFDataSetDBVariant():
         for row in rows:
             ds_id, net, sta, loc, cha, st, et, tag = row
             station_data = self.asdf_datasets[ds_id].waveforms['%s.%s'%(net, sta)]
+            utc_stime = utc_etime = '<unknown>'
             try:
-                data_segment = station_data.get_item(tag, UTCDateTime(starttime), UTCDateTime(endtime))
+                utc_stime = UTCDateTime(starttime)
+                utc_etime = UTCDateTime(endtime)
+                data_segment = station_data.get_item(tag, utc_stime, utc_etime)
                 s += data_segment
             except Exception as e:
-                pass
+                if self.logger:
+                    self.logger.error("Failed to get data segment {} -- {} for {}.{} with error:\n{}"
+                                      .format(utc_stime, utc_etime, net, sta, str(e)))
+                # end if
             # end try
         # end for
 
@@ -328,7 +336,9 @@ class FederatedASDFDataSetDBVariant():
             try:
                 s.merge(method=-1)
             except Exception as e:
-                pass
+                if self.logger:
+                    self.logger.error("Stream merge error:\n{}".format(str(e)))
+                # end if
             # end try
         # end if
 
@@ -384,6 +394,8 @@ class FederatedASDFDataSetDBVariant():
                     start_time = UTCDateTime(workload[nk][sk][0])
                     end_time = UTCDateTime(workload[nk][sk][1])
                 except Exception:
+                    if self.logger:
+                        self.logger.warning("Failed to convert start and end times for keys {}, {}".format(nk, sk))
                     continue
                 # end try
 

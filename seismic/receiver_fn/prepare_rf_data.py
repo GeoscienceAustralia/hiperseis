@@ -168,7 +168,7 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
 
     # Form closure to allow waveform source file to be derived from a setting (or command line input)
     # asdf_dataset = FederatedASDFDataSet('/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt')
-    asdf_dataset = FederatedASDFDataSet('/g/data1a/ha3/am7399/shared/OA_asdf_files.txt')
+    asdf_dataset = FederatedASDFDataSet('/g/data1a/ha3/am7399/shared/OA_asdf_files.txt', logger=log)
     def closure_get_waveforms(network, station, location, channel, starttime, endtime):
         return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
 
