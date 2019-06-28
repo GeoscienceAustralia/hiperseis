@@ -136,9 +136,9 @@ class Geometry:
         gzs = xyzs[:, :, :, 2].reshape(self._nx, self._ny, self._nz)
 
         if(self._debug):
-            print np.min(gxs.flatten()), np.max(gxs.flatten())
-            print np.min(gys.flatten()), np.max(gys.flatten())
-            print np.min(gzs.flatten()), np.max(gzs.flatten())
+            print(np.min(gxs.flatten()), np.max(gxs.flatten()))
+            print(np.min(gys.flatten()), np.max(gys.flatten()))
+            print(np.min(gzs.flatten()), np.max(gzs.flatten()))
 
         # Compute cell-centre coordinates
         # Naming convention (Grid [XYZ] Spherical Centre)
@@ -147,26 +147,27 @@ class Geometry:
         gzsc = (gzs[:-1, :-1, :-1] + gzs[1:, 1:, 1:]) / 2.
 
         if(self._debug):
-            print '\n'
-            print np.min(gxsc.flatten()), np.max(gxsc.flatten())
-            print np.min(gysc.flatten()), np.max(gysc.flatten())
-            print np.min(gzsc.flatten()), np.max(gzsc.flatten())
+            print('\n')
+            print(np.min(gxsc.flatten()), np.max(gxsc.flatten()))
+            print(np.min(gysc.flatten()), np.max(gysc.flatten()))
+            print(np.min(gzsc.flatten()), np.max(gzsc.flatten()))
 
         return glon, glat, gzaa, gxaa, gyaa, gzaa, gxs, gys, gzs, gxsc, gysc, gzsc
     # end func
 # end class
 
 class Migrate:
-    def __init__(self, geometry, stream, velocity_model='ak135.dat', debug=False):
+    def __init__(self, geometry, stream, debug=False, output_folder='/tmp'):
         assert isinstance(geometry, Geometry), 'Must be an instance of class Geometry..'
         self._geometry = geometry
 
         assert isinstance(stream, RFStream), 'Must be an instance of class RFStream..'
         self._stream = stream
-        if(velocity_model != 'ak135.dat'): assert 0, 'Only ak135.dat is currently supported'
-        self._velocity_model = velocity_model
 
         self._debug = debug
+        self._output_folder = output_folder
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
         # Initialize MPI
         self._comm = MPI.COMM_WORLD
@@ -180,17 +181,15 @@ class Migrate:
         self._iphaseTraceDataList = []
 
         # Create depth-to-time interpolation object
-        rp = 'rf'
-        rpf = '/'.join(('data', 'ak135.dat')) # find where ak135.dat is located
+        # rp = 'rf'
+        # rpf = '/'.join(('data', 'ak135.dat')) # find where ak135.dat is located
         #fp = pkg_resources.resource_stream(rp, rpf)
         #fn = fp.name
         #fp.close()
         
-        #fn = '/home/rakib/.local/lib/python2.7/site-packages/rf/data/ak135.dat'
-        fn = '/home/raq/.local/lib/python2.7/site-packages/rf/data/iasp91.dat'
-        
+        velocity_model_file = os.path.join(os.path.split(__file__)[0], 'models', 'iasp91.dat')
 
-        m = np.loadtxt(fn)
+        m = np.loadtxt(velocity_model_file)
         dlim = m[:, 0] < 2800 # don't need data past 2800 km
 
         depths = m[:, 0][dlim] # depths in km
@@ -238,9 +237,10 @@ class Migrate:
         if (self._chunk_index == 0): log.info(' Distributing workload over %d processors..' % (self._nproc))
 
         if(self._debug):
-            print 'proc: %d, %d depth values\n========='%(self._chunk_index,
-                                                   len(self._proc_izs[self._chunk_index]))
-            for iz in self._proc_izs[self._chunk_index]: print iz, self._geometry._gzaac[iz]
+            print('proc: %d, %d depth values\n========='%(self._chunk_index,
+                                                   len(self._proc_izs[self._chunk_index])))
+            for iz in self._proc_izs[self._chunk_index]:
+                print(iz, self._geometry._gzaac[iz])
         # end if
     # end func
 
@@ -266,7 +266,7 @@ class Migrate:
             # end for
 
             if(self._debug):
-                f = open('/tmp/pp_parallel.txt', 'w+')
+                f = open(os.path.join(self._output_folder, 'pp_parallel.txt'), 'w+')
                 for k in sorted(self._ppDict.keys()):
                     f.write('%f\n'%(self._geometry._gzaac[k]))
                     pp = self._ppDict[k]
@@ -298,7 +298,7 @@ class Migrate:
             self._treeDict[k] = cKDTree(self._treeDict[k])
         
         if(self._debug):
-            f = open('/tmp/kd_parallel.%02d.txt'%(self._chunk_index), 'w+')
+            f = open(os.path.join(self._output_folder, 'kd_parallel.%02d.txt'%(self._chunk_index)), 'w+')
             for k in sorted(self._treeDict.keys()):
                 f.write('%f\n'%(self._geometry._gzaac[k]))
                 for i in self._treeDict[k].data:
@@ -373,14 +373,14 @@ class Migrate:
                           op=MPI.SUM, root=0)
 
         if(self._chunk_index==0):
-            np.savetxt('/tmp/cz.txt', totalCz.flatten())
-            np.savetxt('/tmp/vol.txt', totalVol.flatten())
-            np.savetxt('/tmp/volHits.txt', totalVolHits.flatten())
-            np.savetxt('/tmp/gxaa.txt', self._geometry._gxaa.flatten())
-            np.savetxt('/tmp/gyaa.txt', self._geometry._gyaa.flatten())
-            np.savetxt('/tmp/gzaa.txt', self._geometry._gzaa.flatten())
-            np.savetxt('/tmp/glon.txt', self._geometry._glon.flatten())
-            np.savetxt('/tmp/glat.txt', self._geometry._glat.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'cz.txt'), totalCz.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'vol.txt'), totalVol.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'volHits.txt'), totalVolHits.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'gxaa.txt'), self._geometry._gxaa.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'gyaa.txt'), self._geometry._gyaa.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'gzaa.txt'), self._geometry._gzaa.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'glon.txt'), self._geometry._glon.flatten())
+            np.savetxt(os.path.join(self._output_folder, 'glat.txt'), self._geometry._glat.flatten())
     # end func
 # end class
 
@@ -390,16 +390,16 @@ def main():
     :return:
     """
 
-    #rffile = '/home/rakib/work/pst/rf/notebooks/rf_pt15_to5Hz.h5'
-    rffile = '/media/data/work/GA/rf/rf_pt15_to5Hz.h5'
+    rffile = '/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5'
+    output_folder = '/g/data/ha3/am7399/shared/OA_piercing'
     s = read_rf(rffile, 'H5')
 
-    g = Geometry(start_lat_lon=(-18.75, 138.15), azimuth=80,
-                 lengthkm=450, nx=45, widthkm=350, ny=35, depthkm=100, nz=500, debug=False)
+    g = Geometry(start_lat_lon=(-17.4, 132.9), azimuth=80,
+                 lengthkm=1000, nx=100, widthkm=450, ny=45, depthkm=75, nz=375, debug=False)
     #g = Geometry(start_lat_lon=(-18.35, 138.45), azimuth=90,
     #             lengthkm=450, nx=45, widthkm=350, ny=35, depthkm=100, nz=500, debug=False)
 
-    m = Migrate(geometry=g, stream=s, debug=False)
+    m = Migrate(geometry=g, stream=s, debug=False, output_folder=output_folder)
 
     m.execute()
 
