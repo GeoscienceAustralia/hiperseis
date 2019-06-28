@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-import numpy as np
+import logging
 
+import numpy as np
+import click
 from rf import read_rf, RFStream
 from rf import IterMultipleComponents
 
@@ -11,21 +13,25 @@ try:
 except ImportError:
     parallel_available = False
 
+from tqdm import tqdm
+
+logging.basicConfig()
+
 # pylint: disable=invalid-name
 
-RESAMPLE_RATE_HZ = 100
-# Upper limit here seems a bit low, since P-wave arrival and its' multiples are impulse-like
-# waveforms with a fair bit of energy in the high frequencies.  Other papers tend to use
-# upper cutoff of around 1.5 Hz.
-FILTER_BAND_HZ = (0.03, 0.80)
-TAPER_LIMIT = 0.01
-TRIM_START_TIME_SEC = -25.0
-TRIM_END_TIME_SEC = 75.0
-EXCLUDE_STATION_CODE = ['MIJ2', 'MIL2']
+DEFAULT_RESAMPLE_RATE_HZ = 100
+DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
+DEFAULT_TAPER_LIMIT = 0.01
+DEFAULT_TRIM_START_TIME_SEC = -25.0
+DEFAULT_TRIM_END_TIME_SEC = 75.0
+DEFAULT_DECONV_DOMAIN = 'time'
+DEFAULT_GAUSS_WIDTH = 2.0
+DEFAULT_WATER_LEVEL = 0.05
 
-RUN_PARALLEL = True
 
-def generate_rf(i, stream3c, deconv_domain='time', **kwargs):
+def transform_stream_to_rf(i, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
+                           gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
+                           deconv_domain=DEFAULT_DECONV_DOMAIN, pbar=None, **kwargs):
     """Generate receiver function for a single 3-channel stream.
 
     :param i: The event id
@@ -39,26 +45,28 @@ def generate_rf(i, stream3c, deconv_domain='time', **kwargs):
     :return: Stream containing receiver function
     :rtype: rf.RFStream
     """
-    # TODO: Replace hard-wired constants in this function with arguments from kwargs
+    if pbar is not None:
+        pbar.update()
+
     if len(stream3c) != 3:
         return RFStream()
 
     assert deconv_domain in ['time', 'freq']
-    stream3c.detrend('linear').interpolate(RESAMPLE_RATE_HZ)
-    stream3c.taper(TAPER_LIMIT)
+    stream3c.detrend('linear').interpolate(resample_rate_hz)
+    stream3c.taper(taper_limit, **kwargs)
 
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
-            stream3c.filter('bandpass', freqmin=FILTER_BAND_HZ[0], freqmax=FILTER_BAND_HZ[1], corners=2, zerophase=True)
-            stream3c.rf(rotate='NE->RT')
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
+                            **kwargs)
+            stream3c.rf(rotate='NE->RT', **kwargs)
         else:
-            stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=2.0)
+            stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
         # end if
     except ValueError as e:
-        print("ERROR: Failed on stream {}:\n{}".format(i, stream3c))
-        print(e)
-        print("(continuing from error...)")
+        logger = logging.getLogger(__name__)
+        logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(i, stream3c, str(e)))
         return RFStream()
 
     # Note the parameters of gaussian pulse and its width where
@@ -75,58 +83,84 @@ def generate_rf(i, stream3c, deconv_domain='time', **kwargs):
 
     event_id = {'event_id': i}
 
-    stream3c[0].stats.update(event_id)
-    amax = {'amax': np.amax(stream3c[0].data)}
-    stream3c[0].stats.update(amax)
-
-    stream3c[1].stats.update(event_id)
-    amax = {'amax': np.amax(stream3c[1].data)}
-    stream3c[1].stats.update(amax)
-
-    stream3c[2].stats.update(event_id)
-    amax = {'amax': np.amax(stream3c[2].data)}
-    stream3c[2].stats.update(amax)
-
-    stream3c.trim2(TRIM_START_TIME_SEC, TRIM_END_TIME_SEC, 'onset')
+    for stream_index in range(3):
+        stream3c[stream_index].stats.update(event_id)
+        amax = {'amax': np.amax(stream3c[stream_index].data)}
+        stream3c[stream_index].stats.update(amax)
+    # end for
+    stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
 
     return stream3c
 
 
-def main():
-    if RUN_PARALLEL:
+# --------------Main---------------------------------
+
+@click.command()
+@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--resample-rate', type=float, default=DEFAULT_RESAMPLE_RATE_HZ, show_default=True,
+              help="Resampling rate in Hz")
+@click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
+              help="Fraction of signal to taper at end, between 0 and 0.5")
+@click.option('--filter_band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
+              help="Filter pass band (Hz). Only required for time-domain deconvolution.")
+@click.option('--gauss-width', type=float, default=DEFAULT_GAUSS_WIDTH, show_default=True,
+              help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
+@click.option('--water-level', type=float, default=DEFAULT_WATER_LEVEL, show_default=True,
+              help="Water-level for freq domain spectrum. Only required for freq-domain deconvolution")
+@click.option('--trim-start-time', type=float, default=DEFAULT_TRIM_START_TIME_SEC, show_default=True,
+              help="Trace trim start time in sec, relative to onset")
+@click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
+              help="Trace trim end time in sec, relative to onset")
+@click.option('--deconv-domain', type=click.Choice(['time', 'freq'], case_sensitive=False),
+              default=DEFAULT_DECONV_DOMAIN, show_default=True,
+              help="Whether to perform deconvolution in time or freq domain")
+@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
+def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
+         trim_start_time, trim_end_time, deconv_domain, parallel=True):
+    """
+    Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
+    """
+    if parallel:
         assert parallel_available, "Cannot run parallel as joblib import failed"
 
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
     # Read source data
-    print("Reading source file...")
-    data = read_rf(
-        '/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot.h5', 'H5')
-    #data = read_rf('/local/p25/am7399/tmp/OA_event_waveforms_for_rf_20171001T120000-20171015T120000.h5', 'H5')
+    logger.info("Reading source file {}".format(input_file))
+    data = read_rf(input_file, 'H5', headonly=True)
 
     # exclude bad stations
-    print("Filtering input data...")
-    inc_set = list(set([tr.stats.inclination for tr in data]))
-    data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set and tr.stats.station
-                              not in EXCLUDE_STATION_CODE])
+    logger.info("Filtering input data using {}".format(vars(main)))
 
-    if RUN_PARALLEL:
+    inc_set = list(set([tr.stats.inclination for tr in data]))
+    data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set])
+    pbar = tqdm(total=len(data_filtered))
+    if parallel:
         # Process in parallel
-        print("Parallel processing...")
+        logger.info("Parallel processing")
         rf_streams = Parallel(n_jobs=-1, verbose=5, max_nbytes='8M')\
-            (delayed(generate_rf)(i, s) for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3)))
+            (delayed(transform_stream_to_rf)(i, s, resample_rate, taper_limit, filter_band, gauss_width, water_level,
+                                             trim_start_time, trim_end_time, deconv_domain, pbar=pbar)
+             for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3)))
     else:
         # Process in serial
-        print("Processing...")
-        rf_streams = list((generate_rf(i, s) for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3))))
+        logger.info("Serial processing")
+        rf_streams = list((transform_stream_to_rf(i, s, resample_rate, taper_limit, filter_band, gauss_width,
+                                                  water_level, trim_start_time, trim_end_time, deconv_domain, pbar=pbar)
+                           for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3))))
+    pbar.close()
 
     # Write to output file
-    print("Generating output file...")
+    logger.info("Generating output file {}".format(output_file))
     stream = RFStream()
     for rf in rf_streams:
         stream.extend(rf)
-    stream.write(
-        '/g/data/ha3/am7399/shared/OA_event_waveforms_for_rf_20170913T235913-20181128T011114_snapshot_ZRT.h5', 'H5')
-    #stream.write('/local/p25/am7399/tmp/test_rf_ZRT.h5', 'H5')
-    print("SUCCESS!")
+    stream.write(output_file, 'H5')
+
+    logger.info("generate_rf SUCCESS!")
+# end func
 
 
 if __name__ == "__main__":
