@@ -3,6 +3,7 @@
 import os.path
 import numpy as np
 import logging
+import re
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -49,13 +50,22 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
                          longestonly=None, filename=None, attach_response=False,
                          **kwargs):
     st = Stream()
-    matching_stream = asdf_dataset.get_waveforms(network, station, location, channel, starttime, endtime)
-    if matching_stream:
+    matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
+                                                  location=location)
+    if matching_stations:
+        ch_matcher = re.compile(channel)
+        for net, sta, loc, cha, _, _ in matching_stations:
+            if ch_matcher.match(cha):
+                st += asdf_dataset.get_waveforms(net, sta, loc, cha, starttime, endtime)
+        # end for
+    # end if
+    if st:
         try:
-            st = Stream([tr for tr in matching_stream if tr.stats.asdf.tag == 'raw_recording'])
+            st = Stream([tr for tr in st if tr.stats.asdf.tag == 'raw_recording'])
         except AttributeError:
             log = logging.getLogger(__name__)
             log.error("ASDF tag not found in Trace stats")
+    # end if
     return st
 
 

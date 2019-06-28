@@ -299,8 +299,7 @@ class FederatedASDFDataSetDBVariant():
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
 
-        channel = channel.replace('?', '_')
-        query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha like '%s' " \
+        query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
                 %(network, station, location, channel) + \
                 "and et>=%f and st<=%f" \
                  % (starttime, endtime)
