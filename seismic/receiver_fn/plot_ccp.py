@@ -7,7 +7,7 @@ DOI https://doi.org/10.1016/j.tecto.2016.03.031*
 This code adapted from Christian Sippl's original code.
 
 Workflow:
-    prepare_rf_data.py --> generate_rf.py --> rf_smart_bin.py --> plot_ccp.py (this script)
+    extract_event_traces.py --> generate_rf.py --> rf_smart_bin.py --> plot_ccp.py (this script)
 
 Example usage:
     python seismic/receiver_fn/plot_ccp.py --start-latlon -19.5 133.0 --end-latlon -19.5 140.0 --width 120 \

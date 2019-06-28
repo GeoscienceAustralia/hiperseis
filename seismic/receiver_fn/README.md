@@ -21,7 +21,7 @@ Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNo
 The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
 file containing all deployment data.
 It is based on a set of registered teleseismic earthquakes extracted from the ISC web service.
-The main program to extract raw waveforms from H5 file is `prepare_rf_data.py`. The
+The main program to extract raw waveforms from H5 file is `extract_event_traces.py`. The
 following parameters must be set up in the program body:
 
  - File name of the H5 file that contains all waveform data
