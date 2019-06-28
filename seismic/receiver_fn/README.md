@@ -4,9 +4,10 @@
 
 The RF workflow is based on the following main steps:
 
- - Data preparation. Extract waveforms associated with moderate events.
- - Calculate RF performing deconvolution to ZRT or QLT coordinate system
- - Discard bad results by filtering
+ - Data preparation: extract raw waveforms in time windows associated with selected seismic
+   events from ASDF database for the deployment
+ - Calculate Receiver Functions: performing transformation and deconvolution to ZRT or QLT coordinate system
+ - Quality filtering on RFs: discard bad results by filtering
  - Analyse RF to identify multiples
  - Perform 1D Earth structure inversion 
 
@@ -19,8 +20,8 @@ Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNo
 
 The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
 file containing all deployment data.
-It is based on a set of registered teleseismic earthquakes extracted from the IRIS web service.
-The main program to extract waveforms from H5 file is `prepare_rf_data.py`. The
+It is based on a set of registered teleseismic earthquakes extracted from the ISC web service.
+The main program to extract raw waveforms from H5 file is `prepare_rf_data.py`. The
 following parameters must be set up in the program body:
 
  - File name of the H5 file that contains all waveform data

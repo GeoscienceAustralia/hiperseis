@@ -108,7 +108,7 @@ def get_existing_index(rf_trace_datafile):
               r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\).h5".')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
-              'If file already exists, it will be loaded, otherwise it will be created. '
+              'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web service. '
               'Note that for traceability, start and end times will be appended to file name.')
 @click.option('--rf-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to output file, e.g. "7X_event_waveforms_for_rf.h5". '
