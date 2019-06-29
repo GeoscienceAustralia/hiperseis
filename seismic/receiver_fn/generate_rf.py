@@ -13,8 +13,6 @@ try:
 except ImportError:
     parallel_available = False
 
-from tqdm import tqdm
-
 logging.basicConfig()
 
 # pylint: disable=invalid-name
@@ -31,7 +29,7 @@ DEFAULT_WATER_LEVEL = 0.05
 
 def transform_stream_to_rf(i, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
-                           deconv_domain=DEFAULT_DECONV_DOMAIN, pbar=None, **kwargs):
+                           deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate receiver function for a single 3-channel stream.
 
     :param i: The event id
@@ -45,8 +43,8 @@ def transform_stream_to_rf(i, stream3c, resample_rate_hz, taper_limit, filter_ba
     :return: Stream containing receiver function
     :rtype: rf.RFStream
     """
-    if pbar is not None:
-        pbar.update()
+    logger = logging.getLogger(__name__)
+    logger.info("Event #{}".format(i))
 
     if len(stream3c) != 3:
         return RFStream()
@@ -129,28 +127,26 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
 
     # Read source data
     logger.info("Reading source file {}".format(input_file))
-    data = read_rf(input_file, 'H5', headonly=True)
+    data = read_rf(input_file, 'H5')
 
     # exclude bad stations
-    logger.info("Filtering input data using {}".format(vars(main)))
+    logger.info("Filtering input data using {}".format(vars(main)['params'][5]))
 
     inc_set = list(set([tr.stats.inclination for tr in data]))
     data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set])
-    pbar = tqdm(total=len(data_filtered))
     if parallel:
         # Process in parallel
         logger.info("Parallel processing")
         rf_streams = Parallel(n_jobs=-1, verbose=5, max_nbytes='8M')\
             (delayed(transform_stream_to_rf)(i, s, resample_rate, taper_limit, filter_band, gauss_width, water_level,
-                                             trim_start_time, trim_end_time, deconv_domain, pbar=pbar)
+                                             trim_start_time, trim_end_time, deconv_domain)
              for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3)))
     else:
         # Process in serial
         logger.info("Serial processing")
         rf_streams = list((transform_stream_to_rf(i, s, resample_rate, taper_limit, filter_band, gauss_width,
-                                                  water_level, trim_start_time, trim_end_time, deconv_domain, pbar=pbar)
+                                                  water_level, trim_start_time, trim_end_time, deconv_domain)
                            for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3))))
-    pbar.close()
 
     # Write to output file
     logger.info("Generating output file {}".format(output_file))
