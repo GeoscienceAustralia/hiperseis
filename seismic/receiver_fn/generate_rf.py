@@ -7,7 +7,7 @@ import click
 from multiprocessing import Process, Queue, Manager
 
 from rf import read_rf, RFStream
-from rf import IterMultipleComponents
+# from rf import IterMultipleComponents
 
 try:
     from joblib import Parallel, delayed
@@ -32,7 +32,7 @@ DEFAULT_GAUSS_WIDTH = 2.0
 DEFAULT_WATER_LEVEL = 0.05
 
 
-def transform_stream_to_rf(ioqueue, ev_id, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
+def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate receiver function for a single 3-channel stream.
@@ -103,7 +103,7 @@ def transform_stream_to_rf(ioqueue, ev_id, stream3c, resample_rate_hz, taper_lim
     # end for
     stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
 
-    ioqueue.put(stream3c)
+    oqueue.put(stream3c)
 
 
 def async_write(rfstream_queue, outfile_name, max_buffered=100):
@@ -181,7 +181,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
+    output_thread = Process(target=async_write, args=(write_queue, output_file))
     output_thread.daemon = True
     output_thread.start()
 
@@ -189,16 +189,16 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     if parallel:
         # Process in parallel
         logger.info("Parallel processing")
-        Parallel(n_jobs=-1, verbose=5, max_nbytes='8M')\
-            (delayed(transform_stream_to_rf)(write_queue, id, strm3c, resample_rate, taper_limit, filter_band,
+        Parallel(n_jobs=-1, verbose=5, max_nbytes=None)\
+            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
-             for id, strm3c in enumerate(IterRfH5FileEvents(input_file)))
+             for id, stream3c in enumerate(IterRfH5FileEvents(input_file)))
     else:
         # Process in serial
         logger.info("Serial processing")
-        list((transform_stream_to_rf(write_queue, id, strm3c, resample_rate, taper_limit, filter_band, gauss_width,
+        list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, filter_band, gauss_width,
                                      water_level, trim_start_time, trim_end_time, deconv_domain)
-              for id, strm3c in enumerate(IterRfH5FileEvents(input_file))))
+              for id, stream3c in enumerate(IterRfH5FileEvents(input_file))))
     # end if
 
     # Signal completion
