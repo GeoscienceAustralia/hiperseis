@@ -32,13 +32,13 @@ DEFAULT_GAUSS_WIDTH = 2.0
 DEFAULT_WATER_LEVEL = 0.05
 
 
-def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
+def transform_stream_to_rf(ioqueue, ev_id, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate receiver function for a single 3-channel stream.
 
-    :param i: The event id
-    :type i: int
+    :param ev_id: The event id
+    :type ev_id: int
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: rf.RFStream
     :param deconv_domain: Domain in which to perform deconvolution
@@ -49,15 +49,20 @@ def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, 
     :rtype: rf.RFStream
     """
     logger = logging.getLogger(__name__)
-    logger.info("Event #{}".format(i))
+    logger.info("Event #{}".format(ev_id))
+
+    for tr in stream3c:
+        if np.isnan(tr.stats.inclination):
+            logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
+            return
 
     if len(stream3c) != 3:
-        logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(i, stream3c))
+        logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
         return
 
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
         logger.warning("WARNING: Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
-                       .format(i, stream3c))
+                       .format(ev_id, stream3c))
         return
 
     assert deconv_domain in ['time', 'freq']
@@ -85,11 +90,11 @@ def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, 
             stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
         # end if
     except (IndexError, ValueError) as e:
-        logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(i, stream3c, str(e)))
+        logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
         return
     # end try
 
-    event_id = {'event_id': i}
+    event_id = {'event_id': ev_id}
 
     for stream_index in range(3):
         stream3c[stream_index].stats.update(event_id)
@@ -113,6 +118,8 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
         terminating = (rfstream is None)
         if not terminating:
             buffered_streams.append(rfstream)
+        else:
+            logger.info("Flushing result buffer...")
 
         if len(buffered_streams) >= max_buffered or terminating:
             stream = RFStream()
@@ -128,10 +135,10 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
 
             while buffered_streams:
                 buffered_streams.pop()
-                # rfstream_queue.task_done()
+                rfstream_queue.task_done()
 
         if terminating:
-            # rfstream_queue.task_done()
+            rfstream_queue.task_done()
             break
 
     logger.info("Terminating async write thread")
@@ -171,54 +178,33 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
+    # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    # worker = functools.partial
     output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
     output_thread.daemon = True
     output_thread.start()
 
-    # Read source data
     logger.info("Processing source file {}".format(input_file))
-    # data = read_rf(input_file, 'H5', headonly=True)
-
-    # exclude bad stations
-    # logger.info("Filtering input data using {}".format(vars(main)))
-
-    # inc_set = list(set([tr.stats.inclination for tr in data]))
-    # data_filtered = RFStream([tr for tr in data if tr.stats.inclination in inc_set])
     if parallel:
         # Process in parallel
         logger.info("Parallel processing")
         Parallel(n_jobs=-1, verbose=5, max_nbytes='8M')\
-            (delayed(transform_stream_to_rf)(write_queue, i, s, resample_rate, taper_limit, filter_band, gauss_width,
-                                             water_level, trim_start_time, trim_end_time, deconv_domain)
-             for i, s in enumerate(IterRfH5FileEvents(input_file)))
-        # rf_streams = Parallel(n_jobs=-1, verbose=5, max_nbytes='8M')\
-        #     (delayed(transform_stream_to_rf)(i, s, resample_rate, taper_limit, filter_band, gauss_width, water_level,
-        #                                      trim_start_time, trim_end_time, deconv_domain)
-        #      for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3)))
+            (delayed(transform_stream_to_rf)(write_queue, id, strm3c, resample_rate, taper_limit, filter_band,
+                                             gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
+             for id, strm3c in enumerate(IterRfH5FileEvents(input_file)))
     else:
         # Process in serial
         logger.info("Serial processing")
-        list((transform_stream_to_rf(write_queue, i, s, resample_rate, taper_limit, filter_band, gauss_width,
+        list((transform_stream_to_rf(write_queue, id, strm3c, resample_rate, taper_limit, filter_band, gauss_width,
                                      water_level, trim_start_time, trim_end_time, deconv_domain)
-              for i, s in enumerate(IterRfH5FileEvents(input_file))))
-        # rf_streams = list((transform_stream_to_rf(i, s, resample_rate, taper_limit, filter_band, gauss_width,
-        #                                           water_level, trim_start_time, trim_end_time, deconv_domain)
-        #                    for i, s in enumerate(IterMultipleComponents(data_filtered, 'onset', 3))))
+              for id, strm3c in enumerate(IterRfH5FileEvents(input_file))))
+    # end if
 
     # Signal completion
+    logger.info("Finishing...")
     write_queue.put(None)
-    write_queue.close()
-    write_queue.join_thread()
-
-    # Write to output file
-    # logger.info("Generating output file {}".format(output_file))
-    # stream = RFStream()
-    # for rf in rf_streams:
-    #     stream.extend(rf)
-    # stream.write(output_file, 'H5')
+    write_queue.join()
 
     logger.info("generate_rf SUCCESS!")
 # end func
