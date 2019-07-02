@@ -4,9 +4,7 @@ import logging
 
 import numpy as np
 import click
-# import threading
 from multiprocessing import Process, Queue, Manager
-# import functools
 
 from rf import read_rf, RFStream
 from rf import IterMultipleComponents
@@ -22,7 +20,7 @@ from seismic.receiver_fn.rf_h5_file_iterator import IterRfH5FileEvents
 
 logging.basicConfig()
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, logging-format-interpolation
 
 DEFAULT_RESAMPLE_RATE_HZ = 100
 DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
@@ -54,7 +52,13 @@ def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, 
     logger.info("Event #%d", i)
 
     if len(stream3c) != 3:
-        return RFStream()
+        logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(i, stream3c))
+        return
+
+    if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
+        logger.warning("WARNING: Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
+                       .format(i, stream3c))
+        return
 
     assert deconv_domain in ['time', 'freq']
     stream3c.detrend('linear').interpolate(resample_rate_hz)
@@ -67,24 +71,23 @@ def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, 
                             **kwargs)
             stream3c.rf(rotate='NE->RT', **kwargs)
         else:
+            # Note the parameters of gaussian pulse and its width where
+            # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
+            # 10                      4.8                                0.50
+            # 5                       2.4                                0.75
+            # 2.5                     1.2                                1.00
+            # 1.25                    0.6                                1.50
+            # 1.0                     0.5                                1.67 (5/3)
+            # 0.625                   0.3                                2.10
+            # 0.5                     0.24                               2.36
+            # 0.4                     0.2                                2.64
+            # 0.2                     0.1                                3.73
             stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
         # end if
-    except ValueError as e:
-        logger = logging.getLogger(__name__)
+    except (IndexError, ValueError) as e:
         logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(i, stream3c, str(e)))
-        return RFStream()
-
-    # Note the parameters of gaussian pulse and its width where
-    # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
-    # 10                      4.8                                0.50
-    # 5                       2.4                                0.75
-    # 2.5                     1.2                                1.00
-    # 1.25                    0.6                                1.50
-    # 1.0                     0.5                                1.67 (5/3)
-    # 0.625                   0.3                                2.10
-    # 0.5                     0.24                               2.36
-    # 0.4                     0.2                                2.64
-    # 0.2                     0.1                                3.73
+        return
+    # end try
 
     event_id = {'event_id': i}
 
