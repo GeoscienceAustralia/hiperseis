@@ -49,7 +49,7 @@ def transform_stream_to_rf(ioqueue, i, stream3c, resample_rate_hz, taper_limit, 
     :rtype: rf.RFStream
     """
     logger = logging.getLogger(__name__)
-    logger.info("Event #%d", i)
+    logger.info("Event #{}".format(i))
 
     if len(stream3c) != 3:
         logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(i, stream3c))
