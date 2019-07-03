@@ -103,9 +103,9 @@ def get_existing_index(rf_trace_datafile):
 @click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help=r'Path to input inventory file corresponding to waveform file, '
               r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
-@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help=r'Path to input h5 waveform file from which to extract traces for RF analysis, '
-              r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\).h5".')
+@click.option('--waveform-database', type=click.Path(exists=True, dir_okay=False), required=True,
+              help=r'Path to waveform database definition file for FederatedASDFDataSet from which to extract traces '
+                   r'for RF analysis, e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
               'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web service. '
@@ -123,7 +123,7 @@ def get_existing_index(rf_trace_datafile):
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
 @click.option('--magnitude-range', type=(float, float), default=(5.0, 7.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
-def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, start_time, end_time,
+def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time,
          distance_range, magnitude_range):
 
     assert not os.path.exists(rf_trace_datafile), \
@@ -162,8 +162,6 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
     event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
     rf_trace_datafile = timestamp_filename(rf_trace_datafile, start_time, end_time)
 
-    waveform_datafile = waveform_file
-
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
@@ -177,8 +175,7 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
     # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
     # Form closure to allow waveform source file to be derived from a setting (or command line input)
-    # asdf_dataset = FederatedASDFDataSet('/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt')
-    asdf_dataset = FederatedASDFDataSet('/g/data1a/ha3/am7399/shared/OA_asdf_files.txt', logger=log)
+    asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
     def closure_get_waveforms(network, station, location, channel, starttime, endtime):
         return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
 
@@ -203,6 +200,9 @@ def main(inventory_file, waveform_file, event_catalog_file, rf_trace_datafile, s
                         tr.write(rf_trace_datafile, 'H5', mode='a', override='dont')
                 else:
                     tr.write(rf_trace_datafile, 'H5', mode='a')
+            # end for
+        # end for
+    # end with
 
 
 if __name__ == '__main__':
