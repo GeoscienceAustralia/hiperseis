@@ -249,37 +249,36 @@ def main(input_file, output_file):
 
     # here we collect station names but maybe ID is more appropriate in case of having the same
     # station names in different deployments
-    station_list = []
-    for i in range(len(rf_stream)):
-        station_list.append(rf_stream[i].stats.station.encode('utf-8'))
+    station_list = set()
+    for stn_stream in prim_stream:
+        station_list.add(stn_stream.stats.station.encode('utf-8'))
 
-    station_list = np.unique(np.array(station_list))
     print("Gathered ", len(station_list), " stations")
 
     # here we go with the main loop over stations
-    out_file = rf.RFStream()
+    filtered_stream = rf.RFStream()
 
-    for i in range(station_list.shape[0]):
-        station_code = station_list[i].decode('utf-8')
-        print("Station ", station_code, i+1, " of ", station_list.shape[0])
-        traces = rf_stream.select(station=station_code).copy()
+    for i, stn_code in enumerate(station_list):
+        station_code = stn_code.decode('utf-8')
+        print("Station ", station_code, " ", i + 1, " of ", len(station_list))
+        stn_stream = rf_stream.select(station=station_code).copy()
 
         # we choose short RF to simplify and speed up the processing
-        traces = traces.trim2(-5, 20, 'onset')
+        stn_stream = stn_stream.trim2(-5, 20, 'onset')
 
         # but keep original traces as they are to use them at the end
-        original_traces = prim_stream.select(station=station_code)
+        orig_p_stream = prim_stream.select(station=station_code)
 
         swipe = []
-        original_swipe = []
+        # original_swipe = []
 
-        for trace in traces:
+        for trace in stn_stream:
             swipe.append(trace.data)
-        for trace in original_traces:
-            original_swipe.append(trace.data)
+        # for trace in orig_p_stream:
+        #     original_swipe.append(trace.data)
 
         swipe = np.array(swipe)
-        original_swipe = np.array(original_swipe)
+        # original_swipe = np.array(original_swipe)
 
         print("Processing ", swipe.shape[0], " events")
         # we use clustering technique to find similar signals
@@ -298,45 +297,45 @@ def main(input_file, output_file):
             # stacked = np.average(original_swipe[ind == k, :], axis=0)
             # we choose only traces that belong to detected group
             rf_group = {'rf_group': k}
-            for j in range(len(original_traces)):
+            for j, orig_trace in enumerate(orig_p_stream):
                 if ind[j] == k:
-                    original_traces[j].stats.update(rf_group)
-                    out_file.append(original_traces[j])
+                    orig_trace.stats.update(rf_group)
+                    filtered_stream.append(orig_trace)
                     for tr in t_stream:
-                        if tr.stats.event_id == original_traces[j].stats.event_id:
+                        if tr.stats.event_id == orig_trace.stats.event_id:
                             tr.stats.update(rf_group)
-                            out_file.append(tr)
+                            filtered_stream.append(tr)
                     # end for
                     for tr in z_stream:
-                        if tr.stats.event_id == original_traces[j].stats.event_id:
+                        if tr.stats.event_id == orig_trace.stats.event_id:
                             tr.stats.update(rf_group)
-                            out_file.append(tr)
+                            filtered_stream.append(tr)
                     # end for
             # end for
 
             # # or here we can make a trick - coherent signal comes from different directions or segments.
             # # Therefore we assign stacked RF back to its original azimuths and angle of incidence.
-            # for j in range(len(original_traces)):
+            # for j in range(len(orig_p_stream)):
             #     if ind[j]==k:
             #         # here we replace original data by stacked rays. However original RFs with assigned
             #         # groups can be used as well and stacked later using migration image
             #         # this option can be more favourable to highlight small signals.
             #         # Comment out one line below to avoid stacking
-            #         original_traces[j].data=stacked.copy()
-            #         out_file.append(original_traces[j])
+            #         orig_p_stream[j].data=stacked.copy()
+            #         filtered_stream.append(orig_p_stream[j])
 
         # end for
     # end for
 
     # # Some plots if required
-    # ppoints = out_file.ppoints(70)
+    # ppoints = filtered_stream.ppoints(70)
     # boxes = get_profile_boxes((-18.4, 139.1), 135, np.linspace(0, 440, 80), width=500)
-    # pstream = profile(out_file, boxes)
+    # pstream = profile(filtered_stream, boxes)
     # pstream.plot_profile(scale=1.5,top='hist')
     # plt.show()
 
     # Output file
-    out_file.write(output_file, 'H5')
+    filtered_stream.write(output_file, 'H5')
 # end func
 
 
