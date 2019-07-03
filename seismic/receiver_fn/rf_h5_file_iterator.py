@@ -19,15 +19,28 @@ class IterRfH5FileEvents(object):
        is slow and not scalable.
     """
 
-    def __init__(self, h5_filename):
+    def __init__(self, h5_filename, memmap=False):
         self.h5_filename = h5_filename
         self.num_components = 3
+        self.memmap_input = memmap
+
+    def _open_source_file(self):
+        if self.memmap_input:
+            try:
+                return h5py.File(self.h5_filename, 'r', driver='core', backing_store=False)
+            except OSError as e:
+                logger = logging.getLogger(__name__)
+                logger.error("Failure to memmap input file with error:\n{}\nReverting to default driver."
+                             .format(str(e)))
+        # end if
+        return h5py.File(self.h5_filename, 'r')
+        # end if
 
     def __iter__(self):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
         logger.info("Scanning jobs metadata from file {}".format(self.h5_filename))
-        with h5py.File(self.h5_filename, 'r') as f:
+        with self._open_source_file() as f:
             wf_data = f['waveforms']
             num_stations = len(wf_data)
             count = 0

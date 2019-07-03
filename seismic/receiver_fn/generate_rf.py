@@ -167,8 +167,11 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
               default=DEFAULT_DECONV_DOMAIN, show_default=True,
               help="Whether to perform deconvolution in time or freq domain")
 @click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
+@click.option('--memmap/--no-memmap', default=False, show_default=True,
+              help="Memmap input file for improved performance in data reading thread. Useful when data input "
+                   "is bottleneck, if system memory permits.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
-         trim_start_time, trim_end_time, deconv_domain, parallel=True):
+         trim_start_time, trim_end_time, deconv_domain, parallel=True, memmap=False):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
     """
@@ -181,7 +184,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
     output_thread.daemon = True
     output_thread.start()
 
@@ -192,13 +195,13 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         Parallel(n_jobs=-1, verbose=5, max_nbytes=None)\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
-             for id, stream3c in enumerate(IterRfH5FileEvents(input_file)))
+             for id, stream3c in enumerate(IterRfH5FileEvents(input_file, memmap)))
     else:
         # Process in serial
         logger.info("Serial processing")
         list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, filter_band, gauss_width,
                                      water_level, trim_start_time, trim_end_time, deconv_domain)
-              for id, stream3c in enumerate(IterRfH5FileEvents(input_file))))
+              for id, stream3c in enumerate(IterRfH5FileEvents(input_file, memmap))))
     # end if
 
     # Signal completion
