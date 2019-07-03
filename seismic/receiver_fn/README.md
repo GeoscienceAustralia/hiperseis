@@ -64,7 +64,7 @@ the process and more options can be easily added.
 The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate
 the process.
 
-The actual program that works with RF is `rf_smart_bin.py`.
+The actual script for generating QA'd RFs is `rf_quality_filter.py`.
 
 Following parameters should be specified within program:
 
