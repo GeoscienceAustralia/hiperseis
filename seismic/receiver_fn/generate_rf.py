@@ -170,13 +170,21 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
 @click.option('--memmap/--no-memmap', default=False, show_default=True,
               help="Memmap input file for improved performance in data reading thread. Useful when data input "
                    "is bottleneck, if system memory permits.")
+@click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
+@click.option('--aggressive-dispatch/--no-aggressive-dispatch', default=False, show_default=True,
+              help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
+                   "starved of work. Uses more memory.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
-         trim_start_time, trim_end_time, deconv_domain, parallel=True, memmap=False):
+         trim_start_time, trim_end_time, deconv_domain, parallel=True, memmap=False, temp_dir=None,
+         aggressive_dispatch=False):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
     """
+    dispatch_policy = '2*n_jobs'
     if parallel:
         assert parallel_available, "Cannot run parallel as joblib import failed"
+        if aggressive_dispatch:
+            dispatch_policy = 'all'
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -193,7 +201,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         # Process in parallel
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
-        Parallel(n_jobs=-3, verbose=5, max_nbytes=None)\
+        Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
              for id, stream3c in enumerate(IterRfH5FileEvents(input_file, memmap)))
