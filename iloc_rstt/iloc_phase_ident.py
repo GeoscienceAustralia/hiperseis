@@ -46,14 +46,15 @@ def split_list(lst, npartitions):
 def runprocess(cmd, get_results=False):
     results = []
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    for line in p.stdout:
+    pstdout, pstderr = p.communicate()
+    for line in pstdout.splitlines():
         if (get_results): results.append(line.strip())
         #else: print line
     # end for
 
-    #for line in p.stderr:
+    #for line in pstderr.splitlines():
     #    print line
-    p.wait()
+    #end for
 
     return p.returncode, results
 # end func
