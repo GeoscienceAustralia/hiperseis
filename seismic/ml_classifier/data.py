@@ -4,8 +4,8 @@ from random import shuffle,seed
 #this is hardcoded, maybe make a more general version that gets the IDs from the folder in the future
 #datafolder='/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/'
 #datafolder='/g/data/ha3/fxz547/seiswave_data_4ml'
-#datafolder='/home/ubuntu/seismic_waves_4_ml'  #aws test sample data dir
 datafolder='E:/Githubz/seiswave_data_4ml'
+datafolder='/home/ubuntu/seismic_waves_4_ml'  # AWS test sample data dir
 
 #build a list of IDs and dictionary of labels
 files=os.listdir(datafolder)

@@ -1,4 +1,4 @@
-name: Keras224_tf13
+name: keras224_tf13
 channels:
 - defaults
 dependencies:
