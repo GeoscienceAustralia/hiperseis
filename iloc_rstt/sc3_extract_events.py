@@ -101,7 +101,7 @@ def process(data_path, scratch_path, output_file_stem):
         
         for f in files:
             d = np.genfromtxt(f, dtype=[('mstring','S100'),('mfloat','f8')], skip_header=1)
-            for item in d:
+            for item in np.atleast_1d(d):
                 if(item[1]>0): eventIds.append(item[0])
             # end for
         # end for
@@ -184,7 +184,7 @@ def process(data_path, scratch_path, output_file_stem):
                     # end try
                     
                     # get band-index and snr from comments
-                    pick_attribs = defaultdict(float)
+                    pick_attribs = defaultdict(lambda:-999.)
                     pick = a.pick_id.get_referred_object()
                     for c in pick.comments:
                         if ('text' in c.keys()):
@@ -200,29 +200,31 @@ def process(data_path, scratch_path, output_file_stem):
 
                     # create row
                     if(a.phase not in ['P', 'S']): continue
-                    line = [eid, 
-                            po.time.timestamp,
-                            e.magnitudes[0].mag if (len(e.magnitudes)) else -999,
-                            po.longitude,
-                            po.latitude,
-                            poDepth/1e3,
-                            ncode,
-                            scode,
-                            ccode,
-                            pick.time.timestamp,
-                            a.phase,
-                            slon,
-                            slat,
-                            da[1], 
-                            da[2], 
-                            kilometers2degrees(da[0]/1e3),
-                            a.time_residual,
-                            pick_attribs['phasepapy_snr'],
-                            pick_attribs['quality_measure_cwt'],
-                            pick_attribs['dom_freq'],
-                            pick_attribs['quality_measure_slope'],
-                            int(pick_attribs['band_index']),
-                            int(pick_attribs['nsigma'])]
+                    if(a.time_residual is None): continue
+
+                    line = [eid, '{:<25s}',
+                            po.time.timestamp, '{:f}',
+                            e.magnitudes[0].mag if (len(e.magnitudes)) else -999, '{:f}',
+                            po.longitude, '{:f}',
+                            po.latitude, '{:f}',
+                            poDepth/1e3, '{:f}',
+                            ncode, '{:<5s}',
+                            scode, '{:<5s}',
+                            ccode, '{:<5s}',
+                            pick.time.timestamp, '{:f}',
+                            a.phase, '{:<5s}',
+                            slon, '{:f}',
+                            slat, '{:f}',
+                            da[1], '{:f}',
+                            da[2], '{:f}',
+                            kilometers2degrees(da[0]/1e3), '{:f}',
+                            a.time_residual, '{:f}',
+                            pick_attribs['phasepapy_snr'], '{:f}',
+                            pick_attribs['quality_measure_cwt'], '{:f}',
+                            pick_attribs['dom_freq'], '{:f}',
+                            pick_attribs['quality_measure_slope'], '{:f}',
+                            int(pick_attribs['band_index']), '{:d}',
+                            int(pick_attribs['nsigma']), '{:d}']
 
                     if(a.phase == 'P'): linesp.append(line)
                     elif(a.phase == 'S'): liness.append(line)
@@ -230,11 +232,13 @@ def process(data_path, scratch_path, output_file_stem):
             # end for
 
             for line in linesp:
-                pprocfile.write(' '.join([str(item) for item in line]) + '\n')
+                lineout = ' '.join(line[1::2]).format(*line[::2])
+                pprocfile.write(lineout + '\n')
             # end for
             
             for line in liness:
-                sprocfile.write(' '.join([str(item) for item in line]) + '\n')
+                lineout = ' '.join(line[1::2]).format(*line[::2])
+                sprocfile.write(lineout + '\n')
             # end for
             if (len(notFound)): print 'Rank: %d'%(rank), notFound
         # end if
