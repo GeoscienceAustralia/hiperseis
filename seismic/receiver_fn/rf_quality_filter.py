@@ -152,11 +152,16 @@ def remove_small_s2n(stream, min_snr):
     :return: [description]
     :rtype: [type]
     """
-    # Take this segment as noise signal (TODO: document this more clearly)
-    noise = stream.slice2(-5, -2, 'onset')
+    PICK_SIGNAL_WINDOW = (-1.0, 2.0)
+    NOISE_SIGNAL_WINDOW = (None, -2.0)
+    # Take everything up to 2 sec before onset as noise signal.
+    noise = stream.slice2(*NOISE_SIGNAL_WINDOW, 'onset')
+    # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
+    noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
-    # Take this segment as RF Ps (?) conversion signal (TODO: document this more clearly)
-    pick_signal = stream.slice2(-1, 2, 'onset')
+    # The time window from 1 sec before to 2 sec after onset as the RF P signal
+    pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, 'onset')
+    pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     assert pick_signal.shape[0] == noise.shape[0]
 
@@ -273,7 +278,7 @@ def main(input_file, output_file):
     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
     rf_stream = prim_stream.copy()
     # Filter specified below is only for data analysis and not applied to output data
-    rf_stream = rf_stream.filter('bandpass', freqmin=0.05, freqmax=0.7).interpolate(sampling_rate=5.0)
+    rf_stream = rf_stream.filter('bandpass', freqmin=0.05, freqmax=0.7, corners=2, zerophase=True).interpolate(sampling_rate=5.0)
 
     # original file will be interpolated to 100Hz
     prim_stream = prim_stream.trim2(starttime=-5, endtime=60, reftime='onset')
