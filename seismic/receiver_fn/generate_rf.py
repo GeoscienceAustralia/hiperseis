@@ -15,7 +15,7 @@ try:
 except ImportError:
     parallel_available = False
 
-from seismic.receiver_fn.rf_h5_file_iterator import IterRfH5FileEvents
+from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 
 
 logging.basicConfig()
@@ -193,7 +193,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         # Process in parallel
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
-        Parallel(n_jobs=-3, verbose=5, max_nbytes=None)\
+        Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
              for id, stream3c in enumerate(IterRfH5FileEvents(input_file, memmap)))
