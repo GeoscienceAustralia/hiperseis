@@ -49,6 +49,8 @@ class IterRfH5FileEvents(object):
             num_stations = len(wf_data)
             count = 0
             event_count = 0
+            create_event_id = False
+            first_loop = True
             for station_id in wf_data:
                 count += 1
                 logger.info("Station {} {}/{}".format(station_id, count, num_stations))
@@ -59,6 +61,10 @@ class IterRfH5FileEvents(object):
                         logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
                                         .format(len(event_traces), station_id, event_time))
                         continue
+                    if first_loop:
+                        first_loop = False
+                        tmp = list(event_traces.keys())[0]
+                        create_event_id = ('event_id' not in event_traces[tmp].attrs)
                     traces = []
                     skip_trace = False
                     for trace_id in event_traces:
@@ -71,8 +77,13 @@ class IterRfH5FileEvents(object):
                     if skip_trace:
                         continue
                     event_count += 1
+                    if create_event_id:
+                        event_id = event_count
+                    else:
+                        event_id = traces[0].stats.event_id
+                        assert np.all([(tr.stats.event_id == event_id) for tr in traces])
                     stream = RFStream(traces=traces).sort()
-                    yield stream
+                    yield station_id, event_id, event_time, stream
                 # end for
             # end for
         # end with
