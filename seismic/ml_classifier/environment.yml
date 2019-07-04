@@ -1,0 +1,25 @@
+name: Keras224_tf13
+channels:
+- defaults
+dependencies:
+- python=3.7.*
+- bz2file==0.98
+- cython==0.29.*
+- numpy==1.16.*
+- h5py==2.9.*
+- jupyter==1.0.*
+- matplotlib==3.0.*
+- pandas==0.24.*
+- pillow==5.4.*
+- pip==19.0.*
+- scikit-learn==0.20.*
+- scipy==1.2.*
+- seaborn==0.9.*
+- xarray==0.11.3
+
+- pip:
+  #- tensorflow==2.0.0-beta1
+  - tensorflow==1.13.1
+  - obspy==1.1.1
+  - Keras==2.2.4
+  
