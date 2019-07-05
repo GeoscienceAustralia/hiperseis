@@ -54,16 +54,16 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
             logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
-            return
+            return False
 
     if len(stream3c) != 3:
         logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
-        return
+        return False
 
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
         logger.warning("WARNING: Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
                        .format(ev_id, stream3c))
-        return
+        return False
 
     assert deconv_domain in ['time', 'freq']
     stream3c.detrend('linear').interpolate(resample_rate_hz)
@@ -91,7 +91,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         # end if
     except (IndexError, ValueError) as e:
         logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
-        return
+        return False
     # end try
 
     # Perform trimming before computing max amplitude.
@@ -105,6 +105,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # end for
 
     oqueue.put(stream3c)
+
+    return True
 
 
 # --------------Main---------------------------------
@@ -164,17 +166,21 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         # Process in parallel
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
-        Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
+        status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap))
     else:
         # Process in serial
         logger.info("Serial processing")
-        list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, filter_band, gauss_width,
-                                     water_level, trim_start_time, trim_end_time, deconv_domain)
-              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap)))
+        status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
+                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
+                       for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap)))
     # end if
+    num_tasks = len(status)
+    num_success = np.sum(status)
+    num_rejected = num_tasks - num_success
+    logger.info("{}/{} streams returned valid RF, {} streams rejected".format(num_success, num_tasks, num_rejected))
 
     # Signal completion
     logger.info("Finishing...")
