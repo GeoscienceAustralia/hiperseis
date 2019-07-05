@@ -51,19 +51,31 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger = logging.getLogger(__name__)
     logger.info("Event #{}".format(ev_id))
 
+    # Apply essential sanity checks before trying to compute RFs.
+    
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
             logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
             return False
+    # end for
 
     if len(stream3c) != 3:
         logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
         return False
+    # end if
 
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
         logger.warning("WARNING: Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
                        .format(ev_id, stream3c))
         return False
+    # end if
+
+    for tr in stream3c:
+        if np.all(np.isnan(tr.data)):
+            logger.warning("WARNING: All NaN in trace {} of stream {} (skipping):\n{}"
+                           .format(tr.stats.channel, ev_id, stream3c))
+            return False
+    # end for
 
     assert deconv_domain in ['time', 'freq']
     stream3c.detrend('linear').interpolate(resample_rate_hz)
