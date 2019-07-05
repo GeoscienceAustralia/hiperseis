@@ -66,16 +66,9 @@ class IterRfH5FileEvents(object):
                         tmp = list(event_traces.keys())[0]
                         create_event_id = ('event_id' not in event_traces[tmp].attrs)
                     traces = []
-                    skip_trace = False
                     for trace_id in event_traces:
                         trace = dataset2trace(event_traces[trace_id])
-                        if np.any(np.isnan(trace.data)):
-                            skip_trace = True
-                            logging.error("Invalid trace data in {}, skipping".format(trace_id))
-                            break
                         traces.append(trace)
-                    if skip_trace:
-                        continue
                     event_count += 1
                     if create_event_id:
                         event_id = event_count

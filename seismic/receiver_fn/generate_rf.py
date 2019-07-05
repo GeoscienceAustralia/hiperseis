@@ -94,14 +94,15 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         return
     # end try
 
-    event_id = {'event_id': ev_id}
+    # Perform trimming before computing max amplitude.
+    stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
+    # We opt not to filter out traces with some NaN values here, as they could still have some value
+    # for downstream analysis.
 
     for stream_index in range(3):
-        stream3c[stream_index].stats.update(event_id)
-        amax = {'amax': np.amax(stream3c[stream_index].data)}
-        stream3c[stream_index].stats.update(amax)
+        metadata = {'amax': np.amax(stream3c[stream_index].data), 'event_id': ev_id}
+        stream3c[stream_index].stats.update(metadata)
     # end for
-    stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
 
     oqueue.put(stream3c)
 
