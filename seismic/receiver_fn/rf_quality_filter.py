@@ -3,12 +3,13 @@
 from builtins import range
 
 import logging
-
-import itertools as iter
-from copy import deepcopy
+# import itertools as iter
+from multiprocessing import Process, Manager
 
 import numpy as np
+import pandas as pd
 import click
+
 from scipy.spatial.distance import euclidean
 from scipy import signal
 from fastdtw import fastdtw
@@ -16,9 +17,17 @@ from fastdtw import fastdtw
 # import matplotlib.pyplot as plt
 
 from sklearn.cluster import DBSCAN
-
 import rf
-from joblib import Parallel, delayed
+
+try:
+    from joblib import Parallel, delayed
+    parallel_available = True
+except ImportError:
+    parallel_available = False
+
+from seismic.receiver_fn.rf_process_io import async_write
+# from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
+from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvents
 
 # from tqdm import tqdm
 
@@ -224,7 +233,85 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, sec_stream, tert_stream
 
 
+def worker_func(oqueue, station_id, streams):
+
+    # Filter out traces with NaNs - simplified downstream code so that can don't have to worry about NaNs.
+
+    # Perform clustering for all traces in a station, and assign group IDs.
+
+    # Compute S/N ratio for all traces
+
+    # Compute spectral entropy for all traces
+
+    # Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
+
+    # Output resulting station streams
+    oqueue.put(streams)
+
+    # Return Pandas DataFrame of tabulated metadata for this station
+    return pd.DataFrame()
+
+
 # -------------Main---------------------------------
+
+@click.command()
+@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
+def main2(input_file, output_file, parallel=True):
+    """ This module filters RFs according to input options and then computes some quality metrics on each RF.
+        This enables different downstream approaches to selecting and filtering for good quality RFs.
+
+        The stats attribute of each RF is populated with these quality metrics. In addition, a new root group
+        is added to the hdf5 file containing a Pandas DataFrame that tabulates the attributes of each trace
+        to allow easy event filtering in the downstream workflow.
+
+    Available methods:
+    1. rf_group_by_similarity - grouping method based on calculation of euclidean distances and clustering by
+       similarity ( aca machine learning approach)
+    2. TODO: coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout
+       should be applied to use this technique
+    3. TODO knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout
+       should be applied to use this technique
+    4. S/N ratio
+    5. Spectral entropy
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # Set up asynchronous buffered writing of results to file
+    mgr = Manager()
+    write_queue = mgr.Queue()
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 10))
+    output_thread.daemon = True
+    output_thread.start()
+
+    logger.info("Processing source file {}".format(input_file))
+    if parallel:
+        # Process in parallel
+        logger.info("Parallel processing")
+        # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
+        metadata_list = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')\
+            (delayed(worker_func)(write_queue, station_id, streams)
+             for station_id, streams in IterRfH5StationEvents(input_file))
+    else:
+        # Process in serial
+        logger.info("Serial processing")
+        metadata_list = list((worker_func(write_queue, station_id, streams)
+                              for station_id, streams in IterRfH5StationEvents(input_file)))
+    # end if
+    all_metadata = pd.concat(metadata_list)
+
+    # Signal completion
+    logger.info("Finishing...")
+    write_queue.put(None)
+    write_queue.join()
+
+    # TODO: Write Pandas DataFrame of metadata to output file
+
+    logger.info("rf_quality_filter SUCCESS!")
+# end func
+
 
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -376,4 +463,5 @@ def main(input_file, output_file):
 
 
 if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
+    # main()  # pylint: disable=no-value-for-parameter
+    main2()  # pylint: disable=no-value-for-parameter

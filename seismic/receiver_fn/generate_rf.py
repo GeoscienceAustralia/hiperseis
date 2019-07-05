@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import logging
+from multiprocessing import Process, Manager
 
 import numpy as np
 import click
-from multiprocessing import Process, Queue, Manager
 
-from rf import read_rf, RFStream
 # from rf import IterMultipleComponents
 
 try:
@@ -15,6 +14,7 @@ try:
 except ImportError:
     parallel_available = False
 
+from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 
 
@@ -104,44 +104,6 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
 
     oqueue.put(stream3c)
-
-
-def async_write(rfstream_queue, outfile_name, max_buffered=100):
-    buffered_streams = []
-    logger = logging.getLogger(__name__)
-    logger.info("Starting async write thread")
-    first_write = True
-    while True:
-        # Passing None into the queue is taken as signal to flush buffer and terminate thread
-        rfstream = rfstream_queue.get()
-
-        terminating = (rfstream is None)
-        if not terminating:
-            buffered_streams.append(rfstream)
-        else:
-            logger.info("Flushing result buffer...")
-
-        if len(buffered_streams) >= max_buffered or terminating:
-            stream = RFStream()
-            for rf in buffered_streams:
-                stream.extend(rf)
-            if first_write:
-                mode = 'w'
-                first_write = False
-            else:
-                mode = 'a'
-            stream.write(outfile_name, 'H5', mode=mode)
-            logger.info("Flushed {} streams to output file {}".format(len(buffered_streams), outfile_name))
-
-            while buffered_streams:
-                buffered_streams.pop()
-                rfstream_queue.task_done()
-
-        if terminating:
-            rfstream_queue.task_done()
-            break
-
-    logger.info("Terminating async write thread")
 
 
 # --------------Main---------------------------------
