@@ -53,7 +53,7 @@ class IterRfH5StationEvents(object):
                 count += 1
                 logger.info("Station {} {}/{}".format(station_id, count, num_stations))
                 station_data = wf_data[station_id]
-                station_stream = RFStream()
+                station_stream3c = []
                 for event_time in station_data:
                     event_traces = station_data[event_time]
                     if len(event_traces) != self.num_components:
@@ -67,9 +67,11 @@ class IterRfH5StationEvents(object):
                         traces.append(trace)
 
                     event_count += 1
-                    station_stream.extend(RFStream(traces=traces).sort())
+                    station_stream3c.append(RFStream(traces=traces).sort())
                 # end for
-                yield station_id, station_stream
+
+                # Yield the results with 3-channel trace triplets grouped together in RFStream instances.
+                yield station_id, station_stream3c
             # end for
         # end with
         logger.info("Yielded {} event traces to process".format(event_count))

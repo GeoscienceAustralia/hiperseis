@@ -3,7 +3,7 @@
 from builtins import range
 
 import logging
-# import itertools as iter
+import itertools
 from multiprocessing import Process, Manager
 
 import numpy as np
@@ -33,7 +33,7 @@ from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvent
 
 logging.basicConfig()
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, logging-format-interpolation
 
 
 def _crossSpectrum(x, y):
@@ -95,8 +95,8 @@ def rf_group_by_similarity(swipe, similarity_eps):
     # end func
 
     # Pre-compute distance metric that will be used for DBSCAN clustering.
-    distance = Parallel(n_jobs=-1, verbose=1)(map(delayed(_compare_pairs), iter.combinations(swipe, 2)))
-    index = list((i, j) for ((i, _), (j, _)) in iter.combinations(enumerate(swipe), 2))
+    distance = Parallel(n_jobs=-1, verbose=1)(map(delayed(_compare_pairs), itertools.combinations(swipe, 2)))
+    index = list((i, j) for ((i, _), (j, _)) in itertools.combinations(enumerate(swipe), 2))
 
     # First check that distance between points
     index = np.array(index)
@@ -151,44 +151,57 @@ def coherence(swipe, level, f1, f2):
 #     return knive < k_level, sn > sn_level
 
 
-def remove_small_s2n(stream, min_snr):
-    """Filter out streams with low signal to noise (S/N) ratio.
+def compute_onset_snr(stream):
+    """Compute signal to noise (S/N) ratio about the onset pulse.
 
     :param stream: [description]
     :type stream: [type]
-    :param ratio: [description]
-    :type ratio: [type]
     :return: [description]
-    :rtype: [type]
+    :rtype: numpy.array
     """
     PICK_SIGNAL_WINDOW = (-1.0, 2.0)
     NOISE_SIGNAL_WINDOW = (None, -2.0)
+
     # Take everything up to 2 sec before onset as noise signal.
     noise = stream.slice2(*NOISE_SIGNAL_WINDOW, 'onset')
     # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
+
     # The time window from 1 sec before to 2 sec after onset as the RF P signal
     pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, 'onset')
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     assert pick_signal.shape[0] == noise.shape[0]
+    rms = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
 
-    # Compute RMS vectorized across whole dataset
-    rms = np.sqrt(np.mean(np.square(pick_signal), axis=1)) / np.sqrt(np.mean(np.square(noise), axis=1))
-    # Augmenting with RMS of envelope (complex amplitude) rather than pure
+    # Compute RMS of envelope (complex amplitude) rather than pure
     # wave amplitude, to capture the energy in the time rate of change.
-    pick_env = np.absolute(signal.hilbert(pick_signal, axis=1))
-    noise_env = np.absolute(signal.hilbert(noise, axis=1))
-    rms_env = np.sqrt(np.mean(np.square(pick_env), axis=1)) / np.sqrt(np.mean(np.square(noise_env), axis=1))
+    pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
+    noise = np.absolute(signal.hilbert(noise, axis=1))
+    rms_env = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
 
+    return rms, rms_env
+
+
+def remove_small_s2n(stream, min_snr):
+    """Filter out streams with low signal to noise (S/N) ratio.
+
+    :param stream: [description]
+    :type stream: [type]
+    :param min_snr: [description]
+    :type min_snr: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+    rms, rms_env = compute_onset_snr(stream)
     rms_mask = (rms >= min_snr) | (rms_env >= min_snr)
     newstream = rf.RFStream([s for i, s in enumerate(stream) if rms_mask[i]])
 
     return newstream
 
 
-def spectral_entropy(trace):
+def spectral_entropy(stream):
     """Compute the spectral entropy of a trace
 
     :param trace: Single channel seismic trace
@@ -196,10 +209,11 @@ def spectral_entropy(trace):
     :return: Spectral entropy of the trace waveform
     :rtype: float
     """
-    fs = trace.stats.sampling_rate
-    _, psd = signal.periodogram(trace.data, fs, detrend='linear')
-    psd = psd/np.sum(psd)
-    entropy = -np.sum(psd*np.log(psd))
+    data = np.array([tr.data for tr in stream])
+    _, psd = signal.periodogram(data, detrend='linear')
+    psd = psd.T/np.sum(psd, axis=1)
+    psd = psd.T
+    entropy = -np.sum(psd*np.log(psd), axis=1)
     return entropy
 
 
@@ -233,17 +247,55 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, sec_stream, tert_stream
 
 
-def worker_func(oqueue, station_id, streams):
+def rf_quality_metrics(oqueue, station_id, station_stream3c):
 
-    # Filter out traces with NaNs - simplified downstream code so that can don't have to worry about NaNs.
+    logger = logging.getLogger(__name__)
 
-    # Perform clustering for all traces in a station, and assign group IDs.
+    # Filter out traces with NaNs - simplifies downstream code so that can don't have to worry about NaNs.
+    # We use the fact that traces are bundled into 3-channel triplets here to discard all or none of the related
+    # channels for an event.
+    nonan_streams = []
+    for stream in station_stream3c:
+        skip_stream = False
+        for tr in stream:
+            if np.any(np.isnan(tr.data)):
+                logger.warning("NaN data found in station {} trace\n{}\n, skipping!".format(station_id, tr))
+                skip_stream = True
+                break
+        # end for
+        if skip_stream:
+            continue
+        nonan_streams.append(stream)
+    # end for
+    if len(nonan_streams) < len(station_stream3c):
+        num_supplied = len(station_stream3c)
+        num_discarded = num_supplied - len(nonan_streams)
+        logger.info("Discarded {}/{} events due to NaNs in at least one channel".format(num_discarded, num_supplied))
+    # end if
 
-    # Compute S/N ratio for all traces
+    # Flatten the traces into a single RFStream for subsequent processing
+    streams = rf.RFStream([tr for stream in nonan_streams for tr in stream])
+    rf_type, p_stream, t_stream, z_stream = get_rf_stream_components(streams)
+    if rf_type is None:
+        logger.error("ERROR! Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
+        return None
+    # end if
+
+    # Compute S/N ratio for all R traces
+    rms, rms_env = compute_onset_snr(p_stream)
 
     # Compute spectral entropy for all traces
+    spentropy = spectral_entropy(p_stream)
 
     # Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
+
+    # Perform clustering for all traces in a station, and assign group IDs.
+    # This will be super expensive when there are a lot of events, as the distance calculation grows as N^2.
+
+    # TODO: Research techniques for grouping waveforms using singular value decomposition, possibly of the
+    # complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
+    # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
+    # without the N^2 computational cost.
 
     # Output resulting station streams
     oqueue.put(streams)
@@ -282,7 +334,7 @@ def main2(input_file, output_file, parallel=True):
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 10))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
     output_thread.daemon = True
     output_thread.start()
 
@@ -292,14 +344,16 @@ def main2(input_file, output_file, parallel=True):
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         metadata_list = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')\
-            (delayed(worker_func)(write_queue, station_id, streams)
-             for station_id, streams in IterRfH5StationEvents(input_file))
+            (delayed(rf_quality_metrics)(write_queue, station_id, station_stream3c)
+             for station_id, station_stream3c in IterRfH5StationEvents(input_file))
     else:
         # Process in serial
         logger.info("Serial processing")
-        metadata_list = list((worker_func(write_queue, station_id, streams)
-                              for station_id, streams in IterRfH5StationEvents(input_file)))
+        metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c)
+                              for station_id, station_stream3c in IterRfH5StationEvents(input_file)))
     # end if
+
+    # TODO: Filter out None items before concat, if required.
     all_metadata = pd.concat(metadata_list)
 
     # Signal completion
