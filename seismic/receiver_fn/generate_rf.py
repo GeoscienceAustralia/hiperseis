@@ -99,6 +99,11 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # We opt not to filter out traces with some NaN values here, as they could still have some value
     # for downstream analysis.
 
+    if len(stream3c) != 3:
+        logger.warning("WARNING: Unexpected number of channels in stream {} after trim (skipping):\n{}"
+                       .format(ev_id, stream3c))
+        return False
+
     for stream_index in range(3):
         metadata = {'amax': np.amax(stream3c[stream_index].data), 'event_id': ev_id}
         stream3c[stream_index].stats.update(metadata)
