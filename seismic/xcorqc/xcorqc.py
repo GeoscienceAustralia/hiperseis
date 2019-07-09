@@ -41,6 +41,7 @@ from scipy import signal
 
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.xcorqc.utils import drop_bogus_traces, get_stream
 from netCDF4 import Dataset
 from functools import reduce
 
@@ -170,14 +171,18 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
-                # resample
-                if(resample_rate):
-                    tr1_d = Trace(data=tr1_d,
-                                  header=Stats(header={'sampling_rate':sr1_orig,
-                                                       'npts':window_samples_1})).resample(resample_rate).data
-                    tr2_d = Trace(data=tr2_d,
-                                  header=Stats(header={'sampling_rate':sr2_orig,
-                                                       'npts':window_samples_2})).resample(resample_rate).data
+                # detrend
+                tr1_d = spline(tr1_d, 2, 1000)
+                tr2_d = spline(tr2_d, 2, 1000)
+
+                # zero-mean
+                tr1_d -= np.mean(tr1_d)
+                tr2_d -= np.mean(tr2_d)
+
+                # taper
+                if(window_overlap>0):
+                    tr1_d = taper(tr1_d, int(window_overlap*tr1_d.shape[0]))
+                    tr2_d = taper(tr2_d, int(window_overlap*tr2_d.shape[0]))
                 # end if
 
                 # remove response
@@ -219,24 +224,20 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     tr2_d = tr2.data
                 # end if
 
-                # detrend
-                tr1_d = spline(tr1_d, 2, 1000)
-                tr2_d = spline(tr2_d, 2, 1000)
-
-                # zero-mean
-                tr1_d -= np.mean(tr1_d)
-                tr2_d -= np.mean(tr2_d)
-
-                # taper
-                if(window_overlap>0):
-                    tr1_d = taper(tr1_d, int(window_overlap*tr1_d.shape[0]))
-                    tr2_d = taper(tr2_d, int(window_overlap*tr2_d.shape[0]))
-                # end if
-
                 # apply zero-phase band-pass
                 if(flo and fhi):
                     tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=6, zerophase=True)
                     tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=6, zerophase=True)
+                # end if
+
+                # resample
+                if(resample_rate):
+                    tr1_d = Trace(data=tr1_d,
+                                  header=Stats(header={'sampling_rate':sr1_orig,
+                                                       'npts':window_samples_1})).resample(resample_rate).data
+                    tr2_d = Trace(data=tr2_d,
+                                  header=Stats(header={'sampling_rate':sr2_orig,
+                                                       'npts':window_samples_2})).resample(resample_rate).data
                 # end if
 
                 # clip to +/- 2*std
@@ -354,12 +355,6 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     # end if
 # end func
 
-def dropBogusTraces(st, sampling_rate_cutoff=1):
-    badTraces = [tr for tr in st if tr.stats.sampling_rate < sampling_rate_cutoff]
-
-    for tr in badTraces: st.remove(tr)
-# end func
-
 def IntervalStackXCorr(refds, tempds,
                        start_time, end_time,
                        ref_net_sta, temp_net_sta,
@@ -368,6 +363,8 @@ def IntervalStackXCorr(refds, tempds,
                        water_level,
                        ref_cha,
                        temp_cha,
+                       baz_ref_net_sta,
+                       baz_temp_net_sta,
                        resample_rate=None,
                        buffer_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, flo=None, fhi=None,
@@ -414,6 +411,10 @@ def IntervalStackXCorr(refds, tempds,
     :param ref_cha: Channel name for the reference Dataset
     :type temp_cha: str
     :param temp_cha: Channel name for the temporary Dataset
+    :type baz_ref_net_sta: str
+    :param baz_ref_net_sta: Back-azimuth of ref station from temp station in degrees
+    :type baz_temp_net_sta: str
+    :param baz_temp_net_sta: Back-azimuth of temp station from ref station in degrees
     :type resample_rate: int
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type buffer_seconds: int
@@ -496,32 +497,10 @@ def IntervalStackXCorr(refds, tempds,
         refSt = None
         try:
             rnc, rsc = ref_net_sta.split('.')
-            stations = refds.get_stations(cTime, cTime + cStep, network=rnc, station=rsc)
-            for codes in stations:
-                if(ref_cha != codes[3]): continue
-                refSt = refds.get_waveforms(codes[0], codes[1], codes[2], codes[3], cTime,
-                                            cTime + cStep, automerge=False, trace_count_threshold=200)
-
-                if (len(refSt) == 0): continue
-                dropBogusTraces(refSt)
-
-                if (verbose > 2):
-                    logger.debug('\t\tData Gaps:')
-                    refSt.print_gaps() # output sent to stdout; fix this
-                    print ("\n")
-                # end if
-                # Merge reference station data. Note that we don't want to fill gaps; the
-                # default merge() operation creates masked numpy arrays, which we can use
-                # to detect and ignore windows that have gaps in their data.
-                try:
-                    refSt.merge()
-                except:
-                    logger.warning('\tFailed to merge traces..')
-                    refSt = None
-                # end try
-            # end for
+            refSt = get_stream(refds, rnc, rsc, ref_cha, cTime, cTime + cStep, baz=baz_ref_net_sta,
+                               logger=logger, verbose=verbose)
         except Exception as e:
-            print(e)
+            logger.error('\t'+str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
 
         if (refSt is None):
@@ -535,39 +514,18 @@ def IntervalStackXCorr(refds, tempds,
         else:
             pass
             # print refSt
+        # end if
 
         logger.info('\tFetching data for station %s..' % (temp_net_sta))
 
         tempSt = None
         try:
             tnc, tsc = temp_net_sta.split('.')
-            stations = tempds.get_stations(cTime, cTime + cStep, network=tnc, station=tsc)
-
-            for codes in stations:
-                if(temp_cha != codes[3]): continue
-                tempSt = tempds.get_waveforms(codes[0], codes[1], codes[2], codes[3], cTime,
-                                            cTime + cStep, automerge=False, trace_count_threshold=200)
-
-                if (len(tempSt) == 0): continue
-                dropBogusTraces(tempSt)
-
-                if (verbose > 2):
-                    logger.debug('\t\tData Gaps:')
-                    tempSt.print_gaps() # output sent to stdout; fix this
-                    print ("\n")
-                # end if
-                # Merge reference station data. Note that we don't want to fill gaps; the
-                # default merge() operation creates masked numpy arrays, which we can use
-                # to detect and ignore windows that have gaps in their data.
-                try:
-                    tempSt.merge()
-                except:
-                    logger.warning('\tFailed to merge traces..')
-                    tempSt = None
-                # end try
-            # end if
+            tempSt = get_stream(tempds, tnc, tsc, temp_cha, cTime, cTime + cStep, baz=baz_temp_net_sta,
+                               logger=logger, verbose=verbose)
         except Exception as e:
             print(e)
+            logger.error('\t'+str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
         # end try
 
@@ -582,6 +540,7 @@ def IntervalStackXCorr(refds, tempds,
         else:
             pass
             #print tempSt
+        # end if
 
         if (verbose > 2):
             logger.debug('\t\tData Gaps:')

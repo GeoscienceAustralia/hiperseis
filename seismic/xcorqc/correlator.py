@@ -24,7 +24,7 @@ import click
 from mpi4py import MPI
 from obspy import UTCDateTime, read_inventory, Inventory
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-
+from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
@@ -178,7 +178,7 @@ def process(data_source1, data_source2, output_path,
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
-            ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
+            ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
@@ -213,29 +213,30 @@ def process(data_source1, data_source2, output_path,
 
             f = open(fn, 'w+')
             f.write('Parameters Values:\n\n')
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
-            f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
-            f.write('%25s\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
-            f.write('%25s\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
+            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
+            f.write('%25s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
+            f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
 
-            f.write('%25s\t\t: %s\n' % ('--resample-rate', resample_rate))
-            f.write('%25s\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
-            f.write('%25s\t\t: %s\n' % ('--fmin', fmin))
-            f.write('%25s\t\t: %s\n' % ('--fmax', fmax))
-            f.write('%25s\t\t: %s\n' % ('--station-names1', netsta_list1))
-            f.write('%25s\t\t: %s\n' % ('--station-names2', netsta_list2))
-            f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
-            f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
-            f.write('%25s\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
-            f.write('%25s\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
-            f.write('%25s\t\t: %s\n' % ('--water-level', water_level))
-            f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
-            f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
-            f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
-            f.write('%25s\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
-            f.write('%25s\t\t: %s\n' % ('--whitening', whitening))
-            f.write('%25s\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
+            f.write('%25s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
+            f.write('%25s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
+            f.write('%25s\t\t\t: %s\n' % ('--fmin', fmin))
+            f.write('%25s\t\t\t: %s\n' % ('--fmax', fmax))
+            f.write('%25s\t\t\t: %s\n' % ('--station-names1', netsta_list1))
+            f.write('%25s\t\t\t: %s\n' % ('--station-names2', netsta_list2))
+            f.write('%25s\t\t\t: %s\n' % ('--start-time', start_time))
+            f.write('%25s\t\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
+            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
+            f.write('%25s\t\t\t: %s\n' % ('--corr-chan', corr_chan))
+            f.write('%25s\t\t\t: %s\n' % ('--water-level', water_level))
+            f.write('%25s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
+            f.write('%25s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%25s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+            f.write('%25s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
+            f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
+            f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
 
             f.close()
         # end func
@@ -269,10 +270,32 @@ def process(data_source1, data_source2, output_path,
         netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
         netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
 
+        corr_chans = []
+        if   (corr_chan == 'z'): corr_chans = [ds1_zchan, ds2_zchan]
+        elif (corr_chan == 'n'): corr_chans = [ds1_nchan, ds2_nchan]
+        elif (corr_chan == 'e'): corr_chans = [ds1_echan, ds2_echan]
+        elif (corr_chan == 't'): corr_chans = ['00T', '00T']
+        else: raise ValueError('Invalid corr-chan')
+
+        baz_netsta1 = None
+        baz_netsta2 = None
+        if(corr_chan == 't'):
+            try:
+                sta1_lon, sta1_lat = ds1.fds.unique_coordinates[netsta1]
+                sta2_lon, sta2_lat = ds2.fds.unique_coordinates[netsta2]
+                _, baz_netsta2, baz_netsta1 = gps2dist_azimuth(sta1_lat, sta1_lon, sta2_lat, sta2_lon)
+            except Exception as e:
+                print e
+                print 'Failed to compute back-azimuth for station-pairs; skipping %s.%s; '%(netsta1, netsta2)
+                continue
+            # end try
+        # end if
+
         x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
                                                         endTime, netsta1, netsta2, netsta1inv, netsta2inv,
                                                         instrument_response_output, water_level,
-                                                        ds1_zchan, ds2_zchan,
+                                                        corr_chans[0], corr_chans[1],
+                                                        baz_netsta1, baz_netsta2,
                                                         resample_rate, read_buffer_size, interval_seconds,
                                                         window_seconds, fmin, fmax, clip_to_2std, whitening,
                                                         one_bit_normalize, envelope_normalize, ensemble_stack,
@@ -354,6 +377,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--ds2-echan', default='BHE',
               type=str,
               help="Name of e-channel for data-source-2")
+@click.option('--corr-chan', type=click.Choice(['z', 'n', 'e', 't']), default='z',
+              help="Channels to be cross-correlated. Default is 'z' and 't' is for the transverse component"
+                   ", rotated through Obspy NE->RT functionality, based on back-azimuth between station-pairs")
 @click.option('--envelope-normalize', is_flag=True, help="Envelope (via Hilbert transform) and normalize CCs. "
                                                          "This procedure is useful for clock-error detection "
                                                          "workflows")
@@ -366,7 +392,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
          end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
          whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-         ds2_nchan, ds2_echan, envelope_normalize, ensemble_stack):
+         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -384,7 +410,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
             whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-            ds2_nchan, ds2_echan, envelope_normalize, ensemble_stack)
+            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack)
 # end func
 
 if __name__ == '__main__':
