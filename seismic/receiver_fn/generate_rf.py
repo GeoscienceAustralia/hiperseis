@@ -22,7 +22,7 @@ logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
-DEFAULT_RESAMPLE_RATE_HZ = 100
+DEFAULT_RESAMPLE_RATE_HZ = 10
 DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
 DEFAULT_TAPER_LIMIT = 0.01
 DEFAULT_TRIM_START_TIME_SEC = -25.0
@@ -52,7 +52,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger.info("Event #{}".format(ev_id))
 
     # Apply essential sanity checks before trying to compute RFs.
-    
+
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
             logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
@@ -78,14 +78,14 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # end for
 
     assert deconv_domain in ['time', 'freq']
-    stream3c.detrend('linear').interpolate(resample_rate_hz)
+    stream3c.detrend('linear')
     stream3c.taper(taper_limit, **kwargs)
 
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
-                            **kwargs)
+                            **kwargs).interpolate(resample_rate_hz)
             stream3c.rf(rotate='NE->RT', **kwargs)
         else:
             # Note the parameters of gaussian pulse and its width where
@@ -162,6 +162,8 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
     """
+    assert resample_rate >= 2.0*filter_band[1], "Too low sample rate will alias signal"
+
     dispatch_policy = '2*n_jobs'
     if parallel:
         assert parallel_available, "Cannot run parallel as joblib import failed"
