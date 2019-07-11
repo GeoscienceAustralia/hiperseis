@@ -181,7 +181,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         "Won't delete existing file {}, remove manually.".format(rf_trace_datafile)
 
     log = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    log.setLevel(logging.INFO)
 
     min_dist_deg = distance_range[0]
     max_dist_deg = distance_range[1]
