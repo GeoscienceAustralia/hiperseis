@@ -30,25 +30,24 @@ logging.basicConfig()
 # pylint: disable=invalid-name, logging-format-interpolation
 
 
-def _crossSpectrum(x, y):
+def _crossSpectrum(x, y, num_subsegs=32):
 
     # -------------------Remove mean-------------------
     # nperseg chosen arbitrary based on 126 samples RF signal, experiment to get best results
-    nperseg = x.size/20
+    nperseg = int(np.floor(x.size/num_subsegs))
     cross = np.zeros(nperseg, dtype='complex128')
-    for ind in range(x.size / nperseg):
-
-        xp = x[ind * nperseg: (ind + 1)*nperseg]
-        yp = y[ind * nperseg: (ind + 1)*nperseg]
+    max_ind = int(nperseg * np.floor(x.size / nperseg))
+    for ind in range(0, max_ind, nperseg):
+        xp = x[ind: ind + nperseg]
+        yp = y[ind: ind + nperseg]
         xp = xp - np.mean(xp)
         yp = yp - np.mean(xp)
-
-    # Do FFT
+        # Do FFT
         cfx = np.fft.fft(xp)
         cfy = np.fft.fft(yp)
-
-    # Get cross spectrum
+        # Get cross spectrum
         cross += cfx.conj()*cfy
+    # end for
     freq = np.fft.fftfreq(nperseg)
     return cross, freq
 
@@ -61,12 +60,7 @@ def _coh(y, y2):
     # coherence
     part1 = np.divide(np.abs(p12)**2, p11.real,
                       out=np.zeros_like(np.abs(p12)**2), where=p11.real != 0)
-    coh = np.divide(part1, p22.real, out=np.zeros_like(
-        part1), where=p22.real != 0)
-
-#   plot( freq[freq > 0], coh[freq > 0])
-#   show()
-#   return coh[freq > 0]
+    coh = np.divide(part1, p22.real, out=np.zeros_like(part1), where=p22.real != 0)
 
     return freq[freq > 0], coh[freq > 0]
 
@@ -111,25 +105,34 @@ def rf_group_by_similarity(swipe, similarity_eps):
     return clustering
 
 
-def coherence(swipe, level, f1, f2):
+def compute_max_coherence(stream, f1, f2):
     """ Finding coherence between two signals in frequency domain
         swipe - matrix with  waveforms organised rowwise
-        level  - minimum level of coherence (>0.6) for good results
-        f1 and f2 - normalised min and max frequencies
+        f1 and f2 - normalised min and max frequencies, f1 < f2 <= ~0.5
         returns array of indexes for coherent traces with median
+
+        Suggested minimum level of coherence for good results: 0.6
     """
-    # level - minimum coherence > 0.6 for good results, f2 <0.5 for RF
-    median = np.median(swipe, axis=0)
+    assert 0.0 <= f1 < f2 <= 1.0
 
-    index = []
-    for i in range(swipe.shape[0]):
-        f, c = _coh(median, swipe[i, :])
-        if np.amax(c[(f > f1) & (f < f2)]) > level:
-            index.append(True)
-        else:
-            index.append(False)
+    # Clip off the noise - take everything after 2 sec before onset as seismic event signal.
+    SIGNAL_WINDOW = (-2.0, None)
+    pick_signal = stream.slice2(*SIGNAL_WINDOW, 'onset')
+    # Taper aggressively to ensure that end discontinuities do not inject spectral energy at high frequencies
+    pick_signal = pick_signal.taper(0.5, max_length=1.0)
 
-    return np.array(index)
+    data = np.array([tr.data for tr in pick_signal])
+    median = np.median(data, axis=0)
+    assert len(median) == data.shape[1]
+
+    max_coh = []
+    # TODO: Vectorize this loop
+    for i in range(data.shape[0]):
+        f, c = _coh(median, data[i, :])
+        max_coh.append(np.amax(c[(f >= f1) & (f <= f2)]))
+    # end for
+
+    return np.array(max_coh)
 
 
 # def knive(swipe, k_level1, sn_level2):
@@ -186,21 +189,21 @@ def compute_onset_snr(stream):
     return rms, rms_env
 
 
-def remove_small_s2n(stream, min_snr):
-    """Filter out streams with low signal to noise (S/N) ratio.
+# def remove_small_s2n(stream, min_snr):
+#     """Filter out streams with low signal to noise (S/N) ratio.
 
-    :param stream: [description]
-    :type stream: [type]
-    :param min_snr: [description]
-    :type min_snr: [type]
-    :return: [description]
-    :rtype: [type]
-    """
-    rms, rms_env = compute_onset_snr(stream)
-    rms_mask = (rms >= min_snr) | (rms_env >= min_snr)
-    newstream = rf.RFStream([s for i, s in enumerate(stream) if rms_mask[i]])
+#     :param stream: [description]
+#     :type stream: [type]
+#     :param min_snr: [description]
+#     :type min_snr: [type]
+#     :return: [description]
+#     :rtype: [type]
+#     """
+#     rms, rms_env = compute_onset_snr(stream)
+#     rms_mask = (rms >= min_snr) | (rms_env >= min_snr)
+#     newstream = rf.RFStream([s for i, s in enumerate(stream) if rms_mask[i]])
 
-    return newstream
+#     return newstream
 
 
 def spectral_entropy(stream):
@@ -297,12 +300,23 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
     for i, st in enumerate(p_stream):
         md_dict = {'snr': rms[i], 'snr_env': rms_env[i]}
         st.stats.update(md_dict)
+    # end for
 
     # Compute spectral entropy for all traces
     spentropy = spectral_entropy(p_stream)
     for i, st in enumerate(p_stream):
         md_dict = {'entropy': spentropy[i]}
         st.stats.update(md_dict)
+    # end for
+
+    # Compute coherence metric within targeted normalized frequency band
+    fn_low = 0.3
+    fn_high = 0.6
+    max_coherence = compute_max_coherence(p_stream, fn_low, fn_high)
+    for i, st in enumerate(p_stream):
+        md_dict = {'max_coherence': max_coherence[i]}
+        st.stats.update(md_dict)
+    # end for
 
     # TODO: Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
 
@@ -391,153 +405,153 @@ def main2(input_file, output_file):
 # end func
 
 
-@click.command()
-@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-def main(input_file, output_file):
-    """ This module filters RFs according to input options and then computes some quality metrics on each RF.
-        This enables different downstream approaches to selecting and filtering for good quality RFs.
+# @click.command()
+# @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+# @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+# def main(input_file, output_file):
+#     """ This module filters RFs according to input options and then computes some quality metrics on each RF.
+#         This enables different downstream approaches to selecting and filtering for good quality RFs.
 
-        The stats attribute of each RF is populated with these quality metrics. In addition, a new root group
-        is added to the hdf5 file containing a Pandas DataFrame that tabulates the attributes of each trace
-        to allow easy event filtering in the downstream workflow.
+#         The stats attribute of each RF is populated with these quality metrics. In addition, a new root group
+#         is added to the hdf5 file containing a Pandas DataFrame that tabulates the attributes of each trace
+#         to allow easy event filtering in the downstream workflow.
 
-    Available methods:
-    1. rf_group_by_similarity - grouping method based on calculation of euclidean distances and clustering by
-       similarity ( aca machine learning approach)
-    2. TODO: coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout
-       should be applied to use this technique
-    3. TODO knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout
-       should be applied to use this technique
-    4. S/N ratio
-    5. Spectral entropy
-    """
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+#     Available methods:
+#     1. rf_group_by_similarity - grouping method based on calculation of euclidean distances and clustering by
+#        similarity ( aca machine learning approach)
+#     2. TODO: coherence - finding the coherent signals (in frequency domain) relative to median. Consequently, moveout
+#        should be applied to use this technique
+#     3. TODO knive - analysing the change of RMS relative to median. Noisy stations will give higher input. Moveout
+#        should be applied to use this technique
+#     4. S/N ratio
+#     5. Spectral entropy
+#     """
+#     logger = logging.getLogger(__name__)
+#     logger.setLevel(logging.INFO)
 
-    # Settings
-    similarity_eps = 3.0
-    # similarity_eps = 8.0
+#     # Settings
+#     similarity_eps = 3.0
+#     # similarity_eps = 8.0
 
-    min_snr = 5.0
+#     min_snr = 5.0
 
-    print("Reading the input file...")
-    # Input file
-    stream = rf.read_rf(input_file, 'H5')
-    print("Reading is done...")
-    # output file naming --> look at the end of the code
+#     print("Reading the input file...")
+#     # Input file
+#     stream = rf.read_rf(input_file, 'H5')
+#     print("Reading is done...")
+#     # output file naming --> look at the end of the code
 
-    # Pull out streams for analysis. FIXME: Variable naming here seems to assume the type will be 'ZRT-R'
-    rf_type, prim_stream, t_stream, z_stream = get_rf_stream_components(stream)
-    if rf_type is None:
-        logger.error("Could not identify RF components from input stream")
-        return
-    # end if
+#     # Pull out streams for analysis. FIXME: Variable naming here seems to assume the type will be 'ZRT-R'
+#     rf_type, prim_stream, t_stream, z_stream = get_rf_stream_components(stream)
+#     if rf_type is None:
+#         logger.error("Could not identify RF components from input stream")
+#         return
+#     # end if
 
-    # first lets just remove plainly bad data
-    logger.info("Number of traces before S/N cut out is: %d", len(prim_stream))
-    prim_stream = remove_small_s2n(prim_stream, min_snr)
-    logger.info("Number of traces after S/N cut out is: %d", len(prim_stream))
+#     # first lets just remove plainly bad data
+#     logger.info("Number of traces before S/N cut out is: %d", len(prim_stream))
+#     prim_stream = remove_small_s2n(prim_stream, min_snr)
+#     logger.info("Number of traces after S/N cut out is: %d", len(prim_stream))
 
 
-    # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
-    rf_stream = prim_stream.copy()
-    # Filter specified below is only for data analysis and not applied to output data
-    rf_stream = rf_stream.filter('bandpass', freqmin=0.05, freqmax=0.7, corners=2, zerophase=True).interpolate(sampling_rate=5.0)
+#     # we have to decimate here otherwise clustering method wouldn't perform well. 5Hz sampling
+#     rf_stream = prim_stream.copy()
+#     # Filter specified below is only for data analysis and not applied to output data
+#     rf_stream = rf_stream.filter('bandpass', freqmin=0.05, freqmax=0.7, corners=2, zerophase=True).interpolate(sampling_rate=5.0)
 
-    # original file will be interpolated to 100Hz
-    prim_stream = prim_stream.trim2(starttime=-5, endtime=60, reftime='onset')
+#     # original file will be interpolated to 100Hz
+#     prim_stream = prim_stream.trim2(starttime=-5, endtime=60, reftime='onset')
 
-    # here we collect station names but maybe ID is more appropriate in case of having the same
-    # station names in different deployments
-    station_list = set()
-    for stn_stream in prim_stream:
-        station_list.add(stn_stream.stats.station.encode('utf-8'))
+#     # here we collect station names but maybe ID is more appropriate in case of having the same
+#     # station names in different deployments
+#     station_list = set()
+#     for stn_stream in prim_stream:
+#         station_list.add(stn_stream.stats.station.encode('utf-8'))
 
-    print("Gathered ", len(station_list), " stations")
+#     print("Gathered ", len(station_list), " stations")
 
-    # here we go with the main loop over stations
-    filtered_stream = rf.RFStream()
+#     # here we go with the main loop over stations
+#     filtered_stream = rf.RFStream()
 
-    for i, stn_code in enumerate(station_list):
-        station_code = stn_code.decode('utf-8')
-        print("Station ", station_code, " ", i + 1, " of ", len(station_list))
-        stn_stream = rf_stream.select(station=station_code).copy()
+#     for i, stn_code in enumerate(station_list):
+#         station_code = stn_code.decode('utf-8')
+#         print("Station ", station_code, " ", i + 1, " of ", len(station_list))
+#         stn_stream = rf_stream.select(station=station_code).copy()
 
-        # we choose short RF to simplify and speed up the processing
-        stn_stream = stn_stream.trim2(-5, 20, 'onset')
+#         # we choose short RF to simplify and speed up the processing
+#         stn_stream = stn_stream.trim2(-5, 20, 'onset')
 
-        # but keep original traces as they are to use them at the end
-        orig_p_stream = prim_stream.select(station=station_code)
+#         # but keep original traces as they are to use them at the end
+#         orig_p_stream = prim_stream.select(station=station_code)
 
-        swipe = []
-        # original_swipe = []
+#         swipe = []
+#         # original_swipe = []
 
-        for trace in stn_stream:
-            swipe.append(trace.data)
-        # for trace in orig_p_stream:
-        #     original_swipe.append(trace.data)
+#         for trace in stn_stream:
+#             swipe.append(trace.data)
+#         # for trace in orig_p_stream:
+#         #     original_swipe.append(trace.data)
 
-        swipe = np.array(swipe)
-        # original_swipe = np.array(original_swipe)
+#         swipe = np.array(swipe)
+#         # original_swipe = np.array(original_swipe)
 
-        print("Processing ", swipe.shape[0], " events")
-        # we use clustering technique to find similar signals
-        if swipe.shape[0] > 1:
-            ind = rf_group_by_similarity(swipe, similarity_eps)
-        else:
-            ind = np.array([0])
-            print(station_code, ' has only one trace')
+#         print("Processing ", swipe.shape[0], " events")
+#         # we use clustering technique to find similar signals
+#         if swipe.shape[0] > 1:
+#             ind = rf_group_by_similarity(swipe, similarity_eps)
+#         else:
+#             ind = np.array([0])
+#             print(station_code, ' has only one trace')
 
-        num_group = np.amax(ind)
-        print("Number of detected groups: ", num_group + 1)
+#         num_group = np.amax(ind)
+#         print("Number of detected groups: ", num_group + 1)
 
-        # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
-        for k in range(num_group + 1):
-            # average can use weights and mean can work on masked arrays
-            # stacked = np.average(original_swipe[ind == k, :], axis=0)
-            # we choose only traces that belong to detected group
-            rf_group = {'rf_group': k}
-            for j, orig_trace in enumerate(orig_p_stream):
-                if ind[j] == k:
-                    orig_trace.stats.update(rf_group)
-                    filtered_stream.append(orig_trace)
-                    for tr in t_stream:
-                        if tr.stats.event_id == orig_trace.stats.event_id:
-                            tr.stats.update(rf_group)
-                            filtered_stream.append(tr)
-                    # end for
-                    for tr in z_stream:
-                        if tr.stats.event_id == orig_trace.stats.event_id:
-                            tr.stats.update(rf_group)
-                            filtered_stream.append(tr)
-                    # end for
-            # end for
+#         # we have group indexes for each good quality RF trace and apply grouping to original RF traces for stacking
+#         for k in range(num_group + 1):
+#             # average can use weights and mean can work on masked arrays
+#             # stacked = np.average(original_swipe[ind == k, :], axis=0)
+#             # we choose only traces that belong to detected group
+#             rf_group = {'rf_group': k}
+#             for j, orig_trace in enumerate(orig_p_stream):
+#                 if ind[j] == k:
+#                     orig_trace.stats.update(rf_group)
+#                     filtered_stream.append(orig_trace)
+#                     for tr in t_stream:
+#                         if tr.stats.event_id == orig_trace.stats.event_id:
+#                             tr.stats.update(rf_group)
+#                             filtered_stream.append(tr)
+#                     # end for
+#                     for tr in z_stream:
+#                         if tr.stats.event_id == orig_trace.stats.event_id:
+#                             tr.stats.update(rf_group)
+#                             filtered_stream.append(tr)
+#                     # end for
+#             # end for
 
-            # # or here we can make a trick - coherent signal comes from different directions or segments.
-            # # Therefore we assign stacked RF back to its original azimuths and angle of incidence.
-            # for j in range(len(orig_p_stream)):
-            #     if ind[j]==k:
-            #         # here we replace original data by stacked rays. However original RFs with assigned
-            #         # groups can be used as well and stacked later using migration image
-            #         # this option can be more favourable to highlight small signals.
-            #         # Comment out one line below to avoid stacking
-            #         orig_p_stream[j].data=stacked.copy()
-            #         filtered_stream.append(orig_p_stream[j])
+#             # # or here we can make a trick - coherent signal comes from different directions or segments.
+#             # # Therefore we assign stacked RF back to its original azimuths and angle of incidence.
+#             # for j in range(len(orig_p_stream)):
+#             #     if ind[j]==k:
+#             #         # here we replace original data by stacked rays. However original RFs with assigned
+#             #         # groups can be used as well and stacked later using migration image
+#             #         # this option can be more favourable to highlight small signals.
+#             #         # Comment out one line below to avoid stacking
+#             #         orig_p_stream[j].data=stacked.copy()
+#             #         filtered_stream.append(orig_p_stream[j])
 
-        # end for
-    # end for
+#         # end for
+#     # end for
 
-    # # Some plots if required
-    # ppoints = filtered_stream.ppoints(70)
-    # boxes = rf.get_profile_boxes((-18.4, 139.1), 135, np.linspace(0, 440, 80), width=500)
-    # pstream = rf.profile(filtered_stream, boxes)
-    # pstream.plot_profile(scale=1.5,top='hist')
-    # plt.show()
+#     # # Some plots if required
+#     # ppoints = filtered_stream.ppoints(70)
+#     # boxes = rf.get_profile_boxes((-18.4, 139.1), 135, np.linspace(0, 440, 80), width=500)
+#     # pstream = rf.profile(filtered_stream, boxes)
+#     # pstream.plot_profile(scale=1.5,top='hist')
+#     # plt.show()
 
-    # Output file
-    filtered_stream.write(output_file, 'H5')
-# end func
+#     # Output file
+#     filtered_stream.write(output_file, 'H5')
+# # end func
 
 
 if __name__ == '__main__':
