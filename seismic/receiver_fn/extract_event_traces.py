@@ -20,6 +20,27 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
+    """Load (if available) or create event catalog from FDSN server.
+
+    :param lonlat: [description]
+    :type lonlat: [type]
+    :param starttime: [description]
+    :type starttime: [type]
+    :param endtime: [description]
+    :type endtime: [type]
+    :param cat_file: [description]
+    :type cat_file: [type]
+    :param distance_range: [description]
+    :type distance_range: [type]
+    :param magnitude_range: [description]
+    :type magnitude_range: [type]
+    :param early_exit: [description], defaults to True
+    :type early_exit: bool, optional
+    :return: [description]
+    :rtype: [type]
+    """
+    log = logging.getLogger(__name__)
+
     # If file needs to be generated, then this function requires internet access.
     if os.path.exists(cat_file):
         # This is a bad model - it will read events from completely different settings just because the file is there!
@@ -32,17 +53,45 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
                   'latitude': lonlat[1], 'longitude': lonlat[0],
                   'minradius': distance_range[0], 'maxradius': distance_range[1],
                   'minmagnitude': min_magnitude, 'maxmagnitude': max_magnitude}
-        print("Following parameters for earthquake extraction will be used:")
-        print('starttime', starttime, 'endtime', endtime, 'latitude', lonlat[1], 'longitude',
-              lonlat[0], 'minradius', distance_range[0], 'maxradius', distance_range[1],
-              'minmagnitude', min_magnitude, 'maxmagnitude', max_magnitude)
+
+        log.info("Following parameters will be used for earthquake event query:\n{}".format(kwargs))
         catalog = client.get_events(**kwargs)
+        log.info("Catalog loaded from FDSN server")
+
+        # Filter catalog before saving
+        catalog = _filter_catalog_events(catalog)
+
         catalog.write(cat_file, 'QUAKEML')
-        print("Catalog loaded")
+
         if early_exit:
             print("Run this process again using qsub")
             exit(0)
+        # end if
+    # end if
+
     return catalog
+
+
+def _filter_catalog_events(catalog):
+    """Filter catalog with fixed filter criteria.
+
+    :param catalog: [description]
+    :type catalog: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+
+    def _known_event_filter(event):
+        return event['event_type_certainty'] == 'known' and event['event_type'] == 'earthquake'
+
+    # types filter
+    accepted_events = [e for e in catalog if _known_event_filter(e)]
+    filtered_catalog = obspy.core.event.catalog.Catalog(accepted_events)
+
+    # inbuilt filter for standard error on travel time residuals
+    filtered_catalog = filtered_catalog.filter("standard_error <= 5.0")
+
+    return filtered_catalog
 
 
 def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
@@ -108,8 +157,8 @@ def get_existing_index(rf_trace_datafile):
                    r'for RF analysis, e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
-              'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web service. '
-              'Note that for traceability, start and end times will be appended to file name.')
+              'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web '
+              'service. Note that for traceability, start and end times will be appended to file name.')
 @click.option('--rf-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to output file, e.g. "7X_event_waveforms_for_rf.h5". '
               'Note that for traceability, start and end times will be appended to file name.')
