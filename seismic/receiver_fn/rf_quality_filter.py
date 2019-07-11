@@ -16,7 +16,7 @@ from fastdtw import fastdtw
 # import matplotlib.pyplot as plt
 
 from sklearn.cluster import DBSCAN
-from sklearn.externals.joblib import Parallel, delayed
+from joblib import Parallel, delayed
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
@@ -71,7 +71,7 @@ def _coh(y, y2):
     return freq[freq > 0], coh[freq > 0]
 
 
-def rf_group_by_similarity(swipe, similarity_eps):
+def rf_group_by_similarity(swipe, similarity_eps, temp_dir=None):
     """Cluster waveforms by similarity
 
     :param swipe: Numpy array of RF rowwise
@@ -89,8 +89,8 @@ def rf_group_by_similarity(swipe, similarity_eps):
     # end func
 
     # Pre-compute distance metric that will be used for DBSCAN clustering.
-    distance = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')(map(delayed(_compare_pairs),
-                                                                    itertools.combinations(swipe, 2)))
+    distance = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir)(
+        map(delayed(_compare_pairs), itertools.combinations(swipe, 2)))
     index = list((i, j) for ((i, _), (j, _)) in itertools.combinations(enumerate(swipe), 2))
 
     # First check that distance between points
@@ -99,14 +99,7 @@ def rf_group_by_similarity(swipe, similarity_eps):
     matrix = np.zeros((np.amax(index) + 1, 1 + np.amax(index))) + np.amax(distance)
 
     matrix[index[:, 0], index[:, 1]] = distance[:]
-    clustering = DBSCAN(eps=similarity_eps, min_samples=5, metric='precomputed').fit_predict(matrix)
-
-    # def _compare_2pairs(data0, data1):
-    #     distance, _ = fastdtw(data0, data1, radius=5)
-    #     return distance
-    # # end func
-
-    # clustering = DBSCAN(eps=similarity_eps, min_samples=3, metric=_compare_2pairs, n_jobs=-1).fit_predict(swipe)
+    clustering = DBSCAN(eps=similarity_eps, min_samples=5, metric='precomputed', n_jobs=-3).fit_predict(matrix)
 
     return clustering
 
@@ -249,7 +242,7 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, sec_stream, tert_stream
 
 
-def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
+def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, temp_dir=None):
 
     logger = logging.getLogger(__name__)
 
@@ -312,7 +305,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
     clustering_stream = clustering_stream.trim2(-5.0, 25.0, 'onset')
     swipe = np.array([tr.data for tr in clustering_stream])
     if swipe.shape[0] > 1:
-        ind = rf_group_by_similarity(swipe, similarity_eps)
+        ind = rf_group_by_similarity(swipe, similarity_eps, temp_dir=temp_dir)
     else:
         ind = np.array([0])
     # end if
@@ -341,7 +334,8 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-def main2(input_file, output_file):
+@click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
+def main2(input_file, output_file, temp_dir=None):
     """ This module filters RFs according to input options and then computes some quality metrics on each RF.
         This enables different downstream approaches to selecting and filtering for good quality RFs.
 
@@ -374,7 +368,8 @@ def main2(input_file, output_file):
 
     logger.info("Processing source file {}".format(input_file))
     # Process in serial, delegate parallelization to station data processor function
-    metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps)
+    metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps,
+                                             temp_dir=temp_dir)
                           for station_id, station_stream3c in IterRfH5StationEvents(input_file)))
 
     # TODO: Filter out None items before concat, if required.
