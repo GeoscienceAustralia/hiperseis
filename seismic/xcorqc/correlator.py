@@ -28,7 +28,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
-
+from seismic.xcorqc.utils import ProgressTracker
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -179,7 +179,7 @@ def process(data_source1, data_source2, output_path,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False):
+            envelope_normalize=False, ensemble_stack=False, restart=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -237,6 +237,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
             f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
             f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
+            f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
 
             f.close()
         # end func
@@ -262,10 +263,20 @@ def process(data_source1, data_source2, output_path,
         # end try
     # end if
 
+    # Progress tracker
+    progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
+
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
     for pair in proc_stations[rank]:
         netsta1, netsta2 = pair
+
+        if (progTracker.increment()):
+            pass
+        else:
+            print 'Found results for station-pair: %s.%s. Moving along..'%(netsta1, netsta2)
+            continue
+        # end if
 
         netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
         netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
@@ -388,11 +399,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "'interval-seconds' are in turn stacked to produce a "
                                                      "single CC function, aimed at producing empirical Greens "
                                                      "functions for surface wave tomography.")
+@click.option('--restart', default=False, is_flag=True, help='Restart job')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
          end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
          whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack):
+         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -410,7 +422,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
             whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack)
+            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart)
 # end func
 
 if __name__ == '__main__':

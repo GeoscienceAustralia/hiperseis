@@ -42,7 +42,7 @@ from scipy import signal
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.utils import drop_bogus_traces, get_stream
-from netCDF4 import Dataset
+from netCDF4 import Dataset, stringtochar
 from functools import reduce
 
 def setup_logger(name, log_file, level=logging.INFO):
@@ -127,10 +127,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     window_samples_2 = window_seconds * sr2
     interval_samples_1 = interval_seconds * sr1
     interval_samples_2 = interval_seconds * sr2
-    itr1s = 0
-    itr2s = 0
     sr = 0
     resll = []
+
+    # set day-aligned start-indices
+    maxStartTime = max(tr1.stats.starttime, tr2.stats.starttime)
+    dayAlignedStartTime = UTCDateTime(year=maxStartTime.year, month=maxStartTime.month,
+                                      day=maxStartTime.day)
+    itr1s = (dayAlignedStartTime - tr1.stats.starttime) * sr1
+    itr2s = (dayAlignedStartTime - tr2.stats.starttime) * sr2
 
     if(resample_rate):
         sr1 = resample_rate
@@ -148,6 +153,20 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
 
+        while ((itr1s < 0) or (itr2s < 0)):
+            itr1s += window_samples_1
+            itr2s += window_samples_2
+        # end while
+
+        if(np.fabs(itr1e - itr1s) < sr1_orig or np.fabs(itr2e - itr2s) < sr2_orig):
+            itr1s = itr1e
+            itr2s = itr2e
+            continue
+        # end if
+
+        if(tr1.stats.starttime + itr1s / sr1_orig != tr2.stats.starttime + itr2s / sr2_orig):
+            if (logger): logger.warning('Detected misaligned traces..')
+
         windowCount = 0
         wtr1s = int(itr1s)
         wtr2s = int(itr2s)
@@ -158,9 +177,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             wtr2e = int(min(itr2e, wtr2s + window_samples_2))
 
             # Discard small windows
-            if wtr1e - wtr1s < window_samples_1 or wtr2e - wtr2s < window_samples_2:
-                wtr1s = wtr1e
-                wtr2s = wtr2e
+            if ((wtr1e - wtr1s < window_samples_1) or (wtr2e - wtr2s < window_samples_2) or
+                (wtr1e - wtr1s < sr1_orig) or (wtr2e - wtr2s < sr2_orig)):
+                wtr1s = itr1e
+                wtr2s = itr2e
                 continue
             # end if
 
@@ -187,41 +207,41 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                 # remove response
                 if(sta1_inv):
-                    tr1 = Trace(data=tr1_d,
-                                header=Stats(header={'sampling_rate':resample_rate if resample_rate else sr1_orig,
-                                                     'npts':len(tr1_d),
-                                                     'network':tr1.stats.network,
-                                                     'station': tr1.stats.station,
-                                                     'location': tr1.stats.location,
-                                                     'channel': tr1.stats.channel,
-                                                     'starttime': tr1.stats.starttime + wtr1s,
-                                                     'endtime': tr1.stats.starttime + wtr1e}))
+                    resp_tr1 = Trace(data=tr1_d,
+                                     header=Stats(header={'sampling_rate': sr1_orig,
+                                                          'npts':len(tr1_d),
+                                                          'network':tr1.stats.network,
+                                                          'station': tr1.stats.station,
+                                                          'location': tr1.stats.location,
+                                                          'channel': tr1.stats.channel,
+                                                          'starttime': tr1.stats.starttime + float(wtr1s)/sr1_orig,
+                                                          'endtime': tr1.stats.starttime + float(wtr1e)/sr2_orig}))
                     try:
-                        tr1.remove_response(inventory=sta1_inv, output=instrument_response_output.upper(),
-                                            water_level=water_level)
+                        resp_tr1.remove_response(inventory=sta1_inv, output=instrument_response_output.upper(),
+                                                 water_level=water_level)
                     except Exception as e:
                         print (e)
                     # end try
-                    tr1_d = tr1.data
+                    tr1_d = resp_tr1.data
                 # end if
 
                 if(sta2_inv):
-                    tr2 = Trace(data=tr2_d,
-                                header=Stats(header={'sampling_rate':resample_rate if resample_rate else sr2_orig,
-                                                     'npts':len(tr2_d),
-                                                     'network': tr2.stats.network,
-                                                     'station': tr2.stats.station,
-                                                     'location': tr2.stats.location,
-                                                     'channel': tr2.stats.channel,
-                                                     'starttime': tr2.stats.starttime + wtr2s,
-                                                     'endtime': tr2.stats.starttime + wtr2e}))
+                    resp_tr2 = Trace(data=tr2_d,
+                                     header=Stats(header={'sampling_rate': sr2_orig,
+                                                          'npts':len(tr2_d),
+                                                          'network': tr2.stats.network,
+                                                          'station': tr2.stats.station,
+                                                          'location': tr2.stats.location,
+                                                          'channel': tr2.stats.channel,
+                                                          'starttime': tr2.stats.starttime + float(wtr2s)/sr2_orig,
+                                                          'endtime': tr2.stats.starttime + float(wtr2e)/sr2_orig}))
                     try:
-                        tr2.remove_response(inventory=sta2_inv, output=instrument_response_output.upper(),
-                                            water_level=water_level)
+                        resp_tr2.remove_response(inventory=sta2_inv, output=instrument_response_output.upper(),
+                                                 water_level=water_level)
                     except Exception as e:
                         print (e)
                     # end try
-                    tr2_d = tr2.data
+                    tr2_d = resp_tr2.data
                 # end if
 
                 # apply zero-phase band-pass
@@ -301,14 +321,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             if(logger): logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end fi
 
-        if(np.fabs(itr1e - itr1s) < sr1_orig):
-            itr1s = itr1e
-            itr2s = itr2e
-            continue
-        # end if
-
-        intervalStartSeconds.append(itr1s/sr1_orig)
-        intervalEndSeconds.append(itr1e/sr1_orig)
+        intervalStartSeconds.append(itr1s/sr1_orig + tr1.stats.starttime.timestamp)
+        intervalEndSeconds.append(itr1e/sr1_orig + tr1.stats.starttime.timestamp)
         itr1s = itr1e
         itr2s = itr2e
         intervalCount += 1
@@ -573,8 +587,8 @@ def IntervalStackXCorr(refds, tempds,
         xcorrResultsDict[stationPair].append(xcl)
         windowCountResultsDict[stationPair].append(winsPerInterval)
 
-        intervalStartTimesDict[stationPair].append(cTime.timestamp + intervalStartSeconds)
-        intervalEndTimesDict[stationPair].append(cTime.timestamp + intervalEndSeconds)
+        intervalStartTimesDict[stationPair].append(intervalStartSeconds)
+        intervalEndTimesDict[stationPair].append(intervalEndSeconds)
 
         cTime += cStep
     # wend (loop over time range)
@@ -654,6 +668,8 @@ def IntervalStackXCorr(refds, tempds,
 
         # Dimensions
         root_grp.createDimension('lag', xcorrResultsDict[k].shape[1])
+        root_grp.createDimension('nchar', 10)
+
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
 
         # Add metadata
@@ -662,16 +678,19 @@ def IntervalStackXCorr(refds, tempds,
         lat1 = root_grp.createVariable('Lat1', 'f4')
         lon2 = root_grp.createVariable('Lon2', 'f4')
         lat2 = root_grp.createVariable('Lat2', 'f4')
+        xcorrchan = root_grp.createVariable('CorrChannels', 'S1', ('nchar'))
 
         sr[:] = resample_rate
         lon1[:] = refds.unique_coordinates[ref_net_sta][0] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lat1[:] = refds.unique_coordinates[ref_net_sta][1] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lon2[:] = refds.unique_coordinates[temp_net_sta][0] if len(refds.unique_coordinates[temp_net_sta]) else -999
         lat2[:] = refds.unique_coordinates[temp_net_sta][1]  if len(refds.unique_coordinates[temp_net_sta]) else -999
+        xcorrchan[:] = stringtochar(np.array(['%s.%s'%(ref_cha, temp_cha)], 'S10'))
 
         # Add data
         if(ensemble_stack):
             nsw = root_grp.createVariable('NumStackedWindows', 'i8')
+            avgnsw = root_grp.createVariable('AvgNumStackedWindowsPerInterval', 'f4')
             ist = root_grp.createVariable('IntervalStartTime', 'i8')
             iet = root_grp.createVariable('IntervalEndTime', 'i8')
             xc  = root_grp.createVariable('xcorr', 'f4', ('lag',))
@@ -679,8 +698,9 @@ def IntervalStackXCorr(refds, tempds,
             totalIntervalCount = int(np.sum(windowCountResultsDict[k] > 0))
             totalWindowCount = int(np.sum(windowCountResultsDict[k]))
             nsw[:] = totalWindowCount
+            avgnsw[:] = np.mean(windowCountResultsDict[k])
             ist[:] = int(np.min(intervalStartTimesDict[k]))
-            iet[:] = int(np.min(intervalEndTimesDict[k]))
+            iet[:] = int(np.max(intervalEndTimesDict[k]))
             xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
         else:
             root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
