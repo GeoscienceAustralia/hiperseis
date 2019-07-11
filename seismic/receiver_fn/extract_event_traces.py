@@ -8,6 +8,7 @@ import re
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 
+import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
 from obspy.clients.fdsn import Client
 from rf import iter_event_data
