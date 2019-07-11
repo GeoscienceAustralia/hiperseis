@@ -10,20 +10,14 @@ import numpy as np
 import pandas as pd
 import click
 
-from scipy.spatial.distance import euclidean
 from scipy import signal
 from fastdtw import fastdtw
 # from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
 # import matplotlib.pyplot as plt
 
 from sklearn.cluster import DBSCAN
+from sklearn.externals.joblib import Parallel, delayed
 import rf
-
-try:
-    from joblib import Parallel, delayed
-    parallel_available = True
-except ImportError:
-    parallel_available = False
 
 from seismic.receiver_fn.rf_process_io import async_write
 # from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
@@ -90,12 +84,13 @@ def rf_group_by_similarity(swipe, similarity_eps):
     # Helper function used to compute similarity distance between a pair of waveforms.
     # See https://pypi.org/project/fastdtw/
     def _compare_pairs(data):
-        distance, _ = fastdtw(data[0], data[1], dist=euclidean)
+        distance, _ = fastdtw(data[0], data[1], radius=5)
         return distance
     # end func
 
     # Pre-compute distance metric that will be used for DBSCAN clustering.
-    distance = Parallel(n_jobs=-1, verbose=1)(map(delayed(_compare_pairs), itertools.combinations(swipe, 2)))
+    distance = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')(map(delayed(_compare_pairs),
+                                                                    itertools.combinations(swipe, 2)))
     index = list((i, j) for ((i, _), (j, _)) in itertools.combinations(enumerate(swipe), 2))
 
     # First check that distance between points
@@ -104,14 +99,21 @@ def rf_group_by_similarity(swipe, similarity_eps):
     matrix = np.zeros((np.amax(index) + 1, 1 + np.amax(index))) + np.amax(distance)
 
     matrix[index[:, 0], index[:, 1]] = distance[:]
-    clustering = DBSCAN(eps=similarity_eps, min_samples=2, metric='precomputed').fit_predict(matrix)
+    clustering = DBSCAN(eps=similarity_eps, min_samples=5, metric='precomputed').fit_predict(matrix)
+
+    # def _compare_2pairs(data0, data1):
+    #     distance, _ = fastdtw(data0, data1, radius=5)
+    #     return distance
+    # # end func
+
+    # clustering = DBSCAN(eps=similarity_eps, min_samples=3, metric=_compare_2pairs, n_jobs=-1).fit_predict(swipe)
 
     return clustering
 
 
 def coherence(swipe, level, f1, f2):
     """ Finding coherence between two signals in frequency domain
-        swipe - matrix with  waveforms orginised rowwise
+        swipe - matrix with  waveforms organised rowwise
         level  - minimum level of coherence (>0.6) for good results
         f1 and f2 - normalised min and max frequencies
         returns array of indexes for coherent traces with median
@@ -247,7 +249,7 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, sec_stream, tert_stream
 
 
-def rf_quality_metrics(oqueue, station_id, station_stream3c):
+def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
 
     logger = logging.getLogger(__name__)
 
@@ -275,30 +277,60 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c):
 
     # Flatten the traces into a single RFStream for subsequent processing
     streams = rf.RFStream([tr for stream in nonan_streams for tr in stream])
-    rf_type, p_stream, t_stream, z_stream = get_rf_stream_components(streams)
+
+    # Extract RF type and separate component streams
+    rf_type, p_stream, _, _ = get_rf_stream_components(streams)
     if rf_type is None:
         logger.error("ERROR! Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
         return None
     # end if
 
+    # Filter p_stream prior to computing quality metrics and downsample to Nyquist freq (on the assumption that the
+    # highest freq component is ~2*freq_max).
+    freq_min = 0.25
+    freq_max = 2.0
+    p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)\
+                       .interpolate(sampling_rate=4*freq_max)
+
     # Compute S/N ratio for all R traces
     rms, rms_env = compute_onset_snr(p_stream)
+    for i, st in enumerate(p_stream):
+        md_dict = {'snr': rms[i], 'snr_env': rms_env[i]}
+        st.stats.update(md_dict)
 
     # Compute spectral entropy for all traces
     spentropy = spectral_entropy(p_stream)
+    for i, st in enumerate(p_stream):
+        md_dict = {'entropy': spentropy[i]}
+        st.stats.update(md_dict)
 
-    # Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
+    # TODO: Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
 
     # Perform clustering for all traces in a station, and assign group IDs.
     # This will be super expensive when there are a lot of events, as the distance calculation grows as N^2.
+    clustering_stream = p_stream.copy()
+    clustering_stream = clustering_stream.trim2(-5.0, 25.0, 'onset')
+    swipe = np.array([tr.data for tr in clustering_stream])
+    if swipe.shape[0] > 1:
+        ind = rf_group_by_similarity(swipe, similarity_eps)
+    else:
+        ind = np.array([0])
+    # end if
+    num_groups = np.amax(ind)
+    logger.info("Station {}: detected {} clusters".format(station_id, num_groups))
+    # Apply group
+    for i, st in enumerate(p_stream):
+        md_dict = {'rf_group': ind[i] if ind[i] >= 0 else None}
+        st.stats.update(md_dict)
+    # end for
 
-    # TODO: Research techniques for grouping waveforms using singular value decomposition, possibly of the
-    # complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
+    # TODO: Research techniques for grouping waveforms using singular value decomposition (SVD), possibly of
+    # the complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
     # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost.
 
-    # Output resulting station streams
-    oqueue.put(streams)
+    # Output resulting station streams. Only keeping the primary stream since the others are not needed for RF analysis.
+    oqueue.put(p_stream)
 
     # Return Pandas DataFrame of tabulated metadata for this station
     return pd.DataFrame()
@@ -309,8 +341,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c):
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
-def main2(input_file, output_file, parallel=True):
+def main2(input_file, output_file):
     """ This module filters RFs according to input options and then computes some quality metrics on each RF.
         This enables different downstream approaches to selecting and filtering for good quality RFs.
 
@@ -331,27 +362,20 @@ def main2(input_file, output_file, parallel=True):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
+    # similarity_eps = 6.0
+    similarity_eps = 9.0
+
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 10))
     output_thread.daemon = True
     output_thread.start()
 
     logger.info("Processing source file {}".format(input_file))
-    if parallel:
-        # Process in parallel
-        logger.info("Parallel processing")
-        # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
-        metadata_list = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')\
-            (delayed(rf_quality_metrics)(write_queue, station_id, station_stream3c)
-             for station_id, station_stream3c in IterRfH5StationEvents(input_file))
-    else:
-        # Process in serial
-        logger.info("Serial processing")
-        metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c)
-                              for station_id, station_stream3c in IterRfH5StationEvents(input_file)))
-    # end if
+    # Process in serial, delegate parallelization to station data processor function
+    metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps)
+                          for station_id, station_stream3c in IterRfH5StationEvents(input_file)))
 
     # TODO: Filter out None items before concat, if required.
     all_metadata = pd.concat(metadata_list)
