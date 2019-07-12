@@ -21,6 +21,8 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 logging.basicConfig()
 
+# pylint: disable=invalid-name, logging-format-interpolation
+
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
     """Load (if available) or create event catalog from FDSN server.
@@ -61,9 +63,6 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
         catalog = client.get_events(**kwargs)
         log.info("Catalog loaded from FDSN server")
 
-        # Filter catalog before saving
-        catalog = _filter_catalog_events(catalog)
-
         catalog.write(cat_file, 'QUAKEML')
 
         if early_exit:
@@ -71,6 +70,9 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
             exit(0)
         # end if
     # end if
+
+    # Filter catalog before saving
+    catalog = _filter_catalog_events(catalog)
 
     return catalog
 
@@ -83,18 +85,30 @@ def _filter_catalog_events(catalog):
     :return: [description]
     :rtype: [type]
     """
+    log = logging.getLogger(__name__)
 
-    def _known_event_filter(event):
-        return event['event_type_certainty'] == 'known' and event['event_type'] == 'earthquake'
+    def _earthquake_event_filter(event):
+        return event.get('event_type') == 'earthquake'
 
-    # types filter
-    accepted_events = [e for e in catalog if _known_event_filter(e)]
-    filtered_catalog = obspy.core.event.catalog.Catalog(accepted_events)
+    # Type filter
+    accepted_events = [e for e in catalog if _earthquake_event_filter(e)]
+    catalog = obspy.core.event.catalog.Catalog(accepted_events)
 
-    # inbuilt filter for standard error on travel time residuals
-    filtered_catalog = filtered_catalog.filter("standard_error <= 5.0")
+    # Filter out events with missing magnitude or depth
+    n_before = len(catalog)
+    catalog = catalog.filter("magnitude > 0.0", "depth > 0.0")
+    n_after = len(catalog)
+    if n_after < n_before:
+        log.info("Removed {} events from catalog with invalid magnitude or depth values".format(n_before - n_after))
 
-    return filtered_catalog
+    # Filter for standard error on travel time residuals
+    n_before = len(catalog)
+    catalog = catalog.filter("standard_error <= 5.0")
+    n_after = len(catalog)
+    if n_after < n_before:
+        log.info("Removed {} events from catalog with high travel time residuals".format(n_before - n_after))
+
+    return catalog
 
 
 def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
@@ -218,12 +232,6 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
-    # Filter out events with missing magnitude or depth
-    n_before = len(catalog)
-    catalog = catalog.filter("magnitude >= 0.0", "depth >= 0.0")
-    n_after = len(catalog)
-    if n_after < n_before:
-        log.info("Removed {} events from catalog with invalid magnitude or depth values".format(n_before - n_after))
 
     # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
