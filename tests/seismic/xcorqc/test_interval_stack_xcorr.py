@@ -133,7 +133,7 @@ def test_interval_stack_xcorr_(tmpdir, inv1, inv2, interval_seconds, window_seco
 
     rtol = 1e-2
     atol = 1e-2
-    if(clip_to_2std or whitening):
+    if(clip_to_2std or whitening or one_bit_normalize):
         rtol *= 50
         atol *= 50
     # end if
