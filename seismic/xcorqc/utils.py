@@ -1,14 +1,55 @@
-import numpy as np
 from mpi4py import MPI
-import os, glob, fnmatch, sys
+import os
+import numpy as np
+from scipy.spatial import cKDTree
 
-from obspy import read, Trace, Stream
-from obspy.signal.cross_correlation import xcorr
-from obspy.signal.detrend import simple, spline
-from obspy.signal.filter import bandpass
-from scipy import signal
+from obspy import UTCDateTime, read_inventory, Inventory
+from obspy.geodetics.base import gps2dist_azimuth
 
-DAY_SECONDS = 24*3600
+# define utility functions
+def rtp2xyz(r, theta, phi):
+    xout = np.zeros((r.shape[0], 3))
+    rst = r * np.sin(theta)
+    xout[:, 0] = rst * np.cos(phi)
+    xout[:, 1] = rst * np.sin(phi)
+    xout[:, 2] = r * np.cos(theta)
+    return xout
+# end func
+
+def xyz2rtp(x, y, z):
+    rout = np.zeros((x.shape[0], 3))
+    tmp1 = x * x + y * y
+    tmp2 = tmp1 + z * z
+    rout[0] = np.sqrt(tmp2)
+    rout[1] = np.arctan2(sqrt(tmp1), z)
+    rout[2] = np.arctan2(y, x)
+    return rout
+# end func
+
+def getStationInventory(master_inventory, inventory_cache, netsta):
+    netstaInv = None
+    if (master_inventory):
+        if (inventory_cache is None): inventory_cache = defaultdict(list)
+        net, sta = netsta.split('.')
+
+        if (isinstance(inventory_cache[netsta], Inventory)):
+            netstaInv = inventory_cache[netsta]
+        else:
+            inv = master_inventory.select(network=net, station=sta)
+            if(len(inv.networks)):
+                inventory_cache[netsta] = inv
+                netstaInv = inv
+            # end if
+        # end if
+    # end if
+
+    return netstaInv, inventory_cache
+# end func
+
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+# end func
 
 def drop_bogus_traces(st, sampling_rate_cutoff=1):
     """

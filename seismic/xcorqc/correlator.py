@@ -22,35 +22,13 @@ from scipy.spatial import cKDTree
 import click
 
 from mpi4py import MPI
-from obspy import UTCDateTime, read_inventory, Inventory
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from obspy import UTCDateTime, read_inventory, Inventory
 from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
-from seismic.xcorqc.utils import ProgressTracker
-
-# define utility functions
-def rtp2xyz(r, theta, phi):
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta)
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
-
-
-def xyz2rtp(x, y, z):
-    rout = np.zeros((x.shape[0], 3))
-    tmp1 = x * x + y * y
-    tmp2 = tmp1 + z * z
-    rout[0] = np.sqrt(tmp2)
-    rout[1] = np.arctan2(sqrt(tmp1), z)
-    rout[2] = np.arctan2(y, x)
-    return rout
-# end func
-
+from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
@@ -65,7 +43,7 @@ class Dataset:
         self.metadata = defaultdict(list)
 
         rtps = []
-        for netsta in self.fds.unique_coordinates.keys():
+        for netsta in list(self.fds.unique_coordinates.keys()):
             if(netsta_list_subset != '*'):
                 if netsta not in netsta_list_subset:
                     continue
@@ -89,7 +67,7 @@ class Dataset:
     # end func
 
     def get_closest_stations(self, netsta, other_dataset, nn=1):
-        assert isinstance(netsta, basestring), 'station_name must be a string'
+        assert isinstance(netsta, str), 'station_name must be a string'
         assert isinstance(other_dataset, Dataset), 'other_dataset must be an instance of Dataset'
         netsta = netsta.upper()
 
@@ -144,31 +122,6 @@ class Dataset:
         return list(pairs_subset)
     # end func
 # end class
-
-def getStationInventory(master_inventory, inventory_cache, netsta):
-    netstaInv = None
-    if (master_inventory):
-        if (inventory_cache is None): inventory_cache = defaultdict(list)
-        net, sta = netsta.split('.')
-
-        if (isinstance(inventory_cache[netsta], Inventory)):
-            netstaInv = inventory_cache[netsta]
-        else:
-            inv = master_inventory.select(network=net, station=sta)
-            if(len(inv.networks)):
-                inventory_cache[netsta] = inv
-                netstaInv = inv
-            # end if
-        # end if
-    # end if
-
-    return netstaInv, inventory_cache
-# end func
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
-# end func
 
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds,
@@ -274,7 +227,7 @@ def process(data_source1, data_source2, output_path,
         if (progTracker.increment()):
             pass
         else:
-            print 'Found results for station-pair: %s.%s. Moving along..'%(netsta1, netsta2)
+            print (('Found results for station-pair: %s.%s. Moving along..'%(netsta1, netsta2)))
             continue
         # end if
 
@@ -296,8 +249,8 @@ def process(data_source1, data_source2, output_path,
                 sta2_lon, sta2_lat = ds2.fds.unique_coordinates[netsta2]
                 _, baz_netsta2, baz_netsta1 = gps2dist_azimuth(sta1_lat, sta1_lon, sta2_lat, sta2_lon)
             except Exception as e:
-                print e
-                print 'Failed to compute back-azimuth for station-pairs; skipping %s.%s; '%(netsta1, netsta2)
+                print (e)
+                print (('Failed to compute back-azimuth for station-pairs; skipping %s.%s; '%(netsta1, netsta2)))
                 continue
             # end try
         # end if

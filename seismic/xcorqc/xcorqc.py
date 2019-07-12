@@ -154,8 +154,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
 
         while ((itr1s < 0) or (itr2s < 0)):
-            itr1s += window_samples_1
-            itr2s += window_samples_2
+            itr1s += window_samples_1 - window_samples_1 * window_overlap
+            itr2s += window_samples_2 - window_samples_2 * window_overlap
         # end while
 
         if(np.fabs(itr1e - itr1s) < sr1_orig or np.fabs(itr2e - itr2s) < sr2_orig):
@@ -187,6 +187,9 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             # Discard windows with masked regions, i.e. with gaps
             if (not (np.ma.is_masked(tr1_d_all[wtr1s:wtr1e])
                      or np.ma.is_masked(tr2_d_all[wtr2s:wtr2e]))):
+
+                #logger.info('%s, %s' % (tr1.stats.starttime + wtr1s / 200., tr1.stats.starttime + wtr1e / sr1_orig))
+                #logger.info('%s, %s' % (tr2.stats.starttime + wtr2s / 200., tr2.stats.starttime + wtr2e / sr2_orig))
 
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
@@ -330,14 +333,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         # Append an array of zeros if no windows were processed for the current interval
         if (windowCount == 0):
             resl.append(np.zeros(fftlen))
-            if (verbose == 1):
+            if (verbose > 1):
                 if(logger): logger.info('\tWarning: No windows processed due to gaps in data in current interval')
             # end if
         # end if
 
         windowsPerInterval.append(windowCount)
 
-        mean = reduce((lambda tx, ty: tx + ty), resl) / len(resl)
+        mean = reduce((lambda tx, ty: tx + ty), resl)
+        if(windowCount>0): mean /= float(windowCount)
 
         if (envelope_normalize):
             step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
@@ -698,7 +702,7 @@ def IntervalStackXCorr(refds, tempds,
             totalIntervalCount = int(np.sum(windowCountResultsDict[k] > 0))
             totalWindowCount = int(np.sum(windowCountResultsDict[k]))
             nsw[:] = totalWindowCount
-            avgnsw[:] = np.mean(windowCountResultsDict[k])
+            avgnsw[:] = np.mean(windowCountResultsDict[k][windowCountResultsDict[k]>0])
             ist[:] = int(np.min(intervalStartTimesDict[k]))
             iet[:] = int(np.max(intervalEndTimesDict[k]))
             xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
