@@ -156,12 +156,17 @@ def compute_max_coherence(orig_stream, f1, f2):
 def compute_onset_snr(stream):
     """Compute signal to noise (S/N) ratio about the onset pulse.
 
+       Remember that the onset pulse of the rotated signals should be minimal, and a large pulse
+       at t = 0 indicates lack of effective rotation of coordinate system, so we use a long time window
+       after onset pulse, deliberately excluding the onset pulse, to allow contribution to the SNR from
+       the multiples after the onset pulse.
+
     :param stream: [description]
     :type stream: [type]
     :return: [description]
     :rtype: numpy.array
     """
-    PICK_SIGNAL_WINDOW = (-1.0, 2.0)
+    PICK_SIGNAL_WINDOW = (2.0, 20.0)
     NOISE_SIGNAL_WINDOW = (None, -2.0)
 
     # Take everything up to 2 sec before onset as noise signal.
@@ -169,12 +174,16 @@ def compute_onset_snr(stream):
     # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
+    if len(noise.shape) == 1:
+        noise = noise.reshape(1, -1)
 
     # The time window from 1 sec before to 2 sec after onset as the RF P signal
     pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, 'onset')
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
-    assert pick_signal.shape[0] == noise.shape[0]
+    if len(pick_signal.shape) == 1:
+        pick_signal = pick_signal.reshape(1, -1)
+    assert pick_signal.shape[0] == noise.shape[0], "{}[0] != {}[0]".format(pick_signal.shape, noise.shape)
     rms = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
 
     # Compute RMS of envelope (complex amplitude) rather than pure
