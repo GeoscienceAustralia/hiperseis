@@ -166,6 +166,8 @@ def compute_onset_snr(stream):
     :return: [description]
     :rtype: numpy.array
     """
+    logger = logging.getLogger(__name__)
+
     PICK_SIGNAL_WINDOW = (2.0, 20.0)
     NOISE_SIGNAL_WINDOW = (None, -2.0)
 
@@ -183,7 +185,13 @@ def compute_onset_snr(stream):
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:
         pick_signal = pick_signal.reshape(1, -1)
-    assert pick_signal.shape[0] == noise.shape[0], "{}[0] != {}[0]".format(pick_signal.shape, noise.shape)
+
+    if pick_signal.shape[0] != noise.shape[0]:
+        logger.error("ERROR: Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
+                     .format(pick_signal.shape, noise.shape))
+        return None, None
+    # end if
+
     rms = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
 
     # Compute RMS of envelope (complex amplitude) rather than pure
@@ -303,25 +311,32 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
 
     # Compute S/N ratio for all R traces
     rms, rms_env = compute_onset_snr(p_stream)
-    for i, st in enumerate(p_stream):
-        md_dict = {'snr': rms[i], 'snr_env': rms_env[i]}
-        st.stats.update(md_dict)
-    # end for
+    if rms is not None:
+        for i, tr in enumerate(p_stream):
+            md_dict = {'snr': rms[i], 'snr_env': rms_env[i]}
+            tr.stats.update(md_dict)
+        # end for
+    else:
+        md_dict = {'snr': np.nan, 'snr_env': np.nan}
+        for tr in p_stream:
+            tr.stats.update(md_dict)
+        # end for
+    # end if
 
     # Compute spectral entropy for all traces
     spentropy = spectral_entropy(p_stream)
-    for i, st in enumerate(p_stream):
+    for i, tr in enumerate(p_stream):
         md_dict = {'entropy': spentropy[i]}
-        st.stats.update(md_dict)
+        tr.stats.update(md_dict)
     # end for
 
     # Compute coherence metric within targeted normalized frequency band
     fn_low = 0.3
     fn_high = 0.6
     max_coherence = compute_max_coherence(p_stream, fn_low, fn_high)
-    for i, st in enumerate(p_stream):
+    for i, tr in enumerate(p_stream):
         md_dict = {'max_coherence': max_coherence[i]}
-        st.stats.update(md_dict)
+        tr.stats.update(md_dict)
     # end for
 
     # TODO: Compute phase weighting vector per station per 2D (back_azimuth, distance) bin
@@ -339,9 +354,9 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     num_groups = np.amax(ind)
     logger.info("Station {}: detected {} clusters".format(station_id, num_groups))
     # Apply group
-    for i, st in enumerate(p_stream):
+    for i, tr in enumerate(p_stream):
         md_dict = {'rf_group': ind[i] if ind[i] >= 0 else None}
-        st.stats.update(md_dict)
+        tr.stats.update(md_dict)
     # end for
 
     # TODO: Research techniques for grouping waveforms using singular value decomposition (SVD), possibly of
