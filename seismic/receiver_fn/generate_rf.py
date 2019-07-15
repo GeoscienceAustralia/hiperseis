@@ -135,7 +135,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Resampling rate in Hz")
 @click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
               help="Fraction of signal to taper at end, between 0 and 0.5")
-@click.option('--filter_band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
+@click.option('--filter-band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
               help="Filter pass band (Hz). Only required for time-domain deconvolution.")
 @click.option('--gauss-width', type=float, default=DEFAULT_GAUSS_WIDTH, show_default=True,
               help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
