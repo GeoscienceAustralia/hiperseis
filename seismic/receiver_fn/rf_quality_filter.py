@@ -4,6 +4,7 @@ from builtins import range
 
 import logging
 import itertools
+import traceback
 from multiprocessing import Process, Manager
 
 import numpy as np
@@ -11,6 +12,7 @@ import pandas as pd
 import click
 
 from scipy import signal
+from scipy import stats
 from fastdtw import fastdtw
 # from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
 # import matplotlib.pyplot as plt
@@ -292,13 +294,49 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
         logger.info("Discarded {}/{} events due to NaNs in at least one channel".format(num_discarded, num_supplied))
     # end if
 
+    # Early exit if nothing left
+    if not nonan_streams:
+        logger.warning("nonan_streams empty after filtering out nan traces! {}. Skipping station {}"
+                       .format(nonan_streams, station_id))
+        return pd.DataFrame()
+    # end if
+
     # Flatten the traces into a single RFStream for subsequent processing
     streams = rf.RFStream([tr for stream in nonan_streams for tr in stream])
+
+    # Subsequent functions process the data in bulk square matrices, so it is essential all traces are the same length.
+    # If not, processing will fail due to incompatible data structure. So here we filter out traces that do not have
+    # the expected length. Expected length is assumed to be the most common length amongst all the traces.
+    num_traces_before = len(streams)
+    all_trace_lens = np.array([len(tr) for tr in streams])
+    expected_len, _ = stats.mode(all_trace_lens, axis=None)
+    expected_len = expected_len[0]
+    if expected_len <= 1:
+        logger.warning("Cannot compute quality metrics on trace length {} <= 1! Skipping station {}"
+                       .format(expected_len, station_id))
+        return pd.DataFrame()
+    # end if
+    keep_traces = []
+    for tr in streams:
+        if len(tr) != expected_len:
+            logger.error("ERROR: Trace {} of station {} has inconsistent sample length {} (expected {}), discarding!"
+                         .format(tr, station_id, len(tr), expected_len))
+        else:
+            keep_traces.append(tr)
+        # end if
+    # end for
+    streams = rf.RFStream(keep_traces)
+    num_traces_after = len(streams)
+    if num_traces_after < num_traces_before:
+        num_discarded = num_traces_before - num_traces_after
+        logger.warning("Discarded {}/{} events due to inconsistent trace length"
+                       .format(num_discarded, num_traces_before))
+    # end if
 
     # Extract RF type and separate component streams
     rf_type, p_stream, _, _ = get_rf_stream_components(streams)
     if rf_type is None:
-        logger.error("ERROR! Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
+        logger.error("ERROR: Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
         return None
     # end if
 
@@ -410,9 +448,17 @@ def main(input_file, output_file, temp_dir=None):
 
     logger.info("Processing source file {}".format(input_file))
     # Process in serial, delegate parallelization to station data processor function
-    metadata_list = list((rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps,
-                                             temp_dir=temp_dir)
-                          for station_id, station_stream3c in IterRfH5StationEvents(input_file)))
+    metadata_list = []
+    for station_id, station_stream3c in IterRfH5StationEvents(input_file):
+        try:
+            md_table = rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps, temp_dir=temp_dir)
+            metadata_list.append(md_table)
+        except (ValueError, AssertionError) as e:
+            traceback.print_exc()
+            logger.error("ERROR: Unhandled exception occurred in rf_quality_metrics for station {}. "
+                         "Data will be omitted for this station!\nError:\n{}".format(station_id, str(e)))
+        # end try
+    # end for
 
     # TODO: Filter out None items before concat, if required.
     all_metadata = pd.concat(metadata_list)
