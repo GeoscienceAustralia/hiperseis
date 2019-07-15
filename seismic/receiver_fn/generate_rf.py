@@ -100,6 +100,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # 0.4                     0.2                                2.64
             # 0.2                     0.1                                3.73
             stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
+            # Interpolate to requested sampling rate.
+            stream3c.interpolate(resample_rate_hz)
         # end if
     except (IndexError, ValueError) as e:
         logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
