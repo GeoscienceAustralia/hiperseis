@@ -27,12 +27,13 @@ DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
 DEFAULT_TAPER_LIMIT = 0.01
 DEFAULT_TRIM_START_TIME_SEC = -25.0
 DEFAULT_TRIM_END_TIME_SEC = 75.0
-DEFAULT_DECONV_DOMAIN = 'time'
+DEFAULT_ROTATION_TYPE = 'lqt'   # from ['zrt', 'lqt']
+DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
 DEFAULT_GAUSS_WIDTH = 2.0
 DEFAULT_WATER_LEVEL = 0.05
 
 
-def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, filter_band_hz,
+def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate receiver function for a single 3-channel stream.
@@ -77,16 +78,23 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             return False
     # end for
 
-    assert deconv_domain in ['time', 'freq']
+    assert deconv_domain.lower() in ['time', 'freq']
     stream3c.detrend('linear')
     stream3c.taper(taper_limit, **kwargs)
+
+    assert rotation_type.lower() in ['zrt', 'lqt']
+    if rotation_type == 'zrt':
+        rf_rotation = 'NE->RT'
+    else:
+        rf_rotation = 'ZNE->LQT'
+    # end if
 
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
                             **kwargs).interpolate(resample_rate_hz)
-            stream3c.rf(rotate='NE->RT', **kwargs)
+            stream3c.rf(rotate=rf_rotation, **kwargs)
         else:
             # Note the parameters of gaussian pulse and its width where
             # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
@@ -99,7 +107,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # 0.5                     0.24                               2.36
             # 0.4                     0.2                                2.64
             # 0.2                     0.1                                3.73
-            stream3c.rf(rotate='NE->RT', deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
+            stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
             # Interpolate to requested sampling rate.
             stream3c.interpolate(resample_rate_hz)
         # end if
@@ -147,6 +155,9 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Trace trim start time in sec, relative to onset")
 @click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
               help="Trace trim end time in sec, relative to onset")
+@click.option('--rotation-type', type=click.Choice(['zrt', 'lqt'], case_sensitive=False),
+              default=DEFAULT_ROTATION_TYPE, show_default=True,
+              help="Rotational coordinate system for aligning ZNE trace components with incident wave direction")
 @click.option('--deconv-domain', type=click.Choice(['time', 'freq'], case_sensitive=False),
               default=DEFAULT_DECONV_DOMAIN, show_default=True,
               help="Whether to perform deconvolution in time or freq domain")
@@ -159,8 +170,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
                    "starved of work. Uses more memory.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
-         trim_start_time, trim_end_time, deconv_domain, parallel=True, memmap=False, temp_dir=None,
-         aggressive_dispatch=False):
+         trim_start_time, trim_end_time, rotation_type, deconv_domain, parallel=True, memmap=False,
+         temp_dir=None, aggressive_dispatch=False):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
     """
@@ -188,14 +199,16 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
-            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
-                                             gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
+            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type, 
+                                             filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
+                                             deconv_domain)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap))
     else:
         # Process in serial
         logger.info("Serial processing")
-        status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, filter_band,
-                                              gauss_width, water_level, trim_start_time, trim_end_time, deconv_domain)
+        status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
+                                              filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
+                                              deconv_domain)
                        for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap)))
     # end if
     num_tasks = len(status)
