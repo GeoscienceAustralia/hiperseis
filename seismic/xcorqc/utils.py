@@ -2,7 +2,7 @@ from mpi4py import MPI
 import os
 import numpy as np
 from scipy.spatial import cKDTree
-
+from collections import defaultdict
 from obspy import UTCDateTime, read_inventory, Inventory
 from obspy.geodetics.base import gps2dist_azimuth
 
@@ -84,11 +84,14 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
             ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
                                     start_time,
                                     end_time,
-                                    automerge=True,
+                                    automerge=automerge,
                                     trace_count_threshold=trace_count_threshold)
 
             if (len(stn) == 0): continue
             if (len(ste) == 0): continue
+            
+            drop_bogus_traces(stn)
+            drop_bogus_traces(ste)
 
             # Merge station data. Note that we don't want to fill gaps; the
             # default merge() operation creates masked numpy arrays, which we can use
@@ -115,10 +118,6 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
             stt[0].data = tdata
             #stt[0].stats.channel = '00T'
         # end for
-    # end if
-
-    if (stt and len(stt)):
-        drop_bogus_traces(stt)
     # end if
 
     return stt
@@ -186,7 +185,7 @@ class ProgressTracker:
 
     def increment(self):
         self.progress += 1
-        if(self.restart_mode and (self.prev_progress > 0) and (self.progress <= self.prev_progress)):
+        if(self.restart_mode and (self.prev_progress > 0) and (self.progress < self.prev_progress)):
             return False
         else:
             tmpfn = self.proc_fn + '.tmp'

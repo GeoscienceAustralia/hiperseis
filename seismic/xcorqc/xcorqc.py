@@ -179,8 +179,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             # Discard small windows
             if ((wtr1e - wtr1s < window_samples_1) or (wtr2e - wtr2s < window_samples_2) or
                 (wtr1e - wtr1s < sr1_orig) or (wtr2e - wtr2s < sr2_orig)):
-                wtr1s = itr1e
-                wtr2s = itr2e
+                wtr1s = int(np.ceil(itr1e))
+                wtr2s = int(np.ceil(itr2e))
                 continue
             # end if
 
@@ -312,8 +312,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                                              shape=[fftlen])
                 # end if
 
-                resl.append(rf)
-                windowCount += 1
+                if (not np.isnan(rf).any()):
+                    resl.append(rf)
+                    windowCount += 1
+                # end if
             # end if
 
             wtr1s += int(window_samples_1 - window_samples_1 * window_overlap)
@@ -340,9 +342,13 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
         windowsPerInterval.append(windowCount)
 
-        mean = reduce((lambda tx, ty: tx + ty), resl)
-        if(windowCount>0): mean /= float(windowCount)
 
+        if(windowCount>0):
+            mean = reduce((lambda tx, ty: tx + ty), resl) / float(windowCount)
+        else:
+            mean = reduce((lambda tx, ty: tx + ty), resl)
+        # end if
+        
         if (envelope_normalize):
             step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
             mean = mean + step * mean  # compute analytic
@@ -705,7 +711,11 @@ def IntervalStackXCorr(refds, tempds,
             avgnsw[:] = np.mean(windowCountResultsDict[k][windowCountResultsDict[k]>0])
             ist[:] = int(np.min(intervalStartTimesDict[k]))
             iet[:] = int(np.max(intervalEndTimesDict[k]))
-            xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
+            if(totalIntervalCount > 0):
+                xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
+            else:
+                xc[:] = xcorrResultsDict[k]
+            # end if
         else:
             root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
             # Variables
