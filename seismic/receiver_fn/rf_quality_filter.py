@@ -13,7 +13,7 @@ import click
 
 from scipy import signal
 from scipy import stats
-from fastdtw import fastdtw
+# from fastdtw import fastdtw
 # from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
 # import matplotlib.pyplot as plt
 
@@ -77,16 +77,15 @@ def rf_group_by_similarity(swipe, similarity_eps, temp_dir=None):
     :return: Index of the group for each trace. -1 if no group is found for a given trace.
     :rtype: numpy.array
     """
-    # Helper function used to compute similarity distance between a pair of waveforms.
-    # See https://pypi.org/project/fastdtw/
-    def _compare_pairs(data):
-        distance, _ = fastdtw(data[0], data[1], radius=5)
-        return distance
+
+    def _compare_pairs_rmsdist(data):
+        rms_dist = np.sqrt(np.mean(np.square(data[0] - data[1])))
+        return rms_dist
     # end func
 
-    # Pre-compute distance metric that will be used for DBSCAN clustering.
     distance = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir)(
-        map(delayed(_compare_pairs), itertools.combinations(swipe, 2)))
+        map(delayed(_compare_pairs_rmsdist), itertools.combinations(swipe, 2)))
+    # distance = list(map(_compare_pairs_rmsdist, itertools.combinations(swipe, 2)))
     index = list((i, j) for ((i, _), (j, _)) in itertools.combinations(enumerate(swipe), 2))
 
     # First check that distance between points
@@ -189,7 +188,7 @@ def compute_onset_snr(stream):
         pick_signal = pick_signal.reshape(1, -1)
 
     if pick_signal.shape[0] != noise.shape[0]:
-        logger.error("ERROR: Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
+        logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
                      .format(pick_signal.shape, noise.shape))
         return None, None
     # end if
@@ -291,7 +290,8 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     if len(nonan_streams) < len(station_stream3c):
         num_supplied = len(station_stream3c)
         num_discarded = num_supplied - len(nonan_streams)
-        logger.info("Discarded {}/{} events due to NaNs in at least one channel".format(num_discarded, num_supplied))
+        logger.info("Discarded {}/{} events from station {} due to NaNs in at least one channel"
+                    .format(num_discarded, num_supplied, station_id))
     # end if
 
     # Early exit if nothing left
@@ -319,7 +319,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     keep_traces = []
     for tr in streams:
         if len(tr) != expected_len:
-            logger.error("ERROR: Trace {} of station {} has inconsistent sample length {} (expected {}), discarding!"
+            logger.error("Trace {} of station {} has inconsistent sample length {} (expected {}), discarding!"
                          .format(tr, station_id, len(tr), expected_len))
         else:
             keep_traces.append(tr)
@@ -336,7 +336,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # Extract RF type and separate component streams
     rf_type, p_stream, _, _ = get_rf_stream_components(streams)
     if rf_type is None:
-        logger.error("ERROR: Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
+        logger.error("Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
         return None
     # end if
 
@@ -436,8 +436,7 @@ def main(input_file, output_file, temp_dir=None):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    # similarity_eps = 6.0
-    similarity_eps = 9.0
+    similarity_eps = 0.08
 
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
@@ -455,7 +454,7 @@ def main(input_file, output_file, temp_dir=None):
             metadata_list.append(md_table)
         except (ValueError, AssertionError) as e:
             traceback.print_exc()
-            logger.error("ERROR: Unhandled exception occurred in rf_quality_metrics for station {}. "
+            logger.error("Unhandled exception occurred in rf_quality_metrics for station {}. "
                          "Data will be omitted for this station!\nError:\n{}".format(station_id, str(e)))
         # end try
     # end for

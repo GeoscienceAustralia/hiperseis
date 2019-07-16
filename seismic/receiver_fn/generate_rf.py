@@ -104,7 +104,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             stream3c.interpolate(resample_rate_hz)
         # end if
     except (IndexError, ValueError) as e:
-        logger.error("ERROR: Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
+        logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
         return False
     # end try
 
