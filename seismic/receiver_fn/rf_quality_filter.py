@@ -79,7 +79,7 @@ def rf_group_by_similarity(swipe, similarity_eps, temp_dir=None):
     """
 
     def _compare_pairs_rmsdist(data):
-        rms_dist = np.sqrt(np.mean(np.square(data[0] - data[1])))
+        rms_dist = np.sqrt(np.nanmean(np.square(data[0] - data[1])))
         return rms_dist
     # end func
 
