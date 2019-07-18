@@ -10,10 +10,13 @@ KM_PER_DEG = 111.1949 # pylint: disable=invalid-name
 
 def phase_weights(stream):
     """Phase weighting takes all the traces in a stream and computes a weighting for each sample in the
-       stream between 0 and 1. The weighting represents how consistent is the phase angle of the signal
-       at the same point in the time series across all streams.
+    stream between 0 and 1. The weighting represents how consistent is the phase angle of the signal
+    at the same point in the time series across all streams.
 
-       See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
+    If phase weighting to accentuate higher multiples than Ps, then moveout should be applied first
+    before calling this function.
+
+    See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
     :type stream: obspy.core.trace.Trace
@@ -40,7 +43,7 @@ def phase_weights(stream):
 
 def find_rf_group_ids(stream):
     """For the given stream, which is expected to have an rf_group attribute in its traces' metadata, determine
-       the unique set of group ids that the traces contain.
+    the unique set of group ids that the traces contain.
 
     :param stream: Stream containing traces with rf_group ids associated with them.
     :type stream: obspy.core.trace.Trace
