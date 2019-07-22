@@ -33,7 +33,7 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
                           stack_height=stack_height, fname=save_file)
 
 
-def plot_station_rf_overlays(db_station, title=None):
+def plot_station_rf_overlays(db_station, title=None, time_range=None):
     """Plot translucent overlaid RF traces for all traces in each channel, and overplot
     the mean signal of all the traces per channel.
 
@@ -90,6 +90,9 @@ def plot_station_rf_overlays(db_station, title=None):
         min_x = min(min_x, x_lims[0])
         max_x = max(max_x, x_lims[1])
     # end for
+    if time_range is not None:
+        min_x = time_range[0]
+        max_x = time_range[1]
 
     for i in range(num_channels):
         subfig = plt.subplot(num_channels, 1, i + 1)
