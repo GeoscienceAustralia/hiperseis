@@ -81,6 +81,7 @@ seismic/gps_corrections/**/*.csv
 seismic/inventory/INVENTORY_*.txt
 seismic/inventory/INVENTORY_*.xml
 seismic/receiver_fn/DATA/*
+seismic/receiver_fn/**/*.png
 seismic/xcorqc/**/*.nc
 seismic/xcorqc/**/*.cfg
 seismic/xcorqc/**/*.pbs
