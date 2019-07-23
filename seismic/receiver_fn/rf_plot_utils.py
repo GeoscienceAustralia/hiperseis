@@ -138,6 +138,8 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, show=Tru
         plt.title(title, fontsize=16)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
+    plt.tick_params(right=True, labelright=True)
+    plt.yticks(fontsize=14)
 
     if num is not None:
         xl = plt.xlim()
