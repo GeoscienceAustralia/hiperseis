@@ -115,7 +115,7 @@ def compute_max_coherence(orig_stream, f1, f2):
 
     # Clip off the noise - take everything after 2 sec before onset as seismic event signal.
     SIGNAL_WINDOW = (-2.0, None)
-    pick_signal = stream.slice2(*SIGNAL_WINDOW, 'onset')
+    pick_signal = stream.slice2(*SIGNAL_WINDOW, reftime='onset')
     # Taper aggressively to ensure that end discontinuities do not inject spectral energy at high frequencies
     pick_signal = pick_signal.taper(0.5, max_length=1.0)
 
@@ -173,7 +173,7 @@ def compute_onset_snr(stream):
     NOISE_SIGNAL_WINDOW = (None, -2.0)
 
     # Take everything up to 2 sec before onset as noise signal.
-    noise = stream.slice2(*NOISE_SIGNAL_WINDOW, 'onset')
+    noise = stream.slice2(*NOISE_SIGNAL_WINDOW, reftime='onset')
     # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
@@ -181,7 +181,7 @@ def compute_onset_snr(stream):
         noise = noise.reshape(1, -1)
 
     # The time window from 1 sec before to 2 sec after onset as the RF P signal
-    pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, 'onset')
+    pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, reftime='onset')
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:
@@ -436,7 +436,7 @@ def main(input_file, output_file, temp_dir=None):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    similarity_eps = 0.08
+    similarity_eps = 0.05
 
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
