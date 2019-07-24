@@ -22,15 +22,16 @@ logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
-DEFAULT_RESAMPLE_RATE_HZ = 10
+DEFAULT_RESAMPLE_RATE_HZ = 20.0
 DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
 DEFAULT_TAPER_LIMIT = 0.01
-DEFAULT_TRIM_START_TIME_SEC = -25.0
-DEFAULT_TRIM_END_TIME_SEC = 75.0
-DEFAULT_ROTATION_TYPE = 'lqt'   # from ['zrt', 'lqt']
+DEFAULT_TRIM_START_TIME_SEC = -50.0
+DEFAULT_TRIM_END_TIME_SEC = 150.0
+DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
 DEFAULT_GAUSS_WIDTH = 2.0
 DEFAULT_WATER_LEVEL = 0.05
+MIN_RAW_RESAMPLE_RATE_HZ = 20.0
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
@@ -53,7 +54,6 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger.info("Event #{}".format(ev_id))
 
     # Apply essential sanity checks before trying to compute RFs.
-
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
             logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
@@ -76,6 +76,21 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             logger.warning("WARNING: All NaN in trace {} of stream {} (skipping):\n{}"
                            .format(tr.stats.channel, ev_id, stream3c))
             return False
+    # end for
+
+    # Appy conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
+    # the Nyquist freq to make sure almost no high freq energy leaking through the filter can
+    # alias down into the frequency bands of interest.
+    raw_resample_rate = max(MIN_RAW_RESAMPLE_RATE_HZ, resample_rate_hz)
+    stream_zne = stream3c.copy().filter('lowpass', freq=raw_resample_rate/4.0, corners=2, zerophase=True)
+    # Since cutoff freq is well below Nyquist, we use a lower Lanczos kernel size (default is a=20).
+    stream_zne = stream_zne.interpolate(raw_resample_rate, method='lanczos', a=10)
+    # Trim original traces to time window
+    stream_zne.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
+    # Add metadata label indicating theses traces are from raw signal
+    for tr in stream_zne:
+        metadata = {'type': 'raw_resampled', 'event_id': ev_id}
+        tr.stats.update(metadata)
     # end for
 
     assert deconv_domain.lower() in ['time', 'freq']
@@ -126,12 +141,18 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                        .format(ev_id, stream3c))
         return False
 
-    for stream_index in range(3):
-        metadata = {'amax': np.amax(stream3c[stream_index].data), 'event_id': ev_id}
-        stream3c[stream_index].stats.update(metadata)
+    for tr in stream3c:
+        metadata = {'amax': np.amax(tr.data), 'event_id': ev_id}
+        tr.stats.update(metadata)
     # end for
 
-    oqueue.put(stream3c)
+    output_stream = stream3c
+    # Add raw traces to output results
+    for tr in stream_zne:
+        output_stream.append(tr)
+    # end for
+
+    oqueue.put(output_stream)
 
     return True
 
