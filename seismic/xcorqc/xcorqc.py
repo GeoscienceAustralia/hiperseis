@@ -53,7 +53,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     handler = logging.FileHandler(log_file, mode='w')
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger(name)
+    logger = logging.getLogger(name+log_file)
     logger.setLevel(level)
     logger.addHandler(handler)
     return logger
@@ -693,8 +693,8 @@ def IntervalStackXCorr(refds, tempds,
         sr[:] = resample_rate
         lon1[:] = refds.unique_coordinates[ref_net_sta][0] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lat1[:] = refds.unique_coordinates[ref_net_sta][1] if len(refds.unique_coordinates[ref_net_sta]) else -999
-        lon2[:] = refds.unique_coordinates[temp_net_sta][0] if len(refds.unique_coordinates[temp_net_sta]) else -999
-        lat2[:] = refds.unique_coordinates[temp_net_sta][1]  if len(refds.unique_coordinates[temp_net_sta]) else -999
+        lon2[:] = tempds.unique_coordinates[temp_net_sta][0] if len(tempds.unique_coordinates[temp_net_sta]) else -999
+        lat2[:] = tempds.unique_coordinates[temp_net_sta][1]  if len(tempds.unique_coordinates[temp_net_sta]) else -999
         xcorrchan[:] = stringtochar(np.array(['%s.%s'%(ref_cha, temp_cha)], 'S10'))
 
         # Add data
