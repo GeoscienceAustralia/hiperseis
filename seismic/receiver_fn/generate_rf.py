@@ -29,7 +29,7 @@ DEFAULT_TRIM_START_TIME_SEC = -50.0
 DEFAULT_TRIM_END_TIME_SEC = 150.0
 DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
-DEFAULT_GAUSS_WIDTH = 2.0
+DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.05
 MIN_RAW_RESAMPLE_RATE_HZ = 20.0
 
@@ -111,7 +111,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                             **kwargs).interpolate(resample_rate_hz)
             stream3c.rf(rotate=rf_rotation, **kwargs)
         else:
-            # Note the parameters of gaussian pulse and its width where
+            # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
+            # in freq domain. Center column indicates approx. cutoff freq for a given 'a' value.
             # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             # 10                      4.8                                0.50
             # 5                       2.4                                0.75
