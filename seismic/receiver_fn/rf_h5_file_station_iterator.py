@@ -24,7 +24,7 @@ class IterRfH5StationEvents(object):
 
     def __init__(self, h5_filename, memmap=False):
         self.h5_filename = h5_filename
-        self.num_components = 3
+        # self.num_components = 3
         self.memmap_input = memmap
 
     def _open_source_file(self):
@@ -56,10 +56,10 @@ class IterRfH5StationEvents(object):
                 station_stream3c = []
                 for event_time in station_data:
                     event_traces = station_data[event_time]
-                    if len(event_traces) != self.num_components:
-                        logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
-                                        .format(len(event_traces), station_id, event_time))
-                        continue
+                    # if len(event_traces) != self.num_components:
+                    #     logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
+                    #                     .format(len(event_traces), station_id, event_time))
+                    #     continue
                     traces = []
 
                     for trace_id in event_traces:

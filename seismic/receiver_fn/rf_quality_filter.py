@@ -242,7 +242,7 @@ def get_rf_stream_components(stream):
 
     :param stream: [description]
     :type stream: rf.RFStream
-    :return: (RF component type, primary component, alt component 1, alt component 2)
+    :return: (RF component type, primary RF component (R or Q), transverse RF component (T), source component (Z or L))
     :rtype: (str, rf.RFStream, rf.RFStream, rf.RFStream)
     """
 
@@ -252,19 +252,22 @@ def get_rf_stream_components(stream):
     primary_stream = stream.select(component='Q')
 
     if primary_stream:
-        sec_stream = stream.select(component='T')
-        tert_stream = stream.select(component='L')
+        transverse_stream = stream.select(component='T')
+        source_stream = stream.select(component='L')
     else:
         rf_type = 'ZRT-R'
         primary_stream = stream.select(component='R')
         if primary_stream:
-            sec_stream = stream.select(component='T')
-            tert_stream = stream.select(component='Z')
+            transverse_stream = stream.select(component='T')
+            source_stream = stream.select(component='Z')
+            # Only return Z traces which are labelled as type rf, as we shouldn't return raw trace data here.
+            source_stream = source_stream.__class__(
+                [tr for tr in source_stream if tr.stats.get('type') is not None and tr.stats['type'] == 'rf'])
         else:
             return None, None, None, None
         # end if
     # end if
-    return rf_type, primary_stream, sec_stream, tert_stream
+    return rf_type, primary_stream, transverse_stream, source_stream
 
 
 def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, temp_dir=None):
@@ -278,7 +281,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     for stream in station_stream3c:
         skip_stream = False
         for tr in stream:
-            if np.any(np.isnan(tr.data)):
+            if tr.stats.type == 'rf' and np.any(np.isnan(tr.data)):
                 logger.warning("NaN data found in station {} trace\n{}\n, skipping!".format(station_id, tr))
                 skip_stream = True
                 break
@@ -302,13 +305,15 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # end if
 
     # Flatten the traces into a single RFStream for subsequent processing
-    streams = rf.RFStream([tr for stream in nonan_streams for tr in stream])
+    rf_streams = rf.RFStream([tr for stream in nonan_streams for tr in stream if tr.stats.type == 'rf'])
+    raw_streams = obspy.core.stream.Stream(
+        [tr for stream in nonan_streams for tr in stream if tr.stats.type == 'raw_resampled'])
 
     # Subsequent functions process the data in bulk square matrices, so it is essential all traces are the same length.
     # If not, processing will fail due to incompatible data structure. So here we filter out traces that do not have
     # the expected length. Expected length is assumed to be the most common length amongst all the traces.
-    num_traces_before = len(streams)
-    all_trace_lens = np.array([len(tr) for tr in streams])
+    num_traces_before = len(rf_streams)
+    all_trace_lens = np.array([len(tr) for tr in rf_streams])
     expected_len, _ = stats.mode(all_trace_lens, axis=None)
     expected_len = expected_len[0]
     if expected_len <= 1:
@@ -317,7 +322,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
         return pd.DataFrame()
     # end if
     keep_traces = []
-    for tr in streams:
+    for tr in rf_streams:
         if len(tr) != expected_len:
             logger.error("Trace {} of station {} has inconsistent sample length {} (expected {}), discarding!"
                          .format(tr, station_id, len(tr), expected_len))
@@ -325,15 +330,16 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
             keep_traces.append(tr)
         # end if
     # end for
+
     streams = rf.RFStream(keep_traces)
     num_traces_after = len(streams)
     if num_traces_after < num_traces_before:
         num_discarded = num_traces_before - num_traces_after
-        logger.warning("Discarded {}/{} events due to inconsistent trace length"
+        logger.warning("Discarded {}/{} traces due to inconsistent trace length"
                        .format(num_discarded, num_traces_before))
     # end if
 
-    # Extract RF type and separate component streams
+    # Extract RF type and the primary polarized component (ignore other component streams)
     rf_type, p_stream, _, _ = get_rf_stream_components(streams)
     if rf_type is None:
         logger.error("Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
@@ -345,9 +351,9 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     freq_min = 0.25
     freq_max = 2.0
     p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)\
-                       .interpolate(sampling_rate=4*freq_max)
+                       .interpolate(sampling_rate=4*freq_max, method='lanczos')
 
-    # Compute S/N ratio for all R traces
+    # Compute S/N ratio for RFs
     rms, rms_env = compute_onset_snr(p_stream)
     if rms is not None:
         for i, tr in enumerate(p_stream):
@@ -402,7 +408,13 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost.
 
-    # Output resulting station streams. Only keeping the primary stream since the others are not needed for RF analysis.
+    # Output resulting station streams. Only keeping the primary RF stream since the others are not needed 
+    # for RF analysis. Merge RF streams with raw waveforms for those events that made it through filtering.
+    event_ids = set([tr.stats.event_id for tr in p_stream])
+    for tr in raw_streams:
+        if tr.stats.event_id in event_ids:
+            p_stream.append(tr)
+
     oqueue.put(p_stream)
 
     # Return Pandas DataFrame of tabulated metadata for this station
