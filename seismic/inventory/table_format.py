@@ -27,4 +27,5 @@ TABLE_COLUMNS = TABLE_SCHEMA.keys()
 PANDAS_MAX_TIMESTAMP = str(pd.Timestamp.max)[0:19]
 
 DEFAULT_START_TIMESTAMP = pd.Timestamp("1964-01-01 00:00:00")
-DEFAULT_END_TIMESTAMP = pd.Timestamp.max
+# Subtract 1 hr as a workaround for pd.Timestamp.max still being treated as NaT in some versions of Pandas
+DEFAULT_END_TIMESTAMP = pd.Timestamp.max - pd.Timedelta(1.0, 'h')
