@@ -26,10 +26,11 @@ class IterRfH5FileEvents(object):
        event traces. rf library defaults to window of (-50, 150) sec about the P wave arrival time.
     """
 
-    def __init__(self, h5_filename, memmap=False):
+    def __init__(self, h5_filename, memmap=False, channel_pattern=None):
         self.h5_filename = h5_filename
         self.num_components = 3
         self.memmap_input = memmap
+        self.channel_pattern = channel_pattern
 
     def _open_source_file(self):
         if self.memmap_input:
@@ -60,9 +61,7 @@ class IterRfH5FileEvents(object):
                 station_data = wf_data[station_id]
                 for event_time in station_data:
                     event_traces = station_data[event_time]
-                    if len(event_traces) != self.num_components:
-                        logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
-                                        .format(len(event_traces), station_id, event_time))
+                    if not event_traces:
                         continue
 
                     if first_loop:
@@ -74,13 +73,30 @@ class IterRfH5FileEvents(object):
                     for trace_id in event_traces:
                         trace = dataset2trace(event_traces[trace_id])
                         traces.append(trace)
+
+                    stream = RFStream(traces=traces).sort()
+
+                    if len(stream) != self.num_components and self.channel_pattern is not None:
+                        for ch_mask in self.channel_pattern.split(','):
+                            _stream = stream.select(channel=ch_mask)
+                            logging.info("Tried channel mask {}, got {} channels".format(ch_mask, len(_stream)))
+                            if len(_stream) == self.num_components:
+                                stream = _stream
+                                break
+
+                    if len(stream) != self.num_components:
+                        logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
+                                        .format(len(stream), station_id, event_time))
+                        continue
+
                     event_count += 1
                     if create_event_id:
                         event_id = event_count
                     else:
                         event_id = traces[0].stats.event_id
                         assert np.all([(tr.stats.event_id == event_id) for tr in traces])
-                    stream = RFStream(traces=traces).sort()
+                    # end if
+
                     yield station_id, event_id, event_time, stream
                 # end for
             # end for

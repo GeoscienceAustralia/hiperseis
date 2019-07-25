@@ -165,6 +165,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--resample-rate', type=float, default=DEFAULT_RESAMPLE_RATE_HZ, show_default=True,
               help="Resampling rate in Hz")
+@click.option('--channel-pattern', type=str,
+              help="Ordered list of preferred channels, e.g. 'HH*,BH*', where channel selection is ambiguous.")
 @click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
               help="Fraction of signal to taper at end, between 0 and 0.5")
 @click.option('--filter-band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
@@ -193,7 +195,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                    "starved of work. Uses more memory.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
          trim_start_time, trim_end_time, rotation_type, deconv_domain, parallel=True, memmap=False,
-         temp_dir=None, aggressive_dispatch=False):
+         temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
     """
@@ -207,6 +209,10 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
+
+    if channel_pattern is not None:
+        channel_pattern = channel_pattern.strip()
+        logger.info("Using channel matching pattern {}".format(channel_pattern))
 
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
@@ -224,14 +230,14 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type, 
                                              filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
                                              deconv_domain)
-             for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap))
+             for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
     else:
         # Process in serial
         logger.info("Serial processing")
         status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
                                               filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
                                               deconv_domain)
-                       for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap)))
+                       for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
     # end if
     num_tasks = len(status)
     num_success = np.sum(status)
