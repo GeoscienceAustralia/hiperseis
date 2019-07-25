@@ -409,7 +409,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost.
 
-    # Output resulting station streams. Only keeping the primary RF stream since the others are not needed 
+    # Output resulting station streams. Only keeping the primary RF stream since the others are not needed
     # for RF analysis. Merge RF streams with raw waveforms for those events that made it through filtering.
     event_ids = set([tr.stats.event_id for tr in p_stream])
     for tr in raw_streams:

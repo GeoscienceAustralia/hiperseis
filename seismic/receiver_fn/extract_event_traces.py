@@ -54,7 +54,7 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
         min_magnitude = magnitude_range[0]
         max_magnitude = magnitude_range[1]
         client = Client('ISC')
-        kwargs = {'starttime': starttime, 'endtime': endtime, 
+        kwargs = {'starttime': starttime, 'endtime': endtime,
                   'latitude': lonlat[1], 'longitude': lonlat[0],
                   'minradius': distance_range[0], 'maxradius': distance_range[1],
                   'minmagnitude': min_magnitude, 'maxmagnitude': max_magnitude}
