@@ -211,7 +211,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 1000))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 200))
     output_thread.daemon = True
     output_thread.start()
 

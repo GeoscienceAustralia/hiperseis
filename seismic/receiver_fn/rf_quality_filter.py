@@ -19,6 +19,7 @@ from scipy import stats
 
 from sklearn.cluster import DBSCAN
 from joblib import Parallel, delayed
+import obspy
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
@@ -351,7 +352,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     freq_min = 0.25
     freq_max = 2.0
     p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)\
-                       .interpolate(sampling_rate=4*freq_max, method='lanczos')
+                       .interpolate(sampling_rate=4*freq_max, method='lanczos', a=20)
 
     # Compute S/N ratio for RFs
     rms, rms_env = compute_onset_snr(p_stream)
