@@ -112,7 +112,7 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
             # end try
 
             bazr = np.radians(baz)
-            tdata = - ste[0].data * np.cos(bazr) + stn[0].data * np.sin(bazr)
+            tdata = -ste[0].data * np.cos(bazr) + stn[0].data * np.sin(bazr)
 
             stt = ste.copy()
             stt[0].data = tdata

@@ -306,6 +306,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "information.")
 @click.option('--instrument-response-output',
               type=click.Choice(['vel', 'disp']),
+              show_default=True,
               default='vel', help="Output of instrument response correction; must be either 'vel' (default) for velocity"
                                   " or 'disp' for displacement. Note, this parameter has no effect if instrument response"
                                   " correction is not performed.")

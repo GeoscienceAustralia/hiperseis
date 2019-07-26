@@ -482,6 +482,10 @@ def IntervalStackXCorr(refds, tempds,
     #######################################
     # check consistency of parameterization
     #######################################
+    if(resample_rate and fhi):
+        if(resample_rate < fhi):
+            raise RuntimeError('Resample-rate should be >= fmax')
+
     if(whitening and (ref_sta_inv or temp_sta_inv)):
         raise RuntimeError('Mutually exclusive parameterization: specify either spectral whitening or '
                            'instrument response removal')
