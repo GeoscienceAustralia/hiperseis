@@ -125,7 +125,7 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
                        resample_rate=1,
                        buffer_seconds=interval_seconds,
                        interval_seconds=interval_seconds,
-                       window_seconds=window_seconds, flo=0.01, fhi=5,
+                       window_seconds=window_seconds, flo=0.01, fhi=0.5,
                        clip_to_2std=clip_to_2std, whitening=whitening,
                        one_bit_normalize=one_bit_normalize, envelope_normalize=envelope_normalize,
                        ensemble_stack=ensemble_stack,

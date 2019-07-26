@@ -137,7 +137,13 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     itr1s = (dayAlignedStartTime - tr1.stats.starttime) * sr1
     itr2s = (dayAlignedStartTime - tr2.stats.starttime) * sr2
 
+    obspy_resample_no_filter = True
     if(resample_rate):
+
+        # Apply Obspy anti-aliasing filter only if fhi is None
+        if (fhi is None):
+            obspy_resample_no_filter = False
+
         sr1 = resample_rate
         sr2 = resample_rate
     # end if
@@ -257,10 +263,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 if(resample_rate):
                     tr1_d = Trace(data=tr1_d,
                                   header=Stats(header={'sampling_rate':sr1_orig,
-                                                       'npts':window_samples_1})).resample(resample_rate).data
+                                                       'npts':window_samples_1})).resample(resample_rate,
+                                                                                           no_filter=obspy_resample_no_filter).data
                     tr2_d = Trace(data=tr2_d,
                                   header=Stats(header={'sampling_rate':sr2_orig,
-                                                       'npts':window_samples_2})).resample(resample_rate).data
+                                                       'npts':window_samples_2})).resample(resample_rate,
+                                                                                           no_filter=obspy_resample_no_filter).data
                 # end if
 
                 # clip to +/- 2*std
