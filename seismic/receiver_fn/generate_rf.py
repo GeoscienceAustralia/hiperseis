@@ -66,13 +66,13 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         return False
     # end if
 
-    # If traces have inconsistent time ranges, clip to time range during which they overlap
+    # If traces have inconsistent time ranges, clip to time range during which they overlap. Not guaranteed
+    # to make time ranges consistent due to possible inconsistent sampling times across channels.
     start_times = np.array([tr.stats.starttime for tr in stream3c])
     end_times = np.array([tr.stats.endtime for tr in stream3c])
-    if not np.all(start_times == start_times[0]) or np.all(end_times == end_times[0]):
+    if not (np.all(start_times == start_times[0]) and np.all(end_times == end_times[0])):
         clip_start_time = np.max(start_times)
         clip_end_time = np.min(end_times)
-        # Using obspy trim here, since times are not relative to onset
         stream3c.trim(clip_start_time, clip_end_time)
     # end if
 
@@ -116,18 +116,23 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # end if
 
     # Compute SNR of prior traces after rotation but before RF computation.
-    stream_rotated = stream_zne.copy()
-    stream_rotated.rotate(rf_rotation)
-    compute_source_snr(stream_rotated)
-    # Copy SNR metadata back from rotated stream to original stream
-    channel_mapping = {'L': 'Z', 'Q': 'N', 'T': 'E', 'Z': 'Z', 'R': 'N'}
-    for i, tr in enumerate(stream_zne):
-        # Check assumption that rotation preserves ordering
-        assert tr.stats.channel[-1] == channel_mapping[stream_rotated[i].stats.channel[-1]], "{}: {} != {}".format(i,
-            tr.stats.channel[-1], channel_mapping[stream_rotated[i].stats.channel[-1]])
-        metadata = {'snr_prior': stream_rotated[i].stats['snr_prior']}
-        tr.stats.update(metadata)
-    # end for
+    try:
+        stream_rotated = stream_zne.copy()
+        stream_rotated.rotate(rf_rotation)
+        compute_source_snr(stream_rotated)
+        # Copy SNR metadata back from rotated stream to original stream
+        for i, tr in enumerate(stream_zne):
+            metadata = {'snr_prior': stream_rotated[i].stats['snr_prior']}
+            tr.stats.update(metadata)
+        # end for
+    except ValueError as e:
+        logger.error("Failed to rotate stream {}:\n{}\nwith error:\n{}\nUnable to compute 'snr_prior'.".format(
+                     ev_id, stream3c, str(e)))
+        metadata = {'snr_prior': np.nan}
+        for tr in stream_zne:
+            tr.stats.update(metadata)
+        # end for
+    # end try
 
     try:
         if deconv_domain == 'time':
