@@ -45,8 +45,7 @@ def test_conflict_2s(random_filename, custom_conf_2s):
     yaml_file = random_filename(ext='.yaml')
     with open(yaml_file, 'w') as outfile:
         yaml.dump(custom_conf_2s, outfile, default_flow_style=False)
-    with pytest.raises(config.ConfigException, message='Too many inputs '
-                                                       'provided'):
+    with pytest.raises(config.ConfigException):
         config.Config(yaml_file)
 
 
@@ -56,8 +55,7 @@ def test_conflict(random_filename, conf, params_dict):
     yaml_file = random_filename(ext='.yaml')
     with open(yaml_file, 'w') as outfile:
         yaml.dump(conf, outfile, default_flow_style=False)
-    with pytest.raises(config.ConfigException, message='Too many inputs '
-                                                       'provided'):
+    with pytest.raises(config.ConfigException):
         config.Config(yaml_file)
 
 

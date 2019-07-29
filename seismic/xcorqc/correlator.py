@@ -22,35 +22,13 @@ from scipy.spatial import cKDTree
 import click
 
 from mpi4py import MPI
-from obspy import UTCDateTime, read_inventory, Inventory
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-
+from obspy import UTCDateTime, read_inventory, Inventory
+from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
-
-
-# define utility functions
-def rtp2xyz(r, theta, phi):
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta)
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
-
-
-def xyz2rtp(x, y, z):
-    rout = np.zeros((x.shape[0], 3))
-    tmp1 = x * x + y * y
-    tmp2 = tmp1 + z * z
-    rout[0] = np.sqrt(tmp2)
-    rout[1] = np.arctan2(sqrt(tmp1), z)
-    rout[2] = np.arctan2(y, x)
-    return rout
-# end func
-
+from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
@@ -65,7 +43,7 @@ class Dataset:
         self.metadata = defaultdict(list)
 
         rtps = []
-        for netsta in self.fds.unique_coordinates.keys():
+        for netsta in list(self.fds.unique_coordinates.keys()):
             if(netsta_list_subset != '*'):
                 if netsta not in netsta_list_subset:
                     continue
@@ -89,7 +67,7 @@ class Dataset:
     # end func
 
     def get_closest_stations(self, netsta, other_dataset, nn=1):
-        assert isinstance(netsta, basestring), 'station_name must be a string'
+        assert isinstance(netsta, str), 'station_name must be a string'
         assert isinstance(other_dataset, Dataset), 'other_dataset must be an instance of Dataset'
         netsta = netsta.upper()
 
@@ -145,41 +123,16 @@ class Dataset:
     # end func
 # end class
 
-def getStationInventory(master_inventory, inventory_cache, netsta):
-    netstaInv = None
-    if (master_inventory):
-        if (inventory_cache is None): inventory_cache = defaultdict(list)
-        net, sta = netsta.split('.')
-
-        if (isinstance(inventory_cache[netsta], Inventory)):
-            netstaInv = inventory_cache[netsta]
-        else:
-            inv = master_inventory.select(network=net, station=sta)
-            if(len(inv.networks)):
-                inventory_cache[netsta] = inv
-                netstaInv = inv
-            # end if
-        # end if
-    # end if
-
-    return netstaInv, inventory_cache
-# end func
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
-# end func
-
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds,
             resample_rate=None, nearest_neighbours=1,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*',
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
-            instrument_response_inventory=None,
+            instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
-            ds2_zchan=None, ds2_nchan=None, ds2_echan=None,
-            envelope_normalize=False, ensemble_stack=False):
+            ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
+            envelope_normalize=False, ensemble_stack=False, restart=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -213,26 +166,31 @@ def process(data_source1, data_source2, output_path,
 
             f = open(fn, 'w+')
             f.write('Parameters Values:\n\n')
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
-            f.write('%25s\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
-            f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
-            f.write('%25s\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
-            f.write('%25s\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
+            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
+            f.write('%25s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%25s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
+            f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
 
-            f.write('%25s\t\t: %s\n' % ('--resample-rate', resample_rate))
-            f.write('%25s\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
-            f.write('%25s\t\t: %s\n' % ('--fmin', fmin))
-            f.write('%25s\t\t: %s\n' % ('--fmax', fmax))
-            f.write('%25s\t\t: %s\n' % ('--station-names1', netsta_list1))
-            f.write('%25s\t\t: %s\n' % ('--station-names2', netsta_list2))
-            f.write('%25s\t\t: %s\n' % ('--start-time', start_time))
-            f.write('%25s\t\t: %s\n' % ('--end-time', end_time))
-            f.write('%25s\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
-            f.write('%25s\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
-            f.write('%25s\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
-            f.write('%25s\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
-            f.write('%25s\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
-            f.write('%25s\t\t: %s\n' % ('--whitening', whitening))
+            f.write('%25s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
+            f.write('%25s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
+            f.write('%25s\t\t\t: %s\n' % ('--fmin', fmin))
+            f.write('%25s\t\t\t: %s\n' % ('--fmax', fmax))
+            f.write('%25s\t\t\t: %s\n' % ('--station-names1', netsta_list1))
+            f.write('%25s\t\t\t: %s\n' % ('--station-names2', netsta_list2))
+            f.write('%25s\t\t\t: %s\n' % ('--start-time', start_time))
+            f.write('%25s\t\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
+            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
+            f.write('%25s\t\t\t: %s\n' % ('--corr-chan', corr_chan))
+            f.write('%25s\t\t\t: %s\n' % ('--water-level', water_level))
+            f.write('%25s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
+            f.write('%25s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%25s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+            f.write('%25s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
+            f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
+            f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
+            f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
 
             f.close()
         # end func
@@ -258,17 +216,50 @@ def process(data_source1, data_source2, output_path,
         # end try
     # end if
 
+    # Progress tracker
+    progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
+
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
     for pair in proc_stations[rank]:
         netsta1, netsta2 = pair
 
+        if (progTracker.increment()):
+            pass
+        else:
+            print (('Found results for station-pair: %s.%s. Moving along..'%(netsta1, netsta2)))
+            continue
+        # end if
+
         netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
         netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
 
+        corr_chans = []
+        if   (corr_chan == 'z'): corr_chans = [ds1_zchan, ds2_zchan]
+        elif (corr_chan == 'n'): corr_chans = [ds1_nchan, ds2_nchan]
+        elif (corr_chan == 'e'): corr_chans = [ds1_echan, ds2_echan]
+        elif (corr_chan == 't'): corr_chans = ['00T', '00T']
+        else: raise ValueError('Invalid corr-chan')
+
+        baz_netsta1 = None
+        baz_netsta2 = None
+        if(corr_chan == 't'):
+            try:
+                sta1_lon, sta1_lat = ds1.fds.unique_coordinates[netsta1]
+                sta2_lon, sta2_lat = ds2.fds.unique_coordinates[netsta2]
+                _, baz_netsta2, baz_netsta1 = gps2dist_azimuth(sta1_lat, sta1_lon, sta2_lat, sta2_lon)
+            except Exception as e:
+                print (e)
+                print (('Failed to compute back-azimuth for station-pairs; skipping %s.%s; '%(netsta1, netsta2)))
+                continue
+            # end try
+        # end if
+
         x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
                                                         endTime, netsta1, netsta2, netsta1inv, netsta2inv,
-                                                        ds1_zchan, ds2_zchan,
+                                                        instrument_response_output, water_level,
+                                                        corr_chans[0], corr_chans[1],
+                                                        baz_netsta1, baz_netsta2,
                                                         resample_rate, read_buffer_size, interval_seconds,
                                                         window_seconds, fmin, fmax, clip_to_2std, whitening,
                                                         one_bit_normalize, envelope_normalize, ensemble_stack,
@@ -313,6 +304,15 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="FDSNxml inventory containing instrument response information. Note that when this parameter is provided "
                    ", instrument response corrections are automatically applied for matching stations with response "
                    "information.")
+@click.option('--instrument-response-output',
+              type=click.Choice(['vel', 'disp']),
+              show_default=True,
+              default='vel', help="Output of instrument response correction; must be either 'vel' (default) for velocity"
+                                  " or 'disp' for displacement. Note, this parameter has no effect if instrument response"
+                                  " correction is not performed.")
+@click.option('--water-level', default=50., help="Water-level in dB to limit amplification during instrument response correction"
+                                                 "to a certain cut-off value. Note, this parameter has no effect if instrument"
+                                                 "response correction is not performed.")
 @click.option('--clip-to-2std', is_flag=True,
               help="Clip data in each window to +/- 2 standard deviations")
 @click.option('--whitening', is_flag=True,
@@ -342,6 +342,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--ds2-echan', default='BHE',
               type=str,
               help="Name of e-channel for data-source-2")
+@click.option('--corr-chan', type=click.Choice(['z', 'n', 'e', 't']), default='z',
+              help="Channels to be cross-correlated. Default is 'z' and 't' is for the transverse component"
+                   ", rotated through Obspy NE->RT functionality, based on back-azimuth between station-pairs")
 @click.option('--envelope-normalize', is_flag=True, help="Envelope (via Hilbert transform) and normalize CCs. "
                                                          "This procedure is useful for clock-error detection "
                                                          "workflows")
@@ -350,11 +353,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "'interval-seconds' are in turn stacked to produce a "
                                                      "single CC function, aimed at producing empirical Greens "
                                                      "functions for surface wave tomography.")
+@click.option('--restart', default=False, is_flag=True, help='Restart job')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-         end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize,
-         read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan,
-         envelope_normalize, ensemble_stack):
+         end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
+         whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
+         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -370,9 +374,9 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, instrument_response_inventory, clip_to_2std, whitening, one_bit_normalize, read_buffer_size,
-            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, envelope_normalize,
-            ensemble_stack)
+            end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
+            whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
+            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart)
 # end func
 
 if __name__ == '__main__':
