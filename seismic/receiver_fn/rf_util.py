@@ -7,6 +7,7 @@ import logging
 import copy
 
 import numpy as np
+from scipy import signal
 from scipy.signal import hilbert
 
 import rf
@@ -222,3 +223,96 @@ def compute_extra_rf_stats(db_station):
             tr.stats.amp_80pc = amp_80pc
         # end for
     # end for
+
+
+def compute_source_snr(src_stream):
+    """Compute the SNR of the reference component (Z or L after rotation but before deconvolution)
+    including the onset pulse (key 'snr_prior'). Stored results in metadata of input stream traces.
+
+    :param src_stream: Seismic traces after rotation of raw stream.
+    :type src_stream: rf.RFStream
+    """
+    logger = logging.getLogger(__name__)
+
+    # Compute max envelope amplitude from onset onwards relative to max envelope before onset.
+    PRIOR_PICK_SIGNAL_WINDOW = (-5.0, 25.0)
+    PRIOR_NOISE_SIGNAL_WINDOW = (None, -5.0)
+    pick_signal = src_stream.slice2(*PRIOR_PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = pick_signal.taper(0.5, max_length=0.5)
+    pick_signal = np.array([tr.data for tr in pick_signal])
+    if len(pick_signal.shape) == 1:
+        pick_signal = pick_signal.reshape(1, -1)
+    # Compute envelope of all traces
+    pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
+
+    noise = src_stream.slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
+    # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
+    noise = noise.taper(0.5, max_length=0.5)
+    noise = np.array([tr.data for tr in noise])
+    if len(noise.shape) == 1:
+        noise = noise.reshape(1, -1)
+    noise = np.absolute(signal.hilbert(noise, axis=1))
+
+    if pick_signal.shape[0] != noise.shape[0]:
+        logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
+                     .format(pick_signal.shape, noise.shape))
+        md_dict = {'snr_prior': np.nan}
+        for tr in src_stream:
+            tr.stats.update(md_dict)
+        # end for
+    else:
+        snr_prior = np.max(pick_signal, axis=1) / np.max(noise, axis=1)
+        for i, tr in enumerate(src_stream):
+            md_dict = {'snr_prior': snr_prior[i]}
+            tr.stats.update(md_dict)
+        # end for
+    # end if
+
+
+def compute_rf_snr(rf_stream):
+    """Compute signal to noise (S/N) ratio of the RF itself about the onset pulse (key 'snr').
+
+    In the LQT rotation case when rotation is working ideally, the onset pulse of the rotated transverse
+    signals should be minimal, and a large pulse at t = 0 indicates lack of effective rotation of coordinate
+    system, so for 'snr' we use a long time window after onset pulse, deliberately excluding the onset
+    pulse, to maximize contribution to the SNR from the multiples after the onset pulse.
+
+    :param rf_stream: R or Q component of Receiver Function
+    :type rf_stream: rf.RFStream
+    :return: SNR for each trace in the input stream
+    :rtype: numpy.array
+    """
+    logger = logging.getLogger(__name__)
+
+    PICK_SIGNAL_WINDOW = (1.0, 20.0)  # Consider tying the start of this window to 2x the minimum period present
+    NOISE_SIGNAL_WINDOW = (None, -2.0)
+
+    # Take everything up to 2 sec before onset as noise signal.
+    noise = rf_stream.slice2(*NOISE_SIGNAL_WINDOW, reftime='onset')
+    # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
+    noise = noise.taper(0.5, max_length=0.5)
+    noise = np.array([tr.data for tr in noise])
+    if len(noise.shape) == 1:
+        noise = noise.reshape(1, -1)
+
+    # The time window from 1 sec before to 2 sec after onset as the RF P signal
+    pick_signal = rf_stream.slice2(*PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = pick_signal.taper(0.5, max_length=0.5)
+    pick_signal = np.array([tr.data for tr in pick_signal])
+    if len(pick_signal.shape) == 1:
+        pick_signal = pick_signal.reshape(1, -1)
+
+    if pick_signal.shape[0] != noise.shape[0]:
+        logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
+                     .format(pick_signal.shape, noise.shape))
+        md_dict = {'snr': np.nan}
+        for tr in rf_stream:
+            tr.stats.update(md_dict)
+        # end for
+    else:
+        snr = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
+        for i, tr in enumerate(rf_stream):
+            md_dict = {'snr': snr[i]}
+            tr.stats.update(md_dict)
+        # end for
+    # end if

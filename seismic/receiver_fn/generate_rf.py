@@ -16,6 +16,7 @@ except ImportError:
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
+from seismic.receiver_fn.rf_util import compute_source_snr
 
 
 logging.basicConfig()
@@ -37,7 +38,7 @@ MIN_RAW_RESAMPLE_RATE_HZ = 20.0
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
-    """Generate receiver function for a single 3-channel stream.
+    """Generate P-phase receiver functions for a single 3-channel stream.
 
     :param ev_id: The event id
     :type ev_id: int
@@ -104,6 +105,20 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         rf_rotation = 'ZNE->LQT'
     # end if
 
+    # Compute SNR of prior traces after rotation but before RF computation.
+    stream_rotated = stream_zne.copy()
+    stream_rotated.rotate(rf_rotation)
+    compute_source_snr(stream_rotated)
+    # Copy SNR metadata back from rotated stream to original stream
+    channel_mapping = {'L': 'Z', 'Q': 'N', 'T': 'E', 'Z': 'Z', 'R': 'N'}
+    for i, tr in enumerate(stream_zne):
+        # Check assumption that rotation preserves ordering
+        assert tr.stats.channel[-1] == channel_mapping[stream_rotated[i].stats.channel[-1]], "{}: {} != {}".format(i,
+            tr.stats.channel[-1], channel_mapping[stream_rotated[i].stats.channel[-1]])
+        metadata = {'snr_prior': stream_rotated[i].stats['snr_prior']}
+        tr.stats.update(metadata)
+    # end for
+
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
@@ -144,7 +159,11 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         return False
 
     for tr in stream3c:
-        metadata = {'amax': np.amax(tr.data), 'event_id': ev_id}
+        metadata = {
+            'amax': np.amax(tr.data),
+            'event_id': ev_id,
+            'rotation': rotation_type
+        }
         tr.stats.update(metadata)
     # end for
 

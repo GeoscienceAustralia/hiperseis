@@ -23,8 +23,8 @@ import obspy
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
-# from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvents
+from seismic.receiver_fn.rf_util import compute_rf_snr
 
 # from tqdm import tqdm
 
@@ -153,73 +153,6 @@ def compute_max_coherence(orig_stream, f1, f2):
 #     knive = np.array(knive)
 #     sn = np.array(sn)
 #     return knive < k_level, sn > sn_level
-
-
-def compute_onset_snr(stream):
-    """Compute signal to noise (S/N) ratio about the onset pulse.
-
-       Remember that the onset pulse of the rotated signals should be minimal, and a large pulse
-       at t = 0 indicates lack of effective rotation of coordinate system, so we use a long time window
-       after onset pulse, deliberately excluding the onset pulse, to allow contribution to the SNR from
-       the multiples after the onset pulse.
-
-    :param stream: [description]
-    :type stream: [type]
-    :return: [description]
-    :rtype: numpy.array
-    """
-    logger = logging.getLogger(__name__)
-
-    PICK_SIGNAL_WINDOW = (2.0, 20.0)
-    NOISE_SIGNAL_WINDOW = (None, -2.0)
-
-    # Take everything up to 2 sec before onset as noise signal.
-    noise = stream.slice2(*NOISE_SIGNAL_WINDOW, reftime='onset')
-    # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
-    noise = noise.taper(0.5, max_length=0.5)
-    noise = np.array([tr.data for tr in noise])
-    if len(noise.shape) == 1:
-        noise = noise.reshape(1, -1)
-
-    # The time window from 1 sec before to 2 sec after onset as the RF P signal
-    pick_signal = stream.slice2(*PICK_SIGNAL_WINDOW, reftime='onset')
-    pick_signal = pick_signal.taper(0.5, max_length=0.5)
-    pick_signal = np.array([tr.data for tr in pick_signal])
-    if len(pick_signal.shape) == 1:
-        pick_signal = pick_signal.reshape(1, -1)
-
-    if pick_signal.shape[0] != noise.shape[0]:
-        logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
-                     .format(pick_signal.shape, noise.shape))
-        return None, None
-    # end if
-
-    rms = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
-
-    # Compute RMS of envelope (complex amplitude) rather than pure
-    # wave amplitude, to capture the energy in the time rate of change.
-    pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
-    noise = np.absolute(signal.hilbert(noise, axis=1))
-    rms_env = np.sqrt(np.mean(np.square(pick_signal), axis=1) / np.mean(np.square(noise), axis=1))
-
-    return rms, rms_env
-
-
-# def remove_small_s2n(stream, min_snr):
-#     """Filter out streams with low signal to noise (S/N) ratio.
-
-#     :param stream: [description]
-#     :type stream: [type]
-#     :param min_snr: [description]
-#     :type min_snr: [type]
-#     :return: [description]
-#     :rtype: [type]
-#     """
-#     rms, rms_env = compute_onset_snr(stream)
-#     rms_mask = (rms >= min_snr) | (rms_env >= min_snr)
-#     newstream = rf.RFStream([s for i, s in enumerate(stream) if rms_mask[i]])
-
-#     return newstream
 
 
 def spectral_entropy(stream):
@@ -354,30 +287,22 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)\
                        .interpolate(sampling_rate=4*freq_max, method='lanczos', a=20)
 
-    # Compute S/N ratio for RFs
-    rms, rms_env = compute_onset_snr(p_stream)
-    if rms is not None:
-        for i, tr in enumerate(p_stream):
-            md_dict = {'snr': rms[i], 'snr_env': rms_env[i]}
-            tr.stats.update(md_dict)
-        # end for
-    else:
-        md_dict = {'snr': np.nan, 'snr_env': np.nan}
-        for tr in p_stream:
-            tr.stats.update(md_dict)
-        # end for
-    # end if
+    # Compute S/N ratios for RFs
+    compute_rf_snr(p_stream)
 
     # Compute spectral entropy for all traces
-    spentropy = spectral_entropy(p_stream)
+    sp_entropy = spectral_entropy(p_stream)
     for i, tr in enumerate(p_stream):
-        md_dict = {'entropy': spentropy[i]}
+        md_dict = {'entropy': sp_entropy[i]}
         tr.stats.update(md_dict)
     # end for
 
-    # Compute coherence metric within targeted normalized frequency band
-    fn_low = 0.3
-    fn_high = 0.6
+    # Compute coherence metric within targeted normalized frequency band.
+    # Note that settings here are relative to the sampling rate. If the sampling
+    # rate changes and you want the same absolute frequency range to be used for
+    # coherence, then these settings need to be updated.
+    fn_low = 0.15
+    fn_high = 0.3
     max_coherence = compute_max_coherence(p_stream, fn_low, fn_high)
     for i, tr in enumerate(p_stream):
         md_dict = {'max_coherence': max_coherence[i]}
@@ -411,10 +336,22 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
 
     # Output resulting station streams. Only keeping the primary RF stream since the others are not needed
     # for RF analysis. Merge RF streams with raw waveforms for those events that made it through filtering.
-    event_ids = set([tr.stats.event_id for tr in p_stream])
+    event_ids = {tr.stats.event_id: tr for tr in p_stream}
     for tr in raw_streams:
         if tr.stats.event_id in event_ids:
+            # If it is the Z component, copy its SNR to the RF stream for convenient access later.
+            if tr.stats.channel[-1].upper() == 'Z':
+                if 'snr_prior' in tr.stats:
+                    md_dict = {'snr_prior': tr.stats['snr_prior']}
+                else:
+                    md_dict = {'snr_prior': np.nan}
+                # end if
+                p_trace = event_ids[tr.stats.event_id]
+                p_trace.stats.update(md_dict)
+            # end if
             p_stream.append(tr)
+        # end if
+    # end for
 
     oqueue.put(p_stream)
 
