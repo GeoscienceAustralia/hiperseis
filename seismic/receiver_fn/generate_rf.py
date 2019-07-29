@@ -109,6 +109,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
                             **kwargs).interpolate(resample_rate_hz)
+            kwargs.update({'spiking': 0.1})
             stream3c.rf(rotate=rf_rotation, **kwargs)
         else:
             # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
