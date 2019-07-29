@@ -57,29 +57,39 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # Apply essential sanity checks before trying to compute RFs.
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
-            logger.warning("WARNING: Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
+            logger.warning("Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
             return False
     # end for
 
     if len(stream3c) != 3:
-        logger.warning("WARNING: Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
+        logger.warning("Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
         return False
     # end if
 
+    # If traces have inconsistent time ranges, clip to time range during which they overlap
+    start_times = np.array([tr.stats.starttime for tr in stream3c])
+    end_times = np.array([tr.stats.endtime for tr in stream3c])
+    if not np.all(start_times == start_times[0]) or np.all(end_times == end_times[0]):
+        clip_start_time = np.max(start_times)
+        clip_end_time = np.min(end_times)
+        # Using obspy trim here, since times are not relative to onset
+        stream3c.trim(clip_start_time, clip_end_time)
+    # end if
+
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
-        logger.warning("WARNING: Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
+        logger.warning("Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
                        .format(ev_id, stream3c))
         return False
     # end if
 
     for tr in stream3c:
         if np.all(np.isnan(tr.data)):
-            logger.warning("WARNING: All NaN in trace {} of stream {} (skipping):\n{}"
+            logger.warning("All NaN in trace {} of stream {} (skipping):\n{}"
                            .format(tr.stats.channel, ev_id, stream3c))
             return False
     # end for
 
-    # Appy conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
+    # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
     # the Nyquist freq to make sure almost no high freq energy leaking through the filter can
     # alias down into the frequency bands of interest.
     raw_resample_rate = max(MIN_RAW_RESAMPLE_RATE_HZ, resample_rate_hz)
@@ -154,7 +164,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # for downstream analysis.
 
     if len(stream3c) != 3:
-        logger.warning("WARNING: Unexpected number of channels in stream {} after trim (skipping):\n{}"
+        logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
                        .format(ev_id, stream3c))
         return False
 
