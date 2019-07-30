@@ -262,17 +262,17 @@ class FederatedASDFDataSetDBVariant():
         query += ' group by net, sta, loc, cha'
 
         rows = self.conn.execute(query).fetchall()
-        results = []
+        results = set()
         for row in rows:
             ds_id, net, sta, loc, cha, st, et, tag = row
 
-            rv = [net, sta, loc, cha,
+            rv = (net, sta, loc, cha,
                   self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][0],
-                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][1]]
-            results.append(rv)
+                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][1])
+            results.add(rv)
         # end for
 
-        return results
+        return list(results)
     # end func
 
     def get_waveform_count(self, network, station, location, channel, starttime,
