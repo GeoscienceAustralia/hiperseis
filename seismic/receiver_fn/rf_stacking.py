@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 
 import seismic.receiver_fn.rf_util as rf_util
 
+# pylint: disable=invalid-name
 
 logging.basicConfig()
 
@@ -22,14 +23,17 @@ def compute_hk_stack(db_station, cha, h_range=np.linspace(10.0, 70.0, 301), k_ra
 
     stream_stack = []
     cha_data = db_station[cha]
-    # Loop over streams, compute times, and stack interpolated values at those times
-    for s in cha_data:
-        incidence = s.stats.inclination
-        incidence_rad = incidence*np.pi/180.0
-        cos_i, sin_i = np.cos(incidence_rad), np.sin(incidence_rad)
-        sin2_i = sin_i*sin_i
-        term1 = H_on_V_p*k_grid*np.abs(cos_i)
-        term2 = H_on_V_p*np.sqrt(1 - k2*sin2_i)
+    # Loop over traces, compute times, and stack interpolated values at those times
+    for tr in cha_data:
+        incl = tr.stats.inclination
+        incl_rad = incl*np.pi/180.0
+        sin_i = np.sin(incl_rad)
+        slowness_sec_per_km = tr.stats.slowness/rf_util.KM_PER_DEG
+        # p is the ray parameter
+        p = sin_i*slowness_sec_per_km
+        p2_Vp2 = p*p*V_p*V_p
+        term1 = H_on_V_p*np.sqrt(k2 - p2_Vp2)
+        term2 = H_on_V_p*np.sqrt(1 - p2_Vp2)
         # Time for Ps
         t1 = term1 - term2
         # Time for PpPs
@@ -39,10 +43,10 @@ def compute_hk_stack(db_station, cha, h_range=np.linspace(10.0, 70.0, 301), k_ra
             t3 = 2*term1
 
         # Subtract lead time so that primary P-wave arrival is at time zero.
-        lead_time = s.stats.onset - s.stats.starttime
-        times = s.times() - lead_time
+        lead_time = tr.stats.onset - tr.stats.starttime
+        times = tr.times() - lead_time
         # Create interpolator from stream signal for accurate time sampling.
-        interpolator = interp1d(times, s.data, kind='linear', copy=False, bounds_error=False, assume_sorted=True)
+        interpolator = interp1d(times, tr.data, kind='linear', copy=False, bounds_error=False, assume_sorted=True)
 
         phase_sum = []
         phase_sum.append(rf_util.signed_nth_root(interpolator(t1), root_order))
