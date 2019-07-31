@@ -169,16 +169,18 @@ def get_existing_index(rf_trace_datafile):
 @click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help=r'Path to input inventory file corresponding to waveform file, '
               r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
-@click.option('--waveform-database', type=click.Path(exists=True, dir_okay=False), required=True,
+@click.option('--waveform-database', type=click.Path(exists=True, dir_okay=False), required=False,
               help=r'Path to waveform database definition file for FederatedASDFDataSet from which to extract traces '
-                   r'for RF analysis, e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"')
+                   r'for RF analysis, e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt". '
+                   'If not provided, then waveforms will be queried from ISC web service.')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
               'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web '
               'service. Note that for traceability, start and end times will be appended to file name.')
 @click.option('--rf-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to output file, e.g. "7X_event_waveforms_for_rf.h5". '
-              'Note that for traceability, start and end times will be appended to file name.')
+              'Note that for traceability, start and end times will be appended to file name. '
+              'If file already exists, pre-existing records will be preserved, not overwritten.')
 @click.option('--start-time', type=str, default='', show_default=True,
               help='Start datetime in ISO 8601 format, e.g. "2009-06-16T03:42:00". '
                    'If empty, will be inferred from the inventory file.')
@@ -232,18 +234,23 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
-
     # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
-    # Form closure to allow waveform source file to be derived from a setting (or command line input)
-    asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
-    def closure_get_waveforms(network, station, location, channel, starttime, endtime):
-        return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
-
-    existing_index = get_existing_index(rf_trace_datafile)
+    if waveform_database:
+        # Form closure to allow waveform source file to be derived from a setting (or command line input)
+        asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
+        def closure_get_waveforms(network, station, location, channel, starttime, endtime):
+            return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
+        existing_index = get_existing_index(rf_trace_datafile)
+        waveform_getter = closure_get_waveforms
+    else:
+        existing_index = None
+        client = Client('ISC')
+        waveform_getter = client.get_waveforms
+    # end if
 
     with tqdm(smoothing=0) as pbar:
-        for s in iter_event_data(catalog, inventory, closure_get_waveforms, pbar=pbar):
+        for s in iter_event_data(catalog, inventory, waveform_getter, pbar=pbar):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
             # be overwritten rather than duplicated.
