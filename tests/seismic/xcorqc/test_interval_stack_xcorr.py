@@ -141,11 +141,11 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     de = Dataset(fn)
     xcorr_e = de.variables['xcorr'][:]
 
-    rtol = 1e-2
-    atol = 1e-2
+    rtol = 1e-1
+    atol = 1e-1
     if(clip_to_2std or whitening or one_bit_normalize):
-        rtol *= 50
-        atol *= 50
+        rtol = 0.5
+        atol = 0.5
     # end if
 
     assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
