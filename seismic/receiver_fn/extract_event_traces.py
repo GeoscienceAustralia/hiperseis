@@ -189,7 +189,7 @@ def get_existing_index(rf_trace_datafile):
                    'If empty, will be inferred from the inventory file.')
 @click.option('--distance-range', type=(float, float), default=(30.0, 90.0), show_default=True,
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
-@click.option('--magnitude-range', type=(float, float), default=(5.0, 7.0), show_default=True,
+@click.option('--magnitude-range', type=(float, float), default=(5.5, 7.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
 def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time,
          distance_range, magnitude_range):
