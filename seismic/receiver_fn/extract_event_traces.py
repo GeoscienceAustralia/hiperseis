@@ -187,11 +187,14 @@ def get_existing_index(rf_trace_datafile):
 @click.option('--end-time', type=str, default='', show_default=True,
               help='End datetime in ISO 8601 format, e.g. "2011-04-01T23:18:49". '
                    'If empty, will be inferred from the inventory file.')
+@click.option('--taup-model', type=str, default='iasp91', show_default=True,
+              help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
+                   'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
 @click.option('--distance-range', type=(float, float), default=(30.0, 90.0), show_default=True,
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
 @click.option('--magnitude-range', type=(float, float), default=(5.5, 7.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
-def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time,
+def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time, taup_model,
          distance_range, magnitude_range):
 
     assert not os.path.exists(rf_trace_datafile), \
@@ -250,7 +253,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     # end if
 
     with tqdm(smoothing=0) as pbar:
-        for s in iter_event_data(catalog, inventory, waveform_getter, pbar=pbar):
+        for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
             # be overwritten rather than duplicated.
