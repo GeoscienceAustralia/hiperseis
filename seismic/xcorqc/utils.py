@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.spatial import cKDTree
 from collections import defaultdict
-from obspy import UTCDateTime, read_inventory, Inventory
+from obspy import UTCDateTime, read_inventory, Inventory, Stream
 from obspy.geodetics.base import gps2dist_azimuth
 
 # define utility functions
@@ -64,7 +64,7 @@ def drop_bogus_traces(st, sampling_rate_cutoff=1):
 # end func
 
 def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
-                      baz=None, automerge=False, trace_count_threshold=200,
+                      baz=None, trace_count_threshold=200,
                       logger=None, verbose=1):
 
     stations = fds.get_stations(start_time, end_time, network=net, station=sta)
@@ -72,19 +72,17 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
     stations_nch = [s for s in stations if 'N' == s[3][-1].upper() or '1' == s[3][-1]]  # only N channels
     stations_ech = [s for s in stations if 'E' == s[3][-1].upper() or '2' == s[3][-1]]  # only E channels
 
-    stt = None
+    stt = Stream()
     if (len(stations_nch) > 0 and len(stations_nch) == len(stations_ech)):
         for codesn, codese in zip(stations_nch, stations_ech):
 
             stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                     start_time,
                                     end_time,
-                                    automerge=automerge,
                                     trace_count_threshold=trace_count_threshold)
             ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
                                     start_time,
                                     end_time,
-                                    automerge=automerge,
                                     trace_count_threshold=trace_count_threshold)
 
             if (len(stn) == 0): continue
@@ -114,9 +112,11 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
             bazr = np.radians(baz)
             tdata = -ste[0].data * np.cos(bazr) + stn[0].data * np.sin(bazr)
 
-            stt = ste.copy()
-            stt[0].data = tdata
-            #stt[0].stats.channel = '00T'
+            stt_curr = ste.copy()
+            stt_curr[0].data = tdata
+            #stt_curr[0].stats.channel = '00T'
+
+            stt += stt_curr
         # end for
     # end if
 
@@ -124,39 +124,38 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
 # end func
 
 def get_stream(fds, net, sta, cha, start_time, end_time,
-               baz=None, automerge=False, trace_count_threshold=200,
+               baz=None, trace_count_threshold=200,
                logger=None, verbose=1):
 
     if (cha == '00T'): return _get_stream_00T(fds, net, sta, cha, start_time, end_time,
-                                              baz=baz, automerge=automerge,
-                                              trace_count_threshold=trace_count_threshold,
+                                              baz=baz, trace_count_threshold=trace_count_threshold,
                                               logger=logger, verbose=verbose)
-    st = None
+    st = Stream()
     stations = fds.get_stations(start_time, end_time, network=net, station=sta)
     for codes in stations:
         if (cha != codes[3]): continue
-        st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3], start_time,
-                               end_time, automerge=automerge, trace_count_threshold=trace_count_threshold)
-
-        if (len(st) == 0): continue
-        drop_bogus_traces(st)
-
-        if (verbose > 2):
-            if logger: logger.debug('\t\tData Gaps:')
-            st.print_gaps()  # output sent to stdout; fix this
-            print ("\n")
-        # end if
-        # Merge station data. Note that we don't want to fill gaps; the
-        # default merge() operation creates masked numpy arrays, which we can use
-        # to detect and ignore windows that have gaps in their data.
-        try:
-            st.merge()
-        except Exception as e:
-            if logger: logger.warning('\tFailed to merge traces..')
-            st = None
-            raise
-        # end try
+        st += fds.get_waveforms(codes[0], codes[1], codes[2], codes[3], start_time,
+                               end_time, trace_count_threshold=trace_count_threshold)
     # end for
+
+    drop_bogus_traces(st)
+
+    if (verbose > 2):
+        if logger: logger.debug('\t\tData Gaps:')
+        st.print_gaps()  # output sent to stdout; fix this
+        print ("\n")
+    # end if
+
+    # Merge station data. Note that we don't want to fill gaps; the
+    # default merge() operation creates masked numpy arrays, which we can use
+    # to detect and ignore windows that have gaps in their data.
+    try:
+        st.merge()
+    except Exception as e:
+        if logger: logger.warning('\tFailed to merge traces..')
+        st = None
+        raise
+    # end try
 
     return st
 # end func

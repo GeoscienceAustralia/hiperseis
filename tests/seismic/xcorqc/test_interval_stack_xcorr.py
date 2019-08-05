@@ -17,11 +17,11 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from obspy import read_inventory
 import os, sys
-import tempfile
 import pytest
 from netCDF4 import Dataset
 import numpy as np
 import tempfile
+import shutil
 
 # Prepare input
 netsta1 = 'AU.ARMA'
@@ -149,4 +149,7 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     # end if
 
     assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
+
+    shutil.rmtree(output_folder)
 # end func
+
