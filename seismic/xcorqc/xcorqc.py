@@ -748,7 +748,7 @@ def IntervalStackXCorr(refds, tempds,
 
         lag[:] = x
 
-        # Add a group for parameters used populate it
+        # Add and populate a new group for parameters used
         pg = root_grp.createGroup('Parameters')
 
         params = {'corr_chans': '%s.%s'%(ref_cha, temp_cha),
@@ -769,7 +769,7 @@ def IntervalStackXCorr(refds, tempds,
                   'envelope_normalize': int(envelope_normalize),
                   'ensemble_stack': int(ensemble_stack)}
 
-        for k, v in params.iteritems():
+        for k, v in params.items():
             setattr(pg, k, v)
         # end for
 
