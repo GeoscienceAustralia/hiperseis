@@ -4,6 +4,7 @@ import os.path
 import numpy as np
 import logging
 import re
+import urllib3
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -163,16 +164,24 @@ def get_existing_index(rf_trace_datafile):
         existing_index = None
     return existing_index
 
+
+def is_url(resource_path):
+    str_parsed = urllib3.util.url.parse_url(resource_path)
+    return str_parsed.scheme and str_parsed.netloc
+
 # ---+----------Main---------------------------------
 
 @click.command()
 @click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help=r'Path to input inventory file corresponding to waveform file, '
               r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
-@click.option('--waveform-database', type=click.Path(exists=True, dir_okay=False), required=False,
-              help=r'Path to waveform database definition file for FederatedASDFDataSet from which to extract traces '
-                   r'for RF analysis, e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt". '
-                   'If not provided, then waveforms will be queried from ISC web service.')
+@click.option('--waveform-database', type=str, required=True,
+              help=r'Location of waveform source database from which to extract traces. May be a recognized service '
+                   r'provider from obspy.clients.fdsn.header.URL_MAPPINGS (e.g. "ISC"), an actual URL '
+                   r'(e.g. "http://auspass.edu.au") or a file path. If detected as a URL, the obspy client '
+                   r'get_waveform function will be used to retrieve waveforms from web service. Otherwise, if detected '
+                   r'as a valid file path, then it must be the path to a definition file for a FederatedASDFDataSet, '
+                   r'e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt".')
 @click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
               'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web '
@@ -197,11 +206,16 @@ def get_existing_index(rf_trace_datafile):
 def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time, taup_model,
          distance_range, magnitude_range):
 
-    assert not os.path.exists(rf_trace_datafile), \
-        "Won't delete existing file {}, remove manually.".format(rf_trace_datafile)
-
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
+
+    waveform_db_is_web = is_url(waveform_database) or waveform_database in obspy.clients.fdsn.header.URL_MAPPINGS
+    if not waveform_db_is_web:
+        assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
+    log.info("Using waveform data source: {}".format(waveform_database))
+
+    assert not os.path.exists(rf_trace_datafile), \
+        "Won't delete existing file {}, remove manually.".format(rf_trace_datafile)
 
     min_dist_deg = distance_range[0]
     max_dist_deg = distance_range[1]
@@ -239,17 +253,17 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
                          (min_mag, max_mag), exit_after_catalog)
     # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
-    if waveform_database:
+    if waveform_db_is_web:
+        existing_index = None
+        client = Client(waveform_database)
+        waveform_getter = client.get_waveforms
+    else:
         # Form closure to allow waveform source file to be derived from a setting (or command line input)
         asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
             return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
         existing_index = get_existing_index(rf_trace_datafile)
         waveform_getter = closure_get_waveforms
-    else:
-        existing_index = None
-        client = Client('ISC')
-        waveform_getter = client.get_waveforms
     # end if
 
     with tqdm(smoothing=0) as pbar:
