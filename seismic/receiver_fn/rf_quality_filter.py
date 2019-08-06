@@ -204,7 +204,7 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, transverse_stream, source_stream
 
 
-def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, temp_dir=None):
+def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, temp_dir=None, filter_band=None):
 
     logger = logging.getLogger(__name__)
 
@@ -282,10 +282,15 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
 
     # Filter p_stream prior to computing quality metrics and downsample to Nyquist freq (on the assumption that the
     # highest freq component is ~2*freq_max).
-    freq_min = 0.25
-    freq_max = 2.0
-    p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)\
-                       .interpolate(sampling_rate=4*freq_max, method='lanczos', a=20)
+    if filter_band is not None:
+        freq_min = filter_band[0]
+        freq_max = filter_band[1]
+        p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)
+        sampling_rate = 4*freq_max
+        if sampling_rate < p_stream[0].stats.sampling_rate:
+            p_stream = p_stream.interpolate(sampling_rate=sampling_rate, method='lanczos', a=20)
+        # end if
+    # end if
 
     # Compute S/N ratios for RFs
     compute_rf_snr(p_stream)
@@ -365,7 +370,8 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
-def main(input_file, output_file, temp_dir=None):
+@click.option('--filter-band', type=(float, float), help="Filter pass band edges (Hz). Leave empty for no filtering.")
+def main(input_file, output_file, temp_dir=None, filter_band=None):
     """ This module filters RFs according to input options and then computes some quality metrics on each RF.
         This enables different downstream approaches to selecting and filtering for good quality RFs.
 
@@ -400,7 +406,8 @@ def main(input_file, output_file, temp_dir=None):
     metadata_list = []
     for station_id, station_stream3c in IterRfH5StationEvents(input_file):
         try:
-            md_table = rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps, temp_dir=temp_dir)
+            md_table = rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps, temp_dir=temp_dir,
+                                          filter_band=filter_band)
             metadata_list.append(md_table)
         except (ValueError, AssertionError) as e:
             traceback.print_exc()
