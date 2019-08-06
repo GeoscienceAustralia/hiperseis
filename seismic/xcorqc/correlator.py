@@ -132,7 +132,7 @@ def process(data_source1, data_source2, output_path,
             clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, restart=False):
+            envelope_normalize=False, ensemble_stack=False, restart=False, no_tracking_tag=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -157,7 +157,11 @@ def process(data_source1, data_source2, output_path,
     if (rank == 0):
         # Register time tag with high resolution, since queued jobs can readily
         # commence around the same time.
-        time_tag = UTCDateTime.now().strftime("%y-%m-%d.T%H.%M.%S.%f")
+
+        if(no_tracking_tag):
+            time_tag = None
+        else:
+            time_tag = UTCDateTime.now().strftime("%y-%m-%d.T%H.%M.%S.%f")
 
         def outputConfigParameters():
             # output config parameters
@@ -191,6 +195,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
             f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
             f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
+            f.write('%25s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
 
             f.close()
         # end func
@@ -354,11 +359,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "single CC function, aimed at producing empirical Greens "
                                                      "functions for surface wave tomography.")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
+@click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
          nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
          end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
          whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart):
+         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart, no_tracking_tag):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -376,7 +382,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
             end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
             whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart)
+            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart, no_tracking_tag)
 # end func
 
 if __name__ == '__main__':
