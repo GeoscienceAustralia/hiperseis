@@ -32,11 +32,12 @@ DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
 DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.01
+DEFAULT_SPIKING = 0.1
 MIN_RAW_RESAMPLE_RATE_HZ = 20.0
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
-                           gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
+                           gauss_width, water_level, spiking, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
 
@@ -210,6 +211,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
 @click.option('--water-level', type=float, default=DEFAULT_WATER_LEVEL, show_default=True,
               help="Water-level for freq domain spectrum. Only required for freq-domain deconvolution")
+@click.option('--spiking', type=float, default=DEFAULT_SPIKING, show_default=True,
+              help="Spiking factor (noise suppression), only required for time-domain deconvolution")
 @click.option('--trim-start-time', type=float, default=DEFAULT_TRIM_START_TIME_SEC, show_default=True,
               help="Trace trim start time in sec, relative to onset")
 @click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
@@ -228,7 +231,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 @click.option('--aggressive-dispatch/--no-aggressive-dispatch', default=False, show_default=True,
               help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
                    "starved of work. Uses more memory.")
-def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level,
+def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
          trim_start_time, trim_end_time, rotation_type, deconv_domain, parallel=True, memmap=False,
          temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
     """
@@ -263,15 +266,15 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type, 
-                                             filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
-                                             deconv_domain)
+                                             filter_band, gauss_width, water_level, spiking,
+                                             trim_start_time, trim_end_time, deconv_domain)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
     else:
         # Process in serial
         logger.info("Serial processing")
         status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
-                                              filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
-                                              deconv_domain)
+                                              filter_band, gauss_width, water_level, spiking,
+                                              trim_start_time, trim_end_time, deconv_domain)
                        for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
     # end if
     num_tasks = len(status)
