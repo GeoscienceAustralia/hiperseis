@@ -113,9 +113,7 @@ def _filter_catalog_events(catalog):
 
 
 def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
-                         endtime, quality=None, minimumlength=None,
-                         longestonly=None, filename=None, attach_response=False,
-                         **kwargs):
+                         endtime, **kwargs):
     st = Stream()
     matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
                                                   location=location)

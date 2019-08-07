@@ -242,8 +242,6 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
 
     # Flatten the traces into a single RFStream for subsequent processing
     rf_streams = rf.RFStream([tr for stream in nonan_streams for tr in stream if tr.stats.type == 'rf'])
-    raw_streams = obspy.core.stream.Stream(
-        [tr for stream in nonan_streams for tr in stream if tr.stats.type == 'raw_resampled'])
 
     # Subsequent functions process the data in bulk square matrices, so it is essential all traces are the same length.
     # If not, processing will fail due to incompatible data structure. So here we filter out traces that do not have
@@ -340,25 +338,6 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # the complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
     # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost.
-
-    # Output resulting station streams. Only keeping the primary RF stream since the others are not needed
-    # for RF analysis. Merge RF streams with raw waveforms for those events that made it through filtering.
-    event_ids = {tr.stats.event_id: tr for tr in p_stream}
-    for tr in raw_streams:
-        if tr.stats.event_id in event_ids:
-            # If it is the Z component, copy its SNR to the RF stream for convenient access later.
-            if tr.stats.channel[-1].upper() == 'Z':
-                if 'snr_prior' in tr.stats:
-                    md_dict = {'snr_prior': tr.stats['snr_prior']}
-                else:
-                    md_dict = {'snr_prior': np.nan}
-                # end if
-                p_trace = event_ids[tr.stats.event_id]
-                p_trace.stats.update(md_dict)
-            # end if
-            p_stream.append(tr)
-        # end if
-    # end for
 
     oqueue.put(p_stream)
 

@@ -16,7 +16,7 @@ except ImportError:
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
-from seismic.receiver_fn.rf_util import compute_source_snr
+from seismic.receiver_fn.rf_util import compute_vertical_snr
 
 
 logging.basicConfig()
@@ -33,7 +33,7 @@ DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
 DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
-MIN_RAW_RESAMPLE_RATE_HZ = 20.0
+RAW_RESAMPLE_RATE_HZ = 20.0
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
@@ -54,6 +54,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     """
     logger = logging.getLogger(__name__)
     logger.info("Event #{}".format(ev_id))
+
+    assert deconv_domain.lower() in ['time', 'freq']
 
     # Apply essential sanity checks before trying to compute RFs.
     for tr in stream3c:
@@ -90,24 +92,19 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             return False
     # end for
 
+    # Compute SNR of prior z-component after some low pass filtering.
     # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
     # the Nyquist freq to make sure almost no high freq energy leaking through the filter can
     # alias down into the frequency bands of interest.
-    raw_resample_rate = max(MIN_RAW_RESAMPLE_RATE_HZ, resample_rate_hz)
-    stream_zne = stream3c.copy().filter('lowpass', freq=raw_resample_rate/4.0, corners=2, zerophase=True)
+    stream_z = stream3c.select(component='Z').filter('lowpass', freq=RAW_RESAMPLE_RATE_HZ/4.0,
+                                                     corners=2, zerophase=True)
     # Since cutoff freq is well below Nyquist, we use a lower Lanczos kernel size (default is a=20).
-    stream_zne = stream_zne.interpolate(raw_resample_rate, method='lanczos', a=10)
-    # Trim original traces to time window
-    stream_zne.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
-    # Add metadata label indicating theses traces are from raw signal
-    for tr in stream_zne:
-        metadata = {'type': 'raw_resampled', 'event_id': ev_id}
-        tr.stats.update(metadata)
-    # end for
-
-    assert deconv_domain.lower() in ['time', 'freq']
-    stream3c.detrend('linear')
-    stream3c.taper(taper_limit, **kwargs)
+    stream_z = stream_z.copy().interpolate(RAW_RESAMPLE_RATE_HZ, method='lanczos', a=10)
+    # Trim original trace to time window
+    stream_z.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
+    stream_z.detrend('linear')
+    stream_z.taper(taper_limit, **kwargs)
+    compute_vertical_snr(stream_z)
 
     assert rotation_type.lower() in ['zrt', 'lqt']
     if rotation_type == 'zrt':
@@ -116,25 +113,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         rf_rotation = 'ZNE->LQT'
     # end if
 
-    # Compute SNR of prior traces after rotation but before RF computation.
-    try:
-        stream_rotated = stream_zne.copy()
-        stream_rotated.rotate(rf_rotation)
-        compute_source_snr(stream_rotated)
-        # Copy SNR metadata back from rotated stream to original stream
-        for i, tr in enumerate(stream_zne):
-            metadata = {'snr_prior': stream_rotated[i].stats['snr_prior']}
-            tr.stats.update(metadata)
-        # end for
-    except ValueError as e:
-        logger.error("Failed to rotate stream {}:\n{}\nwith error:\n{}\nUnable to compute 'snr_prior'.".format(
-            ev_id, stream3c, str(e)))
-        metadata = {'snr_prior': np.nan}
-        for tr in stream_zne:
-            tr.stats.update(metadata)
-        # end for
-    # end try
-
+    stream3c.detrend('linear')
+    stream3c.taper(taper_limit, **kwargs)
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
@@ -174,21 +154,18 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                        .format(ev_id, stream3c))
         return False
 
+    assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
     for tr in stream3c:
         metadata = {
             'amax': np.amax(tr.data),
             'event_id': ev_id,
-            'rotation': rotation_type
+            'rotation': rotation_type,
+            'snr_prior': stream_z[0].stats.snr_prior
         }
         tr.stats.update(metadata)
     # end for
 
     output_stream = stream3c
-    # Add raw traces to output results
-    for tr in stream_zne:
-        output_stream.append(tr)
-    # end for
-
     oqueue.put(output_stream)
 
     return True

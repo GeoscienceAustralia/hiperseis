@@ -12,7 +12,9 @@ from scipy.signal import hilbert
 
 import rf
 
-KM_PER_DEG = 111.1949 # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+
+KM_PER_DEG = 111.1949
 
 logging.basicConfig()
 
@@ -225,14 +227,21 @@ def compute_extra_rf_stats(db_station):
     # end for
 
 
-def compute_source_snr(src_stream):
-    """Compute the SNR of the reference component (Z or L after rotation but before deconvolution)
+def compute_vertical_snr(src_stream):
+    """Compute the SNR of the Z component (Z before rotation or deconvolution)
     including the onset pulse (key 'snr_prior'). Stored results in metadata of input stream traces.
 
-    :param src_stream: Seismic traces after rotation of raw stream.
+    Some authors compute this prior SNR on signal after rotation but before deconvolution, however
+    that doesn't make sense for LQT rotation where the optimal rotation will result in the least
+    energy in the L component. For simplicity we compute it on Z-component only which is a reasonable
+    estimate for teleseismic events.
+
+    :param src_stream: Seismic traces before rotation of raw stream.
     :type src_stream: rf.RFStream
     """
     logger = logging.getLogger(__name__)
+
+    src_stream = src_stream.select(component='Z')
 
     # Compute max envelope amplitude from onset onwards relative to max envelope before onset.
     PRIOR_PICK_SIGNAL_WINDOW = (-5.0, 25.0)
