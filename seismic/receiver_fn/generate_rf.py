@@ -32,7 +32,7 @@ DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
 DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.01
-DEFAULT_SPIKING = 0.1
+DEFAULT_SPIKING = 0.5
 MIN_RAW_RESAMPLE_RATE_HZ = 20.0
 
 
@@ -128,7 +128,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         # end for
     except ValueError as e:
         logger.error("Failed to rotate stream {}:\n{}\nwith error:\n{}\nUnable to compute 'snr_prior'.".format(
-                     ev_id, stream3c, str(e)))
+            ev_id, stream3c, str(e)))
         metadata = {'snr_prior': np.nan}
         for tr in stream_zne:
             tr.stats.update(metadata)
