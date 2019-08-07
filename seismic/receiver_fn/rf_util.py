@@ -261,7 +261,7 @@ def compute_vertical_snr(src_stream):
         pick_signal = pick_signal.reshape(1, -1)
     # Compute envelope of all traces
     pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
-    if not pick_signal:
+    if not np.any(pick_signal):
         _set_nan_snr(src_stream)
         return
     # end if
@@ -273,7 +273,7 @@ def compute_vertical_snr(src_stream):
     if len(noise.shape) == 1:
         noise = noise.reshape(1, -1)
     noise = np.absolute(signal.hilbert(noise, axis=1))
-    if not noise:
+    if not np.any(noise):
         _set_nan_snr(src_stream)
         return
     # end if
