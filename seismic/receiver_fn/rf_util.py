@@ -230,6 +230,7 @@ def compute_extra_rf_stats(db_station):
 def compute_vertical_snr(src_stream):
     """Compute the SNR of the Z component (Z before rotation or deconvolution)
     including the onset pulse (key 'snr_prior'). Stored results in metadata of input stream traces.
+    This SNR is a ratio of max envelopes.
 
     Some authors compute this prior SNR on signal after rotation but before deconvolution, however
     that doesn't make sense for LQT rotation where the optimal rotation will result in the least
@@ -240,6 +241,13 @@ def compute_vertical_snr(src_stream):
     :type src_stream: rf.RFStream
     """
     logger = logging.getLogger(__name__)
+
+    def _set_nan_snr(stream):
+        md_dict = {'snr_prior': np.nan}
+        for tr in stream:
+            tr.stats.update(md_dict)
+        # end for
+    # end func
 
     src_stream = src_stream.select(component='Z')
 
@@ -253,6 +261,10 @@ def compute_vertical_snr(src_stream):
         pick_signal = pick_signal.reshape(1, -1)
     # Compute envelope of all traces
     pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
+    if not pick_signal:
+        _set_nan_snr(src_stream)
+        return
+    # end if
 
     noise = src_stream.slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
     # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
@@ -261,14 +273,15 @@ def compute_vertical_snr(src_stream):
     if len(noise.shape) == 1:
         noise = noise.reshape(1, -1)
     noise = np.absolute(signal.hilbert(noise, axis=1))
+    if not noise:
+        _set_nan_snr(src_stream)
+        return
+    # end if
 
     if pick_signal.shape[0] != noise.shape[0]:
         logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
                      .format(pick_signal.shape, noise.shape))
-        md_dict = {'snr_prior': np.nan}
-        for tr in src_stream:
-            tr.stats.update(md_dict)
-        # end for
+        _set_nan_snr(src_stream)
     else:
         snr_prior = np.max(pick_signal, axis=1) / np.max(noise, axis=1)
         for i, tr in enumerate(src_stream):
@@ -280,6 +293,7 @@ def compute_vertical_snr(src_stream):
 
 def compute_rf_snr(rf_stream):
     """Compute signal to noise (S/N) ratio of the RF itself about the onset pulse (key 'snr').
+    This SNR is a ratio of RMS amplitudes.
 
     In the LQT rotation case when rotation is working ideally, the onset pulse of the rotated transverse
     signals should be minimal, and a large pulse at t = 0 indicates lack of effective rotation of coordinate
