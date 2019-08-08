@@ -260,11 +260,11 @@ def compute_vertical_snr(src_stream):
     if len(pick_signal.shape) == 1:
         pick_signal = pick_signal.reshape(1, -1)
     # Compute envelope of all traces
-    pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
     if not np.any(pick_signal):
         _set_nan_snr(src_stream)
         return
     # end if
+    pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
 
     noise = src_stream.slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
     # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
@@ -272,11 +272,11 @@ def compute_vertical_snr(src_stream):
     noise = np.array([tr.data for tr in noise])
     if len(noise.shape) == 1:
         noise = noise.reshape(1, -1)
-    noise = np.absolute(signal.hilbert(noise, axis=1))
     if not np.any(noise):
         _set_nan_snr(src_stream)
         return
     # end if
+    noise = np.absolute(signal.hilbert(noise, axis=1))
 
     if pick_signal.shape[0] != noise.shape[0]:
         logger.error("Shape inconsistency between noise and signal slices: {}[0] != {}[0]"
