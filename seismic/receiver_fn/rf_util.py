@@ -12,7 +12,7 @@ from scipy.signal import hilbert
 
 import rf
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, logging-format-interpolation
 
 KM_PER_DEG = 111.1949
 
@@ -229,7 +229,7 @@ def compute_extra_rf_stats(db_station):
 
 def compute_vertical_snr(src_stream):
     """Compute the SNR of the Z component (Z before rotation or deconvolution)
-    including the onset pulse (key 'snr_prior'). Stored results in metadata of input stream traces.
+    including the onset pulse (key 'snr_prior'). Stores results in metadata of input stream traces.
     This SNR is a ratio of max envelopes.
 
     Some authors compute this prior SNR on signal after rotation but before deconvolution, however
@@ -254,7 +254,7 @@ def compute_vertical_snr(src_stream):
     # Compute max envelope amplitude from onset onwards relative to max envelope before onset.
     PRIOR_PICK_SIGNAL_WINDOW = (-5.0, 25.0)
     PRIOR_NOISE_SIGNAL_WINDOW = (None, -5.0)
-    pick_signal = src_stream.slice2(*PRIOR_PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = src_stream.copy().slice2(*PRIOR_PICK_SIGNAL_WINDOW, reftime='onset')
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:
@@ -266,7 +266,7 @@ def compute_vertical_snr(src_stream):
     # end if
     pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
 
-    noise = src_stream.slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
+    noise = src_stream.copy().slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
     # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
@@ -293,7 +293,7 @@ def compute_vertical_snr(src_stream):
 
 def compute_rf_snr(rf_stream):
     """Compute signal to noise (S/N) ratio of the RF itself about the onset pulse (key 'snr').
-    This SNR is a ratio of RMS amplitudes.
+    This SNR is a ratio of RMS amplitudes. Stores results in metadata of input stream traces.
 
     In the LQT rotation case when rotation is working ideally, the onset pulse of the rotated transverse
     signals should be minimal, and a large pulse at t = 0 indicates lack of effective rotation of coordinate
@@ -311,7 +311,7 @@ def compute_rf_snr(rf_stream):
     NOISE_SIGNAL_WINDOW = (None, -2.0)
 
     # Take everything up to 2 sec before onset as noise signal.
-    noise = rf_stream.slice2(*NOISE_SIGNAL_WINDOW, reftime='onset')
+    noise = rf_stream.copy().slice2(*NOISE_SIGNAL_WINDOW, reftime='onset')
     # Taper the slices so that the RMS is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
@@ -319,7 +319,7 @@ def compute_rf_snr(rf_stream):
         noise = noise.reshape(1, -1)
 
     # The time window from 1 sec before to 2 sec after onset as the RF P signal
-    pick_signal = rf_stream.slice2(*PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = rf_stream.copy().slice2(*PICK_SIGNAL_WINDOW, reftime='onset')
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:

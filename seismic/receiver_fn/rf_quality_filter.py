@@ -19,7 +19,7 @@ from scipy import stats
 
 from sklearn.cluster import DBSCAN
 from joblib import Parallel, delayed
-import obspy
+# import obspy
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write

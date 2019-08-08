@@ -242,7 +242,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
-            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type, 
+            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
                                              filter_band, gauss_width, water_level, spiking,
                                              trim_start_time, trim_end_time, deconv_domain)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
