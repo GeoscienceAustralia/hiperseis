@@ -104,7 +104,6 @@ def rf_group_by_similarity(swipe, similarity_eps, temp_dir=None):
 
 def compute_max_coherence(orig_stream, f1, f2):
     """ Finding coherence between two signals in frequency domain
-        swipe - matrix with  waveforms organised rowwise
         f1 and f2 - normalised min and max frequencies, f1 < f2 <= ~0.5
         returns array of indexes for coherent traces with median
 
@@ -119,7 +118,7 @@ def compute_max_coherence(orig_stream, f1, f2):
     # Clip off the noise - take everything after 2 sec before onset as seismic event signal.
     SIGNAL_WINDOW = (-2.0, None)
     pick_signal = stream.slice2(*SIGNAL_WINDOW, reftime='onset')
-    # Taper aggressively to ensure that end discontinuities do not inject spectral energy at high frequencies
+    # Taper at ends to ensure that end discontinuities do not inject spectral energy at high frequencies
     pick_signal = pick_signal.taper(0.5, max_length=1.0)
 
     data = np.array([tr.data for tr in pick_signal])
@@ -295,10 +294,45 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # Compute S/N ratios for RFs
     compute_rf_snr(p_stream)
 
-    # Compute spectral entropy for all traces
-    sp_entropy = spectral_entropy(p_stream)
+    # Define time windows relative to onset for computing statistical ratios
+    EVENT_SIGNAL_WINDOW = (-5.0, 25.0)
+    NOISE_SIGNAL_WINDOW = (None, -5.0)
+    event_signal = p_stream.copy().slice2(*EVENT_SIGNAL_WINDOW, reftime='onset').taper(0.5, max_length=1.0)
+    noise_signal = p_stream.copy().slice2(*NOISE_SIGNAL_WINDOW, reftime='onset').taper(0.5, max_length=1.0)
+
+    # Compute spectral entropy ratio for all traces
+    sp_entropy_noise = spectral_entropy(noise_signal)
+    sp_entropy_event = spectral_entropy(event_signal)
     for i, tr in enumerate(p_stream):
-        md_dict = {'entropy': sp_entropy[i]}
+        md_dict = {'entropy_ratio': sp_entropy_event[i]/sp_entropy_noise[i]}
+        tr.stats.update(md_dict)
+    # end for
+
+    # Compute ratios of spectral histogram statistics
+    noise_data = np.array([tr.data for tr in noise_signal])
+    event_data = np.array([tr.data for tr in event_signal])
+    noise_bins, noise_power = signal.welch(noise_data, detrend='linear')
+    event_bins, event_power = signal.welch(event_data, detrend='linear')
+    # Only use lower frequency bands up to 1/4 Nyquist
+    noise_bins = noise_bins[0:32]
+    noise_power = noise_power[:, 0:32]
+    event_bins = event_bins[0:32]
+    event_power = event_power[:, 0:32]
+    noise_m0 = np.sum(noise_power, axis=1)
+    event_m0 = np.sum(event_power, axis=1)
+    spectral_m0_ratio = event_m0/noise_m0
+    noise_m1 = np.sum(noise_power*noise_bins, axis=1)
+    event_m1 = np.sum(event_power*event_bins, axis=1)
+    spectral_m1_ratio = event_m1/noise_m1
+    noise_m2 = np.sum(noise_power*noise_bins**2, axis=1)
+    event_m2 = np.sum(event_power*event_bins**2, axis=1)
+    spectral_m2_ratio = event_m2/noise_m2
+    for i, tr in enumerate(p_stream):
+        md_dict = {
+            'm0_ratio': spectral_m0_ratio[i],
+            'm1_ratio': spectral_m1_ratio[i],
+            'm2_ratio': spectral_m2_ratio[i]
+        }
         tr.stats.update(md_dict)
     # end for
 
