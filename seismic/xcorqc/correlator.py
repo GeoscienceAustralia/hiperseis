@@ -165,7 +165,7 @@ def process(data_source1, data_source2, output_path,
 
         def outputConfigParameters():
             # output config parameters
-            fn = 'correlator.%s.cfg' % (time_tag)
+            fn = 'correlator.%s.cfg' % (time_tag) if time_tag else 'correlator.cfg'
             fn = os.path.join(output_path, fn)
 
             f = open(fn, 'w+')
