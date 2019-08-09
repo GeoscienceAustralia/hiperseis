@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 logging.basicConfig()
 
 
-def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_height=0.8, save_file=None):
+def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):
     """Wrapper function of rf.RFStream.plot_rf() to help do RF plotting with consistent formatting and layout.
 
     :param rf_stream: [description]
@@ -30,7 +30,7 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
     :type save_file: [type], optional
     """
     _ = rf_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
-                          stack_height=stack_height, fname=save_file)
+                          stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
 
 
 def plot_station_rf_overlays(db_station, title=None, time_range=None):
