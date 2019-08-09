@@ -206,24 +206,27 @@ def filter_station_to_mean_signal(db_station, min_correlation=1.0):
     return db_station_filt, corrs
 
 
-def compute_extra_rf_stats(db_station):
+def compute_extra_rf_stats(stream):
     """Compute extra statistics for each trace and add it to the RFTrace.stats structure.
 
-    :param db_station: Dictionary with list of traces per channel for a given station.
-    :type db_station: dict({str, list(RFTrace)})
+    :param stream: [desc]
+    :type stream: rf.RFStream
     """
-    for _ch, traces in db_station.items():
-        for tr in traces:
-            rms_amp = np.sqrt(np.mean(np.square(tr.data)))
-            cplx_amp = np.abs(hilbert(tr.data))
-            mean_cplx_amp = np.mean(cplx_amp)
-            amp_20pc = np.percentile(cplx_amp, 20)
-            amp_80pc = np.percentile(cplx_amp, 80)
-            tr.stats.rms_amp = rms_amp
-            tr.stats.mean_cplx_amp = mean_cplx_amp
-            tr.stats.amp_20pc = amp_20pc
-            tr.stats.amp_80pc = amp_80pc
-        # end for
+    for tr in stream:
+        rms_amp = np.sqrt(np.mean(np.square(tr.data)))
+        log10_rms_amp = np.log10(rms_amp)
+        cplx_amp = np.abs(hilbert(tr.data))
+        log10_cplx_amp = np.log10(cplx_amp)
+        mean_cplx_amp = np.mean(cplx_amp)
+        mean_log10_cplx_amp = np.mean(log10_cplx_amp)
+        log10_amp_20pc = np.percentile(log10_cplx_amp, 20)
+        log10_amp_80pc = np.percentile(log10_cplx_amp, 80)
+        tr.stats.rms_amp = rms_amp
+        tr.stats.log10_rms_amp = log10_rms_amp
+        tr.stats.mean_cplx_amp = mean_cplx_amp
+        tr.stats.mean_log10_cplx_amp = mean_log10_cplx_amp
+        tr.stats.log10_amp_20pc = log10_amp_20pc
+        tr.stats.log10_amp_80pc = log10_amp_80pc
     # end for
 
 
