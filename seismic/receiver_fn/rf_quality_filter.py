@@ -24,7 +24,7 @@ import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvents
-from seismic.receiver_fn.rf_util import compute_rf_snr
+from seismic.receiver_fn import rf_util
 
 # from tqdm import tqdm
 
@@ -292,7 +292,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     # end if
 
     # Compute S/N ratios for RFs
-    compute_rf_snr(p_stream)
+    rf_util.compute_rf_snr(p_stream)
 
     # Compute spectral entropy for all traces
     sp_entropy = spectral_entropy(p_stream)
@@ -311,6 +311,17 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     NOISE_SIGNAL_WINDOW = (None, -5.0)
     event_signal = p_stream.copy().slice2(*EVENT_SIGNAL_WINDOW, reftime='onset').taper(0.5, max_length=1.0)
     noise_signal = p_stream.copy().slice2(*NOISE_SIGNAL_WINDOW, reftime='onset').taper(0.5, max_length=1.0)
+    rf_util.compute_extra_rf_stats(event_signal)
+    rf_util.compute_extra_rf_stats(noise_signal)
+    for _i, _tr in enumerate(p_stream):
+        _tr.stats['delta_mean_log10_cplx_amp'] = (event_signal[_i].stats.mean_log10_cplx_amp -
+                                                  noise_signal[_i].stats.mean_log10_cplx_amp)
+        _tr.stats['delta_log10_amp_20pc'] = (event_signal[_i].stats.log10_amp_20pc -
+                                             noise_signal[_i].stats.log10_amp_20pc)
+        _tr.stats['delta_log10_amp_80pc'] = (event_signal[_i].stats.log10_amp_80pc -
+                                             noise_signal[_i].stats.log10_amp_80pc)
+        _tr.stats['delta_log10_rms_amp'] = event_signal[_i].stats.log10_rms_amp - noise_signal[_i].stats.log10_rms_amp
+    # end for
 
     # Compute ratios of spectral histogram statistics
     noise_data = np.array([tr.data for tr in noise_signal])
@@ -333,6 +344,9 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, tem
     spectral_m2_ratio = np.log10(event_m2/noise_m2)
     for i, tr in enumerate(p_stream):
         md_dict = {
+            'm0_delta': event_m0[i] - noise_m0[i],
+            'm1_delta': event_m1[i] - noise_m1[i],
+            'm2_delta': event_m2[i] - noise_m2[i],
             'm0_ratio': spectral_m0_ratio[i],
             'm1_ratio': spectral_m1_ratio[i],
             'm2_ratio': spectral_m2_ratio[i]
