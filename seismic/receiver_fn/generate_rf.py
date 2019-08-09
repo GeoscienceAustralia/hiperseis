@@ -216,7 +216,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     """
     assert resample_rate >= 2.0*filter_band[1], "Too low sample rate will alias signal"
 
-    dispatch_policy = '2*n_jobs'
+    dispatch_policy = '5*n_jobs'
     if parallel:
         assert parallel_available, "Cannot run parallel as joblib import failed"
         if aggressive_dispatch:
@@ -232,7 +232,7 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 200))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 500))
     output_thread.daemon = True
     output_thread.start()
 
