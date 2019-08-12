@@ -38,7 +38,7 @@ RAW_RESAMPLE_RATE_HZ = 20.0
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
                            gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
-                           deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
+                           deconv_domain, spiking, normalize, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
 
     :param ev_id: The event id
@@ -56,17 +56,6 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger.info("Event #{}".format(ev_id))
 
     assert deconv_domain.lower() in ['time', 'freq']
-
-    if 'normalize' in kwargs:
-        assert isinstance(kwargs['normalize'], bool)
-        if kwargs['normalize']:
-            # To use default normalization, the "normalize" argument must be ABSENT from kwargs
-            del kwargs['normalize']
-        else:
-            # No normalization. The "normalize" argument must be set to None.
-            kwargs['normalize'] = None
-        # end if
-    # end if
 
     # Apply essential sanity checks before trying to compute RFs.
     for tr in stream3c:
@@ -131,6 +120,11 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
                             **kwargs).interpolate(resample_rate_hz)
+            kwargs.update({'spiking': spiking})
+            if not normalize:
+                # No normalization. The "normalize" argument must be set to None.
+                kwargs['normalize'] = None
+            # end if
             stream3c.rf(rotate=rf_rotation, **kwargs)
         else:
             # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
@@ -145,6 +139,10 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # 0.5                     0.24                               2.36
             # 0.4                     0.2                                2.64
             # 0.2                     0.1                                3.73
+            if not normalize:
+                # No normalization. The "normalize" argument must be set to None.
+                kwargs['normalize'] = None
+            # end if
             stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
             # Interpolate to requested sampling rate.
             stream3c.interpolate(resample_rate_hz)
