@@ -37,7 +37,7 @@ RAW_RESAMPLE_RATE_HZ = 20.0
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
-                           gauss_width, water_level, spiking, trim_start_time_sec, trim_end_time_sec,
+                           gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
                            deconv_domain=DEFAULT_DECONV_DOMAIN, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
 
@@ -56,6 +56,17 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger.info("Event #{}".format(ev_id))
 
     assert deconv_domain.lower() in ['time', 'freq']
+
+    if 'normalize' in kwargs:
+        assert isinstance(kwargs['normalize'], bool)
+        if kwargs['normalize']:
+            # To use default normalization, the "normalize" argument must be ABSENT from kwargs
+            del kwargs['normalize']
+        else:
+            # No normalization. The "normalize" argument must be set to None.
+            kwargs['normalize'] = None
+        # end if
+    # end if
 
     # Apply essential sanity checks before trying to compute RFs.
     for tr in stream3c:
@@ -120,7 +131,6 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
                             **kwargs).interpolate(resample_rate_hz)
-            kwargs.update({'spiking': spiking})
             stream3c.rf(rotate=rf_rotation, **kwargs)
         else:
             # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
@@ -200,6 +210,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 @click.option('--deconv-domain', type=click.Choice(['time', 'freq'], case_sensitive=False),
               default=DEFAULT_DECONV_DOMAIN, show_default=True,
               help="Whether to perform deconvolution in time or freq domain")
+@click.option('--normalize/--no-normalize', default=False, show_default=True, help="Whether to normalize RF amplitude")
 @click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
 @click.option('--memmap/--no-memmap', default=False, show_default=True,
               help="Memmap input file for improved performance in data reading thread. Useful when data input "
@@ -209,7 +220,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
                    "starved of work. Uses more memory.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
-         trim_start_time, trim_end_time, rotation_type, deconv_domain, parallel=True, memmap=False,
+         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=False, parallel=True, memmap=False,
          temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
@@ -243,15 +254,15 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
             (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
-                                             filter_band, gauss_width, water_level, spiking,
-                                             trim_start_time, trim_end_time, deconv_domain)
+                                             filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
+                                             deconv_domain, spiking=spiking, normalize=normalize)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
     else:
         # Process in serial
         logger.info("Serial processing")
         status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
-                                              filter_band, gauss_width, water_level, spiking,
-                                              trim_start_time, trim_end_time, deconv_domain)
+                                              filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
+                                              deconv_domain, spiking=spiking, normalize=normalize)
                        for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
     # end if
     num_tasks = len(status)
