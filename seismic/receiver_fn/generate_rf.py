@@ -165,7 +165,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
     for tr in stream3c:
         metadata = {
-            'amax': np.amax(tr.data),
+            'amp_max': np.amax(np.abs(tr.data)),  # Max absolute amplitude
+            'amp_rms': np.sqrt(np.mean(np.square(tr.data))),  # RMS amplitude
             'event_id': ev_id,
             'rotation': rotation_type,
             'snr_prior': stream_z[0].stats.snr_prior

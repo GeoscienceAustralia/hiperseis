@@ -310,7 +310,7 @@ def compute_rf_snr(rf_stream):
     """
     logger = logging.getLogger(__name__)
 
-    PICK_SIGNAL_WINDOW = (1.0, 20.0)  # Consider tying the start of this window to 2x the minimum period present
+    PICK_SIGNAL_WINDOW = (1.0, 25.0)  # Consider tying the start of this window to 2x the minimum period present
     NOISE_SIGNAL_WINDOW = (None, -2.0)
 
     # Take everything up to 2 sec before onset as noise signal.
