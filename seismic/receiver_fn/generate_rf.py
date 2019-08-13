@@ -96,10 +96,10 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
     # the Nyquist freq to make sure almost no high freq energy leaking through the filter can
     # alias down into the frequency bands of interest.
-    stream_z = stream3c.select(component='Z').filter('lowpass', freq=RAW_RESAMPLE_RATE_HZ/4.0,
-                                                     corners=2, zerophase=True)
+    stream_z = stream3c.select(component='Z').copy().filter('lowpass', freq=RAW_RESAMPLE_RATE_HZ/4.0,
+                                                            corners=2, zerophase=True)
     # Since cutoff freq is well below Nyquist, we use a lower Lanczos kernel size (default is a=20).
-    stream_z = stream_z.copy().interpolate(RAW_RESAMPLE_RATE_HZ, method='lanczos', a=10)
+    stream_z = stream_z.interpolate(RAW_RESAMPLE_RATE_HZ, method='lanczos', a=10)
     # Trim original trace to time window
     stream_z.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
     stream_z.detrend('linear')
@@ -161,6 +161,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
                        .format(ev_id, stream3c))
         return False
+    # end if
 
     assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
     for tr in stream3c:
@@ -169,7 +170,9 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             'amp_rms': np.sqrt(np.mean(np.square(tr.data))),  # RMS amplitude
             'event_id': ev_id,
             'rotation': rotation_type,
-            'snr_prior': stream_z[0].stats.snr_prior
+            'snr_prior': stream_z[0].stats.snr_prior,
+            'z_amp_max': np.max(np.abs(stream_z[0].data)),  # Max amplitude on resampled original z-component
+            'z_amp_rms': np.sqrt(np.mean(np.square(stream_z[0].data)))  # RMS thereof
         }
         tr.stats.update(metadata)
     # end for
