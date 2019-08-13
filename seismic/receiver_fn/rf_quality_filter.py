@@ -299,9 +299,12 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, fil
         tr.stats.update(md_dict)
     # end for
 
-    # Compute log10 of max amplitude, as this is more useful than max amplitude for quality classifier
+    # Compute log10 of amplitude metrics, as these are more useful than straight amplitudes for quality classifier
     for tr in p_stream:
-        tr.stats['log10_amax'] = np.log10(tr.stats['amax'])
+        tr.stats['log10_amp_max'] = np.log10(tr.stats['amp_max'])
+        tr.stats['log10_amp_rms'] = np.log10(tr.stats['amp_rms'])
+        tr.stats['log10_z_amp_max'] = np.log10(tr.stats['z_amp_max'])
+        tr.stats['log10_z_amp_rms'] = np.log10(tr.stats['z_amp_rms'])
     # end for
 
     # Define time windows relative to onset for computing statistical ratios
