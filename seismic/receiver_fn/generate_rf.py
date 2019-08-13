@@ -212,7 +212,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 @click.option('--deconv-domain', type=click.Choice(['time', 'freq'], case_sensitive=False),
               default=DEFAULT_DECONV_DOMAIN, show_default=True,
               help="Whether to perform deconvolution in time or freq domain")
-@click.option('--normalize/--no-normalize', default=False, show_default=True, help="Whether to normalize RF amplitude")
+@click.option('--normalize/--no-normalize', default=True, show_default=True, help="Whether to normalize RF amplitude")
 @click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
 @click.option('--memmap/--no-memmap', default=False, show_default=True,
               help="Memmap input file for improved performance in data reading thread. Useful when data input "
