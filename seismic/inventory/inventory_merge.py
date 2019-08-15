@@ -68,8 +68,8 @@ def prune_iris_duplicates(db_other, db_iris):
 
     db_other['Index'] = db_other.index
     db_iris['Index'] = db_iris.index
-    df_m = db_other.reset_index().merge(db_iris, on=['StationCode', 'ChannelCode'], suffixes=('_left', '_right')
-                                        ).set_index('index')
+    df_m = db_other.reset_index().merge(db_iris, how='left', on=['StationCode', 'ChannelCode'],
+                                        suffixes=('_left', '_right')).set_index('index')
     dist = df_m.apply(_earth_distance, axis=1)
     df_m['Distance'] = dist
     # Reorder columns for easier visual comparison
@@ -86,13 +86,14 @@ def prune_iris_duplicates(db_other, db_iris):
     # # (irrespective of dates).
     # db_other[(db_other.index == df_m['Index_left']), 'NetworkCode'] = df_m['NetworkCode_right']
 
-    # Identify which index values in df_m represent overlapping channel dates of IRIS and other data records.
-    # The dates that overlap are the records that we DON'T want to keep.
+    # Identify which index values in df_m represent overlapping channel dates of IRIS and db_other records.
+    # If db_other matches multiple IRIS records, we will drop the record from db_other if it matches ANY IRIS record.
+    # The dates that overlap are the records of db_other that we DON'T want to keep.
     overlapping_dates = ((df_m['ChannelStart_left'] < df_m['ChannelEnd_right']) &
                          (df_m['ChannelEnd_left'] > df_m['ChannelStart_right']))
-    index_to_keep = df_m.loc[~overlapping_dates, 'Index_left'].unique()
+    index_to_drop = df_m.loc[overlapping_dates, 'Index_left'].unique()
 
-    db_pruned = db_other.loc[index_to_keep]
+    db_pruned = db_other.loc[~db_other.index.isin(index_to_drop)]
 
     return db_pruned
 
@@ -212,6 +213,8 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
                         (db_other['ChannelStart'] == cha_start)
                        )
                 if np.any(mask):
+                    # The record from loaded inventory survived pruning of db_other, so it is not an IRIS duplicate
+                    # and should be added to the merged inventory.
                     db_match = db_other[mask]
                     assert len(db_match) == 1, 'Found multiple matches, expected only one for {}'.format(db_match)
                     add_station = True
@@ -229,6 +232,8 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
         if add_network:
             # If the network code is new, add it directly to the inventory.
             # Otherwise, add it to the nearest network of the same network code.
+            # This rigmarole of adding to nearest network of the same network code is
+            # required because network codes are not necessarily unique.
             existing_networks = inv_merged.select(network=net.code)
             if existing_networks:
                 # Add to nearest existing network
