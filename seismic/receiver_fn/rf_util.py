@@ -342,3 +342,64 @@ def compute_rf_snr(rf_stream):
             tr.stats.update(md_dict)
         # end for
     # end if
+
+
+def choose_rf_source_channel(rf_type, db_station):
+    """Choose source channel for RF analysis.
+
+    :param rf_type: [description]
+    :type rf_type: [type]
+    :param db_station: Dict of traces for a given station keyed by channel code.
+    :type db_station: dict(str, list(rf.RFTrace))
+    :return: [description]
+    :rtype: [type]
+    """
+    if rf_type[0:3] == 'ZRT':
+        prospective_channels = ['HHR', 'BHR', 'EHR']
+    elif rf_type[0:3] == 'LQT':
+        prospective_channels = ['HHQ', 'BHQ', 'EHQ']
+    else:
+        prospective_channels = []
+    # end if
+    best_channel = None
+    for c in prospective_channels:
+        if c in db_station:
+            best_channel = c
+            break
+    # end for
+    return best_channel
+
+
+def label_rf_quality_simple_amplitude(rf_type, traces):
+    """Add RF quality label for a collection of RFs based on simple amplitude criteria computed by
+    quality filter script.
+
+    :param rf_type: [description]
+    :type rf_type: [type]
+    :param traces: Iterable collection of rf.RFTrace
+    :type traces: Iterable collection of rf.RFTrace
+    """
+    def _amplitude_metric_good(tr):
+        return tr.stats.snr >= 2 and tr.stats.log10_amp_max <= 0 and tr.stats.log10_amp_rms <= np.log10(0.2)
+
+    # Simple SNR and amplitude based filtering criteria matching formula from Babak in Matlab code, PLUS
+    # additional requirement in the case of ZRT rotation that the peak occurs nearby to onset time.
+    if rf_type[0:3] == 'ZRT':
+        for tr in traces:
+            times_rel = tr.times() - (tr.stats.onset - tr.stats.starttime)
+            if (_amplitude_metric_good(tr) and
+                    np.min(np.abs(times_rel[np.argwhere(tr.data == np.max(tr.data))])) <= 5.0):
+                tr.stats.predicted_quality = 'a'
+            else:
+                tr.stats.predicted_quality = 'b'
+            # end if
+        # end for
+    else:  # LQT
+        for tr in traces:
+            if _amplitude_metric_good(tr):
+                tr.stats.predicted_quality = 'a'
+            else:
+                tr.stats.predicted_quality = 'b'
+            # end if
+        # end for
+    # end if
