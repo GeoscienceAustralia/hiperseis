@@ -270,29 +270,35 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, fil
                        .format(num_discarded, num_traces_before))
     # end if
 
-    # Extract RF type and the primary polarized component (ignore other component streams)
-    rf_type, p_stream, _, _ = get_rf_stream_components(streams)
+    # Extract RF type, the primary polarized component and transverse component (ignore source stream)
+    rf_type, p_stream, t_stream, _ = get_rf_stream_components(streams)
     if rf_type is None:
         logger.error("Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
         return None
     # end if
 
-    # Filter p_stream prior to computing quality metrics and downsample to DOUBLE the Nyquist freq (on the assumption
+    # Filter RF streams prior to computing quality metrics and downsample to DOUBLE the Nyquist freq (on the assumption
     # that the Nyquist freq is ~2*freq_max) since some signal will still pass through above filter cutoff.
     if filter_band:
         freq_min = filter_band[0]
         freq_max = filter_band[1]
         p_stream = p_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)
+        t_stream = t_stream.filter('bandpass', freqmin=freq_min, freqmax=freq_max, corners=2, zerophase=True)
         sampling_rate = max(4*freq_max, MIN_RESAMPLING_RATE_HZ)
         if sampling_rate < p_stream[0].stats.sampling_rate:
             p_stream = p_stream.interpolate(sampling_rate=sampling_rate, method='lanczos', a=20)
+        if sampling_rate < t_stream[0].stats.sampling_rate:
+            t_stream = t_stream.interpolate(sampling_rate=sampling_rate, method='lanczos', a=20)
         # end if
     # end if
 
-    # Compute S/N ratios for RFs
+    # Note that we only compute quality metrics on the p_stream. The filtering of t_stream traces should match
+    # the filtering of p_stream traces, so t_stream does not need independent metrics.
+
+    # Compute S/N ratios for primary component RFs
     rf_util.compute_rf_snr(p_stream)
 
-    # Compute spectral entropy for all traces
+    # Compute spectral entropy for primary component RFs
     sp_entropy = spectral_entropy(p_stream)
     for i, tr in enumerate(p_stream):
         md_dict = {'entropy': sp_entropy[i]}
@@ -393,6 +399,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, fil
     # without the N^2 computational cost.
 
     oqueue.put(p_stream)
+    oqueue.put(t_stream)
 
     # Return Pandas DataFrame of tabulated metadata for this station
     return pd.DataFrame()
@@ -435,7 +442,7 @@ def main(input_file, output_file, temp_dir=None, filter_band=None, parallel=True
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 10))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 20))
     output_thread.daemon = True
     output_thread.start()
 
