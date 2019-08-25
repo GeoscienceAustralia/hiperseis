@@ -24,7 +24,14 @@ def compute_hk_stack(db_station, cha, h_range=np.linspace(10.0, 70.0, 301), k_ra
     stream_stack = []
     cha_data = db_station[cha]
     # Loop over traces, compute times, and stack interpolated values at those times
+    channel_id = None
     for tr in cha_data:
+        if channel_id is None:
+            channel_id = tr.stats.channel
+        else:
+            assert tr.stats.channel == channel_id, \
+                "Stacking mismatching channel data: expected {}, found {}".format(channel_id, tr.stats.channel)
+        # end if
         incl = tr.stats.inclination
         incl_rad = incl*np.pi/180.0
         sin_i = np.sin(incl_rad)

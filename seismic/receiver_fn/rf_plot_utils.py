@@ -4,6 +4,7 @@
 
 import logging
 import time
+from collections import defaultdict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -168,3 +169,88 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, show=Tru
         plt.show()
     else:
         plt.close()
+
+
+def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', target_id='',
+                  figsize=(12, 12), cluster=True, cluster_col='#ff0000'):
+    """Plot receiver functions around a polar plot with source direction used to position radial RF plot.
+
+    :param rf_stream: Collection of RFs to plot
+    :type rf_stream: rf.RFStream
+    :param max_time: maximum time relative to onset, defaults to 25.0
+    :type max_time: float, optional
+    :param deg_per_unit_amplitude: Azimuthal scaling factor for RF amplitude, defaults to 20
+    :type deg_per_unit_amplitude: float, optional
+    :param plt_col: Plot color for line and positive signal areas, defaults to 'C0'
+    :type plt_col: str, optional
+    :param target_id: Station identifier to place in center of image, defaults to ''
+    :type target_id: str, optional
+    :param figsize: Size of figure area, defaults to (12, 12)
+    :type figsize: tuple, optional
+    :return: Figure object
+    :rtype: matplotlib.figure.Figure
+    """
+    fig = plt.figure(figsize=figsize)
+    ax = plt.subplot(111, projection="polar")
+    # Orient with north
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_rlabel_position(75)
+
+    inner_radius = 0.4*max_time  # time units (e.g. sec)
+    rf_stream = rf_stream.copy().trim2(0, max_time, reftime='onset')
+    for i, tr in enumerate(rf_stream):
+        t = tr.times()
+        rf_amp = tr.data
+        back_azi = np.deg2rad(tr.stats.back_azimuth)
+        azi_amp = back_azi - np.deg2rad(deg_per_unit_amplitude*rf_amp/
+                                        np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
+        plt.plot(azi_amp, t, color=plt_col, zorder=i+1)
+        ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) < 0), lw=0., facecolor=plt_col,
+                         alpha=0.7, zorder=i+1)
+        ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) >= 0), lw=0., facecolor='#a0a0a080',
+                         zorder=i+1)
+    # end for
+
+    ax.set_rorigin(-inner_radius)
+    ax.set_rlim(0, max_time)
+    ax.tick_params(labelsize=14)
+
+    if target_id:
+        fig.text(0.52, 0.5, target_id, fontsize=20, horizontalalignment='center', verticalalignment='center')
+    # end if
+
+    if cluster:
+        try:
+            from sklearn.cluster import DBSCAN
+
+            back_azis = np.array([tr.stats.back_azimuth for tr in rf_stream])
+            clustering = DBSCAN(eps=1.0).fit_predict(back_azis.reshape(-1, 1))
+            cluster_data = defaultdict(list)
+            for i, cl in enumerate(clustering):
+                if cl == -1:
+                    continue
+                cluster_data[cl].append(rf_stream[i])
+            # end for
+
+            zplus = i + 1
+            for i, cl in enumerate(cluster_data.values()):
+                # Have to assume same time samples for each RFTrace.
+                t = cl[0].times()
+                mean_azi = np.deg2rad(np.mean([tr.stats.back_azimuth for tr in cl]))
+                mean_amp = np.mean([tr.data for tr in cl], axis=0)
+
+                azi_amp = mean_azi - np.deg2rad(deg_per_unit_amplitude*mean_amp/
+                                                np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
+                plt.plot(azi_amp, t, color=cluster_col, zorder=i+zplus)
+                ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) < 0), lw=0., facecolor=cluster_col,
+                                 zorder=i+zplus)
+                ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) >= 0), lw=0., facecolor='#a0a0a080',
+                                 zorder=i+zplus)
+            # end for
+        except Exception as e:
+            logging.error("Clustering RFs failed with error: {}".format(str(e)))
+        # end try
+    # end if
+
+    return fig
