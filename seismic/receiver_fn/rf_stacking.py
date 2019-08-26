@@ -12,7 +12,7 @@ import seismic.receiver_fn.rf_util as rf_util
 logging.basicConfig()
 
 
-def compute_hk_stack(db_station, cha, h_range=np.linspace(10.0, 70.0, 301), k_range = np.linspace(1.3, 2.1, 201),
+def compute_hk_stack(db_station, cha, h_range=np.linspace(20.0, 70.0, 251), k_range=np.linspace(1.4, 2.0, 301),
                      V_p=6.4, root_order=1, include_t3=True):
 
     # Pre-compute grid quantities

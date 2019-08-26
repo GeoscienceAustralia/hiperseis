@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 # import rf
 # import rf.imaging
 
+# pylint: disable=invalid-name, logging-format-interpolation
+
 logging.basicConfig()
 
 
@@ -30,8 +32,9 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
     :param save_file: [description], defaults to None
     :type save_file: [type], optional
     """
-    _ = rf_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
-                          stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
+    fig = rf_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
+                            stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
+    return fig
 
 
 def plot_station_rf_overlays(db_station, title=None, time_range=None):
@@ -171,86 +174,108 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, show=Tru
         plt.close()
 
 
-def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', target_id='',
-                  figsize=(12, 12), cluster=True, cluster_col='#ff0000'):
+def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', title='',
+                  figsize=(10, 10), cluster=True, cluster_col='#ff4000', layout=None, fontscaling=1.0):
     """Plot receiver functions around a polar plot with source direction used to position radial RF plot.
 
-    :param rf_stream: Collection of RFs to plot
-    :type rf_stream: rf.RFStream
+    :param rf_stream: Collection of RFs to plot. If passed as a list, then each stream in the list
+        will be plotted on separate polar axes.
+    :type rf_stream: rf.RFStream or list(rf.RFStream)
     :param max_time: maximum time relative to onset, defaults to 25.0
     :type max_time: float, optional
     :param deg_per_unit_amplitude: Azimuthal scaling factor for RF amplitude, defaults to 20
     :type deg_per_unit_amplitude: float, optional
     :param plt_col: Plot color for line and positive signal areas, defaults to 'C0'
     :type plt_col: str, optional
-    :param target_id: Station identifier to place in center of image, defaults to ''
-    :type target_id: str, optional
+    :param title: Title for the overall plot, defaults to ''
+    :type title: str, optional
     :param figsize: Size of figure area, defaults to (12, 12)
     :type figsize: tuple, optional
+    :param cluster: Whether to add overlaid mean RF where there are many RFs close together.
+    :type cluster: bool
+    :param cluster_col: Color of clustered stacked overlay plots.
+    :type cluster_col: matplotlib color specification
+    :param layout: Arrangement of polar plots in grid. If None, then arranged in a column.
+    :type layout: tuple(int, int)
     :return: Figure object
     :rtype: matplotlib.figure.Figure
     """
+    if not isinstance(rf_stream, list):
+        rf_stream = [rf_stream]
+    if layout is None:
+        layout = (len(rf_stream), 1)
+
+    figsize = (figsize[0]*layout[1], figsize[1]*layout[0])
     fig = plt.figure(figsize=figsize)
-    ax = plt.subplot(111, projection="polar")
-    # Orient with north
-    ax.set_theta_zero_location("N")
-    ax.set_theta_direction(-1)
-    ax.set_rlabel_position(75)
 
-    inner_radius = 0.4*max_time  # time units (e.g. sec)
-    rf_stream = rf_stream.copy().trim2(0, max_time, reftime='onset')
-    for i, tr in enumerate(rf_stream):
-        t = tr.times()
-        rf_amp = tr.data
-        back_azi = np.deg2rad(tr.stats.back_azimuth)
-        azi_amp = back_azi - np.deg2rad(deg_per_unit_amplitude*rf_amp/
-                                        np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
-        plt.plot(azi_amp, t, color=plt_col, zorder=i+1)
-        ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) < 0), lw=0., facecolor=plt_col,
-                         alpha=0.7, zorder=i+1)
-        ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) >= 0), lw=0., facecolor='#a0a0a080',
-                         zorder=i+1)
+    for n, stream in enumerate(rf_stream):
+        ax = plt.subplot(*tuple(list(layout) + [n + 1]), projection="polar")
+        # Orient with north
+        ax.set_theta_zero_location("N")
+        ax.set_theta_direction(-1)
+        ax.set_rlabel_position(75)
+
+        inner_radius = 0.4*max_time  # time units (e.g. sec)
+        stream = stream.copy().trim2(0, max_time, reftime='onset')
+        for i, tr in enumerate(stream):
+            t = tr.times()
+            rf_amp = tr.data
+            back_azi = np.deg2rad(tr.stats.back_azimuth)
+            azi_amp = back_azi - np.deg2rad(deg_per_unit_amplitude*rf_amp/
+                                            np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
+            plt.plot(azi_amp, t, color=plt_col, zorder=i+1)
+            ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) < 0), lw=0., facecolor=plt_col,
+                             alpha=0.7, zorder=i+1)
+            ax.fill_betweenx(t, azi_amp, back_azi, where=((azi_amp - back_azi) >= 0), lw=0., facecolor='#a0a0a080',
+                             zorder=i+1)
+        # end for
+
+        ax.set_rorigin(-inner_radius)
+        ax.set_rlim(0, max_time)
+        ax.tick_params(labelsize=14*fontscaling)
+
+        stream_meta = stream[0].stats
+        target_id = '.'.join([stream_meta.network, stream_meta.station, stream_meta.channel])
+        ax.text(0.5, 0.5, target_id, fontsize=14*fontscaling, horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes)
+
+        if cluster:
+            try:
+                from sklearn.cluster import DBSCAN
+
+                back_azis = np.array([tr.stats.back_azimuth for tr in stream])
+                clustering = DBSCAN(eps=1.0).fit_predict(back_azis.reshape(-1, 1))
+                cluster_data = defaultdict(list)
+                for i, cl in enumerate(clustering):
+                    if cl == -1:
+                        continue
+                    cluster_data[cl].append(stream[i])
+                # end for
+
+                zplus = i + 1
+                for i, cl in enumerate(cluster_data.values()):
+                    # Have to assume same time samples for each RFTrace.
+                    t = cl[0].times()
+                    mean_azi = np.deg2rad(np.mean([tr.stats.back_azimuth for tr in cl]))
+                    mean_amp = np.mean([tr.data for tr in cl], axis=0)
+
+                    azi_amp = mean_azi - np.deg2rad(deg_per_unit_amplitude*mean_amp/
+                                                    np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
+                    plt.plot(azi_amp, t, color=cluster_col, zorder=i+zplus)
+                    ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) < 0), lw=0.,
+                                     facecolor=cluster_col, zorder=i+zplus)
+                    ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) >= 0), lw=0.,
+                                     facecolor='#a0a0a080', zorder=i+zplus)
+                # end for
+            except Exception as e:
+                logging.error("Clustering RFs failed with error: {}".format(str(e)))
+            # end try
+        # end if
+
+        if title:
+            fig.suptitle(title, fontsize=20*fontscaling)
+        # end if
+
     # end for
-
-    ax.set_rorigin(-inner_radius)
-    ax.set_rlim(0, max_time)
-    ax.tick_params(labelsize=14)
-
-    if target_id:
-        fig.text(0.52, 0.5, target_id, fontsize=20, horizontalalignment='center', verticalalignment='center')
-    # end if
-
-    if cluster:
-        try:
-            from sklearn.cluster import DBSCAN
-
-            back_azis = np.array([tr.stats.back_azimuth for tr in rf_stream])
-            clustering = DBSCAN(eps=1.0).fit_predict(back_azis.reshape(-1, 1))
-            cluster_data = defaultdict(list)
-            for i, cl in enumerate(clustering):
-                if cl == -1:
-                    continue
-                cluster_data[cl].append(rf_stream[i])
-            # end for
-
-            zplus = i + 1
-            for i, cl in enumerate(cluster_data.values()):
-                # Have to assume same time samples for each RFTrace.
-                t = cl[0].times()
-                mean_azi = np.deg2rad(np.mean([tr.stats.back_azimuth for tr in cl]))
-                mean_amp = np.mean([tr.data for tr in cl], axis=0)
-
-                azi_amp = mean_azi - np.deg2rad(deg_per_unit_amplitude*mean_amp/
-                                                np.linspace(1, (np.max(t) - np.min(t))/inner_radius, len(t)))
-                plt.plot(azi_amp, t, color=cluster_col, zorder=i+zplus)
-                ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) < 0), lw=0., facecolor=cluster_col,
-                                 zorder=i+zplus)
-                ax.fill_betweenx(t, azi_amp, mean_azi, where=((azi_amp - mean_azi) >= 0), lw=0., facecolor='#a0a0a080',
-                                 zorder=i+zplus)
-            # end for
-        except Exception as e:
-            logging.error("Clustering RFs failed with error: {}".format(str(e)))
-        # end try
-    # end if
 
     return fig
