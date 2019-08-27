@@ -495,11 +495,6 @@ def IntervalStackXCorr(refds, tempds,
         if(resample_rate < 2*fhi):
             raise RuntimeError('Resample-rate should be >= 2*fmax')
 
-    if(whitening and (ref_sta_inv or temp_sta_inv)):
-        raise RuntimeError('Mutually exclusive parameterization: specify either spectral whitening or '
-                           'instrument response removal')
-    # end if
-
     if(clip_to_2std and one_bit_normalize):
         raise RuntimeError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
                            'together is redundant')

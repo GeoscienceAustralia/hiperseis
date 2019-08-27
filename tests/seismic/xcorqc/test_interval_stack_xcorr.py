@@ -108,7 +108,6 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
 
     # skipping inconsistent parameterizations
     if (one_bit_normalize and clip_to_2std): return
-    if (whitening and (inv1 or inv2)): return
 
     output_folder = str(tmpdir.mkdir('output'))
 
