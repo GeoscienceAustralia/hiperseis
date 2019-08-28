@@ -62,7 +62,7 @@ def cha(request):
 def interval_seconds(request):
     return request.param
 
-@pytest.fixture(params=[3600, 60])
+@pytest.fixture(params=[3600, 1800])
 def window_seconds(request):
     return request.param
 
