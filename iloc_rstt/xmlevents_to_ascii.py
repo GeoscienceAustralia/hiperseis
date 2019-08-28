@@ -27,7 +27,6 @@ from random import shuffle
 import os, glob, fnmatch, sys
 from obspy import read_events, read_inventory
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-import MySQLdb
 import os
 
 def split_list(lst, npartitions):
@@ -86,13 +85,13 @@ def process(data_path, inventory_file, scratch_path, output_file_stem):
 
     pprocfile = open('%s/pproc.%d.txt'%(scratch_path, rank), 'w+')
     sprocfile = open('%s/sproc.%d.txt'%(scratch_path, rank), 'w+')
-    for file in tqdm(files):
+    for file in files:
         cat = read_events(file, format='SC3ML')
         notFound = defaultdict(int)
 
         linesp = []
         liness = []
-        for e in cat.events:
+        for e in tqdm(cat.events, desc='Rank: %d'%(rank)):
             po = e.preferred_origin()
 
             # retrieve depth; some preferred origins don't have depth values
