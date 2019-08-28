@@ -355,9 +355,9 @@ def choose_rf_source_channel(rf_type, db_station):
     :rtype: [type]
     """
     if rf_type[0:3] == 'ZRT':
-        prospective_channels = ['HHR', 'BHR', 'EHR']
+        prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR']
     elif rf_type[0:3] == 'LQT':
-        prospective_channels = ['HHQ', 'BHQ', 'EHQ']
+        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ']
     else:
         prospective_channels = []
     # end if
