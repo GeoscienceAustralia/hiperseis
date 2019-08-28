@@ -37,6 +37,7 @@ from obspy import read, Trace
 from obspy.signal.cross_correlation import xcorr
 from obspy.signal.detrend import simple, spline
 from obspy.signal.filter import bandpass
+from obspy.geodetics.base import gps2dist_azimuth
 from scipy import signal
 
 from seismic.xcorqc.fft import *
@@ -282,12 +283,6 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
                 # end if
 
-                # spectral whitening
-                if(whitening):
-                    tr1_d = whiten(tr1_d, sr1)
-                    tr2_d = whiten(tr2_d, sr2)
-                # end if
-
                 # 1-bit normalization
                 if(one_bit_normalize):
                     tr1_d = np.sign(tr1_d)
@@ -303,6 +298,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     # unit-std
                     tr1_d /= np.std(tr1_d)
                     tr2_d /= np.std(tr2_d)
+                # end if
+
+                # spectral whitening
+                if(whitening):
+                    tr1_d = whiten(tr1_d, sr1)
+                    tr2_d = whiten(tr2_d, sr2)
                 # end if
 
                 if (sr1 < sr2):
@@ -443,11 +444,11 @@ def IntervalStackXCorr(refds, tempds,
     :param ref_cha: Channel name for the reference Dataset
     :type temp_cha: str
     :param temp_cha: Channel name for the temporary Dataset
-    :type baz_ref_net_sta: str
+    :type baz_ref_net_sta: float
     :param baz_ref_net_sta: Back-azimuth of ref station from temp station in degrees
-    :type baz_temp_net_sta: str
+    :type baz_temp_net_sta: float
     :param baz_temp_net_sta: Back-azimuth of temp station from ref station in degrees
-    :type resample_rate: int
+    :type resample_rate: float
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type buffer_seconds: int
     :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because
@@ -493,11 +494,6 @@ def IntervalStackXCorr(refds, tempds,
     if(resample_rate and fhi):
         if(resample_rate < 2*fhi):
             raise RuntimeError('Resample-rate should be >= 2*fmax')
-
-    if(whitening and (ref_sta_inv or temp_sta_inv)):
-        raise RuntimeError('Mutually exclusive parameterization: specify either spectral whitening or '
-                           'instrument response removal')
-    # end if
 
     if(clip_to_2std and one_bit_normalize):
         raise RuntimeError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
@@ -695,19 +691,19 @@ def IntervalStackXCorr(refds, tempds,
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
 
         # Add metadata
-        sr = root_grp.createVariable('SampleRate', 'f4')
         lon1 = root_grp.createVariable('Lon1', 'f4')
         lat1 = root_grp.createVariable('Lat1', 'f4')
         lon2 = root_grp.createVariable('Lon2', 'f4')
         lat2 = root_grp.createVariable('Lat2', 'f4')
-        xcorrchan = root_grp.createVariable('CorrChannels', 'S1', ('nchar'))
+        distance = root_grp.createVariable('Distance', 'f4')
 
-        sr[:] = resample_rate
         lon1[:] = refds.unique_coordinates[ref_net_sta][0] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lat1[:] = refds.unique_coordinates[ref_net_sta][1] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lon2[:] = tempds.unique_coordinates[temp_net_sta][0] if len(tempds.unique_coordinates[temp_net_sta]) else -999
         lat2[:] = tempds.unique_coordinates[temp_net_sta][1]  if len(tempds.unique_coordinates[temp_net_sta]) else -999
-        xcorrchan[:] = stringtochar(np.array(['%s.%s'%(ref_cha, temp_cha)], 'S10'))
+        if( np.min([v != -999 for v in [lon1[:], lat1[:], lon2[:], lat2[:]]]) ):
+            distance[:], _, _ = gps2dist_azimuth(lat1[:], lon1[:], lat2[:], lon2[:])
+        # end if
 
         # Add data
         if(ensemble_stack):
@@ -747,9 +743,33 @@ def IntervalStackXCorr(refds, tempds,
 
         lag[:] = x
 
+        # Add and populate a new group for parameters used
+        pg = root_grp.createGroup('Parameters')
+
+        params = {'corr_chans': '%s.%s'%(ref_cha, temp_cha),
+                  'instr_corr_applied_1': 1 if ref_sta_inv else 0,
+                  'instr_corr_applied_2': 1 if temp_sta_inv else 0,
+                  'instr_corr_output': instrument_response_output,
+                  'instr_corr_water_level_db': water_level,
+                  'resample_rate': resample_rate if resample_rate else -999,
+                  'buffer_seconds': buffer_seconds,
+                  'interval_seconds': interval_seconds,
+                  'window_seconds': window_seconds,
+                  'bandpass_fmin': flo if flo else -999,
+                  'bandpass_fmax': fhi if fhi else -999,
+                  'clip_to_2std': int(clip_to_2std),
+                  'one_bit_normalize': int(one_bit_normalize),
+                  'zero_mean_1std_normalize': int(clip_to_2std==False and one_bit_normalize == False),
+                  'spectral_whitening': int(whitening),
+                  'envelope_normalize': int(envelope_normalize),
+                  'ensemble_stack': int(ensemble_stack)}
+
+        for k, v in params.items():
+            setattr(pg, k, v)
+        # end for
+
         root_grp.close()
     # end for
 
     return x, xcorrResultsDict, windowCountResultsDict
 # end func
-

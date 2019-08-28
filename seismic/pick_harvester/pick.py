@@ -389,7 +389,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
     # Retrieve estimated workload
     # ==================================================
     taupyModel = TauPyModel(model='iasp91')
-    fds = FederatedASDFDataSet(asdf_source, use_json_db=False, logger=None)
+    fds = FederatedASDFDataSet(asdf_source, logger=None)
     workload = getWorkloadEstimate(fds, originTimestamps)
 
     # ==================================================
@@ -445,8 +445,14 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
                                            curr + step,
-                                           automerge=True,
                                            trace_count_threshold=200)
+
+                    try:
+                        st.merge(method=-1)
+                    except Exception as e:
+                        print (e)
+                        continue
+                    # end try
 
                     if (len(st) == 0): continue
                     dropBogusTraces(st)
@@ -521,13 +527,19 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                                curr,
                                                curr + step,
-                                               automerge=True,
                                                trace_count_threshold=200)
                         ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
                                                curr,
                                                curr + step,
-                                               automerge=True,
                                                trace_count_threshold=200)
+
+                        try:
+                            stn.merge(method=-1)
+                            ste.merge(method=-1)
+                        except Exception as e:
+                            print (e)
+                            continue
+                        # end try
 
                         dropBogusTraces(stn)
                         dropBogusTraces(ste)
