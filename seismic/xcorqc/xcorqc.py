@@ -444,11 +444,11 @@ def IntervalStackXCorr(refds, tempds,
     :param ref_cha: Channel name for the reference Dataset
     :type temp_cha: str
     :param temp_cha: Channel name for the temporary Dataset
-    :type baz_ref_net_sta: str
+    :type baz_ref_net_sta: float
     :param baz_ref_net_sta: Back-azimuth of ref station from temp station in degrees
-    :type baz_temp_net_sta: str
+    :type baz_temp_net_sta: float
     :param baz_temp_net_sta: Back-azimuth of temp station from ref station in degrees
-    :type resample_rate: int
+    :type resample_rate: float
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type buffer_seconds: int
     :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because

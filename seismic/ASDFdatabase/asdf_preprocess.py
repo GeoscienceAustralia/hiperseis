@@ -104,7 +104,7 @@ def create_station_asdf(input_asdf, output_folder, resample_rate,
                     dayst += wtr
                 # end for
             # end for
-            gc.collect()
+            gc.collect() # force cleanup fft-related internal caches
 
             # remove response
             if(sinv):
@@ -169,7 +169,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
-@click.option('--resample-rate', default=10,
+@click.option('--resample-rate', default=10, show_default=True,
               help="Resample rate in Hz; default is 10 Hz")
 @click.option('--instrument-response-inventory', default=None,
               type=click.Path('r'),
