@@ -26,49 +26,30 @@ import ujson as json
 from scipy.spatial import cKDTree
 from collections import defaultdict
 from seismic.ASDFdatabase.utils import rtp2xyz
-from seismic.ASDFdatabase.FederatedASDFDataSetDBVariant import FederatedASDFDataSetDBVariant
-
-HAS_RTREE = True
-try:
-    from seismic.ASDFdatabase.FederatedASDFDataSetMemVariant import FederatedASDFDataSetMemVariant
-except ImportError:
-    HAS_RTREE = False
-# end if
+from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSetImpl
 
 class FederatedASDFDataSet():
-    def __init__(self, asdf_source, variant='db', use_json_db=False, logger=None):
+    def __init__(self, asdf_source, logger=None, single_item_read_limit_in_mb=1024):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
-        :param variant: can be either 'mem' or 'db'
-        :param use_json_db: whether to use json db if available. Has no effect if variant is 'db'
         :param logger: logger instance
         """
-        self.variant = variant
-        self.use_json_db = use_json_db
         self.logger = logger
         self.asdf_source = asdf_source
         self._unique_coordinates = None
         self._earth_radius = 6371 #km
 
-        if(self.variant == 'mem'):
-            if(HAS_RTREE):
-                self.fds = FederatedASDFDataSetMemVariant(asdf_source, use_json_db, logger)
-            else:
-                raise Exception("'mem' variant cannot be used, because package rtree is missing")
-            # end if
-        elif(self.variant == 'db'):
-            self.fds = FederatedASDFDataSetDBVariant(asdf_source, logger)
-        else:
-            raise Exception("Invalid variant: must be 'mem' or 'db'")
-        # end if
+        # Instantiate implementation class
+        self.fds = _FederatedASDFDataSetImpl(asdf_source, logger=logger,
+                                             single_item_read_limit_in_mb=single_item_read_limit_in_mb)
 
         # Populate coordinates
         self._unique_coordinates = defaultdict(list)
 
         rtps_dict = defaultdict()
         for ds_dict in self.fds.asdf_station_coordinates:
-            for key in ds_dict.keys():
+            for key in list(ds_dict.keys()):
                 self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
 
                 rtps_dict[key] = [self._earth_radius,
@@ -78,14 +59,14 @@ class FederatedASDFDataSet():
         # end for
 
         rtps_list = []
-        for k in rtps_dict.keys():
+        for k in list(rtps_dict.keys()):
             rtps_list.append(rtps_dict[k])
         # end for
         rtps = np.array(rtps_list)
         xyzs = rtp2xyz(rtps[:, 0], rtps[:, 1], rtps[:, 2])
 
         self._tree = cKDTree(xyzs)
-        self._key_list = np.array(rtps_dict.keys())
+        self._key_list = np.array(list(rtps_dict.keys()))
     # end func
 
     @property
@@ -106,6 +87,8 @@ class FederatedASDFDataSet():
         :return: A tuple containing a list of closest 'network.station' names and a list of distances
                  (in ascending order) in kms
         """
+        assert nn > 0, 'nn must be > 0'
+
         xyz = rtp2xyz(np.array([self._earth_radius]),
                       np.array([np.radians(90 - lat)]),
                       np.array([np.radians(lon)]))
@@ -154,7 +137,7 @@ class FederatedASDFDataSet():
     # end func
 
     def get_waveform_count(self, network, station, location, channel, starttime,
-                           endtime, trace_count_threshold=200):
+                           endtime):
         """
         Count the number of traces within the given parameters of network, station, etc..
         and date range. This is a fast method of determing whether any trace data exists
@@ -166,16 +149,14 @@ class FederatedASDFDataSet():
         :param channel: channel code
         :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
         :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
-        :param trace_count_threshold: returns 0 if the number of traces within the time-rage provided
-                                      exceeds the threshold (default 200). This is particularly useful for filtering
-                                      out data from bad stations, e.g. those from the AU.Schools network
         :return: The number of streams containing waveform data over the time-range provided
         """
         return self.fds.get_waveform_count(network, station, location, channel,
-                                           starttime, endtime, trace_count_threshold)
+                                           starttime, endtime)
+    # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, automerge=False, trace_count_threshold=200):
+                      endtime, trace_count_threshold=200):
         """
         :param network: network code
         :param station: station code
@@ -183,14 +164,13 @@ class FederatedASDFDataSet():
         :param channel: channel code
         :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
         :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
-        :param automerge: merge traces (default False)
         :param trace_count_threshold: returns an empty Stream if the number of traces within the time-range provided
                                       exceeds the threshold (default 200). This is particularly useful for filtering
                                       out data from bad stations, e.g. those from the AU.Schools network
         :return: an Obspy Stream containing waveform data over the time-rage provided
         """
         s = self.fds.get_waveforms(network, station, location, channel, starttime,
-                              endtime, automerge, trace_count_threshold)
+                              endtime, trace_count_threshold)
         return s
     # end func
 

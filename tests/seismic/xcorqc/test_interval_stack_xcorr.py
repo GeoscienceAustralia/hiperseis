@@ -17,11 +17,11 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from obspy import read_inventory
 import os, sys
-import tempfile
 import pytest
 from netCDF4 import Dataset
 import numpy as np
 import tempfile
+import shutil
 
 # Prepare input
 netsta1 = 'AU.ARMA'
@@ -62,7 +62,7 @@ def cha(request):
 def interval_seconds(request):
     return request.param
 
-@pytest.fixture(params=[3600, 60])
+@pytest.fixture(params=[3600, 1800])
 def window_seconds(request):
     return request.param
 
@@ -108,7 +108,6 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
 
     # skipping inconsistent parameterizations
     if (one_bit_normalize and clip_to_2std): return
-    if (whitening and (inv1 or inv2)): return
 
     output_folder = str(tmpdir.mkdir('output'))
 
@@ -122,10 +121,10 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
                        cha,
                        cha,
                        50, 250,
-                       resample_rate=1,
+                       resample_rate=0.25,
                        buffer_seconds=interval_seconds,
                        interval_seconds=interval_seconds,
-                       window_seconds=window_seconds, flo=0.01, fhi=0.5,
+                       window_seconds=window_seconds, flo=0.01, fhi=0.125,
                        clip_to_2std=clip_to_2std, whitening=whitening,
                        one_bit_normalize=one_bit_normalize, envelope_normalize=envelope_normalize,
                        ensemble_stack=ensemble_stack,
@@ -149,4 +148,7 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     # end if
 
     assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
+
+    shutil.rmtree(output_folder)
 # end func
+
