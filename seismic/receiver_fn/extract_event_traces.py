@@ -1,22 +1,24 @@
 #!/usr/bin/env python
+"""Use waveform database and station inventory to extract raw traces for all seismic events within a given
+magnitude and time range.
+"""
 
 import os.path
-import numpy as np
 import logging
 import re
-import urllib3
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
+import urllib3
 
+import numpy as np
 import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
 from obspy.clients.fdsn import Client
+from obspy.core import Stream
 from rf import iter_event_data
 from tqdm import tqdm
-
 import click
-from obspy.core import Stream
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
@@ -26,30 +28,32 @@ logging.basicConfig()
 
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
-    """Load (if available) or create event catalog from FDSN server.
+    """Load event catalog (if available) or create event catalog from FDSN server.
 
-    :param lonlat: [description]
-    :type lonlat: [type]
-    :param starttime: [description]
-    :type starttime: [type]
-    :param endtime: [description]
-    :type endtime: [type]
-    :param cat_file: [description]
-    :type cat_file: [type]
-    :param distance_range: [description]
-    :type distance_range: [type]
-    :param magnitude_range: [description]
-    :type magnitude_range: [type]
-    :param early_exit: [description], defaults to True
+    :param lonlat: (Longitude, latitude) of reference location for finding events
+    :type lonlat: tuple(float, float)
+    :param starttime: Start time of period in which to query events
+    :type starttime: obspy.UTCDateTime or str in UTC datetime format
+    :param endtime: End time of period in which to query events
+    :type endtime: obspy.UTCDateTime or str in UTC datetime format
+    :param cat_file: File containing event catalog, or file name in which to store event catalog
+    :type cat_file: str or Path
+    :param distance_range: Range of distances over which to query seismic events
+    :type distance_range: tuple(float, float)
+    :param magnitude_range: Range of event magnitudes over which to query seismic events.
+    :type magnitude_range: tuple(float, float)
+    :param early_exit: If True, exit as soon as new catalog has been generated, defaults to True
     :type early_exit: bool, optional
-    :return: [description]
-    :rtype: [type]
+    :return: Event catalog
+    :rtype: obspy.core.event.catalog.Catalog
     """
     log = logging.getLogger(__name__)
 
     # If file needs to be generated, then this function requires internet access.
     if os.path.exists(cat_file):
-        # This is a bad model - it will read events from completely different settings just because the file is there!
+        # FIXME: This is a bad design - it will read events from a file generated using completely
+        # different settings just because the file is there!
+        log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
         catalog = read_events(cat_file)
     else:
         min_magnitude = magnitude_range[0]
@@ -81,10 +85,10 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
 def _filter_catalog_events(catalog):
     """Filter catalog with fixed filter criteria.
 
-    :param catalog: [description]
-    :type catalog: [type]
-    :return: [description]
-    :rtype: [type]
+    :param catalog: Seismic event catalog
+    :type catalog: obspy.core.event.catalog.Catalog
+    :return: Filtered event catalog
+    :rtype: obspy.core.event.catalog.Catalog
     """
     log = logging.getLogger(__name__)
 
@@ -114,6 +118,23 @@ def _filter_catalog_events(catalog):
 
 def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
                          endtime, **kwargs):
+    """Custom waveform getter function to retrieve waveforms from FederatedASDFDataSet.
+
+    :param asdf_dataset: Instance of FederatedASDFDataSet to query
+    :type asdf_dataset: seismic.ASDFdatabase.FederatedASDFDataSet
+    :param network: Network code
+    :type network: str
+    :param station: Station code
+    :type station: str
+    :param location: Location code
+    :type location: str
+    :param channel: Channel code
+    :type channel: str
+    :param starttime: Start time of the waveform query
+    :type starttime: str in UTC datetime format
+    :param endtime: End time of the waveform query
+    :type endtime: str in UTC datetime format
+    """
     st = Stream()
     matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
                                                   location=location)
@@ -152,7 +173,7 @@ def timestamp_filename(fname, t0, t1):
     return bname + ext
 
 
-def get_existing_index(rf_trace_datafile):
+def _get_existing_index(rf_trace_datafile):
     import h5py
     try:
         rf_file_readonly = h5py.File(rf_trace_datafile, mode='r')
@@ -164,8 +185,16 @@ def get_existing_index(rf_trace_datafile):
 
 
 def is_url(resource_path):
+    """Convenience function to check if a given resource path is a valid URL
+
+    :param resource_path: Path to test for URL-ness
+    :type resource_path: str
+    :return: True if input is a valid URL, False otherwise
+    :rtype: bool
+    """
     str_parsed = urllib3.util.url.parse_url(resource_path)
     return str_parsed.scheme and str_parsed.netloc
+
 
 # ---+----------Main---------------------------------
 
@@ -249,7 +278,6 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
-    # TODO: This can probably be sped up a lot by splitting event catalog across N processors
 
     if waveform_db_is_web:
         existing_index = None
@@ -260,7 +288,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
             return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
-        existing_index = get_existing_index(rf_trace_datafile)
+        existing_index = _get_existing_index(rf_trace_datafile)
         waveform_getter = closure_get_waveforms
     # end if
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Generate Receiver Functions (RF) from collection of 3-channel seismic traces.
+"""
 
 import logging
 from multiprocessing import Process, Manager
@@ -41,17 +43,40 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                            deconv_domain, spiking, normalize, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
 
+    :param oqueue: Output queue where filtered streams are queued
+    :type oqueue: multiprocessing.Manager.Queue
     :param ev_id: The event id
     :type ev_id: int
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: rf.RFStream
+    :param resample_rate_hz: Resampling rate of generated RF
+    :type resample_rate_hz: float
+    :param taper_limit: Taper limit passed to obspy.core.stream.Stream.taper
+    :type taper_limit: float
+    :param rotation_type: Rotation type, should be one of ['ZRT', 'LQT']
+    :type rotation_type: str
+    :param filter_band_hz: Limits of passband for frequency filtering of raw traces.
+    :type filter_band_hz: tuple(float, float)
+    :param gauss_width: Gauss width for frequency-domain deconvolution
+    :type gauss_width: float
+    :param water_level: Water-level for frequency-domain deconvolution
+    :type water_level: float
+    :param trim_start_time_sec: Trim start time of RF relative to theoretical onset
+    :type trim_start_time_sec: float
+    :param trim_end_time_sec: Trim end time of RF relative to theoretical onset
+    :type trim_end_time_sec: float
     :param deconv_domain: Domain in which to perform deconvolution
     :type deconv_domain: str
+    :param spiking: Spiking value to use for time-domain deconvolution
+    :type spiking: float
+    :param normalize: Whether to normalize RFs
+    :type normalize: bool
     :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
     :type kwargs: dict
     :return: Stream containing receiver function
     :rtype: rf.RFStream
     """
+
     logger = logging.getLogger(__name__)
     logger.info("Event #{}".format(ev_id))
 

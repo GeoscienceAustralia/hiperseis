@@ -14,7 +14,25 @@ logging.basicConfig()
 
 def compute_hk_stack(db_station, cha, h_range=np.linspace(20.0, 70.0, 251), k_range=np.linspace(1.4, 2.0, 301),
                      V_p=6.4, root_order=1, include_t3=True):
+    """This function subject to further validation - documentation deferred.
 
+    :param db_station: [description]
+    :type db_station: [type]
+    :param cha: [description]
+    :type cha: [type]
+    :param h_range: [description], defaults to np.linspace(20.0, 70.0, 251)
+    :type h_range: [type], optional
+    :param k_range: [description], defaults to np.linspace(1.4, 2.0, 301)
+    :type k_range: [type], optional
+    :param V_p: [description], defaults to 6.4
+    :type V_p: float, optional
+    :param root_order: [description], defaults to 1
+    :type root_order: int, optional
+    :param include_t3: [description], defaults to True
+    :type include_t3: bool, optional
+    :return: [description]
+    :rtype: [type]
+    """
     # Pre-compute grid quantities
     k_grid, h_grid = np.meshgrid(k_range, h_range)
     hk_stack = np.zeros_like(k_grid)
@@ -80,6 +98,15 @@ def compute_hk_stack(db_station, cha, h_range=np.linspace(20.0, 70.0, 251), k_ra
 
 
 def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
+    """Given stack components from function `compute_hk_stack`, compute the overall weighted stack.
+
+    :param hk_components: H-k stack layers returned from `compute_hk_stack`
+    :type hk_components: np.array
+    :param weighting: Weightings for (t1, t2, t3) layers respectively, defaults to (0.5, 0.5, 0.0)
+    :type weighting: tuple, optional
+    :return: Weighted stack in H-k space
+    :rtype: numpy.array
+    """
     assert hk_components.shape[0] == len(weighting), hk_components.shape
     hk_phase_stacked = np.dot(np.moveaxis(hk_components, 0, -1), np.array(weighting))
     return hk_phase_stacked

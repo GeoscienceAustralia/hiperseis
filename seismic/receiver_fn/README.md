@@ -9,7 +9,7 @@ The RF workflow is based on the following main steps:
  - Calculate Receiver Functions: performing transformation and deconvolution to ZRT or QLT coordinate system
  - Quality filtering on RFs: discard bad results by filtering
  - Analyse RF to identify multiples
- - Perform 1D Earth structure inversion 
+ - Perform analysis such as 1D Earth structure inversion, H-k stacking, etc...
 
 There are a number of manuals and literature about RF. You can refer to examples provided by
 [Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html), manuals

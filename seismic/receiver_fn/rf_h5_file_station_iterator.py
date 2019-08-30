@@ -5,7 +5,6 @@
 
 import logging
 
-import numpy as np
 import h5py
 from obspyh5 import dataset2trace
 from rf import RFStream

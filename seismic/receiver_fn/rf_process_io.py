@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Helper for asynchronous writing of RF data to file.
+"""
 
 import logging
 
@@ -15,11 +17,11 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
        When None is received on the queue, this is taken as the signal to terminate
        monitoring the queue.
 
-    :param rfstream_queue: [description]
+    :param rfstream_queue: Queue into which RFStreams are pushed for writing to file.
     :type rfstream_queue: multiprocessing.Manager.Queue
-    :param outfile_name: [description]
+    :param outfile_name: Name of file into which queued RFStream results are periodically written.
     :type outfile_name: str or Path
-    :param max_buffered: [description], defaults to 100
+    :param max_buffered: Maximum number of RFStreams to buffer before flushing to file, defaults to 100
     :type max_buffered: int, optional
     """
     buffered_streams = []

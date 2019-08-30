@@ -1,6 +1,11 @@
 #!/usr/bin/env python
+"""Filter out invalid RFs, and compute a variety of quality metrics for the
+remaining RFs. These metrics can be combined in various ways downstream to
+perform different kinds of filtering. Quality metrics are stored in the stats
+of each trace.
+"""
 
-from builtins import range
+from builtins import range  # pylint: disable=redefined-builtin
 
 import logging
 import itertools
@@ -14,19 +19,14 @@ import click
 from scipy import signal
 from scipy import stats
 # from fastdtw import fastdtw
-# from matplotlib.pyplot import plot, show, figure, ylim, xlabel, ylabel, legend, subplot2grid, GridSpec
-# import matplotlib.pyplot as plt
 
 from sklearn.cluster import DBSCAN
 from joblib import Parallel, delayed
-# import obspy
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvents
 from seismic.receiver_fn import rf_util
-
-# from tqdm import tqdm
 
 logging.basicConfig()
 
@@ -36,7 +36,6 @@ MIN_RESAMPLING_RATE_HZ = 8.0
 
 
 def _crossSpectrum(x, y, num_subsegs=32):
-
     # -------------------Remove mean-------------------
     # nperseg chosen arbitrary based on 126 samples RF signal, experiment to get best results
     nperseg = int(np.floor(x.size/num_subsegs))
@@ -173,7 +172,7 @@ def spectral_entropy(stream):
 def get_rf_stream_components(stream):
     """Identify the RF component types and return them.
 
-    :param stream: [description]
+    :param stream: Stream containing mixed RF components.
     :type stream: rf.RFStream
     :return: (RF component type, primary RF component (R or Q), transverse RF component (T), source component (Z or L))
     :rtype: (str, rf.RFStream, rf.RFStream, rf.RFStream)
@@ -204,6 +203,19 @@ def get_rf_stream_components(stream):
 
 
 def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, filter_band=None):
+    """Top level function for quality filtering, computing of quality metrics and adding to trace metadata.
+
+    :param oqueue: Output queue where filtered streams are queued
+    :type oqueue: multiprocessing.Manager.Queue
+    :param station_id: Station ID
+    :type station_id: str
+    :param station_stream3c: 3-channel stream
+    :type station_stream3c: list(rf.RFStream) with 3 components
+    :param similarity_eps: Distance threshold used for DBSCAN clustering
+    :type similarity_eps: float
+    :param filter_band: (Min, Max) frequenies of passband if RFs are to be filtered, defaults to None (no filtering)
+    :type filter_band: tuple(float, float), optional
+    """
 
     logger = logging.getLogger(__name__)
 
@@ -396,13 +408,11 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps, fil
     # TODO: Research techniques for grouping waveforms using singular value decomposition (SVD), possibly of
     # the complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
     # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
-    # without the N^2 computational cost.
+    # without the N^2 computational cost of DBSCAN.
 
     oqueue.put(p_stream)
     oqueue.put(t_stream)
-
-    # Return Pandas DataFrame of tabulated metadata for this station
-    return pd.DataFrame()
+# end func
 
 
 # -------------Main---------------------------------
@@ -449,18 +459,16 @@ def main(input_file, output_file, temp_dir=None, filter_band=None, parallel=True
     logger.info("Processing source file {}".format(input_file))
     if parallel:
         logger.info("Parallel processing")
-        metadata_list = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir) \
+        Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir) \
             (delayed(rf_quality_metrics)(write_queue, station_id, station_stream3c, similarity_eps,
                                          filter_band=filter_band)
              for station_id, station_stream3c in IterRfH5StationEvents(input_file))
     else:
         logger.info("Serial processing")
-        metadata_list = []
         for station_id, station_stream3c in IterRfH5StationEvents(input_file):
             try:
-                md_table = rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps,
-                                              filter_band=filter_band)
-                metadata_list.append(md_table)
+                rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps,
+                                   filter_band=filter_band)
             except (ValueError, AssertionError) as e:
                 traceback.print_exc()
                 logger.error("Unhandled exception occurred in rf_quality_metrics for station {}. "
@@ -469,15 +477,10 @@ def main(input_file, output_file, temp_dir=None, filter_band=None, parallel=True
         # end for
     # end if
 
-    # TODO: Filter out None items before concat, if required.
-    all_metadata = pd.concat(metadata_list)
-
     # Signal completion
     logger.info("Finishing...")
     write_queue.put(None)
     write_queue.join()
-
-    # TODO: Write Pandas DataFrame of metadata to output file
 
     logger.info("rf_quality_filter SUCCESS!")
 # end func
