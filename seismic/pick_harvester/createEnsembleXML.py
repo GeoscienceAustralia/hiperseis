@@ -42,6 +42,22 @@ import uuid, copy
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 
 from utils import recursive_glob, split_list
+import logging
+from tqdm import tqdm
+
+def setup_logger(name, log_file, level=logging.INFO):
+    """
+    Function to setup a logger; adapted from stackoverflow
+    """
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler(log_file, mode='w')
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name+log_file)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    return logger
+# end func
 
 class Origin:
     def __init__(self, utctime, lat, lon, depthkm):
@@ -154,14 +170,14 @@ class FDSNInv:
         self.kdtree = cKDTree(self.xyz)
     # end func
     
-    def getClosestStations(self, lon, lat, maxdist=1e3):
+    def getClosestStation(self, lon, lat, maxdist=1e3):
         xyz = self.rtp2xyz(6371e3, 
                            np.radians(90-lat),
                            np.radians(lon))
         
-        indices = self.kdtree.query_ball_point(xyz, maxdist)
-        if(len(indices)):
-            return list(self.nsList[indices]), self.nsCoordsList[indices]
+        d, i = self.kdtree.query(xyz, distance_upper_bound=maxdist)
+        if(d != np.inf):
+            return self.nsList[i], self.nsCoordsList[i]
         else:
             return None
         # end func
@@ -178,7 +194,8 @@ class Catalog():
         self.rank = self.comm.Get_rank()
         self.counter = 0
         self.discard_old_picks = discard_old_picks
-        
+        self.logger = setup_logger('log.%d'%(self.rank), '%s/log.%d.txt'%(self.output_path, self.rank))
+
         self.isc_coords_file = isc_coords_file
         k = parser.fromstring(open(self.isc_coords_file).read())
 
@@ -215,6 +232,7 @@ class Catalog():
         # end for
 
         if(self.rank==0):
+            eid_set = set()
             for iline, line in enumerate(lines):
                 evtline = ''
                 if(line[0]=='#'):
@@ -256,6 +274,11 @@ class Catalog():
                     # end if
                     
                     eventid = vals[-1]
+                    if(eventid in eid_set):
+                        raise RuntimeError('Duplicate event-id found. Aborting..')
+                    else:
+                        eid_set.add(eventid)
+                    # end if
 
                     utctime = None
                     try:
@@ -340,7 +363,8 @@ class Catalog():
         notFound = defaultdict(int)     
         oEvents = []
         missingStations = defaultdict(int)
-        for e in self.eventList:
+        lines = []
+        for e in tqdm(self.eventList, desc='Rank %d'%(self.rank)):
             if(e.preferred_origin and len(e.preferred_origin.arrival_list)):
                 cullList = []
                 for a in e.preferred_origin.arrival_list:                   
@@ -356,15 +380,13 @@ class Catalog():
                             continue
                         # end if
 
-                        r = self.fdsn_inventory.getClosestStations(lonlat[0], lonlat[1], maxdist=1e3)
+                        r = self.fdsn_inventory.getClosestStation(lonlat[0], lonlat[1], maxdist=1e3) # 1km
                         #if(a.sta=='KUM'): print a.net, a.sta, a.loc, a.cha, r
                         if(not r):
                             notFound[sc]+=1
                         else:
-                            for cr in r[0]:
-                                c = cr.split('.')[0]
-                                newCode = c
-                            # end for
+                            c = r[0].split('.')[0]
+                            newCode = c
                         # end if
 
                         if(newCode):
@@ -387,7 +409,9 @@ class Catalog():
                                               e.preferred_origin.lon, 
                                               sc[1], sc[0])
                         dist = kilometers2degrees(da[0]/1e3)
-                        if(np.fabs(a.distance-dist)>0.5): 
+
+                        if(np.fabs(a.distance-dist)>0.5):
+                            #print ([e.preferred_origin.lon, e.preferred_origin.lat, sc[0], sc[1]])
                             cullList.append(a)
                         # end if
                     # end if
@@ -413,7 +437,7 @@ class Catalog():
                                    magnitude_type=e.preferred_magnitude.magnitude_type,
                                    origin_id=OResourceIdentifier(id=oid),
                                    creation_info=ci)
-            event = OEvent(resource_id=OResourceIdentifier(id=self.get_id()),
+            event = OEvent(resource_id=OResourceIdentifier(id=str(e.public_id)),
                            creation_info=ci,
                            event_type='earthquake')
             event.origins = [origin]
@@ -447,6 +471,32 @@ class Catalog():
 
                     event.picks.append(oldPick)
                     event.preferred_origin().arrivals.append(oldArr)
+
+                    # polulate list for text output
+                    line = [str(e.public_id), '{:<25s}',
+                            e.preferred_origin.utctime.timestamp, '{:f}',
+                            e.preferred_magnitude.magnitude_value, '{:f}',
+                            e.preferred_origin.lon, '{:f}',
+                            e.preferred_origin.lat, '{:f}',
+                            e.preferred_origin.depthkm, '{:f}',
+                            a.net, '{:<5s}',
+                            a.sta, '{:<5s}',
+                            a.cha, '{:<5s}',
+                            a.utctime.timestamp, '{:f}',
+                            a.phase, '{:<5s}',
+                            self.fdsn_inventory.t[a.net][a.sta][0], '{:f}',
+                            self.fdsn_inventory.t[a.net][a.sta][1], '{:f}',
+                            -999, '{:f}',
+                            -999, '{:f}',
+                            a.distance, '{:f}',
+                            -999, '{:f}',
+                            -999, '{:f}',
+                            -999, '{:f}',
+                            -999, '{:f}',
+                            -999, '{:f}',
+                            -999, '{:d}',
+                            -999, '{:d}']
+                    lines.append(line)
                 # end for
             # end if
 
@@ -467,7 +517,13 @@ class Catalog():
                                      backazimuth=op[-1],
                                      phase_hint=op[4],
                                      evaluation_mode='automatic',
-                                     comments=op[6],
+                                     comments= [OComment(text = 'phasepapy_snr = ' + str(op[6][0]) +
+                                               ', quality_measure_cwt = ' + str(op[6][1]) +
+                                               ', dom_freq = ' + str(op[6][2]) +
+                                               ', quality_measure_slope = ' + str(op[6][3]) +
+                                               ', band_index = ' + str(op[6][4]) +
+                                               ', nsigma = ' + str(op[6][5]),
+                                               force_resource_id=False)],
                                      creation_info=ci )
 
                     newArr = OArrival( resource_id=OResourceIdentifier(id=newPick.resource_id.id+"#"),
@@ -481,6 +537,32 @@ class Catalog():
                                        creation_info=ci )
                     event.picks.append(newPick)
                     event.preferred_origin().arrivals.append(newArr)
+
+                    # polulate list for text output
+                    line = [str(e.public_id), '{:<25s}',
+                            e.preferred_origin.utctime.timestamp, '{:f}',
+                            e.preferred_magnitude.magnitude_value, '{:f}',
+                            e.preferred_origin.lon, '{:f}',
+                            e.preferred_origin.lat, '{:f}',
+                            e.preferred_origin.depthkm, '{:f}',
+                            op[1], '{:<5s}',
+                            op[2], '{:<5s}',
+                            op[3], '{:<5s}',
+                            UTCDateTime(op[0]).timestamp, '{:f}',
+                            op[4], '{:<5s}',
+                            op[10], '{:f}',
+                            op[9], '{:f}',
+                            op[12], '{:f}',
+                            op[13], '{:f}',
+                            op[11], '{:f}',
+                            op[5], '{:f}',
+                            op[6][0], '{:f}',
+                            op[6][1], '{:f}',
+                            op[6][2], '{:f}',
+                            op[6][3], '{:f}',
+                            int(op[6][4]), '{:d}',
+                            int(op[6][5]), '{:d}']
+                    lines.append(line)
                 # end for
             # end if
 
@@ -499,13 +581,46 @@ class Catalog():
             oEvents.append(event)
         # end for // loop over e
 
-        #print notFound
-        print self.rank, missingStations
 
+        if(len(missingStations)):
+            for k, v in missingStations.iteritems():
+                self.logger.warning('Missing station %s: %d picks'%(k, v))
+            # end for
+        # end if
+
+        # write xml output
         if(len(oEvents)):
             cat = OCatalog(events=oEvents)
             ofn = self.output_path + '/%d.xml'%(self.rank)
             cat.write(ofn, format='SC3ML')
+        # end if
+
+        # write text output
+        procfile = open('%s/proc.%d.txt' % (self.output_path, self.rank), 'w+')
+        for line in lines:
+            lineout = ' '.join(line[1::2]).format(*line[::2])
+            procfile.write(lineout + '\n')
+        # end for
+        procfile.close()
+
+        # combine text output
+        header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
+        self.comm.barrier()
+        if (self.rank == 0):
+            of = open('%s/ensemble.txt'%(self.output_path), 'w+')
+            of.write(header)
+
+            for i in range(self.nproc):
+                fn = '%s/proc.%d.txt' % (self.output_path, i)
+
+                lines = open(fn, 'r').readlines()
+                for line in lines:
+                    of.write(line)
+                # end for
+
+                if (os.path.exists(fn)): os.remove(fn)
+            # end for
+            of.close()
         # end if
     # end func
 # end class
@@ -567,14 +682,8 @@ class OurPicks:
                 sta = items[7]
                 cha = items[8]
                 
-                auxData = []
-                auxData.append(OComment(text = 'phasepapy_snr = ' + str(snr) +
-                                               ', quality_measure_cwt = ' + str(quality_measure_cwt) +
-                                               ', dom_freq = ' + str(dom_freq) +
-                                               ', quality_measure_slope = ' + str(quality_measure_slope) +
-                                               ', band_index = ' + str(bi) +
-                                               ', nsigma = ' + str(nsigma),
-                                        force_resource_id=False))
+                auxData = [snr, quality_measure_cwt, dom_freq, quality_measure_slope,
+                           bi, nsigma]
                 self.picks[int(float(items[0]))].append([t, net, sta, cha, phase, residual, auxData, elat, elon, slat, slon,
                                              d, az, baz])
             # end for
