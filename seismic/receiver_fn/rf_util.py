@@ -384,11 +384,12 @@ def label_rf_quality_simple_amplitude(rf_type, traces):
 
     # Simple SNR and amplitude based filtering criteria matching formula from Babak in Matlab code, PLUS
     # additional requirement in the case of ZRT rotation that the peak occurs nearby to onset time.
+    peak_location_tolerance_sec = 2.0
     if rf_type[0:3] == 'ZRT':
         for tr in traces:
             times_rel = tr.times() - (tr.stats.onset - tr.stats.starttime)
             if (_amplitude_metric_good(tr) and
-                    np.min(np.abs(times_rel[np.argwhere(tr.data == np.max(tr.data))])) <= 5.0):
+                    np.min(np.abs(times_rel[np.argwhere(tr.data == np.max(tr.data))])) <= peak_location_tolerance_sec):
                 tr.stats.predicted_quality = 'a'
             else:
                 tr.stats.predicted_quality = 'b'
