@@ -4,11 +4,12 @@
 
 The RF workflow is based on the following main steps:
 
- - Data preparation. Extract waveforms associated with moderate events.
- - Calculate RF performing deconvolution to ZRT or QLT coordinate system
- - Discard bad results
+ - Data preparation: extract raw waveforms in time windows associated with selected seismic
+   events from ASDF database for the deployment
+ - Calculate Receiver Functions: performing transformation and deconvolution to ZRT or QLT coordinate system
+ - Quality filtering on RFs: discard bad results by filtering
  - Analyse RF to identify multiples
- - Perform 1D Earth structure inversion 
+ - Perform analysis such as 1D Earth structure inversion, H-k stacking, etc...
 
 There are a number of manuals and literature about RF. You can refer to examples provided by
 [Charles Ammon](http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html), manuals
@@ -19,8 +20,8 @@ Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNo
 
 The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
 file containing all deployment data.
-It is based on a set of registered teleseismic earthquakes extracted from the IRIS web service.
-The main program to extract waveforms from H5 file is `prepare_rf_data.py`. The
+It is based on a set of registered teleseismic earthquakes extracted from the ISC web service.
+The main program to extract raw waveforms from H5 file is `extract_event_traces.py`. The
 following parameters must be set up in the program body:
 
  - File name of the H5 file that contains all waveform data
@@ -35,7 +36,7 @@ time consuming process. If there is catalogue with specified dates it will conti
 
 ## Receiver function calculation
 
-Receiver function calculation is a very simple strightforward process using the `generate_rf.py` program.
+Receiver function calculation is a very simple straightforward process using the `generate_rf.py` program.
 It reads H5 file with waveform segments and generates LQT receiver functions without moveout.
 The parameters to specify are:
 
@@ -63,7 +64,7 @@ the process and more options can be easily added.
 The example of how methods work can be seen running `rf_smart_tune_up.py` code. It uses `rf_test.dat` file to illustrate
 the process.
 
-The actual program that works with RF is `rf_smart_bin.py`.
+The actual script for generating QA'd RFs is `rf_quality_filter.py`.
 
 Following parameters should be specified within program:
 
@@ -112,6 +113,7 @@ It shows different stacking options and allows to extract specific station as AS
   2) gcc/4.9.0              5) gmt/5.1.0              8) szip/2.1              11) proj/4.9.3
   3) openmpi/1.8.4-debug    6) intel-mkl/17.0.1.132   9) hdf5/1.8.14       
 ```
+
 ### PIP Installed modules (pip freeze --user)
 ```
 adjustText==0.7.3

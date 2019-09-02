@@ -1,0 +1,26 @@
+#CFLAGS = -g -c -Wall -O2 -funroll-loops -fomit-frame-pointer # -DSOLARIS -DDEBUG
+#CFLAGS = -g -c -Wall -O -m32 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE 
+CFLAGS = -g -c -Wall -O2
+
+CC = g++
+FF = g77
+
+LIBOBJ = sac.o	
+LIB    = ../lib/libsaccp.a
+
+
+all: $(LIBOBJ) arx lib
+
+arx:
+	ar -q $(LIB) $(LIBOBJ)
+
+lib: $(LIBOBJ)
+	ar ruv $(LIB) $(LIBOBJ)
+	ranlib $(LIB)
+
+sac.o: sac.cpp sac.h
+	$(CC) $(CFLAGS) sac.cpp 
+
+.PHONY: clean
+clean:
+	\rm *.o

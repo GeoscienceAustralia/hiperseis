@@ -1,38 +1,24 @@
 #!/usr/bin/env python
 
 import os
+import sys
+
 from past.builtins import xrange
 
 import numpy as np
-from scipy.signal import hilbert
 
 import rf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-def phase_weights(stream):
+from seismic.receiver_fn.rf_util import phase_weights, find_rf_group_ids
 
-    tphase=[]
-    for tr in stream: 
-            analytic = hilbert(tr.data) 
-            angle = np.angle(analytic) 
-            iPhase = np.exp(1j * angle) 
-            tphase.append(iPhase) 
-    tphase=np.array(tphase)
-    tphase=np.abs(np.mean(tphase,axis=0))
-    return tphase/np.max(tphase)
-
-def count_groups(stream):
-    group=[]
-    for trace in stream:
-        group.append(trace.stats.rf_group)
-    group=np.array(group)
-    return group
+if sys.version_info[0] < 3:
+    from builtins import input  # pylint: disable=redefined-builtin
 
 #-------------Main---------------------------------
 
-if __name__=='__main__':
-
+def main():
     ''' @package extract_rf
     This code contains different approaches to extract RFs from H5 file in stacked form.
     Output is prepared for trans-dimensional inversion in ASCII format
@@ -56,8 +42,6 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 0.2                     0.1                                3.73
 
     '''
-    from builtins import input
-
     print("Reading the input file...")
     # Input file
     stream=rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5','H5')
@@ -75,8 +59,6 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
     # Trimming window
     tstart=-5.
     tend=40.
-
-
 
     station_list=[]
     group_list=[]
@@ -118,26 +100,26 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
 
     for estat in sstat:
 
-         station=stream.select(station=estat,component='R').moveout()
+        station=stream.select(station=estat,component='R').moveout()
 
-#        we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
-#        print(station[0].stats.delta,station[0].stats.npts)
+        # we use a zero-phase-shift band-pass filter using 2 corners. This is done in two runs forward and backward, so we end up with 4 corners de facto.
+        # print(station[0].stats.delta,station[0].stats.npts)
 
-         if len(station)>1:
+        if len(station)>1:
 
             for trace in station:
                 # preserve original amplitude to rescale later to preserve proportions relative to source
                 if trace.stats.amax > 0:
-                   amp_max=trace.stats.amax
-                   print("*")
+                    amp_max = trace.stats.amax
+                    print("*")
                 else:
-                   amp_max=np.max(trace.data)
+                    amp_max = np.max(trace.data)
                 trace.taper(0.01)
                 # 6.25 is the frequency hardwired into the inversion program
                 trace=trace.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=2,zerophase=True).interpolate(6.25)
-#               trace=trace.interpolate(6.25)
+            #   trace=trace.interpolate(6.25)
                 trace.data=trace.data*(amp_max/np.amax(trace.data))
-
+            # end for
 
             # first we get stacks - normal and phase weighted
             copy_st=station.copy()
@@ -156,13 +138,13 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             zero=ph_weighted[0].data[time_p<0.]
             idx=np.max(np.where(zero<=0.)[0])
             ph_weighted[0].data[:idx+1]=0.
-#           ph_weighted.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=1,zerophase=True)
+        #   ph_weighted.filter(filter_type, freqmin=freqmin, freqmax=freqmax,corners=1,zerophase=True)
             ph_weighted[0].data=ph_weighted[0].data*(amp_max/np.max(ph_weighted[0].data))
 
 
             # then we take the same for each similarity groups
 
-            groups=count_groups(station)
+            groups=find_rf_group_ids(station)
             max_grp=np.max(groups)
             print("Max grp ",max_grp)
 
@@ -177,45 +159,49 @@ Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
             ax=plt.subplot(grid[1])
             ax.plot(time_p,ph_weighted[0].data)
             ax.set_title('Phase weighted stack')
-          
+
             frame=2
             for i in xrange(max_grp):
 
-                  grp_stream=rf.RFStream()
+                grp_stream=rf.RFStream()
 
-                  for trace in station:
-                      if trace.stats.rf_group==i:
-                         grp_stream.append(trace)
-                  print("Group: ",i," number of records: ", len(grp_stream))
-                  grp_stacked=grp_stream.copy().stack()
-                  grp_stck_max=np.max(np.abs(grp_stacked.copy()[0].data))
-#                 grp_stck_max=amp_max
-                  phase_w=phase_weights(grp_stream)
-                  grp_stacked_wght=grp_stacked.copy()[0].data*phase_w
-                  grp_stacked_wght=grp_stacked_wght*(grp_stck_max/np.max(np.abs(grp_stacked_wght)))  
-                  
-                  grp_time=grp_stacked[0].stats.delta*np.array(list(xrange(grp_stacked[0].stats.npts)))+tstart
-                  ax=plt.subplot(grid[i+frame])
-                  ax.plot(grp_time,grp_stacked_wght)
-                  ax.set_title('Group '+str(i))
+                for trace in station:
+                    if trace.stats.rf_group==i:
+                        grp_stream.append(trace)
+                print("Group: ",i," number of records: ", len(grp_stream))
+                grp_stacked=grp_stream.copy().stack()
+                grp_stck_max=np.max(np.abs(grp_stacked.copy()[0].data))
+                # grp_stck_max=amp_max
+                phase_w=phase_weights(grp_stream)
+                grp_stacked_wght=grp_stacked.copy()[0].data*phase_w
+                grp_stacked_wght=grp_stacked_wght*(grp_stck_max/np.max(np.abs(grp_stacked_wght)))  
 
- 
-
+                grp_time=grp_stacked[0].stats.delta*np.array(list(xrange(grp_stacked[0].stats.npts)))+tstart
+                ax=plt.subplot(grid[i+frame])
+                ax.plot(grp_time,grp_stacked_wght)
+                ax.set_title('Group '+str(i))
+            # end for
 
             if not os.path.exists(out_dir):
-                  os.makedirs(out_dir) 
-                  os.makedirs(out_dir+'PDF')
+                os.makedirs(out_dir) 
+                os.makedirs(out_dir+'PDF')
+            # end if
 
             if plot:
-                  plt.show()
+                plt.show()
             else:
-                  fig.savefig(out_dir+'PDF/'+net+'-'+estat+'-rf2-ph_weighted.pdf',format='PDF')
-                  plt.close('all')
+                fig.savefig(out_dir+'PDF/'+net+'-'+estat+'-rf2-ph_weighted.pdf',format='PDF')
+                plt.close('all')
+            # end if
 
-            
             with open(out_dir+net+'-'+estat+'-rf2-ph_weighted.dat','w') as text_file:
-                  for i in xrange(time_p.shape[0]):
-                        text_file.write(str(time_p[i])+'   '+str(ph_weighted[0].data[i])+'\n')
+                for i in xrange(time_p.shape[0]):
+                    text_file.write(str(time_p[i])+'   '+str(ph_weighted[0].data[i])+'\n')
 
             text_file.close()
-       
+        # end if
+    # end for
+
+
+if __name__ == '__main__':
+    main()

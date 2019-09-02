@@ -64,7 +64,7 @@ def set_text_encoding(resp, quiet=False):
     matcher = re.compile(encoding_pattern)
     first_line = sio.StringIO(resp.text).readline().rstrip()
     match = matcher.search(first_line)
-    assert match
+    assert match, "Encoding match missing in response\n{}".format(resp.text[0:1000])
     encoding = match.group(1)
     if not quiet:
         print("Detected text encoding {}".format(encoding))

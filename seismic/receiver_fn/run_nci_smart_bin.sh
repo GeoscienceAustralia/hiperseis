@@ -8,4 +8,4 @@
 #PBS -l wd
 #PBS -l software=python
 
-python rf_smart_bin.py > rf_smart_bin.log
+python rf_quality_filter.py > rf_quality_filter.log

@@ -8,4 +8,4 @@
 #PBS -l wd
 #PBS -l software=python
 
-python prepare_rf_data.py > prepare_rf_data.log
+python extract_event_traces.py > extract_event_traces.log

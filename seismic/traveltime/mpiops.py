@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from mpi4py import MPI
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
 
 comm = MPI.COMM_WORLD

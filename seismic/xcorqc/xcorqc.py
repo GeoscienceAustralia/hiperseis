@@ -46,6 +46,9 @@ from seismic.xcorqc.utils import drop_bogus_traces, get_stream
 from netCDF4 import Dataset, stringtochar
 from functools import reduce
 
+logging.basicConfig()
+
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow

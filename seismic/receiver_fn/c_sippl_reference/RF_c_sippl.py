@@ -907,7 +907,7 @@ def az_select(indict,azrange=[0.,360.]):
   newdict = {}
   counter = 1
   for j in indict.keys():
-    if indict[j].has_key('Backazimuth'):
+    if 'Backazimuth' in indict[j]:
       if float(indict[j]['Backazimuth']) > azrange[0] and float(indict[j]['Backazimuth']) < azrange[1]:
         newdict[counter] = indict[j]
         counter += 1
@@ -921,7 +921,7 @@ def dist_select(indict,distrange=[30.,95.]):
   newdict = {}
   counter = 1
   for j in indict.keys():
-    if indict[j].has_key('Distance'):
+    if 'Distance' in indict[j]:
       if float(indict[j]['Distance']) > distrange[0] and float(indict[j]['Distance']) < distrange[1]:
         newdict[counter] = indict[j]
         counter += 1
@@ -947,7 +947,7 @@ def fit_select(indict,minfit=85.):
   newdict = {}
   counter = 1
   for j in indict.keys():
-    if indict[j].has_key('fit'):
+    if 'fit' in indict[j]:
       if float(indict[j]['fit']) > minfit:
         newdict[counter] = indict[j]
         counter += 1
@@ -1763,7 +1763,7 @@ def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
     dat = pkl.load(open(entry,'rb'))
     Ps = []
     for j in dat.keys():
-      if dat[j].has_key('Ps_time'):
+      if 'Ps_time' in dat[j]:
         Ps.append(dat[j]['Ps_time'])
   
     Ps_ar = array(Ps)

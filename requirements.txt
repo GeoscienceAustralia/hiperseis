@@ -1,6 +1,7 @@
 sphinx>=1.8
 numpy==1.16.4
 pandas
+pyproj==1.9.6
 h5py
 pyasdf
 obspy==1.1.0

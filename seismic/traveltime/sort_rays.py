@@ -34,6 +34,7 @@ from seismic.traveltime.cluster_grid import Grid2
 # R2D = 90. / asin(1.)
 # FLOAT_FORMAT = '%.4f'
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 

@@ -32,6 +32,7 @@ from scipy.interpolate import interp1d
 from scipy.signal import hilbert
 from mpi4py import MPI
 import logging
+logging.basicConfig()
 log = logging.getLogger('migration')
 
 

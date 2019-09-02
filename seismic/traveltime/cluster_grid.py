@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 # from deprecated import deprecated
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
 
 

@@ -30,6 +30,8 @@ from collections import defaultdict
 from rtree import index
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 
+logging.basicConfig()
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
