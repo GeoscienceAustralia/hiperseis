@@ -31,13 +31,11 @@ def main():
     # end if
 
     n = 0
-
-    # H = 40.0  # km.
-    # V_p = 6.8  # km/s, top (crust) layer
     V_s = 3.8  # km/s, top (crust) layer
 
-    H_range = np.linspace(30.0, 60.0, 4)
-    V_p_range = np.linspace(5.7, 7.22, 5)
+    H_range = np.linspace(30.0, 60.0, 4)  # km
+    V_p_range = np.linspace(5.7, 7.22, 5)  # km/s
+    include_t3 = True
 
     for H in H_range:
         for V_p in V_p_range:
@@ -74,8 +72,9 @@ def main():
             inclinations = np.linspace(np.min(inc), np.max(inc), num_traces)
             distances = interp_dist(inclinations)
             final_sample_rate_hz = 10.0
-            stream = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log)
+            stream = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, include_t3)
             stream.write(os.path.join(output_folder, "synth_rf_data.h5"), format='h5')
+            # Plot synthetic RFs
             rf_fig = rf_plot_utils.plot_rf_stack(stream, time_window=(-5, 30))
             plt.title("Exact H = {:.3f}, k = {:.3f}".format(H, k))
             rf_fig.savefig(os.path.join(output_folder, "synth_rf_{:03d}.png".format(n)), dpi=300)
@@ -83,15 +82,23 @@ def main():
             # Run H-k stacking on synthetic data
             station_db = {'HHR': stream}
 
-            k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=False)
+            k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=include_t3)
             fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[0], title="Synthetic Ps component")
             fig.savefig(os.path.join(output_folder, "Ps_{:03d}.png".format(n)), dpi=300)
             plt.close()
             fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[1], title="Synthetic PpPs component")
             fig.savefig(os.path.join(output_folder, "PpPs_{:03d}.png".format(n)), dpi=300)
             plt.close()
-            w = (0.5, 0.5)
-            w_str = "w={:1.2f},{:1.2f}".format(*w)
+            if include_t3:
+                fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[2], title="Synthetic PpSs+PsPs component")
+                fig.savefig(os.path.join(output_folder, "PpSs+PsPs_{:03d}.png".format(n)), dpi=300)
+                plt.close()
+                w = (0.34, 0.33, 0.33)
+                w_str = "w={:1.2f},{:1.2f},{:1.2f}".format(*w)
+            else:
+                w = (0.5, 0.5)
+                w_str = "w={:1.2f},{:1.2f}".format(*w)
+            # end if
             stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
             hk_fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, stack, num=len(stream),
                                                  title="Synthetic H-k stack ({})".format(w_str))

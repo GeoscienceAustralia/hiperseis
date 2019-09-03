@@ -49,7 +49,7 @@ def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec
 # end func
 
 
-def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None):
+def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, include_t3=False):
     """Synthesize RF R-component data set over range of inclinations and distances
     and get result as a rf.RFStream instance.
 
@@ -67,6 +67,8 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None):
     :type ds: float
     :param log: Logger to send output to, defaults to None
     :type log: logger, optional
+    :param include_t3: If True, include the third expected multiple PpSs+PsPs
+    :type include_t3: bool, optional
     :return: Stream containing synthetic RFs
     :rtype: rf.RFStream
     """
@@ -80,11 +82,17 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None):
 
         t1 = H*(np.sqrt((k*k/V_p/V_p) - p*p) - np.sqrt(1.0/V_p/V_p - p*p))
         t2 = H*(np.sqrt((k*k/V_p/V_p) - p*p) + np.sqrt(1.0/V_p/V_p - p*p))
+        arrivals = [t1, t2]
+        if include_t3:
+            t3 = t1 + t2
+            arrivals.append(t3)
         if log is not None:
-            log.info("Inclination {:3g} arrival times: {}".format(inc_deg, [t1, t2]))
+            log.info("Inclination {:3g} arrival times: {}".format(inc_deg, arrivals))
 
-        arrivals = [0, t1, t2]
+        arrivals = [0] + arrivals
         amplitudes = [1, 0.5, 0.4]
+        if include_t3:
+            amplitudes.append(-0.3)
         window = (-5.0, 50.0)  # sec
         fs = 100.0  # Hz
         _, synth_signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
