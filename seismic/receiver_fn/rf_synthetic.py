@@ -95,7 +95,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None):
         onset = now - window[0]
         header = {'network': 'SY', 'station': 'TST', 'location': 'GA', 'channel': 'HHR', 'sampling_rate': fs,
                   'starttime': now, 'endtime': end, 'onset': onset,
-                  'station_latitude': -19.0, 'station_longitude': 137.0,
+                  'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
                   'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
                   'back_azimuth': 0, 'distance': float(distances[i])}
         tr = rf.rfstream.RFTrace(data=synth_signal, header=header)
