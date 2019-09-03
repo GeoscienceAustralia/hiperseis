@@ -129,10 +129,11 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, show=Tru
     colmap = 'plasma'
     plt.figure(figsize=(16, 12))
     if clip_negative:
+        hk_stack = hk_stack.copy()
         hk_stack[hk_stack < 0] = 0
     plt.contourf(k_grid, h_grid, hk_stack, levels=50, cmap=colmap)
     cb = plt.colorbar()
-    cb.mappable.set_clim(0, np.max(hk_stack[:]))
+    cb.mappable.set_clim(0, np.nanmax(hk_stack[:]))
     cb.ax.set_ylabel('Stack sum')
     plt.contour(k_grid, h_grid, hk_stack, levels=10, colors='k', linewidths=1)
     plt.xlabel(r'$\kappa = \frac{V_p}{V_s}$ (ratio)', fontsize=14)
