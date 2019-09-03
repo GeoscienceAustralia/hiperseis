@@ -5,7 +5,7 @@ for model validation.
 """
 
 import numpy as np
-import scipy
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 import obspy
@@ -14,22 +14,9 @@ import rf
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
+from seismic.receiver_fn.rf_synthetic import generate_synth_rf
 
 # pylint: disable=invalid-name
-
-def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec=(-10, 30)):
-    duration = window_sec[1] - window_sec[0]
-    N = int(fs_hz*duration)
-    times = np.linspace(window_sec[0], window_sec[1], N)
-    arrivals_index = np.round((np.array(arrival_times) - times[0])*fs_hz).astype(int)
-    kern = np.zeros_like(times)
-    kern[arrivals_index] = np.array(arrival_amplitudes)  # pylint: disable=unsupported-assignment-operation
-    # kern = np.ones(int(0.5*fs_hz))
-    waveform = scipy.signal.butter(4, 2.0/fs_hz)
-    signal_filt = scipy.signal.filtfilt(waveform[0], waveform[1], kern)
-    signal_filt = signal_filt/np.max(signal_filt)
-    return times, signal_filt
-
 
 def main():
     H = 50  # km
@@ -59,10 +46,11 @@ def main():
     plt.savefig("c:\\temp\\inclination_dist.png", dpi=300)
 
     # Create interpolator to convert inclination to teleseismic distance
-    interp_dist = scipy.interpolate.interp1d(inc, ts_distance)
+    interp_dist = interp1d(inc, ts_distance, bounds_error=False, fill_value=(np.max(ts_distance), np.min(ts_distance)))
 
     # Loop over valid range of inclinations and generate synthetic RFs
     inclinations = np.linspace(np.min(inc), np.max(inc), 10)
+    # inclinations = np.array([1.0]*10)
     traces = []
     for inc_deg in inclinations:
         theta_p = np.deg2rad(inc_deg)
@@ -74,7 +62,7 @@ def main():
 
         arrivals = [0, t1, t2]
         amplitudes = [1, 0.5, 0.4]
-        window = (-10.0, 50.0)  # sec
+        window = (-5.0, 50.0)  # sec
         fs = 100.0
         _, signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
 
@@ -97,7 +85,10 @@ def main():
 
     station_db = {'HHR': traces}
 
-    k, h, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', h_range=np.linspace(20.0, 70.0, 1001), include_t3=False)
+    k, h, hk = rf_stacking.compute_hk_stack(station_db, 'HHR',
+                                            h_range=np.linspace(40.0, 60.0, 101),
+                                            k_range=np.linspace(1.5, 1.8, 151),
+                                            include_t3=False)
     rf_plot_utils.plot_hk_stack(k, h, hk[0], title="Synthetic Ps component",
                                 save_file="c:\\temp\\Ps.png", show=False)
     rf_plot_utils.plot_hk_stack(k, h, hk[1], title="Synthetic Ppps component",
