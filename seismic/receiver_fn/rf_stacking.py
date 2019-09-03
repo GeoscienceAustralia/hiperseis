@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 
 import seismic.receiver_fn.rf_util as rf_util
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,logging-format-interpolation
 
 logging.basicConfig()
 
@@ -40,6 +40,7 @@ def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 
             log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
         # end if
         V_p = np.mean(V_p_values)
+        log.info("Inferred V_p = {}".format(V_p))
     # end if
 
     # Pre-compute grid quantities

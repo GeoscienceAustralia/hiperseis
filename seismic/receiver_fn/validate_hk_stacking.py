@@ -22,16 +22,21 @@ logging.basicConfig()
 
 
 def main():
-    H = 50.0  # km.
 
-    V_p = 6.4  # km/s, top (crust) layer
-    V_s = 4.0  # km/s, top (crust) layer
+    save_dist_plot = False
+
+    n = 0
+
+    H = 40.0  # km.
+    V_p = 6.8  # km/s, top (crust) layer
+    V_s = 3.8  # km/s, top (crust) layer
 
     k = V_p/V_s
-    print("H = {:3g}".format(H))
-    print("k = {:3g}".format(k))
+    log.info("H = {:.3f}".format(H))
+    log.info("k = {:.3f}".format(k))
 
-    # Generate function mapping ray parameter to teleseismic distance
+    # Generate function mapping ray parameter to teleseismic distance.
+    # The distances are not strictly required for H-k stacking, but rf behaves better when they are there.
     ts_distance = np.linspace(25, 95, 71)
     inc = np.zeros_like(ts_distance)
     model = obspy.taup.TauPyModel(model="iasp91")
@@ -40,49 +45,65 @@ def main():
         ray = model.get_ray_paths(source_depth_km, d, phase_list=['P'])
         inc[i] = ray[0].incident_angle  # pylint: disable=unsupported-assignment-operation
     # end for
-    plt.plot(inc, ts_distance, '-+')
-    plt.xlabel('P-arrival inclination (deg)')
-    plt.ylabel('Teleseismic distance (deg)')
-    plt.title("Relationship between incident angle and teleseismic distance\n(source depth = {:2g} km)".format(
-        source_depth_km))
-    plt.grid("#80808080", linestyle=":")
-    plt.savefig("inclination_dist.png", dpi=300)
+    if save_dist_plot:
+        plt.plot(inc, ts_distance, '-+')
+        plt.xlabel('P-arrival inclination (deg)')
+        plt.ylabel('Teleseismic distance (deg)')
+        plt.title("Relationship between incident angle and teleseismic distance\n(source depth = {:2.0f} km)".format(
+            source_depth_km))
+        plt.grid("#80808080", linestyle=":")
+        plt.savefig("inclination_dist.png", dpi=300)
+    # end if
 
     # Create interpolator to convert inclination to teleseismic distance
     interp_dist = interp1d(inc, ts_distance, bounds_error=False, fill_value=(np.max(ts_distance), np.min(ts_distance)))
 
     # Loop over valid range of inclinations and generate synthetic RFs
-    inclinations = np.linspace(np.min(inc), np.max(inc), 10)
-    # inclinations = np.array([20.0]*10)
+    num_traces = 20
+    inclinations = np.linspace(np.min(inc), np.max(inc), num_traces)
     distances = interp_dist(inclinations)
     final_sample_rate_hz = 10.0
     stream = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log)
     stream.write("synth_rf_data.h5", format='h5')
-    _ = rf_plot_utils.plot_rf_stack(stream, time_window=(-10, 30), save_file="synth_rf.png", dpi=300)
+    rf_fig = rf_plot_utils.plot_rf_stack(stream, time_window=(-5, 30))
+    plt.title("Exact H = {:.3f}, k = {:.3f}".format(H, k))
+    rf_fig.savefig("synth_rf_{:03d}.png".format(n), dpi=300)
 
     # Run H-k stacking on synthetic data
     station_db = {'HHR': stream}
 
-    k, h, hk = rf_stacking.compute_hk_stack(station_db, 'HHR',
-                                            h_range=np.linspace(40.0, 60.0, 201),
-                                            k_range=np.linspace(1.5, 1.8, 301),
-                                            include_t3=False)
-    rf_plot_utils.plot_hk_stack(k, h, hk[0], title="Synthetic Ps component",
-                                save_file="Ps.png", show=False)
-    rf_plot_utils.plot_hk_stack(k, h, hk[1], title="Synthetic Ppps component",
-                                save_file="Ppps.png", show=False)
+    k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=False)
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[0], title="Synthetic Ps component")
+    fig.savefig("Ps_{:03d}.png".format(n), dpi=300)
+    plt.close()
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[1], title="Synthetic PpPs component")
+    fig.savefig("PpPs_{:03d}.png".format(n), dpi=300)
+    plt.close()
     w = (0.5, 0.5)
-    w_str = "w={:2g},{:2g}".format(*w)
+    w_str = "w={:1.2f},{:1.2f}".format(*w)
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
-    rf_plot_utils.plot_hk_stack(k, h, stack, num=len(stream), title="Synthetic H-k stack ({})".format(w_str),
-                                save_file="synth_stack_{}.png".format(w_str), show=False)
-    # stack = rf_stacking.compute_weighted_stack(hk, weighting=(0.8, 0.2))
-    # rf_plot_utils.plot_hk_stack(k, h, stack, save_file="c:\\temp\\synth_stack_0.8_0.2.png", show=False)
-
+    hk_fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, stack, num=len(stream),
+                                         title="Synthetic H-k stack ({})".format(w_str))
+    plt.text(1.45, 65.0, "Expected H = {:.3f}, k = {:.3f}".format(H, k), color="#ffffff",
+             fontsize=16, fontweight='bold')
+    # Determine H-k location of numerical maximum in the solution space.
     max_loc = np.unravel_index(np.argmax(stack), stack.shape)
-    h_max = h[max_loc[0], 0]
-    k_max = k[0, max_loc[1]]
-    print("Numerical solution (H, k) = ({:4g}, {:3g})".format(h_max, k_max))
+    h_max = h_grid[max_loc[0], 0]
+    k_max = k_grid[0, max_loc[1]]
+    log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
+    plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
+    if k_max >= 1.7:
+        plt.text(k_max - 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
+                 color="#ffffff", fontsize=16, horizontalalignment='right')
+    else:
+        plt.text(k_max + 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
+                 color="#ffffff", fontsize=16)
+    # end if
+
+    # Save result
+    hk_fig.savefig("synth_stack_{}_{:03d}.png".format(w_str, n), dpi=300)
+
+# end main
 
 
 if __name__ == "__main__":

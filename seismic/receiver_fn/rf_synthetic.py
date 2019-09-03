@@ -85,7 +85,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None):
 
         arrivals = [0, t1, t2]
         amplitudes = [1, 0.5, 0.4]
-        window = (-10.0, 50.0)  # sec
+        window = (-5.0, 50.0)  # sec
         fs = 100.0  # Hz
         _, synth_signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
 
