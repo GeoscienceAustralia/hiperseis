@@ -4,19 +4,22 @@ synthetic arrival traces for known model characteristics. Intended to be used
 for model validation.
 """
 
+import logging
+
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 import obspy
-import rf
 
-import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
-from seismic.receiver_fn.rf_synthetic import generate_synth_rf
+from seismic.receiver_fn.rf_synthetic import synthesize_rf_dataset
 
 # pylint: disable=invalid-name
+
+logging.basicConfig()
+
 
 def main():
     H = 50  # km
@@ -50,40 +53,14 @@ def main():
 
     # Loop over valid range of inclinations and generate synthetic RFs
     inclinations = np.linspace(np.min(inc), np.max(inc), 10)
-    # inclinations = np.array([1.0]*10)
-    traces = []
-    for inc_deg in inclinations:
-        theta_p = np.deg2rad(inc_deg)
-        p = np.sin(theta_p)/V_p
-
-        t1 = H*(np.sqrt((k*k/V_p/V_p) - p*p) - np.sqrt(1.0/V_p/V_p - p*p))
-        t2 = H*(np.sqrt((k*k/V_p/V_p) - p*p) + np.sqrt(1.0/V_p/V_p - p*p))
-        print("Inclination {:3g} arrival times: {}".format(inc_deg, [t1, t2]))
-
-        arrivals = [0, t1, t2]
-        amplitudes = [1, 0.5, 0.4]
-        window = (-5.0, 50.0)  # sec
-        fs = 100.0
-        _, signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
-
-        now = obspy.UTCDateTime.now()
-        dt = float(window[1] - window[0])
-        end = now + dt
-        onset = now - window[0]
-        header = {'network': 'SY', 'station': 'TST', 'location': 'GA', 'channel': 'HHR', 'sampling_rate': fs,
-                  'starttime': now, 'endtime': end, 'onset': onset,
-                  'station_latitude': -19.0, 'station_longitude': 137.0,
-                  'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
-                  'back_azimuth': 0, 'distance': float(interp_dist(inc_deg))}
-        tr = rf.rfstream.RFTrace(data=signal, header=header)
-        tr = tr.decimate(10, no_filter=True)
-        traces.append(tr)
-    # end for
-
-    stream = rf.RFStream(traces)
+    distances = interp_dist(inclinations)
+    final_sample_rate_hz = 10.0
+    stream = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log)
+    stream.write("c:\\temp\\synth_rf_data.h5", format='h5')
     _ = rf_plot_utils.plot_rf_stack(stream, time_window=(-10, 30), save_file="c:\\temp\\synth_rf.png", dpi=300)
 
-    station_db = {'HHR': traces}
+    # Run H-k stacking on synthetic data
+    station_db = {'HHR': stream}
 
     k, h, hk = rf_stacking.compute_hk_stack(station_db, 'HHR',
                                             h_range=np.linspace(40.0, 60.0, 101),
@@ -96,7 +73,7 @@ def main():
     w = (0.5, 0.5)
     w_str = "w={:2g},{:2g}".format(*w)
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
-    rf_plot_utils.plot_hk_stack(k, h, stack, num=len(traces), title="Synthetic H-k stack ({})".format(w_str),
+    rf_plot_utils.plot_hk_stack(k, h, stack, num=len(stream), title="Synthetic H-k stack ({})".format(w_str),
                                 save_file="c:\\temp\\synth_stack_{}.png".format(w_str), show=False)
     # stack = rf_stacking.compute_weighted_stack(hk, weighting=(0.8, 0.2))
     # rf_plot_utils.plot_hk_stack(k, h, stack, save_file="c:\\temp\\synth_stack_0.8_0.2.png", show=False)
@@ -106,5 +83,8 @@ def main():
     k_max = k[0, max_loc[1]]
     print("Numerical solution (H, k) = ({:3g}, {:3g})".format(h_max, k_max))
 
+
 if __name__ == "__main__":
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
     main()
