@@ -12,15 +12,32 @@ import seismic.receiver_fn.rf_util as rf_util
 logging.basicConfig()
 
 
-def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 251), k_range=np.linspace(1.4, 2.0, 301),
-                     root_order=1, include_t3=True):
-    """This function subject to further validation - documentation deferred.
+def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
+                     k_range=np.linspace(1.4, 2.0, 301), root_order=1, include_t3=True):
+    """Compute H-k stacking array on a dataset of receiver functions.
 
-    It is *critical* for the correctness of the output of this function that the V_p passed in is the same as the
-    V_p of the shallowest layer of the velocity model (from tau-py model) that was used to compute the arrival
-    inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
-
+    :param db_station: Station RF dataset, a dict keyed by channel code with each channel having a list or
+        iterable of RF traces.
+    :type db_station: dict(str, iterable(rf.RFTrace))
+    :param cha: Channel code of the channel for which to apply H-k stacking
+    :type cha: str
+    :param V_p: P-wave velocity in crustal layer, defaults to None in which case it is inferred from trace metadata
+    :type V_p: float, optional
+    :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
+    :type h_range: numpy.array [1D], optional
+    :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
+    :type k_range: numpy.array [1D], optional
+    :param root_order: Exponent for nth root stacking as per K.J.Muirhead (1968), defaults to 1
+    :type root_order: int, optional
+    :param include_t3: If True, include the t3 (PpSs+PsPs) multiple in the stacking, defaults to True
+    :type include_t3: bool, optional
+    :return: k-grid values [2D], h-grid values [2D], H-k stack in series of 2D layers having one layer per multiple
+    :rtype: numpy.array [2D], numpy.array [2D], numpy.array [3D]
     """
+    # It is *critical* for the correctness of the output of this function that the V_p passed in is the same as the
+    # V_p of the shallowest layer of the velocity model (from tau-py model) that was used to compute the arrival
+    # inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
+
     log = logging.getLogger(__name__)
     cha_data = db_station[cha]
 
@@ -84,6 +101,7 @@ def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 
         if include_t3:
             # Time for PpSs + PsPs
             t3 = 2*term1
+        # end if
 
         # Subtract lead time so that primary P-wave arrival is at time zero.
         lead_time = tr.stats.onset - tr.stats.starttime
@@ -100,6 +118,7 @@ def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 
             # see http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html
             # Apply nth root technique to reduce uncorrelated noise (Chen et al. (2010))
             phase_sum.append(-rf_util.signed_nth_root(interpolator(t3), root_order))
+        # end if
 
         stream_stack.append(phase_sum)
     # end for
