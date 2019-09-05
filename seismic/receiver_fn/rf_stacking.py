@@ -147,3 +147,23 @@ def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
     assert hk_components.shape[0] == len(weighting), hk_components.shape
     hk_phase_stacked = np.dot(np.moveaxis(hk_components, 0, -1), np.array(weighting))
     return hk_phase_stacked
+
+
+def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
+    """Given the weighted stack computed from function `compute_weighted_stack` and the corresponding
+    k-grid and h-grid, find the location in H-k space of the global maximum.
+
+    :param k_grid: Grid of k-values
+    :type k_grid: Two-dimensional numpy.array
+    :param h_grid: Grid of H-values
+    :type h_grid: Two-dimensional numpy.array
+    :param hk_weighted_stack: Grid of stacked RF sample values produced by function
+        rf_stacking.computed_weighted_stack()
+    :type hk_weighted_stack: Two-dimensional numpy.array
+    :return: Location of global maximum on the H-k grid of the maximum stack value.
+    :rtype: tuple(float, float)
+    """
+    max_loc = np.unravel_index(np.argmax(hk_weighted_stack), hk_weighted_stack.shape)
+    h_max = h_grid[max_loc[0], 0]
+    k_max = k_grid[0, max_loc[1]]
+    return (h_max, k_max)

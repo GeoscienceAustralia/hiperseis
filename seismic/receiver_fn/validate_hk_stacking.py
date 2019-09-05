@@ -105,9 +105,7 @@ def main():
             plt.text(1.45, 65.0, "Expected H = {:.3f}, k = {:.3f}".format(H, k), color="#ffffff",
                      fontsize=16, fontweight='bold')
             # Determine H-k location of numerical maximum in the solution space.
-            max_loc = np.unravel_index(np.argmax(stack), stack.shape)
-            h_max = h_grid[max_loc[0], 0]
-            k_max = k_grid[0, max_loc[1]]
+            h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, stack)
             log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
             plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
             if k_max >= 1.7:

@@ -375,7 +375,7 @@ def choose_rf_source_channel(rf_type, db_station):
     return best_channel
 
 
-def label_rf_quality_simple_amplitude(rf_type, traces):
+def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
     """Add RF quality label for a collection of RFs based on simple amplitude criteria computed by
     quality filter script.
 
@@ -385,7 +385,12 @@ def label_rf_quality_simple_amplitude(rf_type, traces):
     :type traces: Iterable collection of rf.RFTrace
     """
     def _amplitude_metric_good(tr):
-        return tr.stats.snr >= 2 and tr.stats.log10_amp_max <= 0 and tr.stats.log10_amp_rms <= np.log10(0.2)
+        if not (tr.stats.get('snr') and tr.stats.get('log10_amp_max') and tr.stats.get('log10_amp_rms')):
+            return False
+        return tr.stats.snr >= snr_cutoff and \
+               tr.stats.log10_amp_max <= np.log10(max_amp_cutoff) and \
+               tr.stats.log10_amp_rms <= np.log10(rms_amp_cutoff)
+    # end func
 
     # Simple SNR and amplitude based filtering criteria matching formula from Babak in Matlab code, PLUS
     # additional requirement in the case of ZRT rotation that the peak occurs nearby to onset time.
