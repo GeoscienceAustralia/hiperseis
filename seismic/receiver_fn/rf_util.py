@@ -383,6 +383,12 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
     :type rf_type: str
     :param traces: Iterable collection of rf.RFTrace
     :type traces: Iterable collection of rf.RFTrace
+    :param snr_cutoff: Minimum signal SNR, defaults to 2.0
+    :type snr_cutoff: float, optional
+    :param rms_amp_cutoff: Maximum accepted RMS amplitude of signal, defaults to 0.2
+    :type rms_amp_cutoff: float, optional
+    :param max_amp_cutoff: Maximum accepted amplitude of signal, defaults to 1.0
+    :type max_amp_cutoff: float, optional
     """
     def _amplitude_metric_good(tr):
         if not (tr.stats.get('snr') and tr.stats.get('log10_amp_max') and tr.stats.get('log10_amp_rms')):
