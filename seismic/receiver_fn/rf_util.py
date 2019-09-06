@@ -420,3 +420,37 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
             # end if
         # end for
     # end if
+
+
+def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15):
+    """For each trace in the stream, compute its correlation coefficient with the other traces.
+    Return only traces matching cross correlation coefficient criteria based on C.Sippl (2016)
+    [see http://dx.doi.org/10.1016/j.tecto.2016.03.031]
+
+    :param rf_stream: Stream of RF traces to filter
+    :type rf_stream: rf.RFStream
+    :param time_window: Time window to filter by, defaults to (-2, 25)
+    :type time_window: tuple, optional
+    :param threshold_cc: Threshold cross-correlation coefficient, defaults to 0.70.
+        Denoted Xi in Sippl, who used value 0.80.
+    :type threshold_cc: float, optional
+    :param min_fraction: Minimum fraction of coefficients above threshold_cc, defaults to 0.15.
+        Denoted tau in Sippl, who used value 0.15.
+    :type min_fraction: float, optional
+    :return: Filtered stream of RF traces
+    :rtype: rf.RFStream
+    """
+    # Trim good RFs to time range so that subsequent cross-correlation computations relate to the
+    # relevant period around and after onset.
+    data_cc = rf_stream.copy().trim2(*time_window, reftime='onset')
+    # Gather all RFs into a single array for efficient computation of correlation coefficients
+    # between all traces
+    data_array = np.array([tr.data for tr in data_cc])
+    # Compute cross-correlation coefficients. cc matrix will be symmetric.
+    # Each row of cc indicates the degree of correlation between each other trace.
+    cc = np.corrcoef(data_array)
+    # Determine mask of which traces meet the similarity filtering criteria
+    fraction_above_threshold = np.sum(cc >= threshold_cc, axis=1)/len(data_cc)
+    keep_trace_mask = (fraction_above_threshold >= min_fraction)
+    kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
+    return kept_data
