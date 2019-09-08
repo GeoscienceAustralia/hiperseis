@@ -167,3 +167,44 @@ def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
     h_max = h_grid[max_loc[0], 0]
     k_max = k_grid[0, max_loc[1]]
     return (h_max, k_max)
+
+
+def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
+    """Given the weighted stack computed from function `compute_weighted_stack` and the corresponding
+    k-grid and h-grid, find the locations in H-k space of all local maxima above a certain threshold.
+
+    :param k_grid: Grid of k-values
+    :type k_grid: Two-dimensional numpy.array
+    :param h_grid: Grid of H-values
+    :type h_grid: Two-dimensional numpy.array
+    :param hk_stack: Grid of stacked RF sample values produced by function
+        rf_stacking.computed_weighted_stack()
+    :type hk_stack: Two-dimensional numpy.array
+    :param min_rel_value: Minimum value required relative to the largest value in the stack, defaults to 0.5
+    :type min_rel_value: float, optional
+    :return: List of tuples containing parameters of local maxima solutions, with values in the following
+        order: (H, k, stack_value, row_index, col_index)
+    :rtype: list(tuple(float, float, float, int, int))
+    """
+    # Determine global maximum, as we only keep local maxima that are at least min_rel_value
+    # proportion of this value.
+    global_max = np.amax(hk_stack)
+    # Compute 2D mask of all values that are greater than or equal to their 4 neighbours.
+    m = ((hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 0:-2]) & (hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 2:]) &
+         (hk_stack[1:-1, 1:-1] >= hk_stack[0:-2, 1:-1]) & (hk_stack[1:-1, 1:-1] >= hk_stack[2:, 1:-1]) &
+         (hk_stack[1:-1, 1:-1] >= min_rel_value*global_max))
+    # Find the row and column indices where m is True
+    m_idx = np.nonzero(m)
+    # Determine the stack values at the identified local maxima
+    stack_vals = hk_stack[1:-1, 1:-1][m_idx]
+    # Determine the k-values at the identified local maxima
+    k_vals = k_grid[1:-1, 1:-1][m_idx]
+    # Determine the h-values at the identified local maxima
+    h_vals = h_grid[1:-1, 1:-1][m_idx]
+    # Zip the candidate solutions into a tuple (H, k, stack, row_index, col_index).
+    # Note that the row and column index here are in the original k- and h-grid, so must have +1 added
+    # since the masking was done on the interior grid points only.
+    solutions = tuple(zip(h_vals, k_vals, stack_vals, m_idx[0] + 1, m_idx[1] + 1))
+    # Sort the solutions from highest stack value to the lowest.
+    solutions = sorted(solutions, key=lambda v: v[2], reverse=True)
+    return solutions
