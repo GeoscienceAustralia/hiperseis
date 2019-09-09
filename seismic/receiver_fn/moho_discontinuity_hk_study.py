@@ -37,11 +37,15 @@ def main():
     inclinations = np.linspace(14.0, 27.0, num_traces)
     distances = convert_inclination_to_distance(inclinations)
     final_sample_rate_hz = 10.0
-    stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log)
+    stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=0)
+    # stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+    #                                  amplitudes=[1, 0.5, 0.2], baz=0)
     stream_0.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_0)), format='h5')
 
     H_1 = 50
-    stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log)
+    stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=90)
+    # stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+    #                                  amplitudes=[1, 0.4, 0.3], baz=90)
     stream_1.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_1)), format='h5')
 
     # Plot each dataset separately, then aggregated together
@@ -64,8 +68,12 @@ def main():
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
     hk_fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, stack, num=len(stream_all),
                                          title="Synthetic H-k stack ({})".format(w_str))
-    maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, stack, min_rel_value=0.8)
+    maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, stack, min_rel_value=0.9)
     log.info("Numerical solutions:{}".format(maxima))
+    plt.text(k, H_0 + 1.5, "Solution $H_0$ = {:.3f}, k = {:.3f}".format(H_0, k),
+             color="#ffffff", fontsize=16, horizontalalignment='left')
+    plt.text(k, H_1 + 1.5, "Solution $H_1$ = {:.3f}, k = {:.3f}".format(H_1, k),
+             color="#ffffff", fontsize=16, horizontalalignment='left')
     for h_max, k_max, _, _, _ in maxima:
         plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
     # end for

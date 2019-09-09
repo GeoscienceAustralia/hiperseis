@@ -50,7 +50,8 @@ def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec
 # end func
 
 
-def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, include_t3=False):
+def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, include_t3=False,
+                          amplitudes=None, baz=0.0):
     """Synthesize RF R-component data set over range of inclinations and distances
     and get result as a rf.RFStream instance.
 
@@ -70,6 +71,10 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
     :type log: logger, optional
     :param include_t3: If True, include the third expected multiple PpSs+PsPs
     :type include_t3: bool, optional
+    :param amplitudes: Custom amplitudes to apply to the multiples
+    :type amplitudes: list(float), optional
+    :param baz: Back azimuth for metadata
+    :type baz: float, optional
     :return: Stream containing synthetic RFs
     :rtype: rf.RFStream
     """
@@ -91,9 +96,16 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
             log.info("Inclination {:3g} arrival times: {}".format(inc_deg, arrivals))
 
         arrivals = [0] + arrivals
-        amplitudes = [1, 0.5, 0.4]
-        if include_t3:
-            amplitudes.append(-0.3)
+        if amplitudes is None:
+            amplitudes = [1, 0.5, 0.4]
+            if include_t3:
+                amplitudes.append(-0.3)
+            # end if
+        else:
+            assert len(amplitudes) == 3 + int(include_t3)
+            # t3 amplitude should be negative
+            assert (not include_t3) or (amplitudes[3] <= 0)
+        # end if
         window = (-5.0, 50.0)  # sec
         fs = 100.0  # Hz
         _, synth_signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
@@ -106,7 +118,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
                   'starttime': now, 'endtime': end, 'onset': onset,
                   'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
                   'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
-                  'back_azimuth': 0, 'distance': float(distances[i])}
+                  'back_azimuth': baz, 'distance': float(distances[i])}
         tr = rf.rfstream.RFTrace(data=synth_signal, header=header)
         tr = tr.decimate(int(np.round(fs/ds)), no_filter=True)
         traces.append(tr)
