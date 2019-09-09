@@ -37,15 +37,17 @@ def main():
     inclinations = np.linspace(14.0, 27.0, num_traces)
     distances = convert_inclination_to_distance(inclinations)
     final_sample_rate_hz = 10.0
-    stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=0)
-    # stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
-    #                                  amplitudes=[1, 0.5, 0.2], baz=0)
+    # stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=0)
+    stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+                                    #  amplitudes=[1, 0.5, 0.2], baz=0)
+                                     amplitudes=[1, 0.4, 0.3], baz=0)
     stream_0.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_0)), format='h5')
 
     H_1 = 50
-    stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=90)
-    # stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
-    #                                  amplitudes=[1, 0.4, 0.3], baz=90)
+    # stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=90)
+    stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+                                    #  amplitudes=[1, 0.4, 0.3], baz=90)
+                                     amplitudes=[1, 0.5, 0.2], baz=90)
     stream_1.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_1)), format='h5')
 
     # Plot each dataset separately, then aggregated together
@@ -62,7 +64,7 @@ def main():
 
     # Run H-k stacking on synthetic data
     station_db = {'HHR': stream_all}
-    k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=False)
+    k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=False, root_order=2)
     w = (0.5, 0.5)
     w_str = "w={:1.2f},{:1.2f}".format(*w)
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
