@@ -4,6 +4,7 @@
 
 import numpy as np
 from scipy import signal
+from scipy.interpolate import interp1d
 
 import obspy
 import rf
@@ -114,4 +115,38 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
     stream = rf.RFStream(traces)
 
     return stream
+# end func
+
+
+def convert_inclination_to_distance(inclinations, model="iasp91", nominal_source_depth_km=10.0):
+    """Helper function to convert range of inclinations to teleseismic distance in degrees.
+
+    :param inclinations: Array of inclination angles in degrees
+    :type inclinations: numpy.array(float)
+    :param model: Name of model to use for ray tracing, defaults to "iasp91"
+    :type model: str, optional
+    :param nominal_source_depth_km: Assumed depth of source events, defaults to 10.0
+    :type nominal_source_depth_km: float, optional
+    :return: Array of teleseismic distances in degrees corresponding to input inclination angles.
+    :rtype: numpy.array(float)
+    """
+    # Generate function mapping ray parameter to teleseismic distance.
+    # The distances are not strictly required for H-k stacking, but rf behaves better when they are there.
+    ts_distance = np.linspace(25, 95, 71)
+    inc = np.zeros_like(ts_distance)
+    model = obspy.taup.TauPyModel(model=model)
+    source_depth_km = nominal_source_depth_km
+    for i, d in enumerate(ts_distance):
+        ray = model.get_ray_paths(source_depth_km, d, phase_list=['P'])
+        inc[i] = ray[0].incident_angle  # pylint: disable=unsupported-assignment-operation
+    # end for
+
+    # Create interpolator to convert inclination to teleseismic distance
+    interp_dist = interp1d(inc, ts_distance, bounds_error=False,
+                           fill_value=(np.max(ts_distance), np.min(ts_distance)))
+
+    # Loop over valid range of inclinations and generate synthetic RFs
+    distances = interp_dist(inclinations)
+
+    return distances
 # end func

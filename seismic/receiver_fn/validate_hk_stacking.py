@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Use a basic planar, 2-layer model of only the crust and the Moho to generate
-synthetic arrival traces for known model characteristics. Intended to be used
-for model validation.
+synthetic arrival traces for known model characteristics, and run the RFs through
+H-k stacking routine the recover the original H-k values.
 """
 
 import os
