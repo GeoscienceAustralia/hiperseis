@@ -312,7 +312,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-@click.option('--min-magnitude', default=4.0, help='Minimum magnitude of event')
+@click.option('--min-magnitude', default=-1, help='Minimum magnitude of event')
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
 def process(asdf_source, event_folder, output_path, min_magnitude, restart, save_quality_plots):
