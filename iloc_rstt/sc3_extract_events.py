@@ -199,7 +199,7 @@ def process(data_path, scratch_path, output_file_stem):
                     da = gps2dist_azimuth(po.latitude, po.longitude, slat, slon)
 
                     # create row
-                    if(a.phase not in ['P', 'S']): continue
+                    #if(a.phase not in ['P', 'S']): continue
                     if(a.time_residual is None): continue
 
                     line = [eid, '{:<25s}',
@@ -226,8 +226,8 @@ def process(data_path, scratch_path, output_file_stem):
                             int(pick_attribs['band_index']), '{:d}',
                             int(pick_attribs['nsigma']), '{:d}']
 
-                    if(a.phase == 'P'): linesp.append(line)
-                    elif(a.phase == 'S'): liness.append(line)
+                    if(a.phase == 'P' or a.phase == 'Pg'): linesp.append(line)
+                    elif(a.phase == 'S' or a.phase == 'Sg'): liness.append(line)
                 # end for
             # end for
 
