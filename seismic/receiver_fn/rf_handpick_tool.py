@@ -2,8 +2,10 @@
 
 import logging
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.widgets import RectangleSelector
 import matplotlib
 
 import tkinter as tk
@@ -26,66 +28,27 @@ root.withdraw()
 infile = r"C:\software\hiperseis\seismic\receiver_fn\DATA\OA_rfs_20170911T000036-20181128T230620_ZRT_td_rev9_qual.h5"
 log.info("Loading %s", infile)
 
-data_all = rf_util.read_h5_rf(infile, network='OA', station='BV21', loc='0M')
+data_all = rf_util.read_h5_rf(infile, network='OA', station='BS24', loc='0M')
 data_dict = rf_util.rf_to_dict(data_all)
 
 # stations = sorted(list(data_dict.keys()))
 # stations = ['BV21', 'BV22']
-stations = ['BV21']
+stations = ['BS24']
 
 # rf_type = 'ZRT'  # set manually
 rf_type = data_all[0].stats.rotation
 
-def onpick(event):
-    print("in onpick")
-    print(event)
-    print(dir(event))
-# end func
-
-active_rect = None
-down_loc = None
-def on_button_down(event, ax):
-    global active_rect, down_loc
-    print("down at ({}, {})".format(event.xdata, event.ydata))
-    down_loc = (event.xdata, event.ydata)
-    active_rect = patches.Rectangle(down_loc, 0, 0, linewidth=1, edgecolor='r', facecolor='none')
-    ax.add_patch(active_rect)
-
-def on_button_up(event):
-    global active_rect, down_loc
-    print("up at ({}, {})".format(event.xdata, event.ydata))
-    active_rect.set_visible(False)
-    active_rect.remove()
-    del active_rect
-    down_loc = None
-    event.canvas.draw()
-
-def on_move(event):
-    global active_rect, down_loc
-    if down_loc is not None:
-        active_rect.set_width(max(event.xdata - down_loc[0], 0))
-        active_rect.set_height(max(event.ydata - down_loc[1], 0))
-        active_rect.figure.canvas.draw()
-
-# def enter_axes(event):
-#     print('enter_axes', event.inaxes)
-#     event.inaxes.patch.set_facecolor('yellow')
-#     event.canvas.draw()
-
-# def leave_axes(event):
-#     print('leave_axes', event.inaxes)
-#     event.inaxes.patch.set_facecolor('white')
-#     event.canvas.draw()
-
-# def enter_figure(event):
-#     print('enter_figure', event.canvas.figure)
-#     event.canvas.figure.patch.set_facecolor('red')
-#     event.canvas.draw()
-
-# def leave_figure(event):
-#     print('leave_figure', event.canvas.figure)
-#     event.canvas.figure.patch.set_facecolor('grey')
-#     event.canvas.draw()
+def on_select(e_down, e_up, select_mask):
+    print("on_select ({}, {}) to ({}, {})".format(e_down.xdata, e_down.ydata, e_up.xdata, e_up.ydata))
+    min_y = np.round(np.min([e_down.ydata, e_up.ydata])).astype(int)
+    max_y = np.round(np.max([e_down.ydata, e_up.ydata])).astype(int)
+    toggle_range = (max(0, min_y - 1), min(len(select_mask), max_y))
+    select_mask[toggle_range[0]:toggle_range[1]] = ~select_mask[toggle_range[0]:toggle_range[1]]
+    print("Selection:")
+    if np.any(select_mask):
+        print(np.nonzero(select_mask)[0].tolist())
+    else:
+        print("none")
 
 for st in stations:
     station_db = data_dict[st]
@@ -103,25 +66,13 @@ for st in stations:
 
     # Plot RF stack of primary component
     fig = rf_plot_utils.plot_rf_stack(rf_stream)
-    fig.set_size_inches(8.27, 11.69)
+    fig.set_size_inches(8, 9)
     fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
     ax0 = fig.axes[0]
-    # fig.picker = True
-    # ax0.picker = True
-    # # line_plots = [c for c in ax0.get_children() if isinstance(c, matplotlib.lines.Line2D)]
-    # # for line_artist in line_plots:
-    # #     line_artist.picker = 10.0
-    # for w in ax0.get_children():
-    #     w.picker = 10.0
 
+    mask = np.array([False]*len(rf_stream))
+    rect_select = RectangleSelector(ax0, lambda e0, e1: on_select(e0, e1, mask), useblit=True)
     # cid = fig.canvas.mpl_connect('pick_event', onpick)
-    fig.canvas.mpl_connect('button_press_event', lambda e: on_button_down(e, ax0))
-    fig.canvas.mpl_connect('button_release_event', on_button_up)
-    fig.canvas.mpl_connect('motion_notify_event', on_move)
-    # fig.canvas.mpl_connect('figure_enter_event', enter_figure)
-    # fig.canvas.mpl_connect('figure_leave_event', leave_figure)
-    # fig.canvas.mpl_connect('axes_enter_event', enter_axes)
-    # fig.canvas.mpl_connect('axes_leave_event', leave_axes)
     plt.show()
 
     # fig.canvas.mpl_disconnect(cid)
