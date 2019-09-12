@@ -359,9 +359,9 @@ def choose_rf_source_channel(rf_type, db_station):
     :return: Channel code of the primary RF source channel
     :rtype: str
     """
-    if rf_type[0:3] == 'ZRT':
+    if rf_type[0:3].upper() == 'ZRT':
         prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR']
-    elif rf_type[0:3] == 'LQT':
+    elif rf_type[0:3].upper() == 'LQT':
         prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ']
     else:
         prospective_channels = []
@@ -401,7 +401,7 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
     # Simple SNR and amplitude based filtering criteria matching formula from Babak in Matlab code, PLUS
     # additional requirement in the case of ZRT rotation that the peak occurs nearby to onset time.
     peak_location_tolerance_sec = 2.0
-    if rf_type[0:3] == 'ZRT':
+    if rf_type[0:3].upper() == 'ZRT':
         for tr in traces:
             times_rel = tr.times() - (tr.stats.onset - tr.stats.starttime)
             if (_amplitude_metric_good(tr) and
