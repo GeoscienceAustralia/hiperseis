@@ -689,6 +689,8 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     #       but internal naming is actually swapped.
 
     log = logging.getLogger(__name__)
+    # log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
 
     log.info("Pandas version: " + pd.__version__)
     log.info("Matplotlib version: " + matplotlib.__version__)
@@ -706,10 +708,19 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     log.debug("Raw picks date range: {} to {}".format(obspy.UTCDateTime(df_raw_picks['originTimestamp'].min()),
                                                       obspy.UTCDateTime(df_raw_picks['originTimestamp'].max())))
 
+    filter_options = FilterOptions()
+    filter_options.strict_filtering = strict_filtering
+    filter_options.min_event_snr = min_event_snr
+    filter_options.min_event_mag = min_event_magnitude
+    filter_options.cwt_cutoff = cwt_cutoff
+    filter_options.slope_cutoff = slope_cutoff
+    filter_options.nsigma_cutoff = nsigma_cutoff
+
     # Perform series of global filters on picks
     df_picks = df_raw_picks
     log.debug("Picks before global filter: {}".format(len(df_picks)))
-    filter_chain = [filter_limit_channels, filter_duplicated_network_codes,
+    filter_chain = [lambda _df: filter_limit_channels(_df, filter_options.channel_preference),
+                    filter_duplicated_network_codes,
                     lambda _df: filter_to_teleseismic(_df, min_distance, max_distance)]
     for f in filter_chain:
         df_picks = f(df_picks)
@@ -734,14 +745,6 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     REF_NETS = networks2.split(',')
     assert len(REF_NETS) == 1 or not stations2, \
         "Can't specify multiple networks and custom station list at the same time!"
-
-    filter_options = FilterOptions()
-    filter_options.strict_filtering = strict_filtering
-    filter_options.min_event_snr = min_event_snr
-    filter_options.min_event_mag = min_event_magnitude
-    filter_options.cwt_cutoff = cwt_cutoff
-    filter_options.slope_cutoff = slope_cutoff
-    filter_options.nsigma_cutoff = nsigma_cutoff
 
     display_options = DisplayOptions()
     if show_historical:
