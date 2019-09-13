@@ -30,6 +30,7 @@ def on_select(e_down, e_up, select_mask):
     :param select_mask: Boolean mask of selected state of each receiver function in the plot
     :type select_mask: numpy.array(bool)
     """
+    assert e_up.inaxes == e_down.inaxes, "Up event in different axes, xy data may be incorrect!"
     log.debug("on_select ({}, {}) to ({}, {})".format(e_down.xdata, e_down.ydata, e_up.xdata, e_up.ydata))
     min_y = np.round(np.min([e_down.ydata, e_up.ydata])).astype(int)
     max_y = np.round(np.max([e_down.ydata, e_up.ydata])).astype(int)
@@ -46,9 +47,11 @@ def on_select(e_down, e_up, select_mask):
 # end func
 
 
-def on_release(event, select_mask, background, rect_selector):
+def on_release(event, target_axes, select_mask, background, rect_selector):
     """Event handler when mouse button released.
 
+    :param target_axes: [TBD]
+    :type target_axes: [TBD]
     :param event: Button up event for end of rectangle area selection
     :type event: matplotlib.backend_bases.MouseEvent
     :param select_mask: Boolean mask of selected state of each receiver function in the plot
@@ -59,19 +62,23 @@ def on_release(event, select_mask, background, rect_selector):
     :type rect_selector: matplotlib.widgets.RectangleSelector
     """
 
+    # We hardwire this to specific target axes, since the mouse release event could
+    # occur in a different axes.
+    ax = target_axes
+
     # Display selection
     event.canvas.restore_region(background)
-    lines = [c for c in event.inaxes.get_children() if isinstance(c, matplotlib.lines.Line2D)]
+    lines = [c for c in ax.get_children() if isinstance(c, matplotlib.lines.Line2D)]
     for i, selected in enumerate(select_mask):
         line = lines[i]
         if selected:
             line.set_color('red')
-            event.inaxes.draw_artist(line)
+            ax.draw_artist(line)
         else:
             line.set_color('black')
         # end if
     # end for
-    event.canvas.blit(event.inaxes.bbox)
+    event.canvas.blit(ax.bbox)
     # Make sure rect_selector widget now updates it's background to the new colors
     rect_selector.update_background(event)
 # end func
@@ -130,7 +137,7 @@ def main():
         rect_select = RectangleSelector(ax0, lambda e0, e1: on_select(e0, e1, mask), useblit=True,
                                         rectprops=dict(fill=False, edgecolor='red'))
         cid = fig.canvas.mpl_connect('button_release_event',
-                                     lambda e: on_release(e, mask, blit_background, rect_select))
+                                     lambda e: on_release(e, ax0, mask, blit_background, rect_select))
         plt.show()
 
         fig.canvas.mpl_disconnect(cid)
