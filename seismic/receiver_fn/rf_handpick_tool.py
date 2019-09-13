@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-
+"""Simple tool for hand picking functions from RF plots. Selected plots event IDs are exported
+to text file for later use as RF filter in other tools and workflows.
+"""
+import os
 import logging
 import tkinter as tk
 from tkinter import filedialog
@@ -16,36 +19,16 @@ import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
-logging.basicConfig()
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-
-root = tk.Tk()
-root.withdraw()
-
-# infile = filedialog.askopenfilename(initialdir=".", title="Select RF file", filetypes=(("h5 files", "*.h5"),))
-infile = r"C:\software\hiperseis\seismic\receiver_fn\DATA\OA_rfs_20170911T000036-20181128T230620_ZRT_td_rev9_qual.h5"
-log.info("Loading %s", infile)
-
-data_all = rf_util.read_h5_rf(infile, network='OA', station='BS24', loc='0M')
-data_dict = rf_util.rf_to_dict(data_all)
-
-# stations = sorted(list(data_dict.keys()))
-# stations = ['BV21', 'BV22']
-stations = ['BS24']
-
-# rf_type = 'ZRT'  # set manually
-rf_type = data_all[0].stats.rotation
 
 def on_select(e_down, e_up, select_mask):
     """Event handler for RectangleSelector
 
-    :param e_down: [description]
-    :type e_down: [type]
-    :param e_up: [description]
-    :type e_up: [type]
-    :param select_mask: [description]
-    :type select_mask: [type]
+    :param e_down: Button down event for start of rectangle
+    :type e_down: matplotlib.backend_bases.MouseEvent
+    :param e_up: Button up event for end of rectangle
+    :type e_up: matplotlib.backend_bases.MouseEvent
+    :param select_mask: Boolean mask of selected state of each receiver function in the plot
+    :type select_mask: numpy.array(bool)
     """
     log.debug("on_select ({}, {}) to ({}, {})".format(e_down.xdata, e_down.ydata, e_up.xdata, e_up.ydata))
     min_y = np.round(np.min([e_down.ydata, e_up.ydata])).astype(int)
@@ -60,20 +43,20 @@ def on_select(e_down, e_up, select_mask):
     else:
         log.info("none")
     # end if
-
 # end func
+
 
 def on_release(event, select_mask, background, rect_selector):
     """Event handler when mouse button released.
 
-    :param event: [description]
-    :type event: [type]
-    :param select_mask: [description]
-    :type select_mask: [type]
-    :param background: [description]
-    :type background: [type]
-    :param rect_selector: [description]
-    :type rect_selector: [type]
+    :param event: Button up event for end of rectangle area selection
+    :type event: matplotlib.backend_bases.MouseEvent
+    :param select_mask: Boolean mask of selected state of each receiver function in the plot
+    :type select_mask: numpy.array(bool)
+    :param background: Background raster from initial render of RFs
+    :type background: Return type from fig.canvas.copy_from_bbox
+    :param rect_selector: Widget for selecting rectangular region to toggle RF selection
+    :type rect_selector: matplotlib.widgets.RectangleSelector
     """
 
     # Display selection
@@ -91,42 +74,90 @@ def on_release(event, select_mask, background, rect_selector):
     event.canvas.blit(event.inaxes.bbox)
     # Make sure rect_selector widget now updates it's background to the new colors
     rect_selector.update_background(event)
-
 # end func
 
 
-for st in stations:
-    station_db = data_dict[st]
+def main():
+    """Main entry function for RF picking tool.
+    """
+    infile = filedialog.askopenfilename(initialdir=".", title="Select RF file", filetypes=(("h5 files", "*.h5"),))
+    output_folder = filedialog.askdirectory(initialdir=os.path.split(infile)[0], title='Select output folder')
+    if not os.path.isdir(output_folder):
+        log.info("Creating output folder {}".format(output_folder))
+        os.makedirs(output_folder, exist_ok=True)
+    # end if
+    log.info("Output files will be emitted to {}".format(output_folder))
 
-    # Choose RF channel
-    channel = rf_util.choose_rf_source_channel(rf_type, station_db)
-    channel_data = station_db[channel]
+    log.info("Loading %s", infile)
+    data_all = rf_util.read_h5_rf(infile)
+    data_dict = rf_util.rf_to_dict(data_all)
 
-    # Label and filter quality
-    rf_util.label_rf_quality_simple_amplitude(rf_type, channel_data)
-    rf_stream = rf.RFStream([tr for tr in channel_data if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
-    if not rf_stream:
-        log.info("No data survived filtering for %s, skipping", st)
-        continue
+    stations = sorted(list(data_dict.keys()))
 
-    # Plot RF stack of primary component
-    fig = rf_plot_utils.plot_rf_stack(rf_stream)
-    fig.set_size_inches(8, 9)
-    fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
-    ax0 = fig.axes[0]
-    # Make sure we draw once first before capturing blit background
-    fig.canvas.draw()
-    # Disallow resizing to avoid having to handle blitting with resized window.
-    win = fig.canvas.window()
-    win.setFixedSize(win.size())
-    blit_background = fig.canvas.copy_from_bbox(ax0.bbox)
+    # Assuming same rotation type for all RFs. This is consistent with the existing workflow.
+    rf_type = data_all[0].stats.rotation
 
-    mask = np.array([False]*len(rf_stream))
-    rect_select = RectangleSelector(ax0, lambda e0, e1: on_select(e0, e1, mask), useblit=True,
-                                    rectprops=dict(fill=False, edgecolor='red'))
-    cid = fig.canvas.mpl_connect('button_release_event', lambda e: on_release(e, mask, blit_background, rect_select))
-    plt.show()
+    for st in stations:
+        station_db = data_dict[st]
 
-    fig.canvas.mpl_disconnect(cid)
-    rect_select = None
-# end for
+        # Choose RF channel
+        channel = rf_util.choose_rf_source_channel(rf_type, station_db)
+        channel_data = station_db[channel]
+        # Check assumption
+        for tr in channel_data:
+            assert tr.stats.rotation == rf_type, 'Mismatching RF rotation type'
+
+        # Label and filter quality
+        rf_util.label_rf_quality_simple_amplitude(rf_type, channel_data)
+        rf_stream = rf.RFStream([tr for tr in channel_data if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
+        if not rf_stream:
+            log.info("No data survived filtering for %s, skipping", st)
+            continue
+
+        # Plot RF stack of primary component
+        fig = rf_plot_utils.plot_rf_stack(rf_stream)
+        fig.set_size_inches(8, 9)
+        fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
+        ax0 = fig.axes[0]
+        # Make sure we draw once first before capturing blit background
+        fig.canvas.draw()
+        # Disallow resizing to avoid having to handle blitting with resized window.
+        win = fig.canvas.window()
+        win.setFixedSize(win.size())
+        blit_background = fig.canvas.copy_from_bbox(ax0.bbox)
+
+        mask = np.array([False]*len(rf_stream))
+        rect_select = RectangleSelector(ax0, lambda e0, e1: on_select(e0, e1, mask), useblit=True,
+                                        rectprops=dict(fill=False, edgecolor='red'))
+        cid = fig.canvas.mpl_connect('button_release_event',
+                                     lambda e: on_release(e, mask, blit_background, rect_select))
+        plt.show()
+
+        fig.canvas.mpl_disconnect(cid)
+        rect_select = None
+
+        selected_event_ids = [tr.stats.event_id for i, tr in enumerate(rf_stream) if mask[i]]
+        log.info("{} streams selected".format(len(selected_event_ids)))
+        log.info("Selected event ids:")
+        log.info(selected_event_ids)
+
+        network = rf_stream[0].stats.network
+        outfile = os.path.join(output_folder, '.'.join([network, st, channel]) + '_event_mask.txt')
+        log.info("Writing mask to file {}".format(outfile))
+        if os.path.exists(outfile):
+            log.warning("Overwriting existing file {} !".format(outfile))
+        with open(outfile, 'w') as f:
+            f.write('\n'.join(selected_event_ids))
+    # end for
+# end main
+
+# -------------------------------------
+if __name__ == "__main__":
+    logging.basicConfig()
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
+
+    root = tk.Tk()
+    root.withdraw()
+
+    main()
