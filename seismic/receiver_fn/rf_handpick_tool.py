@@ -50,8 +50,8 @@ def on_select(e_down, e_up, select_mask):
 def on_release(event, target_axes, select_mask, background, rect_selector):
     """Event handler when mouse button released.
 
-    :param target_axes: [TBD]
-    :type target_axes: [TBD]
+    :param target_axes: The original axes in which the RectangleSelector began. May differ from event.inaxes.
+    :type target_axes: matplotlib.axes.Axes
     :param event: Button up event for end of rectangle area selection
     :type event: matplotlib.backend_bases.MouseEvent
     :param select_mask: Boolean mask of selected state of each receiver function in the plot
