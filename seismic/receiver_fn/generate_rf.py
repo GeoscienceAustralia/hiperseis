@@ -111,10 +111,21 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     # end if
 
     for tr in stream3c:
-        if np.all(np.isnan(tr.data)):
-            logger.warning("All NaN in trace {} of stream {} (skipping):\n{}"
+        # Each tr here is one component.
+        # Check for any NaNs in any component. Discard such traces, as we don't want any NaNs
+        # propagating through workflow.
+        if np.any(np.isnan(tr.data)):
+            logger.warning("NaN detected in trace {} of stream {} (skipping):\n{}"
                            .format(tr.stats.channel, ev_id, stream3c))
             return False
+        # end if
+        # Check for all zeros or all same value in any component. This is infeasible for an operational
+        # station, and has been observed as a failure mode in practice.
+        if np.std(tr.data) == 0:
+            logger.warning("Invariant data detected in trace {} of stream {} (skipping):\n{}"
+                           .format(tr.stats.channel, ev_id, stream3c))
+            return False
+        # end if
     # end for
 
     # Compute SNR of prior z-component after some low pass filtering.
