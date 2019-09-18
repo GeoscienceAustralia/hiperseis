@@ -191,9 +191,11 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 continue
             # end if
 
-            # Discard windows with masked regions, i.e. with gaps
-            if (not (np.ma.is_masked(tr1_d_all[wtr1s:wtr1e])
-                     or np.ma.is_masked(tr2_d_all[wtr2s:wtr2e]))):
+            # Discard windows with masked regions, i.e. with gaps or windows that are all zeros
+            if (not (np.ma.is_masked(tr1_d_all[wtr1s:wtr1e]) or
+                     np.ma.is_masked(tr2_d_all[wtr2s:wtr2e]) or
+                     np.sum(tr1_d_all[wtr1s:wtr1e]) == 0 or
+                     np.sum(tr2_d_all[wtr2s:wtr2e]) == 0)):
 
                 #logger.info('%s, %s' % (tr1.stats.starttime + wtr1s / 200., tr1.stats.starttime + wtr1e / sr1_orig))
                 #logger.info('%s, %s' % (tr2.stats.starttime + wtr2s / 200., tr2.stats.starttime + wtr2e / sr2_orig))
@@ -225,7 +227,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                           'location': tr1.stats.location,
                                                           'channel': tr1.stats.channel,
                                                           'starttime': tr1.stats.starttime + float(wtr1s)/sr1_orig,
-                                                          'endtime': tr1.stats.starttime + float(wtr1e)/sr2_orig}))
+                                                          'endtime': tr1.stats.starttime + float(wtr1e)/sr1_orig}))
                     try:
                         resp_tr1.remove_response(inventory=sta1_inv, output=instrument_response_output.upper(),
                                                  water_level=water_level)
