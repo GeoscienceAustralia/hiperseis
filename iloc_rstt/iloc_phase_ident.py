@@ -17,12 +17,14 @@ Revision History:
 import sys
 import click
 from obspy import Stream, Trace, UTCDateTime
-import subprocess
 from tqdm import tqdm
 from mpi4py import MPI
 from collections import defaultdict 
 import numpy as np
 from random import shuffle
+#import subprocess
+import subprocess32 as subprocess
+import psutil
 
 def split_list(lst, npartitions):
     result = []
@@ -43,14 +45,30 @@ def split_list(lst, npartitions):
     return result
 # end func
 
+def kill(proc_pid):
+    process = psutil.Process(proc_pid)
+    for proc in process.children(recursive=True):
+        proc.kill()
+    # end for
+    process.kill()
+# end func                           
+
 def runprocess(cmd, get_results=False):
     results = []
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    pstdout, pstderr = p.communicate()
-    for line in pstdout.splitlines():
-        if (get_results): results.append(line.strip())
-        #else: print line
-    # end for
+    
+    try:
+        pstdout, pstderr = p.communicate(timeout=600)
+        for line in pstdout.splitlines():
+            if (get_results): results.append(line.strip())
+            #else: print line
+        # end for
+    except subprocess.TimeoutExpired:
+        print 'KILLING PROC: %d'%(p.pid)
+        kill(p.pid)
+        p.returncode = 1
+    # end try
+
 
     #for line in pstderr.splitlines():
     #    print line
@@ -114,7 +132,7 @@ def process(start_time, end_time, output_path, update_db, limit_events):
     i = 0
     for eventId in tqdm(eventIds):
         converged = False
-        cmd = ['echo "%s update_db=%d do_gridsearch=0 use_RSTT_PnSn=1 use_RSTT_PgLg=1 verbose=1" | iloc sc3db' % 
+        cmd = ['echo "%s update_db=%d do_gridsearch=1 use_RSTT_PnSn=1 use_RSTT_PgLg=1 verbose=0" | iloc sc3db' % 
                 (eventId, update_db)]
         
         rc, results = runprocess(cmd, get_results=True)

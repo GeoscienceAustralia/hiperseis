@@ -139,6 +139,7 @@ def process(data_path, scratch_path, output_file_stem):
     
     pprocfile = open('%s/pproc.%d.txt'%(scratch_path, rank), 'w+')
     sprocfile = open('%s/sproc.%d.txt'%(scratch_path, rank), 'w+')
+    allprocfile = open('%s/allproc.%d.txt'%(scratch_path, rank), 'w+')
     for eid in tqdm(eventIds):
         ofn = '%s/%s.xml'%(scratch_path, eid.split('/')[-1])
         cmd = ['scxmldump -d  mysql://sysop:sysop@localhost/seiscomp3 -E %s -PAMf -o %s'% 
@@ -152,6 +153,7 @@ def process(data_path, scratch_path, output_file_stem):
             
             linesp = []
             liness = []
+            linesall = []
             for e in cat.events:
                 po = e.preferred_origin()
 
@@ -199,7 +201,7 @@ def process(data_path, scratch_path, output_file_stem):
                     da = gps2dist_azimuth(po.latitude, po.longitude, slat, slon)
 
                     # create row
-                    if(a.phase not in ['P', 'S']): continue
+                    #if(a.phase not in ['P', 'S']): continue
                     if(a.time_residual is None): continue
 
                     line = [eid, '{:<25s}',
@@ -225,9 +227,11 @@ def process(data_path, scratch_path, output_file_stem):
                             pick_attribs['quality_measure_slope'], '{:f}',
                             int(pick_attribs['band_index']), '{:d}',
                             int(pick_attribs['nsigma']), '{:d}']
+                    
+                    linesall.append(line)
 
-                    if(a.phase == 'P'): linesp.append(line)
-                    elif(a.phase == 'S'): liness.append(line)
+                    if(a.phase == 'P' or a.phase == 'Pg'): linesp.append(line)
+                    elif(a.phase == 'S' or a.phase == 'Sg'): liness.append(line)
                 # end for
             # end for
 
@@ -240,6 +244,12 @@ def process(data_path, scratch_path, output_file_stem):
                 lineout = ' '.join(line[1::2]).format(*line[::2])
                 sprocfile.write(lineout + '\n')
             # end for
+            
+            for line in linesall:
+                lineout = ' '.join(line[1::2]).format(*line[::2])
+                allprocfile.write(lineout + '\n')
+            # end for
+
             if (len(notFound)): print 'Rank: %d'%(rank), notFound
         # end if
         if (os.path.exists(ofn)): os.remove(ofn)
@@ -247,18 +257,22 @@ def process(data_path, scratch_path, output_file_stem):
     # end for
     pprocfile.close()
     sprocfile.close()
+    allprocfile.close()
 
     header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp phase stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
     comm.barrier()
     if(rank == 0):
         ofp = open(output_file_stem + '.p.txt', 'w+')
         ofs = open(output_file_stem + '.s.txt', 'w+')
+        ofall = open(output_file_stem + '.all.txt', 'w+')
         
         ofp.write(header)
         ofs.write(header)
+        ofall.write(header)
         for i in range(nproc):
             pfn = '%s/pproc.%d.txt'%(scratch_path, i)
             sfn = '%s/sproc.%d.txt'%(scratch_path, i)
+            allfn = '%s/allproc.%d.txt'%(scratch_path, i)
             
             lines = open(pfn, 'r').readlines()
             for line in lines:
@@ -269,12 +283,19 @@ def process(data_path, scratch_path, output_file_stem):
             for line in lines:
                 ofs.write(line)
             # end for
+            
+            lines = open(allfn, 'r').readlines()
+            for line in lines:
+                ofall.write(line)
+            # end for
 
             if (os.path.exists(pfn)): os.remove(pfn)
             if (os.path.exists(sfn)): os.remove(sfn)
+            if (os.path.exists(allfn)): os.remove(allfn)
         # end for
         ofp.close()
         ofs.close()
+        ofall.close()
     # end if
 # end func
 
