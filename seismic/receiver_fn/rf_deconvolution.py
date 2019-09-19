@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
 import numpy as np
-import obspy
 import scipy
 import scipy.signal
 
+import obspy
+import rf
+
+from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 
 def fcorrelate(f, g, n, MAXPTS, dt):  # n and MAXPTS probably redundant
     """
@@ -63,25 +66,26 @@ def gfilter(x, gwidth_factor, n, dt):
 
     two_pi = 2 * np.pi
 
-    n2 = 1
-    while n2 < n:
-        n2 = n2 * 2
-
-    halfpts = n2 // 2
+    # n2 = 1
+    # while n2 < n:
+    #     n2 = n2 * 2
+    #
+    # halfpts = n2 // 2
 
     #     call realft(x,halfpts,forward)
-    fft_x = np.fft.rfft(x, halfpts)  # complex array
+    fft_x = np.fft.rfft(x)  # complex array
+    n2 = len(fft_x)
 
     df = 1.0 / (float(n2) * dt)
     d_omega = two_pi * df
     gwidth = 4.0 * gwidth_factor * gwidth_factor
 
-    omega = np.arange(halfpts) * d_omega
+    omega = np.arange(n2) * d_omega
     gauss = np.exp(-omega * omega / gwidth)
     fft_x = fft_x * gauss
 
     #     call realft(x,halfpts,inverse)
-    x_filt = np.fft.irfft(fft_x, halfpts)  # real_array
+    x_filt = np.fft.irfft(fft_x)  # real_array
 
     scalefactor = dt * (2 * df)
     x_filt = x_filt * scalefactor
@@ -140,9 +144,18 @@ def build_decon(amps, shifts, nshifts, p, n, gwidth, dt):
     return x
 
 
-def iterdeconfd():
-    MAXPTS = 8192
-    MAXG = 200
+def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lpositive=False, verbose=False):
+    """
+    Iterative deconvolution of source and response signal to generate seismic receiver function.
+
+    :param denominator: The source signal
+    :param response: The response signal (e.g. R or T component)
+    :return:
+    """
+    MAXPTS = 8192  # TODO: Update or remove this limit
+    assert len(denominator) <= MAXPTS
+    assert len(numerator) <= MAXPTS
+    MAXG = 200  # TODO: Relax this limit
     f = np.zeros(MAXPTS)
     g = np.zeros(MAXPTS)
     p = np.zeros(MAXPTS)
@@ -170,40 +183,43 @@ def iterdeconfd():
 
     # read in the names of the input files
 
-    numerator = input('What is the numerator file?')
-    denominator = input('What is the denominator file?')
-    maxbumps = int(input('What is the max number of iterations?'))
+    # numerator = input('What is the numerator file?')
+    # denominator = input('What is the denominator file?')
+    # maxbumps = int(input('What is the max number of iterations?'))
 
     if (maxbumps > MAXG):
         print('Maximum Number of bumps is %d' % MAXG)
-        maxbumps = 200
-    # end if
-    theshift = float(input('What is the phase shift (secs) for the output?'))
-    tol = float(input('What is minimum percent error increase to accept?'))
-    gwidth = float(input('What is is the Gaussian filter width factor?'))
-    idum = int(input('Allow negative pulses? (1->y, 0->no)'))
-    if (idum == 1):
-        lpositive = False
-    else:
-        lpositive = True
+        maxbumps = MAXG
     # end if
 
-    idum = int(input('Minimal (0) or verbose output(1)?'))
-    if (idum == 0):
-        verbose = False
-    else:
-        verbose = True
-    # end if
+    # theshift = float(input('What is the phase shift (secs) for the output?'))
+    theshift = float(denominator.stats.onset - denominator.stats.starttime)
+    # tol = float(input('What is minimum percent error increase to accept?'))
+    # gwidth = float(input('What is is the Gaussian filter width factor?'))
+    # idum = int(input('Allow negative pulses? (1->y, 0->no)'))
+    #
+    # if (idum == 1):
+    #     lpositive = False
+    # else:
+    #     lpositive = True
+    # # end if
+
+    # idum = int(input('Minimal (0) or verbose output(1)?'))
+    # if (idum == 0):
+    #     verbose = False
+    # else:
+    #     verbose = True
+    # # end if
 
     # *************************************************************************
     #     call rsac1(numerator, f, npts, beg, delta, MAXPTS, nerr)
-    f = obspy.read(numerator)
+    f = numerator.copy().data
     npts = len(f)
 
     #     call rsac1(denominator,g,nptsd,b,dt,MAXPTS,nerr)
-    g = obspy.read(denominator)
+    g = denominator.copy().data
     # nptsd = len(g)
-    dt = 1.0 / g[0].meta.sampling_rate  # grab dt from first trace
+    dt = 1.0 / denominator.meta.sampling_rate
 
     # *************************************************************************
     # Find the next power of two greater than the data
@@ -232,9 +248,9 @@ def iterdeconfd():
     f = gfilter(f, gwidth, npts, dt)
     g = gfilter(g, gwidth, npts, dt)
     # Buffering to disk for later read-back?
-    f.write('numerator', format='sac')
-    f.write('observed', format='sac')
-    g.write('denominator', format='sac')
+    # f.write('numerator', format='sac')
+    # f.write('observed', format='sac')
+    # g.write('denominator', format='sac')
 
     # compute the power in the "numerator" for error scaling
     power = np.dot(f, f)
@@ -262,9 +278,9 @@ def iterdeconfd():
 
     # read in the signals again  # TODO: rationalize the I/O in this routine
     #     call rsac1(numerator,f,ndummy,beg,delta,MAXPTS,nerr)
-    f = obspy.read(numerator)
+    f = numerator.copy().data
     #     call rsac1(denominator,g,ndummy,b,dt,MAXPTS,nerr)
-    g = obspy.read(denominator)
+    g = denominator.copy().data
     dt = 1.0 / g[0].meta.sampling_rate  # grab dt from first trace
 
     # compute the predicted deconvolution result
@@ -432,16 +448,27 @@ def iterdeconfd():
 
 # end func
 
+def iter3c(stream):
+    return rf.util.IterMultipleComponents(stream, key='onset', number_components=(2, 3))
+
 #------------------------------------------------------------------------------
 
 def main():
     """
     Main
     """
-    source = None
-    response = None
+    src_trace_file = "/g/data/ha3/am7399/rf_validation/7W_bilby/7W.BL05_event_waveforms_for_rf_filtered.h5"
+    src_data = obspy.read(src_trace_file, format='h5')
     max_iterations = 200
-    rf = iterdeconfd(source, response, max_iterations)
+    time_window = (-10, 30)
+    for stream3c in iter3c(src_data.copy()):
+        rf_stream = rf.RFStream(stream3c)
+        rf_stream .rotate('NE->RT')
+        rf_stream .trim2(*time_window, reftime='onset')
+        rf_stream.detrend('linear')
+        source = rf_stream .select(component='Z')[0]
+        response = rf_stream .select(component='R')[0]
+        result = iterdeconfd(source, response, max_iterations)
 # end main
 
 if __name__ == "__main__":
