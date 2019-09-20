@@ -186,11 +186,14 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, time_s
     # maxlag = npts // 2
     # print('The maximum spike delay is %g sec' % (float(maxlag) * dt))
 
+    non_causal_leadin = int(np.ceil(time_shift/dt))
+    max_causal_idx = npts - non_causal_leadin
+    assert max_causal_idx > 0
     if lpositive:
-        shifts.append(np.argmax(xc))
+        shifts.append(np.argmax(xc[:max_causal_idx]))
     else:
         xc_abs = np.abs(xc)
-        shifts.append(np.argmax(xc_abs))
+        shifts.append(np.argmax(xc_abs[:max_causal_idx]))
     # end if
     amps.append(xc[shifts[-1]])
 
@@ -222,10 +225,10 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, time_s
         xc = fcorrelate(resid, g_hat)
 
         if lpositive:
-            shifts.append(np.argmax(xc))
+            shifts.append(np.argmax(xc[:max_causal_idx]))
         else:
             xc_abs = np.abs(xc)
-            shifts.append(np.argmax(xc_abs))
+            shifts.append(np.argmax(xc_abs[:max_causal_idx]))
         # end if
         amps.append(xc[shifts[-1]])
 
@@ -270,6 +273,8 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, time_s
     f_hat_predicted = _convolve(p, g)
     response_trace.data = f_hat_predicted
 
+    # Shift RF estimate to synchronize with time line of inputs. If this causes RF to wrap around in the time domain,
+    # try increasing the time extent of the input data.
     p_shifted = phase_shift(p, -time_shift, dt)
     rf_trace = numerator.copy()  # clone input trace
     rf_trace.data = p_shifted
@@ -290,6 +295,7 @@ def main():
     """
     use_Ammon_data = False
     if use_Ammon_data:
+        # Ammon test data has very low sampling rate (5 Hz)
         src_sac_z = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.z"
         src_sac_r = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.r"
         src_expected_rf = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac.i.eqr"
@@ -303,14 +309,15 @@ def main():
         plt.stem(pulses)
         plt.show()
     else:
-        # Load test data
+        # Load test data from Bilby. This is broadband data sampled at 50 Hz, so it is downsampled first before passing
+        # to iterative deconvolution.
         src_trace_file = r"C:\software\hiperseis\seismic\receiver_fn\DATA\7W.BL05_event_waveforms_for_rf_filtered.h5"
         src_data = obspy.read(src_trace_file, format='h5')
         # Run deconv on traces associated with same events
         max_iterations = 200
         time_window = (-10, 30)
         for stream3c in iter3c(src_data.copy()):
-            stream3c.filter('lowpass', freq=3.0, corners=2, zerophase=True).interpolate(10.0)
+            stream3c.filter('bandpass', freqmin=0.25, freqmax=2.0, corners=2, zerophase=True).interpolate(5.0)
             rf_stream = rf.RFStream(stream3c)
             rf_stream.rotate('NE->RT')
             rf_stream.trim2(*time_window, reftime='onset')
