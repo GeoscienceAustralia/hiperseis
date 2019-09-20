@@ -14,11 +14,9 @@ from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 
 def fcorrelate(f, g):
     """
-    correlation routine - correlates f and g and replaces the
-      g with the cross-correlation the value is normalized
-      by the zero-lag autocorrelation of g
-
-    Returns result in g
+    correlation routine - correlates f and g, normalized
+      by the zero-lag autocorrelation of g. Returns only
+      part of correlation corresponding to positive lag.
     """
     n = len(f)
     assert len(g) == n
@@ -31,21 +29,20 @@ def fcorrelate(f, g):
 
     # Use the Numerical Recipes routine to compute the cross correlation
     #     call correl(f, g, n2, c) # output ends up in c
-    c = scipy.signal.correlate(f, g, mode='same')
+    c = scipy.signal.correlate(f, g)
     # Zero or positive lags in result (using sign convention of correl)
-    # are in elements [n/2:n] of c. Roll result to match layout out output
-    # of correl.
-    c = np.roll(c, -n // 2)
+    # are in elements [n/2:n] of c.
+    c_pos = c[-n:]
 
     # compute the zero-lag autocorrelation of g
     sum0 = np.dot(g, g)
     normalize_factor = 1.0 / sum0
-    # **Note**: this is intended to change values in g in-place up to n2,
-    # i.e. re-using g as output array.
-    g[0:n] = c[0:n] * normalize_factor
+    xc = c_pos * normalize_factor
+
+    return xc
 
 
-def getres(x, y):
+def get_residual(x, y):
     """
     get the residual between x and y
 
@@ -59,9 +56,11 @@ def getres(x, y):
     return r, sumsq
 
 
-def gfilter(x, gwidth_factor, dt):
+def gauss_filter(x, gwidth_factor, dt):
+
     """
-    convolve a function with a unit-area Gaussian filter.
+    Convolve a function with a unit-area Gaussian filter.
+    i.e. apply low-pass filter to input x using Gaussian function in freq domain.
     """
     #     real x(n), two_pi, gauss, d_omega, omega
     #     real gwidth, gwidth_factor, sum
@@ -121,7 +120,7 @@ def phs_shift(x, theshift, dt):
     omega = np.arange(n2) * d_omega
     # The phase shift is omega (angular velocity) * delta_t (the time shift).
     spectral_shift = np.exp(omega*theshift*1j)
-    ffx_x = fft_x * spectral_shift
+    fft_x = fft_x * spectral_shift
 
 #     call realft(x,halfpts,inverse)
     x_shifted = np.fft.irfft(fft_x, n)  # real_array
@@ -132,7 +131,7 @@ def phs_shift(x, theshift, dt):
     return x_shifted
 
 
-def build_decon(amps, shifts, nshifts, p, n, gwidth, dt):
+def build_decon(amps, shifts, n, gwidth, dt):
     """
     compute the predicted time series from a set of
     amplitudes and shifts
@@ -141,11 +140,13 @@ def build_decon(amps, shifts, nshifts, p, n, gwidth, dt):
     #     integer shifts(nshifts)
     #     integer i, n, nshifts
 
-    p[shifts] = p[shifts] + amps
+    p = np.zeros(n)
+    p[np.array(shifts)] = np.array(amps)
+    p = np.roll(p, n//2)
 
-    x = gfilter(p, gwidth, dt)
+    p_filt = gauss_filter(p, gwidth, dt)
 
-    return x
+    return p_filt
 
 
 def _convolve(x, y, dt):
@@ -164,15 +165,17 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
     :return:
     """
     MAXPTS = 100000
-    assert len(denominator) <= MAXPTS
+    assert len(denominator) <= MAXPTS  # Sanity check input size
     assert len(numerator) <= MAXPTS
-    MAXG = 200
+    MAXG = 200  # Maximum number of pulses to synthesize in p
     # f = np.zeros(MAXPTS)
     # g = np.zeros(MAXPTS)
     # p = np.zeros(MAXPTS)
     #     r = np.zeros(MAXPTS)
-    amps = np.zeros(MAXG)
-    shifts = np.zeros(MAXG).astype(int)
+    # amps = np.zeros(MAXG)
+    # shifts = np.zeros(MAXG).astype(int)
+    amps = []
+    shifts = []
     # resfile = ' ' * 12
     # filename = ' ' * 12
 
@@ -229,6 +232,7 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
 
     #     call rsac1(denominator,g,nptsd,b,dt,MAXPTS,nerr)
     g = denominator.copy().data
+    assert len(g) == npts, "g should be same length as f"
     # nptsd = len(g)
     dt = 1.0 / denominator.meta.sampling_rate
 
@@ -256,48 +260,45 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
     # Now begin the cross-correlation procedure
 
     # Put the filter in the signals
-    f = gfilter(f, gwidth, dt)
-    g = gfilter(g, gwidth, dt)
+    f_hat = gauss_filter(f, gwidth, dt)
+    g_hat = gauss_filter(g, gwidth, dt)
     # Buffering to disk for later read-back?
     # f.write('numerator.sac', format='sac')
     # f.write('observed.sac', format='sac')
     # g.write('denominator.sac', format='sac')
 
     # compute the power in the "numerator" for error scaling
-    power = np.dot(f, f)
+    power = np.dot(f_hat, f_hat)
 
     # correlate the signals
-    fcorrelate(f, g)
-    # g.write('ccor0.sac', format='sac')
+    xc = fcorrelate(f_hat, g_hat)
+    # xc.write('ccor0.sac', format='sac')
 
     # find the peak in the correlation
-    maxlag = npts // 2
-    print('The maximum spike delay is %g sec' % (float(maxlag) * dt))
+    # maxlag = npts // 2
+    # print('The maximum spike delay is %g sec' % (float(maxlag) * dt))
 
-    g_prime = g[0:maxlag]
+    # g_prime = g[0:maxlag]
     if lpositive:
-        shifts[0] = np.argmax(g_prime)
-        amps[0] = g_prime[shifts[0]]
+        shifts.append(np.argmax(xc))
     else:
-        g_abs = np.abs(g_prime)
-        shifts[0] = np.argmax(g_abs)
-        amps[0] = g_abs[shifts[0]]
+        xc_abs = np.abs(xc)
+        shifts.append(np.argmax(xc_abs))
     # end if
-    amps[0] = amps[0] / dt
+    amps.append(xc[shifts[-1]] / dt)
 
     nshifts = 0
 
     # TODO: rationalize the I/O in this routine.
     # Read in the signals again
     #     call rsac1(numerator,f,ndummy,beg,delta,MAXPTS,nerr)
-    f = numerator.copy().data
+    # f = numerator.copy().data
     #     call rsac1(denominator,g,ndummy,b,dt,MAXPTS,nerr)
-    g = denominator.copy().data
+    # g = denominator.copy().data
     # dt = 1.0 / denominator.meta.sampling_rate
 
     # compute the predicted deconvolution result
-    p = np.zeros(npts)
-    p = build_decon(amps, shifts, nshifts, p, npts, gwidth, dt)
+    p = build_decon(amps, shifts, npts, gwidth, dt)
     if verbose:
         p_shifted = phs_shift(p, theshift, dt)
         p_shifted.write('d000.sac', format='sac')
@@ -305,23 +306,23 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
 
     # convolve the prediction with the denominator signal
     #     call convolve(p,g,npts,dt)
-    p = _convolve(p, g, dt)
+    f_hat_predicted = _convolve(p, g, dt)
 
     if verbose:
-        p.write('p000.sac', format='sac')
+        f_hat_predicted.write('p000.sac', format='sac')
     # end if
 
     # filter the signals
-    f = gfilter(f, gwidth, dt)
-    g = gfilter(g, gwidth, dt)
+    # f = gauss_filter(f, gwidth, dt)
+    # g = gauss_filter(g, gwidth, dt)
 
     if verbose:
         resfile = 'r%03d.sac' % 0
-        f.write(resfile, format='sac')
+        f_hat.write(resfile, format='sac')
     # end if
 
     # compute the residual (initial error is 1.0)
-    r, sumsq_ip1 = getres(f, p)
+    resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
 
     sumsq_i = 1.0
     sumsq_ip1 = sumsq_ip1 / power
@@ -329,67 +330,65 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
 
     resfile = 'r%03d.sac' % 0
     if verbose:
-        r.write(resfile, format='sac')
+        resid.write(resfile, format='sac')
     # end if
 
     print('%11s %s' % ('File', '  Spike amplitude  Spike delay   Misfit   Improvement'))
     print('%10s  %16.9e  %10.3f   %7.2f%%   %9.4f%%' % (
-        resfile, dt * amps[0], (shifts[0] - 1) * dt, 100 * sumsq_ip1, d_error))
+        resfile, dt * amps[-1], (shifts[-1] - 1) * dt, 100 * sumsq_ip1, d_error))
 
     # *************************************************************************
-    while (np.abs(d_error) > tol) and (nshifts < maxbumps):
+    # while (np.abs(d_error) > tol) and (nshifts < maxbumps):
+    while (nshifts < maxbumps):
 
         nshifts = nshifts + 1
         sumsq_i = sumsq_ip1
 
         #         g = np.zeros(MAXPTS)
-        g = denominator.copy().data
+        # g = denominator.copy().data
 
-        g = gfilter(g, gwidth, dt)
-        fcorrelate(r, g)
+        # g = gauss_filter(g, gwidth, dt)
+        xc = fcorrelate(resid, g_hat)
 
-        g_prime = g[0:maxlag]
+        # g_prime = g[0:maxlag]
         if lpositive:
-            shifts[nshifts] = np.argmax(g_prime)
-            amps[nshifts] = g_prime[shifts[nshifts]]
+            shifts.append(np.argmax(xc))
         else:
-            g_abs = np.abs(g_prime)
-            shifts[nshifts] = np.argmax(g_abs)
-            amps[nshifts] = g_abs[shifts[nshifts]]
+            xc_abs = np.abs(xc)
+            shifts.append(np.argmax(xc_abs))
         # end if
-        amps[nshifts] = amps[nshifts] / dt
+        amps.append(xc[shifts[-1]] / dt)
 
-        p = np.zeros(npts)
-        p = build_decon(amps, shifts, nshifts, p, npts, gwidth, dt)
+        p = build_decon(amps, shifts, npts, gwidth, dt)
         if verbose:
             filename = 'd%03d.sac' % nshifts
             p_shifted = phs_shift(p, theshift, dt)
-            #             wsac1(filename, p, npts, -theshift, dt, nerr)
+            # wsac1(filename, p, npts, -theshift, dt, nerr)
             p_shifted.write(filename, format='sac')
         # end if
 
         #         g = np.zeros(MAXPTS)
-        g = denominator.copy().data
-        p = _convolve(p, g, dt)
+        # g = denominator.copy().data
+        f_hat_predicted = _convolve(p, g, dt)
         if verbose:
             filename = 'p%03d.sac' % nshifts
-            p.write(filename, format='sac')
+            f_hat_predicted.write(filename, format='sac')
         # end if
 
         #         f = np.zeros(MAXPTS)
-        f = numerator.copy().data
-        f = gfilter(f, gwidth, dt)
-        r, sumsq_ip1 = getres(f, p)
+        # f = numerator.copy().data
+        # f = gauss_filter(f, gwidth, dt)
+        resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
 
         sumsq_ip1 = sumsq_ip1 / power
         resfile = 'r%03d.sac' % nshifts
         if verbose:
-            r.write(resfile, format='sac')
+            resid.write(resfile, format='sac')
         # end if
         d_error = 100 * (sumsq_i - sumsq_ip1)
 
         print('%10s  %16.9e  %10.3f   %7.2f%%   %9.4f%%' % (resfile,
-                                                            dt * amps[nshifts], (shifts[nshifts] - 1) * dt,
+                                                            dt * amps[-1], (shifts[-1] - 1) * dt,
                                                             100 * sumsq_ip1, d_error))
     # end while
 
@@ -415,20 +414,18 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
     # *************************************************************************
 
     # compute the final prediction
-    p = np.zeros(npts)
-    p = build_decon(amps, shifts, nshifts, p, npts, gwidth, dt)
+    p = build_decon(amps, shifts, npts, gwidth, dt)
 
     #     g = np.zeros(MAXPTS)
-    g = denominator.copy().data
+    # g = denominator.copy().data
     trace = denominator.copy()  # clone input trace
-    p = _convolve(p, g, dt)
-    trace.data = p
+    f_hat_predicted = _convolve(p, g, dt)
+    trace.data = f_hat_predicted
     trace.write('predicted.sac', format='sac')
     # g = np.zeros(MAXPTS)
 
     # write out the answer
-    p = np.zeros(npts)
-    p = build_decon(amps, shifts, nshifts, p, npts, gwidth, dt)
+    # p = build_decon(amps, shifts, npts, gwidth, dt)
     p_shifted = phs_shift(p, theshift, dt)
 
     # This rigmarole is to do with writing detailed SAC header information to file
@@ -458,7 +455,7 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, lposit
         p = np.zeros(npts)
         p[0] = 1.0 / dt
         p_shifted = phs_shift(p, theshift, dt)
-        p = gfilter(p_shifted, gwidth, dt)
+        p = gauss_filter(p_shifted, gwidth, dt)
         p.write('thefilter.sac', format='sac')
     # end if
 
@@ -485,7 +482,7 @@ def main():
         rf_stream.taper(0.2, max_length=0.5)
         source = rf_stream .select(component='Z')[0]
         response = rf_stream .select(component='R')[0]
-        result = iterdeconfd(source, response, max_iterations)
+        result = iterdeconfd(source, response, max_iterations, gwidth=3.0)
 # end main
 
 if __name__ == "__main__":
