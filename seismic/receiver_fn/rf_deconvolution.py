@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+
 import numpy as np
 import scipy
 import scipy.signal
@@ -9,6 +11,7 @@ import obspy
 import rf
 
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
+from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 
 # pylint: disable=invalid-name
 
@@ -120,7 +123,7 @@ def _convolve(x, y):
     return z_sync
 
 
-def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, time_shift=None, lpositive=False):
+def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_shift=None, lpositive=False):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
 
@@ -279,7 +282,7 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.0, time_s
     rf_trace = numerator.copy()  # clone input trace
     rf_trace.data = p_shifted
 
-    return rf_trace, response_trace, pulses
+    return rf_trace, pulses, f_hat, response_trace, fit
 
 # end func
 
@@ -293,7 +296,7 @@ def main():
     """
     Main
     """
-    use_Ammon_data = True
+    use_Ammon_data = False
     if use_Ammon_data:
         # Load Ammon test data (has very low sampling rate of 5 Hz)
         src_sac_z = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.z"
@@ -304,22 +307,25 @@ def main():
         source = obspy.read(src_sac_z, format='sac')
         response = obspy.read(src_sac_r, format='sac')
         expected_rf = obspy.read(src_expected_rf, format='sac')
-        observed_rf = obspy.read(src_observed, format='sac')
-        predicted_rf = obspy.read(src_predicted, format='sac')
+        observed_radial = obspy.read(src_observed, format='sac')
+        predicted_radial = obspy.read(src_predicted, format='sac')
         # Run algorithm on Ammon input
         time_shift = 5.0
-        rf_trace, predicted_response, _ = iterdeconfd(source[0], response[0], 200, gwidth=2.5, time_shift=time_shift)
+        rf_trace, _, _, predicted_response, fit = iterdeconfd(
+            source[0], response[0], 200, gwidth=2.5, time_shift=time_shift)
 
         # Plot the results of expected vs computed
-        times = np.arange(len(observed_rf[0]))/observed_rf[0].stats.sampling_rate - time_shift
+        times = np.arange(len(observed_radial[0]))/observed_radial[0].stats.sampling_rate - time_shift
         plt.figure(figsize=(12, 8))
-        plt.plot(times, observed_rf[0].data, alpha=0.8)
-        plt.plot(times, predicted_rf[0].data, alpha=0.8)
+        plt.plot(times, observed_radial[0].data, alpha=0.8)
+        # plt.plot(times, expected_response, ":", alpha=0.8)
+        plt.plot(times, predicted_radial[0].data, alpha=0.8)
         plt.plot(times, predicted_response.data, alpha=0.8)
         plt.xlabel("Time (s)")
         plt.ylabel("Radial amplitude")
+        plt.text(0.02, 0.02, "Prediction match to observation: {:.2f}%".format(fit), transform=plt.gca().transAxes)
         plt.grid("#80808080", linestyle=':')
-        plt.legend(['Observed', 'Predicted (Ammon)', 'Predicted (Python port)'])
+        plt.legend(['Observed', 'Predicted observation (Ammon)', 'Predicted observation (Python port)'])
         plt.title("Iterative deconv test, Radial component")
         plt.savefig('ammon_iterdeconvd_observation.png', dpi=300)
         plt.close()
@@ -346,8 +352,16 @@ def main():
         # Run deconv on traces associated with same events
         max_iterations = 200
         time_window = (-10, 30)
+        i = 0
+        all_traces = []
+        freq_cutoff = (0.25, 1.0)
+        outfolder = 'test_iterdeconv_freq{:.2f}-{:.2f}'.format(*freq_cutoff)
+        if not os.path.exists(outfolder):
+            os.makedirs(outfolder)
+        # end if
         for stream3c in iter3c(src_data.copy()):
-            stream3c.filter('bandpass', freqmin=0.25, freqmax=2.0, corners=2, zerophase=True).interpolate(5.0)
+            stream3c.filter('bandpass', freqmin=freq_cutoff[0], freqmax=freq_cutoff[1], corners=2,
+                            zerophase=True).interpolate(5.0)
             rf_stream = rf.RFStream(stream3c)
             rf_stream.rotate('NE->RT')
             rf_stream.trim2(*time_window, reftime='onset')
@@ -355,9 +369,47 @@ def main():
             rf_stream.taper(0.2, max_length=0.5)
             source = rf_stream .select(component='Z')[0]
             response = rf_stream .select(component='R')[0]
-            rf_trace, predicted_response, pulses = iterdeconfd(source, response, max_iterations, gwidth=2.5)
-            rf_trace.plot()
+
+            rf_trace, pulses, expected_response, predicted_response, fit = iterdeconfd(
+                source, response, max_iterations, gwidth=2.5)
+            all_traces.append(rf_trace)
+
+            # Generate plots
+            event_id = source.stats.event_id
+            times = source.times() - (source.stats.onset - source.stats.starttime)
+            plt.figure(figsize=(12, 8))
+            plt.subplot(211)
+            plt.plot(times, expected_response, alpha=0.8)
+            plt.plot(times, predicted_response, alpha=0.8)
+            plt.xlabel("Time (s)")
+            plt.ylabel("Radial amplitude")
+            plt.text(0.02, 0.07, "Input filter band: ({:.2f}, {:.2f}) Hz".format(*freq_cutoff),
+                     fontsize=8, transform=plt.gca().transAxes, color="#404040")
+            plt.text(0.02, 0.02, "Prediction match to observation: {:.2f}%".format(fit), fontsize=8,
+                     transform=plt.gca().transAxes, color="#404040")
+            plt.grid("#80808080", linestyle=':')
+            plt.legend(['Expected R-component', 'Predicted by RF'])
+            plt.title("Event {} observed vs predicted Radial component".format(event_id))
+
+            plt.subplot(212)
+            sum_sq = np.sum(np.square(rf_trace.data))
+            plt.plot(times, rf_trace.data/np.sqrt(sum_sq))
+            plt.xlabel("Time (s)")
+            plt.ylabel("RF amplitude (arb. units)")
+            plt.grid("#80808080", linestyle=':')
+            plt.legend(['Computed RF'])
+            plt.title("Estimated Receiver Function", y=0.9)
+
+            plt.savefig(os.path.join(outfolder, '{:3d}.png'.format(i)), dpi=300)
+            plt.close()
+
+            i += 1
         # end for
+
+        all_rf_stream = rf.RFStream(all_traces).sort(keys=['back_azimuth'])
+        stack_file = os.path.join(outfolder, 'rf_stack.png')
+        plot_rf_stack(all_rf_stream, time_window=time_window, trace_height=0.12, save_file=stack_file, dpi=300)
+        plt.close()
     # end if
 
 # end main
