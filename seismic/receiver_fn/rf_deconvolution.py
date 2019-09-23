@@ -293,21 +293,51 @@ def main():
     """
     Main
     """
-    use_Ammon_data = False
+    use_Ammon_data = True
     if use_Ammon_data:
-        # Ammon test data has very low sampling rate (5 Hz)
+        # Load Ammon test data (has very low sampling rate of 5 Hz)
         src_sac_z = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.z"
         src_sac_r = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.r"
         src_expected_rf = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac.i.eqr"
+        src_observed = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\observed"
+        src_predicted = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\predicted"
         source = obspy.read(src_sac_z, format='sac')
         response = obspy.read(src_sac_r, format='sac')
         expected_rf = obspy.read(src_expected_rf, format='sac')
-        rf_trace, predicted_response, pulses = iterdeconfd(source[0], response[0], 200, gwidth=2.5, time_shift=5.0)
-        expected_rf.plot()
-        rf_trace.plot()
-        predicted_response.plot()
-        plt.stem(pulses)
-        plt.show()
+        observed_rf = obspy.read(src_observed, format='sac')
+        predicted_rf = obspy.read(src_predicted, format='sac')
+        # Run algorithm on Ammon input
+        time_shift = 5.0
+        rf_trace, predicted_response, _ = iterdeconfd(source[0], response[0], 200, gwidth=2.5, time_shift=time_shift)
+
+        # Plot the results of expected vs computed
+        times = np.arange(len(observed_rf[0]))/observed_rf[0].stats.sampling_rate - time_shift
+        plt.figure(figsize=(12, 8))
+        plt.plot(times, observed_rf[0].data, alpha=0.8)
+        plt.plot(times, predicted_rf[0].data, alpha=0.8)
+        plt.plot(times, predicted_response.data, alpha=0.8)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Radial amplitude")
+        plt.grid("#80808080", linestyle=':')
+        plt.legend(['Observed', 'Predicted (Ammon)', 'Predicted (Python port)'])
+        plt.title("Iterative deconv test, Radial component")
+        plt.savefig('ammon_iterdeconvd_observation.png', dpi=300)
+        plt.close()
+
+        plt.figure(figsize=(12, 8))
+        # Normalize so that sum of squares is 1.
+        sum_sq = np.sum(np.square(expected_rf[0].data))
+        plt.plot(times, expected_rf[0].data/np.sqrt(sum_sq), '-o', markersize=2, fillstyle='none', alpha=0.8)
+        sum_sq = np.sum(np.square(rf_trace.data))
+        plt.plot(times, rf_trace.data/np.sqrt(sum_sq), '-^', markersize=2, fillstyle='none', alpha=0.8)
+        plt.xlabel("Time (s)")
+        plt.ylabel("RF amplitude (arb. units)")
+        plt.grid("#80808080", linestyle=':')
+        plt.legend(['Ammon reference RF', 'Computed RF (Python port)'])
+        plt.title("Iterative deconv test, Receiver Function")
+        plt.savefig('ammon_iterdeconvd_RF.png', dpi=300)
+        plt.close()
+
     else:
         # Load test data from Bilby. This is broadband data sampled at 50 Hz, so it is downsampled first before passing
         # to iterative deconvolution.
