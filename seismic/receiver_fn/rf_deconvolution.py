@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 
-import os
 import logging
 
 import numpy as np
 import scipy
 import scipy.signal
-import matplotlib.pyplot as plt
-
-import obspy
-import rf
-
-from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 
 # pylint: disable=invalid-name
 
@@ -122,7 +115,7 @@ def _convolve(x, y):
 
 
 def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidth=2.5,
-                           time_shift=None, lpositive=False):
+                           time_shift=None, only_positive=False, log=None):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
     Adapted to Python by Andrew Medlin, Geoscience Australia (2019), from Chuck Ammon's
@@ -134,10 +127,27 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     even if some of the spectral techniques used in functions (such as `gauss_filter`) were replaced
     by non-spectral equivalents.
 
-    :param denominator: The source signal
-    :param response: The response signal (e.g. R or T component)
+    :param denominator: The source signal (e.g. L or Z component)
+    :type denominator: rf.rfstream.RFTrace
+    :param numerator: The observed response signal (e.g. R, Q or T component)
+    :type numerator: rf.rfstream.RFTrace
+    :param max_pulses: Maximum number of delta function pulses to synthesize in the unfiltered RF
+    :type max_pulses: int
+    :param tol: Convergence tolerance, iteration stops if change in error falls below this value
+    :type tol: float
+    :param gwidth: Gaussian filter width in the normalized frequency domain.
+    :type gwidth: float
+    :param time_shift: Fixed time shift to apply to RF. If None, will be inferred from RF traces if possible.
+    :type time_shift: float
+    :param only_positive: If true, only use positive pulses in the RF.
+    :type only_positive: bool
     :return:
     """
+    if log is None:
+        log = logging.getLogger(__name__)
+        log.setLevel(logging.INFO)
+    # end if
+
     MAXPTS = 100000
     assert len(denominator) <= MAXPTS  # Sanity check input size
     assert len(numerator) <= MAXPTS
@@ -191,7 +201,7 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     non_causal_leadin = int(np.ceil(time_shift/dt))
     max_causal_idx = npts - non_causal_leadin
     assert max_causal_idx > 0
-    if lpositive:
+    if only_positive:
         shifts.append(np.argmax(xc[:max_causal_idx]))
     else:
         xc_abs = np.abs(xc)
@@ -226,7 +236,7 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
 
         xc = _xcorrelate(resid, g_hat)
 
-        if lpositive:
+        if only_positive:
             shifts.append(np.argmax(xc[:max_causal_idx]))
         else:
             xc_abs = np.abs(xc)
@@ -274,8 +284,8 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     f_hat_predicted = _convolve(p, g)
     response_trace.data = f_hat_predicted
 
-    # Shift RF estimate to synchronize with time line of inputs. If this causes RF to wrap around in the time domain,
-    # try increasing the time extent of the input data.
+    # Shift RF estimate to synchronize with time line of inputs. If this causes RF to wrap around
+    # in the time domain, try increasing the time extent of the input data.
     p_shifted = phase_shift(p, -time_shift, dt)
     rf_trace = numerator.copy()  # clone input trace
     rf_trace.data = p_shifted
@@ -283,134 +293,3 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     return rf_trace, pulses, f_hat, response_trace, fit
 
 # end func
-
-
-#------------------------------------------------------------------------------
-
-def main():
-    """
-    Main
-    """
-    use_Ammon_data = False
-    if use_Ammon_data:
-        # Load Ammon test data (has very low sampling rate of 5 Hz)
-        src_sac_z = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.z"
-        src_sac_r = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac_sp.r"
-        src_expected_rf = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\lac.i.eqr"
-        src_observed = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\observed"
-        src_predicted = r"C:\software\hiperseis\seismic\receiver_fn\DATA\Ammon_test\predicted"
-        source = obspy.read(src_sac_z, format='sac')
-        response = obspy.read(src_sac_r, format='sac')
-        expected_rf = obspy.read(src_expected_rf, format='sac')
-        observed_radial = obspy.read(src_observed, format='sac')
-        predicted_radial = obspy.read(src_predicted, format='sac')
-        # Run algorithm on Ammon input
-        time_shift = 5.0
-        rf_trace, _, _, predicted_response, fit = iter_deconv_pulsetrain(
-            source[0], response[0], 200, gwidth=2.5, time_shift=time_shift)
-
-        # Plot the results of expected vs computed
-        times = np.arange(len(observed_radial[0]))/observed_radial[0].stats.sampling_rate - time_shift
-        plt.figure(figsize=(12, 8))
-        plt.plot(times, observed_radial[0].data, alpha=0.8)
-        # plt.plot(times, expected_response, ":", alpha=0.8)
-        plt.plot(times, predicted_radial[0].data, alpha=0.8)
-        plt.plot(times, predicted_response.data, alpha=0.8)
-        plt.xlabel("Time (s)")
-        plt.ylabel("Radial amplitude")
-        plt.text(0.02, 0.02, "Prediction match to observation: {:.2f}%".format(fit), transform=plt.gca().transAxes)
-        plt.grid("#80808080", linestyle=':')
-        plt.legend(['Observed', 'Predicted observation (Ammon)', 'Predicted observation (Python port)'])
-        plt.title("Iterative deconv test, Radial component")
-        plt.savefig('ammon_iterdeconvd_observation.png', dpi=300)
-        plt.close()
-
-        plt.figure(figsize=(12, 8))
-        # Normalize so that sum of squares is 1.
-        sum_sq = np.sum(np.square(expected_rf[0].data))
-        plt.plot(times, expected_rf[0].data/np.sqrt(sum_sq), '-o', markersize=2, fillstyle='none', alpha=0.8)
-        sum_sq = np.sum(np.square(rf_trace.data))
-        plt.plot(times, rf_trace.data/np.sqrt(sum_sq), '-^', markersize=2, fillstyle='none', alpha=0.8)
-        plt.xlabel("Time (s)")
-        plt.ylabel("RF amplitude (arb. units)")
-        plt.grid("#80808080", linestyle=':')
-        plt.legend(['Ammon reference RF', 'Computed RF (Python port)'])
-        plt.title("Iterative deconv test, Receiver Function")
-        plt.savefig('ammon_iterdeconvd_RF.png', dpi=300)
-        plt.close()
-
-    else:
-        # Load test data from Bilby. This is broadband data sampled at 50 Hz, so it is downsampled first before passing
-        # to iterative deconvolution.
-        src_trace_file = r"C:\software\hiperseis\seismic\receiver_fn\DATA\7W.BL05_event_waveforms_for_rf_filtered.h5"
-        src_data = obspy.read(src_trace_file, format='h5')
-        # Run deconv on traces associated with same events
-        max_iterations = 200
-        time_window = (-10, 30)
-        i = 0
-        all_traces = []
-        freq_cutoff = (0.25, 1.0)
-        outfolder = 'test_iterdeconv_freq{:.2f}-{:.2f}'.format(*freq_cutoff)
-        if not os.path.exists(outfolder):
-            os.makedirs(outfolder)
-        # end if
-        for stream3c in rf.util.IterMultipleComponents(src_data.copy(), key='onset', number_components=(2, 3)):
-            stream3c.filter('bandpass', freqmin=freq_cutoff[0], freqmax=freq_cutoff[1], corners=2,
-                            zerophase=True).interpolate(5.0)
-            rf_stream = rf.RFStream(stream3c)
-            rf_stream.rotate('NE->RT')
-            rf_stream.trim2(*time_window, reftime='onset')
-            rf_stream.detrend('linear')
-            rf_stream.taper(0.2, max_length=0.5)
-            source = rf_stream .select(component='Z')[0]
-            response = rf_stream .select(component='R')[0]
-
-            rf_trace, pulses, expected_response, predicted_response, fit = iter_deconv_pulsetrain(
-                source, response, max_iterations, gwidth=2.5)
-            all_traces.append(rf_trace)
-
-            # Generate plots
-            event_id = source.stats.event_id
-            times = source.times() - (source.stats.onset - source.stats.starttime)
-            plt.figure(figsize=(12, 8))
-            plt.subplot(211)
-            plt.plot(times, expected_response, alpha=0.8)
-            plt.plot(times, predicted_response, alpha=0.8)
-            plt.xlabel("Time (s)")
-            plt.ylabel("Radial amplitude")
-            plt.text(0.02, 0.07, "Input filter band: ({:.2f}, {:.2f}) Hz".format(*freq_cutoff),
-                     fontsize=8, transform=plt.gca().transAxes, color="#404040")
-            plt.text(0.02, 0.02, "Prediction match to observation: {:.2f}%".format(fit), fontsize=8,
-                     transform=plt.gca().transAxes, color="#404040")
-            plt.grid("#80808080", linestyle=':')
-            plt.legend(['Expected R-component', 'Predicted by RF'])
-            plt.title("Event {} observed vs predicted Radial component".format(event_id))
-
-            plt.subplot(212)
-            sum_sq = np.sum(np.square(rf_trace.data))
-            plt.plot(times, rf_trace.data/np.sqrt(sum_sq))
-            plt.xlabel("Time (s)")
-            plt.ylabel("RF amplitude (arb. units)")
-            plt.grid("#80808080", linestyle=':')
-            plt.legend(['Computed RF'])
-            plt.title("Estimated Receiver Function", y=0.9)
-
-            plt.savefig(os.path.join(outfolder, '{:03d}.png'.format(i)), dpi=300)
-            plt.close()
-
-            i += 1
-        # end for
-
-        all_rf_stream = rf.RFStream(all_traces).sort(keys=['back_azimuth'])
-        stack_file = os.path.join(outfolder, 'rf_stack.png')
-        plot_rf_stack(all_rf_stream, time_window=time_window, trace_height=0.12, save_file=stack_file, dpi=300)
-        plt.close()
-    # end if
-
-# end main
-
-
-if __name__ == "__main__":
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.INFO)
-    main()
