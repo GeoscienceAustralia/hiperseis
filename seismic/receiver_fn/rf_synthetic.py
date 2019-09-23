@@ -119,7 +119,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
                   'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
                   'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
                   'back_azimuth': baz, 'distance': float(distances[i])}
-        tr = rf.rfstream.RFTrace(data=synth_signal, header=header)
+        tr = rf.rfstream.RFTrace(data=synth_signal.copy(), header=header)
         tr = tr.decimate(int(np.round(fs/ds)), no_filter=True)
         traces.append(tr)
     # end for
