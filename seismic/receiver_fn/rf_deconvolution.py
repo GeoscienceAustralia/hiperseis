@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import logging
 
 import numpy as np
 import scipy
@@ -10,17 +11,17 @@ import matplotlib.pyplot as plt
 import obspy
 import rf
 
-from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 
 # pylint: disable=invalid-name
 
+logging.basicConfig()
 
-def fcorrelate(f, g):
+
+def _xcorrelate(f, g):
     """
-    correlation routine - correlates f and g, normalized
-      by the zero-lag autocorrelation of g. Returns only
-      part of correlation corresponding to positive lag.
+    Correlation routine - correlates f and g, normalized by the zero-lag autocorrelation of g.
+    Returns only part of correlation corresponding to positive lag.
     """
     n = len(f)
     assert len(g) == n
@@ -41,9 +42,7 @@ def fcorrelate(f, g):
 
 def get_residual(x, y):
     """
-    get the residual between x and y
-
-    n = len(x), len(y)
+    Get the residual between x and y and the power of the residual.
     """
     r = x - y
     sumsq = np.dot(r, r)
@@ -52,10 +51,8 @@ def get_residual(x, y):
 
 
 def gauss_filter(x, gwidth_factor, dt):
-
     """
-    Convolve a function with a unit-area Gaussian filter.
-    i.e. apply low-pass filter to input x using Gaussian function in freq domain.
+    Apply low-pass filter to input x using Gaussian function in freq domain.
     """
     n = len(x)
     two_pi = 2 * np.pi
@@ -78,7 +75,7 @@ def gauss_filter(x, gwidth_factor, dt):
 
 def phase_shift(x, time_shift, dt):
     """
-    phase shifts a signal
+    Phase shifts a signal using frequency domain technique for smooth arbitrary shifting.
     """
     n = len(x)
     two_pi = 2 * np.pi
@@ -101,8 +98,7 @@ def phase_shift(x, time_shift, dt):
 
 def build_decon(amps, shifts, n, gwidth, dt):
     """
-    compute the predicted time series from a set of
-    amplitudes and shifts
+    Compute the predicted RF time series from a set of pulse amplitudes and time shifts.
     """
     p = np.zeros(n)
     for i, amp in zip(shifts, amps):
@@ -115,6 +111,8 @@ def build_decon(amps, shifts, n, gwidth, dt):
 
 def _convolve(x, y):
     """
+    Helper function for convolving approximate receiver function with source signal
+    to get estimated observation.
     """
     n = len(x)
     assert len(y) == n
@@ -123,9 +121,18 @@ def _convolve(x, y):
     return z_sync
 
 
-def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_shift=None, lpositive=False):
+def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidth=2.5,
+                           time_shift=None, lpositive=False):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
+    Adapted to Python by Andrew Medlin, Geoscience Australia (2019), from Chuck Ammon's
+    (Saint Louis University) `iterdeconfd` Fortran code, version 1.04.
+
+    Note this is not really a frequency-domain deconvolution method, since the deconvolution is
+    based on generating a time-domain pulse train which is filtered and convolved with source
+    signal in time domain in order to try to replicate observation. Results should be the same
+    even if some of the spectral techniques used in functions (such as `gauss_filter`) were replaced
+    by non-spectral equivalents.
 
     :param denominator: The source signal
     :param response: The response signal (e.g. R or T component)
@@ -139,15 +146,9 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
     amps = []
     shifts = []
 
-    print()
-    print('Program iterdeconfd - Version 1.04, 1997-98')
-    print('Chuck Ammon, Saint Louis University')
-    print('Adapted to Python by Andrew Medlin, Geoscience Australia (2019)')
-    print()
-
-    if maxbumps > MAX_PULSES:
-        print('Maximum Number of bumps is %d' % MAX_PULSES)
-        maxbumps = MAX_PULSES
+    if max_pulses > MAX_PULSES:
+        log.warning('Maximum Number of pulses is %d, clipping input value', MAX_PULSES)
+        max_pulses = MAX_PULSES
     # end if
 
     if time_shift is None:
@@ -156,6 +157,7 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
         except AttributeError:
             time_shift = 0
     # end if
+    assert time_shift is not None
 
     # Clone numerator data
     f = numerator.copy().data
@@ -168,8 +170,8 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
     dt = 1.0 / denominator.meta.sampling_rate
 
     if npts > MAXPTS:
-        print('Too many points needed.')
-        print('npts = %d' % npts)
+        log.error('Too many points needed.')
+        log.error('npts = %d', npts)
         exit(1)
     # end if
 
@@ -183,12 +185,9 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
     power = np.dot(f_hat, f_hat)
 
     # correlate the signals
-    xc = fcorrelate(f_hat, g_hat)
+    xc = _xcorrelate(f_hat, g_hat)
 
-    # find the peak in the correlation
-    # maxlag = npts // 2
-    # print('The maximum spike delay is %g sec' % (float(maxlag) * dt))
-
+    # Exclude non-causal offsets from being added to the pulse locations.
     non_causal_leadin = int(np.ceil(time_shift/dt))
     max_causal_idx = npts - non_causal_leadin
     assert max_causal_idx > 0
@@ -215,17 +214,17 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
     sumsq_ip1 = sumsq_ip1 / power
     d_error = 100 * (sumsq_i - sumsq_ip1)
 
-    print('%11s %s' % ('Iteration', '  Spike amplitude  Spike delay   Misfit   Improvement'))
-    print('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%' % (
-        nshifts, dt * amps[-1], (shifts[-1] - 1) * dt, 100 * sumsq_ip1, d_error))
+    log.info('%11s %s', 'Iteration', '  Spike amplitude  Spike delay   Misfit   Improvement')
+    log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', nshifts, dt * amps[-1], (shifts[-1] - 1) * dt,
+             100 * sumsq_ip1, d_error)
 
     # *************************************************************************
-    while (np.abs(d_error) > tol) and (nshifts < maxbumps):
+    while (np.abs(d_error) > tol) and (nshifts < max_pulses):
 
         nshifts = nshifts + 1
         sumsq_i = sumsq_ip1
 
-        xc = fcorrelate(resid, g_hat)
+        xc = _xcorrelate(resid, g_hat)
 
         if lpositive:
             shifts.append(np.argmax(xc[:max_causal_idx]))
@@ -243,29 +242,28 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
         sumsq_ip1 = sumsq_ip1 / power
         d_error = 100 * (sumsq_i - sumsq_ip1)
 
-        print('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%' % (nshifts,
-                                                            dt * amps[-1], shifts[-1] * dt,
-                                                            100 * sumsq_ip1, d_error))
+        log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', nshifts, dt * amps[-1], shifts[-1] * dt,
+                 100 * sumsq_ip1, d_error)
     # end while
 
     # *************************************************************************
 
-    print('Last Error Change = %9.4f%%' % d_error)
+    log.info('Last Error Change = %9.4f%%', d_error)
 
     # if the last change made no difference, drop it
     fit = 100 - 100 * sumsq_ip1
     if d_error <= tol:
         nshifts = nshifts - 1
         fit = 100 - 100 * sumsq_i
-        print('Hit the min improvement tolerance - halting.')
+        log.info('Hit the min improvement tolerance - halting.')
     # end if
 
-    if nshifts >= maxbumps:
-        print('Hit the max number of bumps - halting.')
+    if nshifts >= max_pulses:
+        log.warning('Hit the max number of pulses - halting.')
     # end if
 
-    print('Number of bumps in final result: %d' % nshifts)
-    print('The final deconvolution reproduces %6.1f%% of the signal.' % fit)
+    log.info('Number of pulses in final result: %d', nshifts)
+    log.info('The final deconvolution reproduces %6.1f%% of the signal.', fit)
 
     # *************************************************************************
 
@@ -286,9 +284,6 @@ def iterdeconfd(denominator, numerator, maxbumps, tol=1.0e-3, gwidth=2.5, time_s
 
 # end func
 
-
-def iter3c(stream):
-    return rf.util.IterMultipleComponents(stream, key='onset', number_components=(2, 3))
 
 #------------------------------------------------------------------------------
 
@@ -311,7 +306,7 @@ def main():
         predicted_radial = obspy.read(src_predicted, format='sac')
         # Run algorithm on Ammon input
         time_shift = 5.0
-        rf_trace, _, _, predicted_response, fit = iterdeconfd(
+        rf_trace, _, _, predicted_response, fit = iter_deconv_pulsetrain(
             source[0], response[0], 200, gwidth=2.5, time_shift=time_shift)
 
         # Plot the results of expected vs computed
@@ -359,7 +354,7 @@ def main():
         if not os.path.exists(outfolder):
             os.makedirs(outfolder)
         # end if
-        for stream3c in iter3c(src_data.copy()):
+        for stream3c in rf.util.IterMultipleComponents(src_data.copy(), key='onset', number_components=(2, 3)):
             stream3c.filter('bandpass', freqmin=freq_cutoff[0], freqmax=freq_cutoff[1], corners=2,
                             zerophase=True).interpolate(5.0)
             rf_stream = rf.RFStream(stream3c)
@@ -370,7 +365,7 @@ def main():
             source = rf_stream .select(component='Z')[0]
             response = rf_stream .select(component='R')[0]
 
-            rf_trace, pulses, expected_response, predicted_response, fit = iterdeconfd(
+            rf_trace, pulses, expected_response, predicted_response, fit = iter_deconv_pulsetrain(
                 source, response, max_iterations, gwidth=2.5)
             all_traces.append(rf_trace)
 
@@ -400,7 +395,7 @@ def main():
             plt.legend(['Computed RF'])
             plt.title("Estimated Receiver Function", y=0.9)
 
-            plt.savefig(os.path.join(outfolder, '{:3d}.png'.format(i)), dpi=300)
+            plt.savefig(os.path.join(outfolder, '{:03d}.png'.format(i)), dpi=300)
             plt.close()
 
             i += 1
@@ -414,5 +409,8 @@ def main():
 
 # end main
 
+
 if __name__ == "__main__":
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
     main()
