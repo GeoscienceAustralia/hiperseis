@@ -36,15 +36,16 @@ def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec
     arrivals_index = np.round((np.array(arrival_times) - times[0])*fs_hz).astype(int)
 
     # Generate kernel of delta functions at specified arrival times
-    kern = np.zeros_like(times)
-    kern[arrivals_index] = np.array(arrival_amplitudes)  # pylint: disable=unsupported-assignment-operation
+    kernel = np.zeros_like(times)
+    kernel[arrivals_index] = np.array(arrival_amplitudes)  # pylint: disable=unsupported-assignment-operation
 
     # Filter to pass low frequencies
-    waveform = signal.butter(4, f_cutoff_hz/fs_hz)
-    signal_filt = signal.filtfilt(waveform[0], waveform[1], kern)
-
-    # Normalize signal so max positive amplitude is 1.
-    signal_filt = signal_filt/np.max(signal_filt)
+    if f_cutoff_hz:
+        waveform = signal.butter(4, f_cutoff_hz/fs_hz)
+        signal_filt = signal.filtfilt(waveform[0], waveform[1], kernel)
+    else:
+        signal_filt = kernel
+    # end if
 
     return times, signal_filt
 # end func
@@ -126,7 +127,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
 
     stream = rf.RFStream(traces)
 
-    return stream
+    return stream, arrivals
 # end func
 
 

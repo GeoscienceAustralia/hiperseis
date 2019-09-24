@@ -66,27 +66,27 @@ def gauss_filter(x, gwidth_factor, dt):
     return x_filt
 
 
-def phase_shift(x, time_shift, dt):
-    """
-    Phase shifts a signal using frequency domain technique for smooth arbitrary shifting.
-    """
-    n = len(x)
-    two_pi = 2 * np.pi
+# def phase_shift(x, time_shift, dt):
+#     """
+#     Phase shifts a signal using frequency domain technique for smooth arbitrary shifting.
+#     """
+#     n = len(x)
+#     two_pi = 2 * np.pi
 
-    fft_x = np.fft.rfft(x)  # complex array
-    n2 = len(fft_x)
+#     fft_x = np.fft.rfft(x)  # complex array
+#     n2 = len(fft_x)
 
-    df = 1 / (float(n) * dt)
-    d_omega = two_pi * df
+#     df = 1 / (float(n) * dt)
+#     d_omega = two_pi * df
 
-    omega = np.arange(n2) * d_omega
-    # The phase shift is omega (angular velocity) * delta_t (the time shift).
-    spectral_shift = np.exp(omega*time_shift*1j)
-    fft_x = fft_x * spectral_shift
+#     omega = np.arange(n2) * d_omega
+#     # The phase shift is omega (angular velocity) * delta_t (the time shift).
+#     spectral_shift = np.exp(omega*time_shift*1j)
+#     fft_x = fft_x * spectral_shift
 
-    x_shifted = np.fft.irfft(fft_x, n)  # real_array
+#     x_shifted = np.fft.irfft(fft_x, n)  # real_array
 
-    return x_shifted
+#     return x_shifted
 
 
 def build_decon(amps, shifts, n, gwidth, dt):
@@ -102,15 +102,15 @@ def build_decon(amps, shifts, n, gwidth, dt):
     return p_filt, p
 
 
-def _convolve(x, y):
+def _convolve(x, y, leadin):
     """
     Helper function for convolving approximate receiver function with source signal
     to get estimated observation.
     """
     n = len(x)
     assert len(y) == n
-    z = scipy.signal.convolve(x, y)
-    z_sync = z[:n]
+    z = scipy.signal.convolve(x, y, mode='full')
+    z_sync = z[leadin:leadin + n]
     return z_sync
 
 
@@ -202,20 +202,21 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     max_causal_idx = npts - non_causal_leadin
     assert max_causal_idx > 0
     if only_positive:
-        shifts.append(np.argmax(xc[:max_causal_idx]))
+        shift_index = np.argmax(xc[:max_causal_idx])
     else:
         xc_abs = np.abs(xc)
-        shifts.append(np.argmax(xc_abs[:max_causal_idx]))
+        shift_index = np.argmax(xc_abs[:max_causal_idx])
     # end if
-    amps.append(xc[shifts[-1]])
+    shifts.append(shift_index + non_causal_leadin)
+    amps.append(xc[shift_index])
 
-    nshifts = 0
+    num_pulses = 1
 
     # compute the predicted deconvolution result
     p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
 
     # convolve the prediction with the denominator signal
-    f_hat_predicted = _convolve(p, g)
+    f_hat_predicted = _convolve(p, g, non_causal_leadin)
 
     # compute the residual (initial error is 1.0)
     resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
@@ -225,34 +226,35 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     d_error = 100 * (sumsq_i - sumsq_ip1)
 
     log.info('%11s %s', 'Iteration', '  Spike amplitude  Spike delay   Misfit   Improvement')
-    log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', nshifts, dt * amps[-1], (shifts[-1] - 1) * dt,
+    log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], (shifts[-1] - 1) * dt,
              100 * sumsq_ip1, d_error)
 
     # *************************************************************************
-    while (np.abs(d_error) > tol) and (nshifts < max_pulses):
+    while (np.abs(d_error) > tol) and (num_pulses < max_pulses):
 
-        nshifts = nshifts + 1
+        num_pulses += 1
         sumsq_i = sumsq_ip1
 
         xc = _xcorrelate(resid, g_hat)
 
         if only_positive:
-            shifts.append(np.argmax(xc[:max_causal_idx]))
+            shift_index = np.argmax(xc[:max_causal_idx])
         else:
             xc_abs = np.abs(xc)
-            shifts.append(np.argmax(xc_abs[:max_causal_idx]))
+            shift_index = np.argmax(xc_abs[:max_causal_idx])
         # end if
-        amps.append(xc[shifts[-1]])
+        shifts.append(shift_index + non_causal_leadin)
+        amps.append(xc[shift_index])
 
         p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
 
-        f_hat_predicted = _convolve(p, g)
+        f_hat_predicted = _convolve(p, g, non_causal_leadin)
 
         resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
         sumsq_ip1 = sumsq_ip1 / power
         d_error = 100 * (sumsq_i - sumsq_ip1)
 
-        log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', nshifts, dt * amps[-1], shifts[-1] * dt,
+        log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], shifts[-1] * dt,
                  100 * sumsq_ip1, d_error)
     # end while
 
@@ -260,20 +262,16 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
 
     log.info('Last Error Change = %9.4f%%', d_error)
 
-    # if the last change made no difference, drop it
+    # Compute final fit
     fit = 100 - 100 * sumsq_ip1
-    if d_error <= tol:
-        nshifts = nshifts - 1
-        fit = 100 - 100 * sumsq_i
-        log.info('Hit the min improvement tolerance - halting.')
+
+    if (num_pulses >= max_pulses) and (np.abs(d_error) > tol):
+        log.warning('Hit the max number of pulses - not halting due to convergence.')
     # end if
 
-    if nshifts >= max_pulses:
-        log.warning('Hit the max number of pulses - halting.')
-    # end if
-
-    log.info('Number of pulses in final result: %d', nshifts)
-    log.info('The final deconvolution reproduces %6.1f%% of the signal.', fit)
+    num_unique_pulses = len(set(shifts))
+    log.info('Number of pulses in final result: %d', num_unique_pulses)
+    log.info('The final deconvolution reproduces %5.1f%% of the signal.', fit)
 
     # *************************************************************************
 
@@ -281,14 +279,11 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
 
     response_trace = denominator.copy()  # clone input trace
-    f_hat_predicted = _convolve(p, g)
+    f_hat_predicted = _convolve(p, g, non_causal_leadin)
     response_trace.data = f_hat_predicted
 
-    # Shift RF estimate to synchronize with time line of inputs. If this causes RF to wrap around
-    # in the time domain, try increasing the time extent of the input data.
-    p_shifted = phase_shift(p, -time_shift, dt)
     rf_trace = numerator.copy()  # clone input trace
-    rf_trace.data = p_shifted
+    rf_trace.data = p
 
     return rf_trace, pulses, f_hat, response_trace, fit
 
