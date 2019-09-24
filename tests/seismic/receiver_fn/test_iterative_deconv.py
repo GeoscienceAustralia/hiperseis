@@ -36,17 +36,25 @@ def test_ammon_iter_deconv():
     # Apply weak filter to g to smooth onset, cutting off above 2.0 Hz
     bw_filt = signal.butter(2, 2.0/F_s)
     g = signal.filtfilt(bw_filt[0], bw_filt[1], g)
+
+    ## Test scaling. Deconvolving a function with itself should return pulse of unit area with maximum at onset.
+    denominator = rf_radial.copy()
+    denominator.data = g
+    numerator = rf_radial.copy()
+    numerator.data = g
+    max_pulses = 50
+    rf_trace, pulses, f_hat, response_trace, fit = iter_deconv_pulsetrain(denominator, numerator, max_pulses)
+    assert np.isclose(np.sum(rf_trace), 1.0)
+    assert times[np.nonzero(rf_trace.data == np.max(rf_trace.data))][0] == 0.0
+
     # Generate radial seismic trace corresponding to source signal g convolved with the RF.
     f = signal.convolve(rf_radial.data, g, mode='full')
     n_leadin = len(times[times < 0])
     f = f[n_leadin:n_leadin+len(times)]
 
     # Apply iterative deconvolution
-    denominator = rf_radial.copy()
     denominator.data = g
-    numerator = rf_radial.copy()
     numerator.data = f
-    max_pulses = 100
     rf_trace, pulses, f_hat, response_trace, fit = iter_deconv_pulsetrain(denominator, numerator, max_pulses)
     # Check that predicted response is very close to filtered observation
     assert np.allclose(f_hat, response_trace, rtol=2.0e-3, atol=1.0e-3)
@@ -56,6 +64,7 @@ def test_ammon_iter_deconv():
     assert np.isclose(100.0, fit)
     # Check that amplitude of the computed RF matches the synthesized RF.
     assert np.isclose(np.sum(amplitudes)/F_s, np.sum(rf_trace), rtol=1.0e-3)
+
 # end func
 
 
