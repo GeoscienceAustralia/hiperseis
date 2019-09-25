@@ -8,7 +8,7 @@ from scipy import signal
 from seismic.receiver_fn.rf_synthetic import synthesize_rf_dataset
 from seismic.receiver_fn.rf_deconvolution import iter_deconv_pulsetrain, rf_iter_deconv
 
-# pylint: disable=invalid-name, missing-docstring
+# pylint: disable=invalid-name, missing-docstring, too-many-locals, too-many-statements
 
 
 def _generate_rf_radial(inclinations, distances, amplitudes):
@@ -184,18 +184,20 @@ def test_rf_integration():
     # end func
     for i, tr in enumerate(rf_iter):
         d = tr.data
-        # 1.3 factor here had to be tuned to exclude large amplitude wiggles in frequency domain deconvolution case
-        expected_mask = _local_maxima_mask_1d(d) & (d[1:-1] > 1.3*_rms(d))
+        # Due to wiggles producing spurious local maxima for certain deconvolution methods (expected),
+        # we only check that the maxima generated using iterative deconv are in common with other
+        # techniques, rather than expect exact matches in the location of all local maxima.
+        expected_mask = _local_maxima_mask_1d(d) & (d[1:-1] > _rms(d))
         mask_idx = np.nonzero(expected_mask)[0]
         d_fd = rf_freq[i].data
-        fd_mask = _local_maxima_mask_1d(d_fd) & (d_fd[1:-1] > 1.3*_rms(d_fd))
+        fd_mask = _local_maxima_mask_1d(d_fd) & (d_fd[1:-1] > _rms(d_fd))
         fd_mask_idx = np.nonzero(fd_mask)[0]
-        assert np.all(fd_mask_idx == mask_idx)
+        assert np.all(np.isin(mask_idx, fd_mask_idx))
         if rf_time is not None:
             d_td = rf_time[i].data
-            td_mask = _local_maxima_mask_1d(d_td) & (d_td[1:-1] > 1.3*_rms(d_td))
+            td_mask = _local_maxima_mask_1d(d_td) & (d_td[1:-1] > _rms(d_td))
             td_mask_idx = np.nonzero(td_mask)[0]
-            assert np.all(td_mask_idx == mask_idx)
+            assert np.all(np.isin(mask_idx, td_mask_idx))
         # end if
     # end for
 
