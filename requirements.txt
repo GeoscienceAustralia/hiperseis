@@ -5,6 +5,10 @@ pyproj==1.9.6
 h5py
 pyasdf
 obspy==1.1.0
+obspyh5
+shapely
+geographiclib
+cartopy
 pytables; sys_platform=="win32"
 tables; sys_platform!="win32"
 mpi4py
