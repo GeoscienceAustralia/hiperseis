@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 sudo: required  # use VM instead of docker
 
 language: python
@@ -11,10 +11,10 @@ python:
 - '3.6'
 
 before_install:
-- sudo apt-get install -y libhdf5-dev
-- sudo apt-get install -y mpich
-- sudo apt-get install -y libproj-dev proj-bin
-- sudo apt-get install -y libgeos-dev
+- sudo apt-get install libhdf5-dev
+- sudo apt-get install mpich
+- sudo apt-get install libproj-dev proj-bin
+- sudo apt-get install libgeos-dev
 - pip install Cython --install-option="--no-cython-compile"
 - pip install pytest-cov
 - pip install coveralls
