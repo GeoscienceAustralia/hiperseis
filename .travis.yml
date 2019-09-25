@@ -14,6 +14,7 @@ before_install:
 - sudo apt-get install -y libhdf5-dev
 - sudo apt-get install -y mpich
 - sudo apt-get install -y libproj-dev proj-bin
+- sudo apt-get install -y libgeos-dev
 - pip install Cython --install-option="--no-cython-compile"
 - pip install pytest-cov
 - pip install coveralls
