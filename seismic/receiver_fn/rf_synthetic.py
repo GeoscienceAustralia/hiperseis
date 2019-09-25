@@ -112,6 +112,9 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
         _, synth_signal = generate_synth_rf(arrivals, amplitudes, fs_hz=fs, window_sec=window)
 
         now = obspy.UTCDateTime.now()
+        # Make sure time difference of events is at least 1 second, since onset time is used as part of
+        # logic for identifying related channels in rf.RFStream.
+        now += float(i)
         dt = float(window[1] - window[0])
         end = now + dt
         onset = now - window[0]

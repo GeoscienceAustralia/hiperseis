@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Custom receiver function deconvolution methods and support functions.
+"""
 
 import logging
 
@@ -6,7 +8,7 @@ import numpy as np
 import scipy
 import scipy.signal
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,too-many-locals
 
 logging.basicConfig()
 
@@ -31,9 +33,10 @@ def _xcorrelate(f, g):
     xc = c_pos * normalize_factor
 
     return xc
+# end func
 
 
-def get_residual(x, y):
+def _get_residual(x, y):
     """
     Get the residual between x and y and the power of the residual.
     """
@@ -41,9 +44,10 @@ def get_residual(x, y):
     sumsq = np.dot(r, r)
 
     return r, sumsq
+# end func
 
 
-def gauss_filter(x, gwidth_factor, dt):
+def _gauss_filter(x, gwidth_factor, dt):
     """
     Apply low-pass filter to input x using Gaussian function in freq domain.
     """
@@ -64,32 +68,10 @@ def gauss_filter(x, gwidth_factor, dt):
     x_filt = np.fft.irfft(fft_x, n)  # real_array
 
     return x_filt
+# end func
 
 
-# def phase_shift(x, time_shift, dt):
-#     """
-#     Phase shifts a signal using frequency domain technique for smooth arbitrary shifting.
-#     """
-#     n = len(x)
-#     two_pi = 2 * np.pi
-
-#     fft_x = np.fft.rfft(x)  # complex array
-#     n2 = len(fft_x)
-
-#     df = 1 / (float(n) * dt)
-#     d_omega = two_pi * df
-
-#     omega = np.arange(n2) * d_omega
-#     # The phase shift is omega (angular velocity) * delta_t (the time shift).
-#     spectral_shift = np.exp(omega*time_shift*1j)
-#     fft_x = fft_x * spectral_shift
-
-#     x_shifted = np.fft.irfft(fft_x, n)  # real_array
-
-#     return x_shifted
-
-
-def build_decon(amps, shifts, n, gwidth, dt):
+def _build_decon(amps, shifts, n, gwidth, dt):
     """
     Compute the predicted RF time series from a set of pulse amplitudes and time shifts.
     """
@@ -97,9 +79,10 @@ def build_decon(amps, shifts, n, gwidth, dt):
     for i, amp in zip(shifts, amps):
         p[i] += amp
 
-    p_filt = gauss_filter(p, gwidth, dt)
+    p_filt = _gauss_filter(p, gwidth, dt)
 
     return p_filt, p
+# end func
 
 
 def _convolve(x, y, leadin):
@@ -112,10 +95,11 @@ def _convolve(x, y, leadin):
     z = scipy.signal.convolve(x, y, mode='full')
     z_sync = z[leadin:leadin + n]
     return z_sync
+# end func
 
 
-def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidth=2.5,
-                           time_shift=None, only_positive=False, log=None):
+def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, max_pulses=1000,
+                           tol=1.0e-3, gwidth=2.5, only_positive=False, log=None, **kwargs):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
     Adapted to Python by Andrew Medlin, Geoscience Australia (2019), from Chuck Ammon's
@@ -127,21 +111,26 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     even if some of the spectral techniques used in functions (such as `gauss_filter`) were replaced
     by non-spectral equivalents.
 
-    :param denominator: The source signal (e.g. L or Z component)
-    :type denominator: rf.rfstream.RFTrace
     :param numerator: The observed response signal (e.g. R, Q or T component)
-    :type numerator: rf.rfstream.RFTrace
-    :param max_pulses: Maximum number of delta function pulses to synthesize in the unfiltered RF
+    :type numerator: numpy.array(float)
+    :param denominator: The source signal (e.g. L or Z component)
+    :type denominator: numpy.array(float)
+    :param sampling_rate: The sampling rate in Hz of the numerator and denominator signals
+    :type sampling_rate: float
+    :param time_shift: Time shift (sec) from start of input signals until expected P-wave arrival onset.
+    :type time_shift: float
+    :param max_pulses: Maximum number of delta function pulses to synthesize in the unfiltered RF (up to 1000)
     :type max_pulses: int
     :param tol: Convergence tolerance, iteration stops if change in error falls below this value
     :type tol: float
     :param gwidth: Gaussian filter width in the normalized frequency domain.
     :type gwidth: float
-    :param time_shift: Fixed time shift to apply to RF. If None, will be inferred from RF traces if possible.
-    :type time_shift: float
     :param only_positive: If true, only use positive pulses in the RF.
     :type only_positive: bool
-    :return:
+    :param log: Log instance to log messages to.
+    :type log: logging.Logger
+    :return: RF trace, pulse train, expected response signal, predicted response signal, quality of fit statistic
+    :rtype: numpy.array(float), numpy.array(float), numpy.array(float), numpy.array(float), float
     """
     if log is None:
         log = logging.getLogger(__name__)
@@ -161,35 +150,21 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
         max_pulses = MAX_PULSES
     # end if
 
-    if time_shift is None:
-        try:
-            time_shift = float(denominator.stats.onset - denominator.stats.starttime)
-        except AttributeError:
-            time_shift = 0
-    # end if
-    assert time_shift is not None
-
     # Clone numerator data
-    f = numerator.copy().data
+    f = numerator.copy()
     npts = len(f)
 
     # Clone denominator data
-    g = denominator.copy().data
+    g = denominator.copy()
     assert len(g) == npts, "g should be same length as f"
 
-    dt = 1.0 / denominator.meta.sampling_rate
-
-    if npts > MAXPTS:
-        log.error('Too many points needed.')
-        log.error('npts = %d', npts)
-        exit(1)
-    # end if
+    dt = 1.0 / sampling_rate
 
     # Now begin the cross-correlation procedure
 
     # Put the filter in the signals
-    f_hat = gauss_filter(f, gwidth, dt)
-    g_hat = gauss_filter(g, gwidth, dt)
+    f_hat = _gauss_filter(f, gwidth, dt)
+    g_hat = _gauss_filter(g, gwidth, dt)
 
     # compute the power in the "numerator" for error scaling
     power = np.dot(f_hat, f_hat)
@@ -213,13 +188,13 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     num_pulses = 1
 
     # compute the predicted deconvolution result
-    p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
+    p, pulses = _build_decon(amps, shifts, npts, gwidth, dt)
 
     # convolve the prediction with the denominator signal
     f_hat_predicted = _convolve(p, g, non_causal_leadin)
 
     # compute the residual (initial error is 1.0)
-    resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
+    resid, sumsq_ip1 = _get_residual(f_hat, f_hat_predicted)
 
     sumsq_i = 1.0
     sumsq_ip1 = sumsq_ip1 / power
@@ -246,11 +221,11 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
         shifts.append(shift_index + non_causal_leadin)
         amps.append(xc[shift_index])
 
-        p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
+        p, pulses = _build_decon(amps, shifts, npts, gwidth, dt)
 
         f_hat_predicted = _convolve(p, g, non_causal_leadin)
 
-        resid, sumsq_ip1 = get_residual(f_hat, f_hat_predicted)
+        resid, sumsq_ip1 = _get_residual(f_hat, f_hat_predicted)
         sumsq_ip1 = sumsq_ip1 / power
         d_error = 100 * (sumsq_i - sumsq_ip1)
 
@@ -276,15 +251,57 @@ def iter_deconv_pulsetrain(denominator, numerator, max_pulses, tol=1.0e-3, gwidt
     # *************************************************************************
 
     # compute the final prediction
-    p, pulses = build_decon(amps, shifts, npts, gwidth, dt)
+    p, pulses = _build_decon(amps, shifts, npts, gwidth, dt)
 
-    response_trace = denominator.copy()  # clone input trace
     f_hat_predicted = _convolve(p, g, non_causal_leadin)
-    response_trace.data = f_hat_predicted
+    rf_trace = p
 
-    rf_trace = numerator.copy()  # clone input trace
-    rf_trace.data = p
+    return rf_trace, pulses, f_hat, f_hat_predicted, fit
 
-    return rf_trace, pulses, f_hat, response_trace, fit
+# end func
 
+
+def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_warning=80.0, normalize=False, **kwargs):
+    """Adapter function to rf library.  To use, add arguments `deconvolve='func', func=rf_iter_deconv` to
+    `rf.RFStream.rf()` function call.
+
+    :param response_data: List of response signals for which to compute receiver function
+    :type response_data: list of numpy.array(float)
+    :param source_data: Source signal to use for computing the receiver functions
+    :type source_data: numpy.array(float)
+    :param sampling_rate: Sampling rate of the input signals (Hz)
+    :type sampling_rate: float
+    :param time_shift: Time shift (seconds) from start of signal to onset
+    :type time_shift: float
+    :param min_fit_warning: Minimum percentage of fit to include trace in results,
+        otherwise will be returned as empty numpy array.
+    :type min_fit_warning: float
+    :param normalize: Flag indicating whether RF should be normalized. If True, will be scaled
+        so that sqrt of sum of squares is 1. If RF is normalized, it will not be able to be used
+        to directly generate response signal from source signal.
+    :return: Receiver functions corresponding to the list of input response signals.
+    :rtype: list of numpy.array(float)
+    """
+    normalize = bool(normalize)
+    sampling_rate = sr
+    time_shift = tshift
+    denominator = source_data
+    receiver_fns = []
+    log = logging.getLogger(__name__)
+    for numerator in response_data:
+        # Any non-default parameters of deconvolution should be packed into kwargs
+        rf_trace, _, _, _, fit = iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, **kwargs)
+        if fit < min_fit_warning:
+            receiver_fns.append(np.array())
+            log.warning("RF fit {:.2f}% below minimum acceptable threshold, discarding".format(fit))
+        else:
+            if normalize:
+                sum_sq = np.sum(np.square(rf_trace))
+                rf_trace /= np.sqrt(sum_sq)
+            # end if
+            receiver_fns.append(rf_trace)
+        # end if
+    # end for
+
+    return receiver_fns
 # end func
