@@ -12,7 +12,7 @@ python:
 
 before_install:
 - sudo apt-get install libhdf5-dev
-- sudo apt-get install mpich
+- sudo apt-get install libmpich-dev
 - sudo apt-get install libproj-dev proj-bin
 - sudo apt-get install libgeos-dev
 - pip install Cython --install-option="--no-cython-compile"
