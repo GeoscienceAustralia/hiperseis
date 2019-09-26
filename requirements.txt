@@ -25,4 +25,4 @@ requests
 Cython  # On NCI, use module load
 #mpi4py # On NCI, use module load
 tqdm
-git+https://github.com/trichter/rf # use latest master until at least release 7.1.x is available from pypi
+rf>=0.8.0

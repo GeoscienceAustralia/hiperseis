@@ -12,5 +12,5 @@ joblib
 fastdtw
 toeplitz # from git+https://github.com/trichter/toeplitz, requires Fortran compiler
 #obspyh5 # What channel to get this from?
-git+https://github.com/trichter/rf # use latest master until at least release 7.1.x is available.; requires toeplitz
+rf>=0.8.0
 urllib3
