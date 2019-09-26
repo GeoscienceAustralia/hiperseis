@@ -19,6 +19,7 @@ except ImportError:
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_util import compute_vertical_snr
+from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
 
 
 logging.basicConfig()
@@ -31,7 +32,7 @@ DEFAULT_TAPER_LIMIT = 0.01
 DEFAULT_TRIM_START_TIME_SEC = -50.0
 DEFAULT_TRIM_END_TIME_SEC = 150.0
 DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
-DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq']
+DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
 DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
@@ -80,7 +81,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     logger = logging.getLogger(__name__)
     logger.info("Event #{}".format(ev_id))
 
-    assert deconv_domain.lower() in ['time', 'freq']
+    assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
     # Apply essential sanity checks before trying to compute RFs.
     for tr in stream3c:
@@ -162,7 +163,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                 kwargs['normalize'] = None
             # end if
             stream3c.rf(rotate=rf_rotation, **kwargs)
-        else:
+        elif deconv_domain == 'freq':
             # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
             # in freq domain. Center column indicates approx. cutoff freq for a given 'a' value.
             # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
@@ -182,16 +183,34 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
             # Interpolate to requested sampling rate.
             stream3c.interpolate(resample_rate_hz)
+        elif deconv_domain == 'iter':
+            # For iterative deconvolution, we need to trim first before deconvolution, as the fitting to the
+            # response performs much better on shorter (trimmed) data.
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
+                            **kwargs).interpolate(resample_rate_hz)
+            stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
+                        func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
+        else:
+            assert False, "Not yet supported deconvolution technique '{}'".format(deconv_domain)
         # end if
     except (IndexError, ValueError) as e:
         logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
         return False
     # end try
 
+    # Check for any empty channels after deconvolution.
+    for tr in stream3c:
+        if len(tr.data) == 0:
+            logger.warning("No data left in channel {} of stream {} after deconv (skipping)".format(
+                           tr.stats.channel, ev_id))
+            return False
+        # end if
+    # end for
+
     # Perform trimming before computing max amplitude.
-    stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
-    # We opt not to filter out traces with some NaN values here, as they could still have some value
-    # for downstream analysis.
+    if deconv_domain != 'iter':
+        stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
+    # end if
 
     if len(stream3c) != 3:
         logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
@@ -245,9 +264,9 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 @click.option('--rotation-type', type=click.Choice(['zrt', 'lqt'], case_sensitive=False),
               default=DEFAULT_ROTATION_TYPE, show_default=True,
               help="Rotational coordinate system for aligning ZNE trace components with incident wave direction")
-@click.option('--deconv-domain', type=click.Choice(['time', 'freq'], case_sensitive=False),
+@click.option('--deconv-domain', type=click.Choice(['time', 'freq', 'iter'], case_sensitive=False),
               default=DEFAULT_DECONV_DOMAIN, show_default=True,
-              help="Whether to perform deconvolution in time or freq domain")
+              help="Whether to perform deconvolution in time or freq domain, or iterative technique")
 @click.option('--normalize/--no-normalize', default=True, show_default=True, help="Whether to normalize RF amplitude")
 @click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
 @click.option('--memmap/--no-memmap', default=False, show_default=True,
