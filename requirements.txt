@@ -5,6 +5,10 @@ pyproj==1.9.6
 h5py
 pyasdf
 obspy==1.1.0
+obspyh5
+shapely
+geographiclib
+cartopy
 pytables; sys_platform=="win32"
 tables; sys_platform!="win32"
 mpi4py
@@ -21,3 +25,4 @@ requests
 Cython  # On NCI, use module load
 #mpi4py # On NCI, use module load
 tqdm
+git+https://github.com/trichter/rf # use latest master until at least release 7.1.x is available from pypi
