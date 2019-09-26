@@ -2,6 +2,9 @@
 """Unit testing for iterative deconvolution
 """
 
+import sys
+import pytest
+
 import numpy as np
 from scipy import signal
 
@@ -9,6 +12,8 @@ from seismic.receiver_fn.rf_synthetic import synthesize_rf_dataset
 from seismic.receiver_fn.rf_deconvolution import iter_deconv_pulsetrain, rf_iter_deconv
 
 # pylint: disable=invalid-name, missing-docstring, too-many-locals, too-many-statements
+
+PY2 = (sys.version_info[0] == 2)
 
 
 def _generate_rf_radial(inclinations, distances, amplitudes):
@@ -103,6 +108,7 @@ def test_ammon_iter_deconv():
 # end func
 
 
+@pytest.mark.skipif(PY2, reason='rf library no longer supports Python 2')
 def test_rf_integration():
     import rf
 
