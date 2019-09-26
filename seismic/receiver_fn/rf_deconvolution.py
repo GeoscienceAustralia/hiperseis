@@ -132,10 +132,6 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
     :return: RF trace, pulse train, expected response signal, predicted response signal, quality of fit statistic
     :rtype: numpy.array(float), numpy.array(float), numpy.array(float), numpy.array(float), float
     """
-    if log is None:
-        log = logging.getLogger(__name__)
-        log.setLevel(logging.INFO)
-    # end if
 
     MAXPTS = 100000
     assert len(denominator) <= MAXPTS  # Sanity check input size
@@ -200,9 +196,11 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
     sumsq_ip1 = sumsq_ip1 / power
     d_error = 100 * (sumsq_i - sumsq_ip1)
 
-    log.info('%11s %s', 'Iteration', '  Spike amplitude  Spike delay   Misfit   Improvement')
-    log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], (shifts[-1] - 1) * dt,
-             100 * sumsq_ip1, d_error)
+    if log:
+        log.info('%11s %s', 'Iteration', '  Spike amplitude  Spike delay   Misfit   Improvement')
+        log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], (shifts[-1] - 1) * dt,
+                 100 * sumsq_ip1, d_error)
+    # endf if
 
     # *************************************************************************
     while (np.abs(d_error) > tol) and (num_pulses < max_pulses):
@@ -229,24 +227,30 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
         sumsq_ip1 = sumsq_ip1 / power
         d_error = 100 * (sumsq_i - sumsq_ip1)
 
-        log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], shifts[-1] * dt,
-                 100 * sumsq_ip1, d_error)
+        if log:
+            log.info('%10d  %16.9e  %10.3f   %7.2f%%   %9.4f%%', num_pulses, dt * amps[-1], shifts[-1] * dt,
+                     100 * sumsq_ip1, d_error)
+        # end if
     # end while
 
     # *************************************************************************
 
-    log.info('Last Error Change = %9.4f%%', d_error)
+    if log:
+        log.info('Last Error Change = %9.4f%%', d_error)
+    # end if
 
     # Compute final fit
     fit = 100 - 100 * sumsq_ip1
 
-    if (num_pulses >= max_pulses) and (np.abs(d_error) > tol):
+    if log and (num_pulses >= max_pulses) and (np.abs(d_error) > tol):
         log.warning('Hit the max number of pulses - not halting due to convergence.')
     # end if
 
     num_unique_pulses = len(set(shifts))
-    log.info('Number of pulses in final result: %d', num_unique_pulses)
-    log.info('The final deconvolution reproduces %5.1f%% of the signal.', fit)
+    if log:
+        log.info('Number of pulses in final result: %d', num_unique_pulses)
+        log.info('The final deconvolution reproduces %5.1f%% of the signal.', fit)
+    # end if
 
     # *************************************************************************
 
@@ -261,7 +265,7 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
 # end func
 
 
-def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_warning=80.0, normalize=False, **kwargs):
+def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.0, normalize=False, **kwargs):
     """Adapter function to rf library.  To use, add arguments `deconvolve='func', func=rf_iter_deconv` to
     `rf.RFStream.rf()` function call.
 
@@ -273,9 +277,9 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_warning=80.0,
     :type sampling_rate: float
     :param time_shift: Time shift (seconds) from start of signal to onset
     :type time_shift: float
-    :param min_fit_warning: Minimum percentage of fit to include trace in results,
+    :param min_fit_threshold: Minimum percentage of fit to include trace in results,
         otherwise will be returned as empty numpy array.
-    :type min_fit_warning: float
+    :type min_fit_threshold: float
     :param normalize: Flag indicating whether RF should be normalized. If True, will be scaled
         so that sqrt of sum of squares is 1. If RF is normalized, it will not be able to be used
         to directly generate response signal from source signal.
@@ -288,13 +292,18 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_warning=80.0,
     denominator = source_data
     receiver_fns = []
     log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
     for numerator in response_data:
         # Any non-default parameters of deconvolution should be packed into kwargs
         rf_trace, _, _, _, fit = iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, **kwargs)
-        if fit < min_fit_warning:
-            receiver_fns.append(np.array())
+        # TODO:
+        # - store the fit percentage in output RF metadata
+        # - store boolean indicating whether deconvolution converged
+        if fit < min_fit_threshold:
+            receiver_fns.append(np.array([]))
             log.warning("RF fit {:.2f}% below minimum acceptable threshold, discarding".format(fit))
         else:
+            log.info("RF fit to observation = {:.2f}%".format(fit))
             if normalize:
                 sum_sq = np.sum(np.square(rf_trace))
                 rf_trace /= np.sqrt(sum_sq)
