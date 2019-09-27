@@ -29,7 +29,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
         os.makedirs(output_folder, exist_ok=True)
     # end if
 
-    data = rf_util.read_h5_rf(input_h5_file, network='7X', station='MA21')
+    data = rf_util.read_h5_rf(input_h5_file)
 
     data = data.select(component=component)
 
@@ -41,6 +41,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
     for sta, ch_dict in data_dict.items():
         for cha, ch_traces in ch_dict.items():
             similar_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces))
+            if not similar_traces:
+                continue
             if moveout:
                 similar_traces.moveout()
             # end if
