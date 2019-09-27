@@ -33,8 +33,10 @@ from matplotlib.dates import DateFormatter, \
     HourLocator, \
     MinuteLocator, \
     epoch2num
+import matplotlib
 from matplotlib.ticker import ScalarFormatter, FuncFormatter
-
+import matplotlib.cm as cm
+from tqdm import tqdm
 import gc
 
 logging.basicConfig()
@@ -58,12 +60,23 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger
 # end func
 
-def process_data(fds, stations):
+def process_data(rank, fds, stations, start_time, end_time):
     results = []
 
     day = 3600*24
-    for s in stations:
+    chaSet = {'BH1','BH2','BHE','BHN','BHZ','BNZ','EHE','EHN','EHZ','HHE','HHN',
+              'HHZ','LHE','LHN','LHZ','SHE','SHN','SHZ'}
+    for s in tqdm(stations, desc='Rank: %d'%(rank)):
+        # discard aux channels
+        if (s[3] not in chaSet):
+            results.append(([], []))
+            continue
+        # end if
+
         st, et = fds.get_global_time_range(s[0], s[1])
+
+        if(start_time > st): st = start_time
+        if(end_time < et): et = end_time
 
         # align st to day
         st = UTCDateTime(year=st.year, month=st.month, day=st.day)
@@ -73,21 +86,32 @@ def process_data(fds, stations):
         means = []
         while (ct < et):
             times.append(ct)
-            stream = fds.get_waveforms(s[0], s[1], s[2], s[3],
-                                      ct, ct + day,
-                                      trace_count_threshold=200)
-            if (len(stream)):
-                try:
-                    tr = stream.merge()
-                    means.append(np.mean(tr[0].data))
-                except:
+
+            if(1):
+                stream = fds.get_waveforms(s[0], s[1], s[2], s[3],
+                                          ct, ct + day,
+                                          trace_count_threshold=200)
+                if (len(stream)):
+                    try:
+                        tr = stream.merge()
+                        means.append(np.mean(tr[0].data))
+                    except:
+                        means.append(np.nan)
+                else:
                     means.append(np.nan)
+                # end if
             else:
-                means.append(np.nan)
+                if(np.int_(np.round(np.random.random()))):
+                    means.append(np.random.random())
+                else:
+                    means.append(np.nan)
+                # end if
             # end if
+
             ct += day
             #break
         # end while
+
         results.append([times, means])
     # end for
 
@@ -95,25 +119,40 @@ def process_data(fds, stations):
 # end func
 
 def plot_results(stations, results, output_basename):
+
+    # collate indices for each channels for each station
+    assert len(stations) == len(results)
+    groupIndices = defaultdict(list)
+    for i in np.arange(len(results)):
+        groupIndices['%s.%s'%(stations[i][0], stations[i][1])].append(i)
+    # end for
+
+    # gather number of days of usable data for each station
+    usableStationDays = defaultdict(int)
+    maxUsableDays = -1e32
+    minUsableDays = 1e32
+    for k,v in groupIndices.iteritems():
+        for i, index in enumerate(v):
+            x, means = results[index]
+
+            means = np.array(means)
+            days = np.sum(~np.isnan(means) & np.bool_(means!=0))
+            if(usableStationDays[k] < days):
+                usableStationDays[k] = days
+
+                if(maxUsableDays < days): maxUsableDays = days
+                if(minUsableDays > days): minUsableDays = days
+            # end if
+        # end for
+    # end for
+
+    # Plot station map
     pdf = PdfPages('%s.pdf'%(output_basename))
 
-    def taper(tr, taperlen):
-        tr[0:taperlen] *= 0.5 * (1 + np.cos(np.linspace(-np.pi, 0, taperlen)))
-        tr[-taperlen:] *= 0.5 * (1 + np.cos(np.linspace(0, np.pi, taperlen)))
-        return tr
-    # end func
-
-    def drawBBox(minLon, minLat, maxLon, maxLat, bm, **kwargs):
-        bblons = np.array([minLon, maxLon, maxLon, minLon, minLon])
-        bblats = np.array([minLat, minLat, maxLat, maxLat, minLat])
-
-        x, y = bm(bblons, bblats)
-        xy = zip(x, y)
-        poly = Polygon(xy)
-        bm.ax.add_patch(PolygonPatch(poly, **kwargs))
-    # end func
-
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(20, 30))
+    ax1 = fig.add_axes([0.05, 0.05, 0.9, 0.7])
+    ax2 = fig.add_axes([0.05, 0.7, 0.9, 0.3])
+    ax2.set_visible(False)
 
     minLon = 1e32
     maxLon = -1e32
@@ -121,6 +160,8 @@ def plot_results(stations, results, output_basename):
     maxLat = -1e32
     for s in stations:
         lon, lat = s[4], s[5]
+
+        if(lon<0): lon += 360
 
         if (minLon > lon): minLon = lon
         if (maxLon < lon): maxLon = lon
@@ -131,61 +172,58 @@ def plot_results(stations, results, output_basename):
     minLon -= 1
     maxLon += 1
     minLat -= 1
-    maxLat +=1
+    maxLat += 1
 
-    m = Basemap(width=800000, height=800000, projection='lcc',
-                resolution='l', lat_1=minLat, lat_2=maxLat,
+    m = Basemap(ax=ax1, projection='merc',
+                resolution='i', llcrnrlat=minLat, urcrnrlat=maxLat,
+                llcrnrlon=minLon, urcrnrlon=maxLon,
                 lat_0=(minLat + maxLat) / 2., lon_0=(minLon + maxLon) / 2.)
     # draw coastlines.
     m.drawcoastlines()
 
     # draw grid
-    parallels = np.linspace(np.floor(minLat) - 5, np.ceil(maxLat) + 5, \
-                            int((np.ceil(maxLat) + 5) - (np.floor(minLat) - 5)) + 1)
+    parallels = np.linspace(np.around(minLat / 5) * 5 - 5, np.around(maxLat / 5) * 5 + 5, 6)
     m.drawparallels(parallels, labels=[True, True, False, False])
-    meridians = np.linspace(np.floor(minLon) - 5, np.ceil(maxLon) + 5, \
-                            int((np.ceil(maxLon) + 5) - (np.floor(minLon) - 5)) + 1)
+    meridians = np.linspace(np.around(minLon / 5) * 5 - 5, np.around(maxLon / 5) * 5 + 5, 6)
     m.drawmeridians(meridians, labels=[False, False, True, True])
 
     # plot stations
+    norm = matplotlib.colors.Normalize(vmin=minUsableDays, vmax=maxUsableDays, clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=cm.jet_r)
+    plotted = set()
     for s in stations:
+        if(s[1] in plotted): continue
+        else: plotted.add(s[1])
+
         lon, lat = s[4], s[5]
 
         px, py = m(lon, lat)
         pxl, pyl = m(lon, lat - 0.1)
-        m.scatter(px, py, 50, marker='v', c='g', edgecolor='none')
-        plt.annotate(s[1], xy=(px, py), fontsize=5)
+        days = usableStationDays['%s.%s' % (s[0], s[1])]
+        m.scatter(px, py, 50, marker='v',
+                  c=mapper.to_rgba(days),
+                  edgecolor='none', label='%s: %d'%(s[1], days))
+        ax1.annotate(s[1], xy=(px, py), fontsize=5)
     # end for
 
-    insetAx = fig.add_axes([0.75, 0.75, 0.125, 0.125])
-    mInset = Basemap(resolution='c',  # c, l, i, h, f or None
-                     ax=insetAx,
-                     projection='merc',
-                     lat_0=-20, lon_0=132,
-                     llcrnrlon=110, llcrnrlat=-40, urcrnrlon=155, urcrnrlat=-10)
-    # mInset.drawcoastlines()
-    mInset.fillcontinents(color='lightgray')
-    mInset.drawstates(color="grey")
-
-    drawBBox(minLon, minLat, maxLon, maxLat, mInset, fill='True', facecolor='k')
-
     fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=20, y=1.05)
-    fig.axes[0].legend()
-    plt.legend()
+    fig.axes[0].legend(prop={'size':5}, bbox_to_anchor=(0.2, 1.3),
+                       ncol=5, fancybox=True, title='No. of Usable Days')
 
     pdf.savefig()
 
     # Plot results
-    assert len(stations) == len(results)
-    groupIndices = defaultdict(list)
-    for i in np.arange(len(results)):
-        groupIndices['%s.%s'%(stations[i][0], stations[i][1])].append(i)
-    # end for
-
     for k,v in groupIndices.iteritems():
-        fig, axes = plt.subplots(len(v), sharex=True)
+        axesCount = 0
+        for i in v:
+            # only need axes for non-null results
+            a, b = results[i]
+            if(len(a) and len(b)): axesCount += 1
+        # end for
+        fig, axes = plt.subplots(axesCount, sharex=True)
         fig.set_size_inches(20, 15)
 
+        axes = np.atleast_1d(axes)
         for i, index in enumerate(v):
             x, means = results[index]
             x = [a.matplotlib_date for a in x]
@@ -201,8 +239,7 @@ def plot_results(stations, results, output_basename):
             dnormmax = np.nanmax(dnorm)
 
             axes[i].scatter(x, dnorm, marker='.')
-            axes[i].plot(x, dnorm, c='k', label='Mean %s over 24 Hrs '
-                                                '\n(normalized between [-1,1])\n'
+            axes[i].plot(x, dnorm, c='k', label='Mean %s over 24 Hrs\n'
                                                 'Gaps indicate no-data' % stations[index][3], lw=2)
 
             try:
@@ -221,7 +258,7 @@ def plot_results(stations, results, output_basename):
                     tick.set_rotation(45)
                 # end for
                 #axes[i].set_ylim(-1.5, 1.5)
-                axes[i].legend()
+                axes[i].legend(loc='upper right', prop={'size':5})
                 axes[i].tick_params(axis='both', labelsize=14)
             except:
                 pass
@@ -231,6 +268,8 @@ def plot_results(stations, results, output_basename):
         plt.suptitle('%s Data Availability'%(k), fontsize=20)
         pdf.savefig()
         gc.collect()
+
+        #break
     # end for
 
     pdf.close()
@@ -285,7 +324,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     # end if
 
     stations = comm.bcast(stations, root=0)
-    results = process_data(fds, stations[rank])
+    results = process_data(rank, fds, stations[rank], start_time, end_time)
 
     results = comm.gather(results, root=0)
     if (rank == 0):
