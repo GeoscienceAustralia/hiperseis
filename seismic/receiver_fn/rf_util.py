@@ -427,7 +427,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     Return only traces matching cross correlation coefficient criteria based on C.Sippl (2016)
     [see http://dx.doi.org/10.1016/j.tecto.2016.03.031]
 
-    :param rf_stream: Stream of RF traces to filter
+    :param rf_stream: Stream of RF traces to filter, should be **for a single component of a single station**
     :type rf_stream: rf.RFStream
     :param time_window: Time window to filter by, defaults to (-2, 25)
     :type time_window: tuple, optional
@@ -440,6 +440,8 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
+    # TODO: Check expected condition that intput data represents only **a single component of a single station**
+
     # Trim good RFs to time range so that subsequent cross-correlation computations relate to the
     # relevant period around and after onset.
     data_cc = rf_stream.copy().trim2(*time_window, reftime='onset')
