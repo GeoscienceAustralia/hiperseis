@@ -61,9 +61,20 @@ def setup_logger(name, log_file, level=logging.INFO):
 # end func
 
 def process_data(rank, fds, stations, start_time, end_time):
+    """
+
+    :param rank: processor rank in parallel runs
+    :param fds: FederatedASDFDataSer instance
+    :param stations: list containing tuples (net, sta, loc, cha, lon, lat)
+    :param start_time: start-time in UTCDateTime format
+    :param end_time: end-time in UTCDateTime format
+    :return: a list containing UTCDateTimes marking the start of each day
+             and their corresponding means in each row
+    """
     results = []
 
     day = 3600*24
+    # Discard aux channels not in the following list
     chaSet = {'BH1','BH2','BHE','BHN','BHZ','BNZ','EHE','EHN','EHZ','HHE','HHN',
               'HHZ','LHE','LHN','LHZ','SHE','SHN','SHZ'}
     for s in tqdm(stations, desc='Rank: %d'%(rank)):
@@ -87,7 +98,7 @@ def process_data(rank, fds, stations, start_time, end_time):
         while (ct < et):
             times.append(ct)
 
-            if(1):
+            if(True):
                 stream = fds.get_waveforms(s[0], s[1], s[2], s[3],
                                           ct, ct + day,
                                           trace_count_threshold=200)
@@ -96,11 +107,13 @@ def process_data(rank, fds, stations, start_time, end_time):
                         tr = stream.merge()
                         means.append(np.mean(tr[0].data))
                     except:
+                        # empty or streams that cannot be merged are marked by nans
                         means.append(np.nan)
                 else:
                     means.append(np.nan)
                 # end if
             else:
+                # Used for debug purposes only
                 if(np.int_(np.round(np.random.random()))):
                     means.append(np.random.random())
                 else:
@@ -120,7 +133,7 @@ def process_data(rank, fds, stations, start_time, end_time):
 
 def plot_results(stations, results, output_basename):
 
-    # collate indices for each channels for each station
+    # collate indices for each channel for each station
     assert len(stations) == len(results)
     groupIndices = defaultdict(list)
     for i in np.arange(len(results)):
@@ -216,6 +229,9 @@ def plot_results(stations, results, output_basename):
     for k,v in groupIndices.iteritems():
         axesCount = 0
         for i in v:
+
+            assert (k == '%s.%s'%(stations[i][0], stations[i][1]))
+
             # only need axes for non-null results
             a, b = results[i]
             if(len(a) and len(b)): axesCount += 1
@@ -224,48 +240,59 @@ def plot_results(stations, results, output_basename):
         fig.set_size_inches(20, 15)
 
         axes = np.atleast_1d(axes)
-        for i, index in enumerate(v):
-            x, means = results[index]
-            x = [a.matplotlib_date for a in x]
-            d = np.array(means)
 
-            if(len(d)): d[0] = np.nanmedian(d)
+        if(len(axes)):
+            axesIdx = 0
+            for i, index in enumerate(v):
+                try:
+                    x, means = results[index]
 
-            # print k
-            # for val in d: print val
-            #dnorm = 2 * ((d - np.nanmin(d)) / (np.nanmax(d) - np.nanmin(d))) - 1
-            dnorm = d
-            dnormmin = np.nanmin(dnorm)
-            dnormmax = np.nanmax(dnorm)
+                    if(len(x) and len(means)):
+                        x = [a.matplotlib_date for a in x]
+                        d = np.array(means)
 
-            axes[i].scatter(x, dnorm, marker='.')
-            axes[i].plot(x, dnorm, c='k', label='Mean %s over 24 Hrs\n'
-                                                'Gaps indicate no-data' % stations[index][3], lw=2)
+                        if(len(d)): d[0] = np.nanmedian(d)
 
-            try:
-                axes[i].fill_between(x, dnormmax * np.int_(d == 0), dnormmin * np.int_(d == 0),
-                                     where=dnormmax * np.int_(d == 0) - dnormmin * np.int_(d == 0) > 0,
-                                     color='r', alpha=0.5, label='All 0 Samples')
+                        # print k
+                        # for val in d: print val
+                        #dnorm = 2 * ((d - np.nanmin(d)) / (np.nanmax(d) - np.nanmin(d))) - 1
+                        dnorm = d
+                        dnormmin = np.nanmin(dnorm)
+                        dnormmax = np.nanmax(dnorm)
 
-                axes[i].fill_between(x, dnormmax * np.int_(np.isnan(d)), dnormmin * np.int_(np.isnan(d)),
-                                     where=dnormmax * np.int_(np.isnan(d)) - dnormmin * np.int_(np.isnan(d)) > 1,
-                                     color='b', alpha=0.5, label='No Data')
+                        axes[axesIdx].scatter(x, dnorm, marker='.')
+                        axes[axesIdx].plot(x, dnorm, c='k', label='Mean %s over 24 Hrs\n'
+                                                            'Gaps indicate no-data' % stations[index][3], lw=2)
 
-                axes[i].xaxis.set_major_locator(AutoDateLocator())
-                axes[i].xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
+                        axes[axesIdx].fill_between(x, dnormmax * np.int_(d == 0), dnormmin * np.int_(d == 0),
+                                             where=dnormmax * np.int_(d == 0) - dnormmin * np.int_(d == 0) > 0,
+                                             color='r', alpha=0.5, label='All 0 Samples')
 
-                for tick in axes[i].get_xticklabels():
-                    tick.set_rotation(45)
-                # end for
-                #axes[i].set_ylim(-1.5, 1.5)
-                axes[i].legend(loc='upper right', prop={'size':5})
-                axes[i].tick_params(axis='both', labelsize=14)
-            except:
-                pass
-            # end try
-        # end for
-        axes[-1].set_xlabel('Days', fontsize=14)
-        plt.suptitle('%s Data Availability'%(k), fontsize=20)
+                        axes[axesIdx].fill_between(x, dnormmax * np.int_(np.isnan(d)), dnormmin * np.int_(np.isnan(d)),
+                                             where=dnormmax * np.int_(np.isnan(d)) - dnormmin * np.int_(np.isnan(d)) > 1,
+                                             color='b', alpha=0.5, label='No Data')
+
+                        axes[axesIdx].xaxis.set_major_locator(AutoDateLocator())
+                        axes[axesIdx].xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
+
+                        for tick in axes[axesIdx].get_xticklabels():
+                            tick.set_rotation(45)
+                        # end for
+                        #axes[axesIdx].set_ylim(-1.5, 1.5)
+                        axes[axesIdx].legend(loc='upper right', prop={'size':5})
+                        axes[axesIdx].tick_params(axis='both', labelsize=14)
+
+                        axesIdx += 1
+                    # end if
+                except:
+                    # plotting fails when each axes contain <2 values; just move on in those instances
+                    pass
+                # end try
+            # end for
+            axes[-1].set_xlabel('Days', fontsize=14)
+        # end if
+
+        plt.suptitle('%s Data Availability (~%d days)'%(k, usableStationDays[k]), fontsize=20)
         pdf.savefig()
         gc.collect()
 
@@ -298,9 +325,12 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     START_TIME: Start time in UTCDateTime format\n
     END_TIME: End time in UTCDateTime format\n
     NET: Network name\n
-    STA: Station name (* for all stations)\n
-    CHA: Channel name (* for all channels) \n
+    STA: Station name ('*' for all stations; note that * must be in quotation marks)\n
+    CHA: Channel name ('*' for all channels; note that * must be in quotation marks) \n
     OUTPUT_BASENAME: Basename of output file
+
+    Example usage:
+    mpirun -np 112 python plot_data_quality.py asdf_files.txt 1980:01:01 2020:01:01 OA '*' '*' data_quality.oa
     """
 
     start_time = UTCDateTime(start_time)
@@ -311,10 +341,9 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
-    proc_workload = None
 
     l = setup_logger(name=output_basename, log_file='%s.log'%output_basename)
-    fds = FederatedASDFDataSet(asdf_source, logger=None)
+    fds = FederatedASDFDataSet(asdf_source, logger=l)
 
     stations = []
     if(rank == 0):
