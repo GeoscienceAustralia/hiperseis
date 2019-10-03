@@ -364,5 +364,10 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
 # end func
 
 if (__name__=='__main__'):
+    '''
+    Example usage:
+    mpirun -np 112 python plot_data_quality.py asdf_files.txt 1980:01:01 2020:01:01 OA '*' '*' data_quality.oa
+    '''
+
     process()
 # end if
