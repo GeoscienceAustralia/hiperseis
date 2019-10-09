@@ -3,7 +3,7 @@
 """
 
 import os
-import logging
+# import logging
 
 import numpy as np
 import click
@@ -15,7 +15,7 @@ from seismic.receiver_fn import rf_util
 
 
 def rf_inversion_export(input_h5_file, output_folder, network_code, component='R',
-                        resample_freq=6.25, trim_window=(-5, 30), moveout=True):
+                        resample_freq=6.25, trim_window=(-5.0, 20.0), moveout=True):
     # Process for each station:
     # 1. Load hdf5 file containing RFs
     # 2. Filter to desired component.
@@ -49,12 +49,12 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
             stack = similar_traces.stack()
             stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10)
             stack.trim2(*trim_window, reftime='onset')
-            
+
             trace = stack[0]
-            times = trace.times()
+            times = trace.times() - (trace.stats.onset - trace.stats.starttime)
             column_data = np.array([times, trace.data]).T
             fname = os.path.join(output_folder, "_".join([network_code, sta, cha]) + "_rf.dat")
-            np.savetxt(fname, column_data)
+            np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'))
         # end for
     # end for
 
