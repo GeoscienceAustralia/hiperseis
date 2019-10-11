@@ -26,7 +26,12 @@ integer, parameter :: burn_in = 6500000	!Burn-in period
 integer, parameter :: nsample = 9500000   !Post burn-in
 integer, parameter :: thin = 100 	!Thinning of the chain 
 
-! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps, only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble solution, every thinn model visited in the second part is selected for the ensemble. The convergence of the algorithm is monitored with a number of indicators such as acceptance rates, and sampling efficiency is optimized by adjusting the variance of the Gaussian proposal functions 
+! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
+! only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble
+! solution, every thinn model visited in the second part is selected for the ensemble.
+! 
+! The convergence of the algorithm is monitored with a number of indicators such as acceptance rates, and sampling
+! efficiency is optimized by adjusting the variance of the Gaussian proposal functions 
 
 
 !------------------------------------------------
@@ -37,13 +42,12 @@ integer,parameter  :: npt_min = 2 !minimun number of layers is 2. 1 does not wor
 integer, parameter :: npt_max = 20
 
 !depth
-real, parameter :: d_min = 0       
+real, parameter :: d_min = 0
 real, parameter :: d_max = 60
-      
 
 real, parameter :: beta_min = 3.5 ! Mean of the Uniform prior on Vs
 real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
-real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_minneeds to be equal to beta_max.
+real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_min needs to be equal to beta_max.
 
 double precision, parameter ::    Ar_max=0.1000  !Upper bound for noise parameter
 double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise parameter 
@@ -58,7 +62,8 @@ double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise paramete
 ! the Gaussian proposal functions 
 
 ! These values have to be "tuned" so the acceptance rates written in OUT/mpi.out
-! are as close as possible to 44%. This determinde the efficiency of posteriro sampling. !  If AR larger than 44%, increase the Sdt for less Acceptance.
+! are as close as possible to 44%. This determined the efficiency of posterior sampling.
+!  If AR larger than 44%, increase the Sdt for less Acceptance.
 !  If AR_* smaller than 44%, decrease the Sdt for more
 
 real, parameter :: pd1 = 0.25     !proposal on change in position  
@@ -297,7 +302,8 @@ close(66)
 endif
 
 !The inversion of Cd was stabilized with truncation of small eigenvalues after singular value decomposition of the system of equations.
-!there are no stable analytical formulation for its inverse and determinant. Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to be numerically computed with SVD decomposition and removal of a large number of small eigenvalues that destabilize the process.
+!there are no stable analytical formulation for its inverse and determinant. Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to
+! be numerically computed with SVD decomposition and removal of a large number of small eigenvalues that destabilize the process.
 
 
 !Remove small eigenvalues to stabilize the problem
@@ -607,7 +613,6 @@ do while (sample<nsample)
 !***********************************************************************************
 
 !   If we accept the proposed model, update the status of the Markov Chain
-
 
 !***********************************************************************************
 

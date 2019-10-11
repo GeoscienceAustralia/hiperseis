@@ -1,7 +1,7 @@
 .PHONY : obj driver clean
 
 #FC = mpif90 -mcmodel=medium -shared-intel
-FC = mpif90 -mcmodel=medium
+FC = mpif90 -mcmodel=medium -O2
 
 all: run
 
