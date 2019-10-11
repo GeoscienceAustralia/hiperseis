@@ -65,8 +65,9 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-folder', type=click.Path(dir_okay=True), required=True)
-# @click.option('network-code', type=str, required=True)
-def main(input_file, output_folder, network_code='7X'):
+@click.option('--network-code', type=str, required=True,
+              help='Network code that this input file is for. Appended to output folder name.')
+def main(input_file, output_folder, network_code):  # pylint: disable=missing-docstring
     rf_inversion_export(input_file, output_folder, network_code)
 # end func
 
