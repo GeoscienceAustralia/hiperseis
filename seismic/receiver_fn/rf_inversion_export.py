@@ -47,10 +47,11 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
                 similar_traces.moveout()
             # end if
             stack = similar_traces.stack()
-            stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10)
+            trace = stack[0]
+            exact_start_time = trace.stats.onset + trim_window[0]
+            stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
             stack.trim2(*trim_window, reftime='onset')
 
-            trace = stack[0]
             times = trace.times() - (trace.stats.onset - trace.stats.starttime)
             column_data = np.array([times, trace.data]).T
             fname = os.path.join(output_folder, "_".join([network_code, sta, cha]) + "_rf.dat")
