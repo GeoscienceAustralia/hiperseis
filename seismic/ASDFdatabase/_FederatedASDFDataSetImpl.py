@@ -326,7 +326,8 @@ class _FederatedASDFDataSetImpl():
             numAttempts = 0
             while(1):
                 try:
-                    s += station_data[tag]
+                    data_segment = station_data.get_item(tag, starttime, endtime)
+                    s += data_segment
                     break
                 except Exception as e:                   
                     if(isinstance(e, ASDFValueError)): # read failed due to the data buffer being too small
