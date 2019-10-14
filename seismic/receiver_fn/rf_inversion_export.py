@@ -16,6 +16,25 @@ from seismic.receiver_fn import rf_util
 
 def rf_inversion_export(input_h5_file, output_folder, network_code, component='R',
                         resample_freq=6.25, trim_window=(-5.0, 20.0), moveout=True):
+    """Export receiver function to text format for ingestion into Fortran RF inversion code.
+
+    :param input_h5_file: Input hdf5 file containing receiver function data
+    :type input_h5_file: str or Path
+    :param output_folder: Folder in which to export text files, one per channel per station.
+        Will be appended with network code.
+    :type output_folder: str or Path
+    :param network_code: Network to which this RF data belongs, used to disambiguate and track folders.
+    :type network_code: str
+    :param component: The channel component to export, defaults to 'R'
+    :type component: str, optional
+    :param resample_freq: Sampling rate (Hz) of the output files, defaults to 6.25 Hz
+    :type resample_freq: float, optional
+    :param trim_window: Time window to export relative to onset, defaults to (-5.0, 20.0). If data needs
+        to be resampled, the samples are anchored to the start of this time window.
+    :type trim_window: tuple, optional
+    :param moveout: Whether to apply moveout correction prior to exporting, defaults to True
+    :type moveout: bool, optional
+    """
     # Process for each station:
     # 1. Load hdf5 file containing RFs
     # 2. Filter to desired component.
