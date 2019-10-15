@@ -37,6 +37,7 @@ DEFAULT_GAUSS_WIDTH = 3.0
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
 RAW_RESAMPLE_RATE_HZ = 20.0
+BANDPASS_FILTER_ORDER = 2
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
@@ -155,8 +156,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
-                            **kwargs).interpolate(resample_rate_hz)
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
+                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
             kwargs.update({'spiking': spiking})
             if not normalize:
                 # No normalization. The "normalize" argument must be set to None.
@@ -186,8 +187,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         elif deconv_domain == 'iter':
             # For iterative deconvolution, we need to trim first before deconvolution, as the fitting to the
             # response performs much better on shorter (trimmed) data.
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
-                            **kwargs).interpolate(resample_rate_hz)
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
+                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
             stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
         else:

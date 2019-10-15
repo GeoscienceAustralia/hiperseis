@@ -7,7 +7,9 @@ import time
 from collections import defaultdict
 
 import numpy as np
+import scipy.signal
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
@@ -276,3 +278,56 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
     # end for
 
     return fig
+# end func
+
+
+def plot_trace_filter_response(filter_band_hz, sampling_rate_hz, corners):
+    """Plot one-way filter response. If filter is used as zero-phase, the attenuation will be twice
+    what is computed here.
+
+    :param filter_band_hz: Pair of frequencies corresponding to low cutoff and high cutoff freqs
+    :type filter_band_hz: tuple(float) of length 2 (i.e. pair)
+    :param sampling_rate_hz: The sampling rate in Hz
+    :type sampling_rate_hz: float
+    :param corners: The order of the filter
+    :type corners: int
+    :return: Figure object
+    :rtype: matplotlib.figure.Figure
+    """
+    nyq_freq = sampling_rate_hz/2.0
+    f_low = filter_band_hz[0]/nyq_freq
+    f_high = filter_band_hz[1]/nyq_freq
+    # Assuming code in obspy.signal.filter.bandpass uses this same iirfilter design function.
+    z, p, k = scipy.signal.iirfilter(corners, [f_low, f_high], btype='band', ftype='butter', output='zpk')
+    num_freqs = int(np.ceil(2*sampling_rate_hz/filter_band_hz[0]))
+    w, h = scipy.signal.freqz_zpk(z, p, k, fs=sampling_rate_hz, worN=num_freqs)
+
+    fig = plt.figure(figsize=(16, 9))
+    ax1 = fig.add_subplot(1, 1, 1)
+    ax1.set_title('Bandpass filter frequency response: band ({}, {})/{} Hz, order {}'
+                  .format(*filter_band_hz, sampling_rate_hz, corners), fontsize=18)
+    ax1.plot(w, 10*np.log10(np.abs(h)), alpha=0.8, color='C0', linewidth=2)
+    # ax1.set_xlim(0, 4*filter_band_hz[1])
+    ax1.set_ylim(-100.0, 5)
+    ax1.set_ylabel('Amplitude (dB)', color='C0', fontsize=16)
+    ax1.tick_params(labelsize=16)
+    ax1.set_xlabel('Frequency (Hz)', fontsize=16)
+    ylims = plt.ylim()
+    rect = patches.Rectangle((filter_band_hz[0], ylims[0]), filter_band_hz[1] - filter_band_hz[0],
+                             ylims[1] - ylims[0], color='#80ff8040', zorder=0)
+    ax1.add_patch(rect)
+    plt.axvline(filter_band_hz[0], color='#80ff8080', linestyle='--')
+    plt.axvline(filter_band_hz[1], color='#80ff8080', linestyle='--')
+    plt.grid(linestyle=':', color="#80808080")
+
+    ax2 = ax1.twinx()
+    angles = np.unwrap(np.angle(h))
+    ax2.plot(w, angles, alpha=0.8, color='C1', linestyle='--', linewidth=2)
+    # ax2.set_xlim(0, 4*filter_band_hz[1])
+    ax2.set_ylabel('Angle (rad)', color='C1', fontsize=16)
+    ax2.tick_params(labelsize=16)
+
+    # plt.axis('tight')
+
+    return fig
+# end func
