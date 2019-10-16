@@ -281,7 +281,7 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
 # end func
 
 
-def plot_trace_filter_response(filter_band_hz, sampling_rate_hz, corners):
+def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
     """Plot one-way filter response. If filter is used as zero-phase, the attenuation will be twice
     what is computed here.
 
@@ -331,3 +331,73 @@ def plot_trace_filter_response(filter_band_hz, sampling_rate_hz, corners):
 
     return fig
 # end func
+
+
+def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_phase=False, N=1000, blip_period=1.0):
+    nyq_freq = sampling_rate_hz/2.0
+    f_low = filter_band_hz[0]/nyq_freq
+    f_high = filter_band_hz[1]/nyq_freq
+    # Assuming code in obspy.signal.filter.bandpass uses this same iirfilter design function.
+    z, p, k = scipy.signal.iirfilter(corners, [f_low, f_high], btype='band', ftype='butter', output='zpk')
+    sos = scipy.signal.zpk2sos(z, p, k)
+
+    times = (np.arange(N) - (N//2))/sampling_rate_hz
+    impulse = scipy.signal.unit_impulse(N, idx='mid')
+    step = np.zeros_like(times)
+    step[times >= 0] = 1
+    # step -= 0.5
+    blip = np.zeros_like(times)
+    blip[(times >= -blip_period/2) & (times < 0)] = 1
+    blip[(times >= 0) & (times <= blip_period/2)] = -1
+
+    if zero_phase:
+        ir = scipy.signal.sosfiltfilt(sos, impulse)
+        sr = scipy.signal.sosfiltfilt(sos, step)
+        br = scipy.signal.sosfiltfilt(sos, blip)
+    else:
+        ir = scipy.signal.sosfilt(sos, impulse)
+        sr = scipy.signal.sosfilt(sos, step)
+        br = scipy.signal.sosfilt(sos, blip)
+    # end if
+
+    yrange = 1.2
+
+    fig = plt.figure(figsize=(16, 9))
+    plt.subplot(3, 1, 1)
+    plt.plot(times, impulse)
+    plt.plot(times, ir, alpha=0.8)
+    plt.title("Impulse response")
+    plt.ylabel("Amplitude")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+    plt.legend(['Input', 'Response'])
+
+    plt.subplot(3, 1, 2)
+    plt.plot(times, step)
+    plt.plot(times, sr, alpha=0.8)
+    plt.title("Step response")
+    plt.ylabel("Amplitude")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+
+    plt.subplot(3, 1, 3)
+    plt.plot(times, blip)
+    plt.plot(times, br, alpha=0.8)
+    plt.title("Square pulse response (period = {} sec)".format(blip_period))
+    plt.ylabel("Amplitude")
+    plt.xlabel("Time (s)")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+
+    direction = '(one way)' if not zero_phase else '(two way)'
+    plt.suptitle("Reponse characteristics for filter band ({}, {})/{} Hz, order {} {}"
+                 .format(*filter_band_hz, sampling_rate_hz, corners, direction))
+    return fig
+
+
+if __name__ == "__main__":
+    corners = 2
+    fig = plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000)
+    plt.savefig("filter_func_response_corners{}_oneway.png".format(corners), dpi=300)
+    plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000, zero_phase=True)
+    plt.savefig("filter_func_response_corners{}_twoway.png".format(corners), dpi=300)
