@@ -5,8 +5,9 @@
 
 import os
 import re
+import logging
 
-# import numpy as np
+import numpy as np
 import click
 import rf
 import rf.imaging
@@ -15,13 +16,14 @@ import tqdm.auto as tqdm
 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
-# import matplotlib
 
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
-# import seismic.receiver_fn.rf_stacking as rf_stacking
+import seismic.receiver_fn.rf_stacking as rf_stacking
 
 # pylint: disable=invalid-name, logging-format-interpolation
+
+logging.basicConfig()
 
 paper_size_A4 = (8.27, 11.69)  # inches
 
@@ -79,6 +81,41 @@ def _rf_layout_A4(fig):
     ax2.set_position([ax2_pos.x0, ax0_pos.y0, ax2_pos.width, ax0_pos.height])
 # end func
 
+
+def _produce_hk_stacking(station_data, channel, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
+
+    k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(station_data, channel,
+                                                            h_range=np.linspace(20.0, 70.0, 501),
+                                                            root_order=2, V_p=V_p)
+
+    layer_maxes = [np.max(hk_stack[i, :, :]) for i in range(3)]
+    log.info("Max amplitude by layer: {}".format(layer_maxes))
+
+    # Sum the phases
+    hk_stack_sum = rf_stacking.compute_weighted_stack(hk_stack, weighting)
+
+    # Raise the final sum over phases to power >1 to increase contrast
+    hk_stack_sum = rf_util.signed_nth_power(hk_stack_sum, 2)
+    hk_stack_sum = hk_stack_sum/np.nanmax(hk_stack_sum[:])
+
+    sta = station_data[channel][0].stats.station
+    num = len(station_data[channel])
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=sta + '.{}'.format(channel), num=num)
+
+    # Find and label location of maximum
+    h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
+    log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
+    plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
+    if k_max >= 1.7:
+        plt.text(k_max - 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
+                 color="#ffffff", fontsize=16, horizontalalignment='right')
+    else:
+        plt.text(k_max + 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
+                 color="#ffffff", fontsize=16)
+    # end if
+
+    return fig
+# end func
 
 
 @click.command()
@@ -212,6 +249,16 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Save to new page in file
             pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
             plt.close()
+
+            # Plot H-k stack using primary RF component
+            fig = _produce_hk_stacking(station_db, channel)
+            paper_landscape = (paper_size_A4[1], paper_size_A4[0])
+            fig.set_size_inches(*paper_landscape)
+            # plt.tight_layout()
+            # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
+            pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+            plt.close()
+
         # end for
         pbar.close()
     # end with
@@ -220,5 +267,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
 
 if __name__ == "__main__":
+    log = logging.getLogger(__name__)
     main()  # pylint: disable=no-value-for-parameter
 # end if

@@ -171,6 +171,7 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     # end if
 
     return fig
+# end func
 
 
 def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', title='',
@@ -393,6 +394,7 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
     plt.suptitle("Reponse characteristics for filter band ({}, {})/{} Hz, order {} {}"
                  .format(*filter_band_hz, sampling_rate_hz, corners, direction))
     return fig
+# end func
 
 
 if __name__ == "__main__":
@@ -401,3 +403,4 @@ if __name__ == "__main__":
     plt.savefig("filter_func_response_corners{}_oneway.png".format(corners), dpi=300)
     plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000, zero_phase=True)
     plt.savefig("filter_func_response_corners{}_twoway.png".format(corners), dpi=300)
+# end if
