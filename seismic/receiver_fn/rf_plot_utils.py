@@ -399,7 +399,7 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
 
 if __name__ == "__main__":
     corners = 2
-    fig = plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000)
+    plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000)
     plt.savefig("filter_func_response_corners{}_oneway.png".format(corners), dpi=300)
     plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000, zero_phase=True)
     plt.savefig("filter_func_response_corners{}_twoway.png".format(corners), dpi=300)

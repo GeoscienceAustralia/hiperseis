@@ -82,7 +82,7 @@ def main():
             # Run H-k stacking on synthetic data
             station_db = {'HHR': stream}
 
-            k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=include_t3)
+            k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db['HHR'], include_t3=include_t3)
             fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk[0], title="Synthetic Ps component")
             fig.savefig(os.path.join(output_folder, "Ps_{:03d}.png".format(n)), dpi=300)
             plt.close()

@@ -82,9 +82,9 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(station_data, channel, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
+def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
 
-    k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(station_data, channel,
+    k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
                                                             h_range=np.linspace(20.0, 70.0, 501),
                                                             root_order=2, V_p=V_p)
 
@@ -98,8 +98,9 @@ def _produce_hk_stacking(station_data, channel, V_p=6.4, weighting=(0.5, 0.5, 0.
     hk_stack_sum = rf_util.signed_nth_power(hk_stack_sum, 2)
     hk_stack_sum = hk_stack_sum/np.nanmax(hk_stack_sum[:])
 
-    sta = station_data[channel][0].stats.station
-    num = len(station_data[channel])
+    sta = channel_data[0].stats.station
+    channel = channel_data[0].stats.channel
+    num = len(channel_data)
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=sta + '.{}'.format(channel), num=num)
 
     # Find and label location of maximum
@@ -251,7 +252,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot H-k stack using primary RF component
-            fig = _produce_hk_stacking(station_db, channel)
+            fig = _produce_hk_stacking(rf_stream)
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()

@@ -64,7 +64,7 @@ def main():
 
     # Run H-k stacking on synthetic data
     station_db = {'HHR': stream_all}
-    k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db, 'HHR', include_t3=False, root_order=2)
+    k_grid, h_grid, hk = rf_stacking.compute_hk_stack(station_db['HHR'], include_t3=False, root_order=2)
     w = (0.5, 0.5)
     w_str = "w={:1.2f},{:1.2f}".format(*w)
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
