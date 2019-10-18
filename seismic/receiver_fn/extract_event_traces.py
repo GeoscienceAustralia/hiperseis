@@ -54,6 +54,7 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
         # FIXME: This is a bad design - it will read events from a file generated using completely
         # different settings just because the file is there!
         log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
+        log.info("Using catalog file: {}".format(cat_file))
         catalog = read_events(cat_file)
     else:
         min_magnitude = magnitude_range[0]
@@ -68,6 +69,7 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
         catalog = client.get_events(**kwargs)
         log.info("Catalog loaded from FDSN server")
 
+        log.info("Creating catalog file: {}".format(cat_file))
         catalog.write(cat_file, 'QUAKEML')
 
         if early_exit:
@@ -274,6 +276,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     end_time = UTC(end_time)
     event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
     rf_trace_datafile = timestamp_filename(rf_trace_datafile, start_time, end_time)
+    log.info("Traces will be written to: {}".format(rf_trace_datafile))
 
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
@@ -293,6 +296,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     # end if
 
     with tqdm(smoothing=0) as pbar:
+        trace_found = False
         for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
@@ -308,11 +312,16 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
                         continue
                     else:
                         # Use don't override mode just in case our hand-crafted index is faulty
+                        trace_found = True
                         tr.write(rf_trace_datafile, 'H5', mode='a', override='dont')
                 else:
+                    trace_found = True
                     tr.write(rf_trace_datafile, 'H5', mode='a')
             # end for
         # end for
+        if not trace_found:
+            log.warning("No traces found!")
+        # end if
     # end with
 
 
