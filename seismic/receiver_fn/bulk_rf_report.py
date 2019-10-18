@@ -27,6 +27,7 @@ logging.basicConfig()
 
 paper_size_A4 = (8.27, 11.69)  # inches
 
+DEFAULT_HK_WEIGHTS = (0.5, 0.5, 0.0)
 
 
 def _get_aspect(ax):
@@ -103,6 +104,13 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
     num = len(channel_data)
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=sta + '.{}'.format(channel), num=num)
 
+    # Stamp weightings onto plot
+    xl = plt.xlim()
+    yl = plt.ylim()
+    txt_x = xl[0] + 0.95*(xl[1] - xl[0])
+    txt_y = yl[0] + 0.90*(yl[1] - yl[0])
+    plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff", fontsize=12)
+
     # Find and label location of maximum
     h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
     log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
@@ -129,7 +137,10 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
               help='Apply RF amplitude filtering to the RFs.')
 @click.option('--apply-similarity-filter', is_flag=True, default=False, show_default=True,
               help='Apply RF similarity filtering to the RFs.')
-def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False, apply_similarity_filter=False):
+@click.option('--hk-weights', type=(float, float, float), default=DEFAULT_HK_WEIGHTS, show_default=True,
+              help='Weightings per arrival multiple for H-k stacking')
+def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
+         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS):
 
     # Read source file
     data_all = rf_util.read_h5_rf(input_file)
@@ -252,7 +263,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot H-k stack using primary RF component
-            fig = _produce_hk_stacking(rf_stream)
+            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights)
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()

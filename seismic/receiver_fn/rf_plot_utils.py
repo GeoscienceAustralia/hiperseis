@@ -149,9 +149,10 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     if num is not None:
         xl = plt.xlim()
         yl = plt.ylim()
-        txt_x = xl[0] + 0.85*(xl[1] - xl[0])
+        txt_x = xl[0] + 0.95*(xl[1] - xl[0])
         txt_y = yl[0] + 0.95*(yl[1] - yl[0])
-        plt.text(txt_x, txt_y, "N = {}".format(num), color="#ffffff", fontsize=16, fontweight='bold')
+        plt.text(txt_x, txt_y, "N = {}".format(num), horizontalalignment='right',
+                 color="#ffffff", fontsize=16, fontweight='bold')
     # end if
 
     if save_file is not None:
