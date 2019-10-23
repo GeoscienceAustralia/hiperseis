@@ -172,9 +172,55 @@ integer ra,ran,rank, nbproc, ierror, tag, status(MPI_STATUS_SIZE)
 
 !Add by Sheng RSES ANU Aug-2018
 integer clock, n, seed
+
+! Variables for command line interface
+integer :: num_cli_args
+integer :: cli_status
+integer :: dummy_cli_len
+character(len=256) :: input_file
+character(len=256) :: output_folder
+
 !***********************************************************************
 
+!**************************************************************
 
+!                  CHECK AND READ ARGUMENTS
+
+!**************************************************************
+num_cli_args = command_argument_count()
+if (num_cli_args /= 2) then
+  print *, 'Usage: run input_filename output_folder'
+  call exit()
+end if
+
+call get_command_argument(1, input_file, dummy_cli_len, cli_status)
+if (cli_status < 0) then
+  print *, 'Input file path too long'
+  call exit()
+else if (cli_status > 0) then
+  print *, 'Unknown error retrieving input filename'
+  call exit()
+else
+  print *, 'Input file: ', input_file
+end if
+
+call get_command_argument(2, output_folder, dummy_cli_len, cli_status)
+if (cli_status < 0) then
+  print *, 'Output path too long'
+  call exit()
+else if (cli_status > 0) then
+  print *, 'Unknown error retrieving output path'
+  call exit()
+else
+  print *, 'Output path: ', output_folder
+end if
+
+
+!**************************************************************
+
+!                  INITIALIZATION
+
+!**************************************************************
 
 CALL cpu_time(t1)  !Tic. start counting time 
  
@@ -205,7 +251,7 @@ ra=int(seed)
 !**************************************************************
 
 
-open(55,file='RF_obs.dat',status='old')
+open(55, file=input_file, status='old')
 do i=1,ndatar
 read(55,*)u,d_obsr(i)
 end do
@@ -774,28 +820,28 @@ avs=avs/nb
 
 IF (ran==0) THEN
 
-open(65,file='OUT/Change_points.out',status='replace')
+open(65,file=output_folder//'/Change_points.out',status='replace')
 do i=1,disd
 	d=d_min+(i-0.5)*prof/real(disd)
 	write(65,*)d,histochs(i)
 enddo
 close(65)
 
-open(56,file='OUT/Average.out',status='replace')
+open(56,file=output_folder//'/Average.out',status='replace')
 do i=1,disd
 	d=(i-1)*prof/real(disd-1)
 	write(56,*)d,avs(i)
 enddo
 close(56)
 
-open(66,file='OUT/Sigma.out',status='replace')
+open(66,file=output_folder//'/Sigma.out',status='replace')
 do i=1,disA
 	d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
 	write(66,*)d,ML_Ars(i)
 enddo
 close(66)
 
-open(71,file='OUT/Posterior.out',status='replace')
+open(71,file=output_folder//'/Posterior.out',status='replace')
 write(71,*)prof,disd,d_max
 write(71,*)beta_min-width,beta_max+width,disv,width
 do i=1,disd
@@ -806,7 +852,7 @@ enddo
 close(71)! close the file 
 
 
-open(72,file='OUT/data_best.out',status='replace')
+open(72,file=output_folder//'/data_best.out',status='replace')
 do i=1,ndatar
 	xi=-time_shift+(i-1)/fs
 	write(72,*)xi,best_datar(i)
@@ -814,28 +860,28 @@ enddo
 close(72)
 
 
-open(54,file='OUT/Convergence_misfit.out',status='replace')
+open(54,file=output_folder//'/Convergence_misfit.out',status='replace')
 write(54,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(54,*)conv(i),convs(i)
 enddo
 close(54)! close the file 
 
-open(53,file='OUT/Convergence_nb_layers.out',status='replace')
+open(53,file=output_folder//'/Convergence_nb_layers.out',status='replace')
 write(53,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(53,*)ncell(i),ncells(i)
 enddo
 close(53)! close the file 
 
-open(52,file='OUT/Convergence_sigma.out',status='replace')
+open(52,file=output_folder//'/Convergence_sigma.out',status='replace')
 write(52,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(52,*)convAr(i),convArs(i)
 enddo
 close(52)! close the file
 
-open(45,file='OUT/NB_layers.out',status='replace')
+open(45,file=output_folder//'/NB_layers.out',status='replace')
 do i=1,npt_max
 write(45,*)histos(i)
 enddo
