@@ -57,7 +57,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
 
     data_dict = rf_util.rf_to_dict(data)
 
-    for sta, ch_dict in data_dict.items():
+    for sta, ch_dict in data_dict:
         for cha, ch_traces in ch_dict.items():
             similar_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces))
             if not similar_traces:

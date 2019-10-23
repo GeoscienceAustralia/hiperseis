@@ -920,7 +920,7 @@ DATA iff /0/
 ! write(*,*)' idum ',idum
 if(idum.lt.0.or.iff.eq.0)then
 	iff=1
-	mj=MSEED-iabs(idum)
+	mj=abs(MSEED-abs(idum))
 	mj=mod(mj,MBIG)
 	ma(55)=mj
 	mk=1

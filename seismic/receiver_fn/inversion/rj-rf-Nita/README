@@ -1,1 +1,4 @@
 Revision was made by Sheng in Aug-2018 for occassional inversion failure in old version.
+
+Before typing 'make' to build on NCI, load openmpi using 'module load openmpi/1.10.2'.
+
