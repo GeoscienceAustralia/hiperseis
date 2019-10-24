@@ -1,6 +1,6 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! This progranm does a Transdimensional inversion of Receiver fuunctions
+! This program does a Transdimensional inversion of Receiver functions
 ! with the reversible jump algorithm
 
 ! Thomas Bodin, ANU, December 2011
@@ -106,10 +106,12 @@ real, parameter :: gauss_a = 2.5    !number 'a' defining the width of
 !the gaussian filter in the deconvolution  
 real, parameter :: water_c = 0.0001 !water level for deconvolution 
 real, parameter :: angle = 31.85       ! angle of the incoming wave 
-real, parameter :: time_shift = 5   !time shift before the first p pusle 
+real, parameter :: time_shift = 5   !time shift before the first p pulse
 integer, parameter :: ndatar = 157  !Number of data points
 
-!Since we need to compute numerically the inverse of the data covariance matrix numerically, please try to keep ndatar as small as possible (i.e. fs as small as possible) without loosing information on the waveform of course.
+!Since we need to compute numerically the inverse of the data covariance matrix numerically,
+!please try to keep ndatar as small as possible (i.e. fs as small as possible), without losing
+!information on the waveform of course.
 
 integer, parameter :: maxdata = 250 !needs to be > than ndatar
 
@@ -225,8 +227,10 @@ end if
 CALL cpu_time(t1)  !Tic. start counting time 
  
 
- !Start Parralelization of the code. From now on, the code is run on each
-  !processor independently, with ra = the number of the proc.
+ !Start Parallelization of the code. From now on, the code is run on each
+ !processor independently, with ra = the number of the proc.
+ ! Note that running in parallel does not reduce total CPU time, instead
+ ! it just samples more random states and averages more samples at the end.
   call MPI_INIT(ierror)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nbproc, ierror)
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierror)
@@ -240,8 +244,9 @@ CALL cpu_time(t1)  !Tic. start counting time
 
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
-seed = clock
+seed = clock + rank
 ra=int(seed)
+write(*,*)'Rank',rank,'using seed',ra
 
 
 !**************************************************************
