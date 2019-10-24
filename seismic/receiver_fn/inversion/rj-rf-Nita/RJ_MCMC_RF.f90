@@ -22,9 +22,9 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 6500000	!Burn-in period
-integer, parameter :: nsample = 9500000   !Post burn-in
-integer, parameter :: thin = 100 	!Thinning of the chain 
+integer, parameter :: burn_in = 6500000  !Burn-in period
+integer, parameter :: nsample = 9500000  !Post burn-in
+integer, parameter :: thin = 100        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
 ! only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble
@@ -78,7 +78,7 @@ real, parameter :: pAr = 0.002     !proposal for change in noise parameter
 ! Parameters for Displaying results 
 !-------------------------------------------- 
 
-integer, parameter :: display = 20000 ! display results in OUT/mpi.out 
+integer, parameter :: display = 20000 ! display results in OUT/mpi.out
 !every display samples
 double precision, parameter ::    sig=2.5 !fs/a
 
@@ -203,7 +203,7 @@ else if (cli_status > 0) then
   print *, 'Unknown error retrieving input filename'
   call exit()
 else
-  print *, 'Input file: ', input_file
+  print *, 'Input file: ', TRIM(input_file)
 end if
 
 call get_command_argument(2, output_folder, dummy_cli_len, cli_status)
@@ -214,7 +214,7 @@ else if (cli_status > 0) then
   print *, 'Unknown error retrieving output path'
   call exit()
 else
-  print *, 'Output path: ', output_folder
+  print *, 'Output path: ', TRIM(output_folder)
 end if
 
 
@@ -256,7 +256,7 @@ write(*,*)'Rank',rank,'using seed',ra
 !**************************************************************
 
 
-open(55, file=input_file, status='old')
+open(55, file=TRIM(input_file), status='old')
 do i=1,ndatar
 read(55,*)u,d_obsr(i)
 end do
@@ -825,28 +825,28 @@ avs=avs/nb
 
 IF (ran==0) THEN
 
-open(65,file=output_folder//'/Change_points.out',status='replace')
+open(65,file=TRIM(output_folder)//'/Change_points.out',status='replace')
 do i=1,disd
 	d=d_min+(i-0.5)*prof/real(disd)
 	write(65,*)d,histochs(i)
 enddo
 close(65)
 
-open(56,file=output_folder//'/Average.out',status='replace')
+open(56,file=TRIM(output_folder)//'/Average.out',status='replace')
 do i=1,disd
 	d=(i-1)*prof/real(disd-1)
 	write(56,*)d,avs(i)
 enddo
 close(56)
 
-open(66,file=output_folder//'/Sigma.out',status='replace')
+open(66,file=TRIM(output_folder)//'/Sigma.out',status='replace')
 do i=1,disA
 	d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
 	write(66,*)d,ML_Ars(i)
 enddo
 close(66)
 
-open(71,file=output_folder//'/Posterior.out',status='replace')
+open(71,file=TRIM(output_folder)//'/Posterior.out',status='replace')
 write(71,*)prof,disd,d_max
 write(71,*)beta_min-width,beta_max+width,disv,width
 do i=1,disd
@@ -857,7 +857,7 @@ enddo
 close(71)! close the file 
 
 
-open(72,file=output_folder//'/data_best.out',status='replace')
+open(72,file=TRIM(output_folder)//'/data_best.out',status='replace')
 do i=1,ndatar
 	xi=-time_shift+(i-1)/fs
 	write(72,*)xi,best_datar(i)
@@ -865,28 +865,28 @@ enddo
 close(72)
 
 
-open(54,file=output_folder//'/Convergence_misfit.out',status='replace')
+open(54,file=TRIM(output_folder)//'/Convergence_misfit.out',status='replace')
 write(54,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(54,*)conv(i),convs(i)
 enddo
 close(54)! close the file 
 
-open(53,file=output_folder//'/Convergence_nb_layers.out',status='replace')
+open(53,file=TRIM(output_folder)//'/Convergence_nb_layers.out',status='replace')
 write(53,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(53,*)ncell(i),ncells(i)
 enddo
 close(53)! close the file 
 
-open(52,file=output_folder//'/Convergence_sigma.out',status='replace')
+open(52,file=TRIM(output_folder)//'/Convergence_sigma.out',status='replace')
 write(52,*)burn_in,nsample
 do i=1,nsample+burn_in
 write(52,*)convAr(i),convArs(i)
 enddo
 close(52)! close the file
 
-open(45,file=output_folder//'/NB_layers.out',status='replace')
+open(45,file=TRIM(output_folder)//'/NB_layers.out',status='replace')
 do i=1,npt_max
 write(45,*)histos(i)
 enddo
