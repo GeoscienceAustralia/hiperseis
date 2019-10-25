@@ -345,7 +345,7 @@ UU=Cd
 
 ! The Picard plot show you eigenvalues. 
 if(ran==0) then
-   open(66,file=TRIM(output_folder)//'Picard.out',status='replace')
+   open(66,file=TRIM(output_folder)//'/Picard.out',status='replace')
    do i=1,ndatar
       write(66,*)w(i)
    enddo
