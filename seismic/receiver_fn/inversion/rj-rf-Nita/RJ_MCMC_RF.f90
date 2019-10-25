@@ -22,8 +22,8 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 6500000  !Burn-in period
-integer, parameter :: nsample = 9500000  !Post burn-in
+integer, parameter :: burn_in = 650000  !Burn-in period
+integer, parameter :: nsample = 950000  !Post burn-in
 integer, parameter :: thin = 100        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
