@@ -827,22 +827,22 @@ IF (ran==0) THEN
 
 open(65,file=TRIM(output_folder)//'/Change_points.out',status='replace')
 do i=1,disd
-	d=d_min+(i-0.5)*prof/real(disd)
-	write(65,*)d,histochs(i)
+   d=d_min+(i-0.5)*prof/real(disd)
+   write(65,*)d,histochs(i)
 enddo
 close(65)
 
 open(56,file=TRIM(output_folder)//'/Average.out',status='replace')
 do i=1,disd
-	d=(i-1)*prof/real(disd-1)
-	write(56,*)d,avs(i)
+   d=(i-1)*prof/real(disd-1)
+   write(56,*)d,avs(i)
 enddo
 close(56)
 
 open(66,file=TRIM(output_folder)//'/Sigma.out',status='replace')
 do i=1,disA
-	d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
-	write(66,*)d,ML_Ars(i)
+   d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
+   write(66,*)d,ML_Ars(i)
 enddo
 close(66)
 
@@ -850,17 +850,17 @@ open(71,file=TRIM(output_folder)//'/Posterior.out',status='replace')
 write(71,*)prof,disd,d_max
 write(71,*)beta_min-width,beta_max+width,disv,width
 do i=1,disd
-	do j=1,disv
-	write(71,*)posts(i,j)
-	enddo
+   do j=1,disv
+      write(71,*)posts(i,j)
+   enddo
 enddo
 close(71)! close the file 
 
 
 open(72,file=TRIM(output_folder)//'/data_best.out',status='replace')
 do i=1,ndatar
-	xi=-time_shift+(i-1)/fs
-	write(72,*)xi,best_datar(i)
+   xi=-time_shift+(i-1)/fs
+   write(72,*)xi,best_datar(i)
 enddo
 close(72)
 
@@ -868,29 +868,35 @@ close(72)
 open(54,file=TRIM(output_folder)//'/Convergence_misfit.out',status='replace')
 write(54,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(54,*)conv(i),convs(i)
+   write(54,*)conv(i),convs(i)
 enddo
 close(54)! close the file 
 
 open(53,file=TRIM(output_folder)//'/Convergence_nb_layers.out',status='replace')
 write(53,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(53,*)ncell(i),ncells(i)
+   write(53,*)ncell(i),ncells(i)
 enddo
 close(53)! close the file 
 
 open(52,file=TRIM(output_folder)//'/Convergence_sigma.out',status='replace')
 write(52,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(52,*)convAr(i),convArs(i)
+   write(52,*)convAr(i),convArs(i)
 enddo
 close(52)! close the file
 
 open(45,file=TRIM(output_folder)//'/NB_layers.out',status='replace')
 do i=1,npt_max
-write(45,*)histos(i)
+   write(45,*)histos(i)
 enddo
 close(45)! close the file 
+
+open(46,file=TRIM(output_folder)//'/vpvs.out',status='replace')
+do i=1,npt_max
+   write(46,*)vpvs(i)
+enddo
+close(46)! close the file 
 
 endif
 CALL cpu_time(t2)
