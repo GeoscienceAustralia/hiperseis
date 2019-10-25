@@ -345,11 +345,11 @@ UU=Cd
 
 ! The Picard plot show you eigenvalues. 
 if(ran==0) then
-open(66,file='Picard.out',status='replace')
-do i=1,ndatar
-	write(66,*)w(i)
-enddo
-close(66)
+   open(66,file=TRIM(output_folder)//'Picard.out',status='replace')
+   do i=1,ndatar
+      write(66,*)w(i)
+   enddo
+   close(66)
 endif
 
 !The inversion of Cd was stabilized with truncation of small eigenvalues after singular value decomposition of the system of equations.
