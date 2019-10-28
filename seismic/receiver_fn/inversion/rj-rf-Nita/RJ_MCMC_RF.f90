@@ -22,9 +22,9 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 650000  !Burn-in period
-integer, parameter :: nsample = 950000  !Post burn-in
-integer, parameter :: thin = 100        !Thinning of the chain
+integer, parameter :: burn_in = 3000000  !Burn-in period
+integer, parameter :: nsample = 5000000  !Post burn-in
+integer, parameter :: thin = 1000        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
 ! only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble
