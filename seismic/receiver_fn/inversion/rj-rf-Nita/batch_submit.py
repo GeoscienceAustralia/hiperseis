@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-'''Helper script to submit large batch of RF inversion jobs using qsub.
-'''
+"""Helper script to submit large batch of RF inversion jobs using qsub.
+"""
 import os
 import glob
 import subprocess
@@ -22,4 +22,3 @@ for f in glob.glob('*.dat'):
         print('Skipping {}'.format(fname))
     # end if
 # end for
-
