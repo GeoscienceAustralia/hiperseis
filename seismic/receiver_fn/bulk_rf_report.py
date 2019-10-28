@@ -31,6 +31,7 @@ DEFAULT_HK_WEIGHTS = (0.5, 0.5, 0.0)
 
 
 def _get_aspect(ax):
+    '''Compute aspect ratio of given axes data.'''
     from operator import sub
     # Total figure size
     figW, figH = ax.get_figure().get_size_inches()
@@ -47,6 +48,7 @@ def _get_aspect(ax):
 
 
 def _rf_layout_A4(fig):
+    '''Layout plots for A4 paper size'''
     # Fix aspect ratio of stack plot
     ax = fig.axes[3]
     ax.set_aspect(_get_aspect(ax))
@@ -84,7 +86,7 @@ def _rf_layout_A4(fig):
 
 
 def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
-
+    '''Helper function to produce H-k stacking figure.'''
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
                                                             h_range=np.linspace(20.0, 70.0, 501),
                                                             root_order=2, V_p=V_p)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+'''Helper script to submit large batch of RF inversion jobs using qsub.
+'''
 import os
 import glob
 import subprocess

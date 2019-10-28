@@ -284,8 +284,8 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
 
 
 def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
-    """Plot one-way filter response. If filter is used as zero-phase, the attenuation will be twice
-    what is computed here.
+    """Plot one-way bandpass filter response in the frequency domain. If filter is used as zero-phase,
+    the attenuation will be twice what is computed here.
 
     :param filter_band_hz: Pair of frequencies corresponding to low cutoff and high cutoff freqs
     :type filter_band_hz: tuple(float) of length 2 (i.e. pair)
@@ -336,6 +336,22 @@ def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
 
 
 def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_phase=False, N=1000, blip_period=1.0):
+    """Plot bandpass filter response to standard waveforms in the time domain - impulse (delta function,
+    step function, square wave pulse. By default filter is applied one-way. Set `zero_phase=True` to
+    plot two-way filter response.
+
+    :param filter_band_hz: Pair of frequencies corresponding to low cutoff and high cutoff freqs
+    :type filter_band_hz: tuple(float) of length 2 (i.e. pair)
+    :param sampling_rate_hz: The sampling rate in Hz
+    :type sampling_rate_hz: float
+    :param zero_phase: If True, plot two-way signal response (zero phase), otherwise plot
+        one-way signal response.
+    :type zero_phase: bool
+    :param N: Number of samples in the input test signals.
+    :type N: int
+    :param blip_period: Period of the 'blip' test signal (square wave pulse).
+    :type blip_period: float
+    """
     nyq_freq = sampling_rate_hz/2.0
     f_low = filter_band_hz[0]/nyq_freq
     f_high = filter_band_hz[1]/nyq_freq
@@ -397,11 +413,3 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
     return fig
 # end func
 
-
-if __name__ == "__main__":
-    corners = 2
-    plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000)
-    plt.savefig("filter_func_response_corners{}_oneway.png".format(corners), dpi=300)
-    plot_iir_impulse_response((0.02, 1.0), 100.0, corners, N=1000, zero_phase=True)
-    plt.savefig("filter_func_response_corners{}_twoway.png".format(corners), dpi=300)
-# end if
