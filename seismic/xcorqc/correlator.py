@@ -124,12 +124,13 @@ class Dataset:
 # end class
 
 def process(data_source1, data_source2, output_path,
-            interval_seconds, window_seconds,
-            resample_rate=None, nearest_neighbours=1,
+            interval_seconds, window_seconds, window_overlap,
+            resample_rate=None, taper_length=0.05, nearest_neighbours=1,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*',
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
-            clip_to_2std=False, whitening=False, one_bit_normalize=False, read_buffer_size=10,
+            clip_to_2std=False, whitening=False, whitening_window_frequency=0,
+            one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, restart=False, no_tracking_tag=False):
@@ -175,8 +176,10 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
             f.write('%25s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
             f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+            f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_OVERLAP', window_overlap))
 
             f.write('%25s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
+            f.write('%25s\t\t\t: %s\n' % ('--taper-length', taper_length))
             f.write('%25s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
             f.write('%25s\t\t\t: %s\n' % ('--fmin', fmin))
             f.write('%25s\t\t\t: %s\n' % ('--fmax', fmax))
@@ -193,6 +196,8 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
             f.write('%25s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
             f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
+            if(whitening):
+                f.write('%25s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
             f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
             f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%25s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
@@ -265,10 +270,11 @@ def process(data_source1, data_source2, output_path,
                                                         instrument_response_output, water_level,
                                                         corr_chans[0], corr_chans[1],
                                                         baz_netsta1, baz_netsta2,
-                                                        resample_rate, read_buffer_size, interval_seconds,
-                                                        window_seconds, fmin, fmax, clip_to_2std, whitening,
-                                                        one_bit_normalize, envelope_normalize, ensemble_stack,
-                                                        output_path, 2, tracking_tag=time_tag)
+                                                        resample_rate, taper_length, read_buffer_size, interval_seconds,
+                                                        window_seconds, window_overlap, fmin, fmax, clip_to_2std,
+                                                        whitening, whitening_window_frequency, one_bit_normalize,
+                                                        envelope_normalize, ensemble_stack, output_path, 2,
+                                                        time_tag)
     # end for
 # end func
 
@@ -286,7 +292,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=int)
 @click.argument('window-seconds', required=True,
                 type=int)
+@click.argument('window-overlap', required=True,
+                type=float)
 @click.option('--resample-rate', default=None, help="Resampling rate (Hz); applies to both datasets")
+@click.option('--taper-length', default=0.05, help="Taper length as a fraction of window length; default 0.05")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
                                                        " to correlate against a given station in data-source-1. If"
                                                        " set to -1, correlations for a cross-product of all stations"
@@ -315,13 +324,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               default='vel', help="Output of instrument response correction; must be either 'vel' (default) for velocity"
                                   " or 'disp' for displacement. Note, this parameter has no effect if instrument response"
                                   " correction is not performed.")
-@click.option('--water-level', default=50., help="Water-level in dB to limit amplification during instrument response correction"
-                                                 "to a certain cut-off value. Note, this parameter has no effect if instrument"
-                                                 "response correction is not performed.")
+@click.option('--water-level', type=float, default=50.,
+              help="Water-level in dB to limit amplification during instrument response correction"
+                   "to a certain cut-off value. Note, this parameter has no effect if instrument"
+                   "response correction is not performed.")
 @click.option('--clip-to-2std', is_flag=True,
               help="Clip data in each window to +/- 2 standard deviations")
 @click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
+@click.option('--whitening-window-frequency', type=float, default=0,
+              help="Window frequency (Hz) used to determine length of averaging window for smoothing spectral "
+                   "amplitude. The default value of 0 implies no smoothing. Note that this parameter has no "
+                   "effect unless whitening is activated with '--whitening'")
 @click.option('--one-bit-normalize', is_flag=True,
               help="Apply one-bit normalization to data in each window")
 @click.option('--read-buffer-size', default=10,
@@ -360,11 +374,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "functions for surface wave tomography.")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
-def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
-         nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-         end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
-         whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-         ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart, no_tracking_tag):
+def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
+         resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1, station_names2,
+         start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
+         clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+         ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
+         ensemble_stack, restart, no_tracking_tag):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -372,17 +387,19 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
     INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
     WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
                     WINDOW_SECONDS; no stacking is performed if they are of the same size.
+    WINDOW_OVERLAP: Window overlap fraction
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
     if(fmin): fmin = float(fmin)
     if(fmax): fmax = float(fmax)
 
-    process(data_source1, data_source2, output_path, interval_seconds, window_seconds, resample_rate,
-            nearest_neighbours, fmin, fmax, station_names1, station_names2, start_time,
-            end_time, instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
-            whitening, one_bit_normalize, read_buffer_size, ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan,
-            ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack, restart, no_tracking_tag)
+    process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
+            resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1, station_names2,
+            start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
+            clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
+            ensemble_stack, restart, no_tracking_tag)
 # end func
 
 if __name__ == '__main__':
