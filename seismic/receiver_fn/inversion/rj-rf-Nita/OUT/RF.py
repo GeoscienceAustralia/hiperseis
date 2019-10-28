@@ -1272,14 +1272,16 @@ def bodin_eval(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', mode='RF'):
   figure()
 
   subplot(211)
-  bar(left=array(range(len(layers_dat)))-0.5,height=(array(layers_dat,dtype='int'))/sum(array(layers_dat,dtype='float')),width=1)
-  xlim([1,len(layers_dat)])
+  bar(array(range(len(layers_dat))), height=(array(layers_dat, dtype='int'))/
+                                            sum(array(layers_dat, dtype='float')), width=1)
+  xlim([1, len(layers_dat)])
   xlabel('# layers')
   ylabel('P(# layers)')
 
   subplot(212)
-  bar(left=sigmar[0],height=(array(sigmar[1],dtype='float')/sum(array(sigmar[1],dtype='float'))),width=(sigmar[0][1] - sigmar[0][0]))  
-  xlim([sigmar[0][0],sigmar[0][-1]])
+  bar(sigmar[0], height=(array(sigmar[1], dtype='float')/sum(array(sigmar[1], dtype='float'))),
+      width=(sigmar[0][1] - sigmar[0][0]))
+  xlim([sigmar[0][0], sigmar[0][-1]])
   xlabel('$\sigma$ for RF')
   ylabel('p($\sigma$)')
 
