@@ -201,14 +201,17 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
                 # detrend
-                tr1_d = simple(tr1_d) # subtract a line through the first and last sample
-                tr2_d = simple(tr2_d) # subtract a line through the first and last sample
-                #tr1_d = spline(tr1_d, 2, 50000)
-                #tr2_d = spline(tr2_d, 2, 50000)
+                #tr1_d = simple(tr1_d) # subtract a line through the first and last sample
+                #tr2_d = simple(tr2_d) # subtract a line through the first and last sample
+                tr1_d = scipy.signal.detrend(tr1_d)
+                tr2_d = scipy.signal.detrend(tr2_d)
+
+                #tr1_d = spline(tr1_d, 2, 20000)
+                #tr2_d = spline(tr2_d, 2, 20000)
 
                 # zero-mean
-                tr1_d -= np.mean(tr1_d)
-                tr2_d -= np.mean(tr2_d)
+                #tr1_d -= np.mean(tr1_d)
+                #tr2_d -= np.mean(tr2_d)
 
                 # taper
                 if(taper_length>0):
@@ -237,7 +240,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     except Exception as e:
                         print (e)
                     # end try
+
                     tr1_d = resp_tr1.data
+                    # highpass to suppress low frequencies potentially introduced by response removal
+                    tr1_d = highpass(tr1_d, flo, sr1_orig, corners=6, zerophase=True)
                 # end if
 
                 # remove response
@@ -257,7 +263,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     except Exception as e:
                         print (e)
                     # end try
+
                     tr2_d = resp_tr2.data
+                    # highpass to suppress low frequencies potentially introduced by response removal
+                    tr2_d = highpass(tr2_d, flo, sr2_orig, corners=6, zerophase=True)
                 # end if
 
                 # resample after lowpass @ resample_rate/2 Hz
