@@ -7,6 +7,7 @@ import os
 import click
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 
 paper_size_A4_landscape = (11.69, 8.27)  # inches
@@ -39,6 +40,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
             xar_synth.append(float(a))
             yar_synth.append(float(b))
 
+        # Plot actual vs predicted RF
         plt.figure(figsize=fig_size)
         plt.plot(xar_obs, yar_obs, 'k', label='observed', alpha=0.8)
         plt.plot(xar_synth, yar_synth, 'r', label='synthetic', alpha=0.8)
@@ -48,6 +50,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.title('Observed vs synthesized RF from earth model')
         aligner_color = "#a0a0a080"
         plt.gca().xaxis.grid(True, color=aligner_color, linestyle=':')
+        plt.gca().xaxis.set_minor_locator(MultipleLocator(1))
 
         pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
         plt.close()
@@ -130,6 +133,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.ylim(y_range)
         plt.title('Candidate solutions')
         plt.gca().invert_yaxis()
+        plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
         plt.subplot(132)
         plt.plot([float(beta_min), (float(beta_max) - 2 * float(width))], [0, float(d_max)], 'k', alpha=0.8)
@@ -142,6 +146,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.legend()
         plt.title('Velocity profile')
         plt.gca().invert_yaxis()
+        plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
         plt.subplot(133)
         plt.plot(cpar[1] / max(cpar[1]), cpar[0], 'k')
@@ -151,6 +156,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.title('Confidence')
         plt.xlabel('P(transition)')
         plt.gca().invert_yaxis()
+        plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
         pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
         plt.close()
@@ -180,8 +186,8 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.figure(figsize=fig_size)
 
         plt.subplot(311)
-        plt.plot(c_misfit[0][1:], label='variable 0', alpha=0.8)
-        plt.plot(c_misfit[1][1:], label='variable 1', alpha=0.8)
+        plt.semilogy(c_misfit[0][1:], label='variable 0', alpha=0.8)
+        plt.semilogy(c_misfit[1][1:], label='variable 1', alpha=0.8)
         # plt.plot([c_misfit[0][0],0],[c_misfit[0][0],c_misfit[1][0]],'r')
         plt.ylabel('Misfit')  # unit = ??
         plt.legend()
@@ -194,8 +200,8 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(313)
-        plt.plot(csig[0][1:], label='variable 0', alpha=0.8)
-        plt.plot(csig[1][1:], label='variable 0', alpha=0.8)
+        plt.semilogy(csig[0][1:], label='variable 0', alpha=0.8)
+        plt.semilogy(csig[1][1:], label='variable 0', alpha=0.8)
         plt.xlabel('Iteration number')
         plt.ylabel(r'$\sigma$')
         plt.grid(color=aligner_color, linestyle=':')
