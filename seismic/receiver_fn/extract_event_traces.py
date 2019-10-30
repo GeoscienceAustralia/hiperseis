@@ -301,6 +301,11 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
             # be overwritten rather than duplicated.
+            # Check first if rotation for unaligned *H1, *H2 channels to *HN, *HE is required.
+            if s.select(component='1') and s.select(component='2'):
+                s.rotate('->ZNE', inventory=inventory)
+            # end if
+            # Loop over ZNE traces
             for tr in s:
                 grp_id = '.'.join(tr.id.split('.')[0:3])
                 event_time = str(tr.meta.event_time)[0:19]
