@@ -1762,20 +1762,3 @@ def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
 
   return stats, Ps_med, Ps_quarts
 # end func
-
-
-# -------------Main---------------------------------
-
-@click.command()
-@click.option('--rf-waveform', type=click.Path(exists=True, dir_okay=False), required=True,
-              help=r'Input Receiver Function waveform used for inversion (.dat file)')
-@click.option('--input-folder', type=click.Path(exists=True, dir_okay=True, file_okay=False), required=True,
-              help=r'Folder containing the input files for generating PDF report. Same as output folder of inversion.')
-@click.argument('pdf-output-folder', type=click.Path(exists=True, dir_okay=True, file_okay=False), required=True)
-def main(rf_waveform, input_folder, pdf_output_folder):
-  bodin_eval(input_folder, rf_waveform, pdf_output_folder)
-# end func
-
-if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
-# end if
