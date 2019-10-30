@@ -14,4 +14,3 @@ module load openmpi/1.10.2-mt
 echo $INFILE
 echo $OUT
 mpirun ./run $INFILE $OUT
-

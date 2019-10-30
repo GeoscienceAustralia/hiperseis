@@ -9,8 +9,8 @@ obspyh5
 shapely
 geographiclib
 cartopy
-pytables; sys_platform=="win32"
-tables; sys_platform!="win32"
+pytables==3.5.2; sys_platform=="win32"
+tables==3.5.2; sys_platform!="win32"
 mpi4py
 psutil
 #geopandas
@@ -25,4 +25,4 @@ requests
 Cython  # On NCI, use module load
 #mpi4py # On NCI, use module load
 tqdm
-rf>=0.8.0
+rf==0.8.0
