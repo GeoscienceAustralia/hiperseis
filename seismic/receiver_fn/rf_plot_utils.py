@@ -7,7 +7,9 @@ import time
 from collections import defaultdict
 
 import numpy as np
+import scipy.signal
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
@@ -147,9 +149,10 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     if num is not None:
         xl = plt.xlim()
         yl = plt.ylim()
-        txt_x = xl[0] + 0.85*(xl[1] - xl[0])
+        txt_x = xl[0] + 0.95*(xl[1] - xl[0])
         txt_y = yl[0] + 0.95*(yl[1] - yl[0])
-        plt.text(txt_x, txt_y, "N = {}".format(num), color="#ffffff", fontsize=16, fontweight='bold')
+        plt.text(txt_x, txt_y, "N = {}".format(num), horizontalalignment='right',
+                 color="#ffffff", fontsize=16, fontweight='bold')
     # end if
 
     if save_file is not None:
@@ -169,6 +172,7 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     # end if
 
     return fig
+# end func
 
 
 def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', title='',
@@ -276,3 +280,136 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
     # end for
 
     return fig
+# end func
+
+
+def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
+    """Plot one-way bandpass filter response in the frequency domain. If filter is used as zero-phase,
+    the attenuation will be twice what is computed here.
+
+    :param filter_band_hz: Pair of frequencies corresponding to low cutoff and high cutoff freqs
+    :type filter_band_hz: tuple(float) of length 2 (i.e. pair)
+    :param sampling_rate_hz: The sampling rate in Hz
+    :type sampling_rate_hz: float
+    :param corners: The order of the filter
+    :type corners: int
+    :return: Figure object
+    :rtype: matplotlib.figure.Figure
+    """
+    nyq_freq = sampling_rate_hz/2.0
+    f_low = filter_band_hz[0]/nyq_freq
+    f_high = filter_band_hz[1]/nyq_freq
+    # Assuming code in obspy.signal.filter.bandpass uses this same iirfilter design function.
+    z, p, k = scipy.signal.iirfilter(corners, [f_low, f_high], btype='band', ftype='butter', output='zpk')
+    num_freqs = int(np.ceil(2*sampling_rate_hz/filter_band_hz[0]))
+    w, h = scipy.signal.freqz_zpk(z, p, k, fs=sampling_rate_hz, worN=num_freqs)
+
+    fig = plt.figure(figsize=(16, 9))
+    ax1 = fig.add_subplot(1, 1, 1)
+    ax1.set_title('Bandpass filter frequency response: band ({}, {})/{} Hz, order {}'
+                  .format(*filter_band_hz, sampling_rate_hz, corners), fontsize=18)
+    ax1.plot(w, 10*np.log10(np.abs(h)), alpha=0.8, color='C0', linewidth=2)
+    # ax1.set_xlim(0, 4*filter_band_hz[1])
+    ax1.set_ylim(-100.0, 5)
+    ax1.set_ylabel('Amplitude (dB)', color='C0', fontsize=16)
+    ax1.tick_params(labelsize=16)
+    ax1.set_xlabel('Frequency (Hz)', fontsize=16)
+    ylims = plt.ylim()
+    rect = patches.Rectangle((filter_band_hz[0], ylims[0]), filter_band_hz[1] - filter_band_hz[0],
+                             ylims[1] - ylims[0], color='#80ff8040', zorder=0)
+    ax1.add_patch(rect)
+    plt.axvline(filter_band_hz[0], color='#80ff8080', linestyle='--')
+    plt.axvline(filter_band_hz[1], color='#80ff8080', linestyle='--')
+    plt.grid(linestyle=':', color="#80808080")
+
+    ax2 = ax1.twinx()
+    angles = np.unwrap(np.angle(h))
+    ax2.plot(w, angles, alpha=0.8, color='C1', linestyle='--', linewidth=2)
+    # ax2.set_xlim(0, 4*filter_band_hz[1])
+    ax2.set_ylabel('Angle (rad)', color='C1', fontsize=16)
+    ax2.tick_params(labelsize=16)
+
+    # plt.axis('tight')
+
+    return fig
+# end func
+
+
+def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_phase=False, N=1000, blip_period=1.0):
+    """Plot bandpass filter response to standard waveforms in the time domain - impulse (delta function,
+    step function, square wave pulse. By default filter is applied one-way. Set `zero_phase=True` to
+    plot two-way filter response.
+
+    :param filter_band_hz: Pair of frequencies corresponding to low cutoff and high cutoff freqs
+    :type filter_band_hz: tuple(float) of length 2 (i.e. pair)
+    :param sampling_rate_hz: The sampling rate in Hz
+    :type sampling_rate_hz: float
+    :param zero_phase: If True, plot two-way signal response (zero phase), otherwise plot
+        one-way signal response.
+    :type zero_phase: bool
+    :param N: Number of samples in the input test signals.
+    :type N: int
+    :param blip_period: Period of the 'blip' test signal (square wave pulse).
+    :type blip_period: float
+    """
+    nyq_freq = sampling_rate_hz/2.0
+    f_low = filter_band_hz[0]/nyq_freq
+    f_high = filter_band_hz[1]/nyq_freq
+    # Assuming code in obspy.signal.filter.bandpass uses this same iirfilter design function.
+    z, p, k = scipy.signal.iirfilter(corners, [f_low, f_high], btype='band', ftype='butter', output='zpk')
+    sos = scipy.signal.zpk2sos(z, p, k)
+
+    times = (np.arange(N) - (N//2))/sampling_rate_hz
+    impulse = scipy.signal.unit_impulse(N, idx='mid')
+    step = np.zeros_like(times)
+    step[times >= 0] = 1
+    # step -= 0.5
+    blip = np.zeros_like(times)
+    blip[(times >= -blip_period/2) & (times < 0)] = 1
+    blip[(times >= 0) & (times <= blip_period/2)] = -1
+
+    if zero_phase:
+        ir = scipy.signal.sosfiltfilt(sos, impulse)
+        sr = scipy.signal.sosfiltfilt(sos, step)
+        br = scipy.signal.sosfiltfilt(sos, blip)
+    else:
+        ir = scipy.signal.sosfilt(sos, impulse)
+        sr = scipy.signal.sosfilt(sos, step)
+        br = scipy.signal.sosfilt(sos, blip)
+    # end if
+
+    yrange = 1.2
+
+    fig = plt.figure(figsize=(16, 9))
+    plt.subplot(3, 1, 1)
+    plt.plot(times, impulse)
+    plt.plot(times, ir, alpha=0.8)
+    plt.title("Impulse response")
+    plt.ylabel("Amplitude")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+    plt.legend(['Input', 'Response'])
+
+    plt.subplot(3, 1, 2)
+    plt.plot(times, step)
+    plt.plot(times, sr, alpha=0.8)
+    plt.title("Step response")
+    plt.ylabel("Amplitude")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+
+    plt.subplot(3, 1, 3)
+    plt.plot(times, blip)
+    plt.plot(times, br, alpha=0.8)
+    plt.title("Square pulse response (period = {} sec)".format(blip_period))
+    plt.ylabel("Amplitude")
+    plt.xlabel("Time (s)")
+    plt.ylim(-yrange, yrange)
+    plt.grid(linestyle=':', color="#80808080")
+
+    direction = '(one way)' if not zero_phase else '(two way)'
+    plt.suptitle("Reponse characteristics for filter band ({}, {})/{} Hz, order {} {}"
+                 .format(*filter_band_hz, sampling_rate_hz, corners, direction))
+    return fig
+# end func
+

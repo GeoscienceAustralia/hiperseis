@@ -12,6 +12,8 @@ from scipy.signal import hilbert
 
 import rf
 
+from seismic.receiver_fn.rf_network_dict import NetworkRFDict
+
 # pylint: disable=invalid-name, logging-format-interpolation
 
 KM_PER_DEG = 111.1949
@@ -100,14 +102,10 @@ def rf_to_dict(rf_data):
 
     :param rf_data: RFStream data
     :type rf_data: rf.RFStream
-    :return: Nested dicts to find traces by station then channel code.
-    :rtype: dict(dict(list(rf.RFTrace)))
+    :return: Nested dicts to find traces by station then channel code, with attached metadata.
+    :rtype: seismic.receiver_fn.rf_network_dict.NetworkRFDict
     """
-    db = defaultdict(lambda: defaultdict(list))
-    for s in rf_data:
-        _, sta, _, cha = s.id.split('.')
-        db[sta][cha].append(s)
-    return db
+    return NetworkRFDict(rf_data)
 
 
 def signed_nth_root(arr, order):

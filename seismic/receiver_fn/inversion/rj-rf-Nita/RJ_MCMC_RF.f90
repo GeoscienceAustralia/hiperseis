@@ -1,6 +1,6 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! This progranm does a Transdimensional inversion of Receiver fuunctions
+! This program does a Transdimensional inversion of Receiver functions
 ! with the reversible jump algorithm
 
 ! Thomas Bodin, ANU, December 2011
@@ -22,9 +22,9 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 6500000	!Burn-in period
-integer, parameter :: nsample = 9500000   !Post burn-in
-integer, parameter :: thin = 100 	!Thinning of the chain 
+integer, parameter :: burn_in = 650000  !Burn-in period
+integer, parameter :: nsample = 950000  !Post burn-in
+integer, parameter :: thin = 100        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
 ! only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble
@@ -78,7 +78,7 @@ real, parameter :: pAr = 0.002     !proposal for change in noise parameter
 ! Parameters for Displaying results 
 !-------------------------------------------- 
 
-integer, parameter :: display = 20000 ! display results in OUT/mpi.out 
+integer, parameter :: display = 20000 ! display results in OUT/mpi.out
 !every display samples
 double precision, parameter ::    sig=2.5 !fs/a
 
@@ -106,10 +106,12 @@ real, parameter :: gauss_a = 2.5    !number 'a' defining the width of
 !the gaussian filter in the deconvolution  
 real, parameter :: water_c = 0.0001 !water level for deconvolution 
 real, parameter :: angle = 31.85       ! angle of the incoming wave 
-real, parameter :: time_shift = 5   !time shift before the first p pusle 
+real, parameter :: time_shift = 5   !time shift before the first p pulse
 integer, parameter :: ndatar = 157  !Number of data points
 
-!Since we need to compute numerically the inverse of the data covariance matrix numerically, please try to keep ndatar as small as possible (i.e. fs as small as possible) without loosing information on the waveform of course.
+!Since we need to compute numerically the inverse of the data covariance matrix numerically,
+!please try to keep ndatar as small as possible (i.e. fs as small as possible), without losing
+!information on the waveform of course.
 
 integer, parameter :: maxdata = 250 !needs to be > than ndatar
 
@@ -172,15 +174,63 @@ integer ra,ran,rank, nbproc, ierror, tag, status(MPI_STATUS_SIZE)
 
 !Add by Sheng RSES ANU Aug-2018
 integer clock, n, seed
+
+! Variables for command line interface
+integer :: num_cli_args
+integer :: cli_status
+integer :: dummy_cli_len
+character(len=256) :: input_file
+character(len=256) :: output_folder
+
 !***********************************************************************
 
+!**************************************************************
 
+!                  CHECK AND READ ARGUMENTS
+
+!**************************************************************
+num_cli_args = command_argument_count()
+if (num_cli_args /= 2) then
+  print *, 'Usage: run input_filename output_folder'
+  call exit()
+end if
+
+call get_command_argument(1, input_file, dummy_cli_len, cli_status)
+if (cli_status < 0) then
+  print *, 'Input file path too long'
+  call exit()
+else if (cli_status > 0) then
+  print *, 'Unknown error retrieving input filename'
+  call exit()
+else
+  print *, 'Input file: ', TRIM(input_file)
+end if
+
+call get_command_argument(2, output_folder, dummy_cli_len, cli_status)
+if (cli_status < 0) then
+  print *, 'Output path too long'
+  call exit()
+else if (cli_status > 0) then
+  print *, 'Unknown error retrieving output path'
+  call exit()
+else
+  print *, 'Output path: ', TRIM(output_folder)
+end if
+
+
+!**************************************************************
+
+!                  INITIALIZATION
+
+!**************************************************************
 
 CALL cpu_time(t1)  !Tic. start counting time 
  
 
- !Start Parralelization of the code. From now on, the code is run on each
-  !processor independently, with ra = the number of the proc.
+ !Start Parallelization of the code. From now on, the code is run on each
+ !processor independently, with ra = the number of the proc.
+ ! Note that running in parallel does not reduce total CPU time, instead
+ ! it just samples more random states and averages more samples at the end.
   call MPI_INIT(ierror)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nbproc, ierror)
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierror)
@@ -194,8 +244,9 @@ CALL cpu_time(t1)  !Tic. start counting time
 
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
-seed = clock
+seed = clock + rank
 ra=int(seed)
+write(*,*)'Rank',rank,'using seed',ra
 
 
 !**************************************************************
@@ -205,7 +256,7 @@ ra=int(seed)
 !**************************************************************
 
 
-open(55,file='RF_obs.dat',status='old')
+open(55, file=TRIM(input_file), status='old')
 do i=1,ndatar
 read(55,*)u,d_obsr(i)
 end do
@@ -294,11 +345,11 @@ UU=Cd
 
 ! The Picard plot show you eigenvalues. 
 if(ran==0) then
-open(66,file='Picard.out',status='replace')
-do i=1,ndatar
-	write(66,*)w(i)
-enddo
-close(66)
+   open(66,file=TRIM(output_folder)//'/Picard.out',status='replace')
+   do i=1,ndatar
+      write(66,*)w(i)
+   enddo
+   close(66)
 endif
 
 !The inversion of Cd was stabilized with truncation of small eigenvalues after singular value decomposition of the system of equations.
@@ -774,72 +825,78 @@ avs=avs/nb
 
 IF (ran==0) THEN
 
-open(65,file='OUT/Change_points.out',status='replace')
+open(65,file=TRIM(output_folder)//'/Change_points.out',status='replace')
 do i=1,disd
-	d=d_min+(i-0.5)*prof/real(disd)
-	write(65,*)d,histochs(i)
+   d=d_min+(i-0.5)*prof/real(disd)
+   write(65,*)d,histochs(i)
 enddo
 close(65)
 
-open(56,file='OUT/Average.out',status='replace')
+open(56,file=TRIM(output_folder)//'/Average.out',status='replace')
 do i=1,disd
-	d=(i-1)*prof/real(disd-1)
-	write(56,*)d,avs(i)
+   d=(i-1)*prof/real(disd-1)
+   write(56,*)d,avs(i)
 enddo
 close(56)
 
-open(66,file='OUT/Sigma.out',status='replace')
+open(66,file=TRIM(output_folder)//'/Sigma.out',status='replace')
 do i=1,disA
-	d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
-	write(66,*)d,ML_Ars(i)
+   d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
+   write(66,*)d,ML_Ars(i)
 enddo
 close(66)
 
-open(71,file='OUT/Posterior.out',status='replace')
+open(71,file=TRIM(output_folder)//'/Posterior.out',status='replace')
 write(71,*)prof,disd,d_max
 write(71,*)beta_min-width,beta_max+width,disv,width
 do i=1,disd
-	do j=1,disv
-	write(71,*)posts(i,j)
-	enddo
+   do j=1,disv
+      write(71,*)posts(i,j)
+   enddo
 enddo
 close(71)! close the file 
 
 
-open(72,file='OUT/data_best.out',status='replace')
+open(72,file=TRIM(output_folder)//'/data_best.out',status='replace')
 do i=1,ndatar
-	xi=-time_shift+(i-1)/fs
-	write(72,*)xi,best_datar(i)
+   xi=-time_shift+(i-1)/fs
+   write(72,*)xi,best_datar(i)
 enddo
 close(72)
 
 
-open(54,file='OUT/Convergence_misfit.out',status='replace')
+open(54,file=TRIM(output_folder)//'/Convergence_misfit.out',status='replace')
 write(54,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(54,*)conv(i),convs(i)
+   write(54,*)conv(i),convs(i)
 enddo
 close(54)! close the file 
 
-open(53,file='OUT/Convergence_nb_layers.out',status='replace')
+open(53,file=TRIM(output_folder)//'/Convergence_nb_layers.out',status='replace')
 write(53,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(53,*)ncell(i),ncells(i)
+   write(53,*)ncell(i),ncells(i)
 enddo
 close(53)! close the file 
 
-open(52,file='OUT/Convergence_sigma.out',status='replace')
+open(52,file=TRIM(output_folder)//'/Convergence_sigma.out',status='replace')
 write(52,*)burn_in,nsample
 do i=1,nsample+burn_in
-write(52,*)convAr(i),convArs(i)
+   write(52,*)convAr(i),convArs(i)
 enddo
 close(52)! close the file
 
-open(45,file='OUT/NB_layers.out',status='replace')
+open(45,file=TRIM(output_folder)//'/NB_layers.out',status='replace')
 do i=1,npt_max
-write(45,*)histos(i)
+   write(45,*)histos(i)
 enddo
 close(45)! close the file 
+
+open(46,file=TRIM(output_folder)//'/vpvs.out',status='replace')
+do i=1,npt_max
+   write(46,*)vpvs(i)
+enddo
+close(46)! close the file 
 
 endif
 CALL cpu_time(t2)
@@ -920,7 +977,7 @@ DATA iff /0/
 ! write(*,*)' idum ',idum
 if(idum.lt.0.or.iff.eq.0)then
 	iff=1
-	mj=MSEED-iabs(idum)
+	mj=abs(MSEED-abs(idum))
 	mj=mod(mj,MBIG)
 	ma(55)=mj
 	mk=1

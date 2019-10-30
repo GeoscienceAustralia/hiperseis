@@ -27,16 +27,17 @@ logging.basicConfig()
 # pylint: disable=invalid-name, logging-format-interpolation
 
 DEFAULT_RESAMPLE_RATE_HZ = 20.0
-DEFAULT_FILTER_BAND_HZ = (0.03, 1.50)
-DEFAULT_TAPER_LIMIT = 0.01
+DEFAULT_FILTER_BAND_HZ = (0.02, 1.00)
+DEFAULT_TAPER_LIMIT = 0.05
 DEFAULT_TRIM_START_TIME_SEC = -50.0
 DEFAULT_TRIM_END_TIME_SEC = 150.0
 DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
-DEFAULT_GAUSS_WIDTH = 3.0
+DEFAULT_GAUSS_WIDTH = 1.0
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
 RAW_RESAMPLE_RATE_HZ = 20.0
+BANDPASS_FILTER_ORDER = 2
 
 
 def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
@@ -155,8 +156,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     try:
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
-                            **kwargs).interpolate(resample_rate_hz)
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
+                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
             kwargs.update({'spiking': spiking})
             if not normalize:
                 # No normalization. The "normalize" argument must be set to None.
@@ -164,18 +165,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # end if
             stream3c.rf(rotate=rf_rotation, **kwargs)
         elif deconv_domain == 'freq':
-            # Note the parameters of Gaussian pulse and its width. Gaussian acts as a low pass filter
-            # in freq domain. Center column indicates approx. cutoff freq for a given 'a' value.
-            # Value of "a" | Frequency (hz) at which G(f) = 0.1 |  Approximate Pulse Width (s)
-            # 10                      4.8                                0.50
-            # 5                       2.4                                0.75
-            # 2.5                     1.2                                1.00
-            # 1.25                    0.6                                1.50
-            # 1.0                     0.5                                1.67 (5/3)
-            # 0.625                   0.3                                2.10
-            # 0.5                     0.24                               2.36
-            # 0.4                     0.2                                2.64
-            # 0.2                     0.1                                3.73
+            # As of https://github.com/trichter/rf/issues/15, the Gaussian parameter is directly related
+            # to the cutoff freq. Requires rf version >=0.8.0
             if not normalize:
                 # No normalization. The "normalize" argument must be set to None.
                 kwargs['normalize'] = None
@@ -186,8 +177,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         elif deconv_domain == 'iter':
             # For iterative deconvolution, we need to trim first before deconvolution, as the fitting to the
             # response performs much better on shorter (trimmed) data.
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1], corners=2, zerophase=True,
-                            **kwargs).interpolate(resample_rate_hz)
+            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
+                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
             stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
         else:

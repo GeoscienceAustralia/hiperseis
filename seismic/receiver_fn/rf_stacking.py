@@ -12,15 +12,12 @@ import seismic.receiver_fn.rf_util as rf_util
 logging.basicConfig()
 
 
-def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
+def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
                      k_range=np.linspace(1.4, 2.0, 301), root_order=1, include_t3=True):
     """Compute H-k stacking array on a dataset of receiver functions.
 
-    :param db_station: Station RF dataset, a dict keyed by channel code with each channel having a list or
-        iterable of RF traces.
-    :type db_station: dict(str, iterable(rf.RFTrace))
-    :param cha: Channel code of the channel for which to apply H-k stacking
-    :type cha: str
+    :param cha_data: List or iterable of RF traces to use for H-k stacking.
+    :type cha_data: iterable(rf.RFTrace)
     :param V_p: P-wave velocity in crustal layer, defaults to None in which case it is inferred from trace metadata
     :type V_p: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
@@ -39,7 +36,6 @@ def compute_hk_stack(db_station, cha, V_p=None, h_range=np.linspace(20.0, 70.0, 
     # inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
 
     log = logging.getLogger(__name__)
-    cha_data = db_station[cha]
 
     infer_Vp = (V_p is None)
     if infer_Vp:
