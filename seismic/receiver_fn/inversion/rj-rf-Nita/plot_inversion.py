@@ -43,7 +43,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         # Plot actual vs predicted RF
         plt.figure(figsize=fig_size)
         plt.plot(xar_obs, yar_obs, 'k', label='observed', alpha=0.8)
-        plt.plot(xar_synth, yar_synth, 'r', label='synthetic', alpha=0.8)
+        plt.plot(xar_synth, yar_synth, 'r', label='synthetic (from rank 0)', alpha=0.8)
         plt.legend()
         plt.xlabel('Time (sec)')
         plt.ylabel('RF amplitude')
@@ -131,7 +131,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.xlim(x_range)
         y_range = [0, float(prof)]
         plt.ylim(y_range)
-        plt.title('Candidate solutions')
+        plt.title('Ensemble PDF')
         plt.gca().invert_yaxis()
         plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
@@ -153,7 +153,8 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.fill_betweenx(cpar[0], cpar[1] / max(cpar[1]), 0, color='darkgrey')
         plt.xlim([0, 1])
         plt.ylim(y_range)
-        plt.title('Confidence')
+        # Prevalance of change points at this depth among the model ensemble (confidence in delta-V)
+        plt.title('Prevalence of change points')
         plt.xlabel('P(transition)')
         plt.gca().invert_yaxis()
         plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
@@ -186,27 +187,27 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.figure(figsize=fig_size)
 
         plt.subplot(311)
-        plt.semilogy(c_misfit[0][1:], label='variable 0', alpha=0.8)
-        plt.semilogy(c_misfit[1][1:], label='variable 1', alpha=0.8)
+        # plt.semilogy(c_misfit[0][1:], label='Rank 0', alpha=0.8)
+        plt.semilogy(c_misfit[1][1:], label='Mean', alpha=0.8)
         # plt.plot([c_misfit[0][0],0],[c_misfit[0][0],c_misfit[1][0]],'r')
         plt.ylabel('Misfit')  # unit = ??
         plt.legend()
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(312)
-        plt.plot(c_layers[0][1:], label='variable 0', alpha=0.8)
-        plt.plot(c_layers[1][1:], label='variable 0', alpha=0.8)
+        # plt.plot(c_layers[0][1:], label='Rank 0', alpha=0.8)
+        plt.plot(c_layers[1][1:], label='Mean', alpha=0.8)
         plt.ylabel('# layers')
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(313)
-        plt.semilogy(csig[0][1:], label='variable 0', alpha=0.8)
-        plt.semilogy(csig[1][1:], label='variable 0', alpha=0.8)
+        # plt.semilogy(csig[0][1:], label='Rank 0', alpha=0.8)
+        plt.semilogy(csig[1][1:], label='Mean', alpha=0.8)
         plt.xlabel('Iteration number')
         plt.ylabel(r'$\sigma$')
         plt.grid(color=aligner_color, linestyle=':')
 
-        plt.suptitle('Convergence history')
+        plt.suptitle('Convergence history', y=0.92)
 
         pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
         plt.close()
