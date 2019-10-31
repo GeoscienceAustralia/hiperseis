@@ -187,6 +187,11 @@ character(len=256) :: output_folder
 !                  CHECK AND READ ARGUMENTS
 
 !**************************************************************
+Acnr=0.
+liker_prop=0
+lsr_prop=0
+Prnr=0
+
 num_cli_args = command_argument_count()
 if (num_cli_args /= 2) then
   print *, 'Usage: run input_filename output_folder'
@@ -272,7 +277,7 @@ close(55)! close the file
 Ar =  Ar_min+ran3(ra)*(Ar_max-Ar_min)!
 
 ! Initial number of cells
-npt = npt_min+ran3(ra)*(8-npt_min)
+npt = npt_min+int(ran3(ra)*(8-npt_min))
 
 ! We place them randomly
 do i=1,npt
@@ -376,7 +381,7 @@ enddo
 
 like=0
 do i=1,ndatar
-like=like+(b(i)-bes(i))**2
+like=like+real(b(i)-bes(i))**2
 enddo
 like=like/ndatar
 
@@ -393,7 +398,7 @@ write(*,*)'SVD','test results',sqrt(like),'should be << 1'
 LSr=0
 do i=1,ndatar
  br(i)=(d_obsr(i)-wdata(i))
- LSr=LSr+br(i)**2
+ LSr=LSr+real(br(i)**2)
  enddo
 LSr_min=LSr
  br=br/(Ar**2)
@@ -403,7 +408,7 @@ call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
 
 liker=0
 do i=1,ndatar
-	liker=liker+(d_obsr(i)-wdata(i))*x(i)
+    liker=liker+(d_obsr(i)-wdata(i))*real(x(i))
 enddo
 liker=liker/(2)
 !like=0!
@@ -758,7 +763,7 @@ endif
 !get convergence
  conv(ount)=LSr
 ncell(ount)=npt
- convAr(ount)=Ar	
+ convAr(ount)=real(Ar)
 
 !**********************************************************************
 	
@@ -839,7 +844,7 @@ close(56)
 
 open(66,file=TRIM(output_folder)//'/Sigma.out',status='replace')
 do i=1,disA
-   d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
+   d=real(Ar_min+(i-0.5)*(Ar_max-Ar_min)/disA)
    write(66,*)d,ML_Ars(i)
 enddo
 close(66)
