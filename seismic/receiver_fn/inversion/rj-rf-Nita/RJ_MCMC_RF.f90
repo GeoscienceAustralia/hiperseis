@@ -150,29 +150,28 @@ double precision, parameter :: wmin=0.000001
 real , EXTERNAL    ::    gasdev,ran3
 real log, sqrt
 
-integer i,npt,sample,ind,accept,l,th,ount,npt_prop,nb,k,tes
+integer i,npt,sample,ind,accept,l,th,ount,npt_prop,nb
 integer birth, death,move,value,noisr,noisd,ind2,v,j,chwidd,chwidr
 integer histo(npt_max),histos(npt_max),histoch(disd),histochs(disd)
-real beta(npt_max),h(npt_max),vpvs(npt_max),qa(npt_max),noiser(ndatar)
+real beta(npt_max),h(npt_max),vpvs(npt_max),qa(npt_max)
 real qb(npt_max),av(disd),post(disd,disv),PrP(2),PrV(2),AcP(2),AcV(2),mo(disd)
-real PrB,AcB,PrD,AcD,Prnr,Prnd,Acnr,avs(disd),posts(disd,disv),out,LSr,LSr_prop,LSr_min
-real ppara, din,ht,d,logprob,dd,convAr(nsample+burn_in),convArs(nsample+burn_in)
+real PrB,AcB,PrD,AcD,Prnr,Acnr,avs(disd),posts(disd,disv),out,LSr,LSr_prop,LSr_min
+real ppara, din,ht,d,logprob,convAr(nsample+burn_in),convArs(nsample+burn_in)
 real wdata(maxdata),best_datar(maxdata),d_obsr(maxdata),voro(npt_max,3)
 real voro_prop(npt_max,3),conv(nsample+burn_in),ncell(nsample+burn_in)
 real convs(nsample+burn_in),ncells(nsample+burn_in),t1,t2
 real like,like_prop,liker,liker_prop,u,pv_min,pv_max,like_min,xi
 real ML_Ar(disA),ML_Ars(disA)
-double precision br(ndatar),Ar,Ar_prop,logrsig,logreps
-double precision besr(ndatar),AIr(ndatar,ndatar),AIr_prop(ndatar,ndatar),Cd(ndatar,ndatar),UU(ndatar,ndatar),W(ndatar),x(ndatar)
+double precision br(ndatar),Ar,Ar_prop,logrsig
+double precision AIr(ndatar,ndatar),AIr_prop(ndatar,ndatar),Cd(ndatar,ndatar),UU(ndatar,ndatar),W(ndatar),x(ndatar)
 double precision vv(ndatar,ndatar),bes(ndatar),b(ndatar)
 double precision r
-real vpvs_min,vpvs_max
 
 !for MPI
-integer ra,ran,rank, nbproc, ierror, tag, status(MPI_STATUS_SIZE)
+integer ra,ran,rank, nbproc, ierror
 
 !Add by Sheng RSES ANU Aug-2018
-integer clock, n, seed
+integer clock, seed
 
 ! Variables for command line interface
 integer :: num_cli_args
