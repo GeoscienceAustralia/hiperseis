@@ -9,9 +9,8 @@
 !********************************************************************
 
 program RJ_MCMC_RF
-
+use mpi
 implicit none
-include 'mpif.h'
 
 !             ----------------------------------
 !             BEGINING OF THE USER-DEFINED PARAMETERS
