@@ -6,12 +6,19 @@ import os
 
 import click
 import numpy as np
+import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 
 paper_size_A4_landscape = (11.69, 8.27)  # inches
 fig_size = (0.9*paper_size_A4_landscape[0], 0.9*paper_size_A4_landscape[1])
+
+
+def _load_convergence_sequence(filename):
+    d = pd.read_csv(filename, header=None, skiprows=1)
+    return np.array(d[0].data)
+# end func
 
 
 def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
@@ -21,24 +28,13 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
 
     with PdfPages(output_file) as pdf:
 
-        with open(rf_waveform, 'r') as rfin:
-            rf_dat = rfin.readlines()
+        rf_dat = np.loadtxt(rf_waveform)
+        synth_dat = np.loadtxt(os.path.join(data_dir, 'data_best.out'))
 
-        with open(os.path.join(data_dir, 'data_best.out'), 'r') as rf_synth:
-            synth_dat = rf_synth.readlines()
-
-        xar_obs = []
-        xar_synth = []
-        yar_obs = []
-        yar_synth = []
-
-        for j in range(len(rf_dat)):
-            x, y = rf_dat[j].strip('\n').split(None)
-            xar_obs.append(float(x))
-            yar_obs.append(float(y))
-            a, b = synth_dat[j].strip('\n').split(None)
-            xar_synth.append(float(a))
-            yar_synth.append(float(b))
+        xar_obs = rf_dat[:,0]
+        yar_obs = rf_dat[:,1]
+        xar_synth = synth_dat[:,0]
+        yar_synth = synth_dat[:,1]
 
         # Plot actual vs predicted RF
         plt.figure(figsize=fig_size)
@@ -55,63 +51,29 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
         plt.close()
 
-        # read in stuff
+        # read in other model results
 
         with open(os.path.join(data_dir, 'Posterior.out'), 'r') as posterior:
             post_dat = posterior.readlines()
         prof, disd, d_max = post_dat[0].strip('\n').split(None)
+        disd = int(disd)
         beta_min, beta_max, disv, width = post_dat[1].strip('\n').split(None)
-        post_rest = post_dat[2:]
+        disv = int(disv)
+        post_rest = np.reshape(np.array([float(x.strip('\n')) for x in post_dat[2:]]), (disd, disv))
 
-        with open(os.path.join(data_dir, 'Convergence_misfit.out'), 'r') as conv_misfit:
-            misf_dat = conv_misfit.readlines()
-        c_misfit = np.zeros([2, len(misf_dat)])
-        for y in range(len(misf_dat)):
-            c_misfit[0][y], c_misfit[1][y] = misf_dat[y].strip('\n').split(None)
+        c_misfit = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_misfit.out'))
+        c_layers = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_nb_layers.out'))
+        csig = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_sigma.out'))
 
-        with open(os.path.join(data_dir, 'Convergence_nb_layers.out'), 'r') as conv_layers:
-            convlay_dat = conv_layers.readlines()
-        c_layers = np.zeros([2, len(convlay_dat)])
-        for a in range(len(convlay_dat)):
-            c_layers[0][a], c_layers[1][a] = convlay_dat[a].strip('\n').split(None)
-
-        with open(os.path.join(data_dir, 'Convergence_sigma.out'), 'r') as conv_sigma:
-            csigma_dat = conv_sigma.readlines()
-        csig = np.zeros([2, len(csigma_dat)])
-        for b in range(len(csigma_dat)):
-            csig[0][b], csig[1][b] = csigma_dat[b].strip('\n').split(None)
-
-        with open(os.path.join(data_dir, 'NB_layers.out'), 'r') as layers:
-            layers_dat = layers.readlines()
-
-        with open(os.path.join(data_dir, 'Sigma.out'), 'r') as sigma:
-            sigmadat = sigma.readlines()
-        sigmar = np.zeros([2, len(sigmadat)])
-        for w in range(len(sigmadat)):
-            sigmar[0][w], sigmar[1][w] = sigmadat[w].strip('\n').split(None)
-
-        with open(os.path.join(data_dir, 'Average.out'), 'r') as average:
-            ave_data = average.readlines()
-        ave = np.zeros([2, len(ave_data)])
-        for q in range(len(ave_data)):
-            ave[0][q], ave[1][q] = ave_data[q].strip('\n').split(None)
-
-        with open(os.path.join(data_dir, 'Change_points.out'), 'r') as cp:
-            cp_data = cp.readlines()
-        cpar = np.zeros([2, len(cp_data)])
-        for t in range(len(cp_data)):
-            cpar[0][t], cpar[1][t] = cp_data[t].strip('\n').split(None)
+        layers_dat = np.loadtxt(os.path.join(data_dir, 'NB_layers.out'), dtype=int)
+        sigmar = np.loadtxt(os.path.join(data_dir, 'Sigma.out'))
+        ave = np.loadtxt(os.path.join(data_dir, 'Average.out'))
+        cpar = np.loadtxt(os.path.join(data_dir, 'Change_points.out'))
 
         # Main plot
-        count = 0
-        P = np.zeros([int(disd), int(disv)])
-        maxx = np.zeros([int(disd), 1])
-        for i in range(int(disd)):
-            for j in range(int(disv)):
-                P[i][j] = float((post_rest)[count].strip('\n'))
-                count += 1
-            maxx[i] = P[i].argmax()
-
+        count = disd*disv
+        P = post_rest
+        maxx = np.argmax(P, axis=1)
         plt.figure(figsize=fig_size)
         x = [float(beta_min), float(beta_max)]
         y = [0, float(prof)]
@@ -122,7 +84,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         n = (v * float(disd) / float(prof)) + 0.5
 
         plt.subplot(131)
-        vmax = np.max(P[P != P[0][0]])
+        vmax = np.max(P[P != P[0,0]])
         # Recommended linear colormaps are plasma, inferno or viridis
         plt.imshow(P, cmap='plasma', extent=[x[0], x[1], y[1], y[0]], vmin=0, vmax=vmax, aspect='auto')
         plt.xlabel('Vs (km/s)')
@@ -138,8 +100,8 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.subplot(132)
         plt.plot([float(beta_min), (float(beta_max) - 2 * float(width))], [0, float(d_max)], 'k', alpha=0.8)
         plt.plot([float(beta_min) + 2 * float(width), float(beta_max)], [0, float(d_max)], 'k', alpha=0.8)
-        plt.plot(maxx, ave[0], 'k', label='Most probable', alpha=0.8)
-        plt.plot(ave[1], ave[0], 'r', label='Mean', alpha=0.8)
+        plt.plot(maxx, ave[:,0], 'k', label='Most probable', alpha=0.8)
+        plt.plot(ave[:,1], ave[:,0], 'r', label='Mean', alpha=0.8)
         plt.xlabel('Vs (km/s)')
         plt.xlim(x_range)
         plt.ylim(y_range)
@@ -149,8 +111,8 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
         plt.subplot(133)
-        plt.plot(cpar[1] / max(cpar[1]), cpar[0], 'k')
-        plt.fill_betweenx(cpar[0], cpar[1] / max(cpar[1]), 0, color='darkgrey')
+        plt.plot(cpar[:,1] / max(cpar[:,1]), cpar[:,0], 'k')
+        plt.fill_betweenx(cpar[:,0], cpar[:,1] / max(cpar[:,1]), 0, color='darkgrey')
         plt.xlim([0, 1])
         plt.ylim(y_range)
         # Prevalance of change points at this depth among the model ensemble (confidence in delta-V)
@@ -166,17 +128,16 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.figure(figsize=fig_size)
 
         plt.subplot(211)
-        plt.bar(np.array(range(len(layers_dat))), height=(np.array(layers_dat, dtype='int')) /
-                                                         sum(np.array(layers_dat, dtype='float')), width=1)
+        plt.bar(np.array(range(len(layers_dat))), height=layers_dat/float(layers_dat.sum()), width=1)
         plt.xlim([1, len(layers_dat)])
         plt.xlabel('# layers')
         plt.ylabel('P(# layers)')
         plt.title('Layer likelihood distribution')
 
         plt.subplot(212)
-        plt.bar(sigmar[0], height=(np.array(sigmar[1], dtype='float') / sum(np.array(sigmar[1], dtype='float'))),
-                width=(sigmar[0][1] - sigmar[0][0]))
-        plt.xlim([sigmar[0][0], sigmar[0][-1]])
+        plt.bar(sigmar[:,0], height=sigmar[:,1]/float(sigmar[:,1].sum()),
+                width=(sigmar[1,0] - sigmar[0,0]))
+        plt.xlim([sigmar[0,0], sigmar[-1,0]])
         plt.xlabel(r'$\sigma$ for RF')
         plt.ylabel(r'p($\sigma$)')
 
@@ -187,22 +148,18 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.figure(figsize=fig_size)
 
         plt.subplot(311)
-        # plt.semilogy(c_misfit[0][1:], label='Rank 0', alpha=0.8)
-        plt.semilogy(c_misfit[1][1:], label='Mean', alpha=0.8)
-        # plt.plot([c_misfit[0][0],0],[c_misfit[0][0],c_misfit[1][0]],'r')
+        plt.semilogy(c_misfit, label='Mean', alpha=0.8)
         plt.ylabel('Misfit')  # unit = ??
         plt.legend()
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(312)
-        # plt.plot(c_layers[0][1:], label='Rank 0', alpha=0.8)
-        plt.plot(c_layers[1][1:], label='Mean', alpha=0.8)
+        plt.plot(c_layers, label='Mean', alpha=0.8)
         plt.ylabel('# layers')
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(313)
-        # plt.semilogy(csig[0][1:], label='Rank 0', alpha=0.8)
-        plt.semilogy(csig[1][1:], label='Mean', alpha=0.8)
+        plt.semilogy(csig, label='Mean', alpha=0.8)
         plt.xlabel('Iteration number')
         plt.ylabel(r'$\sigma$')
         plt.grid(color=aligner_color, linestyle=':')
