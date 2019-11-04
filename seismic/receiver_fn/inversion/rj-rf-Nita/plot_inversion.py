@@ -17,7 +17,7 @@ fig_size = (0.9*paper_size_A4_landscape[0], 0.9*paper_size_A4_landscape[1])
 
 def _load_convergence_sequence(filename):
     d = pd.read_csv(filename, header=None, skiprows=1)
-    return np.array(d[0].data)
+    return d[0].values
 # end func
 
 
