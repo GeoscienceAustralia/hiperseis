@@ -21,10 +21,11 @@ def _load_convergence_sequence(filename):
 # end func
 
 
-def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
+def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', station=''):
     """TODO
     """
-    output_file = os.path.join(pdf_outpath, 'RF_inversion_result.pdf')
+    station_nodot = station.replace('.', '_') + '_' if station else ''
+    output_file = os.path.join(pdf_outpath, station_nodot + 'RF_inversion_result.pdf')
 
     with PdfPages(output_file) as pdf:
 
@@ -37,13 +38,14 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         yar_synth = synth_dat[:,1]
 
         # Plot actual vs predicted RF
+        station_id = ' (' + station + ')' if station else ''
         plt.figure(figsize=fig_size)
         plt.plot(xar_obs, yar_obs, 'k', label='observed', alpha=0.8)
         plt.plot(xar_synth, yar_synth, 'r', label='synthetic (from rank 0)', alpha=0.8)
         plt.legend()
         plt.xlabel('Time (sec)')
         plt.ylabel('RF amplitude')
-        plt.title('Observed vs synthesized RF from earth model')
+        plt.title('Observed vs synthesized RF from earth model' + station_id)
         aligner_color = "#a0a0a080"
         plt.gca().xaxis.grid(True, color=aligner_color, linestyle=':')
         plt.gca().xaxis.set_minor_locator(MultipleLocator(1))
@@ -93,7 +95,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.xlim(x_range)
         y_range = [0, float(prof)]
         plt.ylim(y_range)
-        plt.title('Ensemble PDF')
+        plt.title('Ensemble PDF' + station_id)
         plt.gca().invert_yaxis()
         plt.gca().yaxis.set_minor_locator(MultipleLocator(2))
 
@@ -132,7 +134,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.xlim([1, len(layers_dat)])
         plt.xlabel('# layers')
         plt.ylabel('P(# layers)')
-        plt.title('Layer likelihood distribution')
+        plt.title('Layer likelihood distribution' + station_id)
 
         plt.subplot(212)
         plt.bar(sigmar[:,0], height=sigmar[:,1]/float(sigmar[:,1].sum()),
@@ -164,7 +166,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
         plt.ylabel(r'$\sigma$')
         plt.grid(color=aligner_color, linestyle=':')
 
-        plt.suptitle('Convergence history', y=0.92)
+        plt.suptitle('Convergence history' + station_id, y=0.92)
 
         pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
         plt.close()
@@ -179,9 +181,10 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.'):
               help=r'Input Receiver Function waveform used for inversion (.dat file)')
 @click.option('--input-folder', type=click.Path(exists=True, dir_okay=True, file_okay=False), required=True,
               help=r'Folder containing the input files for generating PDF report. Same as output folder of inversion.')
+@click.option('--station-id', type=str, help='Station identification string', default='', show_default=True)
 @click.argument('pdf-output-folder', type=click.Path(exists=True, dir_okay=True, file_okay=False), required=True)
-def main(rf_waveform, input_folder, pdf_output_folder):
-  plot_bodin_inversion(input_folder, rf_waveform, pdf_output_folder)
+def main(rf_waveform, input_folder, pdf_output_folder, station_id):
+  plot_bodin_inversion(input_folder, rf_waveform, pdf_output_folder, station=station_id)
 # end func
 
 
