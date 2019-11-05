@@ -133,6 +133,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     interval_samples_2 = interval_seconds * sr2
     sr = 0
     resll = []
+    MIN_FREQ = 0.005 # Minimum frequency used for spline detrending and for suppressing artefacts
+                     # potentially introduced during instrument response removal.
 
     # set day-aligned start-indices
     maxStartTime = max(tr1.stats.starttime, tr2.stats.starttime)
@@ -200,11 +202,13 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
-                # detrend
-                tr1_d = spline(tr1_d, 2, 10000)
-                tr2_d = spline(tr2_d, 2, 10000)
+                # STEP 1, 2: spline detrend Fc = MIN_FREQ
+                Fc1 = np.int_(np.ceil(sr1_orig / (2. * MIN_FREQ)))
+                Fc2 = np.int_(np.ceil(sr2_orig / (2. * MIN_FREQ)))
+                tr1_d = spline(tr1_d, 2, Fc1)
+                tr2_d = spline(tr2_d, 2, Fc2)
 
-                # remove response
+                # STEP 3: remove response
                 if(sta1_inv):
                     resp_tr1 = Trace(data=tr1_d,
                                      header=Stats(header={'sampling_rate': sr1_orig,
@@ -246,7 +250,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     tr2_d = resp_tr2.data
                 # end if
 
-                # resample after lowpass @ resample_rate/2 Hz
+                # STEPS 4, 5: resample after lowpass @ resample_rate/2 Hz
                 if(resample_rate):
                     tr1_d = lowpass(tr1_d, resample_rate/2., sr1_orig, corners=6, zerophase=True)
                     tr2_d = lowpass(tr2_d, resample_rate/2., sr2_orig, corners=6, zerophase=True)
@@ -261,16 +265,11 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                                                            no_filter=True).data
                 # end if
 
-                # highpass
-                tr1_d = highpass(tr1_d, flo, sr1, corners=6, zerophase=True)
-                tr2_d = highpass(tr2_d, flo, sr2, corners=6, zerophase=True)
+                # STEP 6: Bandpass
+                tr1_d = bandpass(tr1_d, MIN_FREQ, fhi, sr1, corners=6, zerophase=True)
+                tr2_d = bandpass(tr2_d, MIN_FREQ, fhi, sr2, corners=6, zerophase=True)
 
-                # taper
-                if(taper_length>0):
-                    tr1_d = taper(tr1_d, int(taper_length*tr1_d.shape[0]))
-                    tr2_d = taper(tr2_d, int(taper_length*tr2_d.shape[0]))
-                # end if
-
+                # STEP 7: time-domain normalization
                 # clip to +/- 2*std
                 if(clip_to_2std):
                     std_tr1 = np.std(tr1_d)
@@ -299,7 +298,13 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     tr2_d /= np.std(tr2_d)
                 # end if
 
-                # spectral whitening
+                # STEP 8: taper
+                if(taper_length>0):
+                    tr1_d = taper(tr1_d, int(taper_length*tr1_d.shape[0]))
+                    tr2_d = taper(tr2_d, int(taper_length*tr2_d.shape[0]))
+                # end if
+
+                # STEP 9: spectral whitening
                 if(whitening):
                     tr1_d = whiten(tr1_d, sr1, flo, fhi,
                                    window_freq=whitening_window_frequency, taper_length=taper_length)
@@ -307,7 +312,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                    window_freq=whitening_window_frequency, taper_length=taper_length)
                 # end if
 
-                # apply zero-phase band-pass; note that if spectral whitening is enabled, a bandpass
+                # STEP 10: Final banbpass
+                # apply zero-phase bandpass; note that if spectral whitening is enabled, a bandpass
                 # filtered waveform is returned and the following filter is no longer necessary.
                 if(flo and fhi and not whitening):
                     tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=6, zerophase=True)
