@@ -21,6 +21,7 @@ from tqdm import tqdm
 import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.receiver_fn.rf_util import zne_order
 
 logging.basicConfig()
 
@@ -150,9 +151,15 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
     if st:
         try:
             st = Stream([tr for tr in st if tr.stats.asdf.tag == 'raw_recording'])
+            # Strongly assert expected ordering of traces. This must be respected so that
+            # RF normalization works properly.
+            assert st.traces[0].stats.channel[-1] == 'Z'
+            assert st.traces[1].stats.channel[-1] == 'N'
+            assert st.traces[2].stats.channel[-1] == 'E'
         except AttributeError:
             log = logging.getLogger(__name__)
             log.error("ASDF tag not found in Trace stats")
+        # end try
     # end if
     return st
 
@@ -305,6 +312,14 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
             if s.select(component='1') and s.select(component='2'):
                 s.rotate('->ZNE', inventory=inventory)
             # end if
+            # Order the traces in ZNE ordering. This is required so that normalization
+            # can be specified in terms of an integer index, i.e. the default of 0 in rf
+            # library will normalize against the Z component.
+            s.traces = sorted(s.traces, key=zne_order)
+            # Assert the ordering of traces in the stream is ZNE.
+            assert s.traces[0].stats.channel[-1] == 'Z'
+            assert s.traces[1].stats.channel[-1] == 'N'
+            assert s.traces[2].stats.channel[-1] == 'E'
             # Loop over ZNE traces
             for tr in s:
                 grp_id = '.'.join(tr.id.split('.')[0:3])

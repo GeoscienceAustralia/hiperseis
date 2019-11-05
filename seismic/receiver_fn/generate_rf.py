@@ -96,6 +96,12 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         return False
     # end if
 
+    # Strongly assert expected ordering of traces. This must be respected so that
+    # RF normalization works properly.
+    assert stream3c.traces[0].stats.channel[-1] == 'Z'
+    assert stream3c.traces[1].stats.channel[-1] == 'N'
+    assert stream3c.traces[2].stats.channel[-1] == 'E'
+
     # If traces have inconsistent time ranges, clip to time range during which they overlap. Not guaranteed
     # to make time ranges consistent due to possible inconsistent sampling times across channels.
     start_times = np.array([tr.stats.starttime for tr in stream3c])
@@ -179,6 +185,12 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
             # response performs much better on shorter (trimmed) data.
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
                             corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
+            if not normalize:
+                # No normalization. The "normalize" argument must be set to None.
+                normalize = None
+            else:
+                normalize = 0  # Use Z-component for normalization
+            # end if
             stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
         else:

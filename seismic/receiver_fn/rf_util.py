@@ -454,3 +454,19 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     keep_trace_mask = (fraction_above_threshold >= min_fraction)
     kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
     return kept_data
+
+
+def zne_order(tr):
+    """Channel ordering sort key function
+
+    :param tr: Trace whose ordinal is to be determined.
+    :type tr: RFTrace
+    :return: Numeric index indicated ZNE sort order of traces in a stream
+    """
+    trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
+    component = tr.stats.channel[-1].upper()
+    if component in trace_ordering:
+        return trace_ordering[component]
+    else:
+        return 3
+# end func
