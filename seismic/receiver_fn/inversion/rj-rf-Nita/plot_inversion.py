@@ -10,22 +10,26 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
+from scipy import signal
 
 paper_size_A4_landscape = (11.69, 8.27)  # inches
 fig_size = (0.9*paper_size_A4_landscape[0], 0.9*paper_size_A4_landscape[1])
 
 
-def _load_convergence_sequence(filename):
+def _load_convergence_sequence(filename, downsampling=1):
     d = pd.read_csv(filename, header=None, skiprows=1)
-    return d[0].values
+    d = d[0].values
+    # We downsample without filtering for simplicity, since only long term trend is of much interest.
+    return d[::downsampling]
 # end func
 
 
 def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', station=''):
-    """TODO
+    """Standardized plotting of the results of Bodin RF inversion code.
     """
     station_nodot = station.replace('.', '_') + '_' if station else ''
     output_file = os.path.join(pdf_outpath, station_nodot + 'RF_inversion_result.pdf')
+    convergence_ds = 1000  # downsampling rate for convergence sequences
 
     with PdfPages(output_file) as pdf:
 
@@ -63,9 +67,9 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', st
         disv = int(disv)
         post_rest = np.reshape(np.array([float(x.strip('\n')) for x in post_dat[2:]]), (disd, disv))
 
-        c_misfit = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_misfit.out'))
-        c_layers = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_nb_layers.out'))
-        csig = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_sigma.out'))
+        c_misfit = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_misfit.out'), convergence_ds)
+        c_layers = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_nb_layers.out'), convergence_ds)
+        csig = _load_convergence_sequence(os.path.join(data_dir, 'Convergence_sigma.out'), convergence_ds)
 
         layers_dat = np.loadtxt(os.path.join(data_dir, 'NB_layers.out'), dtype=int)
         sigmar = np.loadtxt(os.path.join(data_dir, 'Sigma.out'))
@@ -149,19 +153,20 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', st
         # Convergence plots...
         plt.figure(figsize=fig_size)
 
+        it_num = np.arange(len(c_misfit))*convergence_ds
         plt.subplot(311)
-        plt.semilogy(c_misfit, label='Mean', alpha=0.8)
+        plt.semilogy(it_num, c_misfit, label='Mean', alpha=0.8)
         plt.ylabel('Misfit')  # unit = ??
         plt.legend()
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(312)
-        plt.plot(c_layers, label='Mean', alpha=0.8)
+        plt.plot(it_num, c_layers, label='Mean', alpha=0.8)
         plt.ylabel('# layers')
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(313)
-        plt.semilogy(csig, label='Mean', alpha=0.8)
+        plt.semilogy(it_num, csig, label='Mean', alpha=0.8)
         plt.xlabel('Iteration number')
         plt.ylabel(r'$\sigma$')
         plt.grid(color=aligner_color, linestyle=':')
