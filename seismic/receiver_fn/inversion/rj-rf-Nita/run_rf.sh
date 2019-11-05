@@ -11,6 +11,9 @@
 
 module purge
 module load openmpi/1.10.2-mt
+# export OMP_NUM_THREADS=4
 echo $INFILE
 echo $OUT
-mpirun ./run $INFILE $OUT
+# Map by node so that if using OpenMP threads, processes will be assigned
+# to node in round-robin fashion.
+mpirun --report-bindings --map-by node ./run $INFILE $OUT
