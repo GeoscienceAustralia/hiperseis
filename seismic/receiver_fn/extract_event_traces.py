@@ -151,11 +151,6 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
     if st:
         try:
             st = Stream([tr for tr in st if tr.stats.asdf.tag == 'raw_recording'])
-            # Strongly assert expected ordering of traces. This must be respected so that
-            # RF normalization works properly.
-            assert st.traces[0].stats.channel[-1] == 'Z'
-            assert st.traces[1].stats.channel[-1] == 'N'
-            assert st.traces[2].stats.channel[-1] == 'E'
         except AttributeError:
             log = logging.getLogger(__name__)
             log.error("ASDF tag not found in Trace stats")
@@ -291,6 +286,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
 
     if waveform_db_is_web:
         existing_index = None
+        log.info("Use fresh query results from web")
         client = Client(waveform_database)
         waveform_getter = client.get_waveforms
     else:
@@ -299,11 +295,13 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
             return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
         existing_index = _get_existing_index(rf_trace_datafile)
+        if existing_index is not None:
+            log.warning("Resuming extraction using existing index from file {}".format(rf_trace_datafile))
         waveform_getter = closure_get_waveforms
     # end if
 
     with tqdm(smoothing=0) as pbar:
-        trace_found = False
+        stream_count = 0
         for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
@@ -332,15 +330,17 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
                         continue
                     else:
                         # Use don't override mode just in case our hand-crafted index is faulty
-                        trace_found = True
+                        stream_count += 1
                         tr.write(rf_trace_datafile, 'H5', mode='a', override='dont')
                 else:
-                    trace_found = True
+                    stream_count += 1
                     tr.write(rf_trace_datafile, 'H5', mode='a')
             # end for
         # end for
-        if not trace_found:
+        if stream_count == 0:
             log.warning("No traces found!")
+        else:
+            log.info("Wrote {} new stream to output file".format(stream_count))
         # end if
     # end with
 
