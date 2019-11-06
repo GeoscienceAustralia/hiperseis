@@ -254,6 +254,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     max_mag = magnitude_range[1]
 
     inventory = read_inventory(inventory_file)
+    log.info("Loaded inventory {}".format(inventory_file))
 
     # Compute reference lonlat from the inventory.
     channels = inventory.get_contents()['channels']
@@ -263,16 +264,24 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         lonlat_coords.append((coords['longitude'], coords['latitude']))
     lonlat_coords = np.array(lonlat_coords)
     lonlat = np.mean(lonlat_coords, axis=0)
+    log.info("Inferred reference coordinates {}".format(lonlat))
 
     # If start and end time not provided, infer from date range of inventory.
     if not start_time:
         start_time = inventory[0].start_date
+        print(type(start_time))
         for net in inventory:
             start_time = min(start_time, net.start_date)
+        log.info("Inferred start time {}".format(start_time))
+    # end if
     if not end_time:
         end_time = inventory[0].end_date
+        if end_time is None:
+            end_time = UTC.now()
         for net in inventory:
-            end_time = max(start_time, net.end_date)
+            end_time = max(end_time, net.end_date)
+        log.info("Inferred end time {}".format(end_time))
+    # end if
 
     start_time = UTC(start_time)
     end_time = UTC(end_time)
