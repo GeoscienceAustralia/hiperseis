@@ -72,7 +72,19 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
             stack.trim2(*trim_window, reftime='onset')
 
             times = trace.times() - (trace.stats.onset - trace.stats.starttime)
-            column_data = np.array([times, trace.data]).T
+            # TODO: Remove hardwired scaling factor.
+            # This scaling factor only applies to iterative deconvolution with default Gaussian width
+            # factor of 2.5. Once we upgrade to rf library version >= 0.9.0, we can remove this hardwired
+            # setting and instead have it determined programatically from rf processing metadata stored
+            # in the trace stats structure.
+            # The scaling factor originates in the amplitude attenuation effect of the filtering applied
+            # in iterative deconv, see table at end of this page:
+            # http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/seq01.html
+            # The values in this reference table are derived as the integral of the area under the
+            # Gaussian in the frequency domain. Analytically, this amounts to simply dividing by scaling
+            # factor of a/sqrt(pi), where 'a' here is the Gaussian width used in iterative deconvolution.
+            iterdeconv_scaling = 2.5/np.sqrt(np.pi)
+            column_data = np.array([times, trace.data/iterdeconv_scaling]).T
             fname = os.path.join(output_folder, "_".join([network_code, sta, cha]) + "_rf.dat")
             np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'))
         # end for
