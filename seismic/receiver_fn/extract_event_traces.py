@@ -269,7 +269,6 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     # If start and end time not provided, infer from date range of inventory.
     if not start_time:
         start_time = inventory[0].start_date
-        print(type(start_time))
         for net in inventory:
             start_time = min(start_time, net.start_date)
         log.info("Inferred start time {}".format(start_time))
