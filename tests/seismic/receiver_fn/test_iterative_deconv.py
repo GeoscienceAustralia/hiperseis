@@ -153,11 +153,9 @@ def test_rf_integration():
     # end for
 
     # Use rf library to compute comparative signals using time and freq domain deconvolution
-    rf_freq = rf_stream.copy().rf(method='P', rotate=None, deconvolve='freq',
-                                  response_components='R').select(component='R')
+    rf_freq = rf_stream.copy().rf(method='P', rotate=None, deconvolve='freq').select(component='R')
     try:
-        rf_time = rf_stream.copy().rf(method='P', rotate=None, deconvolve='time',
-                                      response_components='R').select(component='R')
+        rf_time = rf_stream.copy().rf(method='P', rotate=None, deconvolve='time').select(component='R')
     except NameError:
         import warnings
         # If Toeplitz not present on platform, rf may be unable to perform time-domain deconvolution
@@ -167,17 +165,17 @@ def test_rf_integration():
 
     # Call rf generator on rf.RFStream using our custom deconvolution function
     rf_iter = rf_stream.copy().rf(method='P', rotate=None, deconvolve='func', func=rf_iter_deconv,
-                                  response_components='R', normalize=True).select(component='R')
+                                  normalize=0).select(component='R')
 
-    # Perform deconv directly and compare with rf_iter to check that rf call used our custom function.
+    # Perform deconv directly and compare with rf_iter to check that rf calls used our custom function.
     for i, (f, g) in enumerate(zip(f_funcs, g_funcs)):
         x, _, _, _, fit = iter_deconv_pulsetrain(f, g, F_s, time_shift)
         assert np.isclose(100.0, fit, rtol=1e-2)
-        sum_sq = np.sum(np.square(x))
-        x /= np.sqrt(sum_sq)
+        # Infer scaling factor due to normalization from max point, and use it to normalize x.
+        norm_factor = np.nanmax(x)/np.nanmax(rf_iter[i].data)
+        x /= norm_factor
         assert rf_iter[i].stats.event_id == i
         assert np.allclose(rf_iter[i].data, x, rtol=1e-3, atol=5e-3)
-        assert np.isclose(1.0, np.square(rf_iter[i].data).sum())
     # end for
 
     # Check that the local maxima of RF peaks found for different techniques all agree.
