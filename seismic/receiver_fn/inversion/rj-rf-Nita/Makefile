@@ -1,14 +1,22 @@
 .PHONY : obj driver clean
 
-#FC = mpifort -mcmodel=medium -shared-intel
-FC = mpifort -mcmodel=medium -O2
+# You must make sure mpifort is available on path, e.g. by 'module load openmpi/1.10.2'
+ifeq ($(TARGET_ARCH),AVX2)
+  # This build is much faster on Intel CPUs with AVX2 instruction set.
+  # To generate this build on NCI, run 'setup_make_avx2.sh' shell script first.
+  FC = mpifort -mcmodel=medium -O2 -march=core-avx2 -axCORE-AVX2 -xCORE-AVX2
+  TARGET = run_avx2
+else
+  FC = mpifort -mcmodel=medium -O2
+  TARGET = run
+endif
 
 all: run
 
 run: driver
 
 driver: obj RJ_MCMC_RF.f90
-	$(FC) -o run RJ_MCMC_RF.f90 \
+	$(FC) -o $(TARGET) RJ_MCMC_RF.f90 \
         theo.o qlayer.o four1.o voro2qmodel.o \
         priorvalue.o whichcell.o dsvdcmp.o \
         svbksb.o dpythag.o -lm

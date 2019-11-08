@@ -10,6 +10,9 @@ import h5py
 from obspyh5 import dataset2trace
 from rf import RFStream
 
+from seismic.receiver_fn.rf_util import zne_order
+
+
 logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
@@ -74,7 +77,7 @@ class IterRfH5FileEvents(object):
                         trace = dataset2trace(event_traces[trace_id])
                         traces.append(trace)
 
-                    stream = RFStream(traces=traces).sort()
+                    stream = RFStream(traces=traces)
 
                     if len(stream) != self.num_components and self.channel_pattern is not None:
                         for ch_mask in self.channel_pattern.split(','):
@@ -83,11 +86,22 @@ class IterRfH5FileEvents(object):
                             if len(_stream) == self.num_components:
                                 stream = _stream
                                 break
+                        # end for
+                    # end if
 
                     if len(stream) != self.num_components:
                         logging.warning("Incorrect number of traces ({}) for stn {} event {}, skipping"
                                         .format(len(stream), station_id, event_time))
                         continue
+                    # end if
+
+                    # Force order of traces to ZNE ordering.
+                    stream.traces = sorted(stream.traces, key=zne_order)
+                    # Strongly assert expected ordering of traces. This must be respected so that
+                    # RF normalization works properly.
+                    assert stream.traces[0].stats.channel[-1] == 'Z'
+                    assert stream.traces[1].stats.channel[-1] == 'N'
+                    assert stream.traces[2].stats.channel[-1] == 'E'
 
                     event_count += 1
                     if create_event_id:

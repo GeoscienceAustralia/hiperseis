@@ -49,4 +49,8 @@ class NetworkRFDict:
         return len(self.db)
     # end func
 
+    def keys(self):
+        return self.db.keys()
+    # end func
+
 # end class

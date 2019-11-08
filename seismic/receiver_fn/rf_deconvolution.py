@@ -63,6 +63,7 @@ def _gauss_filter(x, gwidth_factor, dt):
 
     omega = np.arange(n2) * d_omega
     gauss = np.exp(-omega * omega / gwidth)
+    # Note: normalization factor to correct RF amplitude for inversion is 2*df*np.sum(gauss)
     fft_x = fft_x * gauss
 
     x_filt = np.fft.irfft(fft_x, n)  # real_array
@@ -265,7 +266,7 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
 # end func
 
 
-def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.0, normalize=False, **kwargs):
+def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.0, normalize=0, **kwargs):
     """Adapter function to rf library.  To use, add arguments `deconvolve='func', func=rf_iter_deconv` to
     `rf.RFStream.rf()` function call.
 
@@ -280,13 +281,12 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.
     :param min_fit_threshold: Minimum percentage of fit to include trace in results,
         otherwise will be returned as empty numpy array.
     :type min_fit_threshold: float
-    :param normalize: Flag indicating whether RF should be normalized. If True, will be scaled
-        so that sqrt of sum of squares is 1. If RF is normalized, it will not be able to be used
-        to directly generate response signal from source signal.
+    :param normalize: Component of stream to use for normalization, usually component 0
+        (the vertical component). Set to None to disable normalization.
+    :type normalize: int or None
     :return: Receiver functions corresponding to the list of input response signals.
     :rtype: list of numpy.array(float)
     """
-    normalize = bool(normalize)
     sampling_rate = sr
     time_shift = tshift
     denominator = source_data
@@ -302,15 +302,27 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.
         if fit < min_fit_threshold:
             receiver_fns.append(np.array([]))
             log.warning("RF fit {:.2f}% below minimum acceptable threshold, discarding".format(fit))
+            receiver_fns.append(None)
         else:
             log.info("RF fit to observation = {:.2f}%".format(fit))
-            if normalize:
-                sum_sq = np.sum(np.square(rf_trace))
-                rf_trace /= np.sqrt(sum_sq)
-            # end if
             receiver_fns.append(rf_trace)
         # end if
     # end for
+    if normalize is not None:
+        if receiver_fns[normalize] is not None:
+            norm_factor = 1.0/np.nanmax(np.abs(receiver_fns[normalize]))
+            for r in receiver_fns:
+                if r is not None:
+                    r *= norm_factor
+                # end if
+            # end for
+        elif np.any(np.array([r is not None for r in receiver_fns])):
+            log.warning('Unable to normalize RF components because normalization component is None')
+        # end if
+    # end if
+
+    # Remove null results before returning
+    receiver_fns = [r for r in receiver_fns if r is not None]
 
     return receiver_fns
 # end func

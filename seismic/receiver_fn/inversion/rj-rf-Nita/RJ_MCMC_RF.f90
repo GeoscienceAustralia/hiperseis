@@ -22,9 +22,9 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 650000  !Burn-in period
-integer, parameter :: nsample = 950000  !Post burn-in
-integer, parameter :: thin = 100        !Thinning of the chain
+integer, parameter :: burn_in = 6500000  !Burn-in period
+integer, parameter :: nsample = 9500000  !Post burn-in
+integer, parameter :: thin = 1000        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
 ! only after which the sampling algorithm is assumed to have converged. To eliminate dependent samples in the ensemble
@@ -809,10 +809,13 @@ call MPI_REDUCE(conv,convs,nsample+burn_in,MPI_Real,MPI_Sum,0,MPI_COMM_WORLD,ier
 call MPI_REDUCE(histo,histos,npt_max,MPI_Integer,MPI_Sum,0,MPI_COMM_WORLD,ierror)
 call MPI_REDUCE(convAr,convArs,nsample+burn_in,MPI_Real,MPI_Sum,0,MPI_COMM_WORLD,ierror)
 
+! TODO: Replace MPI_REDUCE calls for conv, ncell and convAr with a MPI_GATHER calls, so that convergence
+! histories of all chains can be stored and later plotted together.
+
 avs=avs/nb
- convs=convs/nb
- convArs=convArs/nb
- ncells=ncells/nb
+convs=convs/nb
+convArs=convArs/nb
+ncells=ncells/nb
 
 
 
@@ -856,7 +859,7 @@ do i=1,disd
 enddo
 close(71)! close the file 
 
-
+! TODO: This only outputs synthesized RF from rank 0. Change to output synthetized RF from all ranks.
 open(72,file=TRIM(output_folder)//'/data_best.out',status='replace')
 do i=1,ndatar
    xi=-time_shift+(i-1)/fs
@@ -868,21 +871,21 @@ close(72)
 open(54,file=TRIM(output_folder)//'/Convergence_misfit.out',status='replace')
 write(54,*)burn_in,nsample
 do i=1,nsample+burn_in
-   write(54,*)conv(i),convs(i)
+   write(54,*)convs(i)
 enddo
 close(54)! close the file 
 
 open(53,file=TRIM(output_folder)//'/Convergence_nb_layers.out',status='replace')
 write(53,*)burn_in,nsample
 do i=1,nsample+burn_in
-   write(53,*)ncell(i),ncells(i)
+   write(53,*)ncells(i)
 enddo
 close(53)! close the file 
 
 open(52,file=TRIM(output_folder)//'/Convergence_sigma.out',status='replace')
 write(52,*)burn_in,nsample
 do i=1,nsample+burn_in
-   write(52,*)convAr(i),convArs(i)
+   write(52,*)convArs(i)
 enddo
 close(52)! close the file
 
