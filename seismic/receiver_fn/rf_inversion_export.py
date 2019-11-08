@@ -83,7 +83,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
             # The values in this reference table are derived as the integral of the area under the
             # Gaussian in the frequency domain. Analytically, this amounts to simply dividing by scaling
             # factor of a/sqrt(pi), where 'a' here is the Gaussian width used in iterative deconvolution.
-            iterdeconv_scaling = 2.5/np.sqrt(np.pi)
+#            iterdeconv_scaling = 2.5/np.sqrt(np.pi)
+            iterdeconv_scaling = 1
             column_data = np.array([times, trace.data/iterdeconv_scaling]).T
             fname = os.path.join(output_folder, "_".join([network_code, sta, cha]) + "_rf.dat")
             np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'))
