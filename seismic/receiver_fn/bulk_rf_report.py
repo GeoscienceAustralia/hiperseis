@@ -217,10 +217,11 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                 rf_stream = rf.RFStream(
                     [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
             # end if
-            if apply_similarity_filter:
+            if not rf_stream:
+                continue
+            if apply_similarity_filter and len(rf_stream) >= 3:
                 rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
             # end if
-
             if not rf_stream:
                 continue
 

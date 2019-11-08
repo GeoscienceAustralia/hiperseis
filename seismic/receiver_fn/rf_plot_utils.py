@@ -143,8 +143,9 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
         plt.title(title, fontsize=16)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
-    plt.tick_params(right=True, labelright=True)
+    plt.tick_params(right=True, labelright=True, which='both')
     plt.yticks(fontsize=14)
+    plt.minorticks_on()
 
     if num is not None:
         xl = plt.xlim()
