@@ -16,4 +16,5 @@ echo $INFILE
 echo $OUT
 # Map by node so that if using OpenMP threads, processes will be assigned
 # to node in round-robin fashion.
-mpirun --report-bindings --map-by node ./run $INFILE $OUT
+mpirun --report-bindings --map-by node ./run_avx2 $INFILE $OUT
+

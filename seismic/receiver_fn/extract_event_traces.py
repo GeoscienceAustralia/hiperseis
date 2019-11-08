@@ -21,6 +21,7 @@ from tqdm import tqdm
 import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.receiver_fn.rf_util import zne_order
 
 logging.basicConfig()
 
@@ -153,6 +154,7 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
         except AttributeError:
             log = logging.getLogger(__name__)
             log.error("ASDF tag not found in Trace stats")
+        # end try
     # end if
     return st
 
@@ -252,6 +254,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     max_mag = magnitude_range[1]
 
     inventory = read_inventory(inventory_file)
+    log.info("Loaded inventory {}".format(inventory_file))
 
     # Compute reference lonlat from the inventory.
     channels = inventory.get_contents()['channels']
@@ -261,16 +264,23 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         lonlat_coords.append((coords['longitude'], coords['latitude']))
     lonlat_coords = np.array(lonlat_coords)
     lonlat = np.mean(lonlat_coords, axis=0)
+    log.info("Inferred reference coordinates {}".format(lonlat))
 
     # If start and end time not provided, infer from date range of inventory.
     if not start_time:
         start_time = inventory[0].start_date
         for net in inventory:
             start_time = min(start_time, net.start_date)
+        log.info("Inferred start time {}".format(start_time))
+    # end if
     if not end_time:
         end_time = inventory[0].end_date
+        if end_time is None:
+            end_time = UTC.now()
         for net in inventory:
-            end_time = max(start_time, net.end_date)
+            end_time = max(end_time, net.end_date)
+        log.info("Inferred end time {}".format(end_time))
+    # end if
 
     start_time = UTC(start_time)
     end_time = UTC(end_time)
@@ -284,6 +294,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
 
     if waveform_db_is_web:
         existing_index = None
+        log.info("Use fresh query results from web")
         client = Client(waveform_database)
         waveform_getter = client.get_waveforms
     else:
@@ -292,11 +303,13 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
             return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
         existing_index = _get_existing_index(rf_trace_datafile)
+        if existing_index is not None:
+            log.warning("Resuming extraction using existing index from file {}".format(rf_trace_datafile))
         waveform_getter = closure_get_waveforms
     # end if
 
     with tqdm(smoothing=0) as pbar:
-        trace_found = False
+        stream_count = 0
         for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
@@ -305,6 +318,14 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
             if s.select(component='1') and s.select(component='2'):
                 s.rotate('->ZNE', inventory=inventory)
             # end if
+            # Order the traces in ZNE ordering. This is required so that normalization
+            # can be specified in terms of an integer index, i.e. the default of 0 in rf
+            # library will normalize against the Z component.
+            s.traces = sorted(s.traces, key=zne_order)
+            # Assert the ordering of traces in the stream is ZNE.
+            assert s.traces[0].stats.channel[-1] == 'Z'
+            assert s.traces[1].stats.channel[-1] == 'N'
+            assert s.traces[2].stats.channel[-1] == 'E'
             # Loop over ZNE traces
             for tr in s:
                 grp_id = '.'.join(tr.id.split('.')[0:3])
@@ -317,15 +338,17 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
                         continue
                     else:
                         # Use don't override mode just in case our hand-crafted index is faulty
-                        trace_found = True
+                        stream_count += 1
                         tr.write(rf_trace_datafile, 'H5', mode='a', override='dont')
                 else:
-                    trace_found = True
+                    stream_count += 1
                     tr.write(rf_trace_datafile, 'H5', mode='a')
             # end for
         # end for
-        if not trace_found:
+        if stream_count == 0:
             log.warning("No traces found!")
+        else:
+            log.info("Wrote {} new stream to output file".format(stream_count))
         # end if
     # end with
 

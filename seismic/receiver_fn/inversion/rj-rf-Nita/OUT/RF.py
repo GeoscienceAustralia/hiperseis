@@ -5,15 +5,27 @@
 Collection of functions for RF processing, data preparation and use of different routines
 """
 
-import obspy, subprocess, os,  cPickle
+import os
+import sys
+import subprocess
+from glob import glob
+if sys.version_info[0] == 2:
+  input = raw_input
+  import cPickle as pkl
+else:
+  import pickle as pkl
+# end if
+
+import click
+
+import obspy
 from obspy.geodetics import gps2dist_azimuth
 from pylab import *
 from numpy import *
-from glob import glob
-from obspy.taup import TauPyModel as taup
 from obspy.core import read, Stream, UTCDateTime, Trace
 from obspy.taup import TauPyModel
 #from toeplitz import sto_sl
+
 
 def stack(inlist,outfile):
   """
@@ -45,7 +57,7 @@ def stack(inlist,outfile):
       if len(trace.data) == len_e:
         e_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'      
+        print('Trace lengths do not fit - trace not added!')
 
   if len(n) != 0:
     #stack N
@@ -56,7 +68,7 @@ def stack(inlist,outfile):
       if len(trace.data) == len_n:
         n_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'
+        print('Trace lengths do not fit - trace not added!')
 
   if len(z) != 0:
     #stack Z
@@ -67,7 +79,7 @@ def stack(inlist,outfile):
       if len(trace) == len_z:
         z_stack += trace.data
       else:
-        print 'Trace lengths do not fit - trace not added!'
+        print('Trace lengths do not fit - trace not added!')
 
   return e_stack, n_stack, z_stack         
 
@@ -107,7 +119,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     bigdict[int(eid)]['orig_time'] = UTCDateTime(int(yr),int(mn),int(dy),int(time.split(':')[0]),int(time.split(':')[1]),float(time.split(':')[2]))
 
     #get data files
-    print eid
+    print(eid)
 
     try:
       ev_folder = glob(datapath+'/'+eid+'__*')[0]
@@ -121,24 +133,24 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     try:
       assert len(e[0]) == len(n[0]) == len(z[0])
     except AssertionError:
-      print "Different trace lengths: not processed"
+      print("Different trace lengths: not processed")
       del bigdict[int(eid)]
       continue
 
     #check that none of the components is flat
     if max(e[0].data) - min(e[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue
     if max(n[0].data) - min(n[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue
 
     if max(z[0].data) - min(z[0].data) < 5:
-      print "Flat component: not processed"
+      print("Flat component: not processed")
       del bigdict[int(eid)]
       eid = str(int(eid) - 1)
       continue          
@@ -149,7 +161,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
 #      assert e[0].data.all() != z[0].data.all()
 #      assert n[0].data.all() != z[0].data.all()   
 #    except AssertionError:
-#      print "Two or more components are identical: not processed"
+#      print("Two or more components are identical: not processed")
 #      continue
 
     distm,az,baz = gps2dist_azimuth(float(lat),float(lon),stat_lat,stat_lon)
@@ -168,8 +180,8 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     else:
       raytr = iris.ttime_dict(bigdict[int(eid)]['event_lat'],bigdict[int(eid)]['event_lon'],bigdict[int(eid)]['event_depth'],bigdict[int(eid)]['station_lat'],bigdict[int(eid)]['station_lon'],phase='P')
     rayp = round(raytr['rayp'],5)
-    print 'RAYP:'
-    print rayp
+    print('RAYP:')
+    print(rayp)
     bigdict[int(eid)]['ray parameter'] = rayp
 
     #calculate Moho piercing point
@@ -179,8 +191,8 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
       arr = model.get_pierce_points(float(dep),round(dist,2),phase_list='p')
 
     pierce_dist = (arr[0].pierce[-1][2] - arr[0].pierce[-3][2])*180./pi*111.195
-    print 'PIERCE DIST:'
-    print pierce_dist 
+    print('PIERCE DIST:')
+    print(pierce_dist)
     bigdict[int(eid)]['Pierce_distance_P'] = round(pierce_dist,2)
 
     #compute rotation
@@ -200,7 +212,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
     #downsampling
     factor = (z[0].stats.sampling_rate / sampfreq)
     if not factor%1 == 0:
-      print 'Error: non-integer decimation factor!!'
+      print('Error: non-integer decimation factor!!')
       del bigdict[int(eid)]
       continue
     else:
@@ -224,7 +236,7 @@ def prepare(eventfile,station,datapath,sampfreq,filt=False,rotate='2D',info_file
         assert r != zeros(len(r))
         assert t != zeros(len(t))
       except AssertionError:
-        print "At least one traces is only zeros: not processed"
+        print("At least one traces is only zeros: not processed")
         continue
 
       z[0].detrend(type='linear')
@@ -387,7 +399,7 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
     sta_lat = float(lat)
     sta_lon = float(lon)
 
-    #print stat,sta_lat,sta_lon
+    #print(stat,sta_lat,sta_lon)
 
     angle_norm = az%90
 
@@ -423,15 +435,15 @@ def CCP_master(startpoint,endpoint,width,spacing,depth,v_background='ak135',info
         sta_offset = sta_offset_e - e_correction
 
       if sta_offset > 0 and sta_offset < length:
-        print "Station "+stat+" included!!"
-        print sta_offset, dist
+        print("Station "+stat+" included!!")
+        print(sta_offset, dist)
         #add station to CCP stack
         x,y = m(sta_lon,sta_lat)
         m.plot(x,y,'ro')
         #stationlist.append(stat)
         
         try:
-          indict = cPickle.load(open(glob(rfdicpath+'/'+stat+'_[Rr][Ff]*')[0],'rb'))
+          indict = pkl.load(open(glob(rfdicpath+'/'+stat+'_[Rr][Ff]*')[0],'rb'))
           for i in indict.keys():
             azi = indict[i]['Backazimuth']
             model = TauPyModel(model='ak135')
@@ -595,8 +607,8 @@ def rf_viewer(indict,time_win=[0,35]):
     xvals = (arange(len(indict[j]['Traces']['RF'])))/indict[j]['Traces']['RF'].stats.sampling_rate
     plot(xvals,indict[j]['Traces']['RF'],'k-')
     xlim(time_win)
-    print "Input needed: choose (r) to reject the trace or (k) to keep it!"
-    key = raw_input()
+    print("Input needed: choose (r) to reject the trace or (k) to keep it!")
+    key = input()
 
     if key == 'r':
       continue
@@ -1024,7 +1036,7 @@ def create_modelfile(deplist,vplist,vslist,outpath='./model.mod'):  #OK, works..
   outf = open(outpath,'w')
   #length check
   if not len(deplist) == len(vplist) == len(vslist):
-    print "Entered lists have different lengths! No model file created."
+    print("Entered lists have different lengths! No model file created.")
     return
   headerline = '%3i Generic                         \n' % (len(deplist))
   outf.write(headerline)
@@ -1058,22 +1070,22 @@ def output_bodin(RF,psh=5,cutoff=30.,outfile='RF_obs.dat',norm_fac=1.):
   outf.close()
 
 
-def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
+def bodin_eval(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', mode='RF'):
   """
   plotting utilities?
   Voronoi cells, Chain, single models,...
   Models, misfits,...  
   mode: either "RF" or "Joint"
-
   """
-  rfin = open(rf,'r')
+
+  rfin = open(rf_waveform, 'r')
   rf_dat = rfin.readlines()
   rfin.close()
 
   if mode == 'RF':
-    rf_synth = open('data_best.out','r')
+    rf_synth = open(os.path.join(data_dir, 'data_best.out'), 'r')
   elif mode == 'Joint':
-    rf_synth = open('data_bestrg.out','r')
+    rf_synth = open(os.path.join(data_dir, 'data_bestrg.out'), 'r')
   synth_dat = rf_synth.readlines()
   rf_synth.close()
 
@@ -1096,14 +1108,14 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
   plot(xar_synth,yar_synth,'r',label='synthetic')
   legend()
 
-  savefig('Curvefit.pdf')
+  savefig(os.path.join(pdf_outpath, 'Curvefit.pdf'), dpi=300)
 
   if mode == 'Joint':
-    swdin = open(outdir+'/SWD_obs.dat','r')
+    swdin = open(os.path.join(data_dir, 'SWD_obs.dat'), 'r')
     swd_dat = swdin.readlines()
     swdin.close()
 
-    swdsy = open(outdir+'/data_bestdg.out','r')
+    swdsy = open(os.path.join(data_dir, 'data_bestdg.out'), 'r')
     swd_synth = swdsy.readlines()
     swdsy.close()
 
@@ -1121,16 +1133,16 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
     semilogx(xar,swsy,'ro')
     semilogx(xar,swsy,'r--')
 
-    savefig('SWD_fit.pdf')
-
+    savefig(os.path.join(pdf_outpath, 'SWD_fit.pdf'), dpi=300)
+  # end for
 
   #XXX major differences from here!
   #read in stuff
 
   if mode == 'RF':
-    posterior = open(outdir+'/Posterior.out','r')
+    posterior = open(os.path.join(data_dir, 'Posterior.out'), 'r')
   elif mode == 'Joint':
-    posterior = open(outdir+'/posteriorg.out','r')
+    posterior = open(os.path.join(data_dir, 'posteriorg.out'), 'r')
 
   post_dat = posterior.readlines()
   prof, disd, d_max = post_dat[0].strip('\n').split(None)
@@ -1138,20 +1150,20 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
   post_rest = post_dat[2:]
 
   if mode == 'RF':
-    conv_misfit = open(outdir+'/Convergence_misfit.out','r')
+    conv_misfit = open(os.path.join(data_dir, 'Convergence_misfit.out'), 'r')
     misf_dat = conv_misfit.readlines()
     c_misfit = zeros([2,len(misf_dat)])
     for y in range(len(misf_dat)):
       c_misfit[0][y], c_misfit[1][y] = misf_dat[y].strip('\n').split(None)
 
-    conv_layers = open(outdir+'/Convergence_nb_layers.out','r')
+    conv_layers = open(os.path.join(data_dir, 'Convergence_nb_layers.out'), 'r')
     convlay_dat = conv_layers.readlines()
     c_layers = zeros([2,len(convlay_dat)])
     for a in range(len(convlay_dat)):
       c_layers[0][a], c_layers[1][a] = convlay_dat[a].strip('\n').split(None)
 
 
-    conv_sigma = open(outdir+'/Convergence_sigma.out','r')
+    conv_sigma = open(os.path.join(data_dir, 'Convergence_sigma.out'), 'r')
     csigma_dat = conv_sigma.readlines()
     csig = zeros([2,len(csigma_dat)])
     for b in range(len(csigma_dat)):
@@ -1163,15 +1175,15 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
     conv_sigma.close()
 
   if mode == 'RF':
-    layers = open(outdir+'/NB_layers.out','r')
+    layers = open(os.path.join(data_dir, 'NB_layers.out'), 'r')
   elif mode == 'Joint':
-    layers = open(outdir+'/Evidenceg.out','r')
+    layers = open(os.path.join(data_dir, 'Evidenceg.out'), 'r')
   layers_dat = layers.readlines()
 
   if mode == 'RF':
-    sigma = open(outdir+'/Sigma.out','r')
+    sigma = open(os.path.join(data_dir, 'Sigma.out'), 'r')
   elif mode == 'Joint':
-    sigma = open(outdir+'/ML_Arg.out','r')
+    sigma = open(os.path.join(data_dir, 'ML_Arg.out'), 'r')
   sigmadat = sigma.readlines()
   sigmar = zeros([2,len(sigmadat)])
   for w in range(len(sigmadat)):
@@ -1179,9 +1191,9 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
 
 
   if mode == 'RF':
-    average = open(outdir+'/Average.out','r')
+    average = open(os.path.join(data_dir, 'Average.out'), 'r')
   elif mode == 'Joint':
-    average = open(outdir+'/Averageg.out','r')
+    average = open(os.path.join(data_dir, 'Averageg.out'), 'r')
   ave_data = average.readlines()
   
   ave = zeros([2,len(ave_data)])
@@ -1190,9 +1202,9 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
 
 
   if mode == 'RF':
-    cp = open(outdir+'/Change_points.out','r')
+    cp = open(os.path.join(data_dir, 'Change_points.out'), 'r')
   elif mode == 'Joint':
-    cp = open(outdir+'/CPg.out','r')
+    cp = open(os.path.join(data_dir, 'CPg.out'), 'r')
 
   cp_data = cp.readlines()
  
@@ -1253,25 +1265,27 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
   xlabel('P(transition)')
   gca().invert_yaxis()
 
-  savefig(outpath+'/main.pdf')
+  savefig(os.path.join(pdf_outpath, 'main.pdf'), dpi=300)
 
   # Histograms
 
   figure()
 
   subplot(211)
-  bar(left=array(range(len(layers_dat)))-0.5,height=(array(layers_dat,dtype='int'))/sum(array(layers_dat,dtype='float')),width=1)
-  xlim([1,len(layers_dat)])
+  bar(array(range(len(layers_dat))), height=(array(layers_dat, dtype='int'))/
+                                            sum(array(layers_dat, dtype='float')), width=1)
+  xlim([1, len(layers_dat)])
   xlabel('# layers')
   ylabel('P(# layers)')
 
   subplot(212)
-  bar(left=sigmar[0],height=(array(sigmar[1],dtype='float')/sum(array(sigmar[1],dtype='float'))),width=(sigmar[0][1] - sigmar[0][0]))  
-  xlim([sigmar[0][0],sigmar[0][-1]])
+  bar(sigmar[0], height=(array(sigmar[1], dtype='float')/sum(array(sigmar[1], dtype='float'))),
+      width=(sigmar[0][1] - sigmar[0][0]))
+  xlim([sigmar[0][0], sigmar[0][-1]])
   xlabel('$\sigma$ for RF')
   ylabel('p($\sigma$)')
 
-  savefig('Histograms.pdf')
+  savefig(os.path.join(pdf_outpath, 'Histograms.pdf'), dpi=300)
 
   # More plots...
 
@@ -1298,7 +1312,9 @@ def bodin_eval(outdir,rf='RF_obs.dat',outpath='.',mode='RF'):
   xlabel('Iteration number')
   ylabel('$\sigma$')
  
-  savefig('Convergence_plots.pdf')
+  savefig(os.path.join(pdf_outpath, 'Convergence_plots.pdf'), dpi=300)
+# end func
+
 
 def get_pierce(bigdict):
   """
@@ -1457,9 +1473,9 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
       SNR = range_signal / range_noise
       #discriminate
       if use_SNR:
-        print SNR
+        print(SNR)
         if SNR > 5:
-          print "used"
+          print("used")
           corr = obspy.signal.cross_correlation.xcorr(ztrace.data, ztrace.data, 50*int(ztrace.stats.sampling_rate),full_xcorr=True)[2]
           allcorr += corr
           count += 1
@@ -1468,7 +1484,7 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
         allcorr += corr
         count += 1
     else:
-      print len(ztrace.data)
+      print(len(ztrace.data))
       continue
     
   #normalize 
@@ -1477,7 +1493,7 @@ def autocorr_teleseis(indict,stat,outdir,use_SNR=False):
   outdict = {}
   outdict[stat+'-'+stat] = {}
   outdict[stat+'-'+stat][1] = allcorr
-  cPickle.dump(outdict,open(outdir+'/'+stat+'-'+stat,'wb'))  
+  pkl.dump(outdict,open(outdir+'/'+stat+'-'+stat,'wb'))
 
 
 def matrix_all_rayp(diclist,spacing=0.25,freq=5.):
@@ -1491,7 +1507,7 @@ def matrix_all_rayp(diclist,spacing=0.25,freq=5.):
   count = 1
 
   for dic in diclist:
-    dicc = cPickle.load(open(dic,'rb'))
+    dicc = pkl.load(open(dic,'rb'))
     for k in dicc.keys():
       dic_new[count] = {}
       dic_new[count]['rayp'] = dicc[k]['ray parameter']
@@ -1603,11 +1619,11 @@ def plot_events_earth(xlist,ylist,l_bound,u_bound,center=[-32.,123.]):
     #check whether list entries are in "allowed" range
     from obspy.core.util.geodetics import gps2DistAzimuth
     distm = gps2DistAzimuth(ylist[i],xlist[i],center[0],center[1])[0] 
-    print distm / (1000. * 111.195)
+    print(distm / (1000. * 111.195))
     if distm / (1000. * 111.195) > u_bound or distm / (1000. * 111.195) < l_bound:
-      print "discarded"
+      print("discarded")
       continue
-    print "In"
+    print("In")
     x,y = m(xlist[i],ylist[i])
     plot(x,y,'ro',markersize=6)
 
@@ -1729,7 +1745,7 @@ def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
   for entry in inlist:
     stat = entry.split('/')[-1].split('_')[0]
     stats.append(stat)
-    dat = cPickle.load(open(entry,'rb'))
+    dat = pkl.load(open(entry,'rb'))
     Ps = []
     for j in dat.keys():
       if dat[j].has_key('Ps_time'):
@@ -1745,12 +1761,4 @@ def get_Ps_quartilerange(indir,outfile='medquarts_ALFREX'):
     otf.write(stats[l]+' '+str(round(Ps_med[l],2))+' '+str(round(Ps_quarts[l][0],2))+' '+str(round(Ps_quarts[l][1],2))+'\n')
 
   return stats, Ps_med, Ps_quarts
-  
-
-
-
-
-
-
-
-
+# end func
