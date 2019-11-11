@@ -49,8 +49,8 @@ real, parameter :: beta_min = 3.5 ! Mean of the Uniform prior on Vs
 real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
 real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_min needs to be equal to beta_max.
 
-double precision, parameter :: Ar_max = 0.1500  !Upper bound for noise parameter
-double precision, parameter :: Ar_min = 0.0200  !Lower bound for noise parameter
+double precision, parameter :: Ar_max = 0.1000  !Upper bound for noise parameter
+double precision, parameter :: Ar_min = 0.0050  !Lower bound for noise parameter
 
 
 !-----------------------------------------
