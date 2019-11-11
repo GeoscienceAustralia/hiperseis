@@ -22,8 +22,8 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in =  6500000  !Burn-in period
-integer, parameter :: nsample = 17500000  !Post burn-in
+integer, parameter :: burn_in =  500000  !Burn-in period
+integer, parameter :: nsample = 1500000  !Post burn-in
 integer, parameter :: thin = 1000        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
@@ -49,8 +49,8 @@ real, parameter :: beta_min = 3.5 ! Mean of the Uniform prior on Vs
 real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
 real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_min needs to be equal to beta_max.
 
-double precision, parameter ::    Ar_max=0.1000  !Upper bound for noise parameter
-double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise parameter 
+double precision, parameter :: Ar_max = 0.1500  !Upper bound for noise parameter
+double precision, parameter :: Ar_min = 0.0200  !Lower bound for noise parameter
 
 
 !-----------------------------------------
