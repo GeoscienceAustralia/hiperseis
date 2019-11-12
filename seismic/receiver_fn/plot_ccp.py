@@ -41,7 +41,7 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
 
     :param matrx: [description]
     :type matrx: numpy.array
-    :param length: Length (km) of the profile line
+    :param length: Length (km) of the transect line
     :type length: float
     :param max_depth: Maximum depth (km) of the slice to plot
     :type max_depth: float
@@ -109,6 +109,7 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     else:
         plt.show()
     plt.close()
+# end func
 
 
 def setup_ccp_profile(length, spacing, maxdep):
@@ -135,6 +136,7 @@ def setup_ccp_profile(length, spacing, maxdep):
     mtrx = np.zeros([n_x, n_y])
 
     return mtrx, depstep, lenstep
+# end func
 
 
 def get_amplitude(trace, time):
@@ -145,6 +147,7 @@ def get_amplitude(trace, time):
     indx = (time + rf_offset) * trace.stats.sampling_rate
     amp = trace.data[int(indx)]/trace.stats.amp_max
     return amp
+# end func
 
 
 def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_offset, az):
@@ -199,6 +202,7 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
         matrx_entry[indx_x, indx_y] += 1
 
     return matrx,matrx_entry
+# end func
 
 
 def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
@@ -224,6 +228,7 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
             indx_y = k
 
     return indx_x, indx_y
+# end func
 
 
 def bounding_box(startpoint, endpoint):
@@ -241,6 +246,7 @@ def bounding_box(startpoint, endpoint):
     xbig = max(startpoint[1], endpoint[1])
     xsmall = min(startpoint[1], endpoint[1])
     return (xsmall, ysmall, xbig, ybig)
+# end func
 
 
 def equirectangular_projection(x0, y0, x1, y1):
@@ -267,6 +273,7 @@ def equirectangular_projection(x0, y0, x1, y1):
     length = np.sqrt(profile_x_length**2 + profile_y_length**2)
 
     return profile_x_length, profile_y_length, length
+# end func
 
 
 def bearing(p1, p2):
@@ -288,6 +295,7 @@ def bearing(p1, p2):
     b = b * 180.0 / np.pi
     b = (b + 360.0) % 360.0
     return b
+# end func
 
 
 def angular_distance(p1, p2):
@@ -311,6 +319,7 @@ def angular_distance(p1, p2):
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     c = c * 180.0 / np.pi
     return c
+# end func
 
 
 def cross_along_track_distance(p1, p2, p3):
@@ -337,6 +346,7 @@ def cross_along_track_distance(p1, p2, p3):
     ct_angle = ct_angle * 180.0 / np.pi
     at_angle = at_angle * 180.0 / np.pi
     return (ct_angle * KM_PER_DEG, at_angle * KM_PER_DEG)
+# end func
 
 
 def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
@@ -361,7 +371,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
     """
     stn_params = {}
     length = angular_distance(startpoint, endpoint) * KM_PER_DEG
-    print("Profile length = {} km".format(length))
+    print("Transect length = {} km".format(length))
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -391,6 +401,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
     pbar.close()
 
     return stn_params
+# end func
 
 
 def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, channels=None, v_background='ak135',
@@ -400,15 +411,15 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     :param rf_stream: Sequence of receiver function traces
     :type rf_stream: rf.rfstream.RFStream
-    :param startpoint: Starting point for the profile line in latitude, longitude degrees
+    :param startpoint: Starting point for the transect line in latitude, longitude degrees
     :type startpoint: tuple(float, float)
-    :param endpoint: End point for the profile line in latitude, longitude degrees
+    :param endpoint: End point for the transect line in latitude, longitude degrees
     :type endpoint: tuple(float, float)
-    :param width: Width (km) of region about the profile line from which to project RFs to the slice.
+    :param width: Width (km) of region about the transect line from which to project RFs to the slice.
     :type width: float
-    :param spacing: Size (km) of each discrete sample cell in the spatial slice beneath the profile line.
+    :param spacing: Size (km) of each discrete sample cell in the spatial slice beneath the transect.
     :type spacing: float
-    :param max_depth: Maximum depth (km) of the slice beneatht the profile line
+    :param max_depth: Maximum depth (km) of the slice beneath the transect
     :type max_depth: float
     :param channels: Filter for channels, defaults to None in which case only 'R' channel is used.
         Allowed values are in ['Z', 'R', 'T'].
@@ -530,44 +541,46 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
         return matrx_norm, mesh_entries.transpose(), length, stn_params
     else:
         return None, None, 0, stn_params
+    # end if
+# end func
 
 
-# ---------------- MAIN ----------------
-@click.command()
-@click.option('--start-latlon', nargs=2, type=float, required=True,
-              help='Start coordinates of the profile line as latitude longitude (degrees),'
-                   ' using space as separator, e.g. -22 133')
-@click.option('--end-latlon', nargs=2, type=float, required=True,
-              help='End coordinates of the profile line as latitude longitude (degrees),'
-                   ' using space as separator, e.g. -19 140')
-@click.option('--width', type=float, default=100.0, show_default=True,
-              help='Width of the strip around the profile line (km)')
-@click.option('--spacing', type=float, default=2.0, show_default=True,
-              help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
-@click.option('--max-depth', type=float, default=200.0, show_default=True,
-              help='Maximum depth of slice below the profile line (km)')
-@click.option('--stacked-scale', type=float,
-              help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
-@click.option('--channels', type=str, default='R', show_default=True,
-              help='Comma separated list of channels to use for stacking, e.g. R,T')
-@click.option('--background-model', type=click.Choice(['ak135', 'ak135_60']), default='ak135',
-              show_default=True, help='1D background model to assume.')
-@click.option('--title', type=str, help='Title text applied to the plots.')
-@click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
-def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
-         background_model, stacked_scale=None, title=None):
-    # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_quality_filter.py
+def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
+        background_model, stacked_scale=None, title=None):
+    """Run CCP generation on a given dataset of RFs.
+
+    :param rf_stream: Set of RFs to use for CCP plot
+    :type rf_stream: rf.RFStream
+    :param output_file: Name of output file (png format)
+    :type output_file: str or Path
+    :param start_latlon: Starting (latitude, longitude) coordinates of line transect
+    :type start_latlon: tuple(float, float)
+    :param end_latlon: End (latitude, longitude) coordinates of line transect
+    :type end_latlon: tuple(float, float)
+    :param width: Width of transect (km)
+    :type width: float
+    :param spacing: Discretization size (km) for RF ray sampling
+    :type spacing: float
+    :param max_depth: Maximum depth of slice below the transect line (km)
+    :type max_depth: float
+    :param channels: String of comma-separated component IDs to source for the RF amplitude
+    :type channels: str, comma separated
+    :param background_model: 1D background model to assume
+    :type background_model: str
+    :param stacked_scale: Max value to represent on color scale of CCP plot
+    :type stacked_scale: float
+    :param title: Title to place at top of CCP plot
+    :type title: str
+    :return: None
+    """
 
     channels = channels.split(',')
 
     output_file_base, ext = os.path.splitext(output_file)
     if ext != ".png":
         output_file += ".png"
-    print("Reading HDF5 file...")
-    stream = rf.read_rf(rf_file, 'H5')
     matrix_norm, sample_density, length, stn_params = \
-        ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
+        ccp_generate(rf_stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
                      channels=channels, v_background=background_model, station_map_file=output_file_base + '_MAP.png')
 
     if matrix_norm is not None:
@@ -588,6 +601,40 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
                      metadata=stn_params, title=title + ' [sample density]' if title else None)
         # end if
     # end if
+# end func
+
+
+# ---------------- MAIN ----------------
+@click.command()
+@click.option('--start-latlon', nargs=2, type=float, required=True,
+              help='Start coordinates of the profile line as latitude longitude (degrees),'
+                   ' using space as separator, e.g. -22 133')
+@click.option('--end-latlon', nargs=2, type=float, required=True,
+              help='End coordinates of the profile line as latitude longitude (degrees),'
+                   ' using space as separator, e.g. -19 140')
+@click.option('--width', type=float, default=100.0, show_default=True,
+              help='Width of the strip around the transect line (km)')
+@click.option('--spacing', type=float, default=2.0, show_default=True,
+              help='Spacing of cells in the 2D square mesh covering the slice below the transect line (km)')
+@click.option('--max-depth', type=float, default=200.0, show_default=True,
+              help='Maximum depth of slice below the transect line (km)')
+@click.option('--stacked-scale', type=float,
+              help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
+@click.option('--channels', type=str, default='R', show_default=True,
+              help='Comma separated list of channels to use for stacking, e.g. R,T')
+@click.option('--background-model', type=click.Choice(['ak135', 'ak135_60']), default='ak135',
+              show_default=True, help='1D background model to assume.')
+@click.option('--title', type=str, help='Title text applied to the plots.')
+@click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
+def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
+         background_model, stacked_scale=None, title=None):
+    # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_quality_filter.py
+    print("Reading HDF5 file...")
+    stream = rf.read_rf(rf_file, 'H5')
+    run(stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels, background_model,
+        stacked_scale, title)
+# end func main
 
 
 # ---------------- MAIN ----------------
