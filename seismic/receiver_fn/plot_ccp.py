@@ -24,9 +24,13 @@ import numpy as np
 
 import click
 from obspy.taup import TauPyModel
+from obspy.taup.velocity_model import VelocityModel
+from obspy.taup.taup_create import TauPCreate
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from mpl_toolkits import basemap
 import rf
+from adjustText import adjust_text
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from tqdm import tqdm
@@ -57,33 +61,46 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
 
     plt.figure(figsize=(16, 9))
     interpolation = 'bilinear'
+    extent = (0, length, 0, max_depth)
     if vlims is not None:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1], interpolation=interpolation)
+        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1], extent=extent,
+                        interpolation=interpolation, origin='lower')
     else:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', interpolation=interpolation)
+        im = plt.imshow(matrx, aspect='equal', cmap='jet', extent=extent, interpolation=interpolation, origin='lower')
     cb = plt.colorbar(im)
     cb.set_label('Stacked amplitude (arb. units)')
 
     if title is not None:
-        plt.title(title)
+        plt.title(title, fontsize=18)
 
-    plt.ylim([int(max_depth/spacing), 0])
+    plt.xlim(0, length)
+    plt.ylim(max_depth*1.001, 0)
 
-    plt.xlabel('Distance (km)')
-    plt.ylabel('Depth (km)')
+    plt.xlabel('Distance (km)', fontsize=12)
+    plt.ylabel('Depth (km)', fontsize=12)
 
-    plt.xticks(range(0, int(length/spacing), int(tickstep_x/spacing)), range(0, int(length), tickstep_x))
-    plt.yticks(range(0, int(max_depth/spacing), int(tickstep_y/spacing)), range(0, int(max_depth), tickstep_y))
+    plt.xticks(np.arange(0.0, length, tickstep_x), fontsize=12)
+    plt.yticks(np.arange(0, max_depth, tickstep_y), fontsize=12)
+    plt.tick_params(right=True, labelright=True, axis='y', labelsize=12)
+    plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
+    plt.gca().yaxis.set_tick_params(which='minor', right=True)
+    plt.grid(color='#80808080', linestyle=':', axis='y')
 
-    # if metadata is not None:
-    #     for stn, meta in iteritems(metadata):
-    #         if meta is None:
-    #             continue
-    #         x = meta['sta_offset']
-    #         y = -1
-    #         th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
-    #                       verticalalignment='bottom', fontsize=8)
-    #         txt_handles.append(th)
+    if metadata is not None:
+        txt_handles = []
+        for stn, meta in metadata.items():
+            if meta is None:
+                continue
+            x = meta['sta_offset']
+            y = -1
+            th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
+                          verticalalignment='bottom', fontsize=9)
+            txt_handles.append(th)
+        # end for
+        if txt_handles:
+            adjust_text(txt_handles)
+        # end if
+    # end if
 
     plt.axis('tight')
 
@@ -120,12 +137,13 @@ def setup_ccp_profile(length, spacing, maxdep):
     return mtrx, depstep, lenstep
 
 
-def get_amplitude(trace, time, rf_offset=5.0):
+def get_amplitude(trace, time):
     """
     retrieve amplitude value
     """
+    rf_offset = trace.stats.onset - trace.stats.starttime
     indx = (time + rf_offset) * trace.stats.sampling_rate
-    amp = trace.data[int(indx)]/trace.stats.amax
+    amp = trace.data[int(indx)]/trace.stats.amp_max
     return amp
 
 
@@ -408,15 +426,35 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
     _, _, length = equirectangular_projection(xsmall, ysmall, xbig, ybig)
 
-    #set velocity model (other options can be added) 
-    if v_background == 'ak135':
+    #set velocity model (other options can be added)
+    # AK135
+    vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
+          8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
+    vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
+          4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
+    if v_background.lower() == 'ak135':
+        # NOTE: Conventional default AK135
         b_lay = [0., 20., 35., 77.5, 120., 165., 210., 260.,
                  310., 360., 410., 460., 510., 560., 610., 660.]
-        vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
-              8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
-        vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
-              4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
-        vmod = (b_lay, vp, vs)
+        model = TauPyModel(model=v_background.lower())
+    elif v_background.lower() == 'ak135_60':
+        # NOTE: AK135 with Moho at 60 km
+        b_lay = [0., 20., 60., 77.5, 120., 165., 210., 260.,
+                 310., 360., 410., 460., 510., 560., 610., 660.]
+        model_dir = os.path.join(os.path.split(__file__)[0], 'models')
+        model_file = os.path.join(model_dir, 'ak135_60.tvel')
+        built_file = os.path.join(model_dir, 'ak135_60.npz')
+        print('Using background crustal model at {}'.format(model_file))
+        if not os.path.isfile(built_file):
+            model_factory = TauPCreate(model_file, built_file)
+            model_factory.load_velocity_model()
+            model_factory.run()
+        # end if
+        model = TauPyModel(model=built_file)
+    else:
+        assert False, 'NYI'
+    #end if
+    vmod = (b_lay, vp, vs)
 
     #first set up a matrix
     profile_mesh, depstep, lenstep = setup_ccp_profile(length, spacing, max_depth)
@@ -444,7 +482,6 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     # Processing/extraction of rf_stream data
     print("Projecting included stations to slice...")
-    model = TauPyModel(model=v_background)
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -509,21 +546,20 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
               help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
 @click.option('--max-depth', type=float, default=200.0, show_default=True,
               help='Maximum depth of slice below the profile line (km)')
-@click.option('--stacked-scale', type=float, default=0.15, show_default=True,
+@click.option('--stacked-scale', type=float,
               help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
 @click.option('--channels', type=str, default='R', show_default=True,
               help='Comma separated list of channels to use for stacking, e.g. R,T')
+@click.option('--background-model', type=click.Choice(['ak135', 'ak135_60']), default='ak135',
+              show_default=True, help='1D background model to assume.')
 @click.option('--title', type=str, help='Title text applied to the plots.')
 @click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
-def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, stacked_scale, channels,
-         title=None):
+def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
+         background_model, stacked_scale=None, title=None):
     # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_quality_filter.py
 
     channels = channels.split(',')
-
-    # Range of stacked amplitude for imshow to get best contrast
-    vmin, vmax = (-stacked_scale, stacked_scale)
 
     output_file_base, ext = os.path.splitext(output_file)
     if ext != ".png":
@@ -532,10 +568,16 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
     stream = rf.read_rf(rf_file, 'H5')
     matrix_norm, sample_density, length, stn_params = \
         ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
-                     channels=channels, station_map_file=output_file_base + '_MAP.png')
+                     channels=channels, v_background=background_model, station_map_file=output_file_base + '_MAP.png')
 
     if matrix_norm is not None:
-        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=(vmin, vmax), metadata=stn_params,
+        # Range of stacked amplitude for imshow to get best contrast
+        if stacked_scale is not None:
+            vlims = (-stacked_scale, stacked_scale)
+        else:
+            vlims = None
+        # endif
+        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=vlims, metadata=stn_params,
                  title=title)
         if sample_density is not None:
             sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
@@ -544,6 +586,8 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
             median_samples = sc[len(sc)//2]
             plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
                      metadata=stn_params, title=title + ' [sample density]' if title else None)
+        # end if
+    # end if
 
 
 # ---------------- MAIN ----------------
