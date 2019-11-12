@@ -24,16 +24,16 @@ import numpy as np
 
 import click
 from obspy.taup import TauPyModel
-from obspy.taup.velocity_model import VelocityModel
 from obspy.taup.taup_create import TauPCreate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits import basemap
 import rf
 from adjustText import adjust_text
+from tqdm import tqdm
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
-from tqdm import tqdm
+from seismic.ASDFdatabase import FederatedASDFDataSet
 
 
 def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None):
@@ -71,7 +71,7 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     cb.set_label('Stacked amplitude (arb. units)')
 
     if title is not None:
-        plt.title(title, fontsize=18)
+        plt.title(title, fontsize=16)
 
     plt.xlim(0, length)
     plt.ylim(max_depth*1.001, 0)
@@ -546,7 +546,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
 
 def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
-        background_model, stacked_scale=None, title=None):
+        background_model='ak135', stacked_scale=None, title=None):
     """Run CCP generation on a given dataset of RFs.
 
     :param rf_stream: Set of RFs to use for CCP plot
@@ -604,6 +604,67 @@ def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_de
 # end func
 
 
+def run_batch(transect_file, rf_waveform_file, fed_db_file, stack_scale=0.4, width=30.0, spacing=2.0,
+              max_depth=200.0, channels='R'):
+    """Run CCP generation in batch mode along a series of transects.
+
+    :param transect_file: File containing specification of network and station locations of ends of transects
+    :type transect_file: str or Path
+    :param rf_waveform_file: HDF5 file of QA'd receiver functions for the network matching the transect file
+    :type rf_waveform_file: str or Path
+    :param fed_db_file: Name of file with which to initialize FederatedASDFDataBase
+    :type fed_db_file: str or Path
+    :param stack_scale: Max value to represent on color scale of CCP plot
+    :type stack_scale: float
+    :param width: Width of transect (km)
+    :type width: float
+    :param spacing: Discretization size (km) for RF ray sampling
+    :type spacing: float
+    :param max_depth: Maximum depth of slice below the transect line (km)
+    :type max_depth: float
+    :param channels: String of comma-separated component IDs to source for the RF amplitude
+    :type channels: str, comma separated
+    :return: None
+    """
+
+    print("Reading HDF5 file...")
+    rf_stream = rf.read_rf(rf_waveform_file, 'H5')
+
+    db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
+    sta_coords = db.unique_coordinates
+
+    with open(transect_file, 'r') as f:
+        net = f.readline().strip()
+        for transect in f.readlines():
+            if not transect.strip():
+                continue
+            sta_start, sta_end = transect.split(',')
+            sta_start = sta_start.strip()
+            sta_end = sta_end.strip()
+            start = '.'.join([net, sta_start])
+            end = '.'.join([net, sta_end])
+            start = np.array(sta_coords[start])
+            end = np.array(sta_coords[end])
+            # Offset ends slightly to make sure we don't lose end stations due to truncation error.
+            # Note: for simplicity this treats lat/lon like cartesian coords, but this is approximate
+            # and will break down near poles, for long transects, or if transect crosses the antimeridian.
+            dirn = (end - start)
+            dirn = dirn/np.linalg.norm(dirn)
+            start -= 0.05*dirn
+            end += 0.05*dirn
+            start_latlon = (start[1], start[0])
+            end_latlon = (end[1], end[0])
+
+            outfile = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing.png'.format(net, sta_start, sta_end, spacing)
+            title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
+
+            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channels,
+                stacked_scale=stack_scale, title=title)
+
+    # end for
+    # end with
+# end func
+
 # ---------------- MAIN ----------------
 @click.command()
 @click.option('--start-latlon', nargs=2, type=float, required=True,
@@ -639,4 +700,9 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
+    # run_batch('AQ_CCP_transects.txt', 'AQT_rfs_20151128T042000-20191108T000317_ZRT_it_rev1_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4)
+    # run_batch('7X_CCP_transects.txt', '7X_rfs_20090616T034200-20110401T231849_ZRT_it_rev2_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3)
     main()  # pylint: disable=no-value-for-parameter
+# end if
