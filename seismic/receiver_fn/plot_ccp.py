@@ -94,15 +94,14 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
             x = meta['sta_offset']
             y = -1
             th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
-                          verticalalignment='bottom', fontsize=9)
+                          verticalalignment='bottom', fontsize=9, backgroundcolor='#ffffffa0')
             txt_handles.append(th)
         # end for
         if txt_handles:
-            adjust_text(txt_handles)
+            # We need to use the on_basemap option, otherwise the text boxes do not appear at the adjusted positions!
+            adjust_text(txt_handles, avoid_self=False, avoid_points=False, only_move={'text': 'y'}, on_basemap=True)
         # end if
     # end if
-
-    plt.axis('tight')
 
     if ofile:
         plt.savefig(ofile, dpi=300)
@@ -389,6 +388,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
                 if bm is not None:
                     x, y = bm(sta_lon, sta_lat)
                     bm.plot(x, y, 'ro')
+                    plt.text(x, y, stat_code, fontsize=6, color='#20202080')
                 stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
             else:
                 if bm is not None:
@@ -481,14 +481,13 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
-    parallels = np.arange(np.floor(ysmall), np.ceil(ybig), 1)
-    m.drawparallels(parallels, color="#a0a0a0", labels=[1, 1, 0, 0])
-    meridians = np.arange(np.floor(xsmall), np.ceil(xbig), 1)
-    m.drawmeridians(meridians, rotation=45, color="#a0a0a0", labels=[0, 0, 1, 1])
+    parallels = np.arange(np.floor(ysmall - 2), np.ceil(ybig + 2))
+    m.drawparallels(parallels, color="#a0a0a0", labels=[1, 1, 0, 0], fontsize=8)
+    meridians = np.arange(np.floor(xsmall - 2), np.ceil(xbig + 2))
+    m.drawmeridians(meridians, rotation=45, color="#a0a0a0", labels=[0, 0, 1, 1], fontsize=8)
 
     # Precompute the station parameters for a given code, as this is the same for every trace.
     print("Computing included stations...")
-    # stn_params = ccp_compute_station_params_legacy(rf_stream, startpoint, endpoint, width, m)
     stn_params = ccp_compute_station_params(rf_stream, startpoint, endpoint, width, m)
 
     # Processing/extraction of rf_stream data
@@ -521,12 +520,12 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     # Plot parameters on the map
     ax = plt.gca()
-    plt.text(0.01, 0.98, 'Start = {} deg'.format(str(startpoint)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
-    plt.text(0.01, 0.93, 'End = {} deg'.format(str(endpoint)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
-    plt.text(0.01, 0.88, 'Width = {} km'.format(str(width)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
+    plt.text(0.01, 0.98, 'Start = ({:3.3f},{:3.3f}) deg'.format(*startpoint), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
+    plt.text(0.01, 0.93, 'End = ({:3.3f},{:3.3f}) deg'.format(*endpoint), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
+    plt.text(0.01, 0.88, 'Width = {:3.1f} km'.format(width), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
 
     # Show or save basemap plot
     if station_map_file is None:
