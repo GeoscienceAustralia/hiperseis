@@ -29,7 +29,6 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits import basemap
 import rf
-from adjustText import adjust_text
 from tqdm import tqdm
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
@@ -63,44 +62,46 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     interpolation = 'bilinear'
     extent = (0, length, 0, max_depth)
     if vlims is not None:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1], extent=extent,
+        im = plt.imshow(matrx, cmap='jet', aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
                         interpolation=interpolation, origin='lower')
     else:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', extent=extent, interpolation=interpolation, origin='lower')
+        im = plt.imshow(matrx, cmap='jet', aspect='auto', extent=extent, interpolation=interpolation, origin='lower')
     cb = plt.colorbar(im)
     cb.set_label('Stacked amplitude (arb. units)')
 
     if title is not None:
-        plt.title(title, fontsize=16)
+        plt.title(title, fontsize=16, y=1.02)
 
     plt.xlim(0, length)
-    plt.ylim(max_depth*1.001, 0)
+    plt.ylim(max_depth*1.0001, 0)
 
     plt.xlabel('Distance (km)', fontsize=12)
     plt.ylabel('Depth (km)', fontsize=12)
 
-    plt.xticks(np.arange(0.0, length, tickstep_x), fontsize=12)
-    plt.yticks(np.arange(0, max_depth, tickstep_y), fontsize=12)
+    plt.xticks(np.arange(0.0, length*1.0001, tickstep_x), fontsize=12)
+    plt.yticks(np.arange(0, max_depth*1.0001, tickstep_y), fontsize=12)
     plt.tick_params(right=True, labelright=True, axis='y', labelsize=12)
     plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
     plt.gca().yaxis.set_tick_params(which='minor', right=True)
     plt.grid(color='#80808080', linestyle=':', axis='y')
 
     if metadata is not None:
-        txt_handles = []
+        stn_labels = []
+        # Extract station label data into a list first so we can sort by distance along transect
         for stn, meta in metadata.items():
             if meta is None:
                 continue
-            x = meta['sta_offset']
-            y = -1
-            th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
-                          verticalalignment='bottom', fontsize=9, backgroundcolor='#ffffffa0')
-            txt_handles.append(th)
+            stn_labels.append((stn, meta))
         # end for
-        if txt_handles:
-            # We need to use the on_basemap option, otherwise the text boxes do not appear at the adjusted positions!
-            adjust_text(txt_handles, avoid_self=False, avoid_points=False, only_move={'text': 'y'}, on_basemap=True)
-        # end if
+        stn_labels.sort(key=lambda md: md[1]['sta_offset'])
+        i = 0
+        for stn, meta in stn_labels:
+            x = meta['sta_offset']
+            y = 1.0 + (i%2)*2.5
+            plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
+                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
+            i += 1
+        # end for
     # end if
 
     if ofile:
@@ -388,7 +389,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
                 if bm is not None:
                     x, y = bm(sta_lon, sta_lat)
                     bm.plot(x, y, 'ro')
-                    plt.text(x, y, stat_code, fontsize=6, color='#20202080')
+                    plt.text(x, y, stat_code, fontsize=6, color='#202020a0')
                 stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
             else:
                 if bm is not None:
@@ -545,7 +546,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
 
 def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
-        background_model='ak135', stacked_scale=None, title=None):
+        background_model='ak135', stacked_scale=None, title=None, plot_density=False):
     """Run CCP generation on a given dataset of RFs.
 
     :param rf_stream: Set of RFs to use for CCP plot
@@ -591,7 +592,7 @@ def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_de
         # endif
         plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=vlims, metadata=stn_params,
                  title=title)
-        if sample_density is not None:
+        if plot_density and sample_density is not None:
             sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
             # Use median of number of events per station to set the scale range.
             sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
@@ -700,8 +701,8 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
     # run_batch('AQ_CCP_transects.txt', 'AQT_rfs_20151128T042000-20191108T000317_ZRT_it_rev1_qual.h5',
-    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4)
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4, spacing=2.0, max_depth=100.0)
     # run_batch('7X_CCP_transects.txt', '7X_rfs_20090616T034200-20110401T231849_ZRT_it_rev2_qual.h5',
-    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3)
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3, spacing=2.0, max_depth=100.0)
     main()  # pylint: disable=no-value-for-parameter
 # end if
