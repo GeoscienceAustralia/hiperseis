@@ -23,7 +23,7 @@ include 'mpif.h'
 !-----------------------------------------
 
 integer, parameter :: burn_in =  500000  !Burn-in period
-integer, parameter :: nsample = 1500000  !Post burn-in
+integer, parameter :: nsample = 4000000  !Post burn-in
 integer, parameter :: thin = 1000        !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
