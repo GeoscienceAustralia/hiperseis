@@ -59,13 +59,16 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     tickstep_y = 25
 
     plt.figure(figsize=(16, 9))
-    interpolation = 'bilinear'
+    interpolation = 'hanning'
     extent = (0, length, 0, max_depth)
+    assert not np.any(np.isnan(matrx))
     if vlims is not None:
-        im = plt.imshow(matrx, cmap='jet', aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
+        im = plt.imshow(matrx, cmap='seismic', aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
                         interpolation=interpolation, origin='lower')
     else:
-        im = plt.imshow(matrx, cmap='jet', aspect='auto', extent=extent, interpolation=interpolation, origin='lower')
+        im = plt.imshow(matrx, cmap='seismic', aspect='auto', extent=extent, interpolation=interpolation,
+                        origin='lower')
+    # end if
     cb = plt.colorbar(im)
     cb.set_label('Stacked amplitude (arb. units)')
 
@@ -546,6 +549,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     if not np.all(mesh_entries[:] == 0):
         #normalize, then plot
         matrx_norm = (profile_mesh / mesh_entries).transpose()
+        matrx_norm[np.isnan(matrx_norm)] = 0
         return matrx_norm, mesh_entries.transpose(), length, stn_params
     else:
         return None, None, 0, stn_params
