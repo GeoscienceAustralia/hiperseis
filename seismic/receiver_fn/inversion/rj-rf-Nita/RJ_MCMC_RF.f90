@@ -39,7 +39,7 @@ integer, parameter :: thin = 1000        !Thinning of the chain
 !------------------------------------------------
 
 integer,parameter  :: npt_min = 2 !minimun number of layers is 2. 1 does not work.
-integer, parameter :: npt_max = 20
+integer, parameter :: npt_max = 25
 
 !depth
 real, parameter :: d_min = 0
