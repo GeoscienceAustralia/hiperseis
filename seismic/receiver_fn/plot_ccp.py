@@ -333,15 +333,23 @@ def cross_along_track_distance(p1, p2, p3):
     :type p2: tuple(float, float)
     :param p3: (latitude, longitude) in degrees
     :type p3: tuple(float, float)
+    :return: Cross-track distance (orthogonal to arc from p1 to p2) and along-track distance (along arc from
+        p1 to p2) of the location p3.
+    :rtype: tuple(float, float)
     """
     delta_13 = angular_distance(p1, p3) * np.pi / 180.0
     theta_13 = bearing(p1, p3) * np.pi / 180.0
     theta_12 = bearing(p1, p2) * np.pi / 180.0
-    ct_angle = np.arcsin(np.sin(delta_13) * np.sin(theta_13 - theta_12))
+    relative_bearing = theta_13 - theta_12
+    while relative_bearing > np.pi:
+        relative_bearing -= 2*np.pi
+    while relative_bearing < -np.pi:
+        relative_bearing += 2*np.pi
+    ct_angle = np.arcsin(np.sin(delta_13) * np.sin(relative_bearing))
     at_angle = np.arccos(np.cos(delta_13) / np.cos(ct_angle))
     # If bearing from p1 to p3 is more than 90 degrees from bearing to p2, then the along-track angle
     # is negative.
-    if np.abs(theta_13 - theta_12) > np.pi/2.0:
+    if np.abs(relative_bearing) > np.pi/2.0:
         at_angle = -at_angle
     ct_angle = ct_angle * 180.0 / np.pi
     at_angle = at_angle * 180.0 / np.pi
@@ -650,8 +658,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, stack_scale=0.4, wid
             # and will break down near poles, for long transects, or if transect crosses the antimeridian.
             dirn = (end - start)
             dirn = dirn/np.linalg.norm(dirn)
-            start -= 0.05*dirn
-            end += 0.05*dirn
+            start -= 25*dirn/KM_PER_DEG
+            end += 25*dirn/KM_PER_DEG
             start_latlon = (start[1], start[0])
             end_latlon = (end[1], end[0])
 
@@ -701,8 +709,10 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
     # run_batch('AQ_CCP_transects.txt', 'AQT_rfs_20151128T042000-20191108T000317_ZRT_it_rev1_qual.h5',
-    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4, spacing=2.0, max_depth=100.0)
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
     # run_batch('7X_CCP_transects.txt', '7X_rfs_20090616T034200-20110401T231849_ZRT_it_rev2_qual.h5',
-    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3, spacing=2.0, max_depth=100.0)
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
     main()  # pylint: disable=no-value-for-parameter
 # end if
