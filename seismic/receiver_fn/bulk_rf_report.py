@@ -89,6 +89,7 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
     '''Helper function to produce H-k stacking figure.'''
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
                                                             h_range=np.linspace(20.0, 70.0, 501),
+                                                            k_range=np.linspace(1.5, 2.0, 301),
                                                             root_order=2, V_p=V_p)
 
     layer_maxes = [np.max(hk_stack[i, :, :]) for i in range(3)]
@@ -117,12 +118,12 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
     h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
     log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
     plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
-    if k_max >= 1.7:
+    if k_max >= 0.5*(xl[0] + xl[1]):
         plt.text(k_max - 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
-                 color="#ffffff", fontsize=16, horizontalalignment='right')
+                 color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
     else:
         plt.text(k_max + 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
-                 color="#ffffff", fontsize=16)
+                 color="#ffffff", fontsize=14, clip_on=True)
     # end if
 
     return fig
