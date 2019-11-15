@@ -20,7 +20,6 @@ Example usage:
 
 import os
 import numpy as np
-# from future.utils import iteritems
 
 import click
 from obspy.taup import TauPyModel
@@ -32,10 +31,9 @@ import rf
 from tqdm import tqdm
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
-from seismic.ASDFdatabase import FederatedASDFDataSet
 
 
-def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None):
+def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None, colormap='seismic'):
     """Plot results of CCP stacking procedure.
 
     :param matrx: [description]
@@ -54,6 +52,9 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     :type metadata: dict, optional
     :param title: Title text to add to the plot, defaults to None
     :type title: str, optional
+    :param colormap: Color map to use for the CCP intensity shading.
+    :type colormap: str
+    :return: None
     """
     tickstep_x = 50
     tickstep_y = 25
@@ -63,11 +64,10 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     extent = (0, length, 0, max_depth)
     assert not np.any(np.isnan(matrx))
     if vlims is not None:
-        im = plt.imshow(matrx, cmap='seismic', aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
+        im = plt.imshow(matrx, cmap=colormap, aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
                         interpolation=interpolation, origin='lower')
     else:
-        im = plt.imshow(matrx, cmap='seismic', aspect='auto', extent=extent, interpolation=interpolation,
-                        origin='lower')
+        im = plt.imshow(matrx, cmap=colormap, aspect='auto', extent=extent, interpolation=interpolation, origin='lower')
     # end if
     cb = plt.colorbar(im)
     cb.set_label('Stacked amplitude (arb. units)')
@@ -558,7 +558,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
 
 def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
-        background_model='ak135', stacked_scale=None, title=None, plot_density=False):
+        background_model='ak135', stacked_scale=None, title=None, plot_density=False, colormap=None):
     """Run CCP generation on a given dataset of RFs.
 
     :param rf_stream: Set of RFs to use for CCP plot
@@ -583,6 +583,10 @@ def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_de
     :type stacked_scale: float
     :param title: Title to place at top of CCP plot
     :type title: str
+    :param plot_density: Whether to generate data density plot.
+    :type plot_density: bool
+    :param colormap: Color map to use for the CCP intensity shading. Suggest 'seismic', 'coolwarm' or 'jet'.
+    :type colormap: str
     :return: None
     """
 
@@ -603,79 +607,18 @@ def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_de
             vlims = None
         # endif
         plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=vlims, metadata=stn_params,
-                 title=title)
+                 title=title, colormap=colormap)
         if plot_density and sample_density is not None:
             sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
             # Use median of number of events per station to set the scale range.
             sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
             median_samples = sc[len(sc)//2]
             plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
-                     metadata=stn_params, title=title + ' [sample density]' if title else None)
+                     metadata=stn_params, title=title + ' [sample density]' if title else None, colormap=colormap)
         # end if
     # end if
 # end func
 
-
-def run_batch(transect_file, rf_waveform_file, fed_db_file, stack_scale=0.4, width=30.0, spacing=2.0,
-              max_depth=200.0, channels='R'):
-    """Run CCP generation in batch mode along a series of transects.
-
-    :param transect_file: File containing specification of network and station locations of ends of transects
-    :type transect_file: str or Path
-    :param rf_waveform_file: HDF5 file of QA'd receiver functions for the network matching the transect file
-    :type rf_waveform_file: str or Path
-    :param fed_db_file: Name of file with which to initialize FederatedASDFDataBase
-    :type fed_db_file: str or Path
-    :param stack_scale: Max value to represent on color scale of CCP plot
-    :type stack_scale: float
-    :param width: Width of transect (km)
-    :type width: float
-    :param spacing: Discretization size (km) for RF ray sampling
-    :type spacing: float
-    :param max_depth: Maximum depth of slice below the transect line (km)
-    :type max_depth: float
-    :param channels: String of comma-separated component IDs to source for the RF amplitude
-    :type channels: str, comma separated
-    :return: None
-    """
-
-    print("Reading HDF5 file...")
-    rf_stream = rf.read_rf(rf_waveform_file, 'H5')
-
-    db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
-    sta_coords = db.unique_coordinates
-
-    with open(transect_file, 'r') as f:
-        net = f.readline().strip()
-        for transect in f.readlines():
-            if not transect.strip():
-                continue
-            sta_start, sta_end = transect.split(',')
-            sta_start = sta_start.strip()
-            sta_end = sta_end.strip()
-            start = '.'.join([net, sta_start])
-            end = '.'.join([net, sta_end])
-            start = np.array(sta_coords[start])
-            end = np.array(sta_coords[end])
-            # Offset ends slightly to make sure we don't lose end stations due to truncation error.
-            # Note: for simplicity this treats lat/lon like cartesian coords, but this is approximate
-            # and will break down near poles, for long transects, or if transect crosses the antimeridian.
-            dirn = (end - start)
-            dirn = dirn/np.linalg.norm(dirn)
-            start -= 25*dirn/KM_PER_DEG
-            end += 25*dirn/KM_PER_DEG
-            start_latlon = (start[1], start[0])
-            end_latlon = (end[1], end[0])
-
-            outfile = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing.png'.format(net, sta_start, sta_end, spacing)
-            title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
-
-            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channels,
-                stacked_scale=stack_scale, title=title)
-
-    # end for
-    # end with
-# end func
 
 # ---------------- MAIN ----------------
 @click.command()
@@ -705,18 +648,22 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
     # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_quality_filter.py
     print("Reading HDF5 file...")
     stream = rf.read_rf(rf_file, 'H5')
+    colormap = 'jet'
     run(stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels, background_model,
-        stacked_scale, title)
+        stacked_scale, title, colormap=colormap)
 # end func main
 
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
     # run_batch('AQ_CCP_transects.txt', 'AQT_rfs_20151128T042000-20191108T000317_ZRT_it_rev1_qual.h5',
-    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.4, width=40.0,
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.5, width=40.0,
     #           spacing=2.0, max_depth=100.0)
     # run_batch('7X_CCP_transects.txt', '7X_rfs_20090616T034200-20110401T231849_ZRT_it_rev2_qual.h5',
     #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
+    # run_batch('OA_CCP_transects.txt', 'OA_rfs_20170911T000036-20181128T230620_ZRT_it_rev15_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.2, width=40.0,
     #           spacing=2.0, max_depth=100.0)
     main()  # pylint: disable=no-value-for-parameter
 # end if
