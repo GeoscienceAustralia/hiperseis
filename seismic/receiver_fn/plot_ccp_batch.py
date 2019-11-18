@@ -49,7 +49,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
         rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.predicted_quality == 'a'])
     # end if
     if similarity_filter and len(rf_stream) >= 3:
-        rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
+        rf_stream = rf_util.filter_crosscorr_coeff(rf_stream, apply_moveout=True)
     # end if
 
     db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)

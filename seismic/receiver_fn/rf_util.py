@@ -433,7 +433,7 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
 # end func
 
 
-def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15):
+def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15, apply_moveout=False):
     """For each trace in the stream, compute its correlation coefficient with the other traces.
     Return only traces matching cross correlation coefficient criteria based on C.Sippl (2016)
     [see http://dx.doi.org/10.1016/j.tecto.2016.03.031]
@@ -448,6 +448,9 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :param min_fraction: Minimum fraction of coefficients above threshold_cc, defaults to 0.15.
         Denoted tau in Sippl, who used value 0.15.
     :type min_fraction: float, optional
+    :param apply_moveout: Whether to apply moveout correction to Ps phase prior to computing
+        correlation coefficients.
+    :type apply_moveout: bool
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
@@ -465,6 +468,10 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
         'Mixed station data passed to similarity filter!'
     assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in data_cc])), \
         'Mixed channel data passed to similarity filter!'
+    # Apply optional moveout
+    if apply_moveout:
+        data_cc.moveout()
+    # end if
     # Gather all RFs into a single array for efficient computation of correlation coefficients
     # between all traces
     data_array = np.array([tr.data for tr in data_cc])
