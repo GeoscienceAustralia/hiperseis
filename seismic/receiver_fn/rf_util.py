@@ -52,6 +52,7 @@ def phase_weights(stream):
     # Return normalized result against max amplitude, so that the most coherent part of the signal
     # has a scaling of 1.
     return tphase/np.max(tphase)
+# end func
 
 
 def find_rf_group_ids(stream):
@@ -66,6 +67,7 @@ def find_rf_group_ids(stream):
     # AttributeError may be raised here if rf_group attribute does not exist in the stats.
     group_ids = set((trace.stats.rf_group for trace in stream))
     return group_ids
+# end func
 
 
 def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
@@ -94,6 +96,7 @@ def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
 
     rf_data = rf.read_rf(src_file, format='h5', group=group)
     return rf_data
+# end func
 
 
 def rf_to_dict(rf_data):
@@ -106,6 +109,7 @@ def rf_to_dict(rf_data):
     :rtype: seismic.receiver_fn.rf_network_dict.NetworkRFDict
     """
     return NetworkRFDict(rf_data)
+# end func
 
 
 def signed_nth_root(arr, order):
@@ -123,6 +127,7 @@ def signed_nth_root(arr, order):
         return arr.copy()
     else:
         return np.sign(arr)*np.power(np.abs(arr), 1.0/order)
+# end func
 
 
 def signed_nth_power(arr, order):
@@ -140,6 +145,7 @@ def signed_nth_power(arr, order):
         return arr
     else:
         return np.sign(arr)*np.power(np.abs(arr), order)
+# end func
 
 
 def filter_station_streams(db_station, freq_band=(None, None)):
@@ -165,6 +171,7 @@ def filter_station_streams(db_station, freq_band=(None, None)):
     # end for
 
     return db_station_filt
+# end func
 
 
 def filter_station_to_mean_signal(db_station, min_correlation=1.0):
@@ -203,6 +210,7 @@ def filter_station_to_mean_signal(db_station, min_correlation=1.0):
     # end for
 
     return db_station_filt, corrs
+# end func
 
 
 def compute_extra_rf_stats(stream):
@@ -231,6 +239,7 @@ def compute_extra_rf_stats(stream):
         tr.stats.log10_amp_20pc = log10_amp_20pc
         tr.stats.log10_amp_80pc = log10_amp_80pc
     # end for
+# end func
 
 
 def compute_vertical_snr(src_stream):
@@ -295,6 +304,7 @@ def compute_vertical_snr(src_stream):
             tr.stats.update(md_dict)
         # end for
     # end if
+# end func
 
 
 def compute_rf_snr(rf_stream):
@@ -345,6 +355,7 @@ def compute_rf_snr(rf_stream):
             tr.stats.update(md_dict)
         # end for
     # end if
+# end func
 
 
 def choose_rf_source_channel(rf_type, db_station):
@@ -371,6 +382,7 @@ def choose_rf_source_channel(rf_type, db_station):
             break
     # end for
     return best_channel
+# end func
 
 
 def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
@@ -418,6 +430,7 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
             # end if
         # end for
     # end if
+# end func
 
 
 def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15):
@@ -438,11 +451,20 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
-    # TODO: Check expected condition that intput data represents only **a single component of a single station**
-
     # Trim good RFs to time range so that subsequent cross-correlation computations relate to the
     # relevant period around and after onset.
     data_cc = rf_stream.copy().trim2(*time_window, reftime='onset')
+    if not data_cc:
+        return data_cc
+    # end if
+    # Check station and channel uniqueness. It is not sensible to expect RF similarity for
+    # different stations or channels.
+    expected_station = data_cc[0].stats.channel
+    expected_channel = data_cc[0].stats.station
+    assert np.all(np.array([(tr.stats.station == expected_station) for tr in data_cc])), \
+        'Mixed station data passed to similarity filter!'
+    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in data_cc])), \
+        'Mixed channel data passed to similarity filter!'
     # Gather all RFs into a single array for efficient computation of correlation coefficients
     # between all traces
     data_array = np.array([tr.data for tr in data_cc])
@@ -454,6 +476,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     keep_trace_mask = (fraction_above_threshold >= min_fraction)
     kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
     return kept_data
+# end func
 
 
 def zne_order(tr):
