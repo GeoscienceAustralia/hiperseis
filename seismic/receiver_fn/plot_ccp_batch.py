@@ -13,7 +13,7 @@ from seismic.receiver_fn.plot_ccp import run
 
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,
               stack_scale=0.4, width=30.0, spacing=2.0, max_depth=200.0,
-              channels='R', output_folder='', colormap='seismic'):
+              channel='R', output_folder='', colormap='seismic'):
     """Run CCP generation in batch mode along a series of transects.
 
     :param transect_file: File containing specification of network and station locations of ends of transects
@@ -34,22 +34,37 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     :type spacing: float
     :param max_depth: Maximum depth of slice below the transect line (km)
     :type max_depth: float
-    :param channels: String of comma-separated component IDs to source for the RF amplitude
-    :type channels: str, comma separated
+    :param channel: Channel component ID to source for the RF amplitude
+    :type channel: str length 1
     :return: None
     """
 
     print("Reading HDF5 file...")
-    rf_stream = rf.read_rf(rf_waveform_file, 'H5')
+    rf_stream = rf.read_rf(rf_waveform_file, 'H5').select(component=channel)
 
-    rf_type = 'ZRT'
+    rf_type = rf_stream[0].stats.rotation
     if amplitude_filter:
         # Label and filter quality
         rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
         rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.predicted_quality == 'a'])
     # end if
-    if similarity_filter and len(rf_stream) >= 3:
-        rf_stream = rf_util.filter_crosscorr_coeff(rf_stream, apply_moveout=True)
+
+    # For similarity filtering, similarity filtering must applied to one station at a time.
+    if similarity_filter:
+        data_dict = rf_util.rf_to_dict(rf_stream)
+        rf_stream = rf.RFStream()
+        for sta, ch_dict in data_dict:
+            for cha, ch_traces in ch_dict.items():
+                if len(ch_traces) >= 3:
+                    # Use short time window that cuts off by 10 sec, since we're only interested in Ps phase here.
+                    filtered_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=(-2, 10),
+                                                                     apply_moveout=True)
+                    rf_stream += filtered_traces
+                else:
+                    rf_stream += rf.RFStream(ch_traces)
+                # end if
+            # end for
+        # end for
     # end if
 
     db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
@@ -86,10 +101,10 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
 
             outfile = os.path.join(output_folder, outfile)
-            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channels,
+            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channel,
                 stacked_scale=stack_scale, title=title, colormap=colormap)
 
-    # end for
+        # end for
     # end with
 # end func
 
@@ -128,8 +143,9 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
 
     output_folder: Folder in which to place output files.
     """
+    assert len(channel)  == 1, "Batch stack only on one channel at a time"
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
-              max_depth=depth, channels=channel, output_folder=output_folder, colormap=colormap,
+              max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
               amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter)
 # end main
 
