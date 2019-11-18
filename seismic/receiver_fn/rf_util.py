@@ -462,8 +462,8 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     # end if
     # Check station and channel uniqueness. It is not sensible to expect RF similarity for
     # different stations or channels.
-    expected_station = data_cc[0].stats.channel
-    expected_channel = data_cc[0].stats.station
+    expected_station = data_cc[0].stats.station
+    expected_channel = data_cc[0].stats.channel
     assert np.all(np.array([(tr.stats.station == expected_station) for tr in data_cc])), \
         'Mixed station data passed to similarity filter!'
     assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in data_cc])), \
