@@ -61,7 +61,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, component='R
         for cha, ch_traces in ch_dict.items():
             if len(ch_traces) < 3:
                 continue
-            similar_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), apply_moveout=True)
+            similar_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=trim_window,
+                                                            apply_moveout=True)
             if not similar_traces:
                 continue
             if moveout:
