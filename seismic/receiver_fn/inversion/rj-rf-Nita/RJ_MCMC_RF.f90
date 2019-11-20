@@ -54,7 +54,7 @@ real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
 real, parameter :: width = 2.0
 
 double precision, parameter :: Ar_max = 0.1000  !Upper bound for noise parameter
-double precision, parameter :: Ar_min = 0.0050  !Lower bound for noise parameter
+double precision, parameter :: Ar_min = 0.0010  !Lower bound for noise parameter
 
 
 !-----------------------------------------
