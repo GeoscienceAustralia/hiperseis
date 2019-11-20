@@ -333,9 +333,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
 @click.option('--whitening-window-frequency', type=float, default=0,
-              help="Window frequency (Hz) used to determine length of averaging window for smoothing spectral "
-                   "amplitude. The default value of 0 implies no smoothing. Note that this parameter has no "
-                   "effect unless whitening is activated with '--whitening'")
+              help="Window frequency (Hz) determines the half-window length (of averaging window) used for smoothing weights "
+                   "that scale the spectral amplitudes of the waveform being spectrally whitened. The default value of 0 "
+                   "implies no smoothing of weights. Note that this parameter has no effect unless whitening is activated with "
+                   "'--whitening'")
 @click.option('--one-bit-normalize', is_flag=True,
               help="Apply one-bit normalization to data in each window")
 @click.option('--read-buffer-size', default=10,
