@@ -1,8 +1,6 @@
-c
-c	Parameter file for RFI subroutines
-c
-        integer maxsublayer
-        integer maxdata
-        parameter       (maxsublayer = 100,
-     &                   maxdata = 1024)
+!
+!	Parameter file for RFI subroutines
+!
+        integer, parameter :: maxsublayer = 100
+        integer, parameter ::  maxdata = 1024
 
