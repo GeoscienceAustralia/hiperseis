@@ -4,10 +4,10 @@
 ifeq ($(TARGET_ARCH),AVX2)
   # This build is much faster on Intel CPUs with AVX2 instruction set.
   # To generate this build on NCI, run 'setup_make_avx2.sh' shell script first.
-  FC = mpifort -mcmodel=medium -O2 -march=core-avx2 -axCORE-AVX2 -xCORE-AVX2
+  FC = mpifort -mcmodel=medium -O2 -march=core-avx2 -axCORE-AVX2 -xCORE-AVX2 -check all
   TARGET = run_avx2
 else
-  FC = mpifort -mcmodel=medium -O2
+  FC = mpifort -mcmodel=medium -O2 -fcheck-array-temporaries -fbounds-check
   TARGET = run
 endif
 
