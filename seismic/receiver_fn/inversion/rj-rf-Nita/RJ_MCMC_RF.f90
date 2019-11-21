@@ -184,6 +184,9 @@ character(len=256) :: output_folder
 
 !***********************************************************************
 
+! Initialize variables
+Prnr = 0
+
 !**************************************************************
 
 !                  CHECK AND READ ARGUMENTS
@@ -504,6 +507,9 @@ do while (sample<nsample)
 		endif
 	elseif (u<0.3) then ! Change noise parameter for receiver function
 		noisr=1
+        ! 22 Nov 2019: BUG FOUND HERE ON INTEL COMPILER
+        ! forrtl: severe (194): Run-Time Check Failure. The variable
+        ! 'rj_mcmc_rf_$PRNR' is being used in 'RJ_MCMC_RF.f90(507,3)' without being defined
 		Prnr = Prnr + 1
 		Ar_prop = Ar+gasdev(ra)*pAr
 		!Check if oustide bounds of prior
