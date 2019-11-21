@@ -8,12 +8,16 @@ ifeq ($(TARGET_ARCH),AVX2)
   # Uncomment to add runtime checks option (slows down runtime)
 #  FC += -check all
   TARGET = run_avx2
+  # Additional debug mode optons:
+  # For Intel compiler, use: -check all
 else
   FC = mpifort -std=f2008 -mcmodel=medium -O2 -Wall -pedantic
   # Uncomment to add runtime checks option (slows down runtime)
 #  FC += -fcheck-array-temporaries -fbounds-check
+  # Note: for newer gfortran compilers, instead use: -fcheck=all
   TARGET = run
 endif
+
 
 all: run
 
