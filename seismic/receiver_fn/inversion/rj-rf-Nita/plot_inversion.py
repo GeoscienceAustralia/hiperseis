@@ -153,19 +153,21 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', st
         # Convergence plots...
         plt.figure(figsize=fig_size)
 
-        it_num = np.arange(len(c_misfit))*convergence_ds
         plt.subplot(311)
+        it_num = np.arange(len(c_misfit))*convergence_ds
         plt.semilogy(it_num, c_misfit, label='Mean', alpha=0.8)
         plt.ylabel('Misfit')  # unit = ??
         plt.legend()
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(312)
+        it_num = np.arange(len(c_layers))*convergence_ds
         plt.plot(it_num, c_layers, label='Mean', alpha=0.8)
         plt.ylabel('# layers')
         plt.grid(color=aligner_color, linestyle=':')
 
         plt.subplot(313)
+        it_num = np.arange(len(csig))*convergence_ds
         plt.semilogy(it_num, csig, label='Mean', alpha=0.8)
         plt.xlabel('Iteration number')
         plt.ylabel(r'$\sigma$')
