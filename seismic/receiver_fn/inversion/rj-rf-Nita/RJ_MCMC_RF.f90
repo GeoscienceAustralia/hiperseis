@@ -184,6 +184,10 @@ character(len=256) :: output_folder
 
 !***********************************************************************
 
+! Initialize variables
+Prnr = 0
+Acnr = 0
+
 !**************************************************************
 
 !                  CHECK AND READ ARGUMENTS
@@ -478,7 +482,7 @@ do while (sample<nsample)
 
 	if (u<0.1) then !change position--------------------------------------------
 		move=1
-		ind=ceiling(ran3(ra)*npt)
+		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 		if (ount.GT.burn_in) then 
 			if (voro(ind,1)<(d_max/2)) then
 				PrP(1)=PrP(1)+1
@@ -513,7 +517,7 @@ do while (sample<nsample)
 
 	elseif (u<0.4) then ! change value---------------------------------------------------------
 		value=1
-		ind=ceiling(ran3(ra)*npt)
+		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 		if (ount.GT.burn_in) then 
 			if (voro(ind,1)<(d_max/2)) then
 				PrV(1)=PrV(1)+1
@@ -556,7 +560,7 @@ do while (sample<nsample)
 	else !death!---------------------------------------	
 			death = 1
 			PrD = PrD + 1
-			ind=ceiling(ran3(ra)*npt)
+			ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 			npt_prop=npt-1
 			if (npt_prop<npt_min) then
 				 out=0
@@ -722,13 +726,13 @@ IF (ount.GT.burn_in) THEN
 			d=(i-1)*prof/real(disd-1)
 			if (d<ht)then
 				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))
+				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 				post(i,v)=post(i,v)+1
 		
 			else	
 				l=l+1
 				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))
+				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 				post(i,v)=post(i,v)+1
 		
 				if (l<npt) then
@@ -739,14 +743,14 @@ IF (ount.GT.burn_in) THEN
 			endif
 		enddo
 		
-		i=ceiling((Ar-Ar_min)*disA/(Ar_max-Ar_min))
+		i=ceiling((Ar-Ar_min)*disA/(Ar_max-Ar_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 		ML_Ar(i) = ML_Ar(i)+1
 		
 		!Get distribution on changepoint locations.
 		ht=0
 		do i=1,npt-1
 		ht=ht+h(i)
-		j=ceiling((ht)*disd/(prof))
+		j=ceiling((ht)*disd/(prof))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
 		histoch(j)=histoch(j)+1
 		enddo	
 		
