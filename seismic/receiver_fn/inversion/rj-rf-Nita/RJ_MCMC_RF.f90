@@ -39,7 +39,7 @@ integer, parameter :: thin = 100         !Thinning of the chain
 !------------------------------------------------
 
 integer,parameter  :: npt_min = 2 !minimun number of layers is 2. 1 does not work.
-integer, parameter :: npt_max = 20
+integer, parameter :: npt_max = 25
 
 !depth
 real, parameter :: d_min = 0
@@ -249,6 +249,7 @@ CALL cpu_time(t1)  !Tic. start counting time
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
 seed = clock + rank
+! seed = 3772 + rank
 ra=int(seed)
 write(*,*)'Rank',rank,'using seed',ra
 
