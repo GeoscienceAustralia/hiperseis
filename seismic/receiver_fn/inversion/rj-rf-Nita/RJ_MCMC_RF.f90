@@ -22,8 +22,10 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-integer, parameter :: burn_in = 6500000  !Burn-in period
-integer, parameter :: nsample = 9500000  !Post burn-in
+! integer, parameter :: burn_in = 6500000  !Burn-in period
+! integer, parameter :: nsample = 9500000  !Post burn-in
+integer, parameter :: burn_in = 4500000  !Burn-in period - minimal number to get AR metrics
+integer, parameter :: nsample =  500000  !Post burn-in - minimal number to get AR metrics
 integer, parameter :: thin = 100         !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
@@ -248,8 +250,8 @@ CALL cpu_time(t1)  !Tic. start counting time
 
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
-seed = clock + rank
-! seed = 3772 + rank
+! seed = clock + rank
+seed = 3772 + rank !! CUSTOM FIXED SEED FOR TUNING
 ra=int(seed)
 write(*,*)'Rank',rank,'using seed',ra
 
