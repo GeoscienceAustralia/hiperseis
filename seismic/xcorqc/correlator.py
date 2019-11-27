@@ -233,7 +233,11 @@ def process(data_source1, data_source2, output_path,
         outputConfigParameters()
 
         pairs = ds1.get_unique_station_pairs(ds2, nn=nearest_neighbours)
-        pairs = cull_pairs(pairs, pairs_to_compute)
+        if(pairs_to_compute):
+            # only keep pairs provided in the text file, given they exist in the data-sets
+            pairs = cull_pairs(pairs, pairs_to_compute)
+        # end if
+
         proc_stations = split_list(pairs, npartitions=nproc)
     # end if
 
