@@ -124,9 +124,9 @@ class Dataset:
 # end class
 
 def process(data_source1, data_source2, output_path,
-            interval_seconds, window_seconds, window_overlap,
+            interval_seconds, window_seconds, window_overlap, window_buffer_length,
             resample_rate=None, taper_length=0.05, nearest_neighbours=1,
-            fmin=None, fmax=None, netsta_list1='*', netsta_list2='*',
+            fmin=None, fmax=None, netsta_list1='*', netsta_list2='*', pairs_to_compute=None,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, whitening_window_frequency=0,
@@ -178,6 +178,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
             f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_OVERLAP', window_overlap))
 
+            f.write('%25s\t\t\t: %s\n' % ('--window-buffer-length', window_buffer_length))
             f.write('%25s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
             f.write('%25s\t\t\t: %s\n' % ('--taper-length', taper_length))
             f.write('%25s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
@@ -205,9 +206,34 @@ def process(data_source1, data_source2, output_path,
             f.close()
         # end func
 
+        def cull_pairs(pairs, keep_list_fn):
+            result = set()
+            pairs_set = set()
+
+            for pair in pairs:
+                pairs_set.add('%s.%s'%(pair[0], pair[1]))
+            # end for
+
+            keep_list = open(keep_list_fn, 'r').readlines()
+            for keep_pair in keep_list:
+                keep_pair = keep_pair.strip()
+                if(len(keep_pair)):
+                    knet1, ksta1, knet2, ksta2 = keep_pair.split('.')
+
+                    keep_pair_alt = '%s.%s.%s.%s'%(knet2, ksta2, knet1, ksta1)
+
+                    if(keep_pair in pairs_set or keep_pair_alt in pairs_set):
+                        result.add(('%s.%s'%(knet1, ksta1), '%s.%s'%(knet2, ksta2)))
+                # end if
+            # end for
+
+            return list(result)
+        # end func
+
         outputConfigParameters()
 
         pairs = ds1.get_unique_station_pairs(ds2, nn=nearest_neighbours)
+        pairs = cull_pairs(pairs, pairs_to_compute)
         proc_stations = split_list(pairs, npartitions=nproc)
     # end if
 
@@ -271,10 +297,10 @@ def process(data_source1, data_source2, output_path,
                                                         corr_chans[0], corr_chans[1],
                                                         baz_netsta1, baz_netsta2,
                                                         resample_rate, taper_length, read_buffer_size, interval_seconds,
-                                                        window_seconds, window_overlap, fmin, fmax, clip_to_2std,
-                                                        whitening, whitening_window_frequency, one_bit_normalize,
-                                                        envelope_normalize, ensemble_stack, output_path, 2,
-                                                        time_tag)
+                                                        window_seconds, window_overlap, window_buffer_length,
+                                                        fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
+                                                        one_bit_normalize, envelope_normalize, ensemble_stack,
+                                                        output_path, 2, time_tag)
     # end for
 # end func
 
@@ -294,6 +320,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=int)
 @click.argument('window-overlap', required=True,
                 type=float)
+@click.option('--window-buffer-length', default=0, type=float, help="Buffer length as a fraction of 'window-seconds' around "
+                                                                    "actual data windows of interest. This helps exclude "
+                                                                    "effects of tapering and other edge artefacts from data "
+                                                                    "windows before cross-correlation")
 @click.option('--resample-rate', default=None, help="Resampling rate (Hz); applies to both datasets")
 @click.option('--taper-length', default=0.05, help="Taper length as a fraction of window length; default 0.05")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
@@ -307,6 +337,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Station name(s) (space-delimited) to process in data-source-1; default is '*', which processes all available stations.")
 @click.option('--station-names2', default='*', type=str,
               help="Station name(s) (space-delimited) to process in data-source-2; default is '*', which processes all available stations.")
+@click.option('--pairs-to-compute', default=None, type=click.Path('r'),
+              help="Text file containing station pairs (NET.STA.NET.STA) for which cross-correlations are to be computed."
+                   "Note that this parameter is intended as a way to restrict the number of computations to only the "
+                   "station-pairs listed in the text-file.")
 @click.option('--start-time', default='1970-01-01T00:00:00',
               type=str,
               help="Date and time (in UTC format) to start from; default is year 1900.")
@@ -376,9 +410,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
-         resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1, station_names2,
-         start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
-         clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+         window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
+         station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
+         water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, no_tracking_tag):
     """
@@ -396,9 +430,9 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
     if(fmax): fmax = float(fmax)
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
-            resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1, station_names2,
-            start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
-            clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+            window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
+            station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
+            water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
             ensemble_stack, restart, no_tracking_tag)
 # end func

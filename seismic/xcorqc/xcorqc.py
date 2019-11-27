@@ -84,7 +84,7 @@ def taper(tr, taperlen):
     return tr
 # end func
 
-def whiten(a, sampling_rate, fmin, fmax, window_freq=0, taper_length=0.05):
+def whiten(a, sampling_rate, fmin, fmax, window_freq=0, taper_length=0):
     # frequency step
     npts = a.shape[0]
     deltaf = sampling_rate / npts
@@ -104,21 +104,24 @@ def whiten(a, sampling_rate, fmin, fmax, window_freq=0, taper_length=0.05):
 
     a = np.fft.irfft(ss)
 
-    if(taper_length>0):
-        a = taper(a, int(taper_length*a.shape[0]))
-    # bandpass to avoid low/high freq noise
-    a = bandpass(a, fmin, fmax, sampling_rate, corners=2, zerophase=True)
-
     return a
 # end func
 
 def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
            instrument_response_output='vel', water_level=50.,
-           window_seconds=3600, window_overlap=0.1, interval_seconds=86400,
-           taper_length=0.05, resample_rate=None, flo=None, fhi=None,
-           clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-           one_bit_normalize=False, envelope_normalize=False,
+           window_seconds=3600, window_overlap=0.1, window_buffer_length=0,
+           interval_seconds=86400, taper_length=0.05, resample_rate=None,
+           flo=None, fhi=None, clip_to_2std=False, whitening=False,
+           whitening_window_frequency=0, one_bit_normalize=False, envelope_normalize=False,
            verbose=1, logger=None):
+
+    # Length of window_buffer in seconds
+    window_buffer_seconds = window_buffer_length * window_seconds
+    adjusted_taper_length = taper_length
+    if(window_buffer_seconds):
+        # adjust taper length
+        adjusted_taper_length = taper_length / (1. + window_buffer_length * 2.)
+    # end if
 
     sr1 = tr1.stats.sampling_rate
     sr2 = tr2.stats.sampling_rate
@@ -128,14 +131,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     tr2_d_all = tr2.data
     lentr1_all = tr1_d_all.shape[0]
     lentr2_all = tr2_d_all.shape[0]
-    window_samples_1 = window_seconds * sr1
-    window_samples_2 = window_seconds * sr2
+    window_samples_1 = (window_seconds + 2*window_buffer_seconds) * sr1
+    window_samples_2 = (window_seconds + 2*window_buffer_seconds) * sr2
     interval_samples_1 = interval_seconds * sr1
     interval_samples_2 = interval_seconds * sr2
     sr = 0
     resll = []
-    MIN_FREQ = 0.005 # Minimum frequency used for spline detrending and for suppressing artefacts
-                     # potentially introduced during instrument response removal.
 
     # set day-aligned start-indices
     maxStartTime = max(tr1.stats.starttime, tr2.stats.starttime)
@@ -161,8 +162,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
 
         while ((itr1s < 0) or (itr2s < 0)):
-            itr1s += window_samples_1 - window_samples_1 * window_overlap
-            itr2s += window_samples_2 - window_samples_2 * window_overlap
+            itr1s += (window_samples_1 - 2*window_buffer_seconds*sr1_orig) - \
+                     (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap
+            itr2s += (window_samples_2 - 2*window_buffer_seconds*sr2_orig) - \
+                     (window_samples_2 - 2*window_buffer_seconds*sr2_orig) * window_overlap
         # end while
 
         if(np.fabs(itr1e - itr1s) < sr1_orig or np.fabs(itr2e - itr2s) < sr2_orig):
@@ -203,17 +206,13 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
                 tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
 
-                # STEP 1, 2: spline detrend Fc = MIN_FREQ
-                Fc1 = np.int_(np.ceil(sr1_orig / (2. * MIN_FREQ)))
-                Fc2 = np.int_(np.ceil(sr2_orig / (2. * MIN_FREQ)))
-
-                tr1_d -= np.mean(tr1_d)
-                tr2_d -= np.mean(tr2_d)
+                # STEP 1: detrend
                 tr1_d = signal.detrend(tr1_d)
                 tr2_d = signal.detrend(tr2_d)
 
-                #tr1_d = spline(tr1_d, 2, Fc1)
-                #tr2_d = spline(tr2_d, 2, Fc2)
+                # STEP 2: demean
+                tr1_d -= np.mean(tr1_d)
+                tr2_d -= np.mean(tr2_d)
 
                 # STEP 3: remove response
                 if(sta1_inv):
@@ -273,8 +272,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
 
                 # STEP 6: Bandpass
-                tr1_d = bandpass(tr1_d, MIN_FREQ, fhi, sr1, corners=2, zerophase=True)
-                tr2_d = bandpass(tr2_d, MIN_FREQ, fhi, sr2, corners=2, zerophase=True)
+                tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=2, zerophase=True)
+                tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=2, zerophase=True)
 
                 # STEP 7: time-domain normalization
                 # clip to +/- 2*std
@@ -306,34 +305,36 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
 
                 # STEP 8: taper
-                if(taper_length>0):
-                    tr1_d = taper(tr1_d, int(taper_length*tr1_d.shape[0]))
-                    tr2_d = taper(tr2_d, int(taper_length*tr2_d.shape[0]))
+                if(adjusted_taper_length > 0):
+                    tr1_d = taper(tr1_d, int(np.round(adjusted_taper_length*tr1_d.shape[0])))
+                    tr2_d = taper(tr2_d, int(np.round(adjusted_taper_length*tr2_d.shape[0])))
                 # end if
 
                 # STEP 9: spectral whitening
                 if(whitening):
-                    if(taper_length):
-                        # avoid tapering twice, as tapering has already been applied in STEP 8
-                        tr1_d = whiten(tr1_d, sr1, flo, fhi,
-                                       window_freq=whitening_window_frequency, taper_length=0)
-                        tr2_d = whiten(tr2_d, sr2, flo, fhi,
-                                       window_freq=whitening_window_frequency, taper_length=0)
-                    else:
-                        # applies default tapering of 5%
-                        tr1_d = whiten(tr1_d, sr1, flo, fhi,
-                                       window_freq=whitening_window_frequency)
-                        tr2_d = whiten(tr2_d, sr2, flo, fhi,
-                                       window_freq=whitening_window_frequency)
+                    tr1_d = whiten(tr1_d, sr1, flo, fhi,
+                                   window_freq=whitening_window_frequency)
+                    tr2_d = whiten(tr2_d, sr2, flo, fhi,
+                                   window_freq=whitening_window_frequency)
+
+                    # STEP 10: taper
+                    if (adjusted_taper_length > 0):
+                        tr1_d = taper(tr1_d, int(np.round(adjusted_taper_length*tr1_d.shape[0])))
+                        tr2_d = taper(tr2_d, int(np.round(adjusted_taper_length*tr2_d.shape[0])))
                     # end if
                 # end if
 
-                # STEP 10: Final banbpass
-                # apply zero-phase bandpass; note that if spectral whitening is enabled, a bandpass
-                # filtered waveform is returned and the following filter is no longer necessary.
-                if(flo and fhi and not whitening):
+                # STEP 11: Final bandpass
+                # apply zero-phase bandpass
+                if(flo and fhi):
                     tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=2, zerophase=True)
                     tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=2, zerophase=True)
+                # end if
+
+                if(window_buffer_seconds):
+                    # extract window of interest from buffered window
+                    tr1_d = tr1_d[int(window_buffer_seconds*sr1):-int(window_buffer_seconds*sr1)]
+                    tr2_d = tr2_d[int(window_buffer_seconds*sr2):-int(window_buffer_seconds*sr2)]
                 # end if
 
                 # cross-correlate waveforms
@@ -358,8 +359,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
             # end if
 
-            wtr1s += int(window_samples_1 - window_samples_1 * window_overlap)
-            wtr2s += int(window_samples_2 - window_samples_2 * window_overlap)
+            wtr1s += int((window_samples_1 - 2*window_buffer_seconds*sr1_orig) -
+                         (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap)
+            wtr2s += int((window_samples_2 - 2*window_buffer_seconds*sr2_orig) -
+                         (window_samples_2 - 2*window_buffer_seconds*sr2_orig) * window_overlap)
         # end while (windows within interval)
 
         if (verbose > 1):
@@ -431,7 +434,8 @@ def IntervalStackXCorr(refds, tempds,
                        resample_rate=None,
                        taper_length=0.05,
                        buffer_seconds=864000, interval_seconds=86400,
-                       window_seconds=3600, window_overlap=0.1, flo=None, fhi=None,
+                       window_seconds=3600, window_overlap=0.1, window_buffer_length=0,
+                       flo=None, fhi=None,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
@@ -495,6 +499,10 @@ def IntervalStackXCorr(refds, tempds,
     :param window_seconds: Length of cross-correlation window in seconds. Default is 1 hr.
     :type window_overlap: float
     :param window_overlap: Window overlap fraction. Default is 0.1.
+    :type window_buffer_length: float
+    :param window_buffer_length: Buffer length as a fraction of 'window-seconds' around actual data windows of
+                                 interest. This helps exclude effects of tapering and other edge artefacts from
+                                 data windows before cross-correlation. Default is 0
     :type flo: float
     :param flo: Lower frequency for Butterworth bandpass filter
     :type fhi: float
@@ -625,6 +633,7 @@ def IntervalStackXCorr(refds, tempds,
                    water_level=water_level,
                    window_seconds=window_seconds,
                    window_overlap=window_overlap,
+                   window_buffer_length=window_buffer_length,
                    interval_seconds=interval_seconds,
                    resample_rate=resample_rate,
                    taper_length=taper_length,
@@ -799,6 +808,7 @@ def IntervalStackXCorr(refds, tempds,
                   'interval_seconds': interval_seconds,
                   'window_seconds': window_seconds,
                   'window_overlap': window_overlap,
+                  'window_buffer_length': window_buffer_length,
                   'bandpass_fmin': flo if flo else -999,
                   'bandpass_fmax': fhi if fhi else -999,
                   'clip_to_2std': int(clip_to_2std),
