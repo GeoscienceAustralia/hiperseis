@@ -69,11 +69,11 @@ double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise paramete
 !  If AR_* smaller than 44%, decrease the Sdt for more
 
 real, parameter :: pd1 = 0.10     !proposal on change in position  <-- / Locked in
-real, parameter :: pv1 = 0.015    !proposal on velocity
-real, parameter :: pd2 = 0.20     !proposal on change in position
-real, parameter :: pv2 = 0.025    !proposal on velocity
+real, parameter :: pv1 = 0.015    !proposal on velocity            <-- / Locked in
+real, parameter :: pd2 = 0.20     !proposal on change in position  <-- / Locked in
+real, parameter :: pv2 = 0.020    !proposal on velocity
 real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move
-real, parameter :: pAr = 0.0005   !proposal for change in noise parameter
+real, parameter :: pAr = 0.0007   !proposal for change in noise parameter
 
 
 !--------------------------------------------
