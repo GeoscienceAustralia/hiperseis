@@ -38,7 +38,7 @@ integer, parameter :: thin = 100         !Thinning of the chain
 ! Prior distribution (Bounds odf the model space)
 !------------------------------------------------
 
-integer,parameter  :: npt_min = 2 !minimun number of layers is 2. 1 does not work.
+integer,parameter  :: npt_min = 2 ! minimum number of layers is 2. 1 does not work.
 integer, parameter :: npt_max = 25
 
 !depth
@@ -66,12 +66,12 @@ double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise paramete
 !  If AR larger than 44%, increase the Sdt for less Acceptance.
 !  If AR_* smaller than 44%, decrease the Sdt for more
 
-real, parameter :: pd1 = 0.25     !proposal on change in position  
-real, parameter :: pv1 = 0.05     !proposal on velocity
-real, parameter :: pd2 = 0.75     !proposal on change in position 
-real, parameter :: pv2 = 0.15     !proposal on velocity
-real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move  
-real, parameter :: pAr = 0.002     !proposal for change in noise parameter 
+real, parameter :: pd1 = 0.10     !proposal on change in position
+real, parameter :: pv1 = 0.015    !proposal on velocity
+real, parameter :: pd2 = 0.20     !proposal on change in position
+real, parameter :: pv2 = 0.020    !proposal on velocity
+real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move
+real, parameter :: pAr = 0.0007   !proposal for change in noise parameter
 
 
 !--------------------------------------------
@@ -249,7 +249,7 @@ CALL cpu_time(t1)  !Tic. start counting time
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
 seed = clock + rank
-! seed = 3772 + rank
+! seed = 3772 + rank !! CUSTOM FIXED SEED FOR TUNING
 ra=int(seed)
 write(*,*)'Rank',rank,'using seed',ra
 
