@@ -22,10 +22,8 @@ include 'mpif.h'
 ! Parameters of the Markov chain
 !-----------------------------------------
 
-! integer, parameter :: burn_in = 6500000  !Burn-in period
-! integer, parameter :: nsample = 9500000  !Post burn-in
-integer, parameter :: burn_in = 4500000  !Burn-in period - minimal number to get AR metrics
-integer, parameter :: nsample =  500000  !Post burn-in - minimal number to get AR metrics
+integer, parameter :: burn_in = 6500000  !Burn-in period
+integer, parameter :: nsample = 9500000  !Post burn-in
 integer, parameter :: thin = 100         !Thinning of the chain
 
 ! Each chain is run for 'burn_in + nsample' steps in total. The first burn-in samples are discarded as burn-in steps,
@@ -40,7 +38,7 @@ integer, parameter :: thin = 100         !Thinning of the chain
 ! Prior distribution (Bounds odf the model space)
 !------------------------------------------------
 
-integer,parameter  :: npt_min = 2 !minimun number of layers is 2. 1 does not work.
+integer,parameter  :: npt_min = 2 ! minimum number of layers is 2. 1 does not work.
 integer, parameter :: npt_max = 25
 
 !depth
@@ -68,9 +66,9 @@ double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise paramete
 !  If AR larger than 44%, increase the Sdt for less Acceptance.
 !  If AR_* smaller than 44%, decrease the Sdt for more
 
-real, parameter :: pd1 = 0.10     !proposal on change in position  <-- / Locked in
-real, parameter :: pv1 = 0.015    !proposal on velocity            <-- / Locked in
-real, parameter :: pd2 = 0.20     !proposal on change in position  <-- / Locked in
+real, parameter :: pd1 = 0.10     !proposal on change in position
+real, parameter :: pv1 = 0.015    !proposal on velocity
+real, parameter :: pd2 = 0.20     !proposal on change in position
 real, parameter :: pv2 = 0.020    !proposal on velocity
 real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move
 real, parameter :: pAr = 0.0007   !proposal for change in noise parameter
