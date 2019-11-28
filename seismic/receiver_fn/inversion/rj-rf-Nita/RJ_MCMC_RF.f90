@@ -248,8 +248,8 @@ CALL cpu_time(t1)  !Tic. start counting time
 
 ! Add by Sheng RSES ANU Aug-2018
 CALL SYSTEM_CLOCK(COUNT=clock)
-! seed = clock + rank
-seed = 3772 + rank !! CUSTOM FIXED SEED FOR TUNING
+seed = clock + rank
+! seed = 3772 + rank !! CUSTOM FIXED SEED FOR TUNING
 ra=int(seed)
 write(*,*)'Rank',rank,'using seed',ra
 
