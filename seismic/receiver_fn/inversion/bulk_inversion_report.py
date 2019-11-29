@@ -64,7 +64,7 @@ def main(input_folder, output_file, file_mask):
                     log.error('Error {} processing case {}'.format(str(e), case_name))
                 # end try
             else:
-                print('Skipping {}, not output found'.format(case_name))
+                pbar.write('Skipping {}, output not found'.format(case_name))
             # end if
         # end for
         pbar.close()
