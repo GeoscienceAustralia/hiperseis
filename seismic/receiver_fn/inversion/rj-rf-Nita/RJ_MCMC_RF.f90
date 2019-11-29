@@ -148,7 +148,8 @@ double precision, parameter :: wmin=0.000001
 
 !****************************************************************
 
-real , EXTERNAL    ::    gasdev,ran3
+real, EXTERNAL :: gasdev, ran3
+integer, EXTERNAL :: real_to_array_range
 real log, sqrt
 
 integer i,npt,sample,ind,accept,l,th,ount,npt_prop,nb,k,tes
@@ -483,7 +484,7 @@ do while (sample<nsample)
 
 	if (u<0.1) then !change position--------------------------------------------
 		move=1
-		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+		ind = real_to_array_range(ran3(ra), 1, npt)
 		if (ount.GT.burn_in) then 
 			if (voro(ind,1)<(d_max/2)) then
 				PrP(1)=PrP(1)+1
@@ -518,7 +519,7 @@ do while (sample<nsample)
 
 	elseif (u<0.4) then ! change value---------------------------------------------------------
 		value=1
-		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+		ind = real_to_array_range(ran3(ra), 1, npt)
 		if (ount.GT.burn_in) then 
 			if (voro(ind,1)<(d_max/2)) then
 				PrV(1)=PrV(1)+1
@@ -561,7 +562,7 @@ do while (sample<nsample)
 	else !death!---------------------------------------	
 			death = 1
 			PrD = PrD + 1
-			ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+			ind = real_to_array_range(ran3(ra), 1, npt)
 			npt_prop=npt-1
 			if (npt_prop<npt_min) then
 				 out=0
@@ -726,14 +727,12 @@ IF (ount.GT.burn_in) THEN
 		do i=1,disd
 			d=(i-1)*prof/real(disd-1)
 			if (d<ht)then
-				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+				v = real_to_array_range((beta(l) - beta_min + width)/(beta_max + 2*width - beta_min), 1, disv)
 				post(i,v)=post(i,v)+1
 		
 			else	
 				l=l+1
-				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+				v = real_to_array_range((beta(l) - beta_min + width)/(beta_max + 2*width - beta_min), 1, disv)
 				post(i,v)=post(i,v)+1
 		
 				if (l<npt) then
@@ -744,14 +743,14 @@ IF (ount.GT.burn_in) THEN
 			endif
 		enddo
 		
-		i=ceiling((Ar-Ar_min)*disA/(Ar_max-Ar_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+		i = real_to_array_range(real((Ar - Ar_min)/(Ar_max - Ar_min)), 1, disA)
 		ML_Ar(i) = ML_Ar(i)+1
 		
 		!Get distribution on changepoint locations.
 		ht=0
 		do i=1,npt-1
 		ht=ht+h(i)
-		j=ceiling((ht)*disd/(prof))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
+		j = real_to_array_range(ht/prof, 1, disd)
 		histoch(j)=histoch(j)+1
 		enddo	
 		
@@ -1031,6 +1030,7 @@ FUNCTION real_to_array_range(fraction, index_min, index_max) result(mapped_index
     ! index bin. This means that 0.0 is a special case, being the closed end of the
     ! half-open interval below the lowest value bin. Therefore 0.0 is mapped to the lowest
     ! bin, i.e. index_min.
+    ! TODO: Unit test this function, especially for edge cases.
     implicit none
     ! Args
     real, intent(in) :: fraction
