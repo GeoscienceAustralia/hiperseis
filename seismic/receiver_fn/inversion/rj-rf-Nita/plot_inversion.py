@@ -90,7 +90,7 @@ def plot_bodin_inversion(data_dir, rf_waveform='RF_obs.dat', pdf_outpath='.', st
         n = (v * float(disd) / float(prof)) + 0.5
 
         plt.subplot(131)
-        vmax = np.max(P[P != P[0,0]])
+        vmax = np.max(P[2:, 2:])
         # Recommended linear colormaps are plasma, inferno or viridis
         plt.imshow(P, cmap='plasma', extent=[x[0], x[1], y[1], y[0]], vmin=0, vmax=vmax, aspect='auto')
         plt.xlabel('Vs (km/s)')
