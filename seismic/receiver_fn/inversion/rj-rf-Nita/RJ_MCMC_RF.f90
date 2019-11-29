@@ -1022,4 +1022,38 @@ ran3=mj*FAC
 return
 END
 
-!the code is finished. 
+
+FUNCTION real_to_array_range(fraction, index_min, index_max) result(mapped_index)
+    ! Helper function to linearly map a fractional real value in the range [0.0, 1.0]
+    ! to a valid integer array index between index_min and index_max.
+    ! If fraction is outside the range [0.0, 1.0], it is clamped to the valid range.
+    ! The mapping logic uses half-open bins to assign the real value to the corresponding
+    ! index bin. This means that 0.0 is a special case, being the closed end of the
+    ! half-open interval below the lowest value bin. Therefore 0.0 is mapped to the lowest
+    ! bin, i.e. index_min.
+    implicit none
+    ! Args
+    real, intent(in) :: fraction
+    integer, intent(in) :: index_min, index_max
+    ! Output value
+    integer :: mapped_index
+    ! Locals
+    real :: valid_fraction
+
+    ! Clamp input fraction (no warning about invalid input value)
+    ! The valid range is pulled back by espilon from the boundary at 1, just in case
+    ! the fractional scaling when fraction == 1.0 generates a real that truncates to
+    ! index_max + epsilon(index_max), which would then round up to (index_max + 1)
+    ! in the call to ceiling.
+    valid_fraction = min(max(0.0, fraction), 1.0 - epsilon(1.0))
+
+    mapped_index = int(ceiling(fraction*(index_max - index_min + 1))) - 1 + index_min
+    mapped_index = max(index_min, mapped_index)
+    ! Comment this for better performance
+    if ((mapped_index < index_min) .or. (mapped_index > index_max)) then
+        stop 'Out of bounds index mapping!'
+    endif
+
+END FUNCTION real_to_array_range
+
+!the code is finished.
