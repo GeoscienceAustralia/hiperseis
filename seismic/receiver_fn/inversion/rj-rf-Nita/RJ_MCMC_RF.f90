@@ -70,7 +70,7 @@ real, parameter :: pd1 = 0.10     !proposal on change in position
 real, parameter :: pv1 = 0.015    !proposal on velocity
 real, parameter :: pd2 = 0.20     !proposal on change in position
 real, parameter :: pv2 = 0.020    !proposal on velocity
-real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move
+real, parameter :: sigmav = 0.01  !proposal on velocity when Birth move
 real, parameter :: pAr = 0.0007   !proposal for change in noise parameter
 
 
