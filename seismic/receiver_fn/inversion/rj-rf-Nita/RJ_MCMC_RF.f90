@@ -1027,7 +1027,7 @@ END
 
 FUNCTION real_to_array_range(fraction, index_min, index_max) result(mapped_index)
     ! Helper function to linearly map a fractional real value in the range [0.0, 1.0]
-    ! to a valid integer array index between index_min and index_max.
+    ! to a valid integer array index between index_min and index_max inclusive.
     ! If fraction is outside the range [0.0, 1.0], it is clamped to the valid range.
     ! The mapping logic uses half-open bins to assign the real value to the corresponding
     ! index bin. This means that 0.0 is a special case, being the closed end of the
