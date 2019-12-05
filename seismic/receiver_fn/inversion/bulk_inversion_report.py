@@ -31,7 +31,7 @@ CASE_FOLDER_EXTENSION = '_OUT'
 @click.argument('output-file', type=click.Path(exists=False, file_okay=True), required=True)
 @click.option('--file-mask', type=str, required=True,
               help='Regular expression filename mask used for identifying input .dat files'
-                   'e.g OA_B[S-V]*.dat')
+                   'e.g "OA_B[S-V]*.dat" (use quotes to prevent shell from expanding wildcard)')
 def main(input_folder, output_file, file_mask):
     '''
     :param output_file: Output file (must not exist already)

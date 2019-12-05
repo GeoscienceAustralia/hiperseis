@@ -70,7 +70,7 @@ real, parameter :: pd1 = 0.10     !proposal on change in position
 real, parameter :: pv1 = 0.015    !proposal on velocity
 real, parameter :: pd2 = 0.20     !proposal on change in position
 real, parameter :: pv2 = 0.020    !proposal on velocity
-real, parameter :: sigmav = 0.01  !proposal on velocity when Birth move
+real, parameter :: sigmav = 0.06  !proposal on velocity when Birth move
 real, parameter :: pAr = 0.0007   !proposal for change in noise parameter
 
 
@@ -629,12 +629,15 @@ do while (sample<nsample)
 
 	Accept = 0
 	if (birth==1)then
+            ! ran3 here can return 0, log(0 -> -Inf. This is ok because it means condition will
+            ! never be accepted. The 'log(out)' term is an sanity check to ensure proposal will
+            ! be rejected if out == 0 (which it is never expected to be here).
         	if (log(ran3(ra))<-log(2*width)-logprob+log(out)-like_prop+like) then
             		accept=1
             		AcB=AcB+1
-		endif
+            endif
         elseif (death==1) then
-		if (log(ran3(ra))<log(2*width)+logprob+log(out)-like_prop+like) then
+            if (log(ran3(ra))<log(2*width)+logprob+log(out)-like_prop+like) then
             		accept=1
             		AcD=AcD+1
         	endif
