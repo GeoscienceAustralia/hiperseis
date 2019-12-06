@@ -10,6 +10,8 @@
 
 program RJ_MCMC_RF
 
+use, intrinsic :: ISO_FORTRAN_ENV
+
 implicit none
 include 'mpif.h'
 
@@ -47,7 +49,9 @@ real, parameter :: d_max = 60
 
 real, parameter :: beta_min = 3.5 ! Mean of the Uniform prior on Vs
 real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
-real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_min needs to be equal to beta_max.
+! Lower and upper bound of the prior are [mean-theta , mean+theta]
+! Note that beta_min needs to be equal to beta_max.
+real, parameter :: width = 2.0
 
 double precision, parameter ::    Ar_max=0.1000  !Upper bound for noise parameter
 double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise parameter 
@@ -148,7 +152,8 @@ double precision, parameter :: wmin=0.000001
 
 !****************************************************************
 
-real , EXTERNAL    ::    gasdev,ran3
+real, EXTERNAL :: gasdev, ran3
+integer, EXTERNAL :: real_to_array_range
 real log, sqrt
 
 integer i,npt,sample,ind,accept,l,th,ount,npt_prop,nb,k,tes
@@ -196,16 +201,16 @@ Acnr = 0
 num_cli_args = command_argument_count()
 if (num_cli_args /= 2) then
   print *, 'Usage: run input_filename output_folder'
-  call exit()
+  stop
 end if
 
 call get_command_argument(1, input_file, dummy_cli_len, cli_status)
 if (cli_status < 0) then
   print *, 'Input file path too long'
-  call exit()
+  stop
 else if (cli_status > 0) then
   print *, 'Unknown error retrieving input filename'
-  call exit()
+  stop
 else
   print *, 'Input file: ', TRIM(input_file)
 end if
@@ -213,10 +218,10 @@ end if
 call get_command_argument(2, output_folder, dummy_cli_len, cli_status)
 if (cli_status < 0) then
   print *, 'Output path too long'
-  call exit()
+  stop
 else if (cli_status > 0) then
   print *, 'Unknown error retrieving output path'
-  call exit()
+  stop
 else
   print *, 'Output path: ', TRIM(output_folder)
 end if
@@ -283,10 +288,10 @@ npt = npt_min+ran3(ra)*(8-npt_min)
 
 ! We place them randomly
 do i=1,npt
-	voro(i,1)=d_min+ran3(ra)*(d_max-d_min)
-	call priorvalue(voro(i,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
-	voro(i,2)=pv_min+(pv_max-pv_min)*ran3(ra)
-	voro(i,3)=1.73!vpvs_min+ran3(bb)*(vpvs_max-vpvs_min)
+    voro(i,1)=d_min+ran3(ra)*(d_max-d_min)
+    call priorvalue(voro(i,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
+    voro(i,2)=pv_min+(pv_max-pv_min)*ran3(ra)
+    voro(i,3)=1.73!vpvs_min+ran3(bb)*(vpvs_max-vpvs_min)
 enddo
 
 do i=npt+1,npt_max
@@ -320,8 +325,8 @@ call voro2qmodel(voro,npt,npt_max,d_min,d_max,beta,h,vpvs,qa,qb)
 ppara=sin(angle*rad)/v60
 din=asin(ppara*beta(npt)*vpvs(npt))/rad
 call theo(&
-	npt, beta, h, vpvs, qa, qb, fs, din,&
-	gauss_a, water_c, time_shift, ndatar, wdata )
+    npt, beta, h, vpvs, qa, qb, fs, din,&
+    gauss_a, water_c, time_shift, ndatar, wdata )
 
 
 !***************************************************
@@ -332,9 +337,9 @@ call theo(&
 
 r=exp(-1/(2*sig**2))
 do i=1,ndatar
-	do j=1,ndatar
-		Cd(i,j)=r**abs(i-j)
-	enddo		
+    do j=1,ndatar
+        Cd(i,j)=r**abs(i-j)
+    enddo
 enddo
 
 !***************************************************
@@ -357,9 +362,12 @@ if(ran==0) then
    close(66)
 endif
 
-!The inversion of Cd was stabilized with truncation of small eigenvalues after singular value decomposition of the system of equations.
-!there are no stable analytical formulation for its inverse and determinant. Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to
-! be numerically computed with SVD decomposition and removal of a large number of small eigenvalues that destabilize the process.
+! The inversion of Cd was stabilized with truncation of small eigenvalues after
+! singular value decomposition of the system of equations.
+! There are no stable analytical formulation for its inverse and determinant.
+! Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to be numerically
+! computed with SVD decomposition and removal of a large number of small
+! eigenvalues that destabilize the process.
 
 
 !Remove small eigenvalues to stabilize the problem
@@ -369,15 +377,15 @@ if (w(i)<wmin) w(i)=0
 enddo
 
 !test the svd decomposition ability to solve the equation Cd *x = b
-! construct a b 
+! construct a b
 do i=1,ndatar
- 	b(i)=gasdev(ra)
+    b(i)=gasdev(ra)
 enddo
 call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,b,x)
 do i=1,ndatar
- 	bes(i)=0
+    bes(i)=0
          do j=1,ndatar
-         	bes(i)=bes(i)+x(j)*Cd(i,j)
+             bes(i)=bes(i)+x(j)*Cd(i,j)
          enddo
 enddo
 
@@ -410,7 +418,7 @@ call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
 
 liker=0
 do i=1,ndatar
-	liker=liker+(d_obsr(i)-wdata(i))*x(i)
+    liker=liker+(d_obsr(i)-wdata(i))*x(i)
 enddo
 liker=liker/(2)
 !like=0!
@@ -452,27 +460,27 @@ best_datar = wdata
 like_min = like
 
 do while (sample<nsample)
-	ount=ount+1
-	
-	voro_prop=voro
-	like_prop=like
-	npt_prop = npt
-	Ar_prop = Ar
-	AIr_prop = AIr
+    ount=ount+1
 
-	u=ran3(ra)
-	
-	out=1
-	move=0
-	value=0
-	birth=0
-	death=0
-	noisr=0
-	noisd=0
-	chwidd=0
-	chwidr=0
-	logprob=0
-	
+    voro_prop=voro
+    like_prop=like
+    npt_prop = npt
+    Ar_prop = Ar
+    AIr_prop = AIr
+
+    u=ran3(ra)
+
+    out=1
+    move=0
+    value=0
+    birth=0
+    death=0
+    noisr=0
+    noisd=0
+    chwidd=0
+    chwidr=0
+    logprob=0
+
 
 !*************************************************************
 
@@ -481,97 +489,97 @@ do while (sample<nsample)
 !*************************************************************
 
 
-	if (u<0.1) then !change position--------------------------------------------
-		move=1
-		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-		if (ount.GT.burn_in) then 
-			if (voro(ind,1)<(d_max/2)) then
-				PrP(1)=PrP(1)+1
-			else
-				PrP(2)=PrP(2)+1
-			endif
-		endif
+    if (u<0.1) then !change position--------------------------------------------
+        move=1
+        ind = real_to_array_range(real(ran3(ra), kind=real64), 1, npt)
+        if (ount.GT.burn_in) then
+            if (voro(ind,1)<(d_max/2)) then
+                PrP(1)=PrP(1)+1
+            else
+                PrP(2)=PrP(2)+1
+            endif
+        endif
 
-		if (voro(ind,1)<(d_max/2)) then
-			 voro_prop(ind,1)=voro(ind,1)+gasdev(ra)*pd1
-		else
-			 voro_prop(ind,1)=voro(ind,1)+gasdev(ra)*pd2
-		endif
+        if (voro(ind,1)<(d_max/2)) then
+             voro_prop(ind,1)=voro(ind,1)+gasdev(ra)*pd1
+        else
+             voro_prop(ind,1)=voro(ind,1)+gasdev(ra)*pd2
+        endif
 
 
-		!Check if oustide bounds of prior
-		if ((voro_prop(ind,1)<d_min).or.(voro_prop(ind,1)>d_max)) then
-			out=0
-		endif
-		call priorvalue(voro_prop(ind,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
-		if ((voro_prop(ind,2)<pv_min).or.(voro_prop(ind,2)>pv_max)) then
-			out=0
-		endif
-	elseif (u<0.3) then ! Change noise parameter for receiver function
-		noisr=1
-		Prnr = Prnr + 1
-		Ar_prop = Ar+gasdev(ra)*pAr
-		!Check if oustide bounds of prior
-		if ((Ar_prop<Ar_min).or.(Ar_prop>Ar_max)) then
-			out=0
-		endif
+        !Check if oustide bounds of prior
+        if ((voro_prop(ind,1)<d_min).or.(voro_prop(ind,1)>d_max)) then
+            out=0
+        endif
+        call priorvalue(voro_prop(ind,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
+        if ((voro_prop(ind,2)<pv_min).or.(voro_prop(ind,2)>pv_max)) then
+            out=0
+        endif
+    elseif (u<0.3) then ! Change noise parameter for receiver function
+        noisr=1
+        Prnr = Prnr + 1
+        Ar_prop = Ar+gasdev(ra)*pAr
+        !Check if oustide bounds of prior
+        if ((Ar_prop<Ar_min).or.(Ar_prop>Ar_max)) then
+            out=0
+        endif
 
-	elseif (u<0.4) then ! change value---------------------------------------------------------
-		value=1
-		ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-		if (ount.GT.burn_in) then 
-			if (voro(ind,1)<(d_max/2)) then
-				PrV(1)=PrV(1)+1
-			else
-				PrV(2)=PrV(2)+1
-			endif
-		endif
-		
-		if (voro(ind,1)<(d_max/2)) then
-			voro_prop(ind,2)=voro(ind,2)+gasdev(ra)*pv1
-		else
-			voro_prop(ind,2)=voro(ind,2)+gasdev(ra)*pv2
-		endif
+    elseif (u<0.4) then ! change value---------------------------------------------------------
+        value=1
+        ind = real_to_array_range(real(ran3(ra), kind=real64), 1, npt)
+        if (ount.GT.burn_in) then
+            if (voro(ind,1)<(d_max/2)) then
+                PrV(1)=PrV(1)+1
+            else
+                PrV(2)=PrV(2)+1
+            endif
+        endif
 
-		!Check if oustide bounds of prior
-		call priorvalue(voro_prop(ind,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
-		if ((voro_prop(ind,2)<pv_min).or.(voro_prop(ind,2)>pv_max)) then
-			out=0
-		endif
+        if (voro(ind,1)<(d_max/2)) then
+            voro_prop(ind,2)=voro(ind,2)+gasdev(ra)*pv1
+        else
+            voro_prop(ind,2)=voro(ind,2)+gasdev(ra)*pv2
+        endif
 
-	elseif (u<0.7) then !Birth----------------------------------------
-			birth = 1
-			PrB = PrB + 1
-			npt_prop = npt + 1		
-			if (npt_prop>npt_max) then
-				 out=0
-			else
-				voro_prop(npt_prop,1) = d_min+ran3(ra)*(d_max-d_min)
-				call whichcell(voro_prop(npt_prop,1),voro,npt,npt_max,ind)
-				voro_prop(npt_prop,2) = voro(ind,2)+gasdev(ra)*sigmav
-				!prob=(1/(sigmav*sqrt(2*pi)))*exp(-(voro(ind,2)-voro_prop(npt_prop,2))**2/(2*sigmav**2))
-				logprob=log(1/(sigmav*sqrt(2*pi)))-((voro(ind,2)-voro_prop(npt_prop,2))**2)/(2*sigmav**2)
+        !Check if oustide bounds of prior
+        call priorvalue(voro_prop(ind,1),d_min,d_max,beta_min,beta_max,width,pv_min,pv_max)
+        if ((voro_prop(ind,2)<pv_min).or.(voro_prop(ind,2)>pv_max)) then
+            out=0
+        endif
 
-				!Check bounds					
-				call priorvalue(voro_prop(npt_prop,1),d_min,d_max,&
-				beta_min,beta_max,width,pv_min,pv_max)
-				if ((voro_prop(npt_prop,2)<pv_min).or.(voro_prop(npt_prop,2)>pv_max)) out=0
-			
-			endif
-	else !death!---------------------------------------	
-			death = 1
-			PrD = PrD + 1
-			ind=ceiling(ran3(ra)*npt)  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-			npt_prop=npt-1
-			if (npt_prop<npt_min) then
-				 out=0
-			else
-				voro_prop(ind,:)=voro(npt,:)
-				call whichcell(voro(ind,1),voro_prop,npt_prop,npt_max,ind2)
-				logprob=log(1/(sigmav*sqrt(2*pi)))-((voro(ind,2)-voro_prop(ind2,2))**2)/(2*sigmav**2)
-				!prob=(1/(sigmav*sqrt(2*pi)))*exp(-(voro(ind,2)-voro_prop(ind2,2))**2/(2*sigmav**2))
-			endif
-	endif!-----------------------------------------------------------------------
+    elseif (u<0.7) then !Birth----------------------------------------
+            birth = 1
+            PrB = PrB + 1
+            npt_prop = npt + 1
+            if (npt_prop>npt_max) then
+                 out=0
+            else
+                voro_prop(npt_prop,1) = d_min+ran3(ra)*(d_max-d_min)
+                call whichcell(voro_prop(npt_prop,1),voro,npt,npt_max,ind)
+                voro_prop(npt_prop,2) = voro(ind,2)+gasdev(ra)*sigmav
+                !prob=(1/(sigmav*sqrt(2*pi)))*exp(-(voro(ind,2)-voro_prop(npt_prop,2))**2/(2*sigmav**2))
+                logprob=log(1/(sigmav*sqrt(2*pi)))-((voro(ind,2)-voro_prop(npt_prop,2))**2)/(2*sigmav**2)
+
+                !Check bounds
+                call priorvalue(voro_prop(npt_prop,1),d_min,d_max,&
+                beta_min,beta_max,width,pv_min,pv_max)
+                if ((voro_prop(npt_prop,2)<pv_min).or.(voro_prop(npt_prop,2)>pv_max)) out=0
+
+            endif
+    else !death!---------------------------------------
+            death = 1
+            PrD = PrD + 1
+            ind = real_to_array_range(real(ran3(ra), kind=real64), 1, npt)
+            npt_prop=npt-1
+            if (npt_prop<npt_min) then
+                 out=0
+            else
+                voro_prop(ind,:)=voro(npt,:)
+                call whichcell(voro(ind,1),voro_prop,npt_prop,npt_max,ind2)
+                logprob=log(1/(sigmav*sqrt(2*pi)))-((voro(ind,2)-voro_prop(ind2,2))**2)/(2*sigmav**2)
+                !prob=(1/(sigmav*sqrt(2*pi)))*exp(-(voro(ind,2)-voro_prop(ind2,2))**2/(2*sigmav**2))
+            endif
+    endif!-----------------------------------------------------------------------
 
 
 
@@ -582,39 +590,39 @@ do while (sample<nsample)
 !**************************************************************************
 
 
-	if (out==1) then
+    if (out==1) then
 
-		! Call Forward MOdel ------------------------------
-		call voro2qmodel(voro_prop,npt_prop,npt_max,d_min,d_max,beta,h,vpvs,qa,qb)
+        ! Call Forward MOdel ------------------------------
+        call voro2qmodel(voro_prop,npt_prop,npt_max,d_min,d_max,beta,h,vpvs,qa,qb)
 
 !               ooooooooooooooooooooooooooooooooooooooooooooo
-		ppara=sin(angle*rad)/v60
-		din=asin(ppara*beta(npt_prop)*vpvs(npt_prop))/rad
+        ppara=sin(angle*rad)/v60
+        din=asin(ppara*beta(npt_prop)*vpvs(npt_prop))/rad
 
-		call theo(&
-		npt_prop, beta, h, vpvs, qa, qb, fs, din,&
-		gauss_a, water_c, time_shift, ndatar, wdata )
+        call theo(&
+        npt_prop, beta, h, vpvs, qa, qb, fs, din,&
+        gauss_a, water_c, time_shift, ndatar, wdata )
 
-		!--------compute liker_prop -----------------------
-		LSr_prop=0
-		do i=1,ndatar
-		br(i)=(d_obsr(i)-wdata(i))
-		LSr_prop=LSr_prop+br(i)**2
-		enddo
-		br=br/(Ar_prop**2)
+        !--------compute liker_prop -----------------------
+        LSr_prop=0
+        do i=1,ndatar
+        br(i)=(d_obsr(i)-wdata(i))
+        LSr_prop=LSr_prop+br(i)**2
+        enddo
+        br=br/(Ar_prop**2)
 
-		call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
-		
-		liker_prop=0
-		do i=1,ndatar
-		liker_prop=liker_prop+(d_obsr(i)-wdata(i))*x(i)
-		enddo
-		liker_prop=liker_prop/(2)
+        call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
 
-		like_prop=liker_prop
+        liker_prop=0
+        do i=1,ndatar
+        liker_prop=liker_prop+(d_obsr(i)-wdata(i))*x(i)
+        enddo
+        liker_prop=liker_prop/(2)
 
-		
-	endif
+        like_prop=liker_prop
+
+
+    endif
 
 
 !********************************************************************************
@@ -624,68 +632,72 @@ do while (sample<nsample)
 !********************************************************************************
 
 ! See if we accept the proposed change to the model using acceptance ratio.
-!   And update the Acceptance ratios, for each type of move. 
+!   And update the Acceptance ratios, for each type of move.
 
-	Accept = 0
-	if (birth==1)then
-        	if (log(ran3(ra))<-log(2*width)-logprob+log(out)-like_prop+like) then
-            		accept=1
-            		AcB=AcB+1
-		endif
+    Accept = 0
+    if (birth==1)then
+            ! ran3 here can return 0, log(0 -> -Inf. This is ok because it means condition will
+            ! never be accepted. The 'log(out)' term is an sanity check to ensure proposal will
+            ! be rejected if out == 0 (which it is never expected to be here).
+            if (log(ran3(ra))<-log(2*width)-logprob+log(out)-like_prop+like) then
+                    accept=1
+                    AcB=AcB+1
+            endif
         elseif (death==1) then
-		if (log(ran3(ra))<log(2*width)+logprob+log(out)-like_prop+like) then
-            		accept=1
-            		AcD=AcD+1
-        	endif
+            if (log(ran3(ra))<log(2*width)+logprob+log(out)-like_prop+like) then
+                    accept=1
+                    AcD=AcD+1
+            endif
 
-	elseif (noisr==1) then
-! Here the likelihood need to be normalised by the determinent of the matrix of datat errors ! lgsigma is the log of the ratio of the determinents of the matrix of data errors.
- 		logrsig=ndatar*log(Ar/Ar_prop)
-        	if (log(ran3(ra))<logrsig+log(out)-like_prop+like) then
-            		accept=1
-			Acnr=Acnr+1
-        	endif
-	
-	else !NO JUMP
-		if (log(ran3(ra))<log(out)-like_prop+like)then
-			accept=1	
-             		if((value==1).and.(ount.GT.burn_in)) then
-				if (voro(ind,1)<(d_max/2)) then
-					AcV(1)=AcV(1)+1
-				else
-					AcV(2)=AcV(2)+1
-				endif
-             		elseif((move==1).and.(ount.GT.burn_in))then
-				if (voro(ind,1)<(d_max/2)) then
-					AcP(1)=AcP(1)+1
-				else
-					AcP(2)=AcP(2)+1
-				endif
-			endif
-	     	endif!accept
+    elseif (noisr==1) then
+! Here the likelihood need to be normalised by the determinent of the matrix of datat errors
+! lgsigma is the log of the ratio of the determinents of the matrix of data errors.
+        logrsig=ndatar*log(Ar/Ar_prop)
+            if (log(ran3(ra))<logrsig+log(out)-like_prop+like) then
+                    accept=1
+            Acnr=Acnr+1
+            endif
+
+    else !NO JUMP
+        if (log(ran3(ra))<log(out)-like_prop+like)then
+            accept=1
+                    if((value==1).and.(ount.GT.burn_in)) then
+                if (voro(ind,1)<(d_max/2)) then
+                    AcV(1)=AcV(1)+1
+                else
+                    AcV(2)=AcV(2)+1
+                endif
+                    elseif((move==1).and.(ount.GT.burn_in))then
+                if (voro(ind,1)<(d_max/2)) then
+                    AcP(1)=AcP(1)+1
+                else
+                    AcP(2)=AcP(2)+1
+                endif
+            endif
+            endif!accept
         endif !KIND OF JUMP
 
-	
+
 !***********************************************************************************
 
 !   If we accept the proposed model, update the status of the Markov Chain
 
 !***********************************************************************************
 
-	if (accept==1) then
-		voro=voro_prop
-		like=like_prop
-		liker=liker_prop
-		LSr=LSr_prop
-		npt=npt_prop
-		Ar=Ar_prop
-		AIr=AIr_prop	
-		if (LSr<LSr_min)then
-			 LSr_min = LSr			
-			 best_datar=wdata
-		
-		endif
-	endif
+    if (accept==1) then
+        voro=voro_prop
+        like=like_prop
+        liker=liker_prop
+        LSr=LSr_prop
+        npt=npt_prop
+        Ar=Ar_prop
+        AIr=AIr_prop
+        if (LSr<LSr_min)then
+             LSr_min = LSr
+             best_datar=wdata
+
+        endif
+    endif
 
 !****************************************************************
 
@@ -695,80 +707,80 @@ do while (sample<nsample)
 
 
 IF (ount.GT.burn_in) THEN
-	sample=sample+1
-	IF (mod(ount,thin)==0) THEN
-		th = th + 1
-		histo(npt)=histo(npt)+1
-		call voro2qmodel(voro,npt,npt_max,d_min,d_max,beta,h,vpvs,qa,qb)
-		l=1
-		ht=h(l)
-		do i=1,disd
-			d=(i-1)*prof/real(disd-1)
-			if (d<ht)then
-				av(i)=av(i)+beta(l)
-				mo(i)=beta(l)
-			else	
-				l=l+1
-				av(i)=av(i)+beta(l)
-				mo(i)=beta(l)
-				if (l<npt) then
-					ht=ht+h(l)
-				else
-					ht=1000
-				endif
-			endif
-			
-		enddo
-		
-		ht=0
-		l=1
-		ht=h(l)
-		do i=1,disd
-			d=(i-1)*prof/real(disd-1)
-			if (d<ht)then
-				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-				post(i,v)=post(i,v)+1
-		
-			else	
-				l=l+1
-				v=ceiling((beta(l)-beta_min+width)*&
-				disv/(beta_max+2*width-beta_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-				post(i,v)=post(i,v)+1
-		
-				if (l<npt) then
-					ht=ht+h(l)
-				else
-					ht=1000
-				endif
-			endif
-		enddo
-		
-		i=ceiling((Ar-Ar_min)*disA/(Ar_max-Ar_min))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-		ML_Ar(i) = ML_Ar(i)+1
-		
-		!Get distribution on changepoint locations.
-		ht=0
-		do i=1,npt-1
-		ht=ht+h(i)
-		j=ceiling((ht)*disd/(prof))  ! FIXME: Potentially invalid index (may be 0, min valid index is 1)
-		histoch(j)=histoch(j)+1
-		enddo	
-		
-		do i=1,disd
-		d=(i-1)*prof/real(disd-1)
-		enddo
-		
-	endif
+    sample=sample+1
+    IF (mod(ount,thin)==0) THEN
+        th = th + 1
+        histo(npt)=histo(npt)+1
+        call voro2qmodel(voro,npt,npt_max,d_min,d_max,beta,h,vpvs,qa,qb)
+        l=1
+        ht=h(l)
+        do i=1,disd
+            d=(i-1)*prof/real(disd-1)
+            if (d<ht)then
+                av(i)=av(i)+beta(l)
+                mo(i)=beta(l)
+            else
+                l=l+1
+                av(i)=av(i)+beta(l)
+                mo(i)=beta(l)
+                if (l<npt) then
+                    ht=ht+h(l)
+                else
+                    ht=1000
+                endif
+            endif
+
+        enddo
+
+        ht=0
+        l=1
+        ht=h(l)
+        do i=1,disd
+            d=(i-1)*prof/real(disd-1)
+            if (d<ht)then
+                v = real_to_array_range(&
+                    real((beta(l) - beta_min + width)/(beta_max + 2*width - beta_min), kind=real64), 1, disv)
+                post(i,v)=post(i,v)+1
+
+            else
+                l=l+1
+                v = real_to_array_range(&
+                    real((beta(l) - beta_min + width)/(beta_max + 2*width - beta_min), kind=real64), 1, disv)
+                post(i,v)=post(i,v)+1
+
+                if (l<npt) then
+                    ht=ht+h(l)
+                else
+                    ht=1000
+                endif
+            endif
+        enddo
+
+        i = real_to_array_range((Ar - Ar_min)/(Ar_max - Ar_min), 1, disA)
+        ML_Ar(i) = ML_Ar(i)+1
+
+        !Get distribution on changepoint locations.
+        ht=0
+        do i=1,npt-1
+        ht=ht+h(i)
+        j = real_to_array_range(real(ht/prof, kind=real64), 1, disd)
+        histoch(j)=histoch(j)+1
+        enddo
+
+        do i=1,disd
+        d=(i-1)*prof/real(disd-1)
+        enddo
+
+    endif
 endif
 
 !get convergence
  conv(ount)=LSr
 ncell(ount)=npt
- convAr(ount)=Ar	
+ convAr(ount)=Ar
 
 !**********************************************************************
-	
+
 !       Display what is going on every "Display" samples
 
 !**********************************************************************
@@ -963,14 +975,14 @@ END
 
 
 !-------------------------------------------------------------------
-!						
+!
 !	Numerical Recipes random number generator
 !
 ! ----------------------------------------------------------------------------
 
 FUNCTION ran3(idum)
 implicit none
-	
+
 INTEGER idum
 INTEGER MBIG,MSEED,MZ
 !     REAL MBIG,MSEED,MZ
@@ -984,29 +996,29 @@ SAVE iff,inext,inextp,ma
 DATA iff /0/
 ! write(*,*)' idum ',idum
 if(idum.lt.0.or.iff.eq.0)then
-	iff=1
-	mj=abs(MSEED-abs(idum))
-	mj=mod(mj,MBIG)
-	ma(55)=mj
-	mk=1
-	do 11 i=1,54
-	ii=mod(21*i,55)
-	ma(ii)=mk
-	mk=mj-mk
-	if(mk.lt.MZ)mk=mk+MBIG
-	mj=ma(ii)
+    iff=1
+    mj=abs(MSEED-abs(idum))
+    mj=mod(mj,MBIG)
+    ma(55)=mj
+    mk=1
+    do 11 i=1,54
+    ii=mod(21*i,55)
+    ma(ii)=mk
+    mk=mj-mk
+    if(mk.lt.MZ)mk=mk+MBIG
+    mj=ma(ii)
 !  write(*,*)' idum av',idum
 11      continue
-	do 13 k=1,4
-	do 12 i=1,55
-	ma(i)=ma(i)-ma(1+mod(i+30,55))
-	if(ma(i).lt.MZ)ma(i)=ma(i)+MBIG
+    do 13 k=1,4
+    do 12 i=1,55
+    ma(i)=ma(i)-ma(1+mod(i+30,55))
+    if(ma(i).lt.MZ)ma(i)=ma(i)+MBIG
 12        continue
 13      continue
 ! write(*,*)' idum ap',idum
-	inext=0
-	inextp=31
-	idum=1
+    inext=0
+    inextp=31
+    idum=1
 endif
 ! write(*,*)' idum app ',idum
 inext=inext+1
@@ -1018,8 +1030,46 @@ if(mj.lt.MZ)mj=mj+MBIG
 ma(inext)=mj
 ran3=mj*FAC
 !  write(*,*)' idum ',idum
-	
+
 return
 END
 
-!the code is finished. 
+
+FUNCTION real_to_array_range(fraction, index_min, index_max) result(mapped_index)
+    ! Helper function to linearly map a fractional real value in the range [0.0, 1.0]
+    ! to a valid integer array index between index_min and index_max inclusive.
+    ! If fraction is outside the range [0.0, 1.0], it is clamped to the valid range.
+    ! The mapping logic uses half-open bins to assign the real value to the corresponding
+    ! index bin. This means that 0.0 is a special case, being the closed end of the
+    ! half-open interval below the lowest value bin. Therefore 0.0 is mapped to the lowest
+    ! bin, i.e. index_min.
+    ! TODO: Unit test this function, especially for edge cases.
+
+    use, intrinsic :: ISO_FORTRAN_ENV
+
+    implicit none
+    ! Args
+    real(kind=real64), intent(in) :: fraction
+    integer, intent(in) :: index_min, index_max
+    ! Output value
+    integer :: mapped_index
+    ! Locals
+    real(kind=real64) :: valid_fraction
+
+    ! Clamp input fraction (no warning about invalid input value)
+    ! The valid range is pulled back by espilon from the boundary at 1, just in case
+    ! the fractional scaling when fraction == 1.0 generates a real that truncates to
+    ! index_max + epsilon(index_max), which would then round up to (index_max + 1)
+    ! in the call to ceiling.
+    valid_fraction = min(max(0.0_real64, fraction), 1.0_real64 - epsilon(1.0_real64))
+
+    mapped_index = int(ceiling(fraction*(index_max - index_min + 1))) - 1 + index_min
+    mapped_index = max(index_min, mapped_index)
+    ! Comment this for better performance
+    if ((mapped_index < index_min) .or. (mapped_index > index_max)) then
+        stop 'Out of bounds index mapping!'
+    endif
+
+END FUNCTION real_to_array_range
+
+!the code is finished.

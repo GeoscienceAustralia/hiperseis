@@ -1,6 +1,7 @@
       subroutine qlayer( 
      &     lc, ang, n, h, valpha, vbeta, rho, qa, qb, rs, 
      &     w, up, wp, usv, wsv, vsh )
+      use, intrinsic :: iso_fortran_env
       implicit none
 ***********************************************                         
 *     crustal response for p and s waves      *                         
@@ -28,7 +29,7 @@ c
      &        up(nb2), wp(nb2), usv(nb2), wsv(nb2),
      &        bm, bn, rvs, vsh(nb2)
 c                                                                       
-      complex*16 a(4,4,nlmx), b(4,4,nlmx), aj(4,4),
+      complex(kind=real64) a(4,4,nlmx), b(4,4,nlmx), aj(4,4),
      &           s, da, dc, de, gc, ge, 
      &           al(2,2,nlmx), bl(2,2,nlmx), sl, ab, 
      &           p(nlmx), q(nlmx), cp, sp, cq, sq
@@ -109,12 +110,14 @@ c
         do 3 m=1,nn                                                     
           p(m)=w(kk)*ralpha(m)*h(m)*rs(m)/c                             
           q(m)=w(kk)*rbeta(m)*h(m)*rs(m)/c                              
-          cp=cdcos(p(m))                                                
-          sp=cdsin(p(m))                                                
-          cq=cdcos(q(m))                                                
-          sq=cdsin(q(m))                                                
+          ! Intrinsic math functions are overloaded for complex input arguments,
+          ! see https://gcc.gnu.org/onlinedocs/gcc-4.9.4/gfortran.pdf, Section 8.
+          cp = cos(p(m))
+          sp = sin(p(m))
+          cq = cos(q(m))
+          sq = sin(q(m))
           bm=beta(m)**2*rho(m)*rbeta(m)/rs(m)
-c                           
+
 c         **  matrix at layer interfaces  **                             
 c
           if (lc.le.2) then
@@ -161,29 +164,37 @@ c
            m=n-1                                                           
     4      continue                                                        
            if(m.eq.1)go to 40                                              
-           do 20 i=1,4                                                     
-           do 20 k=1,4                                                     
-             s=0.                                                          
-             do 10 j=1,4                                                   
-               s=s+a(i,j,m)*a(j,k,m-1)                                     
-   10        continue                                                      
-             b(i,k,m-1)=s                                                  
-   20      continue                                                        
-           do 30 i=1,4                                                     
-           do 30 k=1,4                                                     
-             a(i,k,m-1)=b(i,k,m-1)                                         
-   30      continue                                                        
+
+           do i=1,4
+             do k=1,4
+               s=0.
+               do j=1,4
+                 s=s+a(i,j,m)*a(j,k,m-1)
+               enddo
+               b(i,k,m-1)=s
+             enddo
+           enddo
+
+           do i=1,4
+             do k=1,4
+               a(i,k,m-1)=b(i,k,m-1)
+             enddo
+           enddo
+
            m=m-1                                                           
            go to 4                                                         
    40      continue                                                        
-           do 60 i=1,4                                                     
-           do 60 k=1,4                                                     
-             s=0.                                                          
-             do 50 j=1,4                                                   
-               s=s+en(i,j)*a(j,k,1)                                        
-   50        continue                                                      
-             aj(i,k)=s                                                     
-   60      continue                                                        
+
+           do i=1,4
+             do k=1,4
+               s=0.
+               do j=1,4
+                 s=s+en(i,j)*a(j,k,1)
+               enddo
+               aj(i,k)=s
+             enddo
+           enddo
+
            da=(aj(1,1)-aj(2,1))*(aj(3,2)-aj(4,2))-(aj(1,2)-aj(2,2))        
      &          *(aj(3,1)-aj(4,1))                                            
         if (lc.eq.1) then
@@ -217,18 +228,23 @@ c
          m=n-1                                                           
   114    continue                                                        
          if(m.eq.1) go to 140                                            
-         do 120 i=1,2                                                    
-         do 120 k=1,2                                                    
-           sl=0.0                                                        
-           do 110 j=1,2                                                  
-             sl=sl+al(i,j,m)*al(j,k,m-1)                                 
-  110      continue                                                      
-           bl(i,k,m-1)=sl                                                
-  120    continue                                                        
-         do 130 i=1,2                                                    
-         do 130 k=1,2                                                    
-           al(i,k,m-1)=bl(i,k,m-1)                                       
-  130    continue                                                        
+
+         do i=1,2
+           do k=1,2
+             sl=0.0
+             do j=1,2
+               sl=sl+al(i,j,m)*al(j,k,m-1)
+             enddo
+             bl(i,k,m-1)=sl
+           enddo
+         enddo
+
+         do i=1,2
+           do k=1,2
+             al(i,k,m-1)=bl(i,k,m-1)
+           enddo
+         enddo
+
          m=m-1                                                           
          go to 114                                                       
   140    continue                                                        
