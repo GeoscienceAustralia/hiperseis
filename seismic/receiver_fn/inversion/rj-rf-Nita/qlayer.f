@@ -1,6 +1,7 @@
       subroutine qlayer( 
      &     lc, ang, n, h, valpha, vbeta, rho, qa, qb, rs, 
      &     w, up, wp, usv, wsv, vsh )
+      use, intrinsic :: iso_fortran_env
       implicit none
 ***********************************************                         
 *     crustal response for p and s waves      *                         
@@ -28,7 +29,7 @@ c
      &        up(nb2), wp(nb2), usv(nb2), wsv(nb2),
      &        bm, bn, rvs, vsh(nb2)
 c                                                                       
-      complex*16 a(4,4,nlmx), b(4,4,nlmx), aj(4,4),
+      complex(kind=real64) a(4,4,nlmx), b(4,4,nlmx), aj(4,4),
      &           s, da, dc, de, gc, ge, 
      &           al(2,2,nlmx), bl(2,2,nlmx), sl, ab, 
      &           p(nlmx), q(nlmx), cp, sp, cq, sq
@@ -109,12 +110,14 @@ c
         do 3 m=1,nn                                                     
           p(m)=w(kk)*ralpha(m)*h(m)*rs(m)/c                             
           q(m)=w(kk)*rbeta(m)*h(m)*rs(m)/c                              
-          cp=cdcos(p(m))                                                
-          sp=cdsin(p(m))                                                
-          cq=cdcos(q(m))                                                
-          sq=cdsin(q(m))                                                
+          ! Intrinsic math functions are overloaded for complex input arguments,
+          ! see https://gcc.gnu.org/onlinedocs/gcc-4.9.4/gfortran.pdf, Section 8.
+          cp = cos(p(m))
+          sp = sin(p(m))
+          cq = cos(q(m))
+          sq = sin(q(m))
           bm=beta(m)**2*rho(m)*rbeta(m)/rs(m)
-c                           
+
 c         **  matrix at layer interfaces  **                             
 c
           if (lc.le.2) then

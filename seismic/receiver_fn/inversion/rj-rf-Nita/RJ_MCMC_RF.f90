@@ -10,6 +10,8 @@
 
 program RJ_MCMC_RF
 
+use, intrinsic :: ISO_FORTRAN_ENV
+
 implicit none
 include 'mpif.h'
 
@@ -197,16 +199,16 @@ Acnr = 0
 num_cli_args = command_argument_count()
 if (num_cli_args /= 2) then
   print *, 'Usage: run input_filename output_folder'
-  call exit()
+  stop
 end if
 
 call get_command_argument(1, input_file, dummy_cli_len, cli_status)
 if (cli_status < 0) then
   print *, 'Input file path too long'
-  call exit()
+  stop
 else if (cli_status > 0) then
   print *, 'Unknown error retrieving input filename'
-  call exit()
+  stop
 else
   print *, 'Input file: ', TRIM(input_file)
 end if
@@ -214,10 +216,10 @@ end if
 call get_command_argument(2, output_folder, dummy_cli_len, cli_status)
 if (cli_status < 0) then
   print *, 'Output path too long'
-  call exit()
+  stop
 else if (cli_status > 0) then
   print *, 'Unknown error retrieving output path'
-  call exit()
+  stop
 else
   print *, 'Output path: ', TRIM(output_folder)
 end if
@@ -1034,21 +1036,24 @@ FUNCTION real_to_array_range(fraction, index_min, index_max) result(mapped_index
     ! half-open interval below the lowest value bin. Therefore 0.0 is mapped to the lowest
     ! bin, i.e. index_min.
     ! TODO: Unit test this function, especially for edge cases.
+
+    use, intrinsic :: ISO_FORTRAN_ENV
+
     implicit none
     ! Args
-    real, intent(in) :: fraction
+    real(kind=real64), intent(in) :: fraction
     integer, intent(in) :: index_min, index_max
     ! Output value
     integer :: mapped_index
     ! Locals
-    real :: valid_fraction
+    real(kind=real64) :: valid_fraction
 
     ! Clamp input fraction (no warning about invalid input value)
     ! The valid range is pulled back by espilon from the boundary at 1, just in case
     ! the fractional scaling when fraction == 1.0 generates a real that truncates to
     ! index_max + epsilon(index_max), which would then round up to (index_max + 1)
     ! in the call to ceiling.
-    valid_fraction = min(max(0.0, fraction), 1.0 - epsilon(1.0))
+    valid_fraction = min(max(0.0_real64, fraction), 1.0_real64 - epsilon(1.0_real64))
 
     mapped_index = int(ceiling(fraction*(index_max - index_min + 1))) - 1 + index_min
     mapped_index = max(index_min, mapped_index)

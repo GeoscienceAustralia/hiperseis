@@ -168,7 +168,7 @@ CU    USES dpythag
             endif
             goto 3
           endif
-          if(its.eq.120) pause 'no convergence in svdcmp'
+          if(its.eq.120) stop 'no convergence in svdcmp'
           x=w(l)
           nm=k-1
           y=w(nm)
