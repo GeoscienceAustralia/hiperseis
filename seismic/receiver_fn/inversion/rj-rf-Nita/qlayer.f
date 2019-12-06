@@ -164,29 +164,37 @@ c
            m=n-1                                                           
     4      continue                                                        
            if(m.eq.1)go to 40                                              
-           do 20 i=1,4                                                     
-           do 20 k=1,4                                                     
-             s=0.                                                          
-             do 10 j=1,4                                                   
-               s=s+a(i,j,m)*a(j,k,m-1)                                     
-   10        continue                                                      
-             b(i,k,m-1)=s                                                  
-   20      continue                                                        
-           do 30 i=1,4                                                     
-           do 30 k=1,4                                                     
-             a(i,k,m-1)=b(i,k,m-1)                                         
-   30      continue                                                        
+
+           do i=1,4
+             do k=1,4
+               s=0.
+               do j=1,4
+                 s=s+a(i,j,m)*a(j,k,m-1)
+               enddo
+               b(i,k,m-1)=s
+             enddo
+           enddo
+
+           do i=1,4
+             do k=1,4
+               a(i,k,m-1)=b(i,k,m-1)
+             enddo
+           enddo
+
            m=m-1                                                           
            go to 4                                                         
    40      continue                                                        
-           do 60 i=1,4                                                     
-           do 60 k=1,4                                                     
-             s=0.                                                          
-             do 50 j=1,4                                                   
-               s=s+en(i,j)*a(j,k,1)                                        
-   50        continue                                                      
-             aj(i,k)=s                                                     
-   60      continue                                                        
+
+           do i=1,4
+             do k=1,4
+               s=0.
+               do j=1,4
+                 s=s+en(i,j)*a(j,k,1)
+               enddo
+               aj(i,k)=s
+             enddo
+           enddo
+
            da=(aj(1,1)-aj(2,1))*(aj(3,2)-aj(4,2))-(aj(1,2)-aj(2,2))        
      &          *(aj(3,1)-aj(4,1))                                            
         if (lc.eq.1) then
@@ -220,18 +228,23 @@ c
          m=n-1                                                           
   114    continue                                                        
          if(m.eq.1) go to 140                                            
-         do 120 i=1,2                                                    
-         do 120 k=1,2                                                    
-           sl=0.0                                                        
-           do 110 j=1,2                                                  
-             sl=sl+al(i,j,m)*al(j,k,m-1)                                 
-  110      continue                                                      
-           bl(i,k,m-1)=sl                                                
-  120    continue                                                        
-         do 130 i=1,2                                                    
-         do 130 k=1,2                                                    
-           al(i,k,m-1)=bl(i,k,m-1)                                       
-  130    continue                                                        
+
+         do i=1,2
+           do k=1,2
+             sl=0.0
+             do j=1,2
+               sl=sl+al(i,j,m)*al(j,k,m-1)
+             enddo
+             bl(i,k,m-1)=sl
+           enddo
+         enddo
+
+         do i=1,2
+           do k=1,2
+             al(i,k,m-1)=bl(i,k,m-1)
+           enddo
+         enddo
+
          m=m-1                                                           
          go to 114                                                       
   140    continue                                                        
