@@ -115,8 +115,10 @@ c
         do 3 m=1,nn
           p(m)=w(kk)*ralpha(m)*h(m)*rs(m)/c
           q(m)=w(kk)*rbeta(m)*h(m)*rs(m)/c
-          ! Intrinsic math functions are overloaded for complex input arguments,
-          ! see https://gcc.gnu.org/onlinedocs/gcc-4.9.4/gfortran.pdf, Section 8.
+          ! Intrinsic math functions are overloaded for complex input
+          ! arguments,
+          ! see https://gcc.gnu.org/onlinedocs/gcc-4.9.4/gfortran.pdf,
+          ! Section 8.
           cp = cos(p(m))
           sp = sin(p(m))
           cq = cos(q(m))
@@ -208,8 +210,8 @@ c       **  up horizontal/total, wp vertical/total of P  **
 c
            dc=aj(4,2)-aj(3,2)
            de=aj(4,1)-aj(3,1)
-           dca=dc/da
-           dea=de/da
+           dca = cmplx(dc/da, kind=real32)
+           dea = cmplx(de/da, kind=real32)
            up(kk)=dca*coef1*alpha(n)/c
            wp(kk)=dea*coef2*alpha(n)*ralpha(n)/c
 c
@@ -219,8 +221,8 @@ c     **  usv horizontal/total, wsv vertical/total of SV  **
 c
            gc=aj(1,2)-aj(2,2)
            ge=aj(2,1)-aj(1,1)
-           gca=gc/da
-           gea=ge/da
+           gca = cmplx(gc/da, kind=real32)
+           gea = cmplx(ge/da, kind=real32)
            usv(kk)=gca*coef4*beta(n)*rbeta(n)/c
            wsv(kk)=gea*coef3*beta(n)/c
 c
@@ -258,7 +260,7 @@ c
 c
 c       **  vsh horizontal/total of SH  **
 c
-         rvs=2.*bn/ab
+         rvs = cmplx(2.*bn/ab, kind=real32)
          vsh(kk)=rvs
 c
       end if

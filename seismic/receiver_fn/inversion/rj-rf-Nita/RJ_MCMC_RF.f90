@@ -297,7 +297,7 @@ close(55)! close the file
 Ar = Ar_min + ran3(ra)*(Ar_max - Ar_min)
 
 ! Initial number of cells
-npt = npt_min + ran3(ra)*(8 - npt_min)
+npt = npt_min + int(ran3(ra)*(8 - npt_min))
 
 ! We place them randomly
 do i=1,npt
@@ -401,10 +401,7 @@ do i=1,ndatar
     enddo
 enddo
 
-like=0
-do i=1,ndatar
-    like=like+(b(i)-bes(i))**2
-enddo
+like = real(sum((b - bes)**2))
 like=like/ndatar
 
 write(*,*)'SVD','test results',sqrt(like),'should be << 1'
@@ -417,11 +414,10 @@ write(*,*)'SVD','test results',sqrt(like),'should be << 1'
 !***********************************************************
 
 
-LSr=0
 do i=1,ndatar
     br(i)=(d_obsr(i)-wdata(i))
-    LSr=LSr+br(i)**2
 enddo
+LSr = real(sum(br**2))
 LSr_min=LSr
 br=br/(Ar**2)
 
@@ -430,7 +426,7 @@ call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
 
 liker=0
 do i=1,ndatar
-    liker=liker+(d_obsr(i)-wdata(i))*x(i)
+    liker = liker + real((d_obsr(i) - wdata(i))*x(i))
 enddo
 liker=liker/(2)
 !like=0!
@@ -613,18 +609,17 @@ do while (sample<nsample)
             gauss_a, water_c, time_shift, ndatar, wdata )
 
         !--------compute liker_prop -----------------------
-        LSr_prop = 0
         do i=1,ndatar
             br(i) = (d_obsr(i) - wdata(i))
-            LSr_prop = LSr_prop + br(i)**2
         enddo
+        LSr_prop = real(sum(br**2))
         br=br/(Ar_prop**2)
 
         call svbksb(UU,w,vv,ndatar,ndatar,ndatar,ndatar,br,x)
 
         liker_prop = 0
         do i=1,ndatar
-            liker_prop = liker_prop+(d_obsr(i)-wdata(i))*x(i)
+            liker_prop = liker_prop + real((d_obsr(i) - wdata(i))*x(i))
         enddo
         liker_prop = liker_prop/(2)
 
@@ -781,9 +776,9 @@ do while (sample<nsample)
     endif
 
     ! get convergence
-    conv(ount)=LSr
-    ncell(ount)=npt
-    convAr(ount)=Ar
+    conv(ount) = LSr
+    ncell(ount) = npt
+    convAr(ount) = real(Ar)
 
 !**********************************************************************
 
@@ -900,7 +895,7 @@ IF (ran == 0) THEN
 
     open(66,file=TRIM(output_folder)//'/Sigma.out',status='replace')
     do i=1,disA
-        d=Ar_min+(i-0.5)*(Ar_max-Ar_min)/real(disA)
+        d = real(Ar_min + (i - 0.5)*(Ar_max  -Ar_min)/real(disA))
         write(66,*)d,ML_Ars(i)
     enddo
     close(66)

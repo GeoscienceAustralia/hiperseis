@@ -95,7 +95,7 @@ c
 c     * a minimum allowable amplitude level *
       wmax=0.
       do 40 i=1,nb2
-        wa(i)=wp(i)*conjg(wp(i))
+        wa(i)=real(wp(i)*conjg(wp(i)))
         wmax=amax1(wmax,wa(i))
    40 continue
       do 50 i=1,nb2
