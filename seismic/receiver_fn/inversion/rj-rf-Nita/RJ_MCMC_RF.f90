@@ -49,7 +49,9 @@ real, parameter :: d_max = 60
 
 real, parameter :: beta_min = 3.5 ! Mean of the Uniform prior on Vs
 real,parameter  :: beta_max = 3.5 ! Mean of the Uniform prior on Vs
-real, parameter :: width = 2.0 ! Lower and upper bound of the prior are [mean-theta , mean+theta] Note that beta_min needs to be equal to beta_max.
+! Lower and upper bound of the prior are [mean-theta , mean+theta]
+! Note that beta_min needs to be equal to beta_max.
+real, parameter :: width = 2.0
 
 double precision, parameter ::    Ar_max=0.1000  !Upper bound for noise parameter
 double precision, parameter ::    Ar_min=0.00100 !Lower bound for noise parameter 
@@ -360,9 +362,12 @@ if(ran==0) then
    close(66)
 endif
 
-!The inversion of Cd was stabilized with truncation of small eigenvalues after singular value decomposition of the system of equations.
-!there are no stable analytical formulation for its inverse and determinant. Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to
-! be numerically computed with SVD decomposition and removal of a large number of small eigenvalues that destabilize the process.
+! The inversion of Cd was stabilized with truncation of small eigenvalues after
+! singular value decomposition of the system of equations.
+! There are no stable analytical formulation for its inverse and determinant.
+! Therefore $\textbf{C}_e^{-1}$ and  $|\textbf{C}_e|$ have to be numerically
+! computed with SVD decomposition and removal of a large number of small
+! eigenvalues that destabilize the process.
 
 
 !Remove small eigenvalues to stabilize the problem
@@ -645,7 +650,8 @@ do while (sample<nsample)
             endif
 
     elseif (noisr==1) then
-! Here the likelihood need to be normalised by the determinent of the matrix of datat errors ! lgsigma is the log of the ratio of the determinents of the matrix of data errors.
+! Here the likelihood need to be normalised by the determinent of the matrix of datat errors
+! lgsigma is the log of the ratio of the determinents of the matrix of data errors.
         logrsig=ndatar*log(Ar/Ar_prop)
             if (log(ran3(ra))<logrsig+log(out)-like_prop+like) then
                     accept=1
