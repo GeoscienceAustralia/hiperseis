@@ -12,7 +12,6 @@ shapely
 geographiclib
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
-mpi4py
 psutil
 joblib
 netcdf4
@@ -21,3 +20,4 @@ deprecated
 pyyaml
 requests
 #cartopy install failure rf==0.8.0
+#mpi4py
