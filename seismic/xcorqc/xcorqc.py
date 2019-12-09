@@ -415,9 +415,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     if (len(resll)):
         return np.array(resll), np.array(windowsPerInterval), \
                np.array(intervalStartSeconds, dtype='i8'), \
-               np.array(intervalEndSeconds, dtype='i8')
+               np.array(intervalEndSeconds, dtype='i8'), \
+               sr
     else:
-        return None, None, None, None
+        return None, None, None, None, None
     # end if
 # end func
 
@@ -526,7 +527,7 @@ def IntervalStackXCorr(refds, tempds,
     :param tracking_tag: File tag to be added to output file names so runtime settings can be tracked
     :type outputPath: str
     :param outputPath: Folder to write results to
-    :return: 1: 1d np.array with time samples spanning [-window_samples:window_samples]
+    :return: 1: 1d np.array with time samples spanning [-window_samples+dt:window_samples-dt]
              2: A dictionary of 2d np.arrays containing cross-correlation results for each station-pair.
                 Rows in each 2d array represent number of interval_seconds processed and columns
                 represent stacked samples of length window_seconds.
@@ -627,7 +628,7 @@ def IntervalStackXCorr(refds, tempds,
 
         logger.info('\tCross-correlating station-pair: %s' % (stationPair))
         xcl, winsPerInterval, \
-        intervalStartSeconds, intervalEndSeconds = \
+        intervalStartSeconds, intervalEndSeconds, sr = \
             xcorr2(refSt[0], tempSt[0], ref_sta_inv, temp_sta_inv,
                    instrument_response_output=instrument_response_output,
                    water_level=water_level,
@@ -679,7 +680,8 @@ def IntervalStackXCorr(refds, tempds,
 
                 # Generate time samples (only needs to be done once)
                 if (x is None):
-                    x = np.linspace(-window_seconds, window_seconds,
+                    dt = 1./sr
+                    x = np.linspace(-window_seconds + dt, window_seconds - dt,
                                     xcorrResultsDict[k][0].shape[1])
                 # end if
 
@@ -751,7 +753,7 @@ def IntervalStackXCorr(refds, tempds,
         lon1[:] = refds.unique_coordinates[ref_net_sta][0] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lat1[:] = refds.unique_coordinates[ref_net_sta][1] if len(refds.unique_coordinates[ref_net_sta]) else -999
         lon2[:] = tempds.unique_coordinates[temp_net_sta][0] if len(tempds.unique_coordinates[temp_net_sta]) else -999
-        lat2[:] = tempds.unique_coordinates[temp_net_sta][1]  if len(tempds.unique_coordinates[temp_net_sta]) else -999
+        lat2[:] = tempds.unique_coordinates[temp_net_sta][1] if len(tempds.unique_coordinates[temp_net_sta]) else -999
         if( np.min([v != -999 for v in [lon1[:], lat1[:], lon2[:], lat2[:]]]) ):
             distance[:], _, _ = gps2dist_azimuth(lat1[:], lon1[:], lat2[:], lon2[:])
         # end if
