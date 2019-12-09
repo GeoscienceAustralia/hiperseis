@@ -9,7 +9,7 @@ obspy==1.1.0
 obspyh5
 shapely
 geographiclib
-cartopy
+#cartopy
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
 mpi4py
