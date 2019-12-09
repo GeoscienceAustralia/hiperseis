@@ -20,4 +20,4 @@ ujson
 deprecated
 pyyaml
 requests
-rf==0.8.0
+#cartopy install failure rf==0.8.0
