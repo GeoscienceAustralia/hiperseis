@@ -11,24 +11,15 @@ The purpose of this package is to provide tools and workflow for
 ## Requirements
 
 The Python library requirements for using the tools and workflow of this package
-are listed in `requirements_common.txt` for all platforms, plus additional platform
-specific requirements listed in `requirements_linux.txt` for Linux and
-`requirements_win32.txt` for Windows. The package is written for Python version 2.7
+are listed in `requirements.txt`. The package is written for Python version 2.7
 or >=3.5. To install the library requirements, run
 
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_common.txt`
+&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements.txt`
 
-followed by platform-specific requirements:
+Scripts that convert inventory files to sc3ml format also require Seiscomp3 to be installed on the
+host system and to be visible in the PATH. The installation of Seiscomp3 generally requires admin
+privileges and configuration by a knowledgable user.
 
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_linux.txt`  (for Linux)
-
-OR
-
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_win32.txt`  (for Windows)
-
-Scripts that convert to sc3ml format also require Seiscomp3 to be installed on the host
-system and to be visible in the PATH. The installation of Seiscomp3 requires
-admin privileges and configuration by a knowledgable user.
 
 ### Performance note
 
@@ -142,7 +133,7 @@ to force a regeneration of the `.pkl` file.
 ## Future development roadmap <a name="future"></a>
 
 Agenda for future development:
-* Factor our the STN file readers into a separate module so that any reader can be
+* Factor out the STN file readers into a separate module so that any reader can be
   substituted, as long as it generates Pandas DataFrame output, to support arbitrary
   input file formats.
 * Performance improvements reading files in function `engd2stxml.read_isc()`. E.g. change
