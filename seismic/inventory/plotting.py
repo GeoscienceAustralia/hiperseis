@@ -11,10 +11,13 @@ import matplotlib.pyplot as plt
 
 from seismic.inventory.pdconvert import dataframe_to_network
 
+# pylint: disable=invalid-name
+
 if sys.version_info[0] < 3:
     import pathlib2 as pathlib  # pylint: disable=import-error
 else:
     import pathlib  # pylint: disable=import-error
+# end if
 
 no_instruments = defaultdict(lambda: None)
 
@@ -44,6 +47,7 @@ def save_network_local_plots(df, plot_folder, progressor=None, include_stations_
             plt.close(fig)
         except Exception:
             failed.append(netcode)
+        # end try
 
         if include_stations_list:
             inv = Inventory(networks=[net], source='EHB')
@@ -52,11 +56,15 @@ def save_network_local_plots(df, plot_folder, progressor=None, include_stations_
 
         if progressor:
             progressor(len(data))
+    # end for
+
     if failed:
         print("FAILED plotting on the following networks:")
         print("\n".join(failed))
     else:
         print("SUCCESS!")
+    # end if
+# end func
 
 
 def save_station_local_plots(df, plot_folder, progressor=None, include_stations_list=True):
@@ -85,6 +93,7 @@ def save_station_local_plots(df, plot_folder, progressor=None, include_stations_
             plt.close(fig)
         except Exception:
             failed.append(station_name)
+        # end try
 
         if include_stations_list:
             inv = Inventory(networks=[net], source='EHB')
@@ -93,8 +102,12 @@ def save_station_local_plots(df, plot_folder, progressor=None, include_stations_
 
         if progressor:
             progressor(len(data))
+    # end for
+
     if failed:
         print("FAILED plotting on the following stations:")
         print("\n".join(failed))
     else:
         print("SUCCESS!")
+    # end if
+# end func

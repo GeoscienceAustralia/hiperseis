@@ -23,22 +23,22 @@ from obspy import read_inventory
 class ResponseFactory:
     """
     The ResponseFactory class encapsulates the generation of a collection of named Instrument Response Objects from a
-    variety of sources. Currently it provides the facility to create Response objects from two sources, namely, 
-    Poles and Zeroes supplied by the user and from StationXML files generated from RESP files using the PDCC tool 
-    (link below). The conversion of RESP files into a corresponding StationXML file, at this stage, must take place 
-    externally, because ObsPy lacks that functionality. 
+    variety of sources. Currently it provides the facility to create Response objects from two sources, namely,
+    Poles and Zeroes supplied by the user and from StationXML files generated from RESP files using the PDCC tool
+    (link below). The conversion of RESP files into a corresponding StationXML file, at this stage, must take place
+    externally, because ObsPy lacks that functionality.
     The intended usage of this class during the creation of an ASDF dataset is as follows:
-    1. User creates a number of uniquely named Response objects (see associated tests as well) pertaining to different 
+    1. User creates a number of uniquely named Response objects (see associated tests as well) pertaining to different
        channels in a given survey.
     2. User fetches these Response objects from an instance of ResponseFactory as needed, while creating ObsPy Channel
        objects, during which Response objects can be passed in as an argument.
-    3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response 
+    3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response
        information embedded
-    4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be ingested 
+    4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be ingested
        by SeisComp3) using the fdsnxml2inv tool.
     PDCC tool: https://ds.iris.edu/ds/nodes/dmc/software/downloads/pdcc/
     """
-    
+
     def __init__(self):
         self.m_responseInventory = defaultdict(list)
     # end func
@@ -287,4 +287,3 @@ class ResponseFactory:
         # end if
     # end func
 # end class
-

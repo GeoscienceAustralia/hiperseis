@@ -6,21 +6,25 @@ Description:
       of receiver functions (GJI)
 
 References:
- 
+
 CreationDate:   3/15/18
 Developer:      rakib.hassan@ga.gov.au
- 
+
 Revision History:
     LastUpdate:     3/15/18   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
 import os
+import logging
+import click
+from collections import defaultdict
+
+import numpy as np
+
 import pkg_resources
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
-from collections import defaultdict
 from obspy import read_inventory, read_events, UTCDateTime as UTC
 from obspy.clients.fdsn import Client
 from rf import read_rf, RFStream
@@ -31,15 +35,28 @@ from scipy.spatial import cKDTree
 from scipy.interpolate import interp1d
 from scipy.signal import hilbert
 from mpi4py import MPI
-import logging
+
+# pylint: disable=invalid-name
+
 logging.basicConfig()
 log = logging.getLogger('migration')
 
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
+    """Convert spherical to cartesian coordinates
+
+    :param r: [description]
+    :type r: [type]
+    :param theta: [description]
+    :type theta: [type]
+    :param phi: [description]
+    :type phi: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta);
+    rst = r * np.sin(theta)
     xout[:, 0] = rst * np.cos(phi)
     xout[:, 1] = rst * np.sin(phi)
     xout[:, 2] = r * np.cos(theta)
@@ -47,11 +64,22 @@ def rtp2xyz(r, theta, phi):
 # end func
 
 def xyz2rtp(x, y, z):
+    """Convert cartesian to spherical coordinates
+
+    :param x: [description]
+    :type x: [type]
+    :param y: [description]
+    :type y: [type]
+    :param z: [description]
+    :type z: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     rout = np.zeros((x.shape[0], 3))
     tmp1 = x * x + y * y
     tmp2 = tmp1 + z * z
     rout[0] = np.sqrt(tmp2)
-    rout[1] = np.arctan2(sqrt(tmp1), z)
+    rout[1] = np.arctan2(np.sqrt(tmp1), z)
     rout[2] = np.arctan2(y, x)
     return rout
 # end func
@@ -100,7 +128,7 @@ class Geometry:
 
         runLengthll = sll
         runWidthll = sll
-        cx = cy = cz = 0
+        # cx = cy = cz = 0
         for ix in range(self._nx):
             runWidthll = runLengthll
             for iy in range(self._ny):
@@ -187,7 +215,7 @@ class Migrate:
         #fp = pkg_resources.resource_stream(rp, rpf)
         #fn = fp.name
         #fp.close()
-        
+
         velocity_model_file = os.path.join(os.path.split(__file__)[0], 'models', 'iasp91.dat')
 
         m = np.loadtxt(velocity_model_file)
@@ -385,33 +413,42 @@ class Migrate:
     # end func
 # end class
 
-def main():
-    """
-    define main function
-    :return:
+
+@click.command()
+@click.option('--start-lat-lon', type=(float, float), required=True, help='Start latitude, longitude (degrees)')
+@click.option('--azimuth', type=float, required=True, help='document me')
+@click.option('--dimensions', type=(float, float, float), required=True,
+              help='(length, width, depth) of the volume, in km')
+@click.option('--num-cells', type=(int, int, int), required=True,
+              help='Number of discrete cells in each dimension of the volume')
+@click.option('--debug', type=bool, is_flag=True, default=False)
+@click.argument('rf-h5-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-folder', type=click.Path(file_okay=False), required=True)
+def main(rf_h5_file, output_folder, start_lat_lon, azimuth, dimensions, num_cells, debug):
+    """Perform 3D migration of RFs to volumetric space, stacking RF amplitudes in each cell.
+
+    Example usage:
+        python rf_3dmigrate.py --start-lat-lon -17.4 132.9 --azimuth 80 --dimensions 1000 450 75 \
+            --num-cells 100 45 375 /g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5 /g/data/ha3/am7399/shared/OA_piercing
+
+    :param rf_h5_file: Source file containing receiver functions
+    :type rf_h5_file: str or Path
+    :param output_folder: Folder in which to output results
+    :type output_folder: str or Path
     """
 
-    rffile = '/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5'
-    output_folder = '/g/data/ha3/am7399/shared/OA_piercing'
-    s = read_rf(rffile, 'H5')
+    s = read_rf(rf_h5_file, 'H5')
 
-    g = Geometry(start_lat_lon=(-17.4, 132.9), azimuth=80,
-                 lengthkm=1000, nx=100, widthkm=450, ny=45, depthkm=75, nz=375, debug=False)
-    #g = Geometry(start_lat_lon=(-18.35, 138.45), azimuth=90,
-    #             lengthkm=450, nx=45, widthkm=350, ny=35, depthkm=100, nz=500, debug=False)
+    g = Geometry(start_lat_lon=start_lat_lon, azimuth=azimuth,
+                 lengthkm=dimensions[0], nx=num_cells[0],
+                 widthkm=dimensions[1], ny=num_cells[1],
+                 depthkm=dimensions[2], nz=num_cells[2], debug=debug)
 
     m = Migrate(geometry=g, stream=s, debug=False, output_folder=output_folder)
-
     m.execute()
-
-    return
 # end
 
 
-# =============================================
-# Quick test
-# =============================================
 if __name__ == "__main__":
     # call main function
-    main()
-
+    main()  # pylint: disable=no-value-for-parameter
