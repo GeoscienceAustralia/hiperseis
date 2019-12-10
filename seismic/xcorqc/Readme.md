@@ -1,96 +1,73 @@
 # Cross-Correlation Workflow
 
-The cross-correlation functionality now works with ASDF files -- for voluminous temporary stations data, a SeisDS object (based on a JSON database) can be utilized to speed up data access. An example, 7G_example.py, shows how data from temporary stations and reference stations can be cross-correlated over a 6 month period, stacked over 10 day intervals. Cross-correlation results are written out as NetCDF-4 files for each station-pair.
+The cross-correlation functionality works off of two text-files, each containing a list of ASDF files. Users specify a subset of stations (or * for all stations) available in the ASDF files in each of the text-files to be cross-correlated. Depending on the parameterization, a cartesian product of two lists of station-names defines station-pairs that are to be cross-correlated -- see `correlator.py` for details.
 
-Interrogating cross-correlation results requires interactive visualization capabilities. [Panoply], a freely available cross-platform tool, which is also available on NCI VDIs, can be used to visualize the results interactively. A quick intro to [Panoply] is available [here].
+Cross-correlation results are written out as NetCDF-4 files for each station-pair. Interrogating cross-correlation results requires interactive visualization capabilities. [Panoply], a freely available cross-platform tool, which is also available on NCI VDIs, can be used to visualize the results interactively. A quick intro to [Panoply] is available [here].
 
 ## Fetching Permanent Stations Data
 
-File `client_data.py` can be used to fetch permanent stations data, for a given time-range, at given location (lat, lon). Permanent station locations for AU can be found on the [FDSN website].
+For experimentation, `client_data.py` can be used to fetch permanent stations data, for a given time-range, at given location (lat, lon). Permanent station locations for AU can be found on the [FDSN website].
 
-## Setting up NCI Raijin environment for running cross-correlation
+## Setting up NCI Gadi environment for running cross-correlations
 
 These instructions are for users of the National Computational Infrastructure (NCI) facility at the
 Australian National University. The following is the recommended Python environment setup process
 within an individual user's account that has been validated and is a known working configuration.
-Experience indicates this setup process is fragile and deviation from it will likely lead to a
-software environment unable to run `correlator.py`.
-
-### Initial conditions
-
-Upon login to raijin, you should either have the default system Python version (2.6) or specifically
-the system install of Python 2.7.13 without a virtual environment. To check, type `which python`.
-You should get either:
-* `/usr/bin/python` (OS distro version), OR
-* `/apps/python/2.7.13/bin/python`
-
-If it is not one of these, examine your `$PATH` environment variable and/or unload modules which are
-pulling in a different Python version. Other versions of Python 2.7 available on Raijin are known
-to *NOT* work.
-
-With `pip` you should also use the system version, not a user installed upgrade. To check, type
-`which pip`, and you should get `/apps/python/2.7.13/bin/pip`.
 
 ### Order of operations
 
 To set up the Python environment, the following high level order of operations must be observed:
-1. Load modules
-1. Build and install customized 3rd party Python libraries for MPI
-1. Install standard 3rd party Python libraries
+* Load modules
+* Build and install customized 3rd party Python libraries for MPI
+* Install standard 3rd party Python libraries
 
 ### Library version summary
 
-* Open MPI v2.1.1
-* HDF5 v1.10.2 (parallel build)
-* MPI for Python v3.0.0
+* Open MPI v2.1.6-mt
+* HDF5 v1.10.5p (parallel build)
+* mpi4py v3.0.3 (custom MPI build)
 * osbpy 1.1.0
 * click 7.0
-* netCDF4 1.4.3
-* h5py 2.7.0 (custom MPI build)
-* pyasdf 0.4.0
+* netCDF4 1.4.0
+* h5py 2.10.0 (custom MPI build)
+* pyasdf 0.5.1
 
 ### Limitations
 
-In general virtual environments are preferred, but not well supported in Python 2.7, so this
-setup uses the python user space (`--user` option of `pip`), but not virtual environments for the
-sake of simplicity. This is may not be the only solution, but it is currently the only known working solution.
-
-On Raijin, we need to use Python 2.7.13 since earlier versions don't work properly with MPI. 
-Also, the numpy and scipy libraries are custom built for maximum performance on the host hardware.
-Due to the multiplicity of Python and library versions that are possible, for maintainability only limited
-combinations are supported, typically only one version of numpy and scipy per Python version.
-
-In future new configurations will be developed to support Python >= 3.5.
+In general virtual environments are preferred, but because of the limited number of python versions
+available on Gadi and the advantages (natively compiled, etc.) they provide over precompiled versions
+available through virtual environments, this setup uses the system-provided python3.6 and installs 
+dependencies in user space (`--user` option of `pip`). 
 
 ### Setup process
 
-  1. `module purge` is highly recommended if you have modules loaded, only known to be not 
-     necessary for modules `git` and `pbs`
-  1. Make git available: `module load git`
-  1. Since purging makes `qsub` command unavailable, if you need it enter `module load pbs`)
-  1. `module load python/2.7.13` if not the current version
-  1. This procedure is known to *NOT* work if you have upgraded `pip`, so ensure you use the 
-     system version of pip. To check, type `which pip` and it should be `/apps/python/2.7.13/bin/pip`.
-     `pip --version` should give you `pip 9.0.1 from /apps/python/2.7.13/lib/python2.7/site-packages (python 2.7)`
-  1. Load Open MPI library version 2.1.1: `module load openmpi/2.1.1`
-  1. Verify `which mpicc` returns `/apps/openmpi/2.1.1/bin/mpicc`
-  1. Load HDF5 library version 1.10.2 built for parallel execution: `module load hdf5/1.10.2p`
-  1. Load MPI for Python library 3.0.0: `module load mpi4py/3.0.0-py2`
-  1. Pull h5py repository from github fork of h5py for purpose of custom build: `git clone https://github.com/basaks/h5py.git`
-     (this just makes h5py not reject the HDF5 library version on NCI which has appended character 'p' for parallel)
-  1. `cd h5py`
-  1. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.2p`
-  1. Check output generated by previous command, especially that you see `Path to HDF5: '/apps/hdf5/1.10.2p'` and `MPI Enabled: True`
-  1. `CC=mpicc python setup.py install --prefix=~/.local`
-  1. After lots of build output, you should see somewhere in the last 20 lines of output something very similar to the
-     following, indicating installation of the built library into user space for Python packages:
-     `Installed /home/547/your_login_id/.local/lib/python2.7/site-packages/h5py-2.7.0.post0-py2.7-linux-x86_64.egg`
-  1. `pip install --user obspy==1.1.0`
-  1. `pip install --user click`
-  1. `pip install --user netCDF4`
-  1. `pip install --user pyasdf`
+#### Load requisite modules
+  1. `module purge` is highly recommended if you have modules loaded
+  2. `module load pbs` 
+  3. `module load python3-as-python`
+  4. `module load openmpi/2.1.6-mt`
+  5. `module load hdf5/1.10.5p`
 
-Date last validated: 6 March 2019
+#### Setup custom packages
+
+##### H5PY
+
+  1. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull h5py repository from github fork of h5py, adapted for Gadi, for purpose of custom build
+  2. `cd h5py`
+  3. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled  
+  4. `python setup.py build` Build h5py
+  5. `python setup.py install --user` Install in user space
+
+##### mpi4py
+  1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3.6 install mpi4py --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
+
+#### Setup standard packages
+  1. `pip3.6 install obspy==1.1.0 --user`
+  2. `pip3.6 install click --user `
+  3. `pip3.6 install netCDF4==1.4.0 --user`
+  4. `pip3.6 install pyasdf --user`
+
+Date last validated: 10 December 2019
 
 ### Setup validation
 
