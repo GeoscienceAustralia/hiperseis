@@ -201,7 +201,10 @@ MOCK_MODULES = [
     # 'obspy.geodetics.base' ,'obspy.clients.fdsn.client',
     # 'obspy.core.inventory',
     # 'obspy.clients.nrl',
-    'osgeo'
+    'osgeo',
+    'mpi4py', 'mpi4py.MPI',
+    'rf'
+
 ]
 
 import mock
