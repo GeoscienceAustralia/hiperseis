@@ -92,6 +92,7 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     else:
         plt.show()
     plt.close()
+# end func
 
 
 def setup_ccp_profile(length, spacing, maxdep):
@@ -118,6 +119,7 @@ def setup_ccp_profile(length, spacing, maxdep):
     mtrx = np.zeros([n_x, n_y])
 
     return mtrx, depstep, lenstep
+# end func
 
 
 def get_amplitude(trace, time, rf_offset=5.0):
@@ -127,6 +129,7 @@ def get_amplitude(trace, time, rf_offset=5.0):
     indx = (time + rf_offset) * trace.stats.sampling_rate
     amp = trace.data[int(indx)]/trace.stats.amax
     return amp
+# end func
 
 
 def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_offset, az):
@@ -149,10 +152,13 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
         else:
             h = depstep[j] - depstep[j - 1]
             h_tot += h
+        # end if
+
         # check in velocity model
         for f in range(len(vmod[0])):
             if vmod[0][f] < depstep[j]:
                 d = f
+        # end for
 
         # derive P incidence from previous P incidence, then current S from current P
         inc_p = np.arcsin((np.sin(inc_p * np.pi/180.) * vmod[1][d]) / vmod[1][c]) * 180 / np.pi
@@ -179,8 +185,10 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
 
         matrx[indx_x, indx_y] += amp
         matrx_entry[indx_x, indx_y] += 1
+    # end for
 
-    return matrx,matrx_entry
+    return matrx, matrx_entry
+# end func
 
 
 def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
@@ -199,13 +207,16 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
         if abs(lenstep[j] - distance_offset) < diff_x:
             diff_x = abs(lenstep[j] - distance_offset)
             indx_x = j
+    # end for
 
     for k in range(len(depstep)):
         if abs(depstep[k] - h) < diff_y:
             diff_y = abs(depstep[k] - h)
             indx_y = k
+    # end for
 
     return indx_x, indx_y
+# end func
 
 
 def bounding_box(startpoint, endpoint):
@@ -223,6 +234,7 @@ def bounding_box(startpoint, endpoint):
     xbig = max(startpoint[1], endpoint[1])
     xsmall = min(startpoint[1], endpoint[1])
     return (xsmall, ysmall, xbig, ybig)
+# end func
 
 
 def equirectangular_projection(x0, y0, x1, y1):
@@ -249,6 +261,7 @@ def equirectangular_projection(x0, y0, x1, y1):
     length = np.sqrt(profile_x_length**2 + profile_y_length**2)
 
     return profile_x_length, profile_y_length, length
+# end func
 
 
 def bearing(p1, p2):
@@ -270,6 +283,7 @@ def bearing(p1, p2):
     b = b * 180.0 / np.pi
     b = (b + 360.0) % 360.0
     return b
+# end func
 
 
 def angular_distance(p1, p2):
@@ -293,6 +307,7 @@ def angular_distance(p1, p2):
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     c = c * 180.0 / np.pi
     return c
+# end func
 
 
 def cross_along_track_distance(p1, p2, p3):
@@ -319,6 +334,7 @@ def cross_along_track_distance(p1, p2, p3):
     ct_angle = ct_angle * 180.0 / np.pi
     at_angle = at_angle * 180.0 / np.pi
     return (ct_angle * KM_PER_DEG, at_angle * KM_PER_DEG)
+# end func
 
 
 def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
@@ -373,6 +389,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
     pbar.close()
 
     return stn_params
+# end func
 
 
 def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, channels=None, v_background='ak135',
@@ -493,6 +510,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
         return matrx_norm, mesh_entries.transpose(), length, stn_params
     else:
         return None, None, 0, stn_params
+# end func
 
 
 # ---------------- MAIN ----------------
@@ -544,6 +562,9 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
             median_samples = sc[len(sc)//2]
             plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
                      metadata=stn_params, title=title + ' [sample density]' if title else None)
+        # end if
+    # end if
+# end main
 
 
 # ---------------- MAIN ----------------

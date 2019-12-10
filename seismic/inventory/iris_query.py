@@ -6,9 +6,10 @@ Helper functions for making and managing web queries to IRIS web service.
 import re
 import sys
 if sys.version_info[0] < 3:
-    import cStringIO as sio  # pylint: disable=import-error
+    import cStringIO as sio  # pylint: disable=import-error,unresolved-import
 else:
     import io as sio
+# end if
 
 
 def form_channel_request_url(netmask="*", statmask="*", chanmask="*"):
@@ -30,6 +31,7 @@ def form_channel_request_url(netmask="*", statmask="*", chanmask="*"):
            "&sta=" + statmask + \
            "&cha=" + chanmask + \
            "&level=channel&format=xml&includerestricted=false&includecomments=false&nodata=404"
+# end func
 
 
 def form_response_request_url(netmask, statmask, chanmask):
@@ -51,6 +53,7 @@ def form_response_request_url(netmask, statmask, chanmask):
            "&sta=" + statmask + \
            "&cha=" + chanmask + \
            "&level=response&format=xml&includerestricted=false&includecomments=false&nodata=404"
+# end func
 
 
 def set_text_encoding(resp, quiet=False):
@@ -70,3 +73,4 @@ def set_text_encoding(resp, quiet=False):
         print("Detected text encoding {}".format(encoding))
     resp.encoding = encoding
     assert resp.encoding is not None
+# end func

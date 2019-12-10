@@ -31,8 +31,8 @@ msg = '''usage: shapefileToVtk.py <shapefile.shp>'''
 def rtp2xyz(r, theta, phi):
     rst = r * math.sin(theta)
     xout = [0]*3
-    xout[0] = rst * math.cos(phi)	    # x 
-    xout[1] = rst * math.sin(phi) 	    # y 
+    xout[0] = rst * math.cos(phi)	    # x
+    xout[1] = rst * math.sin(phi) 	    # y
     xout[2] = r * math.cos(theta)       # z
 
     return np.array(xout)

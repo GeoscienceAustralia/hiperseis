@@ -15,12 +15,13 @@ from seismic.inventory.iris_query import set_text_encoding, form_response_reques
 PY2 = sys.version_info[0] < 3  # pylint: disable=invalid-name
 
 if PY2:
-    import cStringIO as sio  # pylint: disable=import-error
+    import cStringIO as sio  # pylint: disable=import-error,unresolved-import
     import io as bio
 else:
     import io as sio  # pylint: disable=ungrouped-imports
     bio = sio
     basestring = str  # pylint: disable=invalid-name
+# end if
 
 
 NOMINAL_EARTH_RADIUS_KM = 6378.1370  # pylint: disable=invalid-name
@@ -47,6 +48,7 @@ def load_station_xml(inventory_file):
             obspy_inv = read_inventory(f)
 
     return obspy_inv
+# end func
 
 
 def obtain_nominal_instrument_response(netcode, statcode, chcode, req):
@@ -98,6 +100,7 @@ def obtain_nominal_instrument_response(netcode, statcode, chcode, req):
     except ValueError:
         responses = {}
     return responses
+# end func
 
 
 def extract_unique_sensors_responses(inv, req, show_progress=True, blacklisted_networks=None, test_mode=False):
@@ -185,3 +188,4 @@ def extract_unique_sensors_responses(inv, req, show_progress=True, blacklisted_n
         print("         {} selected as response of last resort.".format(last_resort_response))
 
     return nominal_instruments
+# end func
