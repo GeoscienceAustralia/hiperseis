@@ -84,7 +84,7 @@ def taper(tr, taperlen):
     return tr
 # end func
 
-def whiten(a, sampling_rate, fmin, fmax, window_freq=0, taper_length=0):
+def whiten(a, sampling_rate, window_freq=0):
     # frequency step
     npts = a.shape[0]
     deltaf = sampling_rate / npts
@@ -272,8 +272,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
 
                 # STEP 6: Bandpass
-                tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=2, zerophase=True)
-                tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=2, zerophase=True)
+                if(flo and fhi):
+                    tr1_d = bandpass(tr1_d, flo, fhi, sr1, corners=2, zerophase=True)
+                    tr2_d = bandpass(tr2_d, flo, fhi, sr2, corners=2, zerophase=True)
+                # end if
 
                 # STEP 7: time-domain normalization
                 # clip to +/- 2*std
@@ -312,10 +314,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                 # STEP 9: spectral whitening
                 if(whitening):
-                    tr1_d = whiten(tr1_d, sr1, flo, fhi,
-                                   window_freq=whitening_window_frequency)
-                    tr2_d = whiten(tr2_d, sr2, flo, fhi,
-                                   window_freq=whitening_window_frequency)
+                    tr1_d = whiten(tr1_d, sr1, window_freq=whitening_window_frequency)
+                    tr2_d = whiten(tr2_d, sr2, window_freq=whitening_window_frequency)
 
                     # STEP 10: taper
                     if (adjusted_taper_length > 0):
