@@ -85,6 +85,17 @@ def taper(tr, taperlen):
 # end func
 
 def whiten(a, sampling_rate, window_freq=0):
+    '''
+    Applies spectral whitening to trace samples. When window_freq=0, all frequency bins are normalized
+    by their amplitudes, i.e. all frequency bins end up with an amplitude of 1. When window_freq is 
+    nonzero, a smoothed amplitude spectrum (smoothing window length is as computed below) is used 
+    to normalize the frequency bins. 
+
+    :param a: trace samples
+    :param sampling_rate: sampling rate
+    :param window_freq: smoothing window length (Hz)
+    return: spectrally whitened samples
+    '''
     # frequency step
     npts = a.shape[0]
     deltaf = sampling_rate / npts
