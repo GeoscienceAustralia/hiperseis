@@ -1,29 +1,23 @@
 sphinx>=1.8
-numpy==1.16.4
+pytest>=4.2.0
+click
+scipy
 pandas
-#pyproj==1.9.6
-pyproj
+geopandas
 h5py
 pyasdf
 obspy==1.1.0
 obspyh5
 shapely
 geographiclib
-#cartopy
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
-mpi4py
 psutil
-#geopandas
-pytest>=4.2.0
 joblib
-click
 netcdf4
 ujson
 deprecated
 pyyaml
 requests
-Cython  # On NCI, use module load
-#mpi4py # On NCI, use module load
-tqdm
-rf==0.8.0
+#cartopy install failure rf==0.8.0
+#mpi4py
