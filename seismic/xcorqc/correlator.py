@@ -76,12 +76,12 @@ class Dataset:
         d, l = other_dataset._tree.query(self._cart_location[netsta], nn)
 
         if isinstance(l, int):
-            l = [l]
+            l = np.array([l])
 
         l = l[l<len(other_dataset.netsta_list)]
 
         if isinstance(l, int):
-            l = [l]
+            l = np.array([l])
 
         assert len(l), 'No stations found..'
 
