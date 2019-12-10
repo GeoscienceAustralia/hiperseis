@@ -18,7 +18,7 @@ psutil
 pytest>=4.2.0
 joblib
 click
-netcdf4
+netcdf4==1.4.0
 ujson
 deprecated
 pyyaml
