@@ -3,6 +3,7 @@
 """
 
 import os
+import click
 from past.builtins import xrange
 
 import numpy as np
@@ -14,12 +15,14 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.tri as tri
 
-from obspy.core.utcdatetime import UTCDateTime as UTC
+# from obspy.core.utcdatetime import UTCDateTime as UTC
 
 # Here are the libraries to deal with RFSTREAM, it uses obspy classes for event and station
 import rf
 
 # from rf_util import KM_PER_DEG
+
+# pylint: disable=invalid-name
 
 
 # Definition of the simple 1D Earth model, remember each interface will give one Ps conversion
@@ -42,7 +45,10 @@ basin_model = rf.simple_model.SimpleModel(zb, vp, vs)
 
 #-------------Main---------------------------------
 
-if __name__ == '__main__':
+@click.command()
+@click.argument('input-h5-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-pdf-file', type=click.Path(exists=False), required=True)
+def main(input_h5_file, output_pdf_file):
     ''' This program composes vespagrams to identify RF converted phases and their multiples
         please refer to Tian et al. GRL 2005 VOL. 32, L08301, doi:10.1029/2004GL021885 for good examples
 
@@ -54,7 +60,7 @@ if __name__ == '__main__':
         be implemented at some stage to reduce size of PDF.
     '''
 
-    stream = rf.read_rf('/g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5', 'H5')
+    stream = rf.read_rf(input_h5_file, 'H5')
     rf_type = 'LQT-Q '
     filter_type = 'bandpass'
     freqmin = 0.03
@@ -89,17 +95,7 @@ if __name__ == '__main__':
         net = tr.stats.network
     # end for
 
-    pdffile = net + '-' + rf_type.strip() + '-rf-vespagrams.pdf'
-
-    exists = os.path.isfile(pdffile)
-
-    if exists:
-        # we add the time stamp to identify the file that can be read in linux command
-        # line as date -d @number (date -d @1542926631)
-        pdffile = net + '-' + rf_type.strip() + '-' + str(int(UTC.now()._get_timestamp())) + '-rf-vespagrams.pdf'
-    # end if
-
-    pdf = PdfPages(pdffile)
+    pdf = PdfPages(output_pdf_file)
     case_description = rf_type + filter_type + ' ' + str(freqmin) + '-' + str(freqmax) + ' Hz'
     pdf.attach_note(case_description)
     d = pdf.infodict()
@@ -119,7 +115,7 @@ if __name__ == '__main__':
     # Main loop here over all stations
     for i, station in enumerate(station_list):
         if frame == 0:
-            printed = False 
+            printed = False
             fig = plt.figure(figsize=(11.69, 8.27))
             outer_grid = gridspec.GridSpec(columns, rows, wspace=0.2, hspace=0.2)
         # end if
@@ -133,7 +129,7 @@ if __name__ == '__main__':
         # its enough to see multiples and possible LAB conversion at ~19 sec (~160km)
 
         traces = traces.trim2(-5, 20, 'onset')
-        moved = [] 
+        moved = []
         slow = []
 
         for tr in traces:
@@ -192,7 +188,7 @@ if __name__ == '__main__':
 
         idx.append(True) # before last
         idx.append(True) # last row with zeroes
-        idx=np.array(idx)
+        idx = np.array(idx)
         print(idx.shape, slow.shape, moved.shape)
 
         slow = slow[idx]
@@ -223,9 +219,9 @@ if __name__ == '__main__':
             phase_slow.append(np.ones(phase_Ps[-1].shape[0])*slow[j])
 
             # basin, we will use reflection at the top layer only
-            if zb:
-                phase_Pbs.append(basin_model.calculate_delay_times(slow[j],phase='PS'))
-                phase_PpPbs.append(basin_model.calculate_delay_times(slow[j],phase='PpPmS'))
+            if zb.size > 0:
+                phase_Pbs.append(basin_model.calculate_delay_times(slow[j], phase='PS'))
+                phase_PpPbs.append(basin_model.calculate_delay_times(slow[j], phase='PpPmS'))
             # end if
         # end for
 
@@ -352,7 +348,7 @@ if __name__ == '__main__':
         frame = frame + 1
         print('frame', frame)
         if frame >= rows*columns:
-            cb_ax = fig.add_axes([0.25, 0.98, 0.5 ,0.02])
+            cb_ax = fig.add_axes([0.25, 0.98, 0.5, 0.02])
             labels = fig.colorbar(cs, cax=cb_ax, ticks=[np.min(zi), 0, np.max(zi)], orientation='horizontal',
                                   extend='neither', extendfrac=0.00001, extendrect=True, drawedges=False)
             # labels.set_ticks([np.min(zi), 0, np.max(zi)])
@@ -380,3 +376,9 @@ if __name__ == '__main__':
     # end if
 
     pdf.close()
+# end main
+
+
+if __name__ == '__main__':
+    main()  # pylint: disable=no-value-for-parameter
+# end if
