@@ -1,9 +1,9 @@
-## How to generate inputs for 3D Travel Time inversion
+## How to generate input data for 3D Travel Time Tomography inversion
 
-### Install `passive-seismic` software.
+### Install `HiPerSeis` software.
 
 
-`git clone https://github.com/GeoscienceAustralia/passive-seismic`
+`git clone https://github.com/GeoscienceAustralia/hiperseis`
 
 
 ### Get Events Arrivals CSV file
@@ -13,7 +13,7 @@ Assume this data is obtained from upstream pipeline modules: phase-picking progr
 
 ### Run Sort Rays Program
     
-    $ export PSTHOME=/g/data/ha3/fxz547/Githubz/passive-seismic/
+    $ export PSTHOME=/g/data/ha3/fxz547/Githubz/hiperseis/
     
     $ export ELLIPCORR=$PSTHOME/ellip-corr/
     

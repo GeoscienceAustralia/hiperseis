@@ -25,14 +25,14 @@ print(sys.path)
 
 # -- Project information -----------------------------------------------------
 
-project = 'passive-seismic'
+project = 'AusArray Passive Seismic'
 copyright = '2019, Geoscience Australia'
-author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov'
+author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov, Babak Hejrani'
 
 # The short X.Y version
-version = '1.0'
+version = '0.1'
 # The full version, including alpha/beta/rc tags
-release = 'alpha'
+release = 'Alpha'
 
 
 # -- General configuration ---------------------------------------------------
