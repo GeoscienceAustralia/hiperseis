@@ -1,5 +1,5 @@
 =================
-Package Seismic
+HiPerSeis Package: Seismic
 =================
 
 **Earth 3D Grid Model**
@@ -44,7 +44,7 @@ Package Seismic
 .. automodule:: seismic.xcorqc.correlator
 	:members:
 
-.. automodule:: seismic.xcorqc.notebooks.xcorr_station_clock_analysis
+.. automodule:: seismic.xcorqc.xcorr_station_clock_analysis
 	:members:
 
 

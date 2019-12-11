@@ -21,4 +21,5 @@ formats: all
 python:
   version: 3.7
   install:
+    - requirements: docs/pre_requirements.txt
     - requirements: docs/requirements.txt
