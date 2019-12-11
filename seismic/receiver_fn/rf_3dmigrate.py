@@ -431,6 +431,9 @@ def main(rf_h5_file, output_folder, start_lat_lon, azimuth, dimensions, num_cell
         python rf_3dmigrate.py --start-lat-lon -17.4 132.9 --azimuth 80 --dimensions 1000 450 75 \
             --num-cells 100 45 375 /g/data/ha3/am7399/shared/OA-ZRT-R-cleaned.h5 /g/data/ha3/am7399/shared/OA_piercing
 
+    The script produces text data files which are converted to visualization using experimental
+    ipython notebook `sandbox/plot_3dmigrate.ipynb`.
+
     :param rf_h5_file: Source file containing receiver functions
     :type rf_h5_file: str or Path
     :param output_folder: Folder in which to output results
