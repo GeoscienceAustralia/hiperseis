@@ -59,6 +59,24 @@ is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/
 - ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
 
 
+Third Party Library Dependencies
+================================
+
+Certain modules require specific third party (non-Python) libraries to be installed
+on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
+installed and to be visible in the PATH. In most cases, Python libraries that depend on third party
+libraries will indicate their dependencies either during attempted installation, or when used at
+runtime. Note that the following list includes indirect dependencies, i.e. dependencies that come
+from Python libraries used by HiPerSeis.
+
+Current third party dependencies (actual requirements may vary by platform or Python distribution):
+
+- `HDF5 <http://hdfgroup.org/>`_
+- MPI, for example `Open MPI <https://www.open-mpi.org/>`_
+- `PROJ <https://proj.org/>`_
+- `GEOS <https://trac.osgeo.org/geos>`_
+
+
 License
 ===============
 

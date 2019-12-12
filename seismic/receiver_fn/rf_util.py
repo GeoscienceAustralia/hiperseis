@@ -438,6 +438,12 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
+
+    # Early exit if we don't have enough traces for similarity filtering to be meaningful.
+    if len(rf_stream) < 3:
+        return rf_stream
+    # end if
+
     # TODO: Check expected condition that intput data represents only **a single component of a single station**
 
     # Trim good RFs to time range so that subsequent cross-correlation computations relate to the

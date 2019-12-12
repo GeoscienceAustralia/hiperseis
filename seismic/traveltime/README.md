@@ -1,9 +1,9 @@
-## How to generate inputs for 3D Travel Time inversion
+## How to generate input data for 3D Travel Time Tomography inversion
 
-### Install `passive-seismic` software.
+### Install `HiPerSeis` software.
 
 
-`git clone https://github.com/GeoscienceAustralia/passive-seismic`
+`git clone https://github.com/GeoscienceAustralia/hiperseis`
 
 
 ### Get Events Arrivals CSV file
@@ -13,19 +13,21 @@ Assume this data is obtained from upstream pipeline modules: phase-picking progr
 
 ### Run Sort Rays Program
     
-    $ export PSTHOME=/g/data/ha3/fxz547/Githubz/passive-seismic/
+    $ export PSTHOME=/g/data/ha3/fxz547/Githubz/hiperseis/
     
     $ export ELLIPCORR=$PSTHOME/ellip-corr/
     
     $ python $PSTHOME/seismic/traveltime/sort_rays.py /path2/p_arrivals.txt  p_arrivals_sorted1x1.csv P $PSTHOME/seismic/traveltime/param1x1 $PSTHOME/seismic/traveltime/csv_columns.json
     
+    This will generate a file  `p_arrivals_sorted1x1.csv_inv.txt` as input for inversion program.
+    
     $ python $PSTHOME/seismic/traveltime/sort_rays.py /path2/s_arrivals.txt  s_arrivals_sorted1x1.csv S $PSTHOME/seismic/traveltime/param1x1 $PSTHOME/seismic/traveltime/csv_columns.json
-
-The results will be in 
-
-    p_arrivals_sorted1x1.csv_inv.txt
     
-    AND
+    This will generate a file `s_arrivals_sorted1x1.csv_inv.txt` as  input for inversion program.
     
-    s_arrivals_sorted1x1.csv_inv.txt
+### Examples:
+
+     python $PSTHOME/seismic/traveltime/sort_rays.py $PSTHOME/tests/testdata/100K_ensemble.p.txt  p_arrivals_sorted1x1.csv P $PSTHOME/seismic/traveltime/param1x1 $PSTHOME/seismic/traveltime/csv_columns.json
+     
+     python $PSTHOME/seismic/traveltime/sort_rays.py $PSTHOME/tests/testdata/100K_ensemble.s.txt  s_arrivals_sorted1x1.csv S $PSTHOME/seismic/traveltime/param1x1 $PSTHOME/seismic/traveltime/csv_columns.jso
     

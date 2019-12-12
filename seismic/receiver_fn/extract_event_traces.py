@@ -9,6 +9,7 @@ import re
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
+# pylint: disable=wrong-import-position
 import urllib3
 
 import numpy as np
@@ -83,6 +84,7 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
     catalog = _filter_catalog_events(catalog)
 
     return catalog
+# end func
 
 
 def _filter_catalog_events(catalog):
@@ -117,10 +119,11 @@ def _filter_catalog_events(catalog):
         log.info("Removed {} events from catalog with high travel time residuals".format(n_before - n_after))
 
     return catalog
+# end func
 
 
 def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
-                         endtime, **kwargs):
+                         endtime):
     """Custom waveform getter function to retrieve waveforms from FederatedASDFDataSet.
 
     :param asdf_dataset: Instance of FederatedASDFDataSet to query
@@ -157,6 +160,7 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
         # end try
     # end if
     return st
+# end func
 
 
 def timestamp_filename(fname, t0, t1):
@@ -175,6 +179,7 @@ def timestamp_filename(fname, t0, t1):
     bname, ext = os.path.splitext(fname)
     bname += ("_" + t0_str + "-" + t1_str)
     return bname + ext
+# end func
 
 
 def _get_existing_index(rf_trace_datafile):
@@ -186,6 +191,7 @@ def _get_existing_index(rf_trace_datafile):
     except Exception:
         existing_index = None
     return existing_index
+# end func
 
 
 def is_url(resource_path):
@@ -198,6 +204,7 @@ def is_url(resource_path):
     """
     str_parsed = urllib3.util.url.parse_url(resource_path)
     return str_parsed.scheme and str_parsed.netloc
+# end func
 
 
 # ---+----------Main---------------------------------
@@ -352,6 +359,9 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         # end if
     # end with
 
+# end main
+
 
 if __name__ == '__main__':
     main()  # pylint: disable=no-value-for-parameter
+# end if

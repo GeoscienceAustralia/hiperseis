@@ -21,7 +21,7 @@ import pytest
 import numpy as np
 
 
-@pytest.fixture(params=[100, 2000, 5000])
+@pytest.fixture(params=[100, 500, 1000])
 def trace_length(request):
     return request.param
 
@@ -45,12 +45,10 @@ def taper_fraction(request):
 def test_whiten(trace_length, sampling_rate):
     trc = np.zeros(trace_length)
 
-    result = whiten(trc, sampling_rate)
+    result = whiten(trc, float(sampling_rate))
 
-    # Whitening a null trace elevates the mean amplitude to unity. The phase
-    # being zero, an inverse fft should produce a trace with the first
-    # element being 1, followed by zeros.
-    assert np.allclose(np.mean(result), 1./float(trace_length), atol=1e-4)
+    # Whitening a null trace produces nans
+    assert np.isnan(np.nanmean(result))
 # end func
 
 
@@ -84,19 +82,19 @@ def test_xcorr(trace_length, sampling_rate, other_sampling_rate):
 
     # Testing x-correlation of traces with different sampling rates
 
-    tr1 = Trace(data=np.ones(trace_length*sampling_rate),
+    tr1 = Trace(data=np.sin(np.linspace(0, 20*np.pi, trace_length*sampling_rate)),
                 header=Stats(header={'sampling_rate': sampling_rate,
                                      'npts': trace_length*sampling_rate,
                                      'network': 'AU',
                                      'station': 'A'}))
-    tr2 = Trace(data=np.ones(trace_length*other_sampling_rate),
+    tr2 = Trace(data=np.cos(np.linspace(0, 200*np.pi, trace_length*other_sampling_rate)),
                 header=Stats(header={'sampling_rate': other_sampling_rate,
                                      'npts': trace_length*other_sampling_rate,
                                      'network': 'AU',
                                      'station': 'B'}))
 
-    arr, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
+    arr, _, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
 
     # Mean of the x-correlation function should be close to zero
-    assert np.allclose(np.mean(arr), 0+0j, atol=1e-3)
+    assert np.allclose(np.abs(np.mean(arr)), 0, atol=1e-2)
 # end func

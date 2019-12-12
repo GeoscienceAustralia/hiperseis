@@ -1,0 +1,23 @@
+sphinx>=1.8
+pytest>=4.2.0
+click
+scipy
+pandas
+geopandas
+h5py
+pyasdf
+obspy==1.1.0
+obspyh5
+shapely
+geographiclib
+pytables==3.5.2; sys_platform=="win32"
+tables==3.5.2; sys_platform!="win32"
+psutil
+joblib
+netcdf4
+ujson
+deprecated
+pyyaml
+requests
+#cartopy install failure rf==0.8.0
+#mpi4py
