@@ -5,7 +5,11 @@
       PARAMETER (NMAX=900)
 CU    USES dpythag
       INTEGER i,its,j,jj,k,l,nm
-      DOUBLE PRECISION anorm,c,f,g,h,s,scale,x,y,z,rv1(NMAX),dpythag
+      DOUBLE PRECISION anorm, c, f, g, h, s, scale, x, y, z
+      DOUBLE PRECISION rv1(NMAX), dpythag
+      nm = 0
+      f = 0
+      h = 0
       g=0.0d0
       scale=0.0d0
       anorm=0.0d0
@@ -168,7 +172,7 @@ CU    USES dpythag
             endif
             goto 3
           endif
-          if(its.eq.120) pause 'no convergence in svdcmp'
+          if(its.eq.120) stop 'no convergence in svdcmp'
           x=w(l)
           nm=k-1
           y=w(nm)

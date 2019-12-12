@@ -18,14 +18,14 @@ c     **  a0 = parameter of a gaussian high-cut filter
 c     **  rx(1-nb) = synthetic response
 c
 c
-        include 'rfi_param.inc'
+      include 'rfi_param.inc'
 
-        integer n, m, nlmx, nb, nb2, nd, i, k
-        real fs, din, rad, a0, c0, t0, fk, fr, pi, pi2, frini, frint
-        real rin, rvmax, va, wmax
-        parameter     ( nlmx = maxsublayer)
-        parameter     ( nb = maxdata )
-        parameter     ( nb2 = nb/2+1 )
+      integer n, m, nlmx, nb, nb2, nd, i, k
+      real fs, din, rad, a0, c0, t0, fk, fr, pi, pi2, frini, frint
+      real rin, rvmax, va, wmax
+      parameter     ( nlmx = maxsublayer)
+      parameter     ( nb = maxdata )
+      parameter     ( nb2 = nb/2+1 )
 
 c     parameter     ( nlmx = 100)
 c     parameter     ( nb = 1024 )
@@ -95,7 +95,7 @@ c
 c     * a minimum allowable amplitude level *
       wmax=0.
       do 40 i=1,nb2
-        wa(i)=wp(i)*conjg(wp(i))
+        wa(i)=real(wp(i)*conjg(wp(i)))
         wmax=amax1(wmax,wa(i))
    40 continue
       do 50 i=1,nb2
