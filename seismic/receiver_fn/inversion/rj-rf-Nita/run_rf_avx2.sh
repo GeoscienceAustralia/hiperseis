@@ -11,7 +11,6 @@
 
 module purge
 module load openmpi/1.10.2
-# export OMP_NUM_THREADS=4
 echo $INFILE
 echo $OUT
 # Map by node so that if using OpenMP threads, processes will be assigned

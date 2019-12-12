@@ -20,24 +20,25 @@ Example usage:
 
 import os
 import numpy as np
-# from future.utils import iteritems
 
 import click
 from obspy.taup import TauPyModel
+from obspy.taup.taup_create import TauPCreate
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from mpl_toolkits import basemap
 import rf
-
-from seismic.receiver_fn.rf_util import KM_PER_DEG
 from tqdm import tqdm
 
+from seismic.receiver_fn.rf_util import KM_PER_DEG
 
-def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None):
+
+def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata=None, title=None, colormap='seismic'):
     """Plot results of CCP stacking procedure.
 
     :param matrx: [description]
     :type matrx: numpy.array
-    :param length: Length (km) of the profile line
+    :param length: Length (km) of the transect line
     :type length: float
     :param max_depth: Maximum depth (km) of the slice to plot
     :type max_depth: float
@@ -51,41 +52,60 @@ def plot_ccp(matrx, length, max_depth, spacing, ofile=None, vlims=None, metadata
     :type metadata: dict, optional
     :param title: Title text to add to the plot, defaults to None
     :type title: str, optional
+    :param colormap: Color map to use for the CCP intensity shading.
+    :type colormap: str
+    :return: None
     """
     tickstep_x = 50
     tickstep_y = 25
 
     plt.figure(figsize=(16, 9))
-    interpolation = 'bilinear'
+    interpolation = 'hanning'
+    extent = (0, length, 0, max_depth)
+    assert not np.any(np.isnan(matrx))
     if vlims is not None:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', vmin=vlims[0], vmax=vlims[1], interpolation=interpolation)
+        im = plt.imshow(matrx, cmap=colormap, aspect='auto', vmin=vlims[0], vmax=vlims[1], extent=extent,
+                        interpolation=interpolation, origin='lower')
     else:
-        im = plt.imshow(matrx, aspect='equal', cmap='jet', interpolation=interpolation)
+        im = plt.imshow(matrx, cmap=colormap, aspect='auto', extent=extent, interpolation=interpolation, origin='lower')
+    # end if
     cb = plt.colorbar(im)
     cb.set_label('Stacked amplitude (arb. units)')
 
     if title is not None:
-        plt.title(title)
+        plt.title(title, fontsize=16, y=1.02)
 
-    plt.ylim([int(max_depth/spacing), 0])
+    plt.xlim(0, length)
+    plt.ylim(max_depth*1.0001, 0)
 
-    plt.xlabel('Distance (km)')
-    plt.ylabel('Depth (km)')
+    plt.xlabel('Distance (km)', fontsize=12)
+    plt.ylabel('Depth (km)', fontsize=12)
 
-    plt.xticks(range(0, int(length/spacing), int(tickstep_x/spacing)), range(0, int(length), tickstep_x))
-    plt.yticks(range(0, int(max_depth/spacing), int(tickstep_y/spacing)), range(0, int(max_depth), tickstep_y))
+    plt.xticks(np.arange(0.0, length*1.0001, tickstep_x), fontsize=12)
+    plt.yticks(np.arange(0, max_depth*1.0001, tickstep_y), fontsize=12)
+    plt.tick_params(right=True, labelright=True, axis='y', labelsize=12)
+    plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
+    plt.gca().yaxis.set_tick_params(which='minor', right=True)
+    plt.grid(color='#80808080', linestyle=':', axis='y')
 
-    # if metadata is not None:
-    #     for stn, meta in iteritems(metadata):
-    #         if meta is None:
-    #             continue
-    #         x = meta['sta_offset']
-    #         y = -1
-    #         th = plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
-    #                       verticalalignment='bottom', fontsize=8)
-    #         txt_handles.append(th)
-
-    plt.axis('tight')
+    if metadata is not None:
+        stn_labels = []
+        # Extract station label data into a list first so we can sort by distance along transect
+        for stn, meta in metadata.items():
+            if meta is None:
+                continue
+            stn_labels.append((stn, meta))
+        # end for
+        stn_labels.sort(key=lambda md: md[1]['sta_offset'])
+        i = 0
+        for stn, meta in stn_labels:
+            x = meta['sta_offset']
+            y = 1.0 + (i%2)*2.5
+            plt.text(x, y, "{} ({})".format(stn, meta['event_count']), horizontalalignment='center',
+                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
+            i += 1
+        # end for
+    # end if
 
     if ofile:
         plt.savefig(ofile, dpi=300)
@@ -122,12 +142,13 @@ def setup_ccp_profile(length, spacing, maxdep):
 # end func
 
 
-def get_amplitude(trace, time, rf_offset=5.0):
+def get_amplitude(trace, time):
     """
     retrieve amplitude value
     """
+    rf_offset = trace.stats.onset - trace.stats.starttime
     indx = (time + rf_offset) * trace.stats.sampling_rate
-    amp = trace.data[int(indx)]/trace.stats.amax
+    amp = trace.data[int(indx)]/trace.stats.amp_max
     return amp
 # end func
 
@@ -321,15 +342,23 @@ def cross_along_track_distance(p1, p2, p3):
     :type p2: tuple(float, float)
     :param p3: (latitude, longitude) in degrees
     :type p3: tuple(float, float)
+    :return: Cross-track distance (orthogonal to arc from p1 to p2) and along-track distance (along arc from
+        p1 to p2) of the location p3.
+    :rtype: tuple(float, float)
     """
     delta_13 = angular_distance(p1, p3) * np.pi / 180.0
     theta_13 = bearing(p1, p3) * np.pi / 180.0
     theta_12 = bearing(p1, p2) * np.pi / 180.0
-    ct_angle = np.arcsin(np.sin(delta_13) * np.sin(theta_13 - theta_12))
+    relative_bearing = theta_13 - theta_12
+    while relative_bearing > np.pi:
+        relative_bearing -= 2*np.pi
+    while relative_bearing < -np.pi:
+        relative_bearing += 2*np.pi
+    ct_angle = np.arcsin(np.sin(delta_13) * np.sin(relative_bearing))
     at_angle = np.arccos(np.cos(delta_13) / np.cos(ct_angle))
     # If bearing from p1 to p3 is more than 90 degrees from bearing to p2, then the along-track angle
     # is negative.
-    if np.abs(theta_13 - theta_12) > np.pi/2.0:
+    if np.abs(relative_bearing) > np.pi/2.0:
         at_angle = -at_angle
     ct_angle = ct_angle * 180.0 / np.pi
     at_angle = at_angle * 180.0 / np.pi
@@ -359,7 +388,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
     """
     stn_params = {}
     length = angular_distance(startpoint, endpoint) * KM_PER_DEG
-    print("Profile length = {} km".format(length))
+    print("Transect length = {} km".format(length))
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -377,6 +406,7 @@ def ccp_compute_station_params(rf_stream, startpoint, endpoint, width, bm=None):
                 if bm is not None:
                     x, y = bm(sta_lon, sta_lat)
                     bm.plot(x, y, 'ro')
+                    plt.text(x, y, stat_code, fontsize=6, color='#202020a0')
                 stn_params[stat_code] = {'dist': dist, 'sta_offset': sta_offset}
             else:
                 if bm is not None:
@@ -399,15 +429,15 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     :param rf_stream: Sequence of receiver function traces
     :type rf_stream: rf.rfstream.RFStream
-    :param startpoint: Starting point for the profile line in latitude, longitude degrees
+    :param startpoint: Starting point for the transect line in latitude, longitude degrees
     :type startpoint: tuple(float, float)
-    :param endpoint: End point for the profile line in latitude, longitude degrees
+    :param endpoint: End point for the transect line in latitude, longitude degrees
     :type endpoint: tuple(float, float)
-    :param width: Width (km) of region about the profile line from which to project RFs to the slice.
+    :param width: Width (km) of region about the transect line from which to project RFs to the slice.
     :type width: float
-    :param spacing: Size (km) of each discrete sample cell in the spatial slice beneath the profile line.
+    :param spacing: Size (km) of each discrete sample cell in the spatial slice beneath the transect.
     :type spacing: float
-    :param max_depth: Maximum depth (km) of the slice beneatht the profile line
+    :param max_depth: Maximum depth (km) of the slice beneath the transect
     :type max_depth: float
     :param channels: Filter for channels, defaults to None in which case only 'R' channel is used.
         Allowed values are in ['Z', 'R', 'T'].
@@ -425,15 +455,35 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     xsmall, ysmall, xbig, ybig = bounding_box(startpoint, endpoint)
     _, _, length = equirectangular_projection(xsmall, ysmall, xbig, ybig)
 
-    #set velocity model (other options can be added) 
-    if v_background == 'ak135':
+    #set velocity model (other options can be added)
+    # AK135
+    vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
+          8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
+    vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
+          4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
+    if v_background.lower() == 'ak135':
+        # NOTE: Conventional default AK135
         b_lay = [0., 20., 35., 77.5, 120., 165., 210., 260.,
                  310., 360., 410., 460., 510., 560., 610., 660.]
-        vp = [5.8, 6.5, 8.04, 8.045, 8.05, 8.175, 8.3, 8.4825, 8.665,
-              8.8475, 9.03, 9.36, 9.528, 9.696, 9.864, 10.032, 10.2]
-        vs = [3.46, 3.85, 4.48, 4.49, 4.5, 4.509, 4.518, 4.609, 4.696,
-              4.783, 4.87, 5.08, 5.186, 5.292, 5.398, 5.504, 5.61]
-        vmod = (b_lay, vp, vs)
+        model = TauPyModel(model=v_background.lower())
+    elif v_background.lower() == 'ak135_60':
+        # NOTE: AK135 with Moho at 60 km
+        b_lay = [0., 20., 60., 77.5, 120., 165., 210., 260.,
+                 310., 360., 410., 460., 510., 560., 610., 660.]
+        model_dir = os.path.join(os.path.split(__file__)[0], 'models')
+        model_file = os.path.join(model_dir, 'ak135_60.tvel')
+        built_file = os.path.join(model_dir, 'ak135_60.npz')
+        print('Using background crustal model at {}'.format(model_file))
+        if not os.path.isfile(built_file):
+            model_factory = TauPCreate(model_file, built_file)
+            model_factory.load_velocity_model()
+            model_factory.run()
+        # end if
+        model = TauPyModel(model=built_file)
+    else:
+        assert False, 'NYI'
+    #end if
+    vmod = (b_lay, vp, vs)
 
     #first set up a matrix
     profile_mesh, depstep, lenstep = setup_ccp_profile(length, spacing, max_depth)
@@ -449,19 +499,17 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
-    parallels = np.arange(np.floor(ysmall), np.ceil(ybig), 1)
-    m.drawparallels(parallels, color="#a0a0a0", labels=[1, 1, 0, 0])
-    meridians = np.arange(np.floor(xsmall), np.ceil(xbig), 1)
-    m.drawmeridians(meridians, rotation=45, color="#a0a0a0", labels=[0, 0, 1, 1])
+    parallels = np.arange(np.floor(ysmall - 2), np.ceil(ybig + 2))
+    m.drawparallels(parallels, color="#a0a0a0", labels=[1, 1, 0, 0], fontsize=8)
+    meridians = np.arange(np.floor(xsmall - 2), np.ceil(xbig + 2))
+    m.drawmeridians(meridians, rotation=45, color="#a0a0a0", labels=[0, 0, 1, 1], fontsize=8)
 
     # Precompute the station parameters for a given code, as this is the same for every trace.
     print("Computing included stations...")
-    # stn_params = ccp_compute_station_params_legacy(rf_stream, startpoint, endpoint, width, m)
     stn_params = ccp_compute_station_params(rf_stream, startpoint, endpoint, width, m)
 
     # Processing/extraction of rf_stream data
     print("Projecting included stations to slice...")
-    model = TauPyModel(model=v_background)
     pbar = tqdm(total=len(rf_stream), ascii=True)
     for tr in rf_stream:
         pbar.update()
@@ -490,12 +538,12 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     # Plot parameters on the map
     ax = plt.gca()
-    plt.text(0.01, 0.98, 'Start = {} deg'.format(str(startpoint)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
-    plt.text(0.01, 0.93, 'End = {} deg'.format(str(endpoint)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
-    plt.text(0.01, 0.88, 'Width = {} km'.format(str(width)), verticalalignment='top',
-             transform=ax.transAxes, fontsize=8)
+    plt.text(0.01, 0.98, 'Start = ({:3.3f},{:3.3f}) deg'.format(*startpoint), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
+    plt.text(0.01, 0.93, 'End = ({:3.3f},{:3.3f}) deg'.format(*endpoint), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
+    plt.text(0.01, 0.88, 'Width = {:3.1f} km'.format(width), verticalalignment='top',
+             transform=ax.transAxes, fontsize=6, backgroundcolor='#ffffffa0')
 
     # Show or save basemap plot
     if station_map_file is None:
@@ -507,9 +555,74 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     if not np.all(mesh_entries[:] == 0):
         #normalize, then plot
         matrx_norm = (profile_mesh / mesh_entries).transpose()
+        matrx_norm[np.isnan(matrx_norm)] = 0
         return matrx_norm, mesh_entries.transpose(), length, stn_params
     else:
         return None, None, 0, stn_params
+    # end if
+# end func
+
+
+def run(rf_stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
+        background_model='ak135', stacked_scale=None, title=None, plot_density=False, colormap=None):
+    """Run CCP generation on a given dataset of RFs.
+
+    :param rf_stream: Set of RFs to use for CCP plot
+    :type rf_stream: rf.RFStream
+    :param output_file: Name of output file (png format)
+    :type output_file: str or Path
+    :param start_latlon: Starting (latitude, longitude) coordinates of line transect
+    :type start_latlon: tuple(float, float)
+    :param end_latlon: End (latitude, longitude) coordinates of line transect
+    :type end_latlon: tuple(float, float)
+    :param width: Width of transect (km)
+    :type width: float
+    :param spacing: Discretization size (km) for RF ray sampling
+    :type spacing: float
+    :param max_depth: Maximum depth of slice below the transect line (km)
+    :type max_depth: float
+    :param channels: String of comma-separated component IDs to source for the RF amplitude
+    :type channels: str, comma separated
+    :param background_model: 1D background model to assume
+    :type background_model: str
+    :param stacked_scale: Max value to represent on color scale of CCP plot
+    :type stacked_scale: float
+    :param title: Title to place at top of CCP plot
+    :type title: str
+    :param plot_density: Whether to generate data density plot.
+    :type plot_density: bool
+    :param colormap: Color map to use for the CCP intensity shading. Suggest 'seismic', 'coolwarm' or 'jet'.
+    :type colormap: str
+    :return: None
+    """
+
+    channels = channels.split(',')
+
+    output_file_base, ext = os.path.splitext(output_file)
+    if ext != ".png":
+        output_file += ".png"
+    matrix_norm, sample_density, length, stn_params = \
+        ccp_generate(rf_stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
+                     channels=channels, v_background=background_model, station_map_file=output_file_base + '_MAP.png')
+
+    if matrix_norm is not None:
+        # Range of stacked amplitude for imshow to get best contrast
+        if stacked_scale is not None:
+            vlims = (-stacked_scale, stacked_scale)
+        else:
+            vlims = None
+        # endif
+        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=vlims, metadata=stn_params,
+                 title=title, colormap=colormap)
+        if plot_density and sample_density is not None:
+            sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
+            # Use median of number of events per station to set the scale range.
+            sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
+            median_samples = sc[len(sc)//2]
+            plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
+                     metadata=stn_params, title=title + ' [sample density]' if title else None, colormap=colormap)
+        # end if
+    # end if
 # end func
 
 
@@ -522,51 +635,41 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
               help='End coordinates of the profile line as latitude longitude (degrees),'
                    ' using space as separator, e.g. -19 140')
 @click.option('--width', type=float, default=100.0, show_default=True,
-              help='Width of the strip around the profile line (km)')
+              help='Width of the strip around the transect line (km)')
 @click.option('--spacing', type=float, default=2.0, show_default=True,
-              help='Spacing of cells in the 2D square mesh covering the slice below the profile line (km)')
+              help='Spacing of cells in the 2D square mesh covering the slice below the transect line (km)')
 @click.option('--max-depth', type=float, default=200.0, show_default=True,
-              help='Maximum depth of slice below the profile line (km)')
-@click.option('--stacked-scale', type=float, default=0.15, show_default=True,
+              help='Maximum depth of slice below the transect line (km)')
+@click.option('--stacked-scale', type=float,
               help='Max value to represent on color scale of CCP plot. Adjust for optimal contrast.')
 @click.option('--channels', type=str, default='R', show_default=True,
               help='Comma separated list of channels to use for stacking, e.g. R,T')
+@click.option('--background-model', type=click.Choice(['ak135', 'ak135_60']), default='ak135',
+              show_default=True, help='1D background model to assume.')
 @click.option('--title', type=str, help='Title text applied to the plots.')
 @click.argument('rf-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
-def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, stacked_scale, channels,
-         title=None):
+def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels,
+         background_model, stacked_scale=None, title=None):
     # rf_file is the clean H5 file of ZRT receiver functions, generated by rf_quality_filter.py
-
-    channels = channels.split(',')
-
-    # Range of stacked amplitude for imshow to get best contrast
-    vmin, vmax = (-stacked_scale, stacked_scale)
-
-    output_file_base, ext = os.path.splitext(output_file)
-    if ext != ".png":
-        output_file += ".png"
     print("Reading HDF5 file...")
     stream = rf.read_rf(rf_file, 'H5')
-    matrix_norm, sample_density, length, stn_params = \
-        ccp_generate(stream, start_latlon, end_latlon, width=width, spacing=spacing, max_depth=max_depth,
-                     channels=channels, station_map_file=output_file_base + '_MAP.png')
-
-    if matrix_norm is not None:
-        plot_ccp(matrix_norm, length, max_depth, spacing, ofile=output_file, vlims=(vmin, vmax), metadata=stn_params,
-                 title=title)
-        if sample_density is not None:
-            sample_density_file = output_file_base + '_SAMPLE_DENSITY.png'
-            # Use median of number of events per station to set the scale range.
-            sc = sorted([s['event_count'] for s in stn_params.values() if s is not None])
-            median_samples = sc[len(sc)//2]
-            plot_ccp(sample_density, length, max_depth, spacing, ofile=sample_density_file, vlims=(0, median_samples),
-                     metadata=stn_params, title=title + ' [sample density]' if title else None)
-        # end if
-    # end if
-# end main
+    colormap = 'jet'
+    run(stream, output_file, start_latlon, end_latlon, width, spacing, max_depth, channels, background_model,
+        stacked_scale, title, colormap=colormap)
+# end func main
 
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
+    # run_batch('AQ_CCP_transects.txt', 'AQT_rfs_20151128T042000-20191108T000317_ZRT_it_rev1_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.5, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
+    # run_batch('7X_CCP_transects.txt', '7X_rfs_20090616T034200-20110401T231849_ZRT_it_rev2_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.3, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
+    # run_batch('OA_CCP_transects.txt', 'OA_rfs_20170911T000036-20181128T230620_ZRT_it_rev15_qual.h5',
+    #           '/g/data1a/ha3/Passive/SHARED_DATA/Index/asdf_files.txt', stack_scale=0.2, width=40.0,
+    #           spacing=2.0, max_depth=100.0)
     main()  # pylint: disable=no-value-for-parameter
+# end if

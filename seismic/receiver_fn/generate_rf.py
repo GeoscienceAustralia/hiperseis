@@ -280,7 +280,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
               help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
                    "starved of work. Uses more memory.")
 def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
-         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=False, parallel=True, memmap=False,
+         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=True, parallel=True, memmap=False,
          temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
     """
     Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
