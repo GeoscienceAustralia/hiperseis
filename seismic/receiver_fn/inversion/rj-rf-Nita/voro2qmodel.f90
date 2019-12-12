@@ -2,7 +2,7 @@
 ! Sheng Wang
 ! Aug-2018 RSES ANU
 subroutine voro2qmodel(voro,nmod,nmod_max,dep_min,dep_max,vs,thickness,vpvs,qa,qb)
-implicit none
+    implicit none
     integer nmod,idx,idx_i,idx_j,order(nmod),nmod_max
     real voro(nmod_max,3),dep_min,dep_max,vs(nmod_max)
     real vpvs(nmod_max),qa(nmod_max),qb(nmod_max),maxx,minn,tmp_sum,thickness(nmod_max)

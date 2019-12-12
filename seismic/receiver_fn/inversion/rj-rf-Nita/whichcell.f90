@@ -4,7 +4,7 @@
 subroutine whichcell(point,voro,nmod,nmod_max,idx)
 implicit none
     integer nmod,idx,idx_i,nmod_max
-    real    point,voro(nmod_max,3)
+    real point,voro(nmod_max,3)
 
     idx=1
     do idx_i=1,nmod
