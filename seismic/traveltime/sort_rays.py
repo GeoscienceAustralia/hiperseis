@@ -11,6 +11,7 @@ Description:
 
 Developer:
     fei.zhang@ga.gov.au
+
 """
 from __future__ import print_function, absolute_import
 
@@ -78,8 +79,9 @@ def sort(input_file, sorted_file, residual_cutoff):
     """
     Sort and filter the arrivals based on the source and station block number.
     There are two stages of filtering:
-        - Filter based on the arrival time residual value: defult value for the cutoff is 5 for P-Wave, 10 for S-Wave
-        - Filter based on median of observed travel time.
+
+    - Filter based on the arrival time residual value: defult value for the cutoff is 5 for P-Wave, 10 for S-Wave
+    - Filter based on median of observed travel time.
 
     If there are multiple source and station block combinations, we keep the
     row corresponding to the median observed travel time (observed_tt).
@@ -156,11 +158,8 @@ def sort(input_file, sorted_file, residual_cutoff):
 def sort2(input_file, sorted_file, residual_cutoff):
     """
     Sort and filter the arrivals based on the source and station block number.
-    There are two stages of filtering:
-        - Filter based on the time residual
-        - Filter based on best Signal to Noise Ratio of the seismic wave:
-
     If there are multiple source and station block combinations, the row corresponding to the highest SNR value is kept.
+    (This function is for experiment only, not used.)
 
     :param input_file: output file from the gather stage (eg, outfile_P.csv)
     :param sorted_file: str, optionaloptional sorted output file path. Default: sorted.csv.

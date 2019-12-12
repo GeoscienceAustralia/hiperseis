@@ -25,14 +25,14 @@ print(sys.path)
 
 # -- Project information -----------------------------------------------------
 
-project = 'passive-seismic'
+project = 'AusArray Passive Seismic'
 copyright = '2019, Geoscience Australia'
-author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov'
+author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov, Babak Hejrani'
 
 # The short X.Y version
-version = '1.0'
+version = '0.1'
 # The full version, including alpha/beta/rc tags
-release = 'alpha'
+release = 'Alpha'
 
 
 # -- General configuration ---------------------------------------------------
@@ -139,8 +139,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'passive-seismic.tex', 'passive-seismic Documentation',
-     'Fei Zhang, Rakib Hassan, etc', 'manual'),
+    (master_doc, 'passive-seismic.tex', 'HiPerSeis Documentation',
+     'F. Zhang, A. Medlin, R. Hassan, A. Gorbatov, B. Hejrani', 'manual'),
 ]
 
 
@@ -149,7 +149,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'passive-seismic', 'passive-seismic Documentation',
+    (master_doc, 'passive-seismic', 'HiPerSeis Documentation',
      [author], 1)
 ]
 
@@ -160,7 +160,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'passive-seismic', 'passive-seismic Documentation',
+    (master_doc, 'passive-seismic', 'HiPerSeis Documentation',
      author, 'passive-seismic', 'One line description of project.',
      'Miscellaneous'),
 ]
@@ -201,7 +201,10 @@ MOCK_MODULES = [
     # 'obspy.geodetics.base' ,'obspy.clients.fdsn.client',
     # 'obspy.core.inventory',
     # 'obspy.clients.nrl',
-    'osgeo'
+    'osgeo',
+    'mpi4py', 'mpi4py.MPI',
+    'rf',
+    'tqdm','tqdm.auto'
 ]
 
 import mock

@@ -145,7 +145,10 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
          apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS):
 
+    log.setLevel(logging.INFO)
+
     # Read source file
+    log.info("Loading input file {}".format(input_file))
     data_all = rf_util.read_h5_rf(input_file)
 
     # Convert to hierarchical dictionary format
@@ -153,6 +156,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
     event_mask_dict = None
     if event_mask_folder and os.path.isdir(event_mask_folder):
+        log.info("Applying event mask from folder {}".format(event_mask_folder))
         mask_files = os.listdir(event_mask_folder)
         mask_files = [f for f in mask_files if os.path.isfile(os.path.join(event_mask_folder, f))]
         # print(mask_files)
@@ -174,15 +178,16 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
     # end if
 
     if event_mask_dict:
-        print("Loaded {} event masks".format(len(event_mask_dict)))
+        log.info("Loaded {} event masks".format(len(event_mask_dict)))
     # end if
-
 
     # Plot all data to PDF file
     fixed_stack_height_inches = 0.8
     y_pad_inches = 1.6
     total_trace_height_inches = paper_size_A4[1] - fixed_stack_height_inches - y_pad_inches
     max_trace_height = 0.2
+
+    log.setLevel(logging.WARNING)
 
     with PdfPages(output_file) as pdf:
         # Would like to use Tex, but lack desktop PC privileges to update packages to what is required

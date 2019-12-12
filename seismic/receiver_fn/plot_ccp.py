@@ -173,10 +173,13 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
         else:
             h = depstep[j] - depstep[j - 1]
             h_tot += h
+        # end if
+
         # check in velocity model
         for f in range(len(vmod[0])):
             if vmod[0][f] < depstep[j]:
                 d = f
+        # end for
 
         # derive P incidence from previous P incidence, then current S from current P
         inc_p = np.arcsin((np.sin(inc_p * np.pi/180.) * vmod[1][d]) / vmod[1][c]) * 180 / np.pi
@@ -203,8 +206,9 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
 
         matrx[indx_x, indx_y] += amp
         matrx_entry[indx_x, indx_y] += 1
+    # end for
 
-    return matrx,matrx_entry
+    return matrx, matrx_entry
 # end func
 
 
@@ -224,11 +228,13 @@ def matrx_lookup(xsz, sta_offset, h, depstep, lenstep):
         if abs(lenstep[j] - distance_offset) < diff_x:
             diff_x = abs(lenstep[j] - distance_offset)
             indx_x = j
+    # end for
 
     for k in range(len(depstep)):
         if abs(depstep[k] - h) < diff_y:
             diff_y = abs(depstep[k] - h)
             indx_y = k
+    # end for
 
     return indx_x, indx_y
 # end func
