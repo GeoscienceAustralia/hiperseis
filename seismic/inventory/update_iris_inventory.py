@@ -49,6 +49,7 @@ def cleanup(tmp_filename):
         os.remove(tmp_filename)
     except OSError:
         print("WARNING: Failed to remove temporary file " + tmp_filename)
+# end func
 
 
 def update_iris_station_xml(req, output_file, options=None):
@@ -72,6 +73,7 @@ def update_iris_station_xml(req, output_file, options=None):
     except req.exceptions.RequestException:
         print("FAILED to retrieve URL content at " + iris_url)
         return
+    # end try
 
     # Repair errors with IRIS data
     print("Correcting known data errors...")
@@ -85,6 +87,7 @@ def update_iris_station_xml(req, output_file, options=None):
     # Create human-readable text form of the IRIS station inventory (Pandas stringified table)
     output_txt = os.path.splitext(output_file)[0] + ".txt"
     regenerate_human_readable(iris_fixed, output_txt)
+# end func
 
 
 def repair_iris_metadata(iris):
@@ -107,6 +110,7 @@ def repair_iris_metadata(iris):
     iris_text_fixed = matcher.sub(repair_match, iris.text)
 
     return iris_text_fixed
+# end func
 
 
 def regenerate_human_readable(iris_data, outfile):
@@ -125,9 +129,10 @@ def regenerate_human_readable(iris_data, outfile):
     from obspy import read_inventory
 
     if sys.version_info[0] < 3:
-        from cStringIO import StringIO as sio  # pylint: disable=import-error
+        from cStringIO import StringIO as sio  # pylint: disable=import-error,unresolved-import
     else:
         from io import BytesIO as sio
+    # end if
 
     iris_str = iris_data.encode('utf-8')
     print("  Ingesting query response into obspy...")
@@ -140,6 +145,7 @@ def regenerate_human_readable(iris_data, outfile):
         with open(dumpfile, 'w') as f:
             f.write(iris_str.decode('utf-8'))
         raise
+    # end try
 
     print("  Converting to dataframe...")
     inv_df = inventory_to_dataframe(station_inv)
@@ -149,7 +155,7 @@ def regenerate_human_readable(iris_data, outfile):
         inv_str = str(inv_df)
         with open(outfile, "w") as f:
             f.write(inv_str)
-
+# end func
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -169,3 +175,4 @@ if __name__ == "__main__":
         update_iris_station_xml(requests, output_filename, filter_args)
     else:
         update_iris_station_xml(requests, output_filename)
+    # end if
