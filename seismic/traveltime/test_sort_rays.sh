@@ -2,6 +2,7 @@
 
 # Before running this script, make sure you are in a python enviroment where ellipcorr,  seismic and dependency packages have been installed
 # typically a virtualenv through source ...venvname/bin/activate; or conda activate venv_name
+# example: source ~/Venvs/hiperseis/bin/activate
 
 export PSTHOME=~/Githubz/hiperseis/
 export PYTHONPATH=$PSTHOME:$PYTHONPATH
