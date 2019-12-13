@@ -4,7 +4,10 @@
 # typically a virtualenv through source ...venvname/bin/activate; or conda activate venv_name
 # example: source ~/Venvs/hiperseis/bin/activate
 
-export PSTHOME=~/Githubz/hiperseis/
+
+# before running this test script, make sure the PSTHOME env is set correctly 
+# export PSTHOME=~/Githubz/hiperseis/   
+
 export PYTHONPATH=$PSTHOME:$PYTHONPATH
 export ELLIPCORR=$PSTHOME/ellip-corr/
 
