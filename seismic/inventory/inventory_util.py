@@ -11,6 +11,7 @@ import time
 from obspy import read_inventory
 
 from seismic.inventory.iris_query import set_text_encoding, form_response_request_url
+from ordered_set import OrderedSet as set
 
 PY2 = sys.version_info[0] < 3  # pylint: disable=invalid-name
 

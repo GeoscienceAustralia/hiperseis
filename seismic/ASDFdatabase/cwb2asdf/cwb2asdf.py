@@ -19,6 +19,7 @@ import os
 import pyasdf
 import io
 import glob
+from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import read, warnings, Stream, Trace
 from obspy.core import UTCDateTime

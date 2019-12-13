@@ -20,6 +20,7 @@ import glob
 import atexit
 import logging
 import pickle
+from ordered_set import OrderedSet as set
 import numpy as np
 
 from obspy.core import Stream, UTCDateTime
