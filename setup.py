@@ -7,7 +7,6 @@ __version__ = "0.0.1"
 
 
 class PyTest(TestCommand, object):
-
     user_options = [('pytest-args=', 'a', "Arguments to pass to pytest")]
 
     def initialize_options(self):
@@ -36,7 +35,6 @@ The full documentation is at http://geoscienceaustralia.github.io/passive
 /."""
 history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
-
 # The f2py fortran extension
 # --------------------------
 ellipcorr = Extension(
@@ -54,17 +52,15 @@ setup(
     author='Geoscience Australia Passive Seismic Team',
     author_email='',
     url='https://github.com/GeoscienceAustralia/Passive-Seismic',
-    packages=['seismic', 'convert_logs', 'seismic.scripts', 'seismic.cluster',
-              'inventory', 'PhasePApy'],
+    packages=['seismic', 'seismic.traveltime',
+              'seismic.receiver_fn', 'seismic.gps_corrections',
+              'seismic.amb_noise', 'seismic.pick_harvester', 'seismic.xcorqc',
+              'seismic.ml_classifier', 'seismic.ASDFdatabase',
+              'seismic.inventory', 'PhasePApy'],
     package_dir={'passive-seismic': 'seismic'},
     include_package_data=True,
     dependency_links=[
-        'https://github.com/matplotlib/basemap/archive/'
-        'v1.1.0.zip#egg=basemap-1.1.0',
-        # 'https://github.com/GeoscienceAustralia/PhasePApy/'
-        # 'archive/master.zip#egg=phasepapy-1.1.1',
-        # git+https://github.com/GeoscienceAustralia/PhasePApy.git@v1.1.1
-        ],
+    ],
     entry_points={
         'console_scripts': [
             'anulog = convert_logs.decode_datfile:anulog',
@@ -96,7 +92,7 @@ setup(
         'pyqtgraph',
         'pandas',
         # 'phasepapy == 1.1.1',
-        'basemap == 1.1.0',
+        # 'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
         'chardet == 3.0.4',
         'lxml >= 3.3.5'
