@@ -115,7 +115,7 @@ setup(
             'flake8-docstrings >= 1.1.0',
         ]
     },
-    license="Apache Software License 2.0",
+    license="GNU GENERAL PUBLIC LICENSE v3",
     zip_safe=False,
     keywords='Passive Seismic',
     classifiers=[
