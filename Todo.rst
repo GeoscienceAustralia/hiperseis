@@ -3,18 +3,18 @@ Road Map for HiPerSeis Development
 
 Fei Zhang 2019-12-16
 
-- Consolidate Best Practices Implementations.
+- Continue to consolidate Best Practices Implementations.
 
-- docs reformatting to multiple pages
+- Reformatting docs to multiple pages for easy navigating.
 
-- more unit tetstings to increase coverage
+- More unit tetstings to increase coverage
 
-- pylint pep8 coding style score should be increased from the current low score (4.*).
+- Use Pylint/PEP8 coding style to check and score the source code. The current pylint score is low (4.*).
 
-- more clear and updated docs/tutorials for each sub module.
+- Updated docs/tutorials for each sub module.
 
-- integrated installation guide for all modules and scripts in HiPerSeis
+- Integrated installation guide for HiPerSeis including all modules and scripts
 
-- pip installation package (like obspy)
+- create pip installable package (like obspy)
 
-- publish a paper in a journel like **Computers and Geosciences.**
+- when HiPerSeis is mature enough as a Python software package, can try to publish it in **Journal of Open Source Software**
