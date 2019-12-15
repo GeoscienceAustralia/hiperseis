@@ -31,11 +31,15 @@ def phase_weights(stream):
 
     See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
+    Note: this function should not be applied to streams with mixed components.
+
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
     :type stream: obspy.core.stream.Stream
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
+    assert_homogenous_stream(stream, phase_weights.__name__)
+
     traces = np.array([tr.data for tr in stream])
     # Hilbert transform to separate complex amplitude from complex phase.
     analytic = hilbert(traces)
@@ -454,6 +458,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
+    assert_homogenous_stream(rf_stream, filter_crosscorr_coeff.__name__)
 
     # Early exit if we don't have enough traces for similarity filtering to be meaningful.
     if len(rf_stream) < 3:
@@ -467,14 +472,6 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
         return data_cc
     # end if
 
-    # Check station and channel uniqueness. It is not sensible to expect RF similarity for
-    # different stations or channels.
-    expected_station = data_cc[0].stats.station
-    expected_channel = data_cc[0].stats.channel
-    assert np.all(np.array([(tr.stats.station == expected_station) for tr in data_cc])), \
-        'Mixed station data passed to similarity filter!'
-    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in data_cc])), \
-        'Mixed channel data passed to similarity filter!'
     # Apply optional moveout
     if apply_moveout:
         data_cc.moveout()
@@ -506,4 +503,25 @@ def zne_order(tr):
         return trace_ordering[component]
     else:
         return 3
+# end func
+
+
+def assert_homogenous_stream(stream, funcname):
+    """
+    Verify that the given stream does not contain mixture of stations or channels/components.
+
+    :param stream: Stream containing one or more traces
+    :type stream: obspy.core.stream.Stream or rf.RFStream
+    """
+    # Check station and channel uniqueness. It is not sensible to expect RF similarity for
+    # different stations or channels.
+    if not stream:
+        return
+    # end if
+    expected_station = stream[0].stats.station
+    expected_channel = stream[0].stats.channel
+    assert np.all(np.array([(tr.stats.station == expected_station) for tr in stream])), \
+        'Mixed station data incompatible with function {}'.format(funcname)
+    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in stream])), \
+        'Mixed channel data incompatible with function {}'.format(funcname)
 # end func

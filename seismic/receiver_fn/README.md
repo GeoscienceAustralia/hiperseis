@@ -92,7 +92,9 @@ documentation for additional details:
 8. Coherence of signals in the frequency domain
 9. Grouping by similarity (DBSCAN method)
 
-As one can guess by the diversity of quality metrics computed, this is an area of active research.
+Finally, when saving the traces with quality metrics in the metadata, the Z-component is dropped to
+reduce file size, so only the R- and T-components are saved.  As one can guess by the diversity of
+quality metrics computed, this is an area of active research.
 
 To use script `rf_quality_filter.py`, the following parameters should be provided:
 * H5 Input file name
