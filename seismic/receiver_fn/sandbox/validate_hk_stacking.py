@@ -72,7 +72,7 @@ def main():
             inclinations = np.linspace(np.min(inc), np.max(inc), num_traces)
             distances = interp_dist(inclinations)
             final_sample_rate_hz = 10.0
-            stream = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, include_t3)
+            stream, _ = synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, include_t3)
             stream.write(os.path.join(output_folder, "synth_rf_data.h5"), format='h5')
             # Plot synthetic RFs
             rf_fig = rf_plot_utils.plot_rf_stack(stream, time_window=(-5, 30))
