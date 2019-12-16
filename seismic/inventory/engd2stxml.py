@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-==================================================
+=======================================================
 Engdahl and ISC STN data conversion to FDSN station XML
-==================================================
+=======================================================
 
 Creates database of stations from .STN files,
 curates the data using heuristic rules, and exports new stations to FDSN
