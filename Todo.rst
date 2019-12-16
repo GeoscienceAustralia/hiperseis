@@ -3,11 +3,11 @@ Road Map for HiPerSeis Development
 
 Fei Zhang 2019-12-16
 
-- Continue to consolidate Best Practices Implementations.
+- Continue to consolidate Best Practices implementations.
 
 - Reformatting docs to multiple pages for easy navigating.
 
-- More unit tetsting to increase coverage
+- More unit testing to increase coverage
 
 - Use Pylint/PEP8 coding style to check and score the source code. The current pylint score is low (4.*).
 
