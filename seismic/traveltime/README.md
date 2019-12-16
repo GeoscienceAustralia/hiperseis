@@ -3,12 +3,25 @@
 ### Install `HiPerSeis` software.
 
 
-`git clone https://github.com/GeoscienceAustralia/hiperseis`
+
+-  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
+- ``cd hiperseis``
+- ``git submodule init``
+- ``git submodule update``
+
+- ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
 
 
-### Get Events Arrivals CSV file
-    
-Assume this data is obtained from upstream pipeline modules: phase-picking programms, SeisComp3 iLoc and events dump, etc. 
+If you are using the library without ``pip install``-ing it, then make sure the ``hiperseis`` folder
+is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/hiperseis`` is where
+``hiperseis`` was checked out:
+
+- ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
+
+
+### The Test Events Arrivals CSV file
+
+- tests/testdata    
 
 
 ### Run Sort Rays Program

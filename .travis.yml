@@ -24,8 +24,8 @@ install:
 - pip install -r tests/requirements.txt
 
 script:
-- pytest --cov
-
+- pytest -v --cov=seismic --cov-report= tests 
+      
 after_success: coveralls
 
 notifications:
