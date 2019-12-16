@@ -32,6 +32,7 @@ from obspy.core.event import Pick as OPick, \
      Origin as OOrigin, Arrival as OArrival, \
     OriginQuality as OOriginQuality, Magnitude as OMagnitude, \
     Comment as OComment, Catalog as OCatalog
+from ordered_set import OrderedSet as set
 import numpy as np
 import scipy
 from scipy.spatial import cKDTree

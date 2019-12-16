@@ -17,6 +17,7 @@ import glob
 from collections import defaultdict
 from math import sqrt
 
+from ordered_set import OrderedSet as set
 import numpy as np
 from scipy.spatial import cKDTree
 import click
@@ -143,8 +144,12 @@ def process(data_source1, data_source2, output_path,
                     WINDOW_SECONDS; no stacking is performed if they are of the same size.
     """
     read_buffer_size *= interval_seconds
-    netsta_list1 = str(netsta_list1)
-    netsta_list2 = str(netsta_list2)
+    if(os.path.exists(netsta_list1)):
+        netsta_list1 = ' '.join(open(netsta_list1).readlines()).replace('\n', ' ').strip()
+    # end if
+    if(os.path.exists(netsta_list2)):
+        netsta_list2 = ' '.join(open(netsta_list2).readlines()).replace('\n', ' ').strip()
+    # end if        
 
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()

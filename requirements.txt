@@ -1,4 +1,5 @@
 sphinx>=1.8
+ordered-set
 numpy==1.16.4
 pandas
 #pyproj==1.9.6

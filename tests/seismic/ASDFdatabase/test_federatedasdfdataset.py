@@ -16,6 +16,7 @@ Revision History:
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 import os, sys
 import pytest
+from ordered_set import OrderedSet as set
 import numpy as np
 import tempfile
 import sqlite3
