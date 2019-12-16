@@ -24,7 +24,7 @@ install:
 - pip install -r tests/requirements.txt
 
 script:
-- pytest --cov
+- pytest --cov tests
 
 after_success: coveralls
 
