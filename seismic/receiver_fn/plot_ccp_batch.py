@@ -80,8 +80,10 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     with open(transect_file, 'r') as f:
         net = f.readline().strip()
         for transect in f.readlines():
+
             if not transect.strip():
                 continue
+
             sta_start, sta_end = transect.split(',')
             sta_start = sta_start.strip()
             sta_end = sta_end.strip()
@@ -89,6 +91,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             end = '.'.join([net, sta_end])
             start = np.array(sta_coords[start])
             end = np.array(sta_coords[end])
+
             # Offset ends slightly to make sure we don't lose end stations due to truncation error.
             # Note: for simplicity this treats lat/lon like cartesian coords, but this is approximate
             # and will break down near poles, for long transects, or if transect crosses the antimeridian.
@@ -99,17 +102,29 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             start_latlon = (start[1], start[0])
             end_latlon = (end[1], end[0])
 
-            outfile = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing.png'.format(net, sta_start, sta_end, spacing)
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
-
-            outfile = os.path.join(output_folder, outfile)
-            hf = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
-                     stacked_scale=stack_scale, title=title, colormap=colormap)
+            hf_main, hf_map, metadata = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
+                                            stacked_scale=stack_scale, title=title, colormap=colormap)
 
             # TODO: Add custom markers to plots here
 
-            plt.savefig(outfile, dpi=300)
-            plt.close()
+            outfile_base = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing'.format(net, sta_start, sta_end, spacing)
+            outfile = outfile_base + '.png'
+            outfile_map = outfile_base + '_MAP.png'
+
+            outfile = os.path.join(output_folder, outfile)
+            outfile_map = os.path.join(output_folder, outfile_map)
+
+            if hf_main is not None:
+                plt.savefig(outfile, dpi=300, fig=hf_main)
+                plt.close(hf_main)
+            # endif
+
+            if hf_map is not None:
+                plt.savefig(outfile_map, dpi=300, fig=hf_map)
+                plt.close(hf_map)
+            # endif
+
         # end for
     # end with
 # end func

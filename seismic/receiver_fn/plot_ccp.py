@@ -584,8 +584,8 @@ def run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channels
     :type title: str
     :param colormap: Color map to use for the CCP intensity shading. Suggest 'seismic', 'coolwarm' or 'jet'.
     :type colormap: str
-    :return: Figure handles: Main figure, map figure
-    :rtype: (matplotlib.pyplot.Figure, matplotlib.pyplot.Figure)
+    :return: Figure handles: Main figure, map figure, dict of station parameters
+    :rtype: (matplotlib.pyplot.Figure, matplotlib.pyplot.Figure, dict)
     """
 
     channels = channels.split(',')
@@ -607,7 +607,7 @@ def run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channels
                       title=title, colormap=colormap)
     # end if
 
-    return fig, fig_map
+    return fig, fig_map, stn_params
 # end func
 
 
@@ -646,8 +646,8 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
     # endif
 
     colormap = 'jet'
-    fig, fig_map = run(stream, start_latlon, end_latlon, width, spacing, max_depth, channels, background_model,
-                       stacked_scale, title, colormap=colormap)
+    fig, fig_map, _ = run(stream, start_latlon, end_latlon, width, spacing, max_depth, channels, background_model,
+                          stacked_scale, title, colormap=colormap)
 
     if fig is not None:
         plt.savefig(output_file, dpi=300, fig=fig)
