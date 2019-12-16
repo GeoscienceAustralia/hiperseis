@@ -6,6 +6,8 @@ import numpy as np
 import click
 import rf
 
+import matplotlib.pyplot as plt
+
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.receiver_fn.plot_ccp import run
@@ -101,9 +103,13 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
 
             outfile = os.path.join(output_folder, outfile)
-            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channel,
-                stacked_scale=stack_scale, title=title, colormap=colormap)
+            hf = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
+                     stacked_scale=stack_scale, title=title, colormap=colormap)
 
+            # TODO: Add custom markers to plots here
+
+            plt.savefig(outfile, dpi=300)
+            plt.close()
         # end for
     # end with
 # end func
