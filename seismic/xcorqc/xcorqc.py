@@ -429,7 +429,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                np.array(intervalEndSeconds, dtype='i8'), \
                sr
     else:
-        return None, None, None, None, None
+        return None, None, None, None, sr
     # end if
 # end func
 
