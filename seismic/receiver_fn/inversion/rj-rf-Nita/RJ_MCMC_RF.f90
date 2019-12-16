@@ -138,7 +138,7 @@ real, parameter ::    v60 = 8.043      ! Vs at 60km depth
 ! Choose this number by looking at picard plot from Picard.m
 
 
-double precision, parameter :: wmin=0.10
+double precision, parameter :: wmin=0.000001
 
 !             ----------------------------------
 !             END OF THE USER -DEFINED PARAMETERS
