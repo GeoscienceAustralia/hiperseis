@@ -650,13 +650,13 @@ def main(rf_file, output_file, start_latlon, end_latlon, width, spacing, max_dep
                           stacked_scale, title, colormap=colormap)
 
     if fig is not None:
-        plt.savefig(output_file, dpi=300, fig=fig)
+        fig.savefig(output_file, dpi=300)
         plt.close(fig)
     # endif
 
     if fig_map is not None:
         station_map_file = output_file_base + '_MAP.png'
-        plt.savefig(station_map_file, dpi=300, fig=fig_map)
+        fig_map.savefig(station_map_file, dpi=300)
         plt.close(fig_map)
     # endif
 

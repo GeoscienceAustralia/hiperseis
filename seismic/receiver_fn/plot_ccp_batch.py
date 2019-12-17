@@ -7,6 +7,7 @@ import click
 import rf
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
@@ -15,7 +16,7 @@ from seismic.receiver_fn.plot_ccp import run
 
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,
               stack_scale=0.4, width=30.0, spacing=2.0, max_depth=200.0,
-              channel='R', output_folder='', colormap='seismic'):
+              channel='R', output_folder='', colormap='seismic', annotators=None):
     """Run CCP generation in batch mode along a series of transects.
 
     :param transect_file: File containing specification of network and station locations of ends of transects
@@ -106,7 +107,11 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             hf_main, hf_map, metadata = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
                                             stacked_scale=stack_scale, title=title, colormap=colormap)
 
-            # TODO: Add custom markers to plots here
+            if annotators is not None:
+                for ant in annotators:
+                    ant(hf_main, metadata)
+                # end for
+            # end if
 
             outfile_base = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing'.format(net, sta_start, sta_end, spacing)
             outfile = outfile_base + '.png'
@@ -116,17 +121,43 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             outfile_map = os.path.join(output_folder, outfile_map)
 
             if hf_main is not None:
-                plt.savefig(outfile, dpi=300, fig=hf_main)
+                hf_main.savefig(outfile, dpi=300)
                 plt.close(hf_main)
             # endif
 
             if hf_map is not None:
-                plt.savefig(outfile_map, dpi=300, fig=hf_map)
+                hf_map.savefig(outfile_map, dpi=300)
                 plt.close(hf_map)
             # endif
 
         # end for
     # end with
+# end func
+
+
+def moho_annotator(hf, metadata):
+    if hf is None or metadata is None:
+        return
+    # end if
+    filename = "post_analysis/OA_Hk+RFinversion_moho_2019-12-12.csv"
+    data = pd.read_csv(filename, usecols=['Site', 'HKM_Depth', 'Inv_Dp'], skipinitialspace=True, index_col='Site',
+                       dtype={'Site': str, 'HKM_Depth': np.float64, 'Inv_Dp': np.float64,})
+
+    x = []
+    y1 = []
+    y2 = []
+    for stn, md in metadata.items():
+        if md is None:
+            continue
+        x.append(md['sta_offset'])
+        y1.append(data.loc[stn]['HKM_Depth'])
+        y2.append(data.loc[stn]['Inv_Dp'])
+    # end for
+    plt.figure(hf.number)
+    plt.scatter(x, y1, 'x', color="#00ff00", markersize=10, linewidths=2)
+    plt.scatter(x, y2, '+', color="#ff00ff", markersize=10, linewidths=2)
+    plt.legend(['H-k depth', 'RF Inv. depth'], loc='lower right')
+
 # end func
 
 
@@ -165,9 +196,11 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     output_folder: Folder in which to place output files.
     """
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
+    annotators = [moho_annotator]
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
-              amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter)
+              amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter,
+              annotators=annotators)
 # end main
 
 
