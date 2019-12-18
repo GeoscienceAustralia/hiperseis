@@ -153,9 +153,14 @@ def moho_annotator(hf, metadata):
         y1.append(data.loc[stn]['HKM_Depth'])
         y2.append(data.loc[stn]['Inv_Dp'])
     # end for
+    x = np.array(x)
+    y1 = np.array(y1)
+    y2 = np.array(y2)
     plt.figure(hf.number)
-    plt.scatter(x, y1, 'x', color="#00ff00", markersize=10, linewidths=2)
-    plt.scatter(x, y2, '+', color="#ff00ff", markersize=10, linewidths=2)
+    plt.plot(x, y1, 'o', markerfacecolor="C2", alpha=0.8, markersize=10,
+             markeredgecolor="#101010", markeredgewidth=2, aa=True)
+    plt.plot(x, y2, 'v', markerfacecolor="#ffd700", alpha=0.8, markersize=10,
+             markeredgecolor="#101010", markeredgewidth=2, aa=True)
     plt.legend(['H-k depth', 'RF Inv. depth'], loc='lower right')
 
 # end func
