@@ -52,6 +52,9 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
         rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.predicted_quality == 'a'])
     # end if
 
+    # # PST-478-specific filter: Highpass filter on RFs above 1 Hz.
+    # rf_stream.filter('highpass', freq=1.0, corners=2, zerophase=True)
+
     # For similarity filtering, similarity filtering must applied to one station at a time.
     if similarity_filter:
         data_dict = rf_util.rf_to_dict(rf_stream)
@@ -105,7 +108,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
 
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
             hf_main, hf_map, metadata = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
-                                            stacked_scale=stack_scale, title=title, colormap=colormap)
+                                            stacked_scale=stack_scale, title=title, colormap=colormap,
+                                            background_model='ak135_60')
 
             if annotators is not None:
                 for ant in annotators:
