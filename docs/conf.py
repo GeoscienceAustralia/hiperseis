@@ -25,7 +25,7 @@ print(sys.path)
 
 # -- Project information -----------------------------------------------------
 
-project = 'AusArray Passive Seismic'
+project = 'HiPerSeis'
 copyright = '2019, Geoscience Australia'
 author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov, Babak Hejrani'
 
@@ -96,7 +96,7 @@ html_theme = 'nature'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ['static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -195,16 +195,17 @@ epub_exclude_files = ['search.html']
 #NATIVE_MODULES = [
 MOCK_MODULES = [
     'ellipcorr',
+    'osgeo',
+    'mpi4py', 'mpi4py.MPI',
+    'rf','rf.imaging','rf.util',
+    'tqdm','tqdm.auto',
+    'mpl_toolkits', 'basemap'
     # 'obspy',
     # 'obspy.core',
     # 'obspy.geodetics',
     # 'obspy.geodetics.base' ,'obspy.clients.fdsn.client',
     # 'obspy.core.inventory',
     # 'obspy.clients.nrl',
-    'osgeo',
-    'mpi4py', 'mpi4py.MPI',
-    'rf',
-    'tqdm','tqdm.auto'
 ]
 
 import mock
