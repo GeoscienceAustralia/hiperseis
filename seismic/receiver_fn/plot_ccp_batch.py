@@ -7,6 +7,7 @@ import click
 import rf
 
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import pandas as pd
 
 import seismic.receiver_fn.rf_util as rf_util
@@ -166,6 +167,26 @@ def moho_annotator(hf, metadata):
     plt.plot(x, y2, 'v', markerfacecolor="#ffd700", alpha=0.8, markersize=10,
              markeredgecolor="#101010", markeredgewidth=2, aa=True)
     plt.legend(['H-k depth', 'RF Inv. depth'], loc='lower right')
+
+    # Move the bottom of the main axes bounding box up to make space to gravity plot beneath
+    pos = hf.axes[0].get_position()
+    pos.y0 += 0.2
+    hf.axes[0].set_position(pos)
+    # Also move colorbar
+    pos_cb = hf.axes[1].get_position()
+    pos_cb.y0 += 0.2
+    hf.axes[1].set_position(pos_cb)
+
+    # NEXT: Add Bouger gravity plot
+    grid_spec = gridspec.GridSpec(ncols=1, nrows=2, figure=hf, height_ratios=[4, 1])
+    ax_grav = hf.add_subplot(grid_spec[1])
+    pos_grav = ax_grav.get_position()
+    pos_grav.x0 = pos.x0
+    pos_grav.x1 = pos.x1
+    ax_grav.set_position(pos_grav)
+    plt.sca(ax_grav)
+    plt.title("Bouger gravity", fontsize=8)
+    plt.xlim(hf.axes[0].get_xlim())
 
 # end func
 
