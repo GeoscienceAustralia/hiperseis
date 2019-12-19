@@ -451,7 +451,8 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
-                       outputPath='/tmp', verbose=1, tracking_tag=''):
+                       outputPath='/tmp', verbose=1, tracking_tag='',
+                       log_level=logging.INFO):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
     waveforms from all possible station-pairs from the two data sets. To allow efficient, random
@@ -561,7 +562,7 @@ def IntervalStackXCorr(refds, tempds,
     # setup logger
     stationPair = '%s.%s'%(ref_net_sta, temp_net_sta)
     fn = os.path.join(outputPath, '%s.log'%(stationPair if not tracking_tag else '.'.join([stationPair, tracking_tag])))
-    logger = setup_logger('%s.%s'%(ref_net_sta, temp_net_sta), fn)
+    logger = setup_logger('%s.%s'%(ref_net_sta, temp_net_sta), fn, level=log_level)
 
     #######################################
     # Initialize variables for main loop

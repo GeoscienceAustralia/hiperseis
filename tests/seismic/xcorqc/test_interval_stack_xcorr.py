@@ -13,6 +13,7 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
+import logging
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from obspy import read_inventory
@@ -128,7 +129,8 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
                        clip_to_2std=clip_to_2std, whitening=whitening,
                        one_bit_normalize=one_bit_normalize, envelope_normalize=envelope_normalize,
                        ensemble_stack=ensemble_stack,
-                       outputPath=output_folder, verbose=2, tracking_tag=tag)
+                       outputPath=output_folder, verbose=2, tracking_tag=tag,
+                       log_level=logging.ERROR)
 
     # Read result
     fn = os.path.join(output_folder, '%s.%s.%s.nc'%(netsta1, netsta2, tag))
