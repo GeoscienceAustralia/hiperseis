@@ -9,10 +9,12 @@ import rf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pandas as pd
+from scipy import interpolate
 
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.receiver_fn.plot_ccp import run
+from seismic.receiver_fn.rf_util import KM_PER_DEG
 
 
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,
@@ -112,6 +114,9 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
                                             stacked_scale=stack_scale, title=title, colormap=colormap,
                                             background_model='ak135_60')
 
+            metadata['transect_start'] = start
+            metadata['transect_end'] = end
+            metadata['transect_dirn'] = dirn
             if annotators is not None:
                 for ant in annotators:
                     ant(hf_main, metadata)
@@ -140,7 +145,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
 # end func
 
 
-def moho_annotator(hf, metadata):
+def moho_annotator(hf, metadata, grav_map):
     if hf is None or metadata is None:
         return
     # end if
@@ -152,6 +157,8 @@ def moho_annotator(hf, metadata):
     y1 = []
     y2 = []
     for stn, md in metadata.items():
+        if 'transect_' in stn:
+            continue  # Skip non-station metadata
         if md is None:
             continue
         x.append(md['sta_offset'])
@@ -178,6 +185,9 @@ def moho_annotator(hf, metadata):
     hf.axes[1].set_position(pos_cb)
 
     # NEXT: Add Bouger gravity plot
+    start = metadata['transect_start']
+    end = metadata['transect_end']
+    dirn = metadata['transect_dirn']
     grid_spec = gridspec.GridSpec(ncols=1, nrows=2, figure=hf, height_ratios=[4, 1])
     ax_grav = hf.add_subplot(grid_spec[1])
     pos_grav = ax_grav.get_position()
@@ -185,8 +195,19 @@ def moho_annotator(hf, metadata):
     pos_grav.x1 = pos.x1
     ax_grav.set_position(pos_grav)
     plt.sca(ax_grav)
-    plt.title("Bouger gravity", fontsize=8)
-    plt.xlim(hf.axes[0].get_xlim())
+    plt.title("Gravity survey", fontsize=8, y=0.80)
+    grav_pos = np.linspace(start, end, 1000)
+    grav_vals = grav_map(grav_pos)
+    grav_dist = np.dot((grav_pos - start), dirn)*KM_PER_DEG
+    plt.plot(grav_dist, grav_vals)
+    plt.grid("#80808080", linestyle=':')
+    tickstep_x = 50.0
+    xlim = hf.axes[0].get_xlim()
+    plt.xticks(np.arange(0.0, xlim[1], tickstep_x), fontsize=12)
+    plt.xlim(xlim)
+    plt.ylabel('Gravity (mGal)')
+
+    plt.figure(hf.number)
 
 # end func
 
@@ -226,7 +247,12 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     output_folder: Folder in which to place output files.
     """
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
-    annotators = [moho_annotator]
+    print("Loading gravity data...")
+    grav = np.load('post_analysis/GravityGrid.xyz.npy')
+    print("Creating interpolator...")
+    grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
+    print("Producing plot...")
+    annotators = [lambda hf, md: moho_annotator(hf, md, grav_map)]
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
               amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter,
