@@ -275,12 +275,12 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
 
     # Custom plot modifiers. Leave commented for now until refactoring in ticket PST-479
-    print("Loading gravity data...")
-    grav = np.load('post_analysis/GravityGrid.xyz.npy')
-    print("Creating interpolator...")
-    grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
-    annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
-    # annotators = None
+    # print("Loading gravity data...")
+    # grav = np.load('post_analysis/GravityGrid.xyz.npy')
+    # print("Creating interpolator...")
+    # grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
+    # annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
+    annotators = None
     print("Producing plot...")
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
