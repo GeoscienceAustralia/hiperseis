@@ -55,9 +55,6 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
         rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.predicted_quality == 'a'])
     # end if
 
-    # # PST-478-specific filter: Highpass filter on RFs above 1 Hz.
-    # rf_stream.filter('highpass', freq=1.0, corners=2, zerophase=True)
-
     # For similarity filtering, similarity filtering must applied to one station at a time.
     if similarity_filter:
         data_dict = rf_util.rf_to_dict(rf_stream)
