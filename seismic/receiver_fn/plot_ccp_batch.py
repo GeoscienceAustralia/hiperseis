@@ -145,10 +145,20 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
 # end func
 
 
-def moho_annotator(hf, metadata, grav_map):
+def moho_annotator(hf, metadata):
+    """
+    Custom plot annotator to add markers to the main figure showing locations of Moho
+    estimates from other sources.
+
+    :param hf: Figure containing main CCP plot
+    :type hf: matplotlib.pyplot.Figure
+    :param metadata: Dictionary from CCP plotting code containing metadata of the transect and station data
+    :type metadata: dict
+    """
     if hf is None or metadata is None:
         return
     # end if
+
     filename = "post_analysis/OA_Hk+RFinversion_moho_2019-12-12.csv"
     data = pd.read_csv(filename, usecols=['Site', 'HKM_Depth', 'Inv_Dp'], skipinitialspace=True, index_col='Site',
                        dtype={'Site': str, 'HKM_Depth': np.float64, 'Inv_Dp': np.float64,})
@@ -184,7 +194,35 @@ def moho_annotator(hf, metadata, grav_map):
     pos_cb.y0 += 0.2
     hf.axes[1].set_position(pos_cb)
 
-    # NEXT: Add Bouger gravity plot
+# end func
+
+
+def gravity_subplot(hf, metadata, grav_map):
+    """
+    Custom plot modifier to add a gravity subplot along the CCP transect line.
+
+    :param hf: Figure containing main CCP plot
+    :type hf: matplotlib.pyplot.Figure
+    :param metadata: Dictionary from CCP plotting code containing metadata of the transect and station data
+    :type metadata: dict
+    :param grav_map: Interpolator callable that takes a iterable of 2D coordinates and interpolates a gravity
+        value at each, based on external data source.
+    :type grav_map: Instance of 2D interpolation class from scipy.interpolator
+    """
+    if hf is None or metadata is None:
+        return
+    # end if
+
+    # Move the bottom of the main axes bounding box up to make space to gravity plot beneath
+    pos = hf.axes[0].get_position()
+    pos.y0 += 0.2
+    hf.axes[0].set_position(pos)
+    # Also move colorbar
+    pos_cb = hf.axes[1].get_position()
+    pos_cb.y0 += 0.2
+    hf.axes[1].set_position(pos_cb)
+
+    # Add gravity plot
     start = metadata['transect_start']
     end = metadata['transect_end']
     dirn = metadata['transect_dirn']
@@ -207,10 +245,7 @@ def moho_annotator(hf, metadata, grav_map):
     plt.xlim(xlim)
     plt.ylabel('Gravity (mGal)')
 
-    plt.figure(hf.number)
-
 # end func
-
 
 @click.command()
 @click.option('--rf-file', type=click.Path(exists=True, dir_okay=False), required=True,
@@ -252,7 +287,7 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     print("Creating interpolator...")
     grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
     print("Producing plot...")
-    annotators = [lambda hf, md: moho_annotator(hf, md, grav_map)]
+    annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
               amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter,
