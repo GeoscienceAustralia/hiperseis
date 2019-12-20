@@ -185,15 +185,6 @@ def moho_annotator(hf, metadata):
              markeredgecolor="#101010", markeredgewidth=2, aa=True)
     plt.legend(['H-k depth', 'RF Inv. depth'], loc='lower right')
 
-    # Move the bottom of the main axes bounding box up to make space to gravity plot beneath
-    pos = hf.axes[0].get_position()
-    pos.y0 += 0.2
-    hf.axes[0].set_position(pos)
-    # Also move colorbar
-    pos_cb = hf.axes[1].get_position()
-    pos_cb.y0 += 0.2
-    hf.axes[1].set_position(pos_cb)
-
 # end func
 
 
@@ -282,12 +273,15 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     output_folder: Folder in which to place output files.
     """
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
+
+    # Custom plot modifiers. Leave commented for now until refactoring in ticket PST-479
     print("Loading gravity data...")
     grav = np.load('post_analysis/GravityGrid.xyz.npy')
     print("Creating interpolator...")
     grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
-    print("Producing plot...")
     annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
+    # annotators = None
+    print("Producing plot...")
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
               amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter,
