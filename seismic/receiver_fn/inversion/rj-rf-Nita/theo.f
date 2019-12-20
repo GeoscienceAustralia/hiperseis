@@ -24,7 +24,7 @@ c
       real fs, din, rad, a0, c0, t0, fk, fr, pi, pi2, frini, frint
       real rin, rvmax, va, wmax
       parameter     ( nlmx = maxsublayer)
-      parameter     ( nb = maxdata )
+      parameter     ( nb = freq_resolution )
       parameter     ( nb2 = nb/2+1 )
 
 c     parameter     ( nlmx = 100)

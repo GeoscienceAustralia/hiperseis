@@ -16,7 +16,7 @@ c
       integer nlmx, nb, nb2, i, j, k, kk, nn, m, lc, n
       real  ang, cal, cbe
       parameter     ( nlmx = maxsublayer )
-      parameter     ( nb = maxdata )
+      parameter     ( nb = freq_resolution)
       parameter     ( nb2 = nb/2+1 )
 c
 c
