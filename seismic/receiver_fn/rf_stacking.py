@@ -99,6 +99,22 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
             t3 = 2*term1
         # end if
 
+        # Add subsediment time corrections if available. This effectively projects the station down
+        # to the bottom of the sedimentary layer, so that the H-k stacking depth represents crustal
+        # depth beneath sedimentary layer.
+        try:
+            PbS_time_delta = tr.stats.sediment['PbS_time_delta']
+            twoway_traveltime_delta = tr.stats.sediment['twoway_traveltime_delta']
+            t1 += PbS_time_delta
+            t2 += (twoway_traveltime_delta - PbS_time_delta)
+            if include_t3:
+                t3 += twoway_traveltime_delta
+            # end if
+            log.info('Applied subsediment time corrections')
+        except AttributeError:
+            pass
+        # end try
+
         # Subtract lead time so that primary P-wave arrival is at time zero.
         lead_time = tr.stats.onset - tr.stats.starttime
         times = tr.times() - lead_time

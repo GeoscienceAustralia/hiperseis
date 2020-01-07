@@ -387,7 +387,7 @@ def choose_rf_source_channel(rf_type, db_station):
 
 def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
     """Add RF quality label for a collection of RFs based on simple amplitude criteria computed by
-    quality filter script.
+    quality filter script.  Adds quality label in-place.
 
     :param rf_type: The RF rotation type, should be either 'ZRT' or 'LQT'
     :type rf_type: str
