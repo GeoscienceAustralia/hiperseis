@@ -39,20 +39,7 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
 
     infer_Vp = (V_p is None)
     if infer_Vp:
-        # Determine the internal V_p consistent with the trace ray parameters and inclinations.
-        V_p_values = []
-        for tr in cha_data:
-            p = tr.stats.slowness/rf_util.KM_PER_DEG
-            incl_deg = tr.stats.inclination
-            incl_rad = np.deg2rad(incl_deg)
-            V_p_value = np.sin(incl_rad)/p
-            V_p_values.append(V_p_value)
-        # end for
-        V_p_values = np.array(V_p_values)
-        if not np.allclose(V_p_values, V_p_values, rtol=1e-3, atol=1e-4):
-            log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
-        # end if
-        V_p = np.mean(V_p_values)
+        V_p = infer_Vp_from_traces(cha_data, log)
         log.info("Inferred V_p = {}".format(V_p))
     # end if
 
@@ -73,7 +60,7 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
                 "Stacking mismatching channel data: expected {}, found {}".format(channel_id, tr.stats.channel)
         # end if
 
-        t1, t2, t3 = compute_theoretical_phase_times(tr, h_grid, k_grid, V_p=V_p, include_t3=include_t3)
+        t1, t2, t3 = compute_theoretical_phase_times(tr, h_grid, k_grid, V_p, include_t3=include_t3)
 
         # Apply custom time offsets if given.
         for tval, offset_name in ((t1, 't1_offset'), (t2, 't2_offset'), (t3, 't3_offset')):
@@ -133,22 +120,31 @@ def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
 # end func
 
 
-def compute_theoretical_phase_times(tr, H, k, V_p=None, include_t3=True):
-    infer_Vp = (V_p is None)
-
-    # p is the ray parameter in seconds-per-km.
-    if infer_Vp:
-        # The "slowness" from rf.Trace.stats is actually the ray parameter, computed using the tau-py model
-        # that is also used to compute the inclination, then converted to seconds-per-degree. Therefore the
-        # "slowness" from rf.Trace.stats already contains the sin_i factor.
+def infer_Vp_from_traces(cha_data, log=None):
+    # Determine the internal V_p consistent with the trace ray parameters and inclinations.
+    V_p_values = []
+    for tr in cha_data:
         p = tr.stats.slowness / rf_util.KM_PER_DEG
-    else:
-        # User-provided velocity. It should be the same as that used during computation of tr.stats.inclination.
         incl_deg = tr.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
-        sin_i = np.sin(incl_rad)
-        p = sin_i / V_p
+        V_p_value = np.sin(incl_rad) / p
+        V_p_values.append(V_p_value)
+    # end for
+    V_p_values = np.array(V_p_values)
+    if  log is not None and not np.allclose(V_p_values, V_p_values, rtol=1e-3, atol=1e-4):
+        log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
     # end if
+    V_p = np.mean(V_p_values)
+
+    return V_p
+# end func
+
+
+def compute_theoretical_phase_times(tr, H, k, V_p, include_t3=True):
+    incl_deg = tr.stats.inclination
+    incl_rad = np.deg2rad(incl_deg)
+    sin_i = np.sin(incl_rad)
+    p = sin_i / V_p
 
     H_on_V_p = H/V_p
     k2 = k*k
@@ -162,6 +158,7 @@ def compute_theoretical_phase_times(tr, H, k, V_p=None, include_t3=True):
 
     # Time for PpPs
     t2 = term1 + term2
+
     if include_t3:
         # Time for PpSs + PsPs
         t3 = 2 * term1
