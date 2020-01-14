@@ -10,6 +10,7 @@ import numpy as np
 from scipy import signal
 from scipy.signal import hilbert
 
+import obspy
 import rf
 
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
@@ -243,7 +244,7 @@ def compute_extra_rf_stats(stream):
 
 
 def compute_vertical_snr(src_stream):
-    """Compute the SNR of the Z component (Z before rotation or deconvolution)
+    """Compute the SNR of the Z component (Z before deconvolution)
     including the onset pulse (key 'snr_prior'). Stores results in metadata of input stream traces.
     This SNR is a ratio of max envelopes.
 
@@ -252,10 +253,19 @@ def compute_vertical_snr(src_stream):
     energy in the L component. For simplicity we compute it on Z-component only which is a reasonable
     estimate for teleseismic events.
 
-    :param src_stream: Seismic traces before rotation of raw stream.
-    :type src_stream: rf.RFStream
+    :param src_stream: Seismic traces before RF deconvolution of raw stream.
+    :type src_stream: rf.RFStream or obspy.Stream
     """
     logger = logging.getLogger(__name__)
+
+    if isinstance(src_stream, rf.RFStream):
+        slice2 = lambda s, w: s.slice2(*w, reftime='onset')
+    elif isinstance(src_stream, obspy.Stream):
+        slice2 = lambda s, w: s.slice(w[0] if w[0] is None else s[0].stats.onset - w[0],
+                                      w[1] if w[1] is None else s[0].stats.onset + w[1])
+    else:
+        assert False, "NYI"
+    # end if
 
     def _set_nan_snr(stream):
         md_dict = {'snr_prior': np.nan}
@@ -269,7 +279,7 @@ def compute_vertical_snr(src_stream):
     # Compute max envelope amplitude from onset onwards relative to max envelope before onset.
     PRIOR_PICK_SIGNAL_WINDOW = (-5.0, 25.0)
     PRIOR_NOISE_SIGNAL_WINDOW = (None, -5.0)
-    pick_signal = src_stream.copy().slice2(*PRIOR_PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = slice2(src_stream.copy(), PRIOR_PICK_SIGNAL_WINDOW)
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:
@@ -281,7 +291,7 @@ def compute_vertical_snr(src_stream):
     # end if
     pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
 
-    noise = src_stream.copy().slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
+    noise = slice2(src_stream.copy(), PRIOR_NOISE_SIGNAL_WINDOW)
     # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
