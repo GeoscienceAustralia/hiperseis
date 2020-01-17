@@ -183,7 +183,6 @@ def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcel
     """
     from obspy.clients.syngine import Client as ClientS
     from obspy.clients.fdsn import Client as ClientF
-    from rf.rfstream import rfstats
     from obspy.taup import TauPyModel
     from obspy.geodetics import gps2dist_azimuth
 
@@ -201,7 +200,6 @@ def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcel
     # end if
 
     client_synth = ClientS()
-    model_info = client_synth.get_model_info(default_model)
     assert timewindow[0] <= 0
     assert timewindow[1] >= 0
     starttime = 'P' + '-{}'.format(abs(timewindow[0]))
