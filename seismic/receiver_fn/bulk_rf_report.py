@@ -85,8 +85,13 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
+def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filter_options=None):
     '''Helper function to produce H-k stacking figure.'''
+
+    if filter_options is not None:
+        channel_data.filter(**filter_options)
+    # end if
+
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
                                                             h_range=np.linspace(20.0, 70.0, 501),
                                                             k_range=np.linspace(1.5, 2.0, 301),
@@ -105,14 +110,25 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0)):
     sta = channel_data[0].stats.station
     channel = channel_data[0].stats.channel
     num = len(channel_data)
-    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=sta + '.{}'.format(channel), num=num)
+    title = sta + '.{}'.format(channel)
+    if filter_options is not None:
+        title += ' (filtered)'
+    # end if
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=title, num=num)
 
     # Stamp weightings onto plot
     xl = plt.xlim()
     yl = plt.ylim()
     txt_x = xl[0] + 0.95*(xl[1] - xl[0])
     txt_y = yl[0] + 0.90*(yl[1] - yl[0])
-    plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff", fontsize=12)
+    plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff",
+             fontsize=12)
+    if filter_options is not None:
+        txt_y -= 0.03*(yl[1] - yl[0])
+        plt.text(txt_x, txt_y, "filter={" + '\n'.join(['{}: {}'.format(k, v) for k, v in filter_options.items()])
+                 + "}", horizontalalignment='right', verticalalignment='top', color="#ffffff", fontsize=9,
+                 fontweight='light')
+    # end if
 
     # Find and label location of maximum
     h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
@@ -279,6 +295,14 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
             # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
+            pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+            plt.close()
+
+            # Repeat H-k stack with high pass filtering
+            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+                                       filter_options={'type': 'highpass', 'freq': 0.2,
+                                                       'corners': 1, 'zerophase': True})
+            fig.set_size_inches(*paper_landscape)
             pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
             plt.close()
 
