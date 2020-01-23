@@ -16,19 +16,22 @@ import tqdm.auto as tqdm
 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
+from scipy import interpolate
+from sklearn.cluster import dbscan
 
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
 
-# pylint: disable=invalid-name, logging-format-interpolation
+# pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 
 logging.basicConfig()
 
 paper_size_A4 = (8.27, 11.69)  # inches
 
 DEFAULT_HK_WEIGHTS = (0.5, 0.5, 0.0)
-
+DEFAULT_HK_SOLN_LABEL = 'global'
 
 def _get_aspect(ax):
     '''Compute aspect ratio of given axes data.'''
@@ -85,7 +88,8 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filter_options=None):
+def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filter_options=None,
+                         labelling=DEFAULT_HK_SOLN_LABEL):
     '''Helper function to produce H-k stacking figure.'''
 
     if filter_options is not None:
@@ -131,18 +135,90 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filte
     # end if
 
     # Find and label location of maximum
-    h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
-    log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
-    plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
-    if k_max >= 0.5*(xl[0] + xl[1]):
-        plt.text(k_max - 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
-                 color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
-    else:
-        plt.text(k_max + 0.01, h_max + 1, "Solution H = {:.3f}, k = {:.3f}".format(h_max, k_max),
-                 color="#ffffff", fontsize=14, clip_on=True)
+    if labelling == 'global':
+        soln = _label_hk_global_solution(k_grid, h_grid, hk_stack_sum, plt.gca())
+        log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+    elif labelling == 'local':
+        solns = _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, plt.gca())
+        log.info("Numerical solutions (H, k) = {}".format(solns))
     # end if
 
     return fig
+# end func
+
+
+def _plot_hk_solution_point(axes, k, h):
+    xl = axes.get_xlim()
+    if k >= 0.5*(xl[0] + xl[1]):
+        axes.text(k - 0.01, h + 1, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
+                  color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
+    else:
+        axes.text(k + 0.01, h + 1, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
+                  color="#ffffff", fontsize=14, clip_on=True)
+    # end if
+# end func
+
+
+def _label_hk_global_solution(k_grid, h_grid, hk_stack_sum, axes):
+    h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
+    # log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
+    axes.scatter(k_max, h_max, marker='+', c="#000000", s=20)
+    _plot_hk_solution_point(axes, k_max, h_max)
+    return np.array([(h_max, k_max)])
+# end func
+
+
+def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
+    # Method here is:
+    # 1) find all local maxima
+    # 2) cluster local maxima and compute centroid of each cluster
+    # The centroids of the top max_number clusters are returned.
+
+    # Only consider positive stack regions.
+    hk_stack = hk_stack_sum.copy()
+    hk_stack[hk_stack < 0] = 0
+
+    # Smooth the stack, as we're not interested in high frequency local maxima
+    hk_stack = gaussian_filter(hk_stack, sigma=5, mode='nearest')
+
+    # This method only returns locations in the interior, not on the boundary of the domain
+    local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.75)
+
+    # Perform clustering in normalized coordinates
+    k_min, k_max = (np.nanmin(k_grid), np.nanmax(k_grid))
+    k_range = k_max - k_min
+    h_min, h_max = (np.nanmin(h_grid), np.nanmax(h_grid))
+    h_range = h_max - h_min
+
+    # Use DBSCAN to cluster nearby pointwise local maxima
+    eps = 0.05
+    pts = np.array([[(k - k_min)/k_range, (h - h_min)/h_range] for h, k, _, _, _ in local_maxima])
+    samples, labels = dbscan(pts, eps, min_samples=2, metric='euclidean')
+
+    group_ids = set(labels[labels >= 0])
+    groups = [samples[labels == grp_id] for grp_id in group_ids]
+    loners = samples[labels < 0]
+
+    # Collect group-based local maxima
+    maxima_coords = []
+    for grp in groups:
+        grp_pts = np.array([local_maxima[idx][0:2] for idx in grp])
+        maxima_coords.append(np.mean(grp_pts, axis=0))
+    # end for
+
+    # Collect isolated local maxima
+    for idx in loners:
+        maxima_coords.append(local_maxima[idx][0:2])
+    # end for
+
+    # Sort the maxima by amplitude of (smoothed) stack
+    finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack)
+    maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
+    for h, k in maxima_coords[:max_number]:
+        _plot_hk_solution_point(axes, k, h)
+    # end for
+
+    return maxima_coords[:max_number]
 # end func
 
 
@@ -158,8 +234,13 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filte
               help='Apply RF similarity filtering to the RFs.')
 @click.option('--hk-weights', type=(float, float, float), default=DEFAULT_HK_WEIGHTS, show_default=True,
               help='Weightings per arrival multiple for H-k stacking')
+@click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
+              show_default=True, help='Method of labeling automatically selected solutions on H-k stack plots. '
+              + 'global: find and label global maximum, local: find and label up to 3 local maxima after '
+              + 'clustering, none: do not label any solutions on H-k stack plot.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
-         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS):
+         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL):
+    # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
 
@@ -211,7 +292,12 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         pbar = tqdm.tqdm(total=len(data_dict))
         network = data_dict.network
         rf_type = data_dict.rotation
+        page_count = 0
         for st in sorted(data_dict.keys()):
+            page_count += 1
+            if page_count > 10:
+                break
+
             station_db = data_dict[st]
 
             pbar.update()
@@ -290,7 +376,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot H-k stack using primary RF component
-            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights)
+            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels)
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
@@ -299,7 +385,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Repeat H-k stack with high pass filtering
-            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels,
                                        filter_options={'type': 'highpass', 'freq': 0.2,
                                                        'corners': 1, 'zerophase': True})
             fig.set_size_inches(*paper_landscape)

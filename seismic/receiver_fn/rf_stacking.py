@@ -212,8 +212,8 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     # proportion of this value.
     global_max = np.nanmax(hk_stack)
     # Compute 2D mask of all values that are greater than or equal to their 4 neighbours.
-    m = ((hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 0:-2]) & (hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 2:]) &
-         (hk_stack[1:-1, 1:-1] >= hk_stack[0:-2, 1:-1]) & (hk_stack[1:-1, 1:-1] >= hk_stack[2:, 1:-1]) &
+    m = ((hk_stack[1:-1, 1:-1] > hk_stack[1:-1, 0:-2]) & (hk_stack[1:-1, 1:-1] > hk_stack[1:-1, 2:]) &
+         (hk_stack[1:-1, 1:-1] > hk_stack[0:-2, 1:-1]) & (hk_stack[1:-1, 1:-1] > hk_stack[2:, 1:-1]) &
          (hk_stack[1:-1, 1:-1] >= min_rel_value*global_max))
     # Find the row and column indices where m is True
     m_idx = np.nonzero(m)
