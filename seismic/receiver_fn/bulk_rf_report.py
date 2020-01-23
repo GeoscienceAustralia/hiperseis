@@ -149,6 +149,7 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filte
 
 def _plot_hk_solution_point(axes, k, h):
     xl = axes.get_xlim()
+    axes.scatter(k, h, marker='+', c="#000000", s=20)
     if k >= 0.5*(xl[0] + xl[1]):
         axes.text(k - 0.01, h + 1, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
                   color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
@@ -161,8 +162,6 @@ def _plot_hk_solution_point(axes, k, h):
 
 def _label_hk_global_solution(k_grid, h_grid, hk_stack_sum, axes):
     h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
-    # log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(h_max, k_max))
-    axes.scatter(k_max, h_max, marker='+', c="#000000", s=20)
     _plot_hk_solution_point(axes, k_max, h_max)
     return np.array([(h_max, k_max)])
 # end func
@@ -183,6 +182,9 @@ def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
 
     # This method only returns locations in the interior, not on the boundary of the domain
     local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.75)
+    if len(local_maxima) <= 1:
+        return np.array(local_maxima)
+    # end if
 
     # Perform clustering in normalized coordinates
     k_min, k_max = (np.nanmin(k_grid), np.nanmax(k_grid))
@@ -192,33 +194,35 @@ def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
 
     # Use DBSCAN to cluster nearby pointwise local maxima
     eps = 0.05
-    pts = np.array([[(k - k_min)/k_range, (h - h_min)/h_range] for h, k, _, _, _ in local_maxima])
-    samples, labels = dbscan(pts, eps, min_samples=2, metric='euclidean')
-
-    group_ids = set(labels[labels >= 0])
-    groups = [samples[labels == grp_id] for grp_id in group_ids]
-    loners = samples[labels < 0]
+    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range] for h, k, _, _, _ in local_maxima])
+    pts_hk = np.array([[h, k] for h, k, _, _, _ in local_maxima])
+    _, labels = dbscan(pts_norm, eps, min_samples=2, metric='euclidean')
 
     # Collect group-based local maxima
     maxima_coords = []
-    for grp in groups:
-        grp_pts = np.array([local_maxima[idx][0:2] for idx in grp])
-        maxima_coords.append(np.mean(grp_pts, axis=0))
+    group_ids = set(labels[labels >= 0])
+    for grp_id in group_ids:
+        maxima_coords.append(np.mean(pts_hk[labels == grp_id], axis=0))
     # end for
 
-    # Collect isolated local maxima
-    for idx in loners:
-        maxima_coords.append(local_maxima[idx][0:2])
-    # end for
+    # Collect remaining non-grouped points and add them to list of local maxima
+    loners = pts_hk[labels < 0]
+    if np.any(loners):
+        maxima_coords.extend(loners)
+    # end if
 
     # Sort the maxima by amplitude of (smoothed) stack
-    finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack)
-    maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
+    if len(maxima_coords) > 1:
+        finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack)
+        maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
+    # end if
+
+    # Plot the local maxima
     for h, k in maxima_coords[:max_number]:
         _plot_hk_solution_point(axes, k, h)
     # end for
 
-    return maxima_coords[:max_number]
+    return np.array(maxima_coords[:max_number])
 # end func
 
 
