@@ -296,12 +296,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         pbar = tqdm.tqdm(total=len(data_dict))
         network = data_dict.network
         rf_type = data_dict.rotation
-        page_count = 0
         for st in sorted(data_dict.keys()):
-            page_count += 1
-            if page_count > 10:
-                break
-
             station_db = data_dict[st]
 
             pbar.update()
