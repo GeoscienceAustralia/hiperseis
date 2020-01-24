@@ -186,7 +186,7 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
     # This method only returns locations in the interior, not on the boundary of the domain
     local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.75)
     if len(local_maxima) <= 1:
-        return local_maxima
+        return [(h, k) for h, k, _, _, _ in local_maxima]
     # end if
 
     # Perform clustering in normalized coordinates
