@@ -179,12 +179,13 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
     # Only consider positive stack regions.
     hk_stack = hk_stack_sum.copy()
     hk_stack[hk_stack < 0] = 0
+    hk_stack_max = np.nanmax(hk_stack)
 
     # Smooth the stack, as we're not interested in high frequency local maxima
     hk_stack = gaussian_filter(hk_stack, sigma=3, mode='nearest')
 
     # This method only returns locations in the interior, not on the boundary of the domain
-    local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.75)
+    local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.7)
     if len(local_maxima) <= 1:
         return [(h, k) for h, k, _, _, _ in local_maxima]
     # end if
@@ -197,7 +198,7 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
 
     # Use DBSCAN to cluster nearby pointwise local maxima
     eps = 0.05
-    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range] for h, k, _, _, _ in local_maxima])
+    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range, v/hk_stack_max] for h, k, v, _, _ in local_maxima])
     pts_hk = np.array([[h, k] for h, k, _, _, _ in local_maxima])
     _, labels = dbscan(pts_norm, eps, min_samples=2, metric='euclidean')
 
@@ -214,10 +215,14 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
         maxima_coords.extend(loners)
     # end if
 
-    # Sort the maxima by amplitude of stack
+    # Sort the maxima by amplitude of stack, and then discard values with amplitude too weak compared to strongest peak
     if len(maxima_coords) > 1:
         finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack_sum)
         maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
+        strongest = finterp(maxima_coords[0][1], maxima_coords[0][0])
+        while finterp(maxima_coords[-1][1], maxima_coords[-1][0]) < 0.8*strongest:
+            maxima_coords.pop()
+        # end while
     # end if
 
     return maxima_coords[:max_number]
