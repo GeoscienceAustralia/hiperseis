@@ -9,6 +9,8 @@ import logging
 
 import numpy as np
 import click
+import itertools
+
 import rf
 import rf.imaging
 
@@ -19,6 +21,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 from scipy import interpolate
 from sklearn.cluster import dbscan
+import pandas as pd
 
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
@@ -135,15 +138,22 @@ def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filte
     # end if
 
     # Find and label location of maximum
+    soln = []
     if labelling == 'global':
-        soln = _label_hk_global_solution(k_grid, h_grid, hk_stack_sum, plt.gca())
+        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
+        soln = [(h_max, k_max)]
         log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
-        solns = _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, plt.gca())
-        log.info("Numerical solutions (H, k) = {}".format(solns))
+        soln = _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum)
+        log.info("Numerical solutions (H, k) = {}".format(soln))
     # end if
 
-    return fig
+    # Plot the local maxima
+    for h, k in soln:
+        _plot_hk_solution_point(plt.gca(), k, h)
+    # end for
+
+    return fig, soln
 # end func
 
 
@@ -160,30 +170,23 @@ def _plot_hk_solution_point(axes, k, h):
 # end func
 
 
-def _label_hk_global_solution(k_grid, h_grid, hk_stack_sum, axes):
-    h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
-    _plot_hk_solution_point(axes, k_max, h_max)
-    return np.array([(h_max, k_max)])
-# end func
-
-
-def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
+def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
     # Method here is:
     # 1) find all local maxima
     # 2) cluster local maxima and compute centroid of each cluster
-    # The centroids of the top max_number clusters are returned.
+    # The centroids of the top max_number clusters are returned, ranked by stack amplitude.
 
     # Only consider positive stack regions.
     hk_stack = hk_stack_sum.copy()
     hk_stack[hk_stack < 0] = 0
 
     # Smooth the stack, as we're not interested in high frequency local maxima
-    hk_stack = gaussian_filter(hk_stack, sigma=5, mode='nearest')
+    hk_stack = gaussian_filter(hk_stack, sigma=3, mode='nearest')
 
     # This method only returns locations in the interior, not on the boundary of the domain
     local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.75)
     if len(local_maxima) <= 1:
-        return np.array(local_maxima)
+        return local_maxima
     # end if
 
     # Perform clustering in normalized coordinates
@@ -211,18 +214,13 @@ def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
         maxima_coords.extend(loners)
     # end if
 
-    # Sort the maxima by amplitude of (smoothed) stack
+    # Sort the maxima by amplitude of stack
     if len(maxima_coords) > 1:
-        finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack)
+        finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack_sum)
         maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
     # end if
 
-    # Plot the local maxima
-    for h, k in maxima_coords[:max_number]:
-        _plot_hk_solution_point(axes, k, h)
-    # end for
-
-    return np.array(maxima_coords[:max_number])
+    return maxima_coords[:max_number]
 # end func
 
 
@@ -240,10 +238,17 @@ def _label_hk_local_solutions(k_grid, h_grid, hk_stack_sum, axes, max_number=3):
               help='Weightings per arrival multiple for H-k stacking')
 @click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
               show_default=True, help='Method of labeling automatically selected solutions on H-k stack plots. '
-              + 'global: find and label global maximum, local: find and label up to 3 local maxima after '
-              + 'clustering, none: do not label any solutions on H-k stack plot.')  # pylint: disable=missing-docstring
+              'global: find and label global maximum, local: find and label up to 3 local maxima after '
+              'clustering, none: do not label any solutions on H-k stack plot.')
+@click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
+              help='If present, cutoff frequency for high pass filter to use to generate secondary H-k stacking plot.')
+@click.option('--save-hk-solution', is_flag=True, default=False, show_default=True,
+              help='If True, save H-k estimated solutions to CSV file with name matching output file. '
+                   'If high pass filter frequency is provided (--hk-hpf-filter option), the saved solutions '
+                   'will be for the filtered H-k plot rather than the original.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
-         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL):
+         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
+         hk_hpf_freq=None, save_hk_solution=False):
     # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
@@ -296,6 +301,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         pbar = tqdm.tqdm(total=len(data_dict))
         network = data_dict.network
         rf_type = data_dict.rotation
+        hk_soln = dict()
         for st in sorted(data_dict.keys()):
             station_db = data_dict[st]
 
@@ -375,7 +381,10 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot H-k stack using primary RF component
-            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels)
+            fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels)
+            if save_hk_solution and hk_hpf_freq is None:
+                hk_soln[st] = maxima
+            # end if
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
@@ -383,17 +392,42 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
             plt.close()
 
-            # Repeat H-k stack with high pass filtering
-            fig = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels,
-                                       filter_options={'type': 'highpass', 'freq': 0.2,
-                                                       'corners': 1, 'zerophase': True})
-            fig.set_size_inches(*paper_landscape)
-            pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
-            plt.close()
+            if hk_hpf_freq is not None:
+                # Repeat H-k stack with high pass filtering
+                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels,
+                                                   filter_options={'type': 'highpass', 'freq': hk_hpf_freq,
+                                                                   'corners': 1, 'zerophase': True})
+                if save_hk_solution:
+                    hk_soln[st] = maxima
+                # end if
+                fig.set_size_inches(*paper_landscape)
+                pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+                plt.close()
+            # end if
 
         # end for
         pbar.close()
     # end with
+
+    # Save H-k solutions to CSV file
+    if hk_soln:
+        # Sort H-k solutions by depth from low to high
+        update_dict = {}
+        for st, hks in hk_soln.items():
+            sorted_hks = sorted([tuple(hk) for hk in hks])
+            update_dict[st] = np.array(sorted_hks).flatten()
+        # end for
+        hk_soln.update(update_dict)
+
+        df = pd.DataFrame.from_dict(hk_soln, orient='index')
+        colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range(len(df.columns)//2)]
+        colnames = list(itertools.chain.from_iterable(colnames))
+        df.columns = colnames
+        csv_fname, _ = os.path.splitext(output_file)
+        csv_fname += '.csv'
+        df.index.name = 'Station'
+        df.to_csv(csv_fname)
+    # end if
 
 # end main
 
