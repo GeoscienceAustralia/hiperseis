@@ -517,3 +517,20 @@ def zne_order(tr):
     else:
         return 3
 # end func
+
+
+def sinc_resampling(t, y, t_new):
+    """Resample signal y for known times t onto new times t_new.
+    Sampling rates do not need to match and time windows do not need
+    to overlap, so t_new can be practically anything.
+
+    :param t: np.array of times
+    :param y: np.array of sample values
+    :param t_new: np.array of new times to interpolate onto
+    :return: np.array of new interpolated sample values
+    """
+    dt = np.mean(np.diff(t))
+    Ts, T = np.meshgrid(t_new, t)
+    y_new = np.matmul(np.sinc((Ts.T - T.T) / dt), y)
+    return y_new
+# end func
