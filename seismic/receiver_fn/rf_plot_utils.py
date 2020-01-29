@@ -141,9 +141,9 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     plt.ylabel('H = Moho depth (km)', fontsize=14)
     if title is not None:
         plt.title(title, fontsize=16)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
     plt.tick_params(right=True, labelright=True, which='both')
+    plt.tick_params(top=True, labeltop=True, which='both')
+    plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
     plt.minorticks_on()
     plt.xlim(np.min(k_grid), np.max(k_grid))
