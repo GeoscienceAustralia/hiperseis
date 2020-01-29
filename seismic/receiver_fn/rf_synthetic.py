@@ -168,7 +168,7 @@ def convert_inclination_to_distance(inclinations, model="iasp91", nominal_source
 # end func
 
 
-def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcelongitude, sourcedepthmetres=80000,
+def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcelongitude, sourcedepthmetres=0,
                                 timewindow=(-20, 60), components='ZRT', origintime=None, f_s=None):
     """
     Given a receiving station and basic seismic source parameters, generate apure synthetic seismic
