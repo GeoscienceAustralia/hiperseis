@@ -48,11 +48,6 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     print("Reading HDF5 file...")
     rf_stream = rf.read_rf(rf_waveform_file, 'H5').select(component=channel)
 
-    spectral_filter = {'type': 'highpass', 'freq': 0.2, 'corners': 1, 'zerophase': True}
-    if spectral_filter is not None:
-        rf_stream.filter(**spectral_filter)
-    # end if
-
     rf_type = rf_stream[0].stats.rotation
     if amplitude_filter:
         # Label and filter quality
@@ -76,6 +71,11 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
                 # end if
             # end for
         # end for
+    # end if
+
+    spectral_filter = {'type': 'highpass', 'freq': 0.2, 'corners': 1, 'zerophase': True}
+    if spectral_filter is not None:
+        rf_stream.filter(**spectral_filter)
     # end if
 
     db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
@@ -126,8 +126,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             # end if
 
             outfile_base = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing'.format(net, sta_start, sta_end, spacing)
-            outfile = outfile_base + '.png'
-            outfile_map = outfile_base + '_MAP.png'
+            outfile = outfile_base + '.pdf'
+            outfile_map = outfile_base + '_MAP.pdf'
 
             outfile = os.path.join(output_folder, outfile)
             outfile_map = os.path.join(output_folder, outfile_map)
