@@ -48,6 +48,11 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     print("Reading HDF5 file...")
     rf_stream = rf.read_rf(rf_waveform_file, 'H5').select(component=channel)
 
+    spectral_filter = {'type': 'highpass', 'freq': 0.2, 'corners': 1, 'zerophase': True}
+    if spectral_filter is not None:
+        rf_stream.filter(**spectral_filter)
+    # end if
+
     rf_type = rf_stream[0].stats.rotation
     if amplitude_filter:
         # Label and filter quality
@@ -272,12 +277,12 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
 
     # Custom plot modifiers. Leave commented for now until refactoring in ticket PST-479
-    # print("Loading gravity data...")
-    # grav = np.load('post_analysis/GravityGrid.xyz.npy')
-    # print("Creating interpolator...")
-    # grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
-    # annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
-    annotators = None
+    print("Loading gravity data...")
+    grav = np.load('post_analysis/GravityGrid.xyz.npy')
+    print("Creating interpolator...")
+    grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
+    annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
+    # annotators = None
     print("Producing plot...")
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
