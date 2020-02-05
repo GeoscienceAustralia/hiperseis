@@ -11,6 +11,16 @@ def curate_stream3c(ev_id, stream3c, logger=None):
     Apply quality curation criteria to a stream. Modifies the stream in-place if required. Traces in stream
     must be in ZNE order.
 
+    The following checks are made. If any of these checks fails, the function returns False:
+    * Inclination value is not NaN
+    * The stream has 3 channels
+    * Each trace in the stream has the same number of samples
+    * None of the traces have any NaN values in the time series data
+    * None of the traces have zero variance
+
+    The following cleanups are attempted on the stream:
+    * All 3 traces have the same time range
+
     :param ev_id: The event id
     :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
