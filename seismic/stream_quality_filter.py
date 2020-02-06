@@ -9,7 +9,8 @@ import numpy as np
 def curate_stream3c(ev_id, stream3c, logger=None):
     """
     Apply quality curation criteria to a stream. Modifies the stream in-place if required. Traces in stream
-    must be in ZNE order.
+    must be in ZNE order. Each trace in the stream is expected to have metadata with starttime, endtime,
+    channel and inclination.
 
     The following checks are made. If any of these checks fails, the function returns False:
     * Inclination value is not NaN
@@ -34,13 +35,13 @@ def curate_stream3c(ev_id, stream3c, logger=None):
     for tr in stream3c:
         if np.isnan(tr.stats.inclination):
             if logger:
-                logger.warning("Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
+                logger.warning("Invalid inclination found in stream {}:\n{}".format(ev_id, stream3c))
             return False
     # end for
 
     if len(stream3c) != 3:
         if logger:
-            logger.warning("Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
+            logger.warning("Unexpected number of channels in stream {}:\n{}".format(ev_id, stream3c))
         return False
     # end if
 
@@ -62,8 +63,7 @@ def curate_stream3c(ev_id, stream3c, logger=None):
 
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
         if logger:
-            logger.warning("Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
-                           .format(ev_id, stream3c))
+            logger.warning("Channels in stream {} have different lengths:\n{}".format(ev_id, stream3c))
         return False
     # end if
 
@@ -73,7 +73,7 @@ def curate_stream3c(ev_id, stream3c, logger=None):
         # propagating through workflow.
         if np.any(np.isnan(tr.data)):
             if logger:
-                logger.warning("NaN detected in trace {} of stream {} (skipping):\n{}"
+                logger.warning("NaN detected in trace {} of stream {}:\n{}"
                                .format(tr.stats.channel, ev_id, stream3c))
             return False
         # end if
@@ -81,7 +81,7 @@ def curate_stream3c(ev_id, stream3c, logger=None):
         # station, and has been observed as a failure mode in practice.
         if np.std(tr.data) == 0:
             if logger:
-                logger.warning("Invariant data detected in trace {} of stream {} (skipping):\n{}"
+                logger.warning("Invariant data detected in trace {} of stream {}:\n{}"
                                .format(tr.stats.channel, ev_id, stream3c))
             return False
         # end if

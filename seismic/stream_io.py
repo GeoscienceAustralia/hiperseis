@@ -12,16 +12,25 @@ from obspy.io.sac.sactrace import SACTrace
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 
+
 def sac2hdf5(src_folder, basenames, channels, dest_h5_file, tt_model_id='iasp91'):
     """
     Convert collection of SAC files from a folder into a singel HDF5 stream file.
 
-    :param src_folder:
-    :param basenames:
-    :param channels:
-    :param dest_h5_file:
-    :param tt_model_id:
-    :return:
+    :param src_folder: Path to folder containing SAC files
+    :type src_folder: str or Path
+    :param basenames: List of base filenames (file name excluding extension) to load.
+    :type basenames: list of str
+    :param channels: List of channels to load. For each base filename in basenames,
+        there is expected to be a file with each channel as the filename extension.
+    :type channels: List of str
+    :param dest_h5_file: Path to output file. Will be created, or overwritten if
+        already exists.
+    :type dest_h5_file: str or Path
+    :param tt_model_id: Which travel time earth model to use for synthesizing
+        trace metadata. Must be known to obspy.taup.TauPyModel
+    :type tt_model_id: str
+    :return: None
     """
     tt_model = TauPyModel(tt_model_id)
     traces = []
@@ -53,6 +62,4 @@ def sac2hdf5(src_folder, basenames, channels, dest_h5_file, tt_model_id='iasp91'
 
     stream_all = obspy.Stream(traces)
     stream_all.write(dest_h5_file, 'H5')
-
-    return os.path.isfile(dest_h5_file)
 # end func
