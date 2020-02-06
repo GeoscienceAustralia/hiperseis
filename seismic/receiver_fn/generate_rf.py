@@ -20,6 +20,7 @@ from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
+from seismic.stream_quality_filter import curate_stream3c
 
 
 logging.basicConfig()
@@ -48,7 +49,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     :param oqueue: Output queue where filtered streams are queued
     :type oqueue: multiprocessing.Manager.Queue
     :param ev_id: The event id
-    :type ev_id: int
+    :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: rf.RFStream
     :param resample_rate_hz: Resampling rate of generated RF
@@ -84,57 +85,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
 
     assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
-    # Apply essential sanity checks before trying to compute RFs.
-    for tr in stream3c:
-        if np.isnan(tr.stats.inclination):
-            logger.warning("Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
-            return False
-    # end for
-
-    if len(stream3c) != 3:
-        logger.warning("Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
+    if not curate_stream3c(ev_id, stream3c, logger):
         return False
-    # end if
-
-    # Strongly assert expected ordering of traces. This must be respected so that
-    # RF normalization works properly.
-    assert stream3c.traces[0].stats.channel[-1] == 'Z'
-    assert stream3c.traces[1].stats.channel[-1] == 'N'
-    assert stream3c.traces[2].stats.channel[-1] == 'E'
-
-    # If traces have inconsistent time ranges, clip to time range during which they overlap. Not guaranteed
-    # to make time ranges consistent due to possible inconsistent sampling times across channels.
-    start_times = np.array([tr.stats.starttime for tr in stream3c])
-    end_times = np.array([tr.stats.endtime for tr in stream3c])
-    if not (np.all(start_times == start_times[0]) and np.all(end_times == end_times[0])):
-        clip_start_time = np.max(start_times)
-        clip_end_time = np.min(end_times)
-        stream3c.trim(clip_start_time, clip_end_time)
-    # end if
-
-    if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
-        logger.warning("Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
-                       .format(ev_id, stream3c))
-        return False
-    # end if
-
-    for tr in stream3c:
-        # Each tr here is one component.
-        # Check for any NaNs in any component. Discard such traces, as we don't want any NaNs
-        # propagating through workflow.
-        if np.any(np.isnan(tr.data)):
-            logger.warning("NaN detected in trace {} of stream {} (skipping):\n{}"
-                           .format(tr.stats.channel, ev_id, stream3c))
-            return False
-        # end if
-        # Check for all zeros or all same value in any component. This is infeasible for an operational
-        # station, and has been observed as a failure mode in practice.
-        if np.std(tr.data) == 0:
-            logger.warning("Invariant data detected in trace {} of stream {} (skipping):\n{}"
-                           .format(tr.stats.channel, ev_id, stream3c))
-            return False
-        # end if
-    # end for
 
     # Compute SNR of prior z-component after some low pass filtering.
     # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
