@@ -522,12 +522,12 @@ def zne_order(tr):
 def sinc_resampling(t, y, t_new):
     """Resample signal y for known times t onto new times t_new.
     Sampling rates do not need to match and time windows do not need
-    to overlap, so t_new can be practically anything.
+    to overlap. t_new should not have a lower sampling rate than t.
 
-    :param t: np.array of times
-    :param y: np.array of sample values
-    :param t_new: np.array of new times to interpolate onto
-    :return: np.array of new interpolated sample values
+    :param t: numpy.array of times
+    :param y: numpy.array of sample values
+    :param t_new: numpy.array of new times to interpolate onto
+    :return: numpy.array of new interpolated sample values
     """
     dt = np.mean(np.diff(t))
     Ts, T = np.meshgrid(t_new, t)

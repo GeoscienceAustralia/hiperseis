@@ -20,7 +20,7 @@ from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
-from seismic.receiver_fn.stream_quality_filter import curate_stream3c
+from seismic.stream_quality_filter import curate_stream3c
 
 
 logging.basicConfig()
