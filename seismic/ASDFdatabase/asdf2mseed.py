@@ -25,6 +25,16 @@ from obspy.core.trace import Trace
 import click
 
 def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
+    """
+    Dump mseed traces from an ASDF file in parallel
+
+    :param ds: ASDF Dataset
+    :param sn_list: station list to process
+    :param start_date: start date
+    :param end_date: end date
+    :param length: length of each mseed file
+    :param output_folder: output folder
+    """
 
     for sn in sn_list:
         logf = open(os.path.join(output_folder, '%s.log.txt'%(sn)), "w+")
@@ -49,7 +59,7 @@ def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
 
                 est = ds.ds_jason_db.fetchDataByTime(ds.ds, sn, ds.echannel,
                                                      current_time,
-                                                     current_time+length)        
+                                                     current_time+length)
 
                 for i, st in enumerate([zst, nst, est]):
                     if(st is None): continue
