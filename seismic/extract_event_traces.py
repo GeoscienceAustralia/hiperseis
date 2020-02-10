@@ -122,8 +122,8 @@ def _filter_catalog_events(catalog):
 # end func
 
 
-def custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
-                         endtime):
+def asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
+                       endtime):
     """Custom waveform getter function to retrieve waveforms from FederatedASDFDataSet.
 
     :param asdf_dataset: Instance of FederatedASDFDataSet to query
@@ -140,6 +140,8 @@ def custom_get_waveforms(asdf_dataset, network, station, location, channel, star
     :type starttime: str in UTC datetime format
     :param endtime: End time of the waveform query
     :type endtime: str in UTC datetime format
+    :return: Stream containing channel traces
+    :rtype: obspy.Stream of obspy.Traces
     """
     st = Stream()
     matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
@@ -182,18 +184,6 @@ def timestamp_filename(fname, t0, t1):
 # end func
 
 
-def _get_existing_index(rf_trace_datafile):
-    import h5py
-    try:
-        rf_file_readonly = h5py.File(rf_trace_datafile, mode='r')
-        idx = rf_file_readonly['waveforms']
-        existing_index = dict((id, set(d for d in idx[id])) for id in idx)
-    except Exception:
-        existing_index = None
-    return existing_index
-# end func
-
-
 def is_url(resource_path):
     """Convenience function to check if a given resource path is a valid URL
 
@@ -224,10 +214,9 @@ def is_url(resource_path):
               help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
               'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web '
               'service. Note that for traceability, start and end times will be appended to file name.')
-@click.option('--rf-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
-              help='Path to output file, e.g. "7X_event_waveforms_for_rf.h5". '
-              'Note that for traceability, start and end times will be appended to file name. '
-              'If file already exists, pre-existing records will be preserved, not overwritten.')
+@click.option('--event-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
+              help='Path to output file, e.g. "7X_event_waveforms.h5". '
+                   'Note that for traceability, start and end datetimes will be appended to file name.')
 @click.option('--start-time', type=str, default='', show_default=True,
               help='Start datetime in ISO 8601 format, e.g. "2009-06-16T03:42:00". '
                    'If empty, will be inferred from the inventory file.')
@@ -241,7 +230,7 @@ def is_url(resource_path):
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
 @click.option('--magnitude-range', type=(float, float), default=(5.5, 7.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
-def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafile, start_time, end_time, taup_model,
+def main(inventory_file, waveform_database, event_catalog_file, event_trace_datafile, start_time, end_time, taup_model,
          distance_range, magnitude_range):
 
     log = logging.getLogger(__name__)
@@ -251,9 +240,6 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     if not waveform_db_is_web:
         assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
     log.info("Using waveform data source: {}".format(waveform_database))
-
-    assert not os.path.exists(rf_trace_datafile), \
-        "Won't delete existing file {}, remove manually.".format(rf_trace_datafile)
 
     min_dist_deg = distance_range[0]
     max_dist_deg = distance_range[1]
@@ -292,15 +278,16 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
     start_time = UTC(start_time)
     end_time = UTC(end_time)
     event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
-    rf_trace_datafile = timestamp_filename(rf_trace_datafile, start_time, end_time)
-    log.info("Traces will be written to: {}".format(rf_trace_datafile))
+    event_trace_datafile = timestamp_filename(event_trace_datafile, start_time, end_time)
+    assert not os.path.exists(event_trace_datafile), \
+        "Output file {} already exists, please remove!".format(event_trace_datafile)
+    log.info("Traces will be written to: {}".format(event_trace_datafile))
 
     exit_after_catalog = False
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
 
     if waveform_db_is_web:
-        existing_index = None
         log.info("Use fresh query results from web")
         client = Client(waveform_database)
         waveform_getter = client.get_waveforms
@@ -308,10 +295,7 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
         # Form closure to allow waveform source file to be derived from a setting (or command line input)
         asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
-            return custom_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
-        existing_index = _get_existing_index(rf_trace_datafile)
-        if existing_index is not None:
-            log.warning("Resuming extraction using existing index from file {}".format(rf_trace_datafile))
+            return asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
         waveform_getter = closure_get_waveforms
     # end if
 
@@ -330,33 +314,27 @@ def main(inventory_file, waveform_database, event_catalog_file, rf_trace_datafil
             # library will normalize against the Z component.
             s.traces = sorted(s.traces, key=zne_order)
             # Assert the ordering of traces in the stream is ZNE.
-            assert s.traces[0].stats.channel[-1] == 'Z'
-            assert s.traces[1].stats.channel[-1] == 'N'
-            assert s.traces[2].stats.channel[-1] == 'E'
-            # Loop over ZNE traces
-            for tr in s:
-                grp_id = '.'.join(tr.id.split('.')[0:3])
-                event_time = str(tr.meta.event_time)[0:19]
-                pbar.set_description("{} -- {}".format(grp_id, event_time))
-                if existing_index is not None:
-                    # Skip records that already exist in the file to speed up generation
-                    if grp_id in existing_index and event_time in existing_index[grp_id]:
-                        pbar.write("Skipping {} -- {} already exists in output file".format(grp_id, event_time))
-                        continue
-                    else:
-                        # Use don't override mode just in case our hand-crafted index is faulty
-                        stream_count += 1
-                        tr.write(rf_trace_datafile, 'H5', mode='a', override='dont')
-                else:
-                    stream_count += 1
-                    tr.write(rf_trace_datafile, 'H5', mode='a')
-            # end for
+            assert s[0].stats.channel[-1] == 'Z'
+            assert s[1].stats.channel[-1] == 'N'
+            assert s[2].stats.channel[-1] == 'E'
+            # Iterator returns rf.RFStream. Write traces from obspy.Stream to decouple from RFStream.
+            grp_id = '.'.join(s.traces[0].id.split('.')[0:3])
+            event_time = str(s.traces[0].meta.event_time)[0:19]
+            pbar.set_description("{} -- {}".format(grp_id, event_time))
+            out_stream = obspy.Stream([tr for tr in s])
+            assert out_stream[0].stats.channel[-1] == 'Z'
+            assert out_stream[1].stats.channel[-1] == 'N'
+            assert out_stream[2].stats.channel[-1] == 'E'
+            out_stream.write(event_trace_datafile, 'H5', mode='a')
+            stream_count += 1
         # end for
+
         if stream_count == 0:
             log.warning("No traces found!")
         else:
-            log.info("Wrote {} new stream to output file".format(stream_count))
+            log.info("Wrote {} streams to output file".format(stream_count))
         # end if
+
     # end with
 
 # end main
