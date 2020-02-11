@@ -20,16 +20,16 @@ class NetworkRFDict:
         self.db = defaultdict(lambda: defaultdict(list))
         self.network = None
         self.rotation = None
-        for s in rf_stream:
-            net, sta, _, cha = s.id.split('.')
-            self.db[sta][cha].append(s)
-            if self.network:
+        for tr in rf_stream:
+            net, sta, _, cha = tr.id.split('.')
+            self.db[sta][cha].append(tr)
+            if self.network is not None:
                 assert net == self.network
             else:
                 self.network = net
             # end if
-            rotation = s.stats.rotation
-            if self.rotation:
+            rotation = tr.stats.rotation
+            if self.rotation is not None:
                 assert rotation == self.rotation
             else:
                 self.rotation = rotation
@@ -50,6 +50,12 @@ class NetworkRFDict:
     # end func
 
     def keys(self):
+        """Accessor for the top level keys (station codes) of the network in
+        an iterable container.
+
+        :return: Iterable of top level keys to the dictionary
+        :rtype: Python iterable
+        """
         return self.db.keys()
     # end func
 
