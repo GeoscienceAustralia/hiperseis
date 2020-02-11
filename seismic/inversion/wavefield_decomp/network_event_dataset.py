@@ -48,7 +48,7 @@ class NetworkEventDataset:
         # break it down into one Stream per ZNE channel triplet of a given event.
         self.network = network
         self.db_sta = defaultdict(lambda: defaultdict(obspy.Stream))
-        self.db_evid = defaultdict(lambda: defaultdict(obspy.Stream))
+        self.db_evid = defaultdict(dict)
         for tr in data_src:
             net, sta, _, _ = tr.id.split('.')
             if self.network:
@@ -59,17 +59,19 @@ class NetworkEventDataset:
             # Create single copy of the trace to be shared by both dicts.
             dupe_trace = tr.copy()
             self.db_sta[sta][tr.stats.event_id].append(dupe_trace)
-            self.db_evid[tr.stats.event_id][sta].append(dupe_trace)
+
+        # end for
+        # Index same obspy.Stream instances in event dict. This way, any changes
+        # to a given event stream will be seen by both indexes.
+        for sta, ev_db in self.db_sta.items():
+            for evid, stream in ev_db.items():
+                self.db_evid[evid][sta] = stream
+            # end for
         # end for
 
         # Sort each stream into ZNE order.
         for ev_db in self.db_sta.values():
             for stream in ev_db.values():
-                stream.sort(keys=['channel'], reverse=True)
-            # end for
-        # end for
-        for st_db in self.db_evid.values():
-            for stream in st_db.values():
                 stream.sort(keys=['channel'], reverse=True)
             # end for
         # end for
