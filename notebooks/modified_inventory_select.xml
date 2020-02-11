@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<FDSNStationXML xmlns:GeoscienceAustralia="http://some-page.de/xmlns/1.0" xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0">
+<FDSNStationXML xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.0" xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0">
   <Source>Geoscience Australia</Source>
   <Module>ObsPy 1.0.2</Module>
   <ModuleURI>https://www.obspy.org</ModuleURI>
