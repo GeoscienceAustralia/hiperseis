@@ -9,7 +9,6 @@ from collections import defaultdict, OrderedDict
 import obspy
 
 from seismic.stream_io import read_h5_stream
-from seismic.receiver_fn.rf_util import zne_order
 
 
 class NetworkEventDataset:
@@ -77,8 +76,10 @@ class NetworkEventDataset:
 
         # Order station keys and event ids to ensure consistent ordering in slicing
         # results. Aids reporting and traceability.
-        self.db_sta = OrderedDict(sorted([(sta, OrderedDict(sorted(sta_db.items(), key=lambda k: k[0]))) for sta, sta_db in self.db_sta], key=lambda k: k[0]))
-        self.db_evid = OrderedDict(sorted([(evid, OrderedDict(sorted(ev_db.items(), key=lambda k: k[0]))) for evid, ev_db in self.db_evid], key=lambda k: k[0]))
+        self.db_sta = OrderedDict(sorted([(sta, OrderedDict(sorted(sta_db.items(), key=lambda k: k[0])))
+                                          for sta, sta_db in self.db_sta.items()], key=lambda k: k[0]))
+        self.db_evid = OrderedDict(sorted([(evid, OrderedDict(sorted(ev_db.items(), key=lambda k: k[0])))
+                                           for evid, ev_db in self.db_evid.items()], key=lambda k: k[0]))
 
     # end func
 
@@ -93,3 +94,11 @@ class NetworkEventDataset:
     # end func
 
 # end class
+
+
+if __name__ == "__main__":
+    # src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
+    #             r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
+    # test_db = NetworkEventDataset(src_file, network='OA', station='BT23', location='0M')
+    pass
+# end if
