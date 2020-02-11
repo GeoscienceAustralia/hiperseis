@@ -4,18 +4,51 @@
 
 import os
 import itertools
+import logging
 
 import obspy
-# import obspyh5
 from obspy.taup import TauPyModel
 from obspy.io.sac.sactrace import SACTrace
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 
 
+logging.basicConfig()
+
+
+def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveforms'):
+    """Helper function to load stream data from hdf5 file saved by obspyh5 HDF5 file IO.
+    Typically the source file is generated using `extract_event_traces.py` script.
+    For faster loading time, a particular network and station may be specified.
+
+    :param src_file: File from which to load data
+    :type src_file: str or Path
+    :param network: Specific network to load, defaults to None
+    :type network: str, optional
+    :param station: Specific station to load, defaults to None
+    :type station: str, optional
+    :param root: Root path in hdf5 file where to start looking for data, defaults to '/waveforms'
+    :type root: str, optional
+    :return: All the loaded data in an obspy Stream.
+    :rtype: obspy.Stream
+    """
+    logger = logging.getLogger(__name__)
+    if (network is None and station is not None) or (network is not None and station is None):
+        logger.warning("network and station should both be specified - IGNORING incomplete specification")
+    elif network and station:
+        group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
+    else:
+        group = root
+    # end if
+
+    stream = obspy.read(src_file, format='h5', group=group)
+    return stream
+# end func
+
+
 def sac2hdf5(src_folder, basenames, channels, dest_h5_file, tt_model_id='iasp91'):
     """
-    Convert collection of SAC files from a folder into a singel HDF5 stream file.
+    Convert collection of SAC files from a folder into a single HDF5 stream file.
 
     :param src_folder: Path to folder containing SAC files
     :type src_folder: str or Path
