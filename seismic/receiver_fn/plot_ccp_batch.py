@@ -73,6 +73,11 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
         # end for
     # end if
 
+    spectral_filter = {'type': 'highpass', 'freq': 0.2, 'corners': 1, 'zerophase': True}
+    if spectral_filter is not None:
+        rf_stream.filter(**spectral_filter)
+    # end if
+
     db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
     sta_coords = db.unique_coordinates
 
@@ -121,8 +126,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             # end if
 
             outfile_base = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing'.format(net, sta_start, sta_end, spacing)
-            outfile = outfile_base + '.png'
-            outfile_map = outfile_base + '_MAP.png'
+            outfile = outfile_base + '.pdf'
+            outfile_map = outfile_base + '_MAP.pdf'
 
             outfile = os.path.join(output_folder, outfile)
             outfile_map = os.path.join(output_folder, outfile_map)
