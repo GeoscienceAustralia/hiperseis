@@ -24,7 +24,7 @@ class WfContinuationSuFluxComputer:
     2. Define 1D earth model and mantle half-space material properties (in external code).
     3. Call instance with models and receive energy flux results.
     """
-    def __init__(self):
+    def __init__(self, station_event_dataset):
         pass
 
     def _streamdict_to_array(self, data, f_s, time_window, cut_window):

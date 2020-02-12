@@ -4,6 +4,7 @@
 """
 
 import os
+import itertools
 from collections import defaultdict, OrderedDict
 
 import obspy
@@ -59,8 +60,8 @@ class NetworkEventDataset:
             # Create single copy of the trace to be shared by both dicts.
             dupe_trace = tr.copy()
             self.db_sta[sta][tr.stats.event_id].append(dupe_trace)
-
         # end for
+
         # Index same obspy.Stream instances in event dict. This way, any changes
         # to a given event stream will be seen by both indexes.
         for sta, ev_db in self.db_sta.items():
@@ -85,6 +86,57 @@ class NetworkEventDataset:
 
     # end func
 
+    def __iter__(self):
+        # Flat iterator. Loops over self.db_sta depth first and returns tuple of keys and matching stream.
+        # for sta, ev_db in self.db_sta.items():
+        #     for evid, stream in ev_db.items():
+        #         yield (sta, evid, stream)
+        #     # end for
+        # # end for
+        return ((sta, evid, stream) for sta, ev_db in self.db_sta.items() for evid, stream in ev_db.items())
+    # end if
+
+    def __len__(self):
+        # Returns number of streams
+        return sum((len(x) for x in self.db_sta.values()))
+    # end func
+
+    def __repr__(self):
+        # Displays summary string for all streams
+        return '\n'.join((str(stream) for _, _, stream in iter(self)))
+    # end func
+
+    def curate(self, curator):
+        """
+        Curate the dataset according to a callable curator. Curator call signature takes station code,
+        event id and stream as input, and returns boolean whether to keep Stream or not.
+
+        :param curator: Function or callable delegate to adjudicate whether to keep each given stream.
+        :type curator: Callable
+        :return: None
+        """
+        # Only need to loop over one db, since they both reference the same underlying Stream instances.
+        discard_items = []
+        for sta, ev_db in self.by_station():
+            for evid, stream in ev_db.items():
+                if not curator(sta, evid, stream):
+                    discard_items.append((sta, evid))
+                # end if
+            # end for
+        # end for
+
+        discard_items2 = [(x[0], x[1]) for x in itertools.filterfalse(lambda rec: curator(*rec), iter(self))]
+        assert sorted(discard_items) == sorted(discard_items2)
+
+        self.prune(discard_items)
+    # end func
+
+    def apply(self, callable):
+        # Apply a callable across all streams. Use to apply uniform processing steps
+        # to the whole dataset.
+        for sta, evid, stream in iter(self):
+            callable(stream)
+    # end func
 
     def by_station(self):
         """
@@ -92,9 +144,8 @@ class NetworkEventDataset:
         :return: Iterable over the stations, each element consisting of pair containing
             (station code, event dict).
         """
-        return iter(self.db_st.items())
+        return iter(self.db_sta.items())
     # end func
-
 
     def by_event(self):
         """
@@ -105,8 +156,7 @@ class NetworkEventDataset:
         return iter(self.db_evid.items())
     # end func
 
-
-    def prune(self, items):
+    def prune(self, items, cull=True):
         """
         Remove a given sequence of (station, evnet) pairs from the dataset.
 
@@ -116,15 +166,38 @@ class NetworkEventDataset:
         for station, event_id in items:
             self.db_sta[station].pop(event_id)
             self.db_evid[event_id].pop(station)
+            if cull:
+                if not self.db_sta[station]:
+                    self.db_sta.pop(station)
+                # end if
+                if not self.db_evid[event_id]:
+                    self.db_evid.pop(event_id)
+                # end if
+            # end if
         # end for
+
     # end func
 
 # end class
 
 
 if __name__ == "__main__":
+    # from seismic.stream_quality_filter import curate_stream3c
+    #
     # src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
     #             r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
     # test_db = NetworkEventDataset(src_file, network='OA', station='BT23', location='0M')
+    # print(len(test_db))
+    # print(test_db)
+    # for sta, _ in test_db.by_station():
+    #     print(sta)
+    # for evid, _ in test_db.by_event():
+    #     print(evid)
+    # test_db.prune((('BT23', 'smi:ISC/evid=615353118'),))
+    # for sta, evid, stream in test_db:
+    #     print(sta, evid)
+    # test_db.curate(lambda *x: curate_stream3c(x[1], x[2]))
+    # test_db.apply(lambda x: x.rotate('NE->RT'))
+    # print(test_db)
     pass
 # end if
