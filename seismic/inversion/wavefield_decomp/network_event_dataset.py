@@ -5,8 +5,8 @@
 
 import os
 import itertools
-from collections import defaultdict, OrderedDict
 
+from sortedcontainers import SortedDict
 import obspy
 
 from seismic.stream_io import read_h5_stream
@@ -44,12 +44,12 @@ class NetworkEventDataset:
             assert False, "Unknown data source {}".format(type(stream_src))
         # end if
 
+        self.network = network
+
         # Data in data_src collects all traces together under a single Stream object.
         # In order to get control over data slicing and traceability in processing, we
         # break it down into one Stream per ZNE channel triplet of a given event.
-        self.network = network
-        self.db_sta = defaultdict(lambda: defaultdict(obspy.Stream))
-        self.db_evid = defaultdict(dict)
+        self.db_sta = SortedDict()
         for tr in data_src:
             net, sta, _, _ = tr.id.split('.')
             if self.network:
@@ -59,30 +59,20 @@ class NetworkEventDataset:
             # end if
             # Create single copy of the trace to be shared by both dicts.
             dupe_trace = tr.copy()
-            self.db_sta[sta][tr.stats.event_id].append(dupe_trace)
+            self.db_sta.setdefault(sta, SortedDict()).setdefault(tr.stats.event_id, obspy.Stream()).append(dupe_trace)
         # end for
 
         # Index same obspy.Stream instances in event dict. This way, any changes
         # to a given event stream will be seen by both indexes.
+        self.db_evid = SortedDict()
         for sta, ev_db in self.db_sta.items():
             for evid, stream in ev_db.items():
-                self.db_evid[evid][sta] = stream
+                self.db_evid.setdefault(evid, SortedDict())[sta] = stream
             # end for
         # end for
 
         # Sort each stream into ZNE order.
-        for ev_db in self.db_sta.values():
-            for stream in ev_db.values():
-                stream.sort(keys=['channel'], reverse=True)
-            # end for
-        # end for
-
-        # Order station keys and event ids to ensure consistent ordering in slicing
-        # results. Aids reporting and traceability.
-        self.db_sta = OrderedDict(sorted([(sta, OrderedDict(sorted(sta_db.items(), key=lambda k: k[0])))
-                                          for sta, sta_db in self.db_sta.items()], key=lambda k: k[0]))
-        self.db_evid = OrderedDict(sorted([(evid, OrderedDict(sorted(ev_db.items(), key=lambda k: k[0])))
-                                           for evid, ev_db in self.db_evid.items()], key=lambda k: k[0]))
+        self.apply(lambda x: x.sort(keys=['channel'], reverse=True))
 
     # end func
 
@@ -103,7 +93,7 @@ class NetworkEventDataset:
 
     def __repr__(self):
         # Displays summary string for all streams
-        return '\n'.join((str(stream) for _, _, stream in iter(self)))
+        return '\n'.join((evid + ', ' + str(stream) for _, evid, stream in iter(self)))
     # end func
 
     def curate(self, curator):
@@ -134,7 +124,7 @@ class NetworkEventDataset:
     def apply(self, callable):
         # Apply a callable across all streams. Use to apply uniform processing steps
         # to the whole dataset.
-        for sta, evid, stream in iter(self):
+        for _1, _2, stream in iter(self):
             callable(stream)
     # end func
 
@@ -198,6 +188,7 @@ if __name__ == "__main__":
     #     print(sta, evid)
     # test_db.curate(lambda *x: curate_stream3c(x[1], x[2]))
     # test_db.apply(lambda x: x.rotate('NE->RT'))
+    # print(len(test_db))
     # print(test_db)
     pass
 # end if
