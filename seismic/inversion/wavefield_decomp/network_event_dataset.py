@@ -87,12 +87,36 @@ class NetworkEventDataset:
 
 
     def by_station(self):
+        """
+        Iterate over station sub-dictionaries
+        :return: Iterable over the stations, each element consisting of pair containing
+            (station code, event dict).
+        """
         return iter(self.db_st.items())
     # end func
 
 
     def by_event(self):
+        """
+        Iterate over event sub-dictionaries
+        :return: Iterable over the discrete events, each element consisting of pair containing
+            (event id, station dict).
+        """
         return iter(self.db_evid.items())
+    # end func
+
+
+    def prune(self, items):
+        """
+        Remove a given sequence of (station, evnet) pairs from the dataset.
+
+        :param items: Iterable of (station, event) pairs
+        :return: None
+        """
+        for station, event_id in items:
+            self.db_sta[station].pop(event_id)
+            self.db_evid[event_id].pop(station)
+        # end for
     # end func
 
 # end class
