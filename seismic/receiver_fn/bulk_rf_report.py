@@ -6,10 +6,10 @@
 import os
 import re
 import logging
+import itertools
 
 import numpy as np
 import click
-import itertools
 
 import rf
 import rf.imaging
@@ -270,7 +270,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         log.info("Applying event mask from folder {}".format(event_mask_folder))
         mask_files = os.listdir(event_mask_folder)
         mask_files = [f for f in mask_files if os.path.isfile(os.path.join(event_mask_folder, f))]
-        # print(mask_files)
         pattern = r"([A-Za-z0-9\.]{5,})_event_mask\.txt"
         pattern = re.compile(pattern)
         event_mask_dict = dict()
@@ -279,7 +278,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             if not match_result:
                 continue
             code = match_result[1]
-            # print(code)
             with open(os.path.join(event_mask_folder, f), 'r') as f:
                 events = f.readlines()
                 events = set([e.strip() for e in events])
@@ -307,6 +305,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         network = data_dict.network
         rf_type = data_dict.rotation
         hk_soln = dict()
+        station_coords = dict()
         for st in sorted(data_dict.keys()):
             station_db = data_dict[st]
 
@@ -316,6 +315,9 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Choose RF channel
             channel = rf_util.choose_rf_source_channel(rf_type, station_db)
             channel_data = station_db[channel]
+            if not channel_data:
+                continue
+            # end if
             full_code = '.'.join([network, st, channel])
 
             t_channel = list(channel)
@@ -389,6 +391,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels)
             if save_hk_solution and hk_hpf_freq is None:
                 hk_soln[st] = maxima
+                station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
             # end if
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
@@ -404,6 +407,8 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                                                                    'corners': 1, 'zerophase': True})
                 if save_hk_solution:
                     hk_soln[st] = maxima
+                    station_coords[st] = (channel_data[0].stats.station_latitude,
+                                          channel_data[0].stats.station_longitude)
                 # end if
                 fig.set_size_inches(*paper_landscape)
                 pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
@@ -416,17 +421,18 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
     # Save H-k solutions to CSV file
     if hk_soln:
+        assert len(hk_soln) == len(station_coords)
         # Sort H-k solutions by depth from low to high
         update_dict = {}
         for st, hks in hk_soln.items():
             sorted_hks = sorted([tuple(hk) for hk in hks])
-            update_dict[st] = np.array(sorted_hks).flatten()
+            update_dict[st] = np.array(list(station_coords[st]) + [i for hk in sorted_hks for i in hk])
         # end for
         hk_soln.update(update_dict)
 
         df = pd.DataFrame.from_dict(hk_soln, orient='index')
-        colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range(len(df.columns)//2)]
-        colnames = list(itertools.chain.from_iterable(colnames))
+        colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
+        colnames = ['Latitude', 'Longitude'] + list(itertools.chain.from_iterable(colnames))
         df.columns = colnames
         csv_fname, _ = os.path.splitext(output_file)
         csv_fname += '.csv'
