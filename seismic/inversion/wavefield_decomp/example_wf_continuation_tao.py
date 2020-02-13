@@ -87,7 +87,8 @@ data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, MAX_AMP))
 #------------------------------------------------------------------------------
 # Pass cleaned up data set for test station to flux computer class.
 data_OA = data_all.station('BT23')
-flux_comp = WfContinuationSuFluxComputer(data_OA, TIME_WINDOW, CUT_WINDOW)
+fs_processing = 10.0  # Hz
+flux_comp = WfContinuationSuFluxComputer(data_OA.values(), fs_processing, TIME_WINDOW, CUT_WINDOW)
 
 # Define bulk properties of mantle (lowermost half-space)
 mantle_props = LayerProps(vp=8.0, vs=4.5, rho=3.3, thickness=np.Infinity)

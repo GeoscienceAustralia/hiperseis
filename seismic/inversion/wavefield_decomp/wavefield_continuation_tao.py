@@ -8,8 +8,10 @@
     Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
 """
 
+import copy
+
 import numpy as np
-from scipy import stats
+# from scipy import stats
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from seismic.receiver_fn.rf_util import sinc_resampling
@@ -28,7 +30,15 @@ class WfContinuationSuFluxComputer:
     2. Define 1D earth model and mantle half-space material properties (in external code).
     3. Call instance with models and receive energy flux results.
     """
-    def __init__(self, station_event_dataset, time_window, cut_window):
+    def __init__(self, station_event_dataset, f_s, time_window, cut_window):
+        """
+
+        :param station_event_dataset: Iterable container of obspy.Stream objects.
+        :param f_s: Processing sample rate. Usuually much less than the sampling rate of the input raw seismic traces.
+        :param time_window:
+        :param cut_window:
+        """
+
         if not station_event_dataset:
             return
         # end if
@@ -39,8 +49,7 @@ class WfContinuationSuFluxComputer:
 
         self._time_window = time_window
         self._cut_window = cut_window
-        self._f_s = stats.mode(np.array([tr.stats.sampling_rate
-                                         for st in station_event_dataset.values() for tr in st]))[0][0]
+        self._f_s = f_s
         self._station_eventdataset_to_v0(station_event_dataset)
         self._station_event_dataset_extract_p(station_event_dataset)
     # end func
@@ -61,16 +70,20 @@ class WfContinuationSuFluxComputer:
         """
 
         # # Resample to f_s if any trace is not already at f_s
-        # for evid, stream in data.items():
-        #     if np.any(np.array([tr.stats.sampling_rate != self._f_s for tr in stream])):
-        #         # Resampling lowpass only, as per Tao (anti-aliasing)
-        #         stream.filter('lowpass', freq=self._f_s/2.0, corners=2, zerophase=True).interpolate(
-        #                       self._f_sf_s, method='lanczos', a=10)
-        #     # end if
-        # # end for
+        for stream in data:
+            if np.any(np.array([tr.stats.sampling_rate != self._f_s for tr in stream])):
+                # Resampling lowpass only, as per Tao (anti-aliasing).
+                # In order to not mutate input data, we filter a copy and replace the stream traces
+                # with the filtered traces.
+                stream_filt = stream.copy().filter('lowpass', freq=self._f_s/2.0, corners=2, zerophase=True)\
+                                           .interpolate(self._f_s, method='lanczos', a=10)
+                stream.clear()
+                stream += stream_filt
+            # end if
+        # end for
 
         # Trim to time window
-        for stream in data.values():
+        for stream in data:
             stream.trim(stream[0].stats.onset + self._time_window[0],
                         stream[0].stats.onset + self._time_window[1])
         # end for
@@ -78,7 +91,7 @@ class WfContinuationSuFluxComputer:
         # TODO: Recheck all traces have same length
 
         # Cut central data segment and resample back to original length using sinc interpolation.
-        for stream in data.values():
+        for stream in data:
             for tr in stream:
                 times = tr.times() - (tr.stats.onset - tr.stats.starttime)
                 tr_cut = tr.copy().trim(tr.stats.onset + self._cut_window[0], tr.stats.onset + self._cut_window[1])
@@ -96,7 +109,7 @@ class WfContinuationSuFluxComputer:
 
         # Pull data arrays out into matrix format
         self._v0 = np.array([[st.select(component='R')[0].data.tolist(),
-                              (-st.select(component='Z')[0].data).tolist()] for st in data.values()])
+                              (-st.select(component='Z')[0].data).tolist()] for st in data])
 
     # end func
 
@@ -108,7 +121,7 @@ class WfContinuationSuFluxComputer:
         :type data:
         :return: None
         """
-        self._p = np.array([stream[0].stats.slowness/KM_PER_DEG for stream in data.values()])
+        self._p = np.array([stream[0].stats.slowness/KM_PER_DEG for stream in data])
     # end func
 
     def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
