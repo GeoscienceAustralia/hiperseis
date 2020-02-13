@@ -8,10 +8,7 @@
     Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
 """
 
-import copy
-
 import numpy as np
-# from scipy import stats
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from seismic.receiver_fn.rf_util import sinc_resampling
@@ -44,14 +41,13 @@ class WfContinuationSuFluxComputer:
         # end if
 
         # TODO: Check input streams are all in ZRT coordinates.
-        # TODO: Check input event traces all have same length.
-        # TODO: Check all input event traces have same sampling frequency.
 
         self._time_window = time_window
         self._cut_window = cut_window
         self._f_s = f_s
         self._station_eventdataset_to_v0(station_event_dataset)
         self._station_event_dataset_extract_p(station_event_dataset)
+        self._precompute()
     # end func
 
     def _station_eventdataset_to_v0(self, data):
@@ -67,6 +63,10 @@ class WfContinuationSuFluxComputer:
         Any quality filtering needs to be performed prior to calling this function.
 
         Note: This function modifies in-place the traces in the values of data.
+
+        :assigns self._v0: Numpy array of shape (N_events, 2, N_samples) containing the
+            R- and Z-component traces for all events at sample rate f_s and covering
+            duration of self._time_window.
         """
 
         # # Resample to f_s if any trace is not already at f_s
@@ -124,62 +124,63 @@ class WfContinuationSuFluxComputer:
         self._p = np.array([stream[0].stats.slowness/KM_PER_DEG for stream in data])
     # end func
 
-    def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
-        """Compute upgoing S-wave energy for a given set of seismic time series v0.
+    def _precompute(self):
+        # Computations that need only be done once per dataset.
+        self._dt = 1.0 / self._f_s
+        self._npts = self._v0.shape[2]  # Number of sample points
+        self._nevts = self._v0.shape[0]  # Number of events
+        self._time_axis = np.linspace(*self._time_window, self._npts)
 
-        :param v0: Numpy array of shape (N_events, 2, N_samples) containing the R- and
-            Z-component traces for all events at sample rate f_s and covering duration
-            of time_window.
-        :param mantle_props: LayerProps representing mantle properties.
-        :param layer_props: List of LayerProps.
-        """
-        # This is the callable operator that performs computations of energy flux
-        dt = 1.0 / self._f_s
-        npts = self._v0.shape[2]
-        nevts = self._v0.shape[0]
-        t = np.linspace(*self._time_window, npts)
-
+        # *NORMALIZE v0*
         # Reshape to facilitate max_vz normalization using numpy broadcast rules.
         v0 = np.moveaxis(self._v0, 0, -1)
-
         # Normalize each event signal by the maximum z-component amplitude.
         # We perform this succinctly using numpy multidimensional broadcasting rules.
         max_vz = np.abs(v0[1, :, :]).max(axis=0)
         v0 = v0 / max_vz
-
         # Reshape back to original shape.
-        v0 = np.moveaxis(v0, -1, 0)
+        self._v0 = np.moveaxis(v0, -1, 0)
 
         # Transform v0 to the spectral domain using real FFT
-        fv0 = np.fft.rfft(v0, axis=-1)
+        fv0 = np.fft.rfft(self._v0, axis=-1)
 
         # Compute discrete frequencies
-        w = 2 * np.pi * np.fft.rfftfreq(v0.shape[-1], dt)
+        w = 2 * np.pi * np.fft.rfftfreq(self._v0.shape[-1], self._dt)
 
         # Extend w to full spectral domain.
-        w_full = np.hstack((w, -np.flipud(w[1:])))
+        self._w = np.hstack((w, -np.flipud(w[1:])))
 
         # To extend fv0, we need to flip left-right and take complex conjugate.
-        fv0_full = np.dstack((fv0, np.fliplr(np.conj(fv0[:, :, 1:]))))
+        self._fv0 = np.dstack((fv0, np.fliplr(np.conj(fv0[:, :, 1:]))))
+
+    # end if
+
+    def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
+        """Compute upgoing S-wave energy for a given set of seismic time series v0.
+
+        :param mantle_props: LayerProps representing mantle properties.
+        :param layer_props: List of LayerProps.
+        """
+        # This is the callable operator that performs computations of energy flux
 
         # Compute mode matrices for mantle
         M_m, Minv_m, _ = WfContinuationSuFluxComputer._mode_matrices(mantle_props.Vp, mantle_props.Vs, mantle_props.rho,
                                                                      self._p)
 
         # Propagate from surface
-        fvm = WfContinuationSuFluxComputer._propagate_layers(fv0_full, w_full, layer_props, self._p)
+        fvm = WfContinuationSuFluxComputer._propagate_layers(self._fv0, self._w, layer_props, self._p)
         fvm = np.matmul(Minv_m, fvm)
 
         num_pos_freq_terms = (fvm.shape[2] + 1) // 2
         # Velocities at top of mantle
-        vm = np.fft.irfft(fvm[:, :, :num_pos_freq_terms], v0.shape[2], axis=2)
+        vm = np.fft.irfft(fvm[:, :, :num_pos_freq_terms], self._npts, axis=2)
 
         # Compute coefficients of energy integral for upgoing S-wave
         qb_m = np.sqrt(1 / mantle_props.Vs ** 2 - self._p * self._p)
-        Nsu = dt * mantle_props.rho * (mantle_props.Vs ** 2) * qb_m
+        Nsu = self._dt * mantle_props.rho * (mantle_props.Vs ** 2) * qb_m
 
         # Compute mask for the energy integral time window
-        integral_mask = (t >= flux_window[0]) & (t <= flux_window[1])
+        integral_mask = (self._time_axis >= flux_window[0]) & (self._time_axis <= flux_window[1])
         vm_windowed = vm[:, :, integral_mask]
 
         # Take the su component.
@@ -192,7 +193,6 @@ class WfContinuationSuFluxComputer:
         Esu = np.mean(Esu_per_event)
 
         return Esu, Esu_per_event, vm
-
     # end func
 
     def _mode_matrices(Vp, Vs, rho, p):

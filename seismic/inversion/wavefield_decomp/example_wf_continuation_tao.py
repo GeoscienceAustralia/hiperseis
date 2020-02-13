@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import logging
+
+logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+                    level=logging.INFO,
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
 import numpy as np
 from scipy import stats
 
@@ -11,6 +17,7 @@ from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 
 
+logging.info("Loading input file...")
 src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
             r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
 data_all = NetworkEventDataset(src_file, network='OA', station='BT23', location='0M')
@@ -25,7 +32,7 @@ CUT_WINDOW = (-5, 30)
 
 #------------------------------------------------------------------------------
 # Apply windowinf, filtering and QC to loaded dataset before passing to Tao's algorithm.
-
+logging.info("Cleaning input data...")
 
 def stream_snr_compute(stream):
     stream.taper(0.05)
@@ -88,6 +95,7 @@ data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, MAX_AMP))
 # Pass cleaned up data set for test station to flux computer class.
 data_OA = data_all.station('BT23')
 fs_processing = 10.0  # Hz
+logging.info("Ingesting source data streams...")
 flux_comp = WfContinuationSuFluxComputer(data_OA.values(), fs_processing, TIME_WINDOW, CUT_WINDOW)
 
 # Define bulk properties of mantle (lowermost half-space)
@@ -105,5 +113,6 @@ crust_props = LayerProps(Vp_c, 3.7, rho_c, 35)
 
 single_layer_model = [crust_props]
 
+logging.info("Computing mean SU flux...")
 energy, energy_per_event, wf_mantle = flux_comp(mantle_props, single_layer_model)
-print(energy)
+logging.info(energy)
