@@ -84,7 +84,7 @@ def plot_ccp(matrx, length, max_depth, spacing, vlims=None, metadata=None, title
     plt.xlim(0, length)
     plt.ylim(max_depth*1.0001, 0)
 
-    plt.xlabel('Distance (km)', fontsize=12)
+    plt.xlabel('Distance (km)', fontsize=12, labelpad=1.0)
     plt.ylabel('Depth (km)', fontsize=12)
 
     plt.xticks(np.arange(0.0, length*1.0001, tickstep_x), fontsize=12)
