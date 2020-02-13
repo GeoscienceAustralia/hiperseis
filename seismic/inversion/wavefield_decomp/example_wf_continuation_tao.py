@@ -9,6 +9,11 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 
 import numpy as np
 from scipy import stats
+import scipy.optimize as optimize
+
+from tqdm.auto import tqdm
+from joblib import Parallel, delayed
+import matplotlib.pyplot as plt
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
@@ -30,20 +35,23 @@ FLUX_WINDOW = (-10, 20)
 # Cut window for selecting central wavelet
 CUT_WINDOW = (-5, 30)
 
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Apply windowinf, filtering and QC to loaded dataset before passing to Tao's algorithm.
 logging.info("Cleaning input data...")
+
 
 def stream_snr_compute(stream):
     stream.taper(0.05)
     compute_vertical_snr(stream)
 # end func
 
+
 def amplitude_nominal(stream, max_amplitude):
     return ((np.max(np.abs(stream[0].data)) <= max_amplitude) and
             (np.max(np.abs(stream[1].data)) <= max_amplitude) and
             (np.max(np.abs(stream[2].data)) <= max_amplitude))
 # end func
+
 
 # Trim streams to time window
 data_all.apply(lambda stream:
@@ -91,7 +99,7 @@ MAX_AMP = 10000
 data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, MAX_AMP))
 
 
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Pass cleaned up data set for test station to flux computer class.
 data_OA = data_all.station('BT23')
 fs_processing = 10.0  # Hz
@@ -113,6 +121,100 @@ crust_props = LayerProps(Vp_c, 3.7, rho_c, 35)
 
 single_layer_model = [crust_props]
 
-logging.info("Computing mean SU flux...")
+
+# -----------------------------------------------------------------------------
+# Example 1: Computing energy for a single model proposition.
+
+logging.info("Computing single point mean SU flux...")
 energy, energy_per_event, wf_mantle = flux_comp(mantle_props, single_layer_model)
 logging.info(energy)
+
+
+# -----------------------------------------------------------------------------
+# Example 2: Computing energy across a parametric space of models.
+
+def plot_Esu_space(H, Vs, Esu, network, station, save=True, show=True):
+    colmap = 'plasma'
+    plt.figure(figsize=(16, 12))
+    plt.contourf(Vs, H, Esu, levels=50, cmap=colmap)
+    plt.colorbar()
+    plt.contour(Vs, H, Esu, levels=10, colors='k', linewidths=1, antialiased=True)
+    plt.xlabel('Crust $V_s$ (km/s)', fontsize=14)
+    plt.ylabel('Crust $H$ (km)', fontsize=14)
+    plt.tick_params(right=True, labelright=True, which='both')
+    plt.tick_params(top=True, labeltop=True, which='both')
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.minorticks_on()
+    plt.xlim(np.min(Vs), np.max(Vs))
+    plt.ylim(np.min(H), np.max(H))
+    plt.grid(linestyle=':', color="#80808080")
+    plt.title('{}.{} Crust properties'.format(network, station), fontsize=20, y=1.05)
+    if save:
+        plt.savefig('example_{}.{}_crust_props.png'.format(network, station), dpi=300)
+    if show:
+        plt.show()
+    plt.close()
+# end func
+
+
+def job_caller(i, j, callable, mantle, earth_model, flux_window):
+    energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
+    return (i, j, energy)
+# end func
+
+
+H, Vs = np.meshgrid(np.linspace(25, 45, 51), np.linspace(Vp_c/2.1, Vp_c/1.5, 51))
+Esu = np.zeros(H.shape)
+
+logging.info("Computing 2D parametric space mean SU flux...")
+results = []
+for i, (H_arr, Vs_arr) in tqdm(enumerate(zip(H, Vs)), total=H.shape[0], desc='Crust loop'):
+    results.extend(Parallel(n_jobs=-1)(delayed(job_caller)(i, j, flux_comp, mantle_props,
+                                                           [LayerProps(Vp_c, _Vs, rho_c, _H)],
+                                                           FLUX_WINDOW)
+                                       for j, (_H, _Vs) in enumerate(zip(H_arr, Vs_arr))))
+# end for
+
+for i, j, energy in results:
+    Esu[i, j] = energy
+# end for
+
+plot_Esu_space(H, Vs, Esu, 'OA', 'BT23')
+
+
+# -----------------------------------------------------------------------------
+# Example 3: Using a global energy minimization solver to find solution.
+
+def objective_fn(model, callable, mantle, Vp, rho, flux_window):
+    num_layers = len(model)//2
+    earth_model = []
+    for i in range(num_layers):
+        earth_model.append(LayerProps(Vp[i], model[2*i + 1], rho[i], model[2*i]))
+    # end for
+    earth_model = np.array(earth_model)
+    energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
+    return energy
+# end func
+
+
+logging.info("Computing optimal crust properties by SU flux minimization...")
+
+# Use single layer (crust only) model in this example.
+Vp = [Vp_c]
+rho = [rho_c]
+k_min, k_max = (1.5, 2.1)
+fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
+H_initial = 40.0
+k_initial = np.mean((k_min, k_max))
+model_initial = np.array([H_initial, Vp_c/k_initial])
+H_min, H_max = (25.0, 45.0)
+bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
+soln = optimize.minimize(objective_fn, model_initial, fixed_args, bounds=bounds)
+# soln = optimize.minimize(objective_fn, model_initial, fixed_args, method=optimize.basinhopping)
+
+logging.info('Success = {}, Iterations = {}, Function evaluations = {}'.format(soln.success, soln.nit, soln.nfev))
+
+H_crust, Vs_crust = soln.x
+
+logging.info('Solution H_crust = {}, Vs_crust = {}, SU energy = {}'.format(H_crust, Vs_crust, soln.fun))
