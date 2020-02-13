@@ -114,7 +114,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
             hf_main, hf_map, metadata = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
                                             stacked_scale=stack_scale, title=title, colormap=colormap,
-                                            background_model='ak135_60')
+                                            background_model='ak135_60', colorlegend=False)
 
             metadata['transect_start'] = start
             metadata['transect_end'] = end
