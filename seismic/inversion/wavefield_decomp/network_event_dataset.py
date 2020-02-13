@@ -96,6 +96,26 @@ class NetworkEventDataset:
         return '\n'.join((evid + ', ' + str(stream) for _, evid, stream in iter(self)))
     # end func
 
+    def station(self, station_code):
+        """
+        Accessor for events for a given station.
+        :param station_code: Station to get
+        :return: Event index for station, if station is found
+        :rtype: SortedDict
+        """
+        return self.db_sta.get(station_code)
+    # end func
+
+    def event(self, event_id):
+        """
+        Accessor for stations for a given event.
+        :param event_id: ID of event to look up
+        :return: Station index for given event, if event ID is found
+        :rtype: SortedDict
+        """
+        return self.db_evid.get(event_id)
+    # end func
+
     def curate(self, curator):
         """
         Curate the dataset according to a callable curator. Curator call signature takes station code,
@@ -148,7 +168,7 @@ class NetworkEventDataset:
 
     def prune(self, items, cull=True):
         """
-        Remove a given sequence of (station, evnet) pairs from the dataset.
+        Remove a given sequence of (station, event) pairs from the dataset.
 
         :param items: Iterable of (station, event) pairs
         :return: None
