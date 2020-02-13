@@ -61,7 +61,7 @@ def plot_ccp(matrx, length, max_depth, spacing, vlims=None, metadata=None, title
     tickstep_x = 50
     tickstep_y = 25
 
-    fig = plt.figure(figsize=(16, 5))
+    fig = plt.figure(figsize=(16, 4))
     interpolation = 'hanning'
     extent = (0, length, 0, max_depth)
     assert not np.any(np.isnan(matrx))
