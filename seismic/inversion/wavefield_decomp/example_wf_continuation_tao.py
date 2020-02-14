@@ -210,11 +210,37 @@ k_initial = np.mean((k_min, k_max))
 model_initial = np.array([H_initial, Vp_c/k_initial])
 H_min, H_max = (25.0, 45.0)
 bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
+
+# Find local minimum relative to initial guess.
 soln = optimize.minimize(objective_fn, model_initial, fixed_args, bounds=bounds)
-# soln = optimize.minimize(objective_fn, model_initial, fixed_args, method=optimize.basinhopping)
-
-logging.info('Success = {}, Iterations = {}, Function evaluations = {}'.format(soln.success, soln.nit, soln.nfev))
-
 H_crust, Vs_crust = soln.x
-
+logging.info('Success = {}, Iterations = {}, Function evaluations = {}'.format(soln.success, soln.nit, soln.nfev))
 logging.info('Solution H_crust = {}, Vs_crust = {}, SU energy = {}'.format(H_crust, Vs_crust, soln.fun))
+
+
+# -----------------------------------------------------------------------------
+# Demonstrate syntactic usage of scipy global optimizers:
+model_initial_poor = np.array([34, Vp_c/k_initial])
+
+# - Basin hopping
+logging.info('Trying basinhopping...')
+soln_bh = optimize.basinhopping(objective_fn, model_initial_poor, T=0.3,
+                                minimizer_kwargs={'args': fixed_args, 'bounds': bounds})
+logging.info('Result:\n{}'.format(soln_bh))
+
+# - Differential evolution
+logging.info('Trying differential_evolution...')
+soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1)
+logging.info('Result:\n{}'.format(soln_de))
+
+# - SHGO (VERY EXPENSIVE AND/OR not convergent)
+# logging.info('Trying shgo...')
+# soln_shgo = optimize.shgo(objective_fn, list(zip(bounds.lb, bounds.ub)), fixed_args,
+#                           options={'f_min': 0, 'f_tol': 1.0e-3, 'maxev': 10000})
+# logging.info('Result:\n{}'.format(soln_shgo))
+
+# - Dual annealing
+logging.info('Trying dual_annealing...')
+soln_da = optimize.dual_annealing(objective_fn, list(zip(bounds.lb, bounds.ub)), fixed_args, x0=model_initial_poor,
+                                  initial_temp=2000.0, maxfun=10000)
+logging.info('Result:\n{}'.format(soln_da))
