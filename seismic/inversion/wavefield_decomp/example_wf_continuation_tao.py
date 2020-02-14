@@ -113,10 +113,6 @@ mantle_props = LayerProps(vp=8.0, vs=4.5, rho=3.3, thickness=np.Infinity)
 Vp_c = 6.4
 rho_c = 2.7
 
-# Assumed sediment property constants
-# Vp_s = 2.1
-# rho_s = 1.97
-
 crust_props = LayerProps(Vp_c, 3.7, rho_c, 35)
 
 single_layer_model = [crust_props]
@@ -223,14 +219,15 @@ logging.info('Solution H_crust = {}, Vs_crust = {}, SU energy = {}'.format(H_cru
 model_initial_poor = np.array([34, Vp_c/k_initial])
 
 # - Basin hopping
-logging.info('Trying basinhopping...')
-soln_bh = optimize.basinhopping(objective_fn, model_initial_poor, T=0.3,
-                                minimizer_kwargs={'args': fixed_args, 'bounds': bounds})
-logging.info('Result:\n{}'.format(soln_bh))
+# logging.info('Trying basinhopping...')
+# soln_bh = optimize.basinhopping(objective_fn, model_initial_poor, T=0.3,
+#                                 minimizer_kwargs={'args': fixed_args, 'bounds': bounds})
+# logging.info('Result:\n{}'.format(soln_bh))
 
 # - Differential evolution
 logging.info('Trying differential_evolution...')
-soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1)
+soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1,
+                                          popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
 logging.info('Result:\n{}'.format(soln_de))
 
 # - SHGO (VERY EXPENSIVE AND/OR not convergent)
@@ -240,7 +237,34 @@ logging.info('Result:\n{}'.format(soln_de))
 # logging.info('Result:\n{}'.format(soln_shgo))
 
 # - Dual annealing
-logging.info('Trying dual_annealing...')
-soln_da = optimize.dual_annealing(objective_fn, list(zip(bounds.lb, bounds.ub)), fixed_args, x0=model_initial_poor,
-                                  initial_temp=2000.0, maxfun=10000)
-logging.info('Result:\n{}'.format(soln_da))
+# logging.info('Trying dual_annealing...')
+# soln_da = optimize.dual_annealing(objective_fn, list(zip(bounds.lb, bounds.ub)), fixed_args, x0=model_initial_poor,
+#                                   initial_temp=2000.0, maxfun=10000)
+# logging.info('Result:\n{}'.format(soln_da))
+
+
+# -----------------------------------------------------------------------------
+# Example 4: Adding a sedimentary layer and directly using global minimizer
+
+# Assumed sediment property constants
+Vp_s = 2.1
+rho_s = 1.97
+
+Vp = [Vp_s, Vp_c]
+rho = [rho_s, rho_c]
+fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
+H_initial = [1.0, 35.0]  # sediment, crust
+Vs_initial = [0.8, 3.4]  # sediment, crust
+model_initial_sed = np.array(zip(H_initial, Vs_initial))
+print(model_initial)
+H_sed_min, H_sed_max = (0.2, 1.5)
+Vs_sed_min, Vs_sed_max = (0.3, 2.0)
+H_cru_min, H_cru_max = (25.0, 50.0)
+Vs_cru_min, Vs_cru_max = (Vp_c/k_max, Vp_c/k_min)
+bounds = optimize.Bounds([H_sed_min, Vs_sed_min, H_cru_min, Vs_cru_min],
+                         [H_sed_max, Vs_sed_max, H_cru_max, Vs_cru_max])
+
+logging.info('Differential_evolution (sedimentary)...')
+soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1,
+                                          popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
+logging.info('Result:\n{}'.format(soln_de))
