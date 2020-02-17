@@ -113,7 +113,7 @@ def example_4():
     Vp = [Vp_c]
     rho = [rho_c]
     fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
-    H_min, H_max = (25.0, 55.0)
+    H_min, H_max = (25.0, 45.0)
     bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
 
     # - Basin hopping
@@ -139,6 +139,13 @@ def example_4():
     # soln_da = optimize.dual_annealing(objective_fn, list(zip(bounds.lb, bounds.ub)), fixed_args, x0=model_initial_poor,
     #                                   initial_temp=2000.0, maxfun=10000)
     # logging.info('Result:\n{}'.format(soln_da))
+
+
+    # - Differential evolution
+    logging.info('Trying BRUTE FORCE...')
+    H_brute, Vs_brute = optimize.brute(objective_fn, tuple(zip(bounds.lb, bounds.ub)), fixed_args, Ns=51, workers=-1)
+    logging.info('Result:\n{}'.format((H_brute, Vs_brute)))
+
 # end func
 
 
