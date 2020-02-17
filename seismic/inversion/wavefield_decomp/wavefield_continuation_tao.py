@@ -268,11 +268,11 @@ class WfContinuationSuFluxComputer:
         for layer in layer_props:
             M, Minv, Q = WfContinuationSuFluxComputer._mode_matrices(layer.Vp, layer.Vs, layer.rho, p)
             fz = np.matmul(Minv, fz)
-    #         phase_args = np.outer(Q - Q[1], w)
-    #         phase_args = np.matmul(Q, np.expand_dims(w, 0))
             # Expanding dims on w here means that at each level of the stack, phase_args is np.outer(Q, w)
             phase_args = np.matmul(Q, np.expand_dims(np.expand_dims(w, 0), 0))
             assert np.allclose(np.outer(Q[0,:,:], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)
+            # phase_args = np.matmul(Q - Q[1], np.expand_dims(np.expand_dims(w, 0), 0))  # formulation seen in Tao code
+            # assert np.allclose(np.outer(Q[0,:,:] - Q[1], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)
             phase_factors = np.exp(1j*layer.H*phase_args)
             fz = phase_factors*fz  # point-wise multiplication
             fz = np.matmul(M, fz)
