@@ -35,7 +35,7 @@ def example_1():
 # end func
 
 
-def example_2():
+def example_2(station):
     # Example 2: Computing energy across a parametric space of models.
 
     def plot_Esu_space(H, Vs, Esu, network, station, save=True, show=True):
@@ -78,7 +78,7 @@ def example_2():
         Esu[i, j] = energy
     # end for
 
-    plot_Esu_space(H, Vs, Esu, 'OA', 'BT23')
+    plot_Esu_space(H, Vs, Esu, 'OA', station)
 # end func
 
 
@@ -108,12 +108,12 @@ def example_3():
 def example_4():
     # Demonstrate syntactic usage of scipy global optimizers:
     k_initial = np.mean((k_min, k_max))
-    model_initial_poor = np.array([34, Vp_c/k_initial])
+    model_initial_poor = np.array([35, Vp_c/k_initial])
 
     Vp = [Vp_c]
     rho = [rho_c]
     fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
-    H_min, H_max = (25.0, 45.0)
+    H_min, H_max = (25.0, 55.0)
     bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
 
     # - Basin hopping
@@ -155,9 +155,9 @@ def example_5():
     H_initial = [1.0, 35.0]  # sediment, crust
     Vs_initial = [0.8, 3.4]  # sediment, crust
     model_initial_sed = np.array(zip(H_initial, Vs_initial))
-    H_sed_min, H_sed_max = (0, 2.5)
+    H_sed_min, H_sed_max = (0, 3.5)
     Vs_sed_min, Vs_sed_max = (0.3, 2.5)
-    H_cru_min, H_cru_max = (25.0, 55.0)
+    H_cru_min, H_cru_max = (20.0, 60.0)
     Vs_cru_min, Vs_cru_max = (Vp_c/k_max, Vp_c/k_min)
     bounds = optimize.Bounds([H_sed_min, Vs_sed_min, H_cru_min, Vs_cru_min],
                              [H_sed_max, Vs_sed_max, H_cru_max, Vs_cru_max])
@@ -200,10 +200,12 @@ if __name__ == "__main__":
                 (np.max(np.abs(stream[2].data)) <= max_amplitude))
     # end func
 
+    target_station = 'BT23'
+    # target_station = 'CI23'
     logging.info("Loading input file...")
     src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
                 r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
-    data_all = NetworkEventDataset(src_file, network='OA', station='BT23', location='0M')
+    data_all = NetworkEventDataset(src_file, network='OA', station=target_station, location='0M')
 
     # Time window of original data to use for processing. All traces must have at least this extent
     # about the onset time.
@@ -214,7 +216,7 @@ if __name__ == "__main__":
     CUT_WINDOW = (-5, 30)
 
     # -----------------------------------------------------------------------------
-    # Apply windowinf, filtering and QC to loaded dataset before passing to Tao's algorithm.
+    # Apply windowing, filtering and QC to loaded dataset before passing to Tao's algorithm.
     logging.info("Cleaning input data...")
 
 
@@ -253,7 +255,7 @@ if __name__ == "__main__":
             if ((stream[0].stats.npts != expected_pts) or
                 (stream[1].stats.npts != expected_pts) or
                 (stream[2].stats.npts != expected_pts)):
-                discard.append(sta, evid)
+                discard.append((sta, evid))
             # end if
         # end for
     # end for
@@ -265,7 +267,7 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Pass cleaned up data set for test station to flux computer class.
-    data_OA = data_all.station('BT23')
+    data_OA = data_all.station(target_station)
     fs_processing = 10.0  # Hz
     logging.info("Ingesting source data streams...")
     flux_comp = WfContinuationSuFluxComputer(data_OA.values(), fs_processing, TIME_WINDOW, CUT_WINDOW)
@@ -284,7 +286,7 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 2: Computing energy across a parametric space of models.
-    example_2()
+    example_2(target_station)
 
     # -----------------------------------------------------------------------------
     # Example 3: Using a global energy minimization solver to find solution.

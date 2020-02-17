@@ -40,11 +40,23 @@ class WfContinuationSuFluxComputer:
             return
         # end if
 
-        # TODO: Check input streams are all in ZRT coordinates.
+        # Check input streams are all in ZRT coordinates.
+        assert np.all([''.join([tr.stats.channel[-1] for tr in st]).upper() == 'ZRT' for st in station_event_dataset])
+
+        # Check input streams all have same sampling rate
+        traces_fs = set(tr.stats.sampling_rate for st in station_event_dataset for tr in st)
+        assert len(traces_fs) == 1, 'Inconsistent sampling rates {}!'.format(traces_fs)
 
         self._time_window = time_window
         self._cut_window = cut_window
+        # Sampling rate and time step
         self._f_s = f_s
+        self._dt = 1.0 / f_s
+        # Number of sample points. Since the last point is considered the end of a closed interval,
+        # we +1 to the numer of points to ensure f_s == 1/dt.
+        self._npts = int(np.rint((time_window[1] - time_window[0])*f_s)) + 1
+        self._time_axis = np.linspace(*self._time_window, self._npts)
+        assert np.isclose(np.mean(np.diff(self._time_axis)), self._dt)
         self._station_eventdataset_to_v0(station_event_dataset)
         self._station_event_dataset_extract_p(station_event_dataset)
         self._precompute()
@@ -88,12 +100,10 @@ class WfContinuationSuFluxComputer:
                         stream[0].stats.onset + self._time_window[1])
         # end for
 
-        # TODO: Recheck all traces have same length
-
         # Cut central data segment and resample back to original length using sinc interpolation.
+        times = self._time_axis
         for stream in data:
             for tr in stream:
-                times = tr.times() - (tr.stats.onset - tr.stats.starttime)
                 tr_cut = tr.copy().trim(tr.stats.onset + self._cut_window[0], tr.stats.onset + self._cut_window[1])
                 tr_cut.detrend('linear')
                 tr_cut.taper(0.10)
@@ -105,7 +115,9 @@ class WfContinuationSuFluxComputer:
             # end for
         # end for
 
-        # TODO: Recheck again that all traces have same length
+        # Check that all traces have same length
+        trace_lengths = set(len(st[0]) for st in data)
+        assert len(trace_lengths) == 1, 'Inconsistent trace lengths {} after sinc interpolation!'.format(trace_lengths)
 
         # Pull data arrays out into matrix format
         self._v0 = np.array([[st.select(component='R')[0].data.tolist(),
@@ -126,10 +138,7 @@ class WfContinuationSuFluxComputer:
 
     def _precompute(self):
         # Computations that need only be done once per dataset.
-        self._dt = 1.0 / self._f_s
-        self._npts = self._v0.shape[2]  # Number of sample points
         self._nevts = self._v0.shape[0]  # Number of events
-        self._time_axis = np.linspace(*self._time_window, self._npts)
 
         # *NORMALIZE v0*
         # Reshape to facilitate max_vz normalization using numpy broadcast rules.
@@ -142,16 +151,10 @@ class WfContinuationSuFluxComputer:
         self._v0 = np.moveaxis(v0, -1, 0)
 
         # Transform v0 to the spectral domain using real FFT
-        fv0 = np.fft.rfft(self._v0, axis=-1)
+        self._fv0 = np.fft.fft(self._v0, axis=-1)
 
         # Compute discrete frequencies
-        w = 2 * np.pi * np.fft.rfftfreq(self._v0.shape[-1], self._dt)
-
-        # Extend w to full spectral domain.
-        self._w = np.hstack((w, -np.flipud(w[1:])))
-
-        # To extend fv0, we need to flip left-right and take complex conjugate.
-        self._fv0 = np.dstack((fv0, np.fliplr(np.conj(fv0[:, :, 1:]))))
+        self._w = 2 * np.pi * np.fft.fftfreq(self._npts, self._dt)
 
     # end if
 
