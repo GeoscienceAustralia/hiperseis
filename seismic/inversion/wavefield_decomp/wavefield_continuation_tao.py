@@ -270,9 +270,7 @@ class WfContinuationSuFluxComputer:
             fz = np.matmul(Minv, fz)
             # Expanding dims on w here means that at each level of the stack, phase_args is np.outer(Q, w)
             phase_args = np.matmul(Q, np.expand_dims(np.expand_dims(w, 0), 0))
-            assert np.allclose(np.outer(Q[0,:,:], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)
-            # phase_args = np.matmul(Q - Q[1], np.expand_dims(np.expand_dims(w, 0), 0))  # formulation seen in Tao code
-            # assert np.allclose(np.outer(Q[0,:,:] - Q[1], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)
+            # assert np.allclose(np.outer(Q[0,:,:], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)  # cross-check numerics
             phase_factors = np.exp(1j*layer.H*phase_args)
             fz = phase_factors*fz  # point-wise multiplication
             fz = np.matmul(M, fz)
