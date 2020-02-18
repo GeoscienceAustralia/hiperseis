@@ -11,10 +11,6 @@ import numpy as np
 from scipy import stats
 import scipy.optimize as optimize
 
-from tqdm.auto import tqdm
-from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
-
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
@@ -35,32 +31,9 @@ def example_1():
 # end func
 
 
-def example_2(station):
+def example_2(network, station):
     # Example 2: Computing energy across a parametric space of models.
-
-    def plot_Esu_space(H, k, Esu, network, station, save=True, show=True):
-        colmap = 'plasma'
-        plt.figure(figsize=(16, 12))
-        plt.contourf(k, H, Esu, levels=50, cmap=colmap)
-        plt.colorbar()
-        plt.contour(k, H, Esu, levels=10, colors='k', linewidths=1, antialiased=True)
-        plt.xlabel('Crustal $\kappa$', fontsize=14)
-        plt.ylabel('Crustal $H$ (km)', fontsize=14)
-        plt.tick_params(right=True, labelright=True, which='both')
-        plt.tick_params(top=True, labeltop=True, which='both')
-        plt.xticks(fontsize=14)
-        plt.yticks(fontsize=14)
-        plt.minorticks_on()
-        plt.xlim(np.min(k), np.max(k))
-        plt.ylim(np.min(H), np.max(H))
-        plt.grid(linestyle=':', color="#80808080")
-        plt.title('{}.{} $E_{SU}$ energy vs. crustal properties'.format(network, station), fontsize=20, y=1.05)
-        if save:
-            plt.savefig('example_{}.{}_crust_props.png'.format(network, station), dpi=300)
-        if show:
-            plt.show()
-        plt.close()
-    # end func
+    from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space
 
     logging.info("Computing 2D parametric space mean SU flux...")
     H_space = np.linspace(25, 45, 51)
@@ -68,7 +41,9 @@ def example_2(station):
     H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
                                       flux_window=FLUX_WINDOW)
 
-    plot_Esu_space(H, k, Esu, 'OA', station)
+    title = '{}.{} $E_{SU}$ energy vs. crustal properties'.format(network, station)
+    savename = 'example_{}.{}_crust_props.png'.format(network, station)
+    plot_Esu_space(H, k, Esu, title, savename)
 # end func
 
 
@@ -164,12 +139,6 @@ def example_5():
                                               popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
     logging.info('Result:\n{}'.format(soln_de))
 # end func
-
-
-# def job_caller(i, j, callable, mantle, earth_model, flux_window):
-#     energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
-#     return (i, j, energy)
-# # end func
 
 
 def objective_fn(model, callable, mantle, Vp, rho, flux_window):
@@ -283,7 +252,7 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 2: Computing energy across a parametric space of models.
-    example_2(target_station)
+    example_2('OA', target_station)
 
     # -----------------------------------------------------------------------------
     # Example 3: Using a global energy minimization solver to find solution.

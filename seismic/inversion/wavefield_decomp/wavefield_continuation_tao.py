@@ -292,6 +292,27 @@ class WfContinuationSuFluxComputer:
 
 
     def grid_search(self, mantle_props, layer_props, layer_index, H_vals, k_vals, flux_window=(-10, 20), ncpus=-1):
+        """
+        Compute SU energy flux over a grid of H and k values for a particular (single) layer. The layer to compute
+        over is indicated by layer_index, which is a zero-based index into layer_props.
+
+        :param mantle_props: Mantle bulk properties
+        :type mantle_props: LayerProps
+        :param layer_props: Layer bulk properties as a list
+        :type layer_props: list of LayerProps
+        :param layer_index: Index of layer to vary.
+        :type layer_index: int
+        :param H_vals: Set of thickness (H) values to apply to the selected layer.
+        :type H_vals: numpy.array
+        :param k_vals: Set of k values to apply to the selected layer.
+        :type k_vals: numpy.array
+        :param flux_window: Time window in which to compute energy flux
+        :type flux_window: pair of numeric values
+        :param ncpus: Number of CPUs to use. Use -1 to use all.
+        :type ncpus: int
+        :return: tuple(H grid, k grid, energy values)
+        :rtype: tuple(numpy.array, numpy.array, numpy.array)
+        """
 
         from tqdm.auto import tqdm
         from joblib import Parallel, delayed
