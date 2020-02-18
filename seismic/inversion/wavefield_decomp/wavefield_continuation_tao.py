@@ -8,10 +8,13 @@
     Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
 """
 
+import copy
+
 import numpy as np
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from seismic.receiver_fn.rf_util import sinc_resampling
+from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 
 
 class WfContinuationSuFluxComputer:
@@ -56,6 +59,7 @@ class WfContinuationSuFluxComputer:
         # we +1 to the numer of points to ensure f_s == 1/dt.
         self._npts = int(np.rint((time_window[1] - time_window[0])*f_s)) + 1
         self._time_axis = np.linspace(*self._time_window, self._npts)
+        self._time_axis.flags.writeable = False
         assert np.isclose(np.mean(np.diff(self._time_axis)), self._dt)
         self._station_eventdataset_to_v0(station_event_dataset)
         self._station_event_dataset_extract_p(station_event_dataset)
@@ -134,6 +138,7 @@ class WfContinuationSuFluxComputer:
         :return: None
         """
         self._p = np.array([stream[0].stats.slowness/KM_PER_DEG for stream in data])
+        self._p.flags.writeable = False
     # end func
 
     def _precompute(self):
@@ -149,13 +154,20 @@ class WfContinuationSuFluxComputer:
         v0 = v0 / max_vz
         # Reshape back to original shape.
         self._v0 = np.moveaxis(v0, -1, 0)
+        self._v0.flags.writeable = False
 
         # Transform v0 to the spectral domain using real FFT
         self._fv0 = np.fft.fft(self._v0, axis=-1)
+        self._fv0.flags.writeable = False
 
         # Compute discrete frequencies
         self._w = 2 * np.pi * np.fft.fftfreq(self._npts, self._dt)
+        self._w.flags.writeable = False
 
+    # end if
+
+    def times(self):
+        return self._time_axis
     # end if
 
     def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
@@ -278,5 +290,39 @@ class WfContinuationSuFluxComputer:
         return fz
     # end func
 
+
+    def grid_search(self, mantle_props, layer_props, layer_index, H_vals, k_vals, flux_window=(-10, 20), ncpus=-1):
+
+        from tqdm.auto import tqdm
+        from joblib import Parallel, delayed
+
+        def bulk_eval(flux, H_batch, k_batch, layer_props, flux_window):
+            energy = np.zeros_like(H_batch)
+            for i, (H, k) in enumerate(zip(H_batch, k_batch)):
+                Vs = Vp/k
+                lp = layer_props[layer_index]
+                layer_props[layer_index] = LayerProps(lp.Vp, Vs, lp.rho, H)
+                energy[i], _, _ = flux(mantle_props, layer_props, flux_window=flux_window)
+            return energy
+        # end func
+
+        Vp = layer_props[layer_index].Vp
+
+        H, k = np.meshgrid(H_vals, k_vals)
+        Esu = np.zeros(H.shape)
+
+        # Run grid search and collect results.
+        # Each loop of this generator expression creates a new copy of layer_props.
+        jobs = (delayed(bulk_eval)(self, H_arr, k_arr, copy.deepcopy(layer_props), flux_window)
+                for (H_arr, k_arr) in tqdm(zip(H, k), total=H.shape[0], desc='Grid search'))
+        results = Parallel(n_jobs=ncpus)(jobs)
+
+        for row_index, energy in enumerate(results):
+            Esu[row_index, :] = energy
+        # end for
+
+        return H, k, Esu
+
+    #  end func
 
 # end class

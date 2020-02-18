@@ -38,23 +38,23 @@ def example_1():
 def example_2(station):
     # Example 2: Computing energy across a parametric space of models.
 
-    def plot_Esu_space(H, Vs, Esu, network, station, save=True, show=True):
+    def plot_Esu_space(H, k, Esu, network, station, save=True, show=True):
         colmap = 'plasma'
         plt.figure(figsize=(16, 12))
-        plt.contourf(Vs, H, Esu, levels=50, cmap=colmap)
+        plt.contourf(k, H, Esu, levels=50, cmap=colmap)
         plt.colorbar()
-        plt.contour(Vs, H, Esu, levels=10, colors='k', linewidths=1, antialiased=True)
-        plt.xlabel('Crust $V_s$ (km/s)', fontsize=14)
-        plt.ylabel('Crust $H$ (km)', fontsize=14)
+        plt.contour(k, H, Esu, levels=10, colors='k', linewidths=1, antialiased=True)
+        plt.xlabel('Crustal $\kappa$', fontsize=14)
+        plt.ylabel('Crustal $H$ (km)', fontsize=14)
         plt.tick_params(right=True, labelright=True, which='both')
         plt.tick_params(top=True, labeltop=True, which='both')
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
         plt.minorticks_on()
-        plt.xlim(np.min(Vs), np.max(Vs))
+        plt.xlim(np.min(k), np.max(k))
         plt.ylim(np.min(H), np.max(H))
         plt.grid(linestyle=':', color="#80808080")
-        plt.title('{}.{} Crust properties'.format(network, station), fontsize=20, y=1.05)
+        plt.title('{}.{} $E_{SU}$ energy vs. crustal properties'.format(network, station), fontsize=20, y=1.05)
         if save:
             plt.savefig('example_{}.{}_crust_props.png'.format(network, station), dpi=300)
         if show:
@@ -62,23 +62,13 @@ def example_2(station):
         plt.close()
     # end func
 
-    H, Vs = np.meshgrid(np.linspace(25, 45, 51), np.linspace(Vp_c/2.1, Vp_c/1.5, 51))
-    Esu = np.zeros(H.shape)
-
     logging.info("Computing 2D parametric space mean SU flux...")
-    results = []
-    for i, (H_arr, Vs_arr) in tqdm(enumerate(zip(H, Vs)), total=H.shape[0], desc='Crust loop'):
-        results.extend(Parallel(n_jobs=-1)(delayed(job_caller)(i, j, flux_comp, mantle_props,
-                                                               [LayerProps(Vp_c, _Vs, rho_c, _H)],
-                                                               FLUX_WINDOW)
-                                           for j, (_H, _Vs) in enumerate(zip(H_arr, Vs_arr))))
-    # end for
+    H_space = np.linspace(25, 45, 51)
+    k_space = np.linspace(1.5, 2.1, 51)
+    H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
+                                      flux_window=FLUX_WINDOW)
 
-    for i, j, energy in results:
-        Esu[i, j] = energy
-    # end for
-
-    plot_Esu_space(H, Vs, Esu, 'OA', station)
+    plot_Esu_space(H, k, Esu, 'OA', station)
 # end func
 
 
@@ -176,10 +166,10 @@ def example_5():
 # end func
 
 
-def job_caller(i, j, callable, mantle, earth_model, flux_window):
-    energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
-    return (i, j, energy)
-# end func
+# def job_caller(i, j, callable, mantle, earth_model, flux_window):
+#     energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
+#     return (i, j, energy)
+# # end func
 
 
 def objective_fn(model, callable, mantle, Vp, rho, flux_window):
@@ -301,7 +291,7 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 4: Demonstrate syntactic usage of scipy global optimizers.
-    example_4()
+    # example_4()
 
     # -----------------------------------------------------------------------------
     # Example 5: Adding a sedimentary layer and directly using global minimizer
