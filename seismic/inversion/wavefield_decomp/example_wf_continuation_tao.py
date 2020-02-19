@@ -41,7 +41,7 @@ def example_2(network, station):
     H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
                                       flux_window=FLUX_WINDOW)
 
-    title = '{}.{} $E_{SU}$ energy vs. crustal properties'.format(network, station)
+    title = '{}.{} $E_{{SU}}$ energy vs. crustal properties'.format(network, station)
     savename = 'example_{}.{}_crust_props.png'.format(network, station)
     plot_Esu_space(H, k, Esu, title, savename)
 # end func
@@ -176,10 +176,10 @@ if __name__ == "__main__":
     # Time window of original data to use for processing. All traces must have at least this extent
     # about the onset time.
     TIME_WINDOW = (-20, 50)
-    # Narrower time window used for integration of energy flux
-    FLUX_WINDOW = (-10, 20)
     # Cut window for selecting central wavelet
     CUT_WINDOW = (-5, 30)
+    # Narrower time window used for integration of energy flux
+    FLUX_WINDOW = (-20, 20)
 
     # -----------------------------------------------------------------------------
     # Apply windowing, filtering and QC to loaded dataset before passing to Tao's algorithm.
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     # -----------------------------------------------------------------------------
     # Pass cleaned up data set for test station to flux computer class.
     data_OA = data_all.station(target_station)
-    fs_processing = 10.0  # Hz
+    fs_processing = 20.0  # Hz
     logging.info("Ingesting source data streams...")
     flux_comp = WfContinuationSuFluxComputer(data_OA.values(), fs_processing, TIME_WINDOW, CUT_WINDOW)
 

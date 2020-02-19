@@ -10,6 +10,7 @@ from sortedcontainers import SortedDict
 import obspy
 
 from seismic.stream_io import read_h5_stream
+from seismic.receiver_fn.rf_util import zne_order, zrt_order
 
 
 class NetworkEventDataset:
@@ -24,7 +25,7 @@ class NetworkEventDataset:
      3-channel ZNE stream per station. Using this index you can easily gather all traces
      for a given event across multiple stations.
     """
-    def __init__(self, stream_src, network=None, station=None, location=''):
+    def __init__(self, stream_src, network=None, station=None, location='', ordering='ZNE'):
         """Initialize from data source (file or obspy.Stream). Traces are COPIED into
         the dataset in order to leave input object intact, since many obspy functions
         mutate traces in-place.
@@ -71,8 +72,18 @@ class NetworkEventDataset:
             # end for
         # end for
 
-        # Sort each stream into ZNE order.
-        self.apply(lambda x: x.sort(keys=['channel'], reverse=True))
+        # Sort each stream into specific order.
+        if ordering.upper() == 'ZNE':
+            ordinal = zne_order
+        elif ordering.upper() == 'ZRT':
+            ordinal = zrt_order
+        else:
+            ordinal = None
+        # end if
+
+        if ordinal is not None:
+            self.apply(lambda x: x.traces.sort(key=ordinal))
+        # end if
 
     # end func
 

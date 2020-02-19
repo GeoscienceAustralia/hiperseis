@@ -11,12 +11,26 @@ import matplotlib.pyplot as plt
 # pylint: disable=invalid-name
 
 
-def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True):
+def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range=(None, None)):
+    """
+    Plot SU energy as function of H-k.
+
+    :param H: Grid of H coordinates corresponding to Esu point values.
+    :param k: Grid of k coordinates corresponding to Esu point values.
+    :param Esu: Energy values on H-k grid.
+    :param title: Plot title [OPTIONAL]
+    :param savefile_name: Output file in which to save plot [OPTIONAL]
+    :param show: If True, display the image and block until it is closed.
+    :param c_range: Custom range of Esu to contour (min, max values)
+    :return: None
+    """
     colmap = 'plasma'
     plt.figure(figsize=(16, 12))
-    plt.contourf(k, H, Esu, levels=50, cmap=colmap)
+    min_E, max_E = (np.nanmin(Esu) if c_range[0] is None else c_range[0],
+                    np.nanmax(Esu) if c_range[1] is None else c_range[1])
+    plt.contourf(k, H, Esu, levels=np.linspace(min_E, max_E, 51), cmap=colmap)
     plt.colorbar()
-    plt.contour(k, H, Esu, levels=10, colors='k', linewidths=1, antialiased=True)
+    plt.contour(k, H, Esu, levels=np.linspace(min_E, max_E, 11), colors='k', linewidths=1, antialiased=True)
     plt.xlabel('Crustal $\kappa$', fontsize=14)
     plt.ylabel('Crustal $H$ (km)', fontsize=14)
     plt.tick_params(right=True, labelright=True, which='both')

@@ -32,11 +32,13 @@ class WfContinuationSuFluxComputer:
     """
     def __init__(self, station_event_dataset, f_s, time_window, cut_window):
         """
+        Constructor
 
         :param station_event_dataset: Iterable container of obspy.Stream objects.
         :param f_s: Processing sample rate. Usuually much less than the sampling rate of the input raw seismic traces.
-        :param time_window:
-        :param cut_window:
+        :param time_window: Time window about onset to use for wave continuation processing.
+        :param cut_window: Shorter time segment within time_window to from which to extract primary arrival waveform
+            and its multiples.
         """
 
         if not station_event_dataset:
@@ -133,9 +135,7 @@ class WfContinuationSuFluxComputer:
         """
         Extract ray parameters from input data.
 
-        :param data:
-        :type data:
-        :return: None
+        :assigns self._p: Ray parameter per seismogram
         """
         self._p = np.array([stream[0].stats.slowness/KM_PER_DEG for stream in data])
         self._p.flags.writeable = False
@@ -171,10 +171,12 @@ class WfContinuationSuFluxComputer:
     # end if
 
     def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
-        """Compute upgoing S-wave energy for a given set of seismic time series v0.
+        """Compute upgoing S-wave energy at top of mantle for set of seismic time series in self._v0.
 
         :param mantle_props: LayerProps representing mantle properties.
         :param layer_props: List of LayerProps.
+        :return: Mean SU energy, SU energy per seismogram, wavefield vector at top of mantle in (Pd, Pu, Sd, Su) order.
+        :rtype: (float, numpy.array, numpy.array)
         """
         # This is the callable operator that performs computations of energy flux
 
@@ -210,17 +212,20 @@ class WfContinuationSuFluxComputer:
         return Esu, Esu_per_event, vm
     # end func
 
+    @staticmethod
     def _mode_matrices(Vp, Vs, rho, p):
         """Compute M, M_inv and Q for a single layer for a scalar or array of ray parameters p.
 
         :param Vp: P-wave body wave velocity (scalar, labeled α in Tao's paper)
-        :type Vp:
+        :type Vp: float
         :param Vs: S-wave body wave velocity (scalar, labeled β in Tao's paper)
-        :type Vs:
+        :type Vs: float
         :param rho: Bulk material density, ρ (scalar)
-        :type rho:
+        :type rho: float
         :param p: Scalar or array of ray parameters (one per event)
-        :type p:
+        :type p: float or numpy.array
+        :return: Eigenvector matrix M, inverse of M, eigenvalue diagonal matrix Q
+        :rtype: numpy.array, numpy.array, numpy.array
         """
         qa = np.sqrt((1 / Vp ** 2 - p * p).astype(np.complex))
         assert not np.any(np.isnan(qa)), qa
@@ -264,18 +269,25 @@ class WfContinuationSuFluxComputer:
         #         assert _M.shape[0] == _M.shape[1]
         #         assert np.allclose(np.matmul(_M, _Minv).flatten(), np.eye(_M.shape[0]).flatten()), i
 
-        return (M, Minv, Q)
+        return M, Minv, Q
     # end func
 
+    @staticmethod
     def _propagate_layers(fv0, w, layer_props, p):
         """
+        Apply wavefield downward continuation to surface seismogram fv0 in the frequency domain.
 
-        :param w:
-        :param layer_props:
-        :param p:
-        :return:
+        :param fv0: Frequency domain representation of surface seismograms
+        :type fv0: numpy.array
+        :param w: Frequency domain bins corresponding to fv0
+        :type w: numpy.array
+        :param layer_props: List of layer properties from top layer downwards
+        :type layer_props: list(LayerProps)
+        :param p: Ray parameter per seismogram
+        :type p: numpy.array
+        :return: Wavefield at top of mantle in frequency domain
+        :rtype: numpy.array
         """
-        # layer_props is a list of LayerProps
         fz = np.hstack((fv0, np.zeros_like(fv0)))
         for layer in layer_props:
             M, Minv, Q = WfContinuationSuFluxComputer._mode_matrices(layer.Vp, layer.Vs, layer.rho, p)
