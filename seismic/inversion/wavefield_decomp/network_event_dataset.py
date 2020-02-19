@@ -24,6 +24,9 @@ class NetworkEventDataset:
      The other index indexes hierarchically by event ID and station code, yielding a
      3-channel ZNE stream per station. Using this index you can easily gather all traces
      for a given event across multiple stations.
+
+     Preferably each input trace will already have an 'event_id' attribute in its stats. If
+     not, an event ID will be invented based on station identifiers and time window.
     """
     def __init__(self, stream_src, network=None, station=None, location='', ordering='ZNE'):
         """Initialize from data source (file or obspy.Stream). Traces are COPIED into
@@ -52,7 +55,7 @@ class NetworkEventDataset:
         # break it down into one Stream per ZNE channel triplet of a given event.
         self.db_sta = SortedDict()
         for tr in data_src:
-            net, sta, _, _ = tr.id.split('.')
+            net, sta, loc, _ = tr.id.split('.')
             if self.network:
                 assert net == self.network
             else:
@@ -60,7 +63,12 @@ class NetworkEventDataset:
             # end if
             # Create single copy of the trace to be shared by both dicts.
             dupe_trace = tr.copy()
-            self.db_sta.setdefault(sta, SortedDict()).setdefault(tr.stats.event_id, obspy.Stream()).append(dupe_trace)
+            try:
+                event_id = tr.stats.event_id
+            except AttributeError:
+                event_id = '.'.join([net, sta, loc, '_'.join([str(tr.stats.starttime), str(tr.stats.endtime)])])
+            # end try
+            self.db_sta.setdefault(sta, SortedDict()).setdefault(event_id, obspy.Stream()).append(dupe_trace)
         # end for
 
         # Index same obspy.Stream instances in event dict. This way, any changes
