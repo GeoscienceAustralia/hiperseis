@@ -33,7 +33,7 @@ def phase_weights(stream):
     See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
-    :type stream: obspy.core.stream.Stream
+    :type stream: Iterable container of obspy.Traces
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
