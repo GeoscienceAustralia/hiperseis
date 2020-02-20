@@ -20,14 +20,14 @@ from math import sqrt
 from ordered_set import OrderedSet as set
 import numpy as np
 from scipy.spatial import cKDTree
+import random
 import click
-
+import re
 from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from obspy import UTCDateTime, read_inventory, Inventory
 from obspy.geodetics.base import gps2dist_azimuth
 
-from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
 
@@ -243,6 +243,8 @@ def process(data_source1, data_source2, output_path,
             pairs = cull_pairs(pairs, pairs_to_compute)
         # end if
 
+        random.Random(nproc).shuffle(pairs) # using nproc as seed so that shuffle produces the same
+                                            # ordering when jobs are restarted.
         proc_stations = split_list(pairs, npartitions=nproc)
     # end if
 
@@ -279,12 +281,39 @@ def process(data_source1, data_source2, output_path,
         netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
         netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
 
+        def evaluate_channels(cha1, cha2):
+            result = []
+            for netsta, cha, ds in zip((netsta1, netsta2), (cha1, cha2), (ds1, ds2)):
+                if('*' not in cha1):
+                    result.append(cha)
+                else:
+                    cha = cha.replace('*', '.*')  # hack to capture simple regex comparisons
+
+                    net, sta = netsta.split('.')
+                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
+                    for item in stations:
+                        if(re.match(cha, item[3])):
+                            result.append(item[3])
+                            break
+                        # end if
+                    # end if
+                # end if
+            # end for
+
+            return result
+        # end func
+
         corr_chans = []
-        if   (corr_chan == 'z'): corr_chans = [ds1_zchan, ds2_zchan]
-        elif (corr_chan == 'n'): corr_chans = [ds1_nchan, ds2_nchan]
-        elif (corr_chan == 'e'): corr_chans = [ds1_echan, ds2_echan]
+        if   (corr_chan == 'z'): corr_chans = evaluate_channels(ds1_zchan, ds2_zchan)
+        elif (corr_chan == 'n'): corr_chans = evaluate_channels(ds1_nchan, ds2_nchan)
+        elif (corr_chan == 'e'): corr_chans = evaluate_channels(ds1_echan, ds2_echan)
         elif (corr_chan == 't'): corr_chans = ['00T', '00T']
         else: raise ValueError('Invalid corr-chan')
+
+        if(len(corr_chans)<2):
+            print(('Channels not found for either station %s or %s..')%(netsta1, netsta2))
+            continue
+        # end if
 
         baz_netsta1 = None
         baz_netsta2 = None
