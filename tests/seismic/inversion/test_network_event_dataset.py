@@ -50,7 +50,9 @@ def _mock_test_stream():
 
 
 def _mock_test_file(test_stream, tmp_path):
-    outfile = os.path.join(tmp_path, 'test_stream.h5')
+    # Cast to string needed here because some versions of pytest pass a LocalPath
+    # instance for the tmpdir fixture which won't implicitly convert to string.
+    outfile = os.path.join(str(tmp_path), 'test_stream.h5')
     test_stream.write(outfile, 'h5')
     assert os.path.isfile(outfile)
     return outfile

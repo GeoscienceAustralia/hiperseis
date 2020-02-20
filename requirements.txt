@@ -16,7 +16,7 @@ tables==3.5.2; sys_platform!="win32"
 mpi4py
 psutil
 #geopandas
-pytest>=4.2.0
+pytest>=4.6.5
 joblib
 click
 netcdf4==1.4.0
