@@ -25,7 +25,7 @@ install:
 
 script:
 - pytest -v --cov=seismic --cov-report= tests 
-      
+
 after_success: coveralls
 
 notifications:

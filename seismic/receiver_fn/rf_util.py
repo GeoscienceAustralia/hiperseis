@@ -33,7 +33,7 @@ def phase_weights(stream):
     See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
-    :type stream: obspy.core.stream.Stream
+    :type stream: Iterable container of obspy.Traces
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
@@ -507,12 +507,28 @@ def zne_order(tr):
     """Channel ordering sort key function
 
     :param tr: Trace whose ordinal is to be determined.
-    :type tr: RFTrace
-    :return: Numeric index indicated ZNE sort order of traces in a stream
+    :type tr: obspy.Trace or RFTrace
+    :return: Numeric index indicating ZNE sort order of traces in a stream
     """
     trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
-    component = tr.stats.channel[-1].upper()
-    if component in trace_ordering:
+    component = tr.stats.channel[-1].upper() if tr.stats.channel else False
+    if component and component in trace_ordering:
+        return trace_ordering[component]
+    else:
+        return 3
+# end func
+
+
+def zrt_order(tr):
+    """Channel ordering sort key function
+
+    :param tr: Trace whose ordinal is to be determined.
+    :type tr: obspy.Trace or RFTrace
+    :return: Numeric index indicating ZRT sort order of traces in a stream
+    """
+    trace_ordering = {'Z': 0, 'R': 1, 'T': 2}
+    component = tr.stats.channel[-1].upper() if tr.stats.channel else False
+    if component and component in trace_ordering:
         return trace_ordering[component]
     else:
         return 3

@@ -5,11 +5,18 @@ source =
     seismic
     utils
 omit =
-    seismic/inventory/legacy/*
+    */sandbox/*
+    */legacy/*
     seismic/receiver_fn/c_sippl_reference/*
     # Exclude file that requires seiscomp3, not supported in testing runtime environment:
     seismic/inventory/fdsnxml_convert.py
+    # Exclude selected scripts which are exclusively for bespoke reporting or report plotting
+    seismic/inversion/mcmc/bulk_inversion_report.py
+    seismic/inversion/mcmc/plot_inversion.py
+    # Exclude examples of usage as these will never be unit tested
+    */example_*.py
 concurrency = multiprocessing
+
 parallel = True
 
 [report]
