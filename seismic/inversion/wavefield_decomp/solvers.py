@@ -4,6 +4,9 @@
 Objective function minimization solvers.
 """
 
+import numpy as np
+
+
 class SolverGlobalMhMcmc:
     """
     Drop-in custom solver for scipy.optimize.minimize, based on Metrolpolis-Hastings Monte Carlo
