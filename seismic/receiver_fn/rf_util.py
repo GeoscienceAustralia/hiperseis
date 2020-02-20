@@ -511,8 +511,8 @@ def zne_order(tr):
     :return: Numeric index indicating ZNE sort order of traces in a stream
     """
     trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
-    component = tr.stats.channel[-1].upper()
-    if component in trace_ordering:
+    component = tr.stats.channel[-1].upper() if tr.stats.channel else False
+    if component and component in trace_ordering:
         return trace_ordering[component]
     else:
         return 3
@@ -527,8 +527,8 @@ def zrt_order(tr):
     :return: Numeric index indicating ZRT sort order of traces in a stream
     """
     trace_ordering = {'Z': 0, 'R': 1, 'T': 2}
-    component = tr.stats.channel[-1].upper()
-    if component in trace_ordering:
+    component = tr.stats.channel[-1].upper() if tr.stats.channel else False
+    if component and component in trace_ordering:
         return trace_ordering[component]
     else:
         return 3
