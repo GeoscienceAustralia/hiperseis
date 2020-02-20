@@ -4,7 +4,7 @@
 """
 
 import os
-import itertools
+import sys
 
 from sortedcontainers import SortedDict
 import obspy
@@ -145,17 +145,15 @@ class NetworkEventDataset:
         :return: None
         """
         # Only need to loop over one db, since they both reference the same underlying Stream instances.
-        discard_items = []
-        for sta, ev_db in self.by_station():
-            for evid, stream in ev_db.items():
-                if not curator(sta, evid, stream):
-                    discard_items.append((sta, evid))
-                # end if
-            # end for
-        # end for
+        PY2 = (sys.version_info[0] == 2)
 
-        discard_items2 = [(x[0], x[1]) for x in itertools.filterfalse(lambda rec: curator(*rec), iter(self))]
-        assert sorted(discard_items) == sorted(discard_items2)
+        if PY2:
+            from itertools import ifilterfalse as filterfalse
+        else:
+            from itertools import filterfalse
+        # end if
+
+        discard_items = [(x[0], x[1]) for x in filterfalse(lambda rec: curator(*rec), iter(self))]
 
         self.prune(discard_items)
     # end func
