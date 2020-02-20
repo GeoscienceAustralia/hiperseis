@@ -108,11 +108,12 @@ def extract_csvdata(path2xml):
 
 if __name__ == "__main__":
 
-    #VDI   time_correction_csvfile = "/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/input_file"
     time_correction_csvfile ="/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.DE43_clock_correction.csv"
     time_correction_csvfile = "/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.CZ40_clock_correction.csv"
+    time_correction_csvfile = "/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/7D.CZ40_clock_correction.csv"
 
     my_inventory = "/home/feizhang/Githubz/hiperseis/tests/testdata/7D_2012_2013.xml"
+    my_inventory = "../../tests/testdata/7D_2012_2013.xml"
 
     out_xml = add_gpscorrection_into_stationxml(time_correction_csvfile, my_inventory )
 
