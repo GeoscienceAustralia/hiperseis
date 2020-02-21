@@ -83,7 +83,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     for i in range(burnin):
         x_new = propose_step(x, bounds, sigma)
         funval_new = objective(x_new, *args)
-        log_alpha = -(funval_new - funval)*beta
+        log_alpha = (funval_new - funval)*beta
         if log_alpha > 0 or np.log(np.random.rand()) <= log_alpha:
             x = x_new
             funval = funval_new
@@ -113,10 +113,10 @@ if __name__ == "__main__":
         # fun = 5*np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
         # fun = 5*(1 - np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu)))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
         x2fac = np.matmul(np.matmul((x - mu).T, cov.T), x - mu)
-        # fun = (5*x2fac/(1 + x2fac))**2
-        fun = (5*1.0/(1 + x2fac))**2
+        fun = 25*(1.0/(1 + x2fac))**2
+        # fun = 25 - fun
 
-        return -np.log(fun)
+        return np.log(fun)
     # end func
 
     mu = np.array([0, 1])
