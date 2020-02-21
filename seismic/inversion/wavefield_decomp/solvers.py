@@ -83,7 +83,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     for i in range(burnin):
         x_new = propose_step(x, bounds, sigma)
         funval_new = objective(x_new, *args)
-        log_alpha = (funval_new - funval)*beta
+        log_alpha = -(funval_new - funval)*beta
         if log_alpha > 0 or np.log(np.random.rand()) <= log_alpha:
             x = x_new
             funval = funval_new
@@ -109,14 +109,11 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 if __name__ == "__main__":
     # DEV TESTING
     def obj_fun(x, mu, cov):
+        # The number returned from the function must be non-negative.
+        # The exponential of the negative of this value is the probablity.
         dims = len(x)
-        # fun = 5*np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
-        # fun = 5*(1 - np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu)))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
-        x2fac = np.matmul(np.matmul((x - mu).T, cov.T), x - mu)
-        fun = 25*(1.0/(1 + x2fac))**2
-        # fun = 25 - fun
-
-        return np.log(fun)
+        x2fac = np.sqrt(np.matmul(np.matmul((x - mu).T, cov.T), x - mu))
+        return x2fac
     # end func
 
     mu = np.array([0, 1])
@@ -124,5 +121,5 @@ if __name__ == "__main__":
     fixed_args = (mu, cov)
     bounds = Bounds(np.array([-3, -2]), np.array([3, 4]))
 
-    optimize_minimize_mhmcmc_cluster(obj_fun, bounds, fixed_args, burnin=100000, maxiter=1000000)
+    optimize_minimize_mhmcmc_cluster(obj_fun, bounds, fixed_args, burnin=10000, maxiter=100000)
 # end if
