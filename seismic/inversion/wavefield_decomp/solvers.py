@@ -110,8 +110,12 @@ if __name__ == "__main__":
     # DEV TESTING
     def obj_fun(x, mu, cov):
         dims = len(x)
-        fun = 5*np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
-        # return (1 - fun)
+        # fun = 5*np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
+        # fun = 5*(1 - np.exp(-0.5*np.matmul(np.matmul((x - mu).T, cov.T), x - mu)))/np.sqrt(np.power(2*np.pi, dims)*np.linalg.det(cov))
+        x2fac = np.matmul(np.matmul((x - mu).T, cov.T), x - mu)
+        # fun = (5*x2fac/(1 + x2fac))**2
+        fun = (5*1.0/(1 + x2fac))**2
+
         return -np.log(fun)
     # end func
 
