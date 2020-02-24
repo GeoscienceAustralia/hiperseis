@@ -11,6 +11,7 @@ from collections import deque
 from scipy.optimize import Bounds
 # from scipy.optimize import OptimizeResult
 from sortedcontainers import SortedList
+from sklearn.cluster import dbscan
 
 # DEBUG ONLY
 import matplotlib.pyplot as plt
@@ -210,16 +211,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     ar = float(accepted_burnin)/burnin
     print("Burnin acceptance rate: {}".format(ar))
 
-    pts = np.array(x_queue)
-    plt.scatter(pts[:, 0], pts[:, 1], alpha=0.1, s=5)
-    plt.axis('equal')
-    plt.xlim(bounds.lb[0], bounds.ub[0])
-    plt.ylim(bounds.lb[1], bounds.ub[1])
-    plt.show()
-
-    # print("Mean: {}".format(np.mean(pts.T, axis=-1)))
-    # print("Cov: {}".format(np.cov(pts.T)))
-
+    pts_burnin = np.array(x_queue)
     del x_queue
 
     accepted = 0
@@ -251,24 +243,51 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     print("Acceptance rate: {}".format(ar))
     print("Best minima: {}".format(np.array([_mx[0] for _mx in minima[0:10]])))
 
-    plt.figure(figsize=(12, 20))
-    for i in range(hist.ndims):
-        plt.subplot(2, 1, i + 1)
-        plt.bar(hist.bins[i, :-1] + 0.5*np.diff(hist.bins[i, :]), hist.hist[i, :])
-        # plt.xticks(hist.bins[i, :])
-        plt.xlabel('x{}'.format(i))
-        plt.ylabel('Counts')
+    # plt.figure(figsize=(12, 20))
+    # for i in range(hist.ndims):
+    #     plt.subplot(2, 1, i + 1)
+    #     plt.bar(hist.bins[i, :-1] + 0.5*np.diff(hist.bins[i, :]), hist.hist[i, :])
+    #     # plt.xticks(hist.bins[i, :])
+    #     plt.xlabel('x{}'.format(i))
+    #     plt.ylabel('Counts')
+    # # end for
+    # plt.show()
+
+    ##-------------------------
+    # Cluster minima and associate each cluster with a local minimum.
+    # Using a normalized coordinate space for cluster detection.
+
+    x_range = bounds.ub - bounds.lb
+    pts = np.array([x[0] for x in minima])
+    pts_norm = (pts - bounds.lb)/x_range
+    _, labels = dbscan(pts_norm, eps=0.05, min_samples=21, n_jobs=-1)
+
+    # Visual presentation for adding to Jira ticket.
+    plt.figure(figsize=(8, 8))
+    plt.scatter(pts_burnin[:, 0], pts_burnin[:, 1], c='#202020', alpha=0.1, s=5)
+    plt.scatter(pts[:, 0], pts[:, 1], s=5, c='k')
+    for grp in range(max(labels) + 1):
+        mask = (labels == grp)
+        color = 'C' + str(grp)
+        plt.scatter(pts[mask, 0], pts[mask, 1], s=5, c=color)
     # end for
+    plt.xlim(bounds.lb[0], bounds.ub[0])
+    plt.ylim(bounds.lb[1], bounds.ub[1])
+    plt.axis('equal')
+    plt.xlabel('x0')
+    plt.ylabel('x1')
+    plt.title(objective.__name__)
+    plt.grid(color='#80808080', linestyle=':')
+    plt.savefig(objective.__name__.replace('<', '').replace('>', '') + '.png', dpi=300)
     plt.show()
 
 # end func
 
 
-def _obj_fun(x, mu, cov):
+def bi_quadratic(x, mu, cov):
     # The number returned from the function must be non-negative.
     # The exponential of the negative of this value is the probablity.
-    # x2fac = np.sqrt(np.matmul(np.matmul((x - mu).T, cov), x - mu))
-    x2fac = np.sqrt(np.matmul(np.matmul(x - mu, cov), (x - mu).T))
+    x2fac = np.sqrt(np.matmul(np.matmul((x - mu).T, cov), x - mu))
     return x2fac
 # end func
 
@@ -283,16 +302,16 @@ def main():
     optimize_minimize_mhmcmc_cluster(sphere, bounds, burnin=10000, maxiter=50000)
 
     bounds = Bounds(np.array([-5, -5]), np.array([5, 5]))
-    optimize_minimize_mhmcmc_cluster(lambda xy: 0.1*himmelblau(xy), bounds, burnin=10000, maxiter=50000, target_ar=0.3)
+    optimize_minimize_mhmcmc_cluster(himmelblau, bounds, burnin=10000, maxiter=50000, target_ar=0.3, T=10)
 
     bounds = Bounds(np.pi + np.array([-3, -2]), np.pi + np.array([3, 4]))
-    optimize_minimize_mhmcmc_cluster(lambda xy: 5*(1 + easom(xy)), bounds, burnin=10000, maxiter=50000)
+    optimize_minimize_mhmcmc_cluster(easom, bounds, burnin=10000, maxiter=50000, T=0.2)
 
     bounds = Bounds(np.array([-4, -4]), np.array([4, 4]))
-    optimize_minimize_mhmcmc_cluster(lambda xy: 0.001*rosenbrock(xy), bounds, burnin=10000, maxiter=50000)
+    optimize_minimize_mhmcmc_cluster(rosenbrock, bounds, burnin=10000, maxiter=50000, T=1000)
 
     bounds = Bounds(np.array([-4, -4]), np.array([4, 4]))
-    optimize_minimize_mhmcmc_cluster(rastrigin, bounds, burnin=10000, maxiter=50000, T=5)
+    optimize_minimize_mhmcmc_cluster(lambda xy: rastrigin(xy) - 2, bounds, burnin=10000, maxiter=50000, T=5)
 
 
     # Custom test function
@@ -300,7 +319,7 @@ def main():
     cov = np.array([[5, -6.0], [-6.0, 20.0]])
     fixed_args = (mu, cov)
     bounds = Bounds(np.array([-3, -2]), np.array([3, 4]))
-    optimize_minimize_mhmcmc_cluster(_obj_fun, bounds, fixed_args, burnin=10000, maxiter=50000)
+    optimize_minimize_mhmcmc_cluster(bi_quadratic, bounds, fixed_args, burnin=10000, maxiter=50000)
 # end func
 
 
