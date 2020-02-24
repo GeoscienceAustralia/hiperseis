@@ -164,7 +164,8 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     :param bounds: Bounds of the parameter space.
     :param args: Any additional fixed parameters needed to completely specify the objective function.
     :param x0: Initial guess. If None, will be selected randomly and uniformly within the parameter bounds.
-    :param T: The "temperature" parameter for the accept or reject criterion.
+    :param T: The "temperature" parameter for the accept or reject criterion. To sample the domain well,
+        should be in the order of the evaluation range of the objective function.
     :param N: Maximum number of minima to return
     :param burnin: Number of random steps to discard before starting to accumulate statistics.
     :param maxiter: Maximum number of steps to take (including burnin).
@@ -278,8 +279,27 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     plt.ylabel('x1')
     plt.title(objective.__name__)
     plt.grid(color='#80808080', linestyle=':')
-    plt.savefig(objective.__name__.replace('<', '').replace('>', '') + '.png', dpi=300)
+    # plt.savefig(objective.__name__.replace('<', '').replace('>', '') + '.png', dpi=300)
     plt.show()
+
+    # Compute mean of each cluster and evaluate objective function at cluster mean locations.
+    minima_candidates = []
+    for grp in range(max(labels) + 1):
+        mask = (labels == grp)
+        mean_loc = np.mean(pts[mask, :], axis=0)
+        fval = objective(mean_loc, *args)
+        minima_candidates.append((mean_loc, fval))
+    # end for
+
+    # Rank minima locations by objective function.
+    minima_candidates.sort(key=lambda c: c[1])
+
+    # Pick up to N solutions
+    solutions = minima_candidates[:N]
+
+    # TODO: Put results into OptimizeResult container.
+    # TODO: Add histograms to output result (in form of scipy.stats.rv_histogram)
+    return solutions
 
 # end func
 
