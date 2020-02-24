@@ -226,7 +226,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     rejected_randomly = 0
 
     minima = SortedList(key=lambda rec: rec[1])
-    hist = HistogramIncremental(bounds, nbins=50)
+    hist = HistogramIncremental(bounds, nbins=100)
     # Cached a lot of potential minimum values, as these need to be clustered before return N results
     N_cached = 100*N
     for _ in range(main_iter):
@@ -277,7 +277,7 @@ def main():
     # DEV TESTING
 
     # Test functions as per https://en.wikipedia.org/wiki/Test_functions_for_optimization
-    from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock
+    from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin
 
     bounds = Bounds(np.array([-3, -3]), np.array([3, 3]))
     optimize_minimize_mhmcmc_cluster(sphere, bounds, burnin=10000, maxiter=50000)
@@ -290,6 +290,10 @@ def main():
 
     bounds = Bounds(np.array([-4, -4]), np.array([4, 4]))
     optimize_minimize_mhmcmc_cluster(lambda xy: 0.001*rosenbrock(xy), bounds, burnin=10000, maxiter=50000)
+
+    bounds = Bounds(np.array([-4, -4]), np.array([4, 4]))
+    optimize_minimize_mhmcmc_cluster(rastrigin, bounds, burnin=10000, maxiter=50000, T=5)
+
 
     # Custom test function
     mu = np.array([0, 1])
