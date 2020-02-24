@@ -5,6 +5,7 @@ Objective function minimization solvers.
 """
 
 import numpy as np
+import copy
 from collections import deque
 
 from scipy.optimize import Bounds
@@ -53,24 +54,108 @@ class HistogramIncremental():
 # end class
 
 
-def _propose_step(x, bounds):
-    ndims = len(x)
-    while True:
-        dim = np.random.randint(0, ndims)
-        x_new = x[dim] + _propose_step.stepsize[dim]*np.random.randn()
-        if x_new >= bounds.lb[dim] and x_new <= bounds.ub[dim]:
-            break
+class BoundedRandNStepper():
+    """Step one dimensional at a time using normal distribution of steps.
+    """
+    def __init__(self, bounds, initial_step=None):
+        self.bounds = bounds
+        self.range = bounds.ub - bounds.lb
+        if initial_step is not None:
+            self._stepsize = initial_step
+        else:
+            self._stepsize = 0.15*(bounds.ub - bounds.lb)
         # end if
-    # end while
-    result = x.copy()
-    result[dim] = x_new
-    return result
-# end func
+    # end func
+
+    def __call__(self, x):
+        ndims = len(x)
+        while True:
+            dim = np.random.randint(0, ndims)
+            x_new = x[dim] + self._stepsize[dim]*np.random.randn()
+            if self.bounds.lb[dim] <= x_new <= self.bounds.ub[dim]:
+                break
+            # end if
+        # end while
+        result = x.copy()
+        result[dim] = x_new
+        return result
+    # end func
+
+    @property
+    def stepsize(self):
+        return self._stepsize.copy()
+    # end func
+
+    @stepsize.setter
+    def stepsize(self, stepsize_new):
+        # Limit step size adaption so that attempt to reach desired acceptance rate does not
+        # diverge or vanish the stepping quanta.
+        stepsize_new = np.maximum(np.minimum(stepsize_new, self.range), 1e-3*self.range)
+        self._stepsize = stepsize_new
+    # end func
+
+# end class
+
+
+class AdaptiveStepsize():
+    """
+    Class to implement adaptive stepsize. Pulled from scipy.optimize.basinhopping and adapted.
+    """
+    def __init__(self, stepper, accept_rate=0.5, interval=50, factor=0.9, ar_tolerance=0.05, verbose=True):
+        self.takestep = stepper
+        self.target_accept_rate = accept_rate
+        self.interval = interval
+        self.factor = factor
+        self.tolerance = ar_tolerance
+        self.verbose = verbose
+
+        self.nstep = 0
+        self.nstep_tot = 0
+        self.naccept = 0
+    # end func
+
+    def __call__(self, x):
+        return self.take_step(x)
+    # end func
+
+    def _adjust_step_size(self):
+        old_stepsize = copy.copy(self.takestep.stepsize)
+        accept_rate = float(self.naccept) / self.nstep
+        scaled_step = False
+        if accept_rate > self.target_accept_rate + self.tolerance:
+            # We're accepting too many steps. Take bigger steps.
+            self.takestep.stepsize /= self.factor
+            scaled_step = True
+        elif accept_rate < self.target_accept_rate - self.tolerance:
+            # We're not accepting enough steps.  Take smaller steps.
+            self.takestep.stepsize *= self.factor
+            scaled_step = True
+        # end if
+        if scaled_step and self.verbose:
+            # TODO: Replace with logger
+            print("adaptive stepsize: acceptance rate {} target {} new stepsize {} old stepsize {}"
+                  .format(accept_rate, self.target_accept_rate, self.takestep.stepsize, old_stepsize))
+        # end if
+    # end func
+
+    def take_step(self, x):
+        self.nstep += 1
+        self.nstep_tot += 1
+        if self.nstep % self.interval == 0:
+            self._adjust_step_size()
+        return self.takestep(x)
+    # end func
+
+    def notify_accept(self):
+        self.naccept += 1
+    # end func
+
+# end class
 
 
 # Compose as global function first, then abtract out into classes.
 def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N=3, burnin=1000000, maxiter=10000000,
-                                     target_ar=0.5):
+                                     target_ar=0.4):
     """
     Minimize objective function and return up to N solutions.
 
@@ -100,21 +185,23 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     x = x0.copy()
     funval = objective(x, *args)
 
-    sigma0 = 0.15*(bounds.ub - bounds.lb)
-    _propose_step.stepsize = sigma0.copy()
+    # Set up stepper with adaptive acceptance rate
+    stepper = BoundedRandNStepper(bounds)
+    stepper = AdaptiveStepsize(stepper, accept_rate=target_ar, interval=50)
 
     x_queue = deque(maxlen=10000)
     x_queue.append(x)
     rejected_randomly = 0
     accepted_burnin = 0
     for _ in range(burnin):
-        x_new = _propose_step(x, bounds)
+        x_new = stepper(x)
         funval_new = objective(x_new, *args)
         log_alpha = -(funval_new - funval)*beta
         if log_alpha > 0 or np.log(np.random.rand()) <= log_alpha:
             x = x_new
             funval = funval_new
             x_queue.append(x)
+            stepper.notify_accept()
             accepted_burnin += 1
         elif log_alpha <= 0:
             rejected_randomly += 1
@@ -141,9 +228,9 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     minima = SortedList(key=lambda rec: rec[1])
     hist = HistogramIncremental(bounds, nbins=50)
     # Cached a lot of potential minimum values, as these need to be clustered before return N results
-    N_cached = 3*N
+    N_cached = 100*N
     for _ in range(main_iter):
-        x_new = _propose_step(x, bounds)
+        x_new = stepper(x)
         funval_new = objective(x_new, *args)
         log_alpha = -(funval_new - funval)*beta
         if log_alpha > 0 or np.log(np.random.rand()) <= log_alpha:
@@ -153,6 +240,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
             if len(minima) > N_cached:
                 minima.pop()
             # end if
+            stepper.notify_accept()
             hist += x
             accepted += 1
         elif log_alpha <= 0:
@@ -195,7 +283,7 @@ def main():
     optimize_minimize_mhmcmc_cluster(sphere, bounds, burnin=10000, maxiter=50000)
 
     bounds = Bounds(np.array([-5, -5]), np.array([5, 5]))
-    optimize_minimize_mhmcmc_cluster(lambda xy: 0.1*himmelblau(xy), bounds, burnin=10000, maxiter=50000)
+    optimize_minimize_mhmcmc_cluster(lambda xy: 0.1*himmelblau(xy), bounds, burnin=10000, maxiter=50000, target_ar=0.3)
 
     bounds = Bounds(np.pi + np.array([-3, -2]), np.pi + np.array([3, 4]))
     optimize_minimize_mhmcmc_cluster(lambda xy: 5*(1 + easom(xy)), bounds, burnin=10000, maxiter=50000)
