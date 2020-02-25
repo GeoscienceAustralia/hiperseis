@@ -6,8 +6,9 @@ Objective function minimization solvers.
 
 import numpy as np
 import copy
-from collections import deque
+# from collections import deque
 
+from tqdm.auto import tqdm
 from scipy.optimize import OptimizeResult
 from sortedcontainers import SortedList
 from sklearn.cluster import dbscan
@@ -232,7 +233,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     # DO BURN-IN
     rejected_randomly = 0
     accepted_burnin = 0
-    for _ in range(burnin):
+    for _ in tqdm(range(burnin), total=burnin, desc='BURN-IN'):
         x_new = stepper(x)
         funval_new = obj_counted(x_new, *args)
         log_alpha = -(funval_new - funval)*beta
@@ -263,7 +264,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     hist = HistogramIncremental(bounds, nbins=100)
     # Cached a lot of potential minimum values, as these need to be clustered before return N results
     N_cached = 100*N
-    for i in range(main_iter):
+    for i in tqdm(range(main_iter), total=main_iter, desc='MAIN'):
         if collect_samples and (i % sample_cadence) == 0:
             samples[sample_count] = x
             sample_count += 1
