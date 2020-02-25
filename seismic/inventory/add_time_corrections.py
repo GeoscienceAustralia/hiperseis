@@ -38,17 +38,17 @@ def get_csv_correction_data(path_csvfile):
     with open(path_csvfile, "r") as csvfid:
         all_lines = csvfid.readlines()
 
-    print("The csv file length", len(all_lines))
-    print("the first line", all_lines[0])
-    print("the last  line", all_lines[-1])
+    # print("The csv file length", len(all_lines))
+    # print("the first line", all_lines[0])
+    # print("the last  line", all_lines[-1])
 
     line2 = all_lines[1]
-    print("line2=", line2)
+    # print("line2=", line2)
 
     my_items = line2.split(",")
 
-    network_code = my_items[0]  # network_code = "7D"
-    station_code = my_items[1]  # station_code = "DE43"
+    network_code = my_items[0].strip()  # network_code = "7D"
+    station_code = my_items[1].strip()  # station_code = "DE43"
 
     return (network_code, station_code, all_lines)
 
@@ -76,9 +76,9 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
 
     # https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.Inventory.select.html#obspy.core.inventory.inventory.Inventory.select
 
-    selected_inv = my_inv.select(station=sta)
+    selected_inv = my_inv.select(network=net, station=sta)
 
-    print(selected_inv)
+    # print(selected_inv)
 
     my_tag = AttribDict()
     my_tag.namespace = ns
@@ -126,7 +126,7 @@ def extract_csvdata(path2xml):
 # ----------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    USAGE = "python %s csv_file inventory_file [out_dir}" %sys.argv[0]
+    USAGE = "python %s csv_file inventory_file [out_dir]" %sys.argv[0]
 
     # time_correction_csvfile = "/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.DE43_clock_correction.csv"
     # time_correction_csvfile = "/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.CZ40_clock_correction.csv"
@@ -150,5 +150,5 @@ if __name__ == "__main__":
 
     csvstr = extract_csvdata(output_xml)
 
-    print(csvstr)
-    print(type(csvstr))
+    # print(csvstr)
+    # print(type(csvstr))
