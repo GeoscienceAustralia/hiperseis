@@ -20,7 +20,9 @@ from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_
 def bi_quadratic(x, mu, cov):
     # The number returned from the function must be non-negative.
     # The exponential of the negative of this value is the probablity.
-    x2fac = np.sqrt(np.matmul(np.matmul((x - mu).T, cov), x - mu))
+    sqrt_arg = np.matmul(np.matmul((x - mu).T, cov), x - mu)
+    assert sqrt_arg >= 0
+    x2fac = np.sqrt(sqrt_arg)
     return x2fac
 # end func
 
