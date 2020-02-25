@@ -72,7 +72,7 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
     (net, sta, csv_data) = get_csv_correction_data(csv_file)
 
     # path2_myxml = "/home/feizhang/Githubz/hiperseis/tests/testdata/7D_2012_2013.xml"
-    my_inv = read_inventory(input_xml)
+    my_inv = read_inventory(input_xml,format='STATIONXML')
 
     # https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.Inventory.select.html#obspy.core.inventory.inventory.Inventory.select
 
@@ -112,7 +112,7 @@ def extract_csvdata(path2xml):
 
     """
 
-    new_inv = read_inventory(path2xml)
+    new_inv = read_inventory(path2xml,format='STATIONXML')
 
     csv_str = new_inv.networks[0].stations[0].extra.gpsclockcorrection.value
 
