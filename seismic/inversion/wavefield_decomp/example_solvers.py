@@ -46,6 +46,8 @@ def plot(solution, title=''):
         np.expand_dims(solution.x, axis=0)
     for i, x in enumerate(solution.x):
         color = 'C' + str(i)
+        cluster = solution.clusters[i]
+        plt.scatter(cluster[:, 0], cluster[:, 1], c=color, s=5, alpha=0.3)
         plt.scatter(x[0], x[1], marker='x', s=200, c=color, alpha=0.9)
         plt.scatter(x[0], x[1], marker='o', s=320, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
     # end for

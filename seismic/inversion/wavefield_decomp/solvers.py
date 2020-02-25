@@ -306,11 +306,11 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
         mask = (labels == grp)
         mean_loc = np.mean(pts[mask, :], axis=0)
         fval = obj_counted(mean_loc, *args)
-        minima_candidates.append((mean_loc, fval))
+        minima_candidates.append((mean_loc, grp, fval))
     # end for
 
     # Rank minima locations by objective function.
-    minima_candidates.sort(key=lambda c: c[1])
+    minima_candidates.sort(key=lambda c: c[2])
 
     # Pick up to N solutions
     solutions = minima_candidates[:N]
@@ -319,13 +319,14 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     # Add histograms to output result (in form of scipy.stats.rv_histogram)
     solution = OptimizeResult()
     solution.x = np.array([s[0] for s in solutions])
+    solution.clusters = [pts[(labels == s[1]), :] for s in solutions]
     solution.bins = hist.bins
     solution.distribution = hist.histograms
     solution.acceptance_rate = ar
     solution.success = True
     solution.status = 0
     solution.message = 'SUCCESS: Found {} local minima'.format(len(solutions))
-    solution.fun = np.array([s[1] for s in solutions])
+    solution.fun = np.array([s[2] for s in solutions])
     solution.jac = None
     solution.nfev = obj_counted.counter
     solution.njev = 0
