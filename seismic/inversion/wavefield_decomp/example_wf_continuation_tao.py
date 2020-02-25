@@ -16,6 +16,7 @@ from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfCont
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
+from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 
@@ -79,11 +80,12 @@ def example_4():
     rho = [rho_c]
     fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
     H_min, H_max = (25.0, 45.0)
-    bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
+    bounds = optimize.Bounds(np.array([H_min, Vp_c/k_max]),
+                             np.array([H_max, Vp_c/k_min]))
 
     # - Basin hopping
     # logging.info('Trying basinhopping...')
-    # soln_bh = optimize.basinhopping(objective_fn, model_initial_poor, T=0.3,
+    # soln_bh = optimize.basinhopping(objective_fn, model_initial_poor, T=0.5, stepsize=1.0,
     #                                 minimizer_kwargs={'args': fixed_args, 'bounds': bounds})
     # logging.info('Result:\n{}'.format(soln_bh))
 
@@ -105,11 +107,16 @@ def example_4():
     #                                   initial_temp=2000.0, maxfun=10000)
     # logging.info('Result:\n{}'.format(soln_da))
 
+    # - Brute force
+    # logging.info('Trying BRUTE FORCE...')
+    # H_brute, Vs_brute = optimize.brute(objective_fn, tuple(zip(bounds.lb, bounds.ub)), fixed_args, Ns=51, workers=-1)
+    # logging.info('Result:\n{}'.format((H_brute, Vs_brute)))
 
-    # - Differential evolution
-    logging.info('Trying BRUTE FORCE...')
-    H_brute, Vs_brute = optimize.brute(objective_fn, tuple(zip(bounds.lb, bounds.ub)), fixed_args, Ns=51, workers=-1)
-    logging.info('Result:\n{}'.format((H_brute, Vs_brute)))
+    # - Custom MCMC solver
+    logging.info('Trying custom MCMC solver...')
+    soln_mcmc = optimize_minimize_mhmcmc_cluster(objective_fn, bounds, fixed_args, x0=model_initial_poor, T=0.5,
+                                                 burnin=1000, maxiter=5000, collect_samples=10000, logger=logging)
+    logging.info('Result:\n{}'.format(soln_mcmc))
 
 # end func
 
@@ -138,6 +145,12 @@ def example_5():
     soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1,
                                               popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
     logging.info('Result:\n{}'.format(soln_de))
+# end func
+
+
+def example_6():
+    # Example 6: Adding a sedimentary layer and using MCMC solver in 4-dimensions
+    pass
 # end func
 
 
@@ -259,8 +272,8 @@ if __name__ == "__main__":
     example_3()
 
     # -----------------------------------------------------------------------------
-    # Example 4: Demonstrate syntactic usage of scipy global optimizers.
-    # example_4()
+    # Example 4: Demonstrate syntactic usage of various minimization solver algorithms.
+    example_4()
 
     # -----------------------------------------------------------------------------
     # Example 5: Adding a sedimentary layer and directly using global minimizer
