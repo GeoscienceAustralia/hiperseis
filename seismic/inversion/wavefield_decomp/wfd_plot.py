@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # pylint: disable=invalid-name
 
 
-def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range=(None, None)):
+def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range=(None, None), decorator=None):
     """
     Plot SU energy as function of H-k.
 
@@ -22,6 +22,7 @@ def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range
     :param savefile_name: Output file in which to save plot [OPTIONAL]
     :param show: If True, display the image and block until it is closed.
     :param c_range: Custom range of Esu to contour (min, max values)
+    :param decorator: Callback function to customize plot.
     :return: None
     """
     colmap = 'plasma'
@@ -43,6 +44,9 @@ def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range
     plt.grid(linestyle=':', color="#80808080")
     if title is not None:
         plt.title(title, fontsize=20, y=1.05)
+    # end if
+    if decorator is not None:
+        decorator(plt.gca())
     # end if
     if savefile_name is not None:
         plt.savefig(savefile_name, dpi=300)

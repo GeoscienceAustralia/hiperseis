@@ -44,14 +44,15 @@ def plot(solution, title=''):
     if solution.samples is not None:
         plt.scatter(solution.samples[:, 0], solution.samples[:, 1], c='#202020', alpha=0.05, s=5)
     # end if
-    if len(solution.x) == 1:
-        np.expand_dims(solution.x, axis=0)
-    for i, x in enumerate(solution.x):
+    x = solution.x.copy()
+    if len(x) == 1:
+        np.expand_dims(x, axis=0)
+    for i, _x in enumerate(x):
         color = 'C' + str(i)
         cluster = solution.clusters[i]
         plt.scatter(cluster[:, 0], cluster[:, 1], c=color, s=5, alpha=0.3)
-        plt.scatter(x[0], x[1], marker='x', s=200, c=color, alpha=0.9)
-        plt.scatter(x[0], x[1], marker='o', s=320, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
+        plt.scatter(_x[0], _x[1], marker='x', s=200, c=color, alpha=0.9)
+        plt.scatter(_x[0], _x[1], marker='o', s=320, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
     # end for
     plt.xlim(solution.bounds.lb[0], solution.bounds.ub[0])
     plt.ylim(solution.bounds.lb[1], solution.bounds.ub[1])

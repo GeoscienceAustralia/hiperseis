@@ -10,12 +10,14 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 import numpy as np
 from scipy import stats
 import scipy.optimize as optimize
+import matplotlib.pyplot as plt
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
+from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
@@ -34,11 +36,10 @@ def example_1():
 
 def example_2(network, station):
     # Example 2: Computing energy across a parametric space of models.
-    from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space
 
     logging.info("Computing 2D parametric space mean SU flux...")
     H_space = np.linspace(25, 45, 51)
-    k_space = np.linspace(1.5, 2.1, 51)
+    k_space = np.linspace(k_min, k_max, 51)
     H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
                                       flux_window=FLUX_WINDOW)
 
@@ -112,12 +113,6 @@ def example_4():
     # H_brute, Vs_brute = optimize.brute(objective_fn, tuple(zip(bounds.lb, bounds.ub)), fixed_args, Ns=51, workers=-1)
     # logging.info('Result:\n{}'.format((H_brute, Vs_brute)))
 
-    # - Custom MCMC solver
-    logging.info('Trying custom MCMC solver...')
-    soln_mcmc = optimize_minimize_mhmcmc_cluster(objective_fn, bounds, fixed_args, x0=model_initial_poor, T=0.5,
-                                                 burnin=1000, maxiter=5000, collect_samples=10000, logger=logging)
-    logging.info('Result:\n{}'.format(soln_mcmc))
-
 # end func
 
 
@@ -149,7 +144,48 @@ def example_5():
 
 
 def example_6():
-    # Example 6: Adding a sedimentary layer and using MCMC solver in 4-dimensions
+    # Example 6: Using custom MCMC solver on single-layer model.
+    k_initial = np.mean((k_min, k_max))
+    model_initial_poor = np.array([34, Vp_c/k_initial])
+
+    Vp = [Vp_c]
+    rho = [rho_c]
+    fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
+    H_min, H_max = (25.0, 50.0)
+    bounds = optimize.Bounds(np.array([H_min, Vp_c/k_max]),
+                             np.array([H_max, Vp_c/k_min]))
+
+    # - Custom MCMC solver
+    logging.info('Trying custom MCMC solver...')
+    soln_mcmc = optimize_minimize_mhmcmc_cluster(objective_fn, bounds, fixed_args, x0=model_initial_poor, T=0.025,
+                                                 burnin=1000, maxiter=5000, collect_samples=10000, logger=logging)
+    logging.info('Result:\n{}'.format(soln_mcmc))
+
+    # Run grid search purely for visualization purposes
+    H_space = np.linspace(H_min, H_max, 51)
+    k_space = np.linspace(k_min, k_max, 51)
+    H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
+                                      flux_window=FLUX_WINDOW)
+
+    def overlay_mcmc(axes):
+        x = soln_mcmc.x.copy()
+        for i, _x in enumerate(x):
+            color = '#13f50e'
+            cluster = soln_mcmc.clusters[i]
+            axes.scatter(Vp_c/cluster[:, 1], cluster[:, 0], c=color, s=5, alpha=0.3)
+            axes.scatter(_x[0], _x[1], marker='x', s=100, c=color, alpha=0.9)
+            axes.scatter(_x[0], _x[1], marker='o', s=160, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
+        # end for
+
+    # end func
+
+    plot_Esu_space(H, k, Esu, decorator=overlay_mcmc)
+
+# end func
+
+
+def example_7():
+    # Example 7: Adding a sedimentary layer and using MCMC solver in 4-dimensions
     pass
 # end func
 
@@ -272,11 +308,15 @@ if __name__ == "__main__":
     example_3()
 
     # -----------------------------------------------------------------------------
-    # Example 4: Demonstrate syntactic usage of various minimization solver algorithms.
+    # Example 4: Demonstrate syntactic usage of various scipy minimization solver algorithms.
     example_4()
 
     # -----------------------------------------------------------------------------
     # Example 5: Adding a sedimentary layer and directly using global minimizer
     example_5()
+
+    example_6()
+
+    example_7()
 
 # end if
