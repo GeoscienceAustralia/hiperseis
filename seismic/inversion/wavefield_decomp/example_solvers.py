@@ -13,21 +13,13 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 import numpy as np
 from scipy.optimize import Bounds
 import matplotlib.pyplot as plt
+from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin
+import seaborn as sb
 
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
 
-def bi_quadratic(x, mu, cov):
-    # The number returned from the function must be non-negative.
-    # The exponential of the negative of this value is the probablity.
-    sqrt_arg = np.matmul(np.matmul((x - mu).T, cov), x - mu)
-    assert sqrt_arg >= 0
-    x2fac = np.sqrt(sqrt_arg)
-    return x2fac
-# end func
-
-
-def plot(solution, title=''):
+def plot_2d(solution, title=''):
     # Visualize results.
     plt.figure(figsize=(16, 8))
     ndims = solution.x.shape[-1]
@@ -68,11 +60,31 @@ def plot(solution, title=''):
 # end func
 
 
-def main():
-    # Test functions as per https://en.wikipedia.org/wiki/Test_functions_for_optimization
-    from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin
+def plot_3d(soln, title=''):
+    ndims = soln.x.shape[-1]
+    height = 5
+    aspect_ratio = 1
+    figsize = (ndims*height*aspect_ratio, ndims*height)
+    fig, axes = plt.subplots(ndims, ndims, figsize=figsize, sharex='col', sharey='row', squeeze=False)
+    # Plot samples if available in grey. Then overlay with scatter plot of clusters.
+    # Plot full histogram on the diagonal for each variable.
+    # Label scatter plots and histograms with actual solution values colour coded by cluster.
+    # Set axes limits from the pre-defined bounds.
 
-    logger = logging.getLogger(__name__)
+# end func
+
+
+def example_2d():
+    # 2D test functions as per https://en.wikipedia.org/wiki/Test_functions_for_optimization
+
+    def bi_quadratic(x, mu, cov):
+        # The number returned from the function must be non-negative.
+        # The exponential of the negative of this value is the probablity.
+        sqrt_arg = np.matmul(np.matmul((x - mu).T, cov), x - mu)
+        assert sqrt_arg >= 0
+        x2fac = np.sqrt(sqrt_arg)
+        return x2fac
+    # end func
 
     logging.info("Solving sphere function")
     bounds = Bounds(np.array([-3, -3]), np.array([3, 3]))
@@ -80,7 +92,7 @@ def main():
         sphere, bounds, burnin=10000, maxiter=50000, collect_samples=10000, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Sphere function minima')
+        plot_2d(soln, title='Sphere function minima')
     # end if
 
     logging.info("Solving himmelblau function")
@@ -89,7 +101,7 @@ def main():
         himmelblau, bounds, burnin=10000, maxiter=50000, collect_samples=10000, target_ar=0.3, T=10, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Himmelblau function minima')
+        plot_2d(soln, title='Himmelblau function minima')
     # end if
 
     logging.info("Solving easom function")
@@ -97,7 +109,7 @@ def main():
     soln = optimize_minimize_mhmcmc_cluster(easom, bounds, burnin=10000, maxiter=50000, collect_samples=10000, T=0.2)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Easom function minima')
+        plot_2d(soln, title='Easom function minima')
     # end if
 
     logging.info("Solving rosenbrock function")
@@ -106,7 +118,7 @@ def main():
                                             T=1000)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Rosenbrock function minima')
+        plot_2d(soln, title='Rosenbrock function minima')
     # end if
 
     logging.info("Solving rastrigin function")
@@ -115,7 +127,7 @@ def main():
                                             collect_samples=10000, T=5, N=5, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Rastrigin function minima')
+        plot_2d(soln, title='Rastrigin function minima')
     # end if
 
     # Custom test function
@@ -128,11 +140,40 @@ def main():
                                             rnd_seed=20200220, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot(soln, title='Custom bi-variate quadratic function minima')
+        plot_2d(soln, title='Custom bi-variate quadratic function minima')
     # end if
 # end func
 
 
+def example_3d():
+    logging.info("Solving 3D sphere function")
+    translate = np.array([-1, 1.5, 2.5])
+    bounds = Bounds(np.array([-3, -3, -3]) + translate, np.array([3, 3, 3]) + translate)
+    soln = optimize_minimize_mhmcmc_cluster(lambda xyz: sphere(xyz - translate),
+                                            bounds, burnin=10000, maxiter=50000, collect_samples=10000, logger=logger)
+    if soln.success:
+        logging.info("Solution:\n{}".format(soln.x))
+        plot_3d(soln, title='Sphere 3D function minima')
+    # end if
+
+# end func
+
+
+def example_4d():
+    pass
+# end func
+
+
+def main():
+
+    # example_2d()
+    example_3d()
+    # example_4d()
+
+# end func
+
+
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
     main()
 # end if
