@@ -8,8 +8,10 @@ import rf
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+# import matplotlib.tri as tri
 import pandas as pd
 from scipy import interpolate
+from obspy.geodetics.base import gps2dist_azimuth
 
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
@@ -215,7 +217,8 @@ def gravity_subplot(hf, metadata, grav_map):
     pos_cb.y0 += 0.2
     hf.axes[1].set_position(pos_cb)
 
-    # Add gravity plot
+    # Add gravity plot. Ignores curvature of earth in transect projection to distance
+    # from starting point, just uses Euclidean geometry.
     start = metadata['transect_start']
     end = metadata['transect_end']
     dirn = metadata['transect_dirn']
@@ -227,7 +230,10 @@ def gravity_subplot(hf, metadata, grav_map):
     ax_grav.set_position(pos_grav)
     plt.sca(ax_grav)
     plt.title("Gravity survey", fontsize=8, y=0.80)
-    grav_pos = np.linspace(start, end, 1000)
+    RESAMPLES_PER_KM = 2.0
+    transect_len_km = gps2dist_azimuth(*start, *end)[0]/1000.0
+    num_samples = int(np.ceil(transect_len_km*RESAMPLES_PER_KM))
+    grav_pos = np.linspace(start, end, num_samples)
     grav_vals = grav_map(grav_pos)
     grav_dist = np.dot((grav_pos - start), dirn)*KM_PER_DEG
     plt.plot(grav_dist, grav_vals)
@@ -277,12 +283,16 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
 
     # Custom plot modifiers. Leave commented for now until refactoring in ticket PST-479
-    # print("Loading gravity data...")
-    # grav = np.load('post_analysis/GravityGrid.xyz.npy')
-    # print("Creating interpolator...")
-    # grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
+    print("Loading gravity data...")
+    grav = np.load('post_analysis/GravityGrid.xyz.npy')
+    # Cut gravity map to region of interest
+    OA_region_mask = (grav[:, 1] >= -23) & (grav[:, 1] <= -17) & (grav[:, 0] >= 132) & (grav[:, 0] <= 142)
+    grav = grav[OA_region_mask, :]
+    print("Creating interpolator...")
+    grav_map = interpolate.CloughTocher2DInterpolator(grav[:, 0:2], grav[:, 2])
     # annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
-    annotators = None
+    annotators = [lambda hf, md: gravity_subplot(hf, md, grav_map)]
+    # annotators = None
     print("Producing plot...")
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
