@@ -179,7 +179,7 @@ class AdaptiveStepsize():
 
 def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N=3, burnin=100000, maxiter=1000000,
                                      target_ar=0.4, ar_tolerance=0.05, cluster_eps=0.05, rnd_seed=None,
-                                     collect_samples=None, logger=None):
+                                     collect_samples=None, logger=None, verbose=False):
     """
     Minimize objective function and return up to N local minima solutions.
 
@@ -230,7 +230,8 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 
     # Set up stepper with adaptive acceptance rate
     stepper = BoundedRandNStepper(bounds)
-    stepper = AdaptiveStepsize(stepper, accept_rate=target_ar, ar_tolerance=ar_tolerance, interval=50)
+    stepper = AdaptiveStepsize(stepper, accept_rate=target_ar, ar_tolerance=ar_tolerance, interval=50,
+                               logger=logger if verbose else None)
 
     # -------------------------------
     # DO BURN-IN
