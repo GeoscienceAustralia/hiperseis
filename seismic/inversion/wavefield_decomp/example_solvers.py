@@ -13,125 +13,18 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 import numpy as np
-import pandas as pd
 from scipy.optimize import Bounds
 import matplotlib.pyplot as plt
 from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin, styblinski_tang
-import seaborn as sb
 
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
+from seismic.inversion.wavefield_decomp.wfd_plot import plot_Nd
 
 # pylint: disable=invalid-name, missing-function-docstring, logging-format-interpolation, too-many-statements
 
 
-def plot_Nd(soln, title='', scale=1.0):
-    """Plotting routine for N-dimensional solution in grid format.
-
-    :param soln: [description]
-    :type soln: [type]
-    :param title: [description], defaults to ''
-    :type title: str, optional
-    :param scale: [description], defaults to 1.0
-    :type scale: float, optional
-    :return: [description]
-    :rtype: [type]
-    """
-
-    soln_alpha = 0.3
-    samples_alpha = 0.05
-    hist_alpha = 0.5
-    axis_font_size = 12
-    text_font_size = 10
-    ndims = len(soln.bounds.lb)
-
-    # Use PairGrid to set up grid and useful attributes of plot.
-    df = pd.DataFrame(soln.samples, columns=['x' + str(i) for i in range(ndims)])
-    p = sb.PairGrid(df, height=3.2*scale)
-    # Plot samples (not actual solution, just samples of MCMC process) as grey background on off-diagonals.
-    p = p.map_offdiag(plt.scatter, color='#808080', alpha=samples_alpha, s=2*scale**2)
-
-    diag_hist_ax = []
-    row_idx, col_idx = np.indices((ndims, ndims))
-    adjustable_text = []  # Collect line text labels
-    for row, col in zip(row_idx.flat, col_idx.flat):
-        if row == col:
-            # Diagonal plots - use full sample histogram.
-            # axd is the original diagonal axes created by PairGrid
-            axd = p.axes[row, row]
-            # Set label sizes
-            axd.tick_params(labelsize=axis_font_size*scale)
-            axd.xaxis.label.set_size(axis_font_size*scale)
-            axd.yaxis.label.set_size(axis_font_size*scale)
-            # Duplicate axes with separate, hidden vertical scale for the histogram.
-            ax = axd.twinx()
-            ax.set_axis_off()
-            # Plot full samples histogram.
-            deltas = np.diff(soln.bins[row])
-            ax.bar(soln.bins[row, :-1] + 0.5*deltas, soln.distribution[row], color='#808080',
-                   alpha=hist_alpha, width=np.min(deltas))
-            ax.set_title('x{} sample distribution'.format(row), y=0.9, color='#404040', fontsize=11*scale)
-            # Add vertical lines to histogram to indication solution locations and label value.
-            for i, _x in enumerate(soln.x):
-                color = 'C' + str(i)
-                ax.axvline(_x[row], color=color, linestyle='--', linewidth=1.2*scale)
-                # Sneakily use the axd axes for labelling, as it has same scale on x- and y- axes,
-                # which we can use to make sure the labels for multiple solutions are at different heights.
-                # Work out exact position on local x-axis.
-                x_lim = ax.get_xlim()
-                x_range = x_lim[1] - x_lim[0]
-                if (_x[row] - x_lim[0])/x_range >= 0.5:
-                    hjust = 'left'
-                    hoffset = 0.02*x_range
-                else:
-                    hjust = 'right'
-                    hoffset = -0.02*x_range
-                # end if
-                # Work out exact position on local y-axis, using full N-dimensional solution to minimize
-                # overlap by project N-dimensional position onto the diagonal of the bounded space.
-                bounds_diag = soln.bounds.ub - soln.bounds.lb
-                denom = np.dot(bounds_diag, bounds_diag)
-                y_pos_norm = np.dot(_x - soln.bounds.lb, bounds_diag)/denom
-                assert 0.0 <= y_pos_norm <= 1.0
-                y_pos = x_lim[0] + y_pos_norm*x_range
-                if y_pos_norm >= 0.5:
-                    vjust = 'bottom'
-                else:
-                    vjust = 'top'
-                # end if
-                t = axd.text(_x[row] + hoffset, y_pos, '{:.3f}'.format(_x[row]), ha=hjust, va=vjust, color=color,
-                             fontsize=text_font_size*scale, fontstyle='italic', fontweight='semibold', zorder=100+i)
-                adjustable_text.append(t)
-            # end for
-            diag_hist_ax.append(ax)
-        else:
-            # Off-diagonal plots.
-            ax = p.axes[row, col]
-            # Set label sizes
-            ax.tick_params(labelsize=axis_font_size*scale)
-            ax.xaxis.label.set_size(axis_font_size*scale)
-            ax.yaxis.label.set_size(axis_font_size*scale)
-            # Plot distinct solution clusters
-            for i, cluster in enumerate(soln.clusters):
-                color = 'C' + str(i)
-                ax.scatter(cluster[:, col], cluster[:, row], c=color, s=2*scale**2, alpha=soln_alpha)
-            # end for
-            # Add dotted grid
-            p.axes[row, col].grid(color='#80808080', linestyle=':')
-        # end if
-    # end for
-    # Overall plot title
-    if title:
-        plt.suptitle(title, y=1.0, fontsize=16*scale)
-    # end if
-    # TODO: figure out how to adjust line labels in the y-direction so not overlapping,
-    #   see https://support.sisense.com/hc/en-us/community/posts/360037908374-Getting-Around-Overlapping-Data-Labels-With-Python
-
-    return p, diag_hist_ax, adjustable_text
-# end func
-
-
 def plot_Nd_joint(soln, title='', scale=1.0):
-    # TBD: JointPlot format for N-dimensional solution.
+    # TBD: Develop JointPlot format for N-dimensional solution.
     pass
 # end func
 

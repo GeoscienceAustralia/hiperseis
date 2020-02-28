@@ -1,1 +1,3 @@
 sortedcontainers
+seaborn
+landscapes
