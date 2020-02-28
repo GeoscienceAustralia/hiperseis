@@ -6,6 +6,8 @@ Examples of using the optimization (minimization) solver functions.
 
 import logging
 
+#pylint: disable=wrong-import-position
+
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                     level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -14,53 +16,12 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import Bounds
 import matplotlib.pyplot as plt
-from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin
+from landscapes.single_objective import sphere, himmelblau, easom, rosenbrock, rastrigin, styblinski_tang
 import seaborn as sb
 
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
-
 # pylint: disable=invalid-name, missing-function-docstring, logging-format-interpolation, too-many-statements
-
-def plot_2d(solution, title=''):
-    # Visualize results.
-    plt.figure(figsize=(16, 8))
-    ndims = solution.x.shape[-1]
-    for i in range(ndims):
-        plt.subplot(1, ndims, i + 1)
-        plt.bar(solution.bins[i, :-1] + 0.5*np.diff(solution.bins[i, :]), solution.distribution[i, :])
-        # plt.xticks(hist.bins[i, :])
-        plt.xlabel('x{}'.format(i))
-        plt.ylabel('Counts')
-    # end for
-    plt.show()
-
-    plt.figure(figsize=(8, 8))
-    if solution.samples is not None:
-        plt.scatter(solution.samples[:, 0], solution.samples[:, 1], c='#202020', alpha=0.05, s=5)
-    # end if
-    x = solution.x.copy()
-    if len(x) == 1:
-        np.expand_dims(x, axis=0)
-    for i, _x in enumerate(x):
-        color = 'C' + str(i)
-        cluster = solution.clusters[i]
-        plt.scatter(cluster[:, 0], cluster[:, 1], c=color, s=5, alpha=0.3)
-        plt.scatter(_x[0], _x[1], marker='x', s=200, c=color, alpha=0.9)
-        plt.scatter(_x[0], _x[1], marker='o', s=320, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
-    # end for
-    plt.xlim(solution.bounds.lb[0], solution.bounds.ub[0])
-    plt.ylim(solution.bounds.lb[1], solution.bounds.ub[1])
-    plt.axis('equal')
-    plt.xlabel('x0')
-    plt.ylabel('x1')
-    if title:
-        plt.title(title)
-    # end if
-    plt.grid(color='#80808080', linestyle=':')
-    # plt.savefig(objective.__name__.replace('<', '').replace('>', '') + '.png', dpi=300)
-    plt.show()
-# end func
 
 
 def plot_Nd(soln, title='', scale=1.0):
@@ -160,7 +121,7 @@ def plot_Nd(soln, title='', scale=1.0):
     # end for
     # Overall plot title
     if title:
-        plt.suptitle(title, y=1.05, fontsize=16*scale)
+        plt.suptitle(title, y=1.0, fontsize=16*scale)
     # end if
     # TODO: figure out how to adjust line labels in the y-direction so not overlapping,
     #   see https://support.sisense.com/hc/en-us/community/posts/360037908374-Getting-Around-Overlapping-Data-Labels-With-Python
@@ -193,7 +154,7 @@ def example_2d():
         sphere, bounds, burnin=10000, maxiter=50000, collect_samples=10000, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Sphere function minima')
+        plot_Nd(soln, title='Sphere function minima', scale=1.3)
     # end if
 
     logging.info("Solving himmelblau function")
@@ -202,7 +163,7 @@ def example_2d():
         himmelblau, bounds, burnin=10000, maxiter=50000, collect_samples=10000, target_ar=0.3, T=10, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Himmelblau function minima')
+        plot_Nd(soln, title='Himmelblau function minima', scale=1.3)
     # end if
 
     logging.info("Solving easom function")
@@ -210,7 +171,7 @@ def example_2d():
     soln = optimize_minimize_mhmcmc_cluster(easom, bounds, burnin=10000, maxiter=50000, collect_samples=10000, T=0.2)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Easom function minima')
+        plot_Nd(soln, title='Easom function minima', scale=1.3)
     # end if
 
     logging.info("Solving rosenbrock function")
@@ -219,7 +180,7 @@ def example_2d():
                                             T=1000)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Rosenbrock function minima')
+        plot_Nd(soln, title='Rosenbrock function minima', scale=1.3)
     # end if
 
     logging.info("Solving rastrigin function")
@@ -228,7 +189,7 @@ def example_2d():
                                             collect_samples=10000, T=5, N=5, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Rastrigin function minima')
+        plot_Nd(soln, title='Rastrigin function minima', scale=1.3)
     # end if
 
     # Custom test function
@@ -241,7 +202,7 @@ def example_2d():
                                             rnd_seed=20200220, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        plot_2d(soln, title='Custom bi-variate quadratic function minima')
+        plot_Nd(soln, title='Custom bi-variate quadratic function minima', scale=1.3)
     # end if
 # end func
 
@@ -254,7 +215,7 @@ def example_3d():
                                             bounds, burnin=10000, maxiter=50000, collect_samples=10000, logger=logger)
     if soln.success:
         logging.info("Solution:\n{}".format(soln.x))
-        p, _, _ = plot_Nd(soln, title='Sphere 3D function minima', scale=1.2)
+        p, _, _ = plot_Nd(soln, title='Sphere 3D function minima', scale=1.0)
         p.savefig('sphere_3d_viz_example.png', dpi=300)
         plt.show()
     # end if
@@ -274,15 +235,26 @@ def example_3d():
 
 
 def example_4d():
-    pass
+    logging.info("Solving 4D Styblinski-Tang function")
+    bounds = Bounds(np.array([-5, -5, -5, -5]), np.array([5, 5, 5, 5]))
+    soln = optimize_minimize_mhmcmc_cluster(
+        styblinski_tang, bounds, burnin=100000, maxiter=500000, collect_samples=20000, T=20, N=5, logger=logger,
+        target_ar=0.5, ar_tolerance=0.04)
+    if soln.success:
+        logging.info("Solution:\n{}".format(soln.x))
+        p, _, _ = plot_Nd(soln, title='Styblinski-Tang function minima', scale=0.7)
+        p.savefig('styblinski_tang_4d_viz_example.png', dpi=300)
+        plt.show()
+    # end if
+
 # end func
 
 
 def main():
 
-    # example_2d()
+    example_2d()
     example_3d()
-    # example_4d()
+    example_4d()
 
 # end func
 
