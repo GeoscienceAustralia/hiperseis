@@ -212,7 +212,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 
     if collect_samples is not None:
         assert isinstance(collect_samples, int), "collect_samples expected to be integral type"
-        assert collect_samples > 0
+        assert collect_samples > 0, "collect_samples expected to be positive"
     # end if
 
     beta = 1.0/T
@@ -258,20 +258,24 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     # -------------------------------
     # DO MAIN LOOP
     if collect_samples is not None:
-        sample_cadence = main_iter//min(collect_samples, main_iter)
-        samples = np.zeros((collect_samples, len(x)))
-        sample_count = 0
+        nsamples = min(collect_samples, main_iter)
+        sample_cadence = main_iter/nsamples
+        samples = np.zeros((nsamples, len(x)))
     # end if
     accepted = 0
     rejected_randomly = 0
     minima = SortedList(key=lambda rec: rec[1])
     hist = HistogramIncremental(bounds, nbins=100)
     # Cached a lot of potential minimum values, as these need to be clustered before return N results
-    N_cached = N*main_iter//500
+    N_cached = int(np.ceil(N*main_iter/500))
+    next_sample = 0.0
+    sample_count = 0
     for i in tqdm(range(main_iter), total=main_iter, desc='MAIN'):
-        if collect_samples and (i % sample_cadence) == 0:
+        if collect_samples and i >= next_sample:
+            assert sample_count < collect_samples
             samples[sample_count] = x
             sample_count += 1
+            next_sample += sample_cadence
         # end if
         x_new = stepper(x)
         funval_new = obj_counted(x_new, *args)
