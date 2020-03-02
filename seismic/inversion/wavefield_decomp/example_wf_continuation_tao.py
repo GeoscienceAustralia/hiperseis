@@ -247,8 +247,8 @@ if __name__ == "__main__":
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    # target_station = 'BT23'
-    target_station = 'CD23'
+    target_station = 'BT23'
+    # target_station = 'CD23'
     logging.info("Loading input file...")
     src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
                 r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
@@ -349,10 +349,10 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 6: Using custom MCMC solver on single-layer model.
-    # example_6()
+    example_6()
 
     # -----------------------------------------------------------------------------
     # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
-    example_7('OA', target_station)
+    # example_7('OA', target_station)
 
 # end if
