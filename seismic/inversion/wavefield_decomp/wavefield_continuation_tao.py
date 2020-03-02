@@ -12,10 +12,28 @@ import copy
 
 import numpy as np
 
+try:
+    import pyfftw
+
+    pyfftw.interfaces.cache.enable()
+    pyfftw.interfaces.cache.set_keepalive_time(60)
+
+    from pyfftw.interfaces.numpy_fft import fft, ifft, irfft, fftfreq
+
+    pyfftw.config.NUM_THREADS = -1  # Use all available
+
+except ImportError:
+    print('pyfftw import failed, falling back to numpy')
+    from numpy.fft import fft, ifft, irfft, fftfreq
+# end try
+
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from seismic.receiver_fn.rf_util import sinc_resampling
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 
+
+# def profile(f):
+#     return f
 
 class WfContinuationSuFluxComputer:
     """
@@ -157,11 +175,11 @@ class WfContinuationSuFluxComputer:
         self._v0.flags.writeable = False
 
         # Transform v0 to the spectral domain using real FFT
-        self._fv0 = np.fft.fft(self._v0, axis=-1)
+        self._fv0 = fft(self._v0, axis=-1)
         self._fv0.flags.writeable = False
 
         # Compute discrete frequencies
-        self._w = 2 * np.pi * np.fft.fftfreq(self._npts, self._dt)
+        self._w = 2 * np.pi * fftfreq(self._npts, self._dt)
         self._w.flags.writeable = False
 
     # end if
@@ -170,6 +188,7 @@ class WfContinuationSuFluxComputer:
         return self._time_axis
     # end if
 
+    @profile
     def __call__(self, mantle_props, layer_props, flux_window=(-10, 20)):
         """Compute upgoing S-wave energy at top of mantle for set of seismic time series in self._v0.
 
@@ -190,7 +209,7 @@ class WfContinuationSuFluxComputer:
 
         num_pos_freq_terms = (fvm.shape[2] + 1) // 2
         # Velocities at top of mantle
-        vm = np.fft.irfft(fvm[:, :, :num_pos_freq_terms], self._npts, axis=2)
+        vm = irfft(fvm[:, :, :num_pos_freq_terms], self._npts, axis=2)
 
         # Compute coefficients of energy integral for upgoing S-wave
         qb_m = np.sqrt(1 / mantle_props.Vs ** 2 - self._p * self._p)
@@ -213,6 +232,7 @@ class WfContinuationSuFluxComputer:
     # end func
 
     @staticmethod
+    @profile
     def _mode_matrices(Vp, Vs, rho, p):
         """Compute M, M_inv and Q for a single layer for a scalar or array of ray parameters p.
 
@@ -273,6 +293,7 @@ class WfContinuationSuFluxComputer:
     # end func
 
     @staticmethod
+    @profile
     def _propagate_layers(fv0, w, layer_props, p):
         """
         Apply wavefield downward continuation to surface seismogram fv0 in the frequency domain.
@@ -343,6 +364,12 @@ class WfContinuationSuFluxComputer:
 
         H, k = np.meshgrid(H_vals, k_vals)
         Esu = np.zeros(H.shape)
+
+        if ncpus != 1:
+            pyfftw.config.NUM_THREADS = 1  # Don't overload cores with FFT ops when already subscribed by joblib
+        else:
+            pyfftw.config.NUM_THREADS = -1
+        # end if
 
         # Run grid search and collect results.
         # Each loop of this generator expression creates a new copy of layer_props.
