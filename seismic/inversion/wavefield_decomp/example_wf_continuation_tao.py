@@ -189,9 +189,36 @@ def example_6():
 # end func
 
 
-def example_7():
+def example_7(net_code, sta_code):
     # Example 7: Adding a sedimentary layer and using MCMC solver in 4-dimensions
-    pass
+
+    # Assumed sediment property constants
+    Vp_s = 2.1
+    rho_s = 1.97
+
+    Vp = [Vp_s, Vp_c]
+    rho = [rho_s, rho_c]
+    fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
+    # H_initial = [1.0, 35.0]  # sediment, crust
+    # Vs_initial = [0.8, 3.4]  # sediment, crust
+    # model_initial_sed = np.array(zip(H_initial, Vs_initial))
+    H_sed_min, H_sed_max = (0, 3.5)
+    Vs_sed_min, Vs_sed_max = (0.3, 2.5)
+    H_cru_min, H_cru_max = (20.0, 60.0)
+    Vs_cru_min, Vs_cru_max = (Vp_c/k_max, Vp_c/k_min)
+    bounds = optimize.Bounds(np.array([H_sed_min, Vs_sed_min, H_cru_min, Vs_cru_min]),
+                             np.array([H_sed_max, Vs_sed_max, H_cru_max, Vs_cru_max]))
+
+    logging.info('MCMC solver (sedimentary)...')
+    soln_mcmc = optimize_minimize_mhmcmc_cluster(
+        objective_fn_wrapper, bounds, fixed_args, T=0.025, burnin=100000, maxiter=800000, target_ar=0.5,
+        collect_samples=100000, logger=logging, verbose=True)
+    logging.info('Result:\n{}'.format(soln_mcmc))
+
+    if soln_mcmc.success and len(soln_mcmc.x) > 0:
+        p, _, _ = plot_Nd(soln_mcmc, title='{}.{} sedimentary solution'.format(net_code, sta_code), scale=0.7)
+        p.savefig('{}.{}_sedimentary_result.pdf'.format(net_code, sta_code), dpi=300)
+    # end if
 # end func
 
 
@@ -220,8 +247,8 @@ if __name__ == "__main__":
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    target_station = 'BT23'
-    # target_station = 'CI23'
+    # target_station = 'BT23'
+    target_station = 'CD23'
     logging.info("Loading input file...")
     src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
                 r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
@@ -322,10 +349,10 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 6: Using custom MCMC solver on single-layer model.
-    example_6()
+    # example_6()
 
     # -----------------------------------------------------------------------------
     # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
-    example_7()
+    example_7('OA', target_station)
 
 # end if
