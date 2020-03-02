@@ -162,8 +162,8 @@ def example_6():
     # - Custom MCMC solver
     logging.info('Trying custom MCMC solver...')
     soln_mcmc = optimize_minimize_mhmcmc_cluster(
-        objective_fn_wrapper, bounds, fixed_args, x0=model_initial_poor, T=0.025, burnin=1000, maxiter=5000,
-        collect_samples=10000, logger=logging)
+        objective_fn_wrapper, bounds, fixed_args, x0=model_initial_poor, T=0.025, burnin=500, maxiter=5000,
+        collect_samples=2000, logger=logging, verbose=True)
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     # Run grid search purely for visualization purposes
@@ -320,8 +320,12 @@ if __name__ == "__main__":
     # # Example 5: Adding a sedimentary layer and directly using global minimizer
     # example_5()
 
+    # -----------------------------------------------------------------------------
+    # Example 6: Using custom MCMC solver on single-layer model.
     example_6()
 
+    # -----------------------------------------------------------------------------
+    # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
     example_7()
 
 # end if
