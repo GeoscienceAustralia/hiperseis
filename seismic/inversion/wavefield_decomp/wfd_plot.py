@@ -59,7 +59,7 @@ def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range
 # end func
 
 
-def plot_Nd(soln, title='', scale=1.0):
+def plot_Nd(soln, title='', scale=1.0, vars=None):
     """Plotting routine for N-dimensional solution in grid format. Diagonal contains histograms of solution
     samples for each variable, and off-diagonal contains pair-wise scatter plots of sample points plus
     solution clusters. The distinct solutions coordinates are colour coded and labelled on the histograms.
@@ -70,6 +70,8 @@ def plot_Nd(soln, title='', scale=1.0):
     :type title: str, optional
     :param scale: Scale size of overall plot, defaults to 1.0. Adjust this depending on dimensionality or desired size.
     :type scale: float, optional
+    :param vars: List of names of variables, should be same length as dimensionality of solution
+    :type vars: list(str)
     :return: Tuple containing the PairGrid, list of axes for the secondary (histogram) axes in the diagonal of
         the grid, and list of text items representing solution labels.
     :rtype: tuple(seaborn.PairGrid, list(matplotlib.axes.Axes), list(matplotlib.text.Text))
@@ -82,8 +84,12 @@ def plot_Nd(soln, title='', scale=1.0):
     text_font_size = 10
     ndims = len(soln.bounds.lb)
 
+    if vars is None:
+        vars = ['x' + str(i) for i in range(ndims)]
+    # end if
+
     # Use PairGrid to set up grid and useful attributes of plot.
-    df = pd.DataFrame(soln.samples, columns=['x' + str(i) for i in range(ndims)])
+    df = pd.DataFrame(soln.samples, columns=vars)
     p = sb.PairGrid(df, height=3.2*scale)
     # Plot samples (not actual solution, just samples of MCMC process) as grey background on off-diagonals.
     p = p.map_offdiag(plt.scatter, color='#808080', alpha=samples_alpha, s=2*scale**2)
@@ -107,7 +113,7 @@ def plot_Nd(soln, title='', scale=1.0):
             deltas = np.diff(soln.bins[row])
             ax.bar(soln.bins[row, :-1] + 0.5*deltas, soln.distribution[row], color='#808080',
                    alpha=hist_alpha, width=np.min(deltas))
-            ax.set_title('x{} sample distribution'.format(row), y=0.9, color='#404040', fontsize=11*scale)
+            ax.set_title('{} sample distribution'.format(vars[row]), y=0.9, color='#404040', fontsize=11*scale)
             # Add vertical lines to histogram to indication solution locations and label value.
             for i, _x in enumerate(soln.x):
                 color = 'C' + str(i)

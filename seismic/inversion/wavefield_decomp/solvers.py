@@ -220,6 +220,9 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     if rnd_seed is not None:
         np.random.seed(rnd_seed)
     # end if
+    if logger:
+        logger.info('Using random seed {}'.format(np.random.get_state()[1][0]))
+    # end
 
     if x0 is None:
         x0 = np.random.uniform(bounds.lb, bounds.ub)

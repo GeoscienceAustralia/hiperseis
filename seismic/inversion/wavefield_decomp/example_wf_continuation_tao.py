@@ -3,6 +3,7 @@
 """Examples of usage of the Tao wavefield continuation algorithm for solving layer properties.
 """
 
+import sys
 import logging
 
 #pylint: disable=wrong-import-position
@@ -170,7 +171,7 @@ def example_6():
     H_space = np.linspace(H_min, H_max, 51)
     k_space = np.linspace(k_min, k_max, 51)
     H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
-                                      flux_window=FLUX_WINDOW)
+                                      flux_window=FLUX_WINDOW, ncpus=-3)
 
     def overlay_mcmc(axes):
         x = soln_mcmc.x.copy()
@@ -181,10 +182,10 @@ def example_6():
             axes.scatter(_x[0], _x[1], marker='x', s=100, c=color, alpha=0.9)
             axes.scatter(_x[0], _x[1], marker='o', s=160, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
         # end for
-
     # end func
 
     plot_Esu_space(H, k, Esu, decorator=overlay_mcmc)
+    # plot_Esu_space(H, k, Esu)
 
 # end func
 
@@ -216,8 +217,11 @@ def example_7(net_code, sta_code):
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     if soln_mcmc.success and len(soln_mcmc.x) > 0:
-        p, _, _ = plot_Nd(soln_mcmc, title='{}.{} sedimentary solution'.format(net_code, sta_code), scale=0.7)
-        p.savefig('{}.{}_sedimentary_result.pdf'.format(net_code, sta_code), dpi=300)
+        p, _, _ = plot_Nd(soln_mcmc, title='{}.{} sedimentary solution'.format(net_code, sta_code),
+                          scale=0.7, vars=['$H_s$', '$k_s$', '$H_c$', '$k_c$'])
+        for format in ['.png', '.pdf']:
+            p.savefig('{}.{}_sedimentary_result'.format(net_code, sta_code) + format, dpi=300)
+        # end for
     # end if
 # end func
 
@@ -247,8 +251,11 @@ if __name__ == "__main__":
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    target_station = 'BT23'
-    # target_station = 'CD23'
+    if len(sys.argv) > 1:
+        target_station = sys.argv[1]
+    else:
+        target_station = 'BT23'
+    # endif
     logging.info("Loading input file...")
     src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
                 r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
@@ -349,10 +356,10 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Example 6: Using custom MCMC solver on single-layer model.
-    example_6()
+    # example_6()
 
     # -----------------------------------------------------------------------------
     # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
-    # example_7('OA', target_station)
+    example_7('OA', target_station)
 
 # end if
