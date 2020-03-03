@@ -134,7 +134,8 @@ def process(data_source1, data_source2, output_path,
             one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, restart=False, no_tracking_tag=False):
+            envelope_normalize=False, ensemble_stack=False, restart=False, dry_run=False,
+            no_tracking_tag=False):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -243,9 +244,22 @@ def process(data_source1, data_source2, output_path,
             pairs = cull_pairs(pairs, pairs_to_compute)
         # end if
 
+        # print out station-pairs for dry runs
+        if(dry_run):
+            print('Computing %d station-pairs: '%(len(pairs)))
+            for pair in pairs:
+                print('.'.join(pair))
+            # end for
+        # end if
+
         random.Random(nproc).shuffle(pairs) # using nproc as seed so that shuffle produces the same
                                             # ordering when jobs are restarted.
         proc_stations = split_list(pairs, npartitions=nproc)
+    # end if
+
+    if(dry_run):
+        # nothing more to do for dry runs
+        return
     # end if
 
     # broadcast workload to all procs
@@ -311,7 +325,8 @@ def process(data_source1, data_source2, output_path,
         else: raise ValueError('Invalid corr-chan')
 
         if(len(corr_chans)<2):
-            print(('Channels not found for either station %s or %s..')%(netsta1, netsta2))
+            print(('Either required channels are not found for station %s or %s, '
+                   'or no overlapping data exists..')%(netsta1, netsta2))
             continue
         # end if
 
@@ -366,7 +381,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--taper-length', default=0.05, help="Taper length as a fraction of window length; default 0.05")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
                                                        " to correlate against a given station in data-source-1. If"
-                                                       " set to -1, correlations for a cross-product of all stations"
+                                                       " set to -1, correlations for a cartesian product of all stations"
                                                        " in both data-sets are produced -- note, this is computationally"
                                                        " expensive.")
 @click.option('--fmin', default=None, help="Lowest frequency for bandpass filter; default is None")
@@ -448,13 +463,15 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "single CC function, aimed at producing empirical Greens "
                                                      "functions for surface wave tomography.")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
+@click.option('--dry-run', default=False, is_flag=True, help='Dry run for printing out station-pairs and '
+                                                             'additional stats.')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
          window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
          station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
          water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, restart, no_tracking_tag):
+         ensemble_stack, restart, dry_run, no_tracking_tag):
     """
     DATA_SOURCE1: Path to ASDF file \n
     DATA_SOURCE2: Path to ASDF file \n
@@ -474,7 +491,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
             water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, restart, no_tracking_tag)
+            ensemble_stack, restart, dry_run, no_tracking_tag)
 # end func
 
 if __name__ == '__main__':
