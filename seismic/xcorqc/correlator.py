@@ -417,8 +417,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    " which can improve efficiency, but has no effect on the results produced")
 @click.option('--ds1-zchan', default='BHZ',
               type=str,
-              help="Name of z-channel for data-source-1. This parameter and the ones following are only required when "
-                   "channel names are ambiguous, e.g. ['HHZ', u'HYZ', u'HNZ', u'MFZ']")
+              help="Name of z-channel for data-source-1. This parameter and the five following are required to "
+                   "specify channel names for the stations being cross-correlated. Simple wildcards, e.g. '*Z', are "
+                   "also supported -- this is particularly useful when cross-correlating pairs of short-period and "
+                   "broadband channels"
 @click.option('--ds1-nchan', default='BHN',
               type=str,
               help="Name of n-channel for data-source-1")
