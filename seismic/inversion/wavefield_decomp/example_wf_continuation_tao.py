@@ -15,7 +15,6 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 import numpy as np
 from scipy import stats
 import scipy.optimize as optimize
-# import matplotlib.pyplot as plt
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
@@ -334,29 +333,29 @@ if __name__ == "__main__":
     rho_c = 2.7
     k_min, k_max = (1.5, 2.1)
 
-    # # -----------------------------------------------------------------------------
-    # # Example 1: Computing energy for a single model proposition.
-    # example_1()
+    # -----------------------------------------------------------------------------
+    # Example 1: Computing energy for a single model proposition.
+    example_1()
 
-    # # -----------------------------------------------------------------------------
-    # # Example 2: Computing energy across a parametric space of models.
-    # example_2('OA', target_station)
+    # -----------------------------------------------------------------------------
+    # Example 2: Computing energy across a parametric space of models.
+    example_2('OA', target_station)
 
-    # # -----------------------------------------------------------------------------
-    # # Example 3: Using a global energy minimization solver to find solution.
-    # example_3()
+    # -----------------------------------------------------------------------------
+    # Example 3: Using a global energy minimization solver to find solution.
+    example_3()
 
-    # # -----------------------------------------------------------------------------
-    # # Example 4: Demonstrate syntactic usage of various scipy minimization solver algorithms.
-    # example_4()
+    # -----------------------------------------------------------------------------
+    # Example 4: Demonstrate syntactic usage of various scipy minimization solver algorithms.
+    example_4()
 
-    # # -----------------------------------------------------------------------------
-    # # Example 5: Adding a sedimentary layer and directly using global minimizer
-    # example_5()
+    # -----------------------------------------------------------------------------
+    # Example 5: Adding a sedimentary layer and directly using global minimizer
+    example_5()
 
     # -----------------------------------------------------------------------------
     # Example 6: Using custom MCMC solver on single-layer model.
-    # example_6()
+    example_6()
 
     # -----------------------------------------------------------------------------
     # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
