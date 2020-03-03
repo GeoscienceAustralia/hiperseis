@@ -11,6 +11,7 @@
 import copy
 
 import numpy as np
+import numexpr as ne
 
 try:
     import pyfftw
@@ -27,15 +28,13 @@ except ImportError:
     from numpy.fft import fft, ifft, irfft, fftfreq
 # end try
 
-import dask.array as da
-
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 from seismic.receiver_fn.rf_util import sinc_resampling
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 
 
-def profile(f):
-    return f
+# def profile(f):
+#     return f
 
 class WfContinuationSuFluxComputer:
     """
@@ -311,18 +310,20 @@ class WfContinuationSuFluxComputer:
         :return: Wavefield at top of mantle in frequency domain
         :rtype: numpy.array
         """
-        fz = da.from_array(np.hstack((fv0, np.zeros_like(fv0))))
+        fz = np.hstack((fv0, np.zeros_like(fv0)))
+        w_expanded = np.expand_dims(np.expand_dims(w, 0), 0)
         for layer in layer_props:
             M, Minv, Q = WfContinuationSuFluxComputer._mode_matrices(layer.Vp, layer.Vs, layer.rho, p)
-            fz = da.matmul(da.from_array(Minv), fz)
+            fz = np.matmul(Minv, fz)
             # Expanding dims on w here means that at each level of the stack, phase_args is np.outer(Q, w)
-            phase_args = da.from_array(np.matmul(Q, np.expand_dims(np.expand_dims(w, 0), 0)))
+            phase_args = np.matmul(Q, w_expanded)
             # assert np.allclose(np.outer(Q[0,:,:], w).flatten(), phase_args[0,:,:].flatten()), (Q, w)  # cross-check numerics
-            phase_factors = da.exp(1j*layer.H*phase_args)
-            fz = phase_factors*fz  # point-wise multiplication
-            fz = da.matmul(M, fz)
+            cplx_H = 1j*layer.H
+            # phase_factors = ne.evaluate('exp(cplx_H*phase_args)')
+            fz = ne.evaluate('exp(cplx_H*phase_args)*fz')
+            fz = np.matmul(M, fz)
         # end for
-        return fz.compute(scheduler='threads')
+        return fz
     # end func
 
 
