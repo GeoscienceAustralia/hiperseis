@@ -31,6 +31,7 @@ To set up the Python environment, the following high level order of operations m
 * netCDF4 1.4.0
 * h5py 2.10.0 (custom MPI build)
 * pyasdf 0.5.1
+* pyFFTW 0.12.0
 
 ### Limitations
 
@@ -47,6 +48,7 @@ dependencies in user space (`--user` option of `pip`).
   3. `module load python3-as-python`
   4. `module load openmpi/2.1.6-mt`
   5. `module load hdf5/1.10.5p`
+  6. `module load fftw3/3.3.8`
 
 #### Setup custom packages
 
@@ -60,6 +62,14 @@ dependencies in user space (`--user` option of `pip`).
 
 ##### mpi4py
   1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3.6 install mpi4py --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
+
+##### pyFFTW
+  1. `pip3.6 install --user cython`
+  2. `wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz`
+  3. `tar -zxvf v0.12.0.tar.gz`
+  4. `cd pyFFTW-0.12.0/`
+  5. `python setup.py build_ext --inplace`
+  6. `python setup.py install --user`
 
 #### Setup standard packages
   1. `pip3.6 install obspy==1.1.0 --user`
@@ -101,6 +111,7 @@ colorama==0.4.3
 configobj==5.0.6
 cryptography==2.3
 cycler==0.10.0
+Cython==0.29.15
 decorator==4.2.1
 defusedxml==0.6.0
 dill==0.3.1.1
@@ -143,6 +154,7 @@ notebook==6.0.2
 numpy==1.16.4
 obspy==1.1.0
 ofed-le-utils==1.0.3
+ordered-set==3.1.1
 packaging==19.2
 pandocfilters==1.4.2
 parso==0.5.1
@@ -158,9 +170,11 @@ prov==1.5.3
 psutil==5.6.7
 ptyprocess==0.6.0
 py==1.8.0
+pyaml==19.12.0
 pyasdf==0.5.1
 pycodestyle==2.5.0
 pycparser==2.14
+pyFFTW==0.12.0
 pyflakes==2.1.1
 Pygments==2.5.2
 pygobject==3.28.3
@@ -172,6 +186,7 @@ python-dateutil==2.6.1
 python-dmidecode==3.12.2
 python-linux-procfs==0.6
 pyudev==0.21.0
+PyYAML==5.2
 pyzmq==18.1.1
 qtconsole==4.6.0
 rdflib==4.2.2
@@ -186,6 +201,7 @@ slip==0.6.4
 slip.dbus==0.6.4
 SQLAlchemy==1.3.11
 SSSDConfig==2.0.0
+subprocess32==3.5.4
 syspurpose==1.23.8
 terminado==0.8.3
 testpath==0.4.4
