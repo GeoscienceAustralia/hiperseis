@@ -48,7 +48,6 @@ from functools import reduce
 
 logging.basicConfig()
 
-
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
@@ -60,6 +59,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger = logging.getLogger(name+log_file)
     logger.setLevel(level)
     logger.addHandler(handler)
+    logger.propagate = False
     return logger
 # end func
 
@@ -240,7 +240,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                         resp_tr1.remove_response(inventory=sta1_inv, output=instrument_response_output.upper(),
                                                  water_level=water_level)
                     except Exception as e:
-                        print (e)
+                        logger.error(str(e))
                     # end try
 
                     tr1_d = resp_tr1.data
@@ -261,7 +261,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                         resp_tr2.remove_response(inventory=sta2_inv, output=instrument_response_output.upper(),
                                                  water_level=water_level)
                     except Exception as e:
-                        print (e)
+                        logger.error(str(e))
                     # end try
 
                     tr2_d = resp_tr2.data
@@ -614,7 +614,6 @@ def IntervalStackXCorr(refds, tempds,
             tempSt = get_stream(tempds, tnc, tsc, temp_cha, cTime, cTime + cStep, baz=baz_temp_net_sta,
                                logger=logger, verbose=verbose)
         except Exception as e:
-            print(e)
             logger.error('\t'+str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
         # end try
