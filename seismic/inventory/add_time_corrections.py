@@ -87,7 +87,7 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
     selected_inv.networks[0].stations[0].extra = AttribDict()
     selected_inv.networks[0].stations[0].extra.gpsclockcorrection = my_tag
 
-    stationxml_with_csv = 'modified_inventory_%s.xml' % sta
+    stationxml_with_csv = '%s.%s_station_inv_modified.xml' % (net,sta)
 
     if out_xml is not None and os.path.isdir(out_xml):
         stationxml_with_csv = os.path.join(out_xml, stationxml_with_csv)
@@ -128,15 +128,9 @@ if __name__ == "__main__":
 
     USAGE = "python %s csv_file inventory_file [out_dir]" %sys.argv[0]
 
-    # time_correction_csvfile = "/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.DE43_clock_correction.csv"
-    # time_correction_csvfile = "/home/feizhang/Githubz/hiperseis/tests/testdata/corrections/7D.CZ40_clock_correction.csv"
-    time_correction_csvfile = "/g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/7D.CZ40_clock_correction.csv"
-
-    my_inventory = "/home/feizhang/Githubz/hiperseis/tests/testdata/7D_2012_2013.xml"
-    my_inventory = "../../tests/testdata/7D_2012_2013.xml"
-
     if len(sys.argv)<3:
-        print ("USAGE")
+        print(USAGE)
+        sys.exit(1)
     else:
         time_correction_csvfile = sys.argv[1]
         my_inventory = sys.argv[2]
