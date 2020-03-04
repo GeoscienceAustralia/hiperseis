@@ -202,7 +202,7 @@ def example_7(net_code, sta_code):
     # H_initial = [1.0, 35.0]  # sediment, crust
     # Vs_initial = [0.8, 3.4]  # sediment, crust
     # model_initial_sed = np.array(zip(H_initial, Vs_initial))
-    H_sed_min, H_sed_max = (0, 3.5)
+    H_sed_min, H_sed_max = (0, 4.0)
     Vs_sed_min, Vs_sed_max = (0.3, 2.5)
     H_cru_min, H_cru_max = (20.0, 60.0)
     Vs_cru_min, Vs_cru_max = (Vp_c/k_max, Vp_c/k_min)
@@ -211,8 +211,8 @@ def example_7(net_code, sta_code):
 
     logging.info('MCMC solver (sedimentary)...')
     soln_mcmc = optimize_minimize_mhmcmc_cluster(
-        objective_fn_wrapper, bounds, fixed_args, T=0.025, burnin=100000, maxiter=800000, target_ar=0.5,
-        collect_samples=100000, logger=logging, verbose=True)
+        objective_fn_wrapper, bounds, fixed_args, T=0.025, burnin=1500, maxiter=8000, target_ar=0.5,
+        collect_samples=1000, logger=logging, verbose=True)
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     if soln_mcmc.success and len(soln_mcmc.x) > 0:
@@ -272,6 +272,8 @@ if __name__ == "__main__":
     # Apply windowing, filtering and QC to loaded dataset before passing to Tao's algorithm.
     logging.info("Cleaning input data...")
 
+    # Filter by back-azimuth
+    data_all.curate(lambda _1, _2, stream: 45.0 <= stream[0].stats.back_azimuth <= 135.0)
 
     # Trim streams to time window
     data_all.apply(lambda stream:
