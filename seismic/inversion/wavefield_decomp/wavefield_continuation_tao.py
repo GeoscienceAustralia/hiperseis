@@ -8,6 +8,9 @@
     Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
 """
 
+import os
+import multiprocessing
+os.environ['NUMEXPR_NUM_THREADS'] = str(min(multiprocessing.cpu_count(), 8))
 import copy
 
 import numpy as np
@@ -21,7 +24,8 @@ try:
 
     from pyfftw.interfaces.numpy_fft import fft, ifft, irfft, fftfreq
 
-    pyfftw.config.NUM_THREADS = -1  # Use all available
+    pyfftw.config.NUM_THREADS = min(multiprocessing.cpu_count(), 8)
+    print('pyfftw using NUM_THREADS = {}'.format(pyfftw.config.NUM_THREADS))
 
 except ImportError:
     print('pyfftw import failed, falling back to numpy')
@@ -60,6 +64,8 @@ class WfContinuationSuFluxComputer:
         if not station_event_dataset:
             return
         # end if
+
+        print('numexpr.nthreads = {}'.format(ne.nthreads))
 
         # Check input streams are all in ZRT coordinates.
         assert np.all([''.join([tr.stats.channel[-1] for tr in st]).upper() == 'ZRT' for st in station_event_dataset])
@@ -322,6 +328,7 @@ class WfContinuationSuFluxComputer:
         fz = np.matmul(fz.transpose((0, 2, 1)), Minv.transpose((0, 2, 1)))
         phase_args = np.matmul(w_expanded.transpose((0, 2, 1)), Q.transpose((0, 2, 1)))
         fz = ne.evaluate('exp(cplx_H*phase_args)*fz')
+        # fz = np.exp(cplx_H*phase_args)*fz
         fz = np.matmul(fz, M.transpose((0, 2, 1))).transpose((0, 2, 1))
         return fz
     # end func
@@ -371,7 +378,7 @@ class WfContinuationSuFluxComputer:
         if ncpus != 1:
             pyfftw.config.NUM_THREADS = 1  # Don't overload cores with FFT ops when already subscribed by joblib
         else:
-            pyfftw.config.NUM_THREADS = -1
+            pyfftw.config.NUM_THREADS = multiprocessing.cpu_count()
         # end if
 
         # Run grid search and collect results.

@@ -6,7 +6,7 @@ Objective function minimization solvers.
 
 import numpy as np
 import copy
-# from collections import deque
+import time
 
 from tqdm.auto import tqdm
 from scipy.optimize import OptimizeResult
@@ -217,11 +217,12 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 
     beta = 1.0/T
 
-    if rnd_seed is not None:
-        np.random.seed(rnd_seed)
+    if rnd_seed is None:
+        rnd_seed = int(time.time()*1000) % (1 << 31)
     # end if
+    np.random.seed(rnd_seed)
     if logger:
-        logger.info('Using random seed {}'.format(np.random.get_state()[1][0]))
+        logger.info('Using random seed {}'.format(rnd_seed))
     # end
 
     if x0 is None:
