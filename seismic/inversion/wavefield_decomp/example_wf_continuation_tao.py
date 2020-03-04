@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
+"""Examples of usage of the Tao wavefield continuation algorithm for solving layer properties.
+"""
 
+import sys
 import logging
+
+#pylint: disable=wrong-import-position
 
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                     level=logging.INFO,
@@ -10,17 +15,16 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 import numpy as np
 from scipy import stats
 import scipy.optimize as optimize
-import matplotlib.pyplot as plt
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
-from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space
+from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space, plot_Nd
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
-# pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
+# pylint: disable=invalid-name, missing-function-docstring, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 
 
 def example_1():
@@ -29,7 +33,7 @@ def example_1():
     single_layer_model = [crust_props]
 
     logging.info("Computing single point mean SU flux...")
-    energy, energy_per_event, wf_mantle = flux_comp(mantle_props, single_layer_model)
+    energy, energy_per_event, wf_mantle = flux_comp(mantle_props, single_layer_model)  # pylint: disable=unused-variable
     logging.info(energy)
 # end func
 
@@ -65,7 +69,7 @@ def example_3():
     bounds = optimize.Bounds([H_min, Vp_c/k_max], [H_max, Vp_c/k_min])
 
     # Find local minimum relative to initial guess.
-    soln = optimize.minimize(objective_fn, model_initial, fixed_args, bounds=bounds)
+    soln = optimize.minimize(objective_fn_wrapper, model_initial, fixed_args, bounds=bounds)
     H_crust, Vs_crust = soln.x
     logging.info('Success = {}, Iterations = {}, Function evaluations = {}'.format(soln.success, soln.nit, soln.nfev))
     logging.info('Solution H_crust = {}, Vs_crust = {}, SU energy = {}'.format(H_crust, Vs_crust, soln.fun))
@@ -75,7 +79,7 @@ def example_3():
 def example_4():
     # Demonstrate syntactic usage of scipy global optimizers:
     k_initial = np.mean((k_min, k_max))
-    model_initial_poor = np.array([35, Vp_c/k_initial])
+    # model_initial_poor = np.array([35, Vp_c/k_initial])
 
     Vp = [Vp_c]
     rho = [rho_c]
@@ -92,7 +96,7 @@ def example_4():
 
     # - Differential evolution
     logging.info('Trying differential_evolution...')
-    soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1,
+    soln_de = optimize.differential_evolution(objective_fn_wrapper, bounds, fixed_args, workers=-1,
                                               popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
     logging.info('Result:\n{}'.format(soln_de))
 
@@ -128,7 +132,7 @@ def example_5():
     fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
     H_initial = [1.0, 35.0]  # sediment, crust
     Vs_initial = [0.8, 3.4]  # sediment, crust
-    model_initial_sed = np.array(zip(H_initial, Vs_initial))
+    # model_initial_sed = np.array(zip(H_initial, Vs_initial))
     H_sed_min, H_sed_max = (0, 3.5)
     Vs_sed_min, Vs_sed_max = (0.3, 2.5)
     H_cru_min, H_cru_max = (20.0, 60.0)
@@ -137,7 +141,7 @@ def example_5():
                              [H_sed_max, Vs_sed_max, H_cru_max, Vs_cru_max])
 
     logging.info('Differential_evolution (sedimentary)...')
-    soln_de = optimize.differential_evolution(objective_fn, bounds, fixed_args, workers=-1,
+    soln_de = optimize.differential_evolution(objective_fn_wrapper, bounds, fixed_args, workers=-1,
                                               popsize=25, tol=1.0e-3, mutation=(0.5, 1.2), recombination=0.5)
     logging.info('Result:\n{}'.format(soln_de))
 # end func
@@ -157,15 +161,16 @@ def example_6():
 
     # - Custom MCMC solver
     logging.info('Trying custom MCMC solver...')
-    soln_mcmc = optimize_minimize_mhmcmc_cluster(objective_fn, bounds, fixed_args, x0=model_initial_poor, T=0.025,
-                                                 burnin=1000, maxiter=5000, collect_samples=10000, logger=logging)
+    soln_mcmc = optimize_minimize_mhmcmc_cluster(
+        objective_fn_wrapper, bounds, fixed_args, x0=model_initial_poor, T=0.025, burnin=500, maxiter=5000,
+        collect_samples=2000, logger=logging, verbose=True)
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     # Run grid search purely for visualization purposes
     H_space = np.linspace(H_min, H_max, 51)
     k_space = np.linspace(k_min, k_max, 51)
     H, k, Esu = flux_comp.grid_search(mantle_props, [LayerProps(Vp_c, None, rho_c, None)], 0, H_space, k_space,
-                                      flux_window=FLUX_WINDOW)
+                                      flux_window=FLUX_WINDOW, ncpus=-3)
 
     def overlay_mcmc(axes):
         x = soln_mcmc.x.copy()
@@ -176,47 +181,80 @@ def example_6():
             axes.scatter(_x[0], _x[1], marker='x', s=100, c=color, alpha=0.9)
             axes.scatter(_x[0], _x[1], marker='o', s=160, facecolors='none', edgecolors=color, alpha=0.9, linewidth=2)
         # end for
-
     # end func
 
     plot_Esu_space(H, k, Esu, decorator=overlay_mcmc)
+    # plot_Esu_space(H, k, Esu)
 
 # end func
 
 
-def example_7():
+def example_7(net_code, sta_code):
     # Example 7: Adding a sedimentary layer and using MCMC solver in 4-dimensions
-    pass
+
+    # Assumed sediment property constants
+    Vp_s = 2.1
+    rho_s = 1.97
+
+    Vp = [Vp_s, Vp_c]
+    rho = [rho_s, rho_c]
+    fixed_args = (flux_comp, mantle_props, Vp, rho, FLUX_WINDOW)
+    # H_initial = [1.0, 35.0]  # sediment, crust
+    # Vs_initial = [0.8, 3.4]  # sediment, crust
+    # model_initial_sed = np.array(zip(H_initial, Vs_initial))
+    H_sed_min, H_sed_max = (0, 3.5)
+    Vs_sed_min, Vs_sed_max = (0.3, 2.5)
+    H_cru_min, H_cru_max = (20.0, 60.0)
+    Vs_cru_min, Vs_cru_max = (Vp_c/k_max, Vp_c/k_min)
+    bounds = optimize.Bounds(np.array([H_sed_min, Vs_sed_min, H_cru_min, Vs_cru_min]),
+                             np.array([H_sed_max, Vs_sed_max, H_cru_max, Vs_cru_max]))
+
+    logging.info('MCMC solver (sedimentary)...')
+    soln_mcmc = optimize_minimize_mhmcmc_cluster(
+        objective_fn_wrapper, bounds, fixed_args, T=0.025, burnin=100000, maxiter=800000, target_ar=0.5,
+        collect_samples=100000, logger=logging, verbose=True)
+    logging.info('Result:\n{}'.format(soln_mcmc))
+
+    if soln_mcmc.success and len(soln_mcmc.x) > 0:
+        p, _, _ = plot_Nd(soln_mcmc, title='{}.{} sedimentary solution'.format(net_code, sta_code),
+                          scale=0.7, vars=['$H_s$', '$k_s$', '$H_c$', '$k_c$'])
+        for format in ['.png', '.pdf']:
+            p.savefig('{}.{}_sedimentary_result'.format(net_code, sta_code) + format, dpi=300)
+        # end for
+    # end if
 # end func
 
 
-def objective_fn(model, callable, mantle, Vp, rho, flux_window):
+def objective_fn_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
     num_layers = len(model)//2
     earth_model = []
     for i in range(num_layers):
         earth_model.append(LayerProps(Vp[i], model[2*i + 1], rho[i], model[2*i]))
     # end for
     earth_model = np.array(earth_model)
-    energy, _, _ = callable(mantle, earth_model, flux_window=flux_window)
+    energy, _, _ = obj_fn(mantle, earth_model, flux_window=flux_window)
     return energy
 # end func
 
 
 if __name__ == "__main__":
 
-    def stream_snr_compute(stream):
-        stream.taper(0.05)
-        compute_vertical_snr(stream)
+    def stream_snr_compute(_stream):
+        _stream.taper(0.05)
+        compute_vertical_snr(_stream)
     # end func
 
-    def amplitude_nominal(stream, max_amplitude):
-        return ((np.max(np.abs(stream[0].data)) <= max_amplitude) and
-                (np.max(np.abs(stream[1].data)) <= max_amplitude) and
-                (np.max(np.abs(stream[2].data)) <= max_amplitude))
+    def amplitude_nominal(_stream, max_amplitude):
+        return ((np.max(np.abs(_stream[0].data)) <= max_amplitude) and
+                (np.max(np.abs(_stream[1].data)) <= max_amplitude) and
+                (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    target_station = 'BT23'
-    # target_station = 'CI23'
+    if len(sys.argv) > 1:
+        target_station = sys.argv[1]
+    else:
+        target_station = 'BT23'
+    # endif
     logging.info("Loading input file...")
     src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
                 r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
@@ -315,8 +353,12 @@ if __name__ == "__main__":
     # Example 5: Adding a sedimentary layer and directly using global minimizer
     example_5()
 
+    # -----------------------------------------------------------------------------
+    # Example 6: Using custom MCMC solver on single-layer model.
     example_6()
 
-    example_7()
+    # -----------------------------------------------------------------------------
+    # Example 7: Using custom MCMC solver on two-layer model (sediment + crust).
+    example_7('OA', target_station)
 
 # end if

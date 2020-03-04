@@ -1,1 +1,5 @@
 sortedcontainers
+seaborn
+landscapes
+pyFFTW
+numexpr
