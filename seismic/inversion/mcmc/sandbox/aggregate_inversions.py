@@ -3,6 +3,7 @@
 into one array amenable to 3D mapping.
 """
 
+import sys
 import os
 import re
 import glob
@@ -104,9 +105,84 @@ def main(input_folder, output_file, folder_mask, station_database):
     data_all = np.vstack(station_profiles)
     np.save(output_file, data_all, allow_pickle=False)
     print('Saved {} size array to {}'.format(data_all.shape, output_file))
+# end func
+
+
+def test_plot(data_filename):
+    import cartopy as cp
+    from scipy.interpolate import griddata
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FixedLocator
+
+    # Load data file and plot slices on geographic plot
+    print("Loading data")
+    data_all = np.load(data_filename)
+
+    xy = data_all[:, 0:2]
+    bb_min = np.nanmin(xy, axis=0)
+    bb_max = np.nanmax(xy, axis=0)
+    print("Bounding box: {} to {}".format(bb_min, bb_max))
+    xy_min = bb_min - 0.5
+    xy_max = bb_max + 0.5
+    xy_max[1] += 1.0  # Increase view to the north
+
+    # Generate slices
+    xyz = data_all[:, 0:3]
+    # depth_range = np.linspace(0.0, 60.0, 61)
+    print("Gridding data")
+    xy_res = 51
+    xy_range = np.linspace(xy_min, xy_max, xy_res)
+    xyz_grid = np.meshgrid(xy_range.T[0], xy_range.T[1], 30.0)
+    slice_30 = griddata(xyz, data_all[:, 3], np.array(xyz_grid).reshape((3, xy_res*xy_res)).T, rescale=True)
+    slice_30 = slice_30.reshape((xy_res, xy_res))
+
+    # Plot Vs contours at 30 km.
+    xlocator = FixedLocator(np.arange(np.floor(xy_min[0] - 0.5), np.ceil(xy_max[0] + 0.5)))
+    ylocator = FixedLocator(np.arange(np.floor(xy_min[1] - 0.5), np.ceil(xy_max[1] + 0.5)))
+
+    map_proj = cp.crs.PlateCarree()
+    resolution = '110m'
+
+    print("Plotting")
+    fig = plt.figure(figsize=(16, 9))
+    ax = plt.subplot(1, 1, 1, projection=map_proj)
+    ax.set_xlim(xy_min[0], xy_max[0])
+    ax.set_ylim(xy_min[1], xy_max[1])
+    gridliner = ax.gridlines(draw_labels=True, linestyle=':', xlocs=xlocator, ylocs=ylocator)
+
+    ax.add_feature(cp.feature.COASTLINE.with_scale(resolution))
+    ax.add_feature(cp.feature.OCEAN.with_scale(resolution))
+    ax.add_feature(cp.feature.LAND.with_scale(resolution))
+    ax.text(-0.08, 0.5, 'Latitude (deg)', rotation='vertical', transform=ax.transAxes, rotation_mode='anchor',
+            va='bottom', ha='center')
+    ax.text(0.5, -0.14, 'Longitude (deg)', rotation='horizontal', transform=ax.transAxes, rotation_mode='anchor',
+            va='bottom', ha='center')
+
+    # Add contours
+    xg, yg  = np.squeeze(xyz_grid[0]), np.squeeze(xyz_grid[1])
+    ctr = plt.contourf(xg, yg, slice_30, cmap='copper_r')
+    cb = plt.colorbar(ctr, pad=0.1, shrink=0.9, fraction=0.05)
+    cb.set_label('$V_s$ (km/s)')
+
+    plt.xlabel('Longitude (deg)')
+    plt.ylabel('Latitude (deg)')
+
+    plt.title('OA $V_s$ at 20 km depth', y=1.05)
+
+    out_name = os.path.splitext(data_filename)[0] + '.png'
+    plt.savefig(out_name, dpi=300)
+    plt.close()
 
 # end func
 
+
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 2 and sys.argv[1].lower() == 'plot':
+        # Example usage:
+        # python aggregate_inversions.py plot OA_transd_a;;.npy
+        data_fname = sys.argv[2]
+        test_plot(data_fname)
+    else:
+        main()
+    # end if
 # end if
