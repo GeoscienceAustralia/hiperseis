@@ -27,6 +27,7 @@
   },
   "solver":
   {
+    "_comment": "Solver options",
     "type": "mcmc",
     "temp": 0.025,
     "burnin": 1500,
