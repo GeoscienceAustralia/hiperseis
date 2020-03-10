@@ -93,7 +93,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.option('--extension', default='ms',
               help="File extension for miniseed files; default is 'ms'")
-@click.option('--restart', is_flag=True, default=False, is_flag=True, help='Restart job')
+@click.option('--restart', is_flag=True, default=False, help='Restart job')
 def process(input_folder, output_folder, extension, restart):
     """
     INPUT_FOLDER: Path to input folder containing mseed files to be demultiplexed \n

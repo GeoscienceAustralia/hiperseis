@@ -60,6 +60,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--ntraces-per-file', type=int, default=3600, help="Maximum number of traces per file; if exceeded, the "
                                                                  "file is ignored.")
 def process(input_folder, inventory, output_file_name, min_length_sec, merge_threshold, ntraces_per_file):
+    """
+    INPUT_FOLDER: Path to input folder containing miniseed files \n
+    INVENTORY: Path to FDSNStationXML inventory containing channel-level metadata for all stations \n
+    OUTPUT_FILE_NAME: Name of output ASDF file \n
+    """
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
@@ -73,7 +78,7 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
     # end try
 
     files = np.array(glob.glob(input_folder+'/*.mseed'))
-    random.Random(10).shuffle(files)
+    random.Random(nproc).shuffle(files)
     #files = files[:100]
 
     ustations = set()
