@@ -13,9 +13,9 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 
 import click
 import numpy as np
-import h5py
 from scipy import stats
 import scipy.optimize as optimize
+# import tables as pyt
 
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
@@ -29,7 +29,7 @@ DEFAULT_TEMP = 1.0
 DEFAULT_AR = 0.4
 
 
-def run_mcmc(waveform_data, config, output_file=None):
+def run_mcmc(waveform_data, config):
 
     # Create flux computer
     flux_computer_opts = config["su_energy_opts"]
@@ -82,16 +82,7 @@ def run_mcmc(waveform_data, config, output_file=None):
         collect_samples=collect_samples, logger=logging, verbose=True)
     logging.info('Result:\n{}'.format(soln))
 
-    # Save solution
-    # if soln.success and output_file is not None:
-    #     pass  # TBD: write output file in HDF5 and include configu dictionary.
-    #     with h5py.File(output_file, 'w') as f:
-    #         f['config'] = json.dumps(config)
-    # end with
-
-    # # end if
-
-    return True
+    return soln
 
 # end func
 
@@ -181,6 +172,19 @@ def curate_seismograms(data_all, curation_opts):
 # end func
 
 
+def save_mcmc_solution(soln, config, output_file):
+    pass
+    # if soln.success and output_file is not None:
+    #     pass  # TBD: write output file in HDF5 and include configu dictionary.
+    #     with h5py.File(output_file, 'a') as f:
+    #         f['config'] = json.dumps(config)
+    #     # end with
+    # # end if
+
+    # h5f = pyt.open_file(output_file, 'a')
+# end func
+
+
 @click.command()
 @click.argument('config_file', type=click.File('r'), required=True)
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -188,21 +192,27 @@ def curate_seismograms(data_all, curation_opts):
 @click.option('--station', type=str, required=True)
 @click.option('--location', type=str, default='')
 @click.option('--output-file', type=click.Path(dir_okay=False))
-def main(config_file, waveform_file, network, station, location='', output_file=None):
-    """Runner for analysis of single station. For multiple stations, run separate processes.
+def run_station(config_file, waveform_file, network, station, location='', output_file=None):
+    """Runner for analysis of single station. For multiple stations, run separate processes, best run
+    on separate compute nodes since the underlying modules use multicore parallelization.
 
     The output file is in HDF5 format. The configuration details are added to the output file for traceability.
 
     :param config_file:
     :param waveform_file:
+    :param network:
+    :param station:
+    :param location:
     :param output_file:
-    :return: None
+    :return:
     """
     config = json.load(config_file)
     # logging.info("Config:\n{}".format(json.dumps(config, indent=4)))
     logging.info("Waveform source: {}".format(waveform_file))
-    logging.info("Network.Station: {}.{}".format(network, station))
+    station_id = "{}.{}.{}".format(network, station, location)
+    logging.info("Network.Station.Location: {}".format(station_id))
     logging.info("Destination file: {}".format(output_file))
+    config.update({"station_id": station_id})
 
     stype = config['solver']['type']
     if stype.lower() == 'mcmc':
@@ -231,14 +241,14 @@ def main(config_file, waveform_file, network, station, location='', output_file=
         # end if
     # end if
 
-    status = runner(waveform_data.station(station).values(), config, output_file)
-    if not status:
-        logging.error('Runner failed')
-    # end if
+    soln = runner(waveform_data.station(station).values(), config)
+
+    # Save solution
+    save_mcmc_solution(soln, config, output_file)
 
 # end func
 
 
 if __name__ == '__main__':
-    main()
+    run_station()
 # end if
