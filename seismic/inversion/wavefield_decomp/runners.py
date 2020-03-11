@@ -80,7 +80,7 @@ def run_mcmc(waveform_data, config):
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
         collect_samples=collect_samples, logger=logging, verbose=True)
-    logging.info('Result:\n{}'.format(soln))
+    # logging.info('Result:\n{}'.format(soln))
 
     return soln
 
@@ -185,16 +185,9 @@ def save_mcmc_solution(soln, config, output_file):
 # end func
 
 
-@click.command()
-@click.argument('config_file', type=click.File('r'), required=True)
-@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option('--network', type=str, required=True)
-@click.option('--station', type=str, required=True)
-@click.option('--location', type=str, default='')
-@click.option('--output-file', type=click.Path(dir_okay=False))
-def run_station(config_file, waveform_file, network, station, location='', output_file=None):
-    """Runner for analysis of single station. For multiple stations, run separate processes, best run
-    on separate compute nodes since the underlying modules use multicore parallelization.
+def run_station(config_file, waveform_file, network, station, location=''):
+    """Runner for analysis of single station. For multiple stations, set up config file to run batch
+    job using mpi_job CLI.
 
     The output file is in HDF5 format. The configuration details are added to the output file for traceability.
 
@@ -203,15 +196,12 @@ def run_station(config_file, waveform_file, network, station, location='', outpu
     :param network:
     :param station:
     :param location:
-    :param output_file:
     :return:
     """
     config = json.load(config_file)
     # logging.info("Config:\n{}".format(json.dumps(config, indent=4)))
-    logging.info("Waveform source: {}".format(waveform_file))
     station_id = "{}.{}.{}".format(network, station, location)
     logging.info("Network.Station.Location: {}".format(station_id))
-    logging.info("Destination file: {}".format(output_file))
     config.update({"station_id": station_id})
 
     stype = config['solver']['type']
@@ -243,12 +233,73 @@ def run_station(config_file, waveform_file, network, station, location='', outpu
 
     soln = runner(waveform_data.station(station).values(), config)
 
-    # Save solution
-    save_mcmc_solution(soln, config, output_file)
+    return soln, config
 
 # end func
 
 
+@click.command()
+@click.argument('config_file', type=click.File('r'), required=True)
+@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.option('--network', type=str, required=True)
+@click.option('--station', type=str, required=True)
+@click.option('--location', type=str, default='')
+@click.option('--output-file', type=click.Path(dir_okay=False))
+def station_job(config_file, waveform_file, network, station, location='', output_file=None):
+    # CLI dispatch function for single station.
+    print('station job')
+    logging.info("Waveform source: {}".format(waveform_file))
+    logging.info("Destination file: {}".format(output_file))
+
+    soln, config = run_station(config_file, waveform_file, network, station, location)
+
+    # Save solution
+    save_mcmc_solution(soln, config, output_file)
+
+    return 0
+# end func
+
+
+@click.command()
+@click.argument('config_file', type=click.File('r'), required=True)
+@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.option('--output-file', type=click.Path(dir_okay=False), required=True)
+def mpi_job(config_file, waveform_file, output_file):
+    # CLI dispatch function for MPI run over batch of stations.
+    from mpi4py import MPI
+    print('batch job')
+    logging.info("Waveform source: {}".format(waveform_file))
+
+    batch_config = json.load(config_file)
+    jobs = batch_config.get("jobs", None)
+    if jobs is None:
+        logging.error("Job list missing, file {} not a batch configuration.".format(config_file.name))
+        return 1
+    # end if
+
+    for job_id, job_config_file in jobs.items():
+        net, sta, loc = job_id.split('.')
+        print("{} using {}".format(job_id, job_config_file))
+    # end for
+
+    return 0
+
+# end func
+
+
+def main():
+    import sys
+
+    if len(sys.argv) <= 6:
+        status = mpi_job()
+    else:
+        status = station_job()
+    # end if
+
+    sys.exit(status)
+# end func
+
+
 if __name__ == '__main__':
-    run_station()
+    main()
 # end if
