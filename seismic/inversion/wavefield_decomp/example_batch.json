@@ -1,0 +1,9 @@
+{
+  "_comment": "Batch processing configuration for OA network",
+  "OA.BS24.0M": "config_one_layer.json",
+  "OA.BT23.0M": "config_one_layer.json",
+  "OA.BU24.0M": "config_one_layer.json",
+  "OA.CD23.0M": "config_two_layer.json",
+  "OA.CG21.0M": "config_two_layer.json",
+  "OA.CH21.0M": "config_two_layer.json"
+}
