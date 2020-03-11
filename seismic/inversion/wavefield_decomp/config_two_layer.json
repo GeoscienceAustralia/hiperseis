@@ -12,7 +12,6 @@
   ],
   "curation_opts":
   {
-    "baz_range": [45.0, 135.0],
     "freq_min": 0.05,
     "min_snr": 3.0,
     "max_raw_amplitude": 10000.0

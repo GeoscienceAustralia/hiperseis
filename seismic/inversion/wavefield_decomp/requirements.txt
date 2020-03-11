@@ -3,3 +3,4 @@ seaborn
 landscapes
 pyFFTW
 numexpr
+mpi4py

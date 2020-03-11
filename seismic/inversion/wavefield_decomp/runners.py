@@ -115,14 +115,14 @@ def curate_seismograms(data_all, curation_opts):
     logging.info("Curating input data...")
     logging.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
+    # Apply curation to streams prior to rotation
+    data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
+
     if "baz_range" in curation_opts:
         # Filter by back-azimuth
         baz_range = curation_opts["baz_range"]
         data_all.curate(lambda _1, _2, stream: baz_range[0] <= stream[0].stats.back_azimuth <= baz_range[1])
     # end if
-
-    # Apply curation to streams prior to rotation
-    data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
 
     # Rotate to ZRT coordinates
     data_all.apply(lambda stream: stream.rotate('NE->RT'))
@@ -172,8 +172,8 @@ def curate_seismograms(data_all, curation_opts):
 # end func
 
 
-def save_mcmc_solution(soln, config, output_file):
-    pass
+def save_mcmc_solution(soln_config, output_file):
+    assert isinstance(soln_config, list)
     # if soln.success and output_file is not None:
     #     pass  # TBD: write output file in HDF5 and include configu dictionary.
     #     with h5py.File(output_file, 'a') as f:
@@ -198,7 +198,9 @@ def run_station(config_file, waveform_file, network, station, location=''):
     :param location:
     :return:
     """
-    config = json.load(config_file)
+    with open(config_file, 'r') as cf:
+        config = json.load(cf)
+    # end with
     # logging.info("Config:\n{}".format(json.dumps(config, indent=4)))
     station_id = "{}.{}.{}".format(network, station, location)
     logging.info("Network.Station.Location: {}".format(station_id))
@@ -239,7 +241,7 @@ def run_station(config_file, waveform_file, network, station, location=''):
 
 
 @click.command()
-@click.argument('config_file', type=click.File('r'), required=True)
+@click.argument('config_file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--network', type=str, required=True)
 @click.option('--station', type=str, required=True)
@@ -251,10 +253,10 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     logging.info("Waveform source: {}".format(waveform_file))
     logging.info("Destination file: {}".format(output_file))
 
-    soln, config = run_station(config_file, waveform_file, network, station, location)
+    soln_config = run_station(config_file, waveform_file, network, station, location)
 
     # Save solution
-    save_mcmc_solution(soln, config, output_file)
+    save_mcmc_solution([soln_config], output_file)
 
     return 0
 # end func
@@ -266,8 +268,14 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True)
 def mpi_job(config_file, waveform_file, output_file):
     # CLI dispatch function for MPI run over batch of stations.
+
     from mpi4py import MPI
-    print('batch job')
+
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+    print("Rank: {} on {} processors".format(rank, nproc))
+
     logging.info("Waveform source: {}".format(waveform_file))
 
     batch_config = json.load(config_file)
@@ -277,10 +285,26 @@ def mpi_job(config_file, waveform_file, output_file):
         return 1
     # end if
 
-    for job_id, job_config_file in jobs.items():
-        net, sta, loc = job_id.split('.')
-        print("{} using {}".format(job_id, job_config_file))
-    # end for
+    if rank == 0:
+        node_args = [(job_config_file, waveform_file) + tuple(job_id.split('.'))
+                     for job_id, job_config_file in jobs.items()]
+        # for job_id, job_config_file in jobs.items():
+        #     net, sta, loc = job_id.split('.')
+        #     print("{} using {}".format(job_id, job_config_file))
+        # # end for
+    else:
+        node_args = None
+    # end if
+
+    node_args = comm.scatter(node_args, root=0)
+    soln_config = run_station(*node_args)
+    soln_config = comm.gather(soln_config, root=0)
+
+    if rank == 0:
+        # for soln, config in soln_config:
+        #     print(config["station_id"])
+        save_mcmc_solution(soln_config, output_file)
+    # end if
 
     return 0
 
