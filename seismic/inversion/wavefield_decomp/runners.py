@@ -7,19 +7,13 @@ Batch execution interfaces for wavefield continuation methods and solvers.
 import os
 import json
 import logging
-
-LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
-              'datefmt': '%Y-%m-%d %H:%M:%S'}
-
-# logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
-#                     level=logging.INFO,
-#                     datefmt='%Y-%m-%d %H:%M:%S')
+from datetime import datetime
 
 import click
 import numpy as np
 from scipy import stats
 import scipy.optimize as optimize
-# import tables as pyt
+import tables as pyt
 
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
@@ -28,6 +22,9 @@ from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
+
+LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
+              'datefmt': '%Y-%m-%d %H:%M:%S'}
 
 DEFAULT_TEMP = 1.0
 DEFAULT_AR = 0.4
@@ -177,8 +174,17 @@ def curate_seismograms(data_all, curation_opts, logger):
 # end func
 
 
-def save_mcmc_solution(soln_config, output_file):
+def save_mcmc_solution(soln_config, output_file, job_timestamp):
     assert isinstance(soln_config, list)
+    assert isinstance(job_timestamp, str)
+    # TODO: migrate this to member of a new class for encapsulating an MCMC solution
+
+    # Version string for layout of data in a node containing MCMC solution
+    FORMAT_VERSION = '0.1'
+
+    # Convert timestamp to valid Python identifier
+    job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
+
     # if soln.success and output_file is not None:
     #     pass  # TBD: write output file in HDF5 and include configu dictionary.
     #     with h5py.File(output_file, 'a') as f:
@@ -186,7 +192,16 @@ def save_mcmc_solution(soln_config, output_file):
     #     # end with
     # # end if
 
-    # h5f = pyt.open_file(output_file, 'a')
+    with pyt.open_file(output_file, 'w', 'MCMC solver solutions') as h5f:  # TODO: change 'w' to 'a'
+        job_root = h5f.create_group('/', job_timestamp, 'Batch solution from {}'.format(job_timestamp))
+        for soln, config in soln_config:
+            station_id = config["station_id"]
+            station_node = h5f.create_group('/' + job_root._v_name, station_id, title='{} solution'.format(station_id))
+            solution_attrs = h5f.set_node_attr()
+            station_node.attrs['format_version'] = FORMAT_VERSION
+        # end for
+    # end with
+
 # end func
 
 
@@ -254,7 +269,7 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 @click.option('--output-file', type=click.Path(dir_okay=False))
 def station_job(config_file, waveform_file, network, station, location='', output_file=None):
     # CLI dispatch function for single station.
-    print('station job')
+    job_timestamp = str(datetime.now())
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -269,7 +284,7 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     soln_config = run_station(config_file, waveform_file, network, station, location, logger=logger)
 
     # Save solution
-    save_mcmc_solution([soln_config], output_file)
+    save_mcmc_solution([soln_config], output_file, job_timestamp)
 
     return 0
 # end func
@@ -287,7 +302,8 @@ def mpi_job(config_file, waveform_file, output_file):
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
-    print("Rank: {} on {} processors".format(rank, nproc))
+
+    job_timestamp = comm.bcast(str(datetime.now()), root=0)
 
     logger = logging.getLogger(__name__ + str(rank))
     logger.setLevel(logging.INFO)
@@ -330,7 +346,7 @@ def mpi_job(config_file, waveform_file, output_file):
     if rank == 0:
         # for soln, config in soln_config:
         #     print(config["station_id"])
-        save_mcmc_solution(soln_config, output_file)
+        save_mcmc_solution(soln_config, output_file, job_timestamp)
     # end if
 
     return 0
