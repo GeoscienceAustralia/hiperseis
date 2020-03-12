@@ -358,6 +358,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     solution.maxcv = None
     solution.samples = samples if collect_samples else None
     solution.bounds = bounds
+    solution.version = 's0.1'  # Solution version for future traceability
 
     return solution
 

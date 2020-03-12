@@ -4,3 +4,4 @@ landscapes
 pyFFTW
 numexpr
 mpi4py
+h5py
