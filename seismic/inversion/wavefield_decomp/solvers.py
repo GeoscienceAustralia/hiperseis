@@ -126,13 +126,13 @@ class AdaptiveStepsize():
     """
     Class to implement adaptive stepsize. Pulled from scipy.optimize.basinhopping and adapted.
     """
-    def __init__(self, stepper, accept_rate=0.5, interval=50, factor=0.9, ar_tolerance=0.05, logger=None):
+    def __init__(self, stepper, accept_rate=0.5, interval=50, factor=0.9, ar_tolerance=0.05):
         self.takestep = stepper
         self.target_accept_rate = accept_rate
         self.interval = interval
         self.factor = factor
         self.tolerance = ar_tolerance
-        self.logger = logger
+        self.logger = None  # Assign directly to customize logger callable
 
         self.nstep = 0
         self.nstep_tot = 0
@@ -157,8 +157,8 @@ class AdaptiveStepsize():
             scaled_step = True
         # end if
         if scaled_step and self.logger:
-            self.logger.info("adaptive stepsize: acceptance rate {} target {} new stepsize {} old stepsize {}"
-                             .format(accept_rate, self.target_accept_rate, self.takestep.stepsize, old_stepsize))
+            self.logger("adaptive stepsize: acceptance rate {} target {} new stepsize {} old stepsize {}"
+                        .format(accept_rate, self.target_accept_rate, self.takestep.stepsize, old_stepsize))
         # end if
     # end func
 
@@ -234,14 +234,19 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 
     # Set up stepper with adaptive acceptance rate
     stepper = BoundedRandNStepper(bounds)
-    stepper = AdaptiveStepsize(stepper, accept_rate=target_ar, ar_tolerance=ar_tolerance, interval=50,
-                               logger=logger if verbose else None)
+    stepper = AdaptiveStepsize(stepper, accept_rate=target_ar, ar_tolerance=ar_tolerance, interval=50)
 
     # -------------------------------
     # DO BURN-IN
     rejected_randomly = 0
     accepted_burnin = 0
-    for _ in tqdm(range(burnin), total=burnin, desc='BURN-IN'):
+    tracked_range = tqdm(range(burnin), total=burnin, desc='BURN-IN')
+    if logger:
+        stepper.logger = lambda msg: tracked_range.write(logger.name + ':' + msg)
+    else:
+        stepper.logger = tracked_range.write
+    # end if
+    for _ in tracked_range:
         x_new = stepper(x)
         funval_new = obj_counted(x_new, *args)
         log_alpha = -(funval_new - funval)*beta
@@ -274,7 +279,13 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     N_cached = int(np.ceil(N*main_iter/500))
     next_sample = 0.0
     sample_count = 0
-    for i in tqdm(range(main_iter), total=main_iter, desc='MAIN'):
+    tracked_range = tqdm(range(main_iter), total=main_iter, desc='MAIN')
+    if logger:
+        stepper.logger = lambda msg: tracked_range.write(logger.name + ':' + msg)
+    else:
+        stepper.logger = tracked_range.write
+    # end if
+    for i in tracked_range:
         if collect_samples and i >= next_sample:
             assert sample_count < collect_samples
             samples[sample_count] = x
@@ -298,6 +309,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
             rejected_randomly += 1
         # end if
     # end for
+    stepper.logger = None
     ar = float(accepted)/main_iter
     if logger:
         logger.info("Acceptance rate: {}".format(ar))

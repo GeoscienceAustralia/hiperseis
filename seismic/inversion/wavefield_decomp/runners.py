@@ -4,12 +4,16 @@
 Batch execution interfaces for wavefield continuation methods and solvers.
 """
 
+import os
 import json
 import logging
 
-logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
-                    level=logging.INFO,
-                    datefmt='%Y-%m-%d %H:%M:%S')
+LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
+              'datefmt': '%Y-%m-%d %H:%M:%S'}
+
+# logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+#                     level=logging.INFO,
+#                     datefmt='%Y-%m-%d %H:%M:%S')
 
 import click
 import numpy as np
@@ -29,30 +33,31 @@ DEFAULT_TEMP = 1.0
 DEFAULT_AR = 0.4
 
 
-def run_mcmc(waveform_data, config):
+def run_mcmc(waveform_data, config, logger):
 
     # Create flux computer
     flux_computer_opts = config["su_energy_opts"]
-    logging.info('Flux computer options:\n{}'.format(json.dumps(flux_computer_opts, indent=4)))
+    logger.info('Flux computer options:\n{}'.format(json.dumps(flux_computer_opts, indent=4)))
     fs_processing = flux_computer_opts["sampling_rate"]
     time_window = flux_computer_opts["time_window"]
     cut_window = flux_computer_opts["cut_window"]
-    logging.info("Ingesting source data streams...")
+    if logger:
+        logger.info("Ingesting source data streams...")
     flux_comp = WfContinuationSuFluxComputer(waveform_data, fs_processing, time_window, cut_window)
 
     # Create model
     mantle_config = config["mantle_properties"]
     mantle_props = LayerProps(mantle_config['Vp'], mantle_config['Vs'], mantle_config['rho'], np.Infinity)
-    logging.info('Mantle properties: {}'.format(mantle_props))
+    logger.info('Mantle properties: {}'.format(mantle_props))
 
     layers = config["layers"]
     for i, layer_config in enumerate(layers):
-        logging.info('Layer {}: {}'.format(i, layer_config))
+        logger.info('Layer {}: {}'.format(i, layer_config))
     # end for
 
     # Solve model
     solver_opts = config["solver"]
-    logging.info('Solver options:\n{}'.format(json.dumps(solver_opts, indent=4)))
+    logger.info('Solver options:\n{}'.format(json.dumps(solver_opts, indent=4)))
     flux_window = flux_computer_opts["flux_window"]
     Vp = [layer["Vp"] for layer in layers]
     rho= [layer["rho"] for layer in layers]
@@ -71,7 +76,7 @@ def run_mcmc(waveform_data, config):
         # end if
     # end for
     bounds = optimize.Bounds(np.array(bounds_min), np.array(bounds_max))
-    logging.info('Running MCMC solver...')
+    logger.info('Running MCMC solver...')
     temp = solver_opts.get("temp", DEFAULT_TEMP)
     burnin = solver_opts["burnin"]
     max_iter = solver_opts["max_iter"]
@@ -79,8 +84,8 @@ def run_mcmc(waveform_data, config):
     collect_samples = solver_opts.get("collect_samples", None)
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
-        collect_samples=collect_samples, logger=logging, verbose=True)
-    # logging.info('Result:\n{}'.format(soln))
+        collect_samples=collect_samples, logger=logger, verbose=True)
+    # logger.info('Result:\n{}'.format(soln))
 
     return soln
 
@@ -99,7 +104,7 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 # end func
 
 
-def curate_seismograms(data_all, curation_opts):
+def curate_seismograms(data_all, curation_opts, logger):
 
     def stream_snr_compute(_stream):
         _stream.taper(0.05)
@@ -112,8 +117,8 @@ def curate_seismograms(data_all, curation_opts):
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    logging.info("Curating input data...")
-    logging.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
+    logger.info("Curating input data...")
+    logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
     # Apply curation to streams prior to rotation
     data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
@@ -185,7 +190,7 @@ def save_mcmc_solution(soln_config, output_file):
 # end func
 
 
-def run_station(config_file, waveform_file, network, station, location=''):
+def run_station(config_file, waveform_file, network, station, location, logger):
     """Runner for analysis of single station. For multiple stations, set up config file to run batch
     job using mpi_job CLI.
 
@@ -201,21 +206,21 @@ def run_station(config_file, waveform_file, network, station, location=''):
     with open(config_file, 'r') as cf:
         config = json.load(cf)
     # end with
-    # logging.info("Config:\n{}".format(json.dumps(config, indent=4)))
+    # logger.info("Config:\n{}".format(json.dumps(config, indent=4)))
     station_id = "{}.{}.{}".format(network, station, location)
-    logging.info("Network.Station.Location: {}".format(station_id))
+    logger.info("Network.Station.Location: {}".format(station_id))
     config.update({"station_id": station_id})
 
     stype = config['solver']['type']
     if stype.lower() == 'mcmc':
         runner = run_mcmc
     else:
-        logging.error("Unknown solver type: {}".format(stype))
+        logger.error("Unknown solver type: {}".format(stype))
         return
     # end if
 
     # Load input data
-    logging.info('Ingesting waveform file {}'.format(waveform_file))
+    logger.info('Ingesting waveform file {}'.format(waveform_file))
     waveform_data = NetworkEventDataset(waveform_file, network=network, station=station, location=location)
     config.update({"waveform_file": waveform_file})
 
@@ -229,11 +234,11 @@ def run_station(config_file, waveform_file, network, station, location=''):
     if "curation_opts" in config:
         curation_opts = config["curation_opts"]
         if curation_opts:
-            curate_seismograms(waveform_data, curation_opts)
+            curate_seismograms(waveform_data, curation_opts, logger)
         # end if
     # end if
 
-    soln = runner(waveform_data.station(station).values(), config)
+    soln = runner(waveform_data.station(station).values(), config, logger)
 
     return soln, config
 
@@ -250,10 +255,18 @@ def run_station(config_file, waveform_file, network, station, location=''):
 def station_job(config_file, waveform_file, network, station, location='', output_file=None):
     # CLI dispatch function for single station.
     print('station job')
-    logging.info("Waveform source: {}".format(waveform_file))
-    logging.info("Destination file: {}".format(output_file))
 
-    soln_config = run_station(config_file, waveform_file, network, station, location)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    log_fmt = logging.Formatter(**LOG_FORMAT)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_fmt)
+    logger.addHandler(console_handler)
+
+    logger.info("Waveform source: {}".format(waveform_file))
+    logger.info("Destination file: {}".format(output_file))
+
+    soln_config = run_station(config_file, waveform_file, network, station, location, logger=logger)
 
     # Save solution
     save_mcmc_solution([soln_config], output_file)
@@ -276,12 +289,26 @@ def mpi_job(config_file, waveform_file, output_file):
     rank = comm.Get_rank()
     print("Rank: {} on {} processors".format(rank, nproc))
 
-    logging.info("Waveform source: {}".format(waveform_file))
+    logger = logging.getLogger(__name__ + str(rank))
+    logger.setLevel(logging.INFO)
+    log_fmt = logging.Formatter(**LOG_FORMAT)
+    job_id = os.getenv('PBS_JOBID')
+    if job_id is None:
+        job_id = comm.bcast(os.getpid(), root=0)
+    # end if
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_fmt)
+    file_handler = logging.FileHandler('_'.join([job_id, str(rank)]) + '.log')
+    file_handler.setFormatter(log_fmt)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+
+    logger.info("Waveform source: {}".format(waveform_file))
 
     batch_config = json.load(config_file)
     jobs = batch_config.get("jobs", None)
     if jobs is None:
-        logging.error("Job list missing, file {} not a batch configuration.".format(config_file.name))
+        logger.error("Job list missing, file {} not a batch configuration.".format(config_file.name))
         return 1
     # end if
 
@@ -297,7 +324,7 @@ def mpi_job(config_file, waveform_file, output_file):
     # end if
 
     node_args = comm.scatter(node_args, root=0)
-    soln_config = run_station(*node_args)
+    soln_config = run_station(*node_args, logger=logger)
     soln_config = comm.gather(soln_config, root=0)
 
     if rank == 0:
