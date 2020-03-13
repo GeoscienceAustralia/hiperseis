@@ -223,7 +223,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.1'
+    FORMAT_VERSION = '0.2'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -249,7 +249,12 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
             station_node.attrs['format_version'] = FORMAT_VERSION
             try:
                 station_node['x'] = soln.x
-                station_node['clusters'] = np.array(soln.clusters)
+                # Each cluster may be a different size, so we can't dump directly into h5py (which
+                # requires hyper-rectangular array shape).
+                cluster_node = station_node.create_group('clusters')
+                for idx, cluster in enumerate(soln.clusters):
+                    cluster_node[str(idx)] = cluster
+                # end for
                 station_node['bins'] = soln.bins
                 station_node['distribution'] = soln.distribution
                 station_node['acceptance_rate'] = soln.acceptance_rate
