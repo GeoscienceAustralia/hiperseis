@@ -38,6 +38,7 @@ def get_csv_correction_data(path_csvfile):
     with open(path_csvfile, "r") as csvfid:
         all_lines = csvfid.readlines()
 
+
     # print("The csv file length", len(all_lines))
     # print("the first line", all_lines[0])
     # print("the last  line", all_lines[-1])
@@ -50,7 +51,10 @@ def get_csv_correction_data(path_csvfile):
     network_code = my_items[0].strip()  # network_code = "7D"
     station_code = my_items[1].strip()  # station_code = "DE43"
 
-    return (network_code, station_code, all_lines)
+    with open(path_csvfile, "r") as csvfid:
+        all_csv_content = csvfid.read()
+
+    return (network_code, station_code, all_csv_content)
 
 
 def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
