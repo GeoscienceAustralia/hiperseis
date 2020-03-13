@@ -23,14 +23,25 @@ from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
 
+# Custom logging format to add timestamps to each output line.
 LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
               'datefmt': '%Y-%m-%d %H:%M:%S'}
 
+# Default MCMC solver "temperature" parameter.
 DEFAULT_TEMP = 1.0
+# Default target acceptance rate for MCMC solver.
 DEFAULT_AR = 0.4
 
 
 def run_mcmc(waveform_data, config, logger):
+    """
+    Top level runner function for MCMC solver on SU flux minimization for given settings.
+
+    :param waveform_data: Iterable container of obspy.Stream objects.
+    :param config: Dict of job settings. See example files for fields and format of settings.
+    :param logger: Log message receiver. Optional, pass None for no logging.
+    :return: Solution object based on scipy.optimize.OptimizeResult
+    """
 
     # Create flux computer
     flux_computer_opts = config["su_energy_opts"]
@@ -82,7 +93,8 @@ def run_mcmc(waveform_data, config, logger):
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
         collect_samples=collect_samples, logger=logger, verbose=True)
-    # logger.info('Result:\n{}'.format(soln))
+
+    # TODO: Compute energy flux and wavefield at top of mantle per seismogram for each solution, and return with soln
 
     return soln
 
@@ -90,6 +102,19 @@ def run_mcmc(waveform_data, config, logger):
 
 
 def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
+    """
+    Wrapper callable for passing to MCMC solver in scipy style, which unpacks inputs into
+    vector variables for solver.
+
+    :param model: Per-layer model values (the vector being solved for) as flat array of
+        (H, Vs) value pairs ordered by layer.
+    :param obj_fn: Callable to WfContinuationSuFluxComputer to compute SU flux.
+    :param mantle: Mantle properties stored in class LayerProps instance.
+    :param Vp: Array of Vp values ordered by layer.
+    :param rho: Arroy of rho values ordered by layer.
+    :param flux_window: Pair of floats indicating the time window over which to perform SU flux integration
+    :return: Integrated SU flux energy at top of mantle
+    """
     num_layers = len(model)//2
     earth_model = []
     for i in range(num_layers):
@@ -102,6 +127,14 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 
 
 def curate_seismograms(data_all, curation_opts, logger):
+    """
+    Curation function to remove bad data from streams.
+
+    :param data_all: NetworkEventDataset containing seismograms to curate.
+    :param curation_opts: Dict containing curation options.
+    :param logger: Logger for emitting log messages
+    :return: None, curation operates directly on data_all
+    """
 
     def stream_snr_compute(_stream):
         _stream.taper(0.05)
@@ -175,6 +208,16 @@ def curate_seismograms(data_all, curation_opts, logger):
 
 
 def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, logger=None):
+    """
+    Save solution to HDF5 file.
+
+    :param soln_configs: List of (solution, configuration) pairs to save (one per station).
+    :param input_file: Name of input file. Saved to job node for traceability
+    :param output_file: Name of output file to create
+    :param job_timestamp: Job timestamp that will be used to generate the top level job group
+    :param logger: [OPTIONAL] Log message destination
+    :return: None
+    """
     assert isinstance(soln_configs, list)
     assert isinstance(job_timestamp, str)
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
@@ -185,7 +228,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
 
-    with h5py.File(output_file, 'w') as h5f:  # TODO: change 'w' to 'a'
+    with h5py.File(output_file, 'a') as h5f:
         job_root = h5f.create_group(job_timestamp)
         job_root.attrs['input_file'] = input_file
         for soln, config in soln_configs:
@@ -195,7 +238,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
                     logger.warning('Unidentified solution, no station id!')
                 continue
             # end if
-            if not soln.success:
+            if soln is None or not soln.success:
                 if logger:
                     logger.warning('Solver failed for station {}'.format(station_id))
                 continue
@@ -204,23 +247,30 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
             station_node = job_root.create_group(station_id)
             station_node.attrs['config'] = json.dumps(config)
             station_node.attrs['format_version'] = FORMAT_VERSION
-            station_node['x'] = soln.x
-            station_node['clusters'] = soln.clusters
-            station_node['bins'] = soln.bins
-            station_node['distribution'] = soln.distribution
-            station_node['acceptance_rate'] = soln.acceptance_rate
-            station_node['success'] = soln.success
-            station_node['status'] = soln.status
-            station_node['message'] = soln.message
-            station_node['fun'] = soln.fun
-            station_node['jac'] = h5py.Empty('f') if soln.jac is None else soln.jac
-            station_node['nfev'] = soln.nfev
-            station_node['njev'] = soln.njev
-            station_node['nit'] = soln.nit
-            station_node['maxcv'] = h5py.Empty('f') if soln.maxcv is None else soln.maxcv
-            station_node['samples'] = h5py.Empty('f') if soln.samples is None else soln.samples
-            station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
-            station_node['version'] = soln.version
+            try:
+                station_node['x'] = soln.x
+                station_node['clusters'] = soln.clusters
+                station_node['bins'] = soln.bins
+                station_node['distribution'] = soln.distribution
+                station_node['acceptance_rate'] = soln.acceptance_rate
+                station_node['success'] = soln.success
+                station_node['status'] = soln.status
+                station_node['message'] = soln.message
+                station_node['fun'] = soln.fun
+                station_node['jac'] = h5py.Empty('f') if soln.jac is None else soln.jac
+                station_node['nfev'] = soln.nfev
+                station_node['njev'] = soln.njev
+                station_node['nit'] = soln.nit
+                station_node['maxcv'] = h5py.Empty('f') if soln.maxcv is None else soln.maxcv
+                station_node['samples'] = h5py.Empty('f') if soln.samples is None else soln.samples
+                station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
+                station_node['version'] = soln.version
+            except TypeError as exc:
+                if logger:
+                    logger.error('Error saving station {} solution'.format(station_id))
+                    logger.error(repr(exc))
+                # end  if
+            # end try
         # end for
     # end with
 
@@ -233,12 +283,13 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 
     The output file is in HDF5 format. The configuration details are added to the output file for traceability.
 
-    :param config_file:
-    :param waveform_file:
-    :param network:
-    :param station:
-    :param location:
-    :return:
+    :param config_file: Config filename specifying job settings
+    :param waveform_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
+    :param network: Network code of station to analyse
+    :param station: Station code to analyse
+    :param location: Location code of station to analyse. Can be '' (empty string) if not set.
+    :return: Pair containing (solution, configuration) containers. Configuration will have additional traceability
+        information.
     """
     with open(config_file, 'r') as cf:
         config = json.load(cf)
@@ -253,7 +304,7 @@ def run_station(config_file, waveform_file, network, station, location, logger):
         runner = run_mcmc
     else:
         logger.error("Unknown solver type: {}".format(stype))
-        return
+        return (None, config)
     # end if
 
     # Load input data
@@ -284,13 +335,21 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 
 @click.command()
 @click.argument('config_file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option('--network', type=str, required=True)
-@click.option('--station', type=str, required=True)
-@click.option('--location', type=str, default='')
-@click.option('--output-file', type=click.Path(dir_okay=False))
+@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
+@click.option('--network', type=str, required=True, help='Network code for the station to load')
+@click.option('--station', type=str, required=True, help='Station code whose data is to be loaded')
+@click.option('--location', type=str, default='', show_default=True, help='Location code for the station')
+@click.option('--output-file', type=click.Path(dir_okay=False),
+              help='Name of the output file in which solutions should be saved')
 def station_job(config_file, waveform_file, network, station, location='', output_file=None):
-    # CLI dispatch function for single station.
+    """
+    CLI dispatch function for single station. See help strings for option documentation.
+
+    :param config_file: JSON file containing job configuration parameters.
+    :type config_file: str or pathlib.Path
+    :return: Integer status code
+    """
     job_timestamp = str(datetime.now())
 
     logger = logging.getLogger(__name__)
@@ -314,15 +373,23 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 
 @click.command()
 @click.argument('config_file', type=click.File('r'), required=True)
-@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option('--output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
+@click.option('--output-file', type=click.Path(dir_okay=False), required=True,
+              help='Name of the output file in which solutions should be saved')
 def mpi_job(config_file, waveform_file, output_file):
-    # CLI dispatch function for MPI run over batch of stations.
+    """
+    CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
+
+    :param config_file: JSON file containing batch configuration parameters.
+    :type config_file: str or pathlib.Path
+    :return: Integer status code
+    """
 
     from mpi4py import MPI
 
     comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()
+    nproc = comm.Get_size()  # TODO: Use this to more intelligently split the jobs across available processors
     rank = comm.Get_rank()
 
     job_timestamp = comm.bcast(str(datetime.now()), root=0)
@@ -353,10 +420,6 @@ def mpi_job(config_file, waveform_file, output_file):
     if rank == 0:
         node_args = [(job_config_file, waveform_file) + tuple(job_id.split('.'))
                      for job_id, job_config_file in jobs.items()]
-        # for job_id, job_config_file in jobs.items():
-        #     net, sta, loc = job_id.split('.')
-        #     print("{} using {}".format(job_id, job_config_file))
-        # # end for
     else:
         node_args = None
     # end if
@@ -366,8 +429,6 @@ def mpi_job(config_file, waveform_file, output_file):
     soln_config = comm.gather(soln_config, root=0)
 
     if rank == 0:
-        # for soln, config in soln_config:
-        #     print(config["station_id"])
         save_mcmc_solution(soln_config, waveform_file, output_file, job_timestamp, logger)
     # end if
 
