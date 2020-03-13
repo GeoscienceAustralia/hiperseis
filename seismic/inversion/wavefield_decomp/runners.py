@@ -249,7 +249,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
             station_node.attrs['format_version'] = FORMAT_VERSION
             try:
                 station_node['x'] = soln.x
-                station_node['clusters'] = soln.clusters
+                station_node['clusters'] = np.array(soln.clusters)
                 station_node['bins'] = soln.bins
                 station_node['distribution'] = soln.distribution
                 station_node['acceptance_rate'] = soln.acceptance_rate
