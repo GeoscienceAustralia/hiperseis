@@ -282,6 +282,90 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
 # end func
 
 
+def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
+    assert isinstance(job_timestamp, (str, type(None)))
+    # TODO: migrate this to member of a new class for encapsulating an MCMC solution
+
+    def read_data_empty(dataset):
+        """
+        Read dataset that might be empty. If empty, return None.
+
+        :param dataset: The h5py.Dataset node to read.
+        :return: Dataset value or None
+        """
+        if not dataset.shape:
+            value = None
+        else:
+            value = dataset.value
+        # end if
+        return value
+    # end func
+
+    soln_configs = []
+    with h5py.File(h5_file, 'r') as h5f:
+        while job_timestamp is None:
+            timestamps = list(h5f.keys())
+            for i, ts in enumerate(timestamps):
+                print('[{}] '.format(i), ts)
+            # end for
+            index = input('Choose dataset number to load: ')
+            if isinstance(index, int) and (0 <= index < len(timestamps)):
+                job_timestamp = timestamps[index]
+            # end if
+        # end while
+
+        job_root = h5f[job_timestamp]
+        # source_data_file = job_root.attrs['input_file']
+        for station_id, station_node in job_root.items():
+            if logger:
+                logger.info('Loading {}'.format(station_id.replace('_', '.')))
+            # end if
+            job_config = json.loads(station_node.attrs['config'])
+            format_version = station_node.attrs['format_version']
+            job_config.update({'format_version': format_version})
+
+            try:
+                soln = optimize.OptimizeResult()
+                soln.x = station_node['x'].value
+                cluster_node = station_node['clusters']
+                clusters = []
+                for idx, cluster in cluster_node.items():
+                    clusters.append((int(idx), cluster.value))
+                # end for
+                # Sort clusters by idx, then throw away the idx values.
+                clusters.sort(key=lambda i: i[0])
+                soln.clusters = [c[1] for c in clusters]
+
+                soln.bins = station_node['bins'].value
+                soln.distribution = station_node['distribution'].value
+                soln.acceptance_rate = station_node['acceptance_rate'].value
+                soln.success = bool(station_node['success'].value)
+                soln.status = int(station_node['status'].value)
+                soln.message = station_node['message'].value
+                soln.fun = station_node['fun'].value
+                soln.jac = read_data_empty(station_node['jac'])
+                soln.nfev = int(station_node['nfev'].value)
+                soln.njev = int(station_node['njev'].value)
+                soln.nit = int(station_node['nit'].value)
+                soln.maxcv = read_data_empty(station_node['maxcv'])
+                soln.samples = read_data_empty(station_node['samples'])
+                bounds = station_node['bounds'].value
+                soln.bounds = optimize.Bounds(bounds[0], bounds[1])
+                soln.version = station_node['version'].value
+
+                soln_configs.append((soln, job_config))
+            except TypeError as exc:
+                if logger:
+                    logger.error('Error loading station {} solution'.format(station_id))
+                    logger.error(repr(exc))
+            # end try
+        # end for
+    # end with
+
+    return soln_configs
+# end func
+
+
 def run_station(config_file, waveform_file, network, station, location, logger):
     """Runner for analysis of single station. For multiple stations, set up config file to run batch
     job using mpi_job CLI.
@@ -466,5 +550,9 @@ def main():
 
 
 if __name__ == '__main__':
+    # soln_config = load_mcmc_solution(
+    #     '/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5',
+    #     'T2020_03_13__175213_829338',
+    #     logger=logging)
     main()
 # end if
