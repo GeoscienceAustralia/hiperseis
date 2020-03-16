@@ -35,26 +35,30 @@ def get_csv_correction_data(path_csvfile):
     Returns: (network_code, station_code, csv_data)
 
     """
-    with open(path_csvfile, "r") as csvfid:
-        all_lines = csvfid.readlines()
 
-
+    # with open(path_csvfile, "r") as csvfid:
+    #    all_lines = csvfid.readlines()
     # print("The csv file length", len(all_lines))
     # print("the first line", all_lines[0])
     # print("the last  line", all_lines[-1])
 
-    line2 = all_lines[1]
+    # line2 = all_lines[1]
     # print("line2=", line2)
+
+
+    with open(path_csvfile, "r") as csvfid:
+        all_csv = csvfid.read()
+
+    line2 =all_csv.split('\n')[1]
+    print (line2)
 
     my_items = line2.split(",")
 
     network_code = my_items[0].strip()  # network_code = "7D"
     station_code = my_items[1].strip()  # station_code = "DE43"
 
-    with open(path_csvfile, "r") as csvfid:
-        all_csv_content = csvfid.read()
 
-    return (network_code, station_code, all_csv_content)
+    return (network_code, station_code, all_csv)
 
 
 def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
@@ -106,7 +110,7 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
 
 def extract_csvdata(path2xml):
     """
-    Read and extract the csv data from an inventory file
+    Read the station xml file and extract the csv data to be parsed by pandas
 
     Args:
         path2xml: path_to_stationxml
@@ -115,10 +119,18 @@ def extract_csvdata(path2xml):
         csv_str
 
     """
+    import io
+    import pandas as pd
 
     new_inv = read_inventory(path2xml,format='STATIONXML')
 
     csv_str = new_inv.networks[0].stations[0].extra.gpsclockcorrection.value
+    # print(csv_str)
+    # print(type(csv_str))
+
+    df_clock_correction = pd.read_csv(io.StringIO(csv_str))
+
+    print(df_clock_correction.head())
 
     return csv_str
 
@@ -146,7 +158,7 @@ if __name__ == "__main__":
 
     output_xml = add_gpscorrection_into_stationxml(time_correction_csvfile, my_inventory, out_xml=out_dir)
 
-    csvstr = extract_csvdata(output_xml)
+    # Optional test to extract the CSV data and make a pandas dataframe object for future use.
+    # csvstr = extract_csvdata(output_xml)
 
-    # print(csvstr)
-    # print(type(csvstr))
+
