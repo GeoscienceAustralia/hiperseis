@@ -197,7 +197,8 @@ class WfContinuationSuFluxComputer:
 
         :param mantle_props: LayerProps representing mantle properties.
         :param layer_props: List of LayerProps.
-        :return: Mean SU energy, SU energy per seismogram, wavefield vector at top of mantle in (Pd, Pu, Sd, Su) order.
+        :return: Mean SU energy, SU energy per seismogram, wavefield vector at top of mantle in (Pd, Pu, Sd, Su)
+            order for each seismogram.
         :rtype: (float, numpy.array, numpy.array)
         """
         # This is the callable operator that performs computations of energy flux

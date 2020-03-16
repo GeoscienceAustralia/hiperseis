@@ -13,14 +13,12 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 import numpy as np
-from scipy import stats
 import scipy.optimize as optimize
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
-from seismic.stream_quality_filter import curate_stream3c
-from seismic.receiver_fn.rf_util import compute_vertical_snr
+from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space, plot_Nd
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
@@ -239,17 +237,6 @@ def objective_fn_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 
 if __name__ == "__main__":
 
-    def stream_snr_compute(_stream):
-        _stream.taper(0.05)
-        compute_vertical_snr(_stream)
-    # end func
-
-    def amplitude_nominal(_stream, max_amplitude):
-        return ((np.max(np.abs(_stream[0].data)) <= max_amplitude) and
-                (np.max(np.abs(_stream[1].data)) <= max_amplitude) and
-                (np.max(np.abs(_stream[2].data)) <= max_amplitude))
-    # end func
-
     if len(sys.argv) > 1:
         target_station = sys.argv[1]
     else:
@@ -270,55 +257,17 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------------------------
     # Apply windowing, filtering and QC to loaded dataset before passing to Tao's algorithm.
-    logging.info("Cleaning input data...")
-
-    # Filter by back-azimuth
-    data_all.curate(lambda _1, _2, stream: 45.0 <= stream[0].stats.back_azimuth <= 135.0)
 
     # Trim streams to time window
     data_all.apply(lambda stream:
                    stream.trim(stream[0].stats.onset + TIME_WINDOW[0], stream[0].stats.onset + TIME_WINDOW[1]))
 
-    # Apply curation to streams prior to rotation
-    data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
-
-    # Rotate to ZRT coordinates
-    data_all.apply(lambda stream: stream.rotate('NE->RT'))
-
-    # Detrend the traces
-    data_all.apply(lambda stream: stream.detrend('linear'))
-
-    # Run high pass filter to remove high amplitude, low freq noise, if present.
-    f_min = 0.05
-    data_all.apply(lambda stream: stream.filter('highpass', freq=f_min, corners=2, zerophase=True))
-
-    # Compute SNR of Z component to use as a quality metric
-    data_all.apply(stream_snr_compute)
-
-    # Filter by SNR
-    data_all.curate(lambda _1, _2, stream: stream[0].stats.snr_prior >= 3.0)
-
-    # It does not make sense to filter by similarity, since these are raw waveforms, not RFs,
-    # and the waveform will be dominated by the source waveform which differs for each event.
-
-    # Filter streams with incorrect number of traces
-    discard = []
-    for sta, ev_db in data_all.by_station():
-        num_pts = np.array([tr.stats.npts for st in ev_db.values() for tr in st])
-        expected_pts = stats.mode(num_pts)[0][0]
-        for evid, stream in ev_db.items():
-            if ((stream[0].stats.npts != expected_pts) or
-                (stream[1].stats.npts != expected_pts) or
-                (stream[2].stats.npts != expected_pts)):
-                discard.append((sta, evid))
-            # end if
-        # end for
-    # end for
-    data_all.prune(discard)
-
-    # Filter streams with spuriously high amplitude
-    MAX_AMP = 10000
-    data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, MAX_AMP))
+    curation_opts =   {"baz_range": [45.0, 135.0],
+                       "freq_min": 0.05,
+                       "min_snr": 3.0,
+                       "max_raw_amplitude": 10000.0
+                       }
+    curate_seismograms(data_all, curation_opts)
 
     # -----------------------------------------------------------------------------
     # Pass cleaned up data set for test station to flux computer class.
