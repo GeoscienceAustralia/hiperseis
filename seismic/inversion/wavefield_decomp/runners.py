@@ -351,6 +351,11 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     """
     CLI dispatch function for single station. See help strings for option documentation.
 
+    Example usage:
+        python runners.py example_config.json \
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --network OA --station CD23 --location 0M --output-file out_test.h5
+
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
     :return: Integer status code
@@ -385,6 +390,11 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
+
+    Example MPI usage:
+        mpiexec -n 8 python runners.py example_batch.json \
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --output-file test_batch_output.h5
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
