@@ -418,11 +418,11 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
         while job_timestamp is None:
             timestamps = list(h5f.keys())
             for i, ts in enumerate(timestamps):
-                print('[{}] '.format(i), ts)
+                print('[{}]'.format(i), ts)
             # end for
             index = input('Choose dataset number to load: ')
-            if isinstance(index, int) and (0 <= index < len(timestamps)):
-                job_timestamp = timestamps[index]
+            if index.isdigit() and (0 <= int(index) < len(timestamps)):
+                job_timestamp = timestamps[int(index)]
             # end if
         # end while
 
@@ -474,7 +474,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
         # end for
     # end with
 
-    return soln_configs
+    return soln_configs, job_timestamp
 # end func
 
 
