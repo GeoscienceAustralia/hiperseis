@@ -8,6 +8,7 @@ import os
 import json
 import logging
 from datetime import datetime
+import copy
 
 import click
 import numpy as np
@@ -148,6 +149,26 @@ def curate_seismograms(data_all, curation_opts, logger):
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
+    def back_azimuth_filter(baz, baz_range):
+        """Check if back azimuth `baz` is within range. Inputs must be in the range [0, 360] degrees.
+
+        :param baz_range: Pair of angles in degrees.
+        :type baz_range: List or array of 2 floats, min and max back azimuth
+        :return: True if baz is within baz_range, False otherwise.
+        """
+        assert not np.any(np.isinf(np.array(baz_range)))
+        assert not np.any(np.isnan(np.array(baz_range)))
+        assert 0 <= baz <= 360
+        assert 0 <= baz_range[0] <= 360
+        assert 0 <= baz_range[1] <= 360
+        baz_range = copy.copy(baz_range)
+        while baz_range[0] > baz_range[1]:
+            baz_range[0] -= 360
+        return ((baz_range[0] <= baz <= baz_range[1]) or
+                (baz_range[0] <= baz - 360 <= baz_range[1]) or
+                (baz_range[0] <= baz + 360 <= baz_range[1]))
+    # end func
+
     logger.info("Curating input data...")
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
@@ -157,7 +178,8 @@ def curate_seismograms(data_all, curation_opts, logger):
     if "baz_range" in curation_opts:
         # Filter by back-azimuth
         baz_range = curation_opts["baz_range"]
-        data_all.curate(lambda _1, _2, stream: baz_range[0] <= stream[0].stats.back_azimuth <= baz_range[1])
+        assert len(baz_range) == 2
+        data_all.curate(lambda _1, _2, stream: back_azimuth_filter(stream[0].stats.back_azimuth, baz_range))
     # end if
 
     # Rotate to ZRT coordinates
