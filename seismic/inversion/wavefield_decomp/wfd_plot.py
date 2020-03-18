@@ -92,7 +92,7 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
     df = pd.DataFrame(soln.samples, columns=vars)
     p = sb.PairGrid(df, height=3.2*scale)
     # Plot samples (not actual solution, just samples of MCMC process) as grey background on off-diagonals.
-    p = p.map_offdiag(plt.scatter, color='#808080', alpha=samples_alpha, s=2*scale**2)
+    p = p.map_offdiag(plt.scatter, color='#808080', alpha=samples_alpha, s=2*scale**2, rasterized=True)
 
     diag_hist_ax = []
     row_idx, col_idx = np.indices((ndims, ndims))
@@ -114,6 +114,8 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
             ax.bar(soln.bins[row, :-1] + 0.5*deltas, soln.distribution[row], color='#808080',
                    alpha=hist_alpha, width=np.min(deltas))
             ax.set_title('{} sample distribution'.format(vars[row]), y=0.9, color='#404040', fontsize=11*scale)
+            # Lock axes ranges to parameter ranges
+            ax.set_xlim(soln.bounds.lb[row], soln.bounds.ub[row])
             # Add vertical lines to histogram to indication solution locations and label value.
             for i, _x in enumerate(soln.x):
                 color = 'C' + str(i)
@@ -157,16 +159,22 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
             # Plot distinct solution clusters
             for i, cluster in enumerate(soln.clusters):
                 color = 'C' + str(i)
-                ax.scatter(cluster[:, col], cluster[:, row], c=color, s=2*scale**2, alpha=soln_alpha)
+                ax.scatter(cluster[:, col], cluster[:, row], c=color, s=2*scale**2, alpha=soln_alpha, rasterized=True)
             # end for
+            # Lock axes ranges to parameter ranges
+            ax.set_xlim(soln.bounds.lb[col], soln.bounds.ub[col])
+            ax.set_ylim(soln.bounds.lb[row], soln.bounds.ub[row])
             # Add dotted grid
             p.axes[row, col].grid(color='#80808080', linestyle=':')
         # end if
     # end for
     # Overall plot title
     if title:
-        plt.suptitle(title, y=1.0, fontsize=16*scale)
+        plt.suptitle(title, y=0.96, fontsize=16*scale)
     # end if
+
+    plt.subplots_adjust(left=0.125, top=0.9, bottom=0.10, right=0.95)
+
     # TODO: figure out how to adjust line labels in the y-direction so not overlapping,
     #   see https://support.sisense.com/hc/en-us/community/posts/360037908374-Getting-Around-Overlapping-Data-Labels-With-Python
 

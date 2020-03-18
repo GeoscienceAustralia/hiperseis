@@ -8,6 +8,7 @@ import os
 import json
 import logging
 from datetime import datetime
+import copy
 
 import click
 import numpy as np
@@ -95,6 +96,7 @@ def run_mcmc(waveform_data, config, logger):
         collect_samples=collect_samples, logger=logger, verbose=True)
 
     # TODO: Compute energy flux and wavefield at top of mantle per seismogram for each solution, and return with soln
+    # TODO: Compute at bottom of sediment (top of crust) per seismogram for each solution, and return with soln
 
     return soln
 
@@ -147,6 +149,26 @@ def curate_seismograms(data_all, curation_opts, logger):
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
+    def back_azimuth_filter(baz, baz_range):
+        """Check if back azimuth `baz` is within range. Inputs must be in the range [0, 360] degrees.
+
+        :param baz_range: Pair of angles in degrees.
+        :type baz_range: List or array of 2 floats, min and max back azimuth
+        :return: True if baz is within baz_range, False otherwise.
+        """
+        assert not np.any(np.isinf(np.array(baz_range)))
+        assert not np.any(np.isnan(np.array(baz_range)))
+        assert 0 <= baz <= 360
+        assert 0 <= baz_range[0] <= 360
+        assert 0 <= baz_range[1] <= 360
+        baz_range = copy.copy(baz_range)
+        while baz_range[0] > baz_range[1]:
+            baz_range[0] -= 360
+        return ((baz_range[0] <= baz <= baz_range[1]) or
+                (baz_range[0] <= baz - 360 <= baz_range[1]) or
+                (baz_range[0] <= baz + 360 <= baz_range[1]))
+    # end func
+
     logger.info("Curating input data...")
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
@@ -156,7 +178,8 @@ def curate_seismograms(data_all, curation_opts, logger):
     if "baz_range" in curation_opts:
         # Filter by back-azimuth
         baz_range = curation_opts["baz_range"]
-        data_all.curate(lambda _1, _2, stream: baz_range[0] <= stream[0].stats.back_azimuth <= baz_range[1])
+        assert len(baz_range) == 2
+        data_all.curate(lambda _1, _2, stream: back_azimuth_filter(stream[0].stats.back_azimuth, baz_range))
     # end if
 
     # Rotate to ZRT coordinates
@@ -279,6 +302,95 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
         # end for
     # end with
 
+# end func
+
+
+def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
+    assert isinstance(job_timestamp, (str, type(None)))
+    # TODO: migrate this to member of a new class for encapsulating an MCMC solution
+
+    def read_data_empty(dataset):
+        """
+        Read dataset that might be empty. If empty, return None.
+
+        :param dataset: The h5py.Dataset node to read.
+        :return: Dataset value or None
+        """
+        if not dataset.shape:
+            value = None
+        else:
+            value = dataset.value
+        # end if
+        return value
+    # end func
+
+    soln_configs = []
+    with h5py.File(h5_file, 'r') as h5f:
+        while job_timestamp is None:
+            timestamps = list(h5f.keys())
+            if len(timestamps) > 1:
+                for i, ts in enumerate(timestamps):
+                    print('[{}]'.format(i), ts)
+                # end for
+                index = input('Choose dataset number to load: ')
+                if index.isdigit() and (0 <= int(index) < len(timestamps)):
+                    index = int(index)
+                # end if
+            else:
+                index = 0
+            # end if
+            job_timestamp = timestamps[index] if isinstance(index, int) else None
+        # end while
+
+        job_root = h5f[job_timestamp]
+        # source_data_file = job_root.attrs['input_file']
+        for station_id, station_node in job_root.items():
+            if logger:
+                logger.info('Loading {}'.format(station_id.replace('_', '.')))
+            # end if
+            job_config = json.loads(station_node.attrs['config'])
+            format_version = station_node.attrs['format_version']
+            job_config.update({'format_version': format_version})
+
+            try:
+                soln = optimize.OptimizeResult()
+                soln.x = station_node['x'].value
+                cluster_node = station_node['clusters']
+                clusters = []
+                for idx, cluster in cluster_node.items():
+                    clusters.append((int(idx), cluster.value))
+                # end for
+                # Sort clusters by idx, then throw away the idx values.
+                clusters.sort(key=lambda i: i[0])
+                soln.clusters = [c[1] for c in clusters]
+
+                soln.bins = station_node['bins'].value
+                soln.distribution = station_node['distribution'].value
+                soln.acceptance_rate = station_node['acceptance_rate'].value
+                soln.success = bool(station_node['success'].value)
+                soln.status = int(station_node['status'].value)
+                soln.message = station_node['message'].value
+                soln.fun = station_node['fun'].value
+                soln.jac = read_data_empty(station_node['jac'])
+                soln.nfev = int(station_node['nfev'].value)
+                soln.njev = int(station_node['njev'].value)
+                soln.nit = int(station_node['nit'].value)
+                soln.maxcv = read_data_empty(station_node['maxcv'])
+                soln.samples = read_data_empty(station_node['samples'])
+                bounds = station_node['bounds'].value
+                soln.bounds = optimize.Bounds(bounds[0], bounds[1])
+                soln.version = station_node['version'].value
+
+                soln_configs.append((soln, job_config))
+            except TypeError as exc:
+                if logger:
+                    logger.error('Error loading station {} solution'.format(station_id))
+                    logger.error(repr(exc))
+            # end try
+        # end for
+    # end with
+
+    return soln_configs, job_timestamp
 # end func
 
 
