@@ -19,6 +19,15 @@ from seismic.inversion.wavefield_decomp.wfd_plot import plot_Nd
 
 
 def convert_Vs_to_k(soln, config):
+    """
+    Transform Vs variable into k variable in MCMC solution. Modifies soln in-place.
+
+    :param soln: Solution container
+    :type soln: Customized scipy.optimize.OptimizeResult
+    :param config: Solution configuration
+    :type config: dict
+    :return: None
+    """
     layers = config['layers']
     for i, layer in enumerate(layers):
         Vp = layer['Vp']
@@ -47,6 +56,13 @@ def convert_Vs_to_k(soln, config):
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
               help='Name of the output PDF file in which to save plots')
 def main(solution_file, output_file):
+    """
+    Example usage:
+        python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5
+
+    :param solution_file: Input solution filename
+    :param output_file: Output filename
+    """
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
 
