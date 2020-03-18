@@ -435,7 +435,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Name of z-channel for data-source-1. This parameter and the five following are required to "
                    "specify channel names for the stations being cross-correlated. Simple wildcards, e.g. '*Z', are "
                    "also supported -- this is particularly useful when cross-correlating pairs of short-period and "
-                   "broadband channels"
+                   "broadband channels")
 @click.option('--ds1-nchan', default='BHN',
               type=str,
               help="Name of n-channel for data-source-1")
