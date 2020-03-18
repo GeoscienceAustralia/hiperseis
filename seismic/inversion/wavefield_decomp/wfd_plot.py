@@ -127,10 +127,10 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
                 x_range = x_lim[1] - x_lim[0]
                 if (_x[row] - x_lim[0])/x_range >= 0.5:
                     hjust = 'right'
-                    hoffset = 0.02*x_range
+                    hoffset = -0.02*x_range
                 else:
                     hjust = 'left'
-                    hoffset = -0.02*x_range
+                    hoffset = 0.02*x_range
                 # end if
                 # Work out exact position on local y-axis, using full N-dimensional solution to minimize
                 # overlap by project N-dimensional position onto the diagonal of the bounded space.
