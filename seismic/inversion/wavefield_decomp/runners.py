@@ -578,9 +578,5 @@ def main():
 
 
 if __name__ == '__main__':
-    # soln_config = load_mcmc_solution(
-    #     '/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5',
-    #     'T2020_03_13__175213_829338',
-    #     logger=logging)
     main()
 # end if
