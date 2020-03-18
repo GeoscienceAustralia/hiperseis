@@ -10,11 +10,36 @@ import logging
 import click
 from tqdm.auto import tqdm
 
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
 from seismic.inversion.wavefield_decomp.runners import load_mcmc_solution
 from seismic.inversion.wavefield_decomp.wfd_plot import plot_Nd
+
+
+def convert_Vs_to_k(soln, config):
+    layers = config['layers']
+    for i, layer in enumerate(layers):
+        Vp = layer['Vp']
+        if 'k_range' not in layer:
+            assert 'Vs_range' in layer
+            Vs_range = layer['Vs_range']
+            layer.update({'k_range': [Vp/Vs_range[1], Vp/Vs_range[0]]})
+        # end if
+        # Scale Vs content in bounds, x, clusters, samples, bins and distribution to Vp/Vs
+        lb = soln.bounds.lb[2*i + 1]
+        soln.bounds.lb[2*i + 1] = Vp/soln.bounds.ub[2*i + 1]
+        soln.bounds.ub[2 * i + 1] = Vp/lb
+        soln.x[:, 2*i + 1] = Vp/soln.x[:, 2*i + 1]
+        for cluster in soln.clusters:
+            cluster[:, 2*i + 1] = Vp/cluster[:, 2*i + 1]
+        # end for
+        soln.samples[:, 2*i + 1] = Vp/soln.samples[:, 2*i + 1]
+        soln.bins[2*i + 1] = np.flip(Vp/soln.bins[2*i + 1])
+        soln.distribution[2*i + 1] = np.flip(soln.distribution[2*i + 1])
+    # end for
+# end func
 
 
 @click.command()
@@ -31,8 +56,8 @@ def main(solution_file, output_file):
     out_basename += '_' + job_id
     output_file = out_basename + ext
 
-    vars2 = ('$H_{crust}$', '$V_{s,crust}$')
-    vars4 = ('$H_{sed}$', '$V_{s,sed}$', '$H_{crust}$', '$V_{s,crust}$')
+    vars2 = ('$H_{crust}$', '$k_{s,crust}$')
+    vars4 = ('$H_{sed}$', '$k_{s,sed}$', '$H_{crust}$', '$k_{s,crust}$')
     with PdfPages(output_file) as pdf:
         for soln, config in tqdm(soln_config):
             if soln.x.shape[-1] == 2:
@@ -42,6 +67,8 @@ def main(solution_file, output_file):
             else:
                 assert False
             # end if
+            #  Convert Vs parameter to k = Vp/Vs
+            convert_Vs_to_k(soln, config)
             p, _, _ = plot_Nd(soln, title=config['station_id'], vars=vars)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()

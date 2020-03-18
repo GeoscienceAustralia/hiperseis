@@ -328,13 +328,18 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
     with h5py.File(h5_file, 'r') as h5f:
         while job_timestamp is None:
             timestamps = list(h5f.keys())
-            for i, ts in enumerate(timestamps):
-                print('[{}]'.format(i), ts)
-            # end for
-            index = input('Choose dataset number to load: ')
-            if index.isdigit() and (0 <= int(index) < len(timestamps)):
-                job_timestamp = timestamps[int(index)]
+            if len(timestamps) > 1:
+                for i, ts in enumerate(timestamps):
+                    print('[{}]'.format(i), ts)
+                # end for
+                index = input('Choose dataset number to load: ')
+                if index.isdigit() and (0 <= int(index) < len(timestamps)):
+                    index = int(index)
+                # end if
+            else:
+                index = 0
             # end if
+            job_timestamp = timestamps[index] if isinstance(index, int) else None
         # end while
 
         job_root = h5f[job_timestamp]
