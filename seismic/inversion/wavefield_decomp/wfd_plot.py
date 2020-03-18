@@ -126,10 +126,10 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
                 x_lim = ax.get_xlim()
                 x_range = x_lim[1] - x_lim[0]
                 if (_x[row] - x_lim[0])/x_range >= 0.5:
-                    hjust = 'left'
+                    hjust = 'right'
                     hoffset = 0.02*x_range
                 else:
-                    hjust = 'right'
+                    hjust = 'left'
                     hoffset = -0.02*x_range
                 # end if
                 # Work out exact position on local y-axis, using full N-dimensional solution to minimize
@@ -138,11 +138,11 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
                 denom = np.dot(bounds_diag, bounds_diag)
                 y_pos_norm = np.dot(_x - soln.bounds.lb, bounds_diag)/denom
                 assert 0.0 <= y_pos_norm <= 1.0
-                y_pos = x_lim[0] + y_pos_norm*x_range
+                y_pos = x_lim[0] + 0.9*y_pos_norm*x_range
                 if y_pos_norm >= 0.5:
-                    vjust = 'bottom'
-                else:
                     vjust = 'top'
+                else:
+                    vjust = 'bottom'
                 # end if
                 t = axd.text(_x[row] + hoffset, y_pos, '{:.3f}'.format(_x[row]), ha=hjust, va=vjust, color=color,
                              fontsize=text_font_size*scale, fontstyle='italic', fontweight='semibold', zorder=100+i)
