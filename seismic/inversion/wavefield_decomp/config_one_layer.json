@@ -7,7 +7,7 @@
   },
   "layers":
   [
-    {"Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1], "_comment": "crust"}
+    {"name": "crust", "Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1]}
   ],
   "curation_opts":
   {

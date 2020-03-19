@@ -95,8 +95,50 @@ def run_mcmc(waveform_data, config, logger):
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
         collect_samples=collect_samples, logger=logger, verbose=True)
 
-    # TODO: Compute energy flux and wavefield at top of mantle per seismogram for each solution, and return with soln
-    # TODO: Compute at bottom of sediment (top of crust) per seismogram for each solution, and return with soln
+    if soln.success:
+        # Compute energy flux and wavefield at top of mantle per seismogram for each solution, and return with soln
+        Esu_per_x = []
+        wavefield_per_x = []
+        for i, _x in enumerate(soln.x):
+            num_layers = len(layers)
+            earth_model = []
+            for j in range(num_layers):
+                earth_model.append(LayerProps(Vp[j], _x[2*j + 1], rho[j], _x[2*j]))
+            # end for
+            earth_model = np.array(earth_model)
+            energy, energy_per_event, wavefield_decomp = flux_comp(mantle_props, earth_model, flux_window=flux_window)
+            # Check computed energy matchs what solver produced
+            assert np.isclose(energy, soln.fun[i])
+            Esu_per_x.append(energy)
+            wavefield_per_x.append(wavefield_decomp)
+        # end for
+        # Upward S-wave energy at top of mantle per seismogram per solution point.
+        soln.esu = Esu_per_x
+        # Wavefield decomposition at top of mantle per seismogram per solution point.
+        soln.wfd = wavefield_per_x
+
+        # Compute per-event seismograms at bottom of layers that flagged it, and return with soln.
+        subsurface = {}
+        for i, layer in enumerate(layers):
+            if bool(layer.get("save_seismogram", False)):
+                layer_name = layer["name"]
+                base_seismograms = []
+                for _x in soln.x:
+                    earth_model = []
+                    for j in range(i):
+                        earth_model.append(LayerProps(Vp[i], _x[2 * i + 1], rho[i], _x[2 * i]))
+                    # end for
+                    earth_model = np.array(earth_model)
+                    layer_base_vel = flux_comp.propagate_to_base(earth_model)
+                    base_seismograms.append(layer_base_vel)
+                # end for
+                subsurface[layer_name] = base_seismograms
+            # end if
+        # end for
+        soln.subsurface = subsurface
+    else:
+        soln.esu = soln.wfd = soln.subsurface = None
+    # end if
 
     return soln
 
@@ -272,6 +314,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
             station_node.attrs['format_version'] = FORMAT_VERSION
             try:
                 station_node['x'] = soln.x
+                assert len(soln.x) == len(soln.clusters)
                 # Each cluster may be a different size, so we can't dump directly into h5py (which
                 # requires hyper-rectangular array shape).
                 cluster_node = station_node.create_group('clusters')
@@ -378,6 +421,8 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 # end for
                 cluster_energy.sort(key=lambda i: i[0])
                 soln.cluster_funvals = [c[1] for c in cluster_energy]
+
+                assert len(soln.x) == len(soln.clusters)
 
                 soln.bins = station_node['bins'].value
                 soln.distribution = station_node['distribution'].value

@@ -175,6 +175,11 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
             ax.set_ylim(soln.bounds.lb[row], soln.bounds.ub[row])
             # Add dotted grid
             p.axes[row, col].grid(color='#80808080', linestyle=':')
+            # If top left axes, add annotation of the number of events use in the solver.
+            if row == 0 and col == ndims - 1:
+                ax.text('N = {}'.format(num_events), x=0.95, y=0.95, fontsize=9*scale, ha='right', va='top',
+                        transform=ax.transAxes)
+            # end if
         # end if
     # end for
     # Overall plot title
