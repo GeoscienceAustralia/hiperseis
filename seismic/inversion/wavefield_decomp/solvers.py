@@ -270,10 +270,11 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
         nsamples = min(collect_samples, main_iter)
         sample_cadence = main_iter/nsamples
         samples = np.zeros((nsamples, len(x)))
+        samples_fval = np.zeros(nsamples)
     # end if
     accepted = 0
     rejected_randomly = 0
-    minima = SortedList(key=lambda rec: rec[1])
+    minima_sorted = SortedList(key=lambda rec: rec[1])  # Sort by objective function value
     hist = HistogramIncremental(bounds, nbins=100)
     # Cached a lot of potential minimum values, as these need to be clustered before return N results
     N_cached = int(np.ceil(N*main_iter/500))
@@ -289,6 +290,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
         if collect_samples and i >= next_sample:
             assert sample_count < collect_samples
             samples[sample_count] = x
+            samples_fval[sample_count] = funval
             sample_count += 1
             next_sample += sample_cadence
         # end if
@@ -298,9 +300,9 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
         if log_alpha > 0 or np.log(np.random.rand()) <= log_alpha:
             x = x_new
             funval = funval_new
-            minima.add((x, funval))
-            if len(minima) > N_cached:
-                minima.pop()
+            minima_sorted.add((x, funval))
+            if len(minima_sorted) > N_cached:
+                minima_sorted.pop()
             # end if
             stepper.notify_accept()
             hist += x
@@ -313,14 +315,15 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     ar = float(accepted)/main_iter
     if logger:
         logger.info("Acceptance rate: {}".format(ar))
-        logger.info("Best minima (before clustering):\n{}".format(np.array([_mx[0] for _mx in minima[:10]])))
+        logger.info("Best minima (before clustering):\n{}".format(np.array([_mx[0] for _mx in minima_sorted[:10]])))
     # end if
 
     # -------------------------------
     # Cluster minima and associate each cluster with a local minimum.
     # Using a normalized coordinate space for cluster detection.
     x_range = bounds.ub - bounds.lb
-    pts = np.array([x[0] for x in minima])
+    pts = np.array([x[0] for x in minima_sorted])
+    fvals = np.array([x[1] for x in minima_sorted])
     pts_norm = (pts - bounds.lb)/x_range
     _, labels = dbscan(pts_norm, eps=cluster_eps, min_samples=21, n_jobs=-1)
 
@@ -329,6 +332,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     for grp in range(max(labels) + 1):
         mask = (labels == grp)
         mean_loc = np.mean(pts[mask, :], axis=0)
+        # Evaluate objective function precisely at the mean location of each cluster
         fval = obj_counted(mean_loc, *args)
         minima_candidates.append((mean_loc, grp, fval))
     # end for
@@ -344,6 +348,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     solution = OptimizeResult()
     solution.x = np.array([s[0] for s in solutions])
     solution.clusters = [pts[(labels == s[1]), :] for s in solutions]
+    solution.cluster_funvals = [fvals[(labels == s[1]), :] for s in solutions]
     solution.bins = hist.bins
     solution.distribution = hist.histograms
     solution.acceptance_rate = ar
@@ -357,8 +362,9 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     solution.nit = main_iter
     solution.maxcv = None
     solution.samples = samples if collect_samples else None
+    solution.sample_funvals = samples_fval if collect_samples else None
     solution.bounds = bounds
-    solution.version = 's0.1'  # Solution version for future traceability
+    solution.version = 's0.2'  # Solution version for future traceability
 
     return solution
 

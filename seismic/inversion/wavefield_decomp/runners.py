@@ -246,7 +246,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.2'
+    FORMAT_VERSION = '0.3'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -278,6 +278,10 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
                 for idx, cluster in enumerate(soln.clusters):
                     cluster_node[str(idx)] = cluster
                 # end for
+                cluster_energy_node = station_node.create_group('cluster_energy')
+                for idx, cluster_energy in enumerate(soln.cluster_funvals):
+                    cluster_energy_node[str(idx)] = cluster_energy
+                # end for
                 station_node['bins'] = soln.bins
                 station_node['distribution'] = soln.distribution
                 station_node['acceptance_rate'] = soln.acceptance_rate
@@ -291,6 +295,8 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
                 station_node['nit'] = soln.nit
                 station_node['maxcv'] = h5py.Empty('f') if soln.maxcv is None else soln.maxcv
                 station_node['samples'] = h5py.Empty('f') if soln.samples is None else soln.samples
+                station_node['sample_energies'] = h5py.Empty('f') if soln.sample_funvals is None \
+                    else soln.sample_funvals
                 station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
                 station_node['version'] = soln.version
             except TypeError as exc:
@@ -355,6 +361,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             try:
                 soln = optimize.OptimizeResult()
                 soln.x = station_node['x'].value
+
                 cluster_node = station_node['clusters']
                 clusters = []
                 for idx, cluster in cluster_node.items():
@@ -363,6 +370,14 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 # Sort clusters by idx, then throw away the idx values.
                 clusters.sort(key=lambda i: i[0])
                 soln.clusters = [c[1] for c in clusters]
+
+                cluster_energy_node = station_node['cluster_energy']
+                cluster_energy = []
+                for idx, energies in cluster_energy_node.items():
+                    cluster_energy.append((int(idx), energies.value))
+                # end for
+                cluster_energy.sort(key=lambda i: i[0])
+                soln.cluster_funvals = [c[1] for c in cluster_energy]
 
                 soln.bins = station_node['bins'].value
                 soln.distribution = station_node['distribution'].value
@@ -377,6 +392,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 soln.nit = int(station_node['nit'].value)
                 soln.maxcv = read_data_empty(station_node['maxcv'])
                 soln.samples = read_data_empty(station_node['samples'])
+                soln.sample_funvals = read_data_empty(station_node['sample_energies'])
                 bounds = station_node['bounds'].value
                 soln.bounds = optimize.Bounds(bounds[0], bounds[1])
                 soln.version = station_node['version'].value
