@@ -95,10 +95,12 @@ def run_mcmc(waveform_data, config, logger):
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
         collect_samples=collect_samples, logger=logger, verbose=True)
 
+    # Record number of independent events processed
+    soln.num_input_seismograms = len(waveform_data)
+
     if soln.success:
-        # Compute energy flux and wavefield at top of mantle per seismogram for each solution, and return with soln
+        # Compute energy flux per seismogram for each solution, and return with soln
         Esu_per_x = []
-        wavefield_per_x = []
         for i, _x in enumerate(soln.x):
             num_layers = len(layers)
             earth_model = []
@@ -106,16 +108,13 @@ def run_mcmc(waveform_data, config, logger):
                 earth_model.append(LayerProps(Vp[j], _x[2*j + 1], rho[j], _x[2*j]))
             # end for
             earth_model = np.array(earth_model)
-            energy, energy_per_event, wavefield_decomp = flux_comp(mantle_props, earth_model, flux_window=flux_window)
+            energy, energy_per_event, _ = flux_comp(mantle_props, earth_model, flux_window=flux_window)
             # Check computed energy matchs what solver produced
             assert np.isclose(energy, soln.fun[i])
-            Esu_per_x.append(energy)
-            wavefield_per_x.append(wavefield_decomp)
+            Esu_per_x.append(energy_per_event)
         # end for
         # Upward S-wave energy at top of mantle per seismogram per solution point.
         soln.esu = Esu_per_x
-        # Wavefield decomposition at top of mantle per seismogram per solution point.
-        soln.wfd = wavefield_per_x
 
         # Compute per-event seismograms at bottom of layers that flagged it, and return with soln.
         subsurface = {}
@@ -137,7 +136,7 @@ def run_mcmc(waveform_data, config, logger):
         # end for
         soln.subsurface = subsurface
     else:
-        soln.esu = soln.wfd = soln.subsurface = None
+        soln.esu = soln.subsurface = None
     # end if
 
     return soln
@@ -287,6 +286,16 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     assert isinstance(job_timestamp, str)
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
 
+    def write_data_empty(dataset):
+        return h5py.Empty('f') if dataset is None else dataset
+    # end func
+
+    def write_list_dataset(dest_node, list_of_data):
+        for idx, ds in enumerate(list_of_data):
+            dest_node[str(idx)] = ds
+        # end for
+    # end func
+
     # Version string for layout of data in a node containing MCMC solution
     FORMAT_VERSION = '0.3'
 
@@ -314,16 +323,21 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
             station_node.attrs['format_version'] = FORMAT_VERSION
             try:
                 station_node['x'] = soln.x
+                station_node['num_input_seismograms'] = soln.num_input_seismograms
                 assert len(soln.x) == len(soln.clusters)
                 # Each cluster may be a different size, so we can't dump directly into h5py (which
                 # requires hyper-rectangular array shape).
                 cluster_node = station_node.create_group('clusters')
-                for idx, cluster in enumerate(soln.clusters):
-                    cluster_node[str(idx)] = cluster
-                # end for
+                write_list_dataset(cluster_node, soln.clusters)
                 cluster_energy_node = station_node.create_group('cluster_energy')
-                for idx, cluster_energy in enumerate(soln.cluster_funvals):
-                    cluster_energy_node[str(idx)] = cluster_energy
+                write_list_dataset(cluster_energy_node, soln.cluster_funvals)
+                per_event_energy_node = station_node.create_group('per_event_energy')
+                write_list_dataset(per_event_energy_node, soln.esu)
+                # Subsurface seismograms, e.g. at bottom of sedimentary layer
+                subsurface_node = station_node.create_group('subsurface')
+                for layer_name, layer_seismograms in soln.subsurface.items():
+                    layer_node = subsurface_node.create_group(layer_name)
+                    write_list_dataset(layer_node, layer_seismograms)
                 # end for
                 station_node['bins'] = soln.bins
                 station_node['distribution'] = soln.distribution
@@ -332,14 +346,13 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
                 station_node['status'] = soln.status
                 station_node['message'] = soln.message
                 station_node['fun'] = soln.fun
-                station_node['jac'] = h5py.Empty('f') if soln.jac is None else soln.jac
+                station_node['jac'] = write_data_empty(soln.jac)
                 station_node['nfev'] = soln.nfev
                 station_node['njev'] = soln.njev
                 station_node['nit'] = soln.nit
-                station_node['maxcv'] = h5py.Empty('f') if soln.maxcv is None else soln.maxcv
-                station_node['samples'] = h5py.Empty('f') if soln.samples is None else soln.samples
-                station_node['sample_energies'] = h5py.Empty('f') if soln.sample_funvals is None \
-                    else soln.sample_funvals
+                station_node['maxcv'] = write_data_empty(soln.maxcv)
+                station_node['samples'] = write_data_empty(soln.samples)
+                station_node['sample_energies'] = write_data_empty(soln.sample_funvals)
                 station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
                 station_node['version'] = soln.version
             except TypeError as exc:
@@ -373,6 +386,16 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
         return value
     # end func
 
+    def read_list_dataset(source_node):
+        list_data = []
+        for idx, ds in source_node.items():
+            list_data.append((int(idx), ds.value))
+        # end for
+        # Sort clusters by idx, then throw away the idx values.
+        list_data.sort(key=lambda i: i[0])
+        return [d[1] for d in list_data]
+    # end func
+
     soln_configs = []
     with h5py.File(h5_file, 'r') as h5f:
         while job_timestamp is None:
@@ -404,25 +427,26 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             try:
                 soln = optimize.OptimizeResult()
                 soln.x = station_node['x'].value
+                soln.num_input_seismograms = station_node['num_input_seismograms'].value
 
                 cluster_node = station_node['clusters']
-                clusters = []
-                for idx, cluster in cluster_node.items():
-                    clusters.append((int(idx), cluster.value))
-                # end for
-                # Sort clusters by idx, then throw away the idx values.
-                clusters.sort(key=lambda i: i[0])
-                soln.clusters = [c[1] for c in clusters]
-
-                cluster_energy_node = station_node['cluster_energy']
-                cluster_energy = []
-                for idx, energies in cluster_energy_node.items():
-                    cluster_energy.append((int(idx), energies.value))
-                # end for
-                cluster_energy.sort(key=lambda i: i[0])
-                soln.cluster_funvals = [c[1] for c in cluster_energy]
+                soln.clusters = read_list_dataset(cluster_node)
 
                 assert len(soln.x) == len(soln.clusters)
+
+                cluster_energy_node = station_node['cluster_energy']
+                soln.cluster_funvals = read_list_dataset(cluster_energy_node)
+
+                per_event_energy_node = station_node['per_event_energy']
+                soln.esu = read_list_dataset(per_event_energy_node)
+
+                # Subsurface seismograms
+                subsurface_node = station_node['subsurface']
+                subsurface = {}
+                for layer_node in subsurface_node:
+                    subsurface[layer_node.name] = read_list_dataset(layer_node)
+                # end for
+                soln.subsurface = subsurface
 
                 soln.bins = station_node['bins'].value
                 soln.distribution = station_node['distribution'].value
