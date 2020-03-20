@@ -24,7 +24,7 @@ def recursive_glob(treeroot, pattern):
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 class Origin:
