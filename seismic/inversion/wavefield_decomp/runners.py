@@ -611,7 +611,7 @@ def mpi_job(config_file, waveform_file, output_file):
     log_fmt = logging.Formatter(**LOG_FORMAT)
     job_id = os.getenv('PBS_JOBID')
     if job_id is None:
-        job_id = comm.bcast(os.getpid(), root=0)
+        job_id = str(comm.bcast(os.getpid(), root=0))
     # end if
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_fmt)
