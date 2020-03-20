@@ -1,6 +1,6 @@
 # Cross-Correlation Workflow
 
-The cross-correlation functionality works off of two text-files, each containing a list of ASDF files. Users specify a subset of stations (or * for all stations) available in the ASDF files in each of the text-files to be cross-correlated. Depending on the parameterization, a cartesian product of two lists of station-names defines station-pairs that are to be cross-correlated -- see `correlator.py` for details.
+The cross-correlation functionality works off of a FederatedASDF_Dataset source. Users specify two subsets of stations (or * for all stations available in the ASDF files) either as command-line arguments or as separate text-files to be cross-correlated. Depending on the parameterization, a Cartesian product of two lists of station-names defines station-pairs that are to be cross-correlated -- see `correlator.py` for details.
 
 Cross-correlation results are written out as NetCDF-4 files for each station-pair. Interrogating cross-correlation results requires interactive visualization capabilities. [Panoply], a freely available cross-platform tool, which is also available on NCI VDIs, can be used to visualize the results interactively. A quick intro to [Panoply] is available [here].
 
