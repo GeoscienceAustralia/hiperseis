@@ -61,6 +61,8 @@ def setup_logger(name, log_file, level=logging.INFO):
 # end func
 
 class Origin:
+    __slots__ = 'utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list'
+
     def __init__(self, utctime, lat, lon, depthkm):
         self.utctime = utctime
         self.lat = lat
@@ -72,6 +74,8 @@ class Origin:
 # end class
 
 class Event:
+    __slots__ = 'public_id', 'preferred_origin', 'preferred_magnitude', 'origin_list'
+
     def __init__(self):
         self.public_id = None
         self.preferred_origin = None
@@ -81,6 +85,8 @@ class Event:
 # end class
 
 class Magnitude:
+    __slots__ = 'magnitude_value', 'magnitude_type'
+
     def __init__(self, mag, mag_type):
         self.magnitude_value = mag
         self.magnitude_type = mag_type
@@ -88,6 +94,8 @@ class Magnitude:
 # end class
 
 class Arrival:
+    __slots__ = 'net', 'sta', 'loc', 'cha', 'lon', 'lat', 'elev', 'phase', 'utctime', 'distance'
+
     def __init__(self, net, sta, loc, cha, lon, lat, elev, phase, utctime, distance):
         self.net = net
         self.sta = sta
@@ -136,8 +144,8 @@ class FDSNInv:
 
                 if not self.client: raise Exception('Connection failed..')
             except Exception as e:
-                print e
-                print 'Failed to connect to client. Aborting..'
+                print (e)
+                print ('Failed to connect to client. Aborting..')
             # end try    
             self.inv = self.client.get_stations(level='station')
         else:
@@ -154,8 +162,8 @@ class FDSNInv:
         
         self.nsList = []
         self.nsCoordsList = []
-        for nk, n in self.t.iteritems():
-            for sk, s in n.iteritems():
+        for nk, n in self.t.items():
+            for sk, s in n.items():
                 self.nsList.append('%s.%s'%(nk, sk))
                 self.nsCoordsList.append(s)
             #end for
@@ -198,14 +206,14 @@ class Catalog():
         self.logger = setup_logger('log.%d'%(self.rank), '%s/log.%d.txt'%(self.output_path, self.rank))
 
         self.isc_coords_file = isc_coords_file
-        k = parser.fromstring(open(self.isc_coords_file).read())
+        k = parser.fromstring(open(self.isc_coords_file, 'rb').read())
 
-        ns = k.nsmap.values()[0]
+        ns = list(k.nsmap.values())[0]
         elist=k.findall('.//{%s}Placemark'%(ns))
         self.isc_coords_dict = defaultdict(list)
 
         for e in elist:
-            self.isc_coords_dict[e['name']] = map(float, (str(e['Point']['coordinates'])).split(','))
+            self.isc_coords_dict[e['name']] = list(map(float, (str(e['Point']['coordinates'])).split(',')))
         # end for
 
 
@@ -226,7 +234,7 @@ class Catalog():
         lines = []
 
         for ifn, fn in enumerate(self.csv_files):
-            print 'Reading %s' % (fn)
+            print (('Reading %s' % (fn)))
             for iline, line in enumerate(open(fn, 'r').readlines()):
                 lines.append(line)
             # end for
@@ -238,7 +246,7 @@ class Catalog():
                 evtline = ''
                 if(line[0]=='#'):
                     items = line.split(',')
-                    vals = map(float, items[1:])
+                    vals = list(map(float, items[1:]))
 
                     year = int(vals[0])
                     month = int(vals[1])
@@ -303,21 +311,22 @@ class Catalog():
 
                 #if(iline%1000==0): print iline
             # end for
+            eventList = split_list(eventList, self.nproc)
+            poTimestamps = split_list(poTimestamps, self.nproc)
         # end if
 
-        eventList = split_list(eventList, self.nproc)
-        poTimestamps = split_list(poTimestamps, self.nproc)
         # broadcast workload to all procs
-        eventList = self.comm.bcast(eventList, root=0)
-        poTimestamps = self.comm.bcast(poTimestamps, root=0)
 
-        print 'Processing %d events on rank %d'%(len(eventList[self.rank]), self.rank)
-        for e in eventList[self.rank]:
+        eventList = self.comm.scatter(eventList, root=0)
+        poTimestamps = self.comm.scatter(poTimestamps, root=0)
+
+        print (('Processing %d events on rank %d'%(len(eventList), self.rank)))
+        for e in eventList:
             lineIndices = copy.copy(e.preferred_origin.arrival_list)
             e.preferred_origin.arrival_list = []
             for lineIndex in lineIndices:
                 items = lines[lineIndex].split(',')
-                vals = map(float, items[8:])
+                vals = list(map(float, items[8:]))
 
                 year = int(vals[0])
                 month = int(vals[1])
@@ -349,8 +358,8 @@ class Catalog():
             # end for
         # end for
         
-        self.eventList = eventList[self.rank]
-        self.poTimestamps = np.array(poTimestamps[self.rank])
+        self.eventList = eventList
+        self.poTimestamps = np.array(poTimestamps)
     # end func
     
     def get_id(self):
@@ -584,7 +593,7 @@ class Catalog():
 
 
         if(len(missingStations)):
-            for k, v in missingStations.iteritems():
+            for k, v in missingStations.items():
                 self.logger.warning('Missing station %s: %d picks'%(k, v))
             # end for
         # end if
@@ -688,7 +697,7 @@ class OurPicks:
                 self.picks[int(float(items[0]))].append([t, net, sta, cha, phase, residual, auxData, elat, elon, slat, slon,
                                              d, az, baz])
             # end for
-            print 'Read %s'%fn
+            print (('Read %s'%fn))
         # end for
     # end func
 # end class
@@ -710,10 +719,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                                        'picks provided through p- and s-arrivals')
 def process(event_folder, inventory, isc_station_coords, output_path, p_arrivals, s_arrivals, discard_old_picks):
     """
-    EVENT_FOLDER: Folder containing a CSV Catalog
-    INVENTORY: Station inventory in FDSNstationxml format
-    ISC_STATION_COORDS: ISC station coordinates in kml format
-    OUTPUT_PATH: Path to output folder
+    EVENT_FOLDER: Folder containing CSV Catalogue(s) \n
+    INVENTORY: Station inventory in FDSNstationxml format \n
+    ISC_STATION_COORDS: ISC station coordinates in kml format \n
+    OUTPUT_PATH: Path to output folder \n
 
     usage: mpirun -np 112 python createEnsembleXML.py /g/data/ha3/Passive/Events/Unified/ sc3Inventory.xml stations.kml \
            updatedEvents/ --p-arrivals p_combined.txt --s-arrivals s_combined.txt
@@ -738,26 +747,3 @@ def process(event_folder, inventory, isc_station_coords, output_path, p_arrivals
 if (__name__ == '__main__'):
     process()
 # end if
-
-'''
-if __name__=="__main__":
-    PATH = '/g/data/ha3/Passive/Events/Unified/'
-    INV = '/g/data1a/ha3/rakib/seismic/pst/tests/output/sc3Inventory.xml'
-    ISC_COORDS_FILE = '/g/data1a/ha3/rakib/seismic/pst/tests/output/stations.kml'
-    OFPATH = '/g/data1a/ha3/rakib/seismic/pst/tests/output/updatedEvents/'
-
-    fi = FDSNInv(INV)
-    if(0):
-        op = OurPicks(['/g/data/ha3/rakib/seismic/pst/tests/results/p_arrivals_mag_4_and_above.txt',
-                       '/g/data/ha3/rakib/seismic/pst/tests/results/s_arrivals_mag_4_and_above.txt',
-                       '/g/data/ha3/rakib/seismic/pst/tests/results/temp/p_arrivals.txt',
-                       '/g/data/ha3/rakib/seismic/pst/tests/results/temp/s_arrivals.txt'],
-                       ['P', 'S', 'P', 'S'])
-    else:
-        op = OurPicks(['/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take12/p_combined.txt',
-                       '/g/data/ha3/rakib/seismic/pst/tests/output/pands_all_take12/s_combined.txt'],
-                       ['P', 'S'])
-    # end if
-    c = Catalog(ISC_COORDS_FILE, fi, op, PATH, OFPATH)
-# end if
-'''
