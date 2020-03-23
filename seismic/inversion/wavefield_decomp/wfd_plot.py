@@ -97,6 +97,7 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
     diag_hist_ax = []
     row_idx, col_idx = np.indices((ndims, ndims))
     adjustable_text = []  # Collect line text labels
+    np.random.seed(20200318)
     for row, col in zip(row_idx.flat, col_idx.flat):
         if row == col:
             # Diagonal plots - use full sample histogram.
@@ -117,6 +118,7 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
             # Lock axes ranges to parameter ranges
             ax.set_xlim(soln.bounds.lb[row], soln.bounds.ub[row])
             # Add vertical lines to histogram to indication solution locations and label value.
+            y_pos_used = []
             for i, _x in enumerate(soln.x):
                 color = 'C' + str(i)
                 ax.axvline(_x[row], color=color, linestyle='--', linewidth=1.2*scale)
@@ -126,23 +128,30 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
                 x_lim = ax.get_xlim()
                 x_range = x_lim[1] - x_lim[0]
                 if (_x[row] - x_lim[0])/x_range >= 0.5:
-                    hjust = 'left'
-                    hoffset = 0.02*x_range
-                else:
                     hjust = 'right'
                     hoffset = -0.02*x_range
+                else:
+                    hjust = 'left'
+                    hoffset = 0.02*x_range
                 # end if
                 # Work out exact position on local y-axis, using full N-dimensional solution to minimize
                 # overlap by project N-dimensional position onto the diagonal of the bounded space.
                 bounds_diag = soln.bounds.ub - soln.bounds.lb
                 denom = np.dot(bounds_diag, bounds_diag)
                 y_pos_norm = np.dot(_x - soln.bounds.lb, bounds_diag)/denom
+                if y_pos_used:
+                    y_new = y_pos_norm
+                    while (np.min(np.abs(np.array(y_pos_used) - y_new)) < 0.05 or y_new < 0 or y_new > 1):
+                        y_new = y_pos_norm + 0.2*np.random.randn()
+                    y_pos_norm = y_new
+                # end while
+                y_pos_used.append(y_pos_norm)
                 assert 0.0 <= y_pos_norm <= 1.0
-                y_pos = x_lim[0] + y_pos_norm*x_range
+                y_pos = x_lim[0] + 0.9*y_pos_norm*x_range
                 if y_pos_norm >= 0.5:
-                    vjust = 'bottom'
-                else:
                     vjust = 'top'
+                else:
+                    vjust = 'bottom'
                 # end if
                 t = axd.text(_x[row] + hoffset, y_pos, '{:.3f}'.format(_x[row]), ha=hjust, va=vjust, color=color,
                              fontsize=text_font_size*scale, fontstyle='italic', fontweight='semibold', zorder=100+i)
