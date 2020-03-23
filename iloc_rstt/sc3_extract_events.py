@@ -84,7 +84,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=False))
 def process(data_path, scratch_path, output_file_stem):
     """
-    DATA_PATH: input-folder \n
+    DATA_PATH: input-folder which contains output from iloc_phase_ident.py \n
     SCRATCH_PATH: scratch-folder \n
     OUTPUT_FILE_STEM: output file stem \n
     """
