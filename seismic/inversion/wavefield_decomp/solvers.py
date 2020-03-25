@@ -347,8 +347,8 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     # Add histograms to output result (in form of scipy.stats.rv_histogram)
     solution = OptimizeResult()
     solution.x = np.array([s[0] for s in solutions])
-    solution.clusters = [pts[(labels == s[1]), :] for s in solutions]
-    solution.cluster_funvals = [fvals[(labels == s[1]), :] for s in solutions]
+    solution.clusters = [pts[(labels == s[1])] for s in solutions]
+    solution.cluster_funvals = [fvals[(labels == s[1])] for s in solutions]
     solution.bins = hist.bins
     solution.distribution = hist.histograms
     solution.acceptance_rate = ar
