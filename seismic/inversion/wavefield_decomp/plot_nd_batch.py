@@ -86,6 +86,11 @@ def main(solution_file, output_file):
             #  Convert Vs parameter to k = Vp/Vs
             convert_Vs_to_k(soln, config)
             p, _, _ = plot_Nd(soln, title=config['station_id'], vars=vars)
+            # Annotate top left axes with number of events use in the solver.
+            ndims = len(soln.bounds.lb)
+            ax = p.axes[0, ndims - 1]
+            ax.text(0.95, 0.95, 'N = {}'.format(soln.num_input_seismograms), fontsize=10,
+                    ha='right', va='top', transform=ax.transAxes)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
         # end for
