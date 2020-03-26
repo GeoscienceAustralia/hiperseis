@@ -443,8 +443,8 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 # Subsurface seismograms
                 subsurface_node = station_node['subsurface']
                 subsurface = {}
-                for layer_node in subsurface_node:
-                    subsurface[layer_node.name] = read_list_dataset(layer_node)
+                for layer_name, layer_node in subsurface_node.items():
+                    subsurface[layer_name] = read_list_dataset(layer_node)
                 # end for
                 soln.subsurface = subsurface
 
