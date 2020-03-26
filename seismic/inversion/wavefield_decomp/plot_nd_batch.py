@@ -51,6 +51,51 @@ def convert_Vs_to_k(soln, config):
 # end func
 
 
+def plot_aux_data(soln, config):
+    f, ax_all = plt.subplots(3, 1, figsize=(12, 18))
+
+    hist_alpha = 0.5
+    soln_alpha = 0.3
+    nbins = 100
+
+    # Plot energy distribution of samples and solution clusters
+    ax = ax_all[0]
+    energy_hist, bins = np.histogram(soln.sample_funvals, bins=100)
+    energy_hist = energy_hist.astype(float)/np.max(energy_hist)
+    ax.bar(bins[:-1], energy_hist, width=np.diff(bins), align='edge', color='#808080', alpha=hist_alpha)
+
+    for i, cluster_energies in enumerate(soln.cluster_funvals):
+        color = 'C' + str(i)
+        cluster_hist, _ = np.histogram(cluster_energies, bins)
+        cluster_hist = cluster_hist.astype(float)/np.max(cluster_hist)
+        ax.bar(bins[:-1], cluster_hist, width=np.diff(bins), align='edge', color=color, alpha=soln_alpha)
+    # end for
+
+    # Plot sorted per-event upwards S-wave energy at top of mantle per solution
+    ax = ax_all[1]
+    for i, esu in enumerate(soln.esu):
+        color = 'C' + str(i)
+        esu_sorted = sorted(esu)
+        ax.plot(esu_sorted, color=color, alpha=soln_alpha)
+    # end for
+
+    # Plot receiver function at base of selected layers
+    for layer in config["layers"]:
+        lname = layer["name"]
+        if soln.subsurface and lname in soln.subsurface:
+            # ax = ax_all[2]
+            base_seismogms = soln.subsurface[lname]
+            # TODO: Generate RF and plot. Can we do it without T component?
+            # for i, seismogm in enumerate(base_seismogms):
+            #     print(seismogm.shape)
+            # # end for
+        # end if
+    # end for
+
+    return f, ax_all
+# end func
+
+
 @click.command()
 @click.argument('solution_file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
@@ -91,6 +136,10 @@ def main(solution_file, output_file):
             ax = p.axes[0, ndims - 1]
             ax.text(0.95, 0.95, 'N = {}'.format(soln.num_input_seismograms), fontsize=10,
                     ha='right', va='top', transform=ax.transAxes)
+            pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
+            plt.close()
+
+            p, _ = plot_aux_data(soln, config)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
         # end for
