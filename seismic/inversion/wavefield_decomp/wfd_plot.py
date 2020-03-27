@@ -187,7 +187,7 @@ def plot_Nd(soln, title='', scale=1.0, vars=None):
         plt.suptitle(title, y=0.96, fontsize=16*scale)
     # end if
 
-    plt.subplots_adjust(left=0.125, top=0.9, bottom=0.10, right=0.95)
+    plt.subplots_adjust(left=0.125, top=0.9, bottom=0.10, right=0.9)
 
     return p, diag_hist_ax, adjustable_text
 # end func

@@ -52,32 +52,48 @@ def convert_Vs_to_k(soln, config):
 
 
 def plot_aux_data(soln, config):
-    f, ax_all = plt.subplots(3, 1, figsize=(12, 18))
+    f = plt.figure(constrained_layout=False, figsize=(12.8, 12.8))
+    f.suptitle(config["station_id"], y=0.96, fontsize=16)
+    gs = f.add_gridspec(3, 2, left=0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3)
+    ax0 = f.add_subplot(gs[0, 0])
+    ax1 = f.add_subplot(gs[0, 1])
+    ax2 = f.add_subplot(gs[1:, :])
 
     hist_alpha = 0.5
     soln_alpha = 0.3
+    axis_font_size = 12
     nbins = 100
 
     # Plot energy distribution of samples and solution clusters
-    ax = ax_all[0]
-    energy_hist, bins = np.histogram(soln.sample_funvals, bins=100)
+    energy_hist, bins = np.histogram(soln.sample_funvals, bins=nbins)
     energy_hist = energy_hist.astype(float)/np.max(energy_hist)
-    ax.bar(bins[:-1], energy_hist, width=np.diff(bins), align='edge', color='#808080', alpha=hist_alpha)
+    ax0.bar(bins[:-1], energy_hist, width=np.diff(bins), align='edge', color='#808080', alpha=hist_alpha)
 
     for i, cluster_energies in enumerate(soln.cluster_funvals):
         color = 'C' + str(i)
         cluster_hist, _ = np.histogram(cluster_energies, bins)
         cluster_hist = cluster_hist.astype(float)/np.max(cluster_hist)
-        ax.bar(bins[:-1], cluster_hist, width=np.diff(bins), align='edge', color=color, alpha=soln_alpha)
+        ax0.bar(bins[:-1], cluster_hist, width=np.diff(bins), align='edge', color=color, alpha=soln_alpha)
     # end for
+    ax0.set_title('Energy distribution of random samples and solution clusters')
+    ax0.set_xlabel('$E_{SU}$ energy (arb. units)')
+    ax0.set_ylabel('Normalized counts')
+    ax0.tick_params(labelsize=axis_font_size)
+    ax0.xaxis.label.set_size(axis_font_size)
+    ax0.yaxis.label.set_size(axis_font_size)
 
     # Plot sorted per-event upwards S-wave energy at top of mantle per solution
-    ax = ax_all[1]
     for i, esu in enumerate(soln.esu):
         color = 'C' + str(i)
         esu_sorted = sorted(esu)
-        ax.plot(esu_sorted, color=color, alpha=soln_alpha)
+        ax1.plot(esu_sorted, color=color, alpha=soln_alpha)
     # end for
+    ax1.set_title('Ranked per-event energy for each solution point')
+    ax1.set_xlabel('Rank (out of # source events)')
+    ax1.set_ylabel('Event $E_{SU}$ energy (arb. units)')
+    ax1.tick_params(labelsize=axis_font_size)
+    ax1.xaxis.label.set_size(axis_font_size)
+    ax1.yaxis.label.set_size(axis_font_size)
 
     # Plot receiver function at base of selected layers
     for layer in config["layers"]:
@@ -86,13 +102,16 @@ def plot_aux_data(soln, config):
             # ax = ax_all[2]
             base_seismogms = soln.subsurface[lname]
             # TODO: Generate RF and plot. Can we do it without T component?
+            ax2.annotate('RF plot here', (0.5, 0.5), xycoords='axes fraction', ha='center')
             # for i, seismogm in enumerate(base_seismogms):
             #     print(seismogm.shape)
             # # end for
         # end if
     # end for
 
-    return f, ax_all
+    # f.tight_layout()
+
+    return f, [ax0, ax1, ax2]
 # end func
 
 
