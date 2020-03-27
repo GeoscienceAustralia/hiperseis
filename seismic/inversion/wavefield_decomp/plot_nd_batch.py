@@ -13,9 +13,11 @@ from tqdm.auto import tqdm
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+import rf
 
 from seismic.inversion.wavefield_decomp.runners import load_mcmc_solution
 from seismic.inversion.wavefield_decomp.wfd_plot import plot_Nd
+from seismic.stream_io import read_h5_stream
 
 
 def convert_Vs_to_k(soln, config):
@@ -51,13 +53,58 @@ def convert_Vs_to_k(soln, config):
 # end func
 
 
-def plot_aux_data(soln, config):
+def _compute_rf(data, config, log):
+    st = rf.RFStream()
+    event_ids = config.get("event_ids")
+    src_file = config.get("waveform_file")
+    if event_ids is None:
+        log.error("Unable to generate RF without event IDs")
+        return st
+    # end if
+    if src_file is None:
+        log.error("Unable to generate RF without path to source file")
+        return st
+    # end if
+    if not os.path.isfile(src_file):
+        log.error("Source file {} for trace metadata not found, cannot generate RF".format(src_file))
+        return
+    # end if
+    net, sta, loc = config["station_id"].split('.')
+    src_waveforms = read_h5_stream(src_file, net, sta, loc)
+    assert data.shape[0] == len(event_ids)
+    for i, event_data in enumerate(data):
+        evid = event_ids[i]
+        src_stream = rf.RFStream([tr for tr in src_waveforms if tr.stats.event_id == evid])
+        # Z component
+        z_header = src_stream.select(component='Z')[0].stats
+        su_opts = config["su_energy_opts"]
+        z_header.starttime = z_header.onset + su_opts["time_window"][0]
+        z_header.sampling_rate = su_opts["sampling_rate"]
+        z_header.delta = 1.0/z_header.sampling_rate
+        z_header.npts = event_data.shape[1]
+        assert np.isclose(float(z_header.endtime - z_header.starttime), su_opts["time_window"][1] - su_opts["time_window"][0])
+        tr = rf.rfstream.RFTrace(event_data[1, :], header=z_header)
+        st += tr
+        # R component
+        r_header = z_header.copy()
+        r_header.channel = z_header.channel[:-1] + 'R'
+        tr = rf.rfstream.RFTrace(event_data[0, :], header=r_header)
+        st += tr
+    # end for
+    st.rf()  # TODO: Filter RF and set to iterative deconv
+    return st
+# end func
+
+
+def plot_aux_data(soln, config, log):
     f = plt.figure(constrained_layout=False, figsize=(12.8, 12.8))
     f.suptitle(config["station_id"], y=0.96, fontsize=16)
-    gs = f.add_gridspec(3, 2, left=0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3)
-    ax0 = f.add_subplot(gs[0, 0])
-    ax1 = f.add_subplot(gs[0, 1])
-    ax2 = f.add_subplot(gs[1:, :])
+    gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3,
+                        height_ratios=[1, 2])
+    gs_top = gs[0].subgridspec(1, 2)
+    ax0 = f.add_subplot(gs_top[0, 0])
+    ax1 = f.add_subplot(gs_top[0, 1])
+    # ax2 = f.add_subplot(gs[1:, :])
 
     hist_alpha = 0.5
     soln_alpha = 0.3
@@ -99,19 +146,35 @@ def plot_aux_data(soln, config):
     for layer in config["layers"]:
         lname = layer["name"]
         if soln.subsurface and lname in soln.subsurface:
-            # ax = ax_all[2]
             base_seismogms = soln.subsurface[lname]
-            # TODO: Generate RF and plot. Can we do it without T component?
-            ax2.annotate('RF plot here', (0.5, 0.5), xycoords='axes fraction', ha='center')
-            # for i, seismogm in enumerate(base_seismogms):
-            #     print(seismogm.shape)
-            # # end for
+            # Generate RF and plot.
+            n_solutions = len(base_seismogms)
+            gs_bot = gs[1].subgridspec(n_solutions, 1)
+            for i, seismogm in enumerate(base_seismogms):
+                soln_rf = _compute_rf(seismogm, config, log)
+                assert isinstance(soln_rf, rf.RFStream)
+                axn = f.add_subplot(gs_bot[i])
+                if soln_rf:
+                    color = 'C' + str(i)
+                    rf_z = soln_rf.select(component='Z')
+                    times = rf_z[0].times() + config["su_energy_opts"]["time_window"][0]
+                    data = rf_z.stack()[0].data
+                    plt.plot(times, data, color=color, alpha=soln_alpha, linewidth=2)
+                else:
+                    axn.annotate('Empty RF plot', (0.5, 0.5), xycoords='axes fraction', ha='center')
+                # end if
+                axn.set_title(' '.join([config["station_id"], lname, 'base RF']))
+                axn.tick_params(labelsize=axis_font_size)
+                axn.xaxis.label.set_size(axis_font_size)
+                axn.yaxis.label.set_size(axis_font_size)
+            # end for
+            break  # TODO: Figure out how to add more layers if needed
         # end if
     # end for
 
     # f.tight_layout()
 
-    return f, [ax0, ax1, ax2]
+    return f
 # end func
 
 
@@ -158,11 +221,12 @@ def main(solution_file, output_file):
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
 
-            p, _ = plot_aux_data(soln, config)
+            p = plot_aux_data(soln, config, log)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
         # end for
     # end with
+    log.info('Produced file {}'.format(output_file))
 
 # end func
 

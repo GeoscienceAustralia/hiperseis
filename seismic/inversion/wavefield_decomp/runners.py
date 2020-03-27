@@ -117,6 +117,8 @@ def run_mcmc(waveform_data, config, logger):
         soln.esu = Esu_per_x
 
         # Compute per-event seismograms at bottom of layers that flagged it, and return with soln.
+        # For now we just re-use the original flux computer, but if we want to use a broader
+        # cut_window here, we will need to create a new one.
         subsurface = {}
         for i, layer in enumerate(layers):
             if bool(layer.get("save_seismogram", False)):
@@ -297,7 +299,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     # end func
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.3'
+    FORMAT_VERSION = '0.4'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -529,6 +531,11 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     # end if
 
     soln = runner(waveform_data.station(station).values(), config, logger)
+
+    # Add ordered event IDs so source waveforms can be re-extraced later
+    # from source file if necessary.
+    ordered_event_ids = [st[0].stats.event_id for st in waveform_data.station(station).values()]
+    config.update({"event_ids": ordered_event_ids})
 
     return soln, config
 
