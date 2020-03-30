@@ -140,23 +140,42 @@ def plot_aux_data(soln, config, log, scale):
     ax0.xaxis.label.set_size(axis_font_size)
     ax0.yaxis.label.set_size(axis_font_size)
 
-    # Plot sorted per-event upwards S-wave energy at top of mantle per solution
+    # Plot sorted per-event upwards S-wave energy at top of mantle per solution.
+    # Collect event IDs of worst fit traces and present as table of waveform IDs.
     event_ids = config["event_ids"]
+    events_best3 = []
+    events_worst3 = []
     for i, esu in enumerate(soln.esu):
         assert len(esu) == len(event_ids)
         color = 'C' + str(i)
         esu_sorted = sorted(zip(esu, event_ids))
-        events_best3 = [e[1] for e in esu_sorted[:3]]
-        events_worst3 = [e[1] for e in esu_sorted[-3:]]
+        events_best3.extend(esu_sorted[:3])
+        events_worst3.extend(esu_sorted[-3:])
         esu_sorted = [e[0] for e in esu_sorted]
         ax1.plot(esu_sorted, color=color, alpha=soln_alpha)
-        _tab1 = table(ax1, cellText=[[e] for e in events_best3], colLabels=['BEST 3'],
-                      cellLoc='left', colWidths=[0.25], loc='upper left',
-                      edges='horizontal', fontsize=5*scale, color='#40404080')
-        _tab2 = table(ax1, cellText=[[e] for e in events_worst3], colLabels=['WORST 3'],
-                      cellLoc='left', colWidths=[0.25], loc='upper right',
-                      edges='horizontal', fontsize=5*scale, color='#40404080')
     # end for
+    events_best3 = sorted(events_best3)
+    events_worst3 = sorted(events_worst3, reverse=True)
+    best_events_set = set()
+    worst_events_set = set()
+    for _, evid in events_best3:
+        best_events_set.add(evid)
+        if len(best_events_set) >= 3:
+            break
+        # end if
+    # end for
+    for _, evid in events_worst3:
+        worst_events_set.add(evid)
+        if len(worst_events_set) >= 3:
+            break
+        # end if
+    # end for
+    _tab1 = table(ax1, cellText=[[e] for e in best_events_set], colLabels=['BEST'],
+                  cellLoc='left', colWidths=[0.25], loc='upper left',
+                  edges='horizontal', fontsize=6*scale, alpha=0.6)  # alpha broken in matplotlib.table!
+    _tab2 = table(ax1, cellText=[[e] for e in worst_events_set], colLabels=['WORST'],
+                  cellLoc='left', colWidths=[0.25], loc='upper right',
+                  edges='horizontal', fontsize=6*scale, alpha=0.6)
     ax1.set_title('Ranked per-event energy for each solution point',
                   fontsize=title_font_size)
     ax1.set_xlabel('Rank (out of # source events)')
@@ -173,7 +192,7 @@ def plot_aux_data(soln, config, log, scale):
             base_seismogms = soln.subsurface[lname]
             # Generate RF and plot.
             n_solutions = len(base_seismogms)
-            gs_bot = gs[1].subgridspec(n_solutions, 1, hspace=0.2)
+            gs_bot = gs[1].subgridspec(n_solutions, 1, hspace=0.3)
             for i, seismogm in enumerate(base_seismogms):
                 soln_rf = _compute_rf(seismogm, config, log)
                 assert isinstance(soln_rf, rf.RFStream)
@@ -196,8 +215,8 @@ def plot_aux_data(soln, config, log, scale):
                 else:
                     axn.annotate('Empty RF plot', (0.5, 0.5), xycoords='axes fraction', ha='center')
                 # end if
-                axn.set_title(' '.join([config["station_id"], lname, 'base RF']),
-                              fontsize=title_font_size)
+                axn.set_title(' '.join([config["station_id"], lname, 'base RF', '(soln {})'.format(i)]),
+                              fontsize=title_font_size, y=0.95, va='top')
                 axn.tick_params(labelsize=axis_font_size)
                 axn.xaxis.label.set_size(axis_font_size)
                 axn.yaxis.label.set_size(axis_font_size)
