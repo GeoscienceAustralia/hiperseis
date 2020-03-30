@@ -18,6 +18,10 @@ import rf
 from seismic.inversion.wavefield_decomp.runners import load_mcmc_solution
 from seismic.inversion.wavefield_decomp.wfd_plot import plot_Nd
 from seismic.stream_io import read_h5_stream
+from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
+
+
+default_fig_width_inches = 6.4
 
 
 def convert_Vs_to_k(soln, config):
@@ -91,13 +95,18 @@ def _compute_rf(data, config, log):
         tr = rf.rfstream.RFTrace(event_data[0, :], header=r_header)
         st += tr
     # end for
-    st.rf()  # TODO: Filter RF and set to iterative deconv
+
+    st.filter('bandpass', freqmin=0.05, freqmax=1.0, corners=2, zerophase=True)
+    normalize = 0  # Use Z-component for normalization
+    st.rf(rotate=None, method='P', deconvolve='func', func=rf_iter_deconv,
+          normalize=normalize, min_fit_threshold=75.0)
+
     return st
 # end func
 
 
-def plot_aux_data(soln, config, log):
-    f = plt.figure(constrained_layout=False, figsize=(12.8, 12.8))
+def plot_aux_data(soln, config, log, scale):
+    f = plt.figure(constrained_layout=False, figsize=(6.4*scale, 6.4*scale))
     f.suptitle(config["station_id"], y=0.96, fontsize=16)
     gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3,
                         height_ratios=[1, 2])
@@ -108,7 +117,8 @@ def plot_aux_data(soln, config, log):
 
     hist_alpha = 0.5
     soln_alpha = 0.3
-    axis_font_size = 12
+    axis_font_size = 8*scale
+    title_font_size = 8*scale
     nbins = 100
 
     # Plot energy distribution of samples and solution clusters
@@ -122,7 +132,8 @@ def plot_aux_data(soln, config, log):
         cluster_hist = cluster_hist.astype(float)/np.max(cluster_hist)
         ax0.bar(bins[:-1], cluster_hist, width=np.diff(bins), align='edge', color=color, alpha=soln_alpha)
     # end for
-    ax0.set_title('Energy distribution of random samples and solution clusters')
+    ax0.set_title('Energy distribution of random samples and solution clusters',
+                  fontsize=title_font_size)
     ax0.set_xlabel('$E_{SU}$ energy (arb. units)')
     ax0.set_ylabel('Normalized counts')
     ax0.tick_params(labelsize=axis_font_size)
@@ -135,7 +146,8 @@ def plot_aux_data(soln, config, log):
         esu_sorted = sorted(esu)
         ax1.plot(esu_sorted, color=color, alpha=soln_alpha)
     # end for
-    ax1.set_title('Ranked per-event energy for each solution point')
+    ax1.set_title('Ranked per-event energy for each solution point',
+                  fontsize=title_font_size)
     ax1.set_xlabel('Rank (out of # source events)')
     ax1.set_ylabel('Event $E_{SU}$ energy (arb. units)')
     ax1.tick_params(labelsize=axis_font_size)
@@ -156,14 +168,17 @@ def plot_aux_data(soln, config, log):
                 axn = f.add_subplot(gs_bot[i])
                 if soln_rf:
                     color = 'C' + str(i)
-                    rf_z = soln_rf.select(component='Z')
-                    times = rf_z[0].times() + config["su_energy_opts"]["time_window"][0]
-                    data = rf_z.stack()[0].data
-                    plt.plot(times, data, color=color, alpha=soln_alpha, linewidth=2)
+                    rf_R = soln_rf.select(component='R')
+                    times = rf_R[0].times() + config["su_energy_opts"]["time_window"][0]
+                    data = rf_R.stack()[0].data
+                    axn.plot(times, data, color=color, alpha=soln_alpha, linewidth=2)
+                    axn.set_xlabel('Time (sec)')
+                    axn.grid(color='#80808080', linestyle=':')
                 else:
                     axn.annotate('Empty RF plot', (0.5, 0.5), xycoords='axes fraction', ha='center')
                 # end if
-                axn.set_title(' '.join([config["station_id"], lname, 'base RF']))
+                axn.set_title(' '.join([config["station_id"], lname, 'base RF']),
+                              fontsize=title_font_size)
                 axn.tick_params(labelsize=axis_font_size)
                 axn.xaxis.label.set_size(axis_font_size)
                 axn.yaxis.label.set_size(axis_font_size)
@@ -171,8 +186,6 @@ def plot_aux_data(soln, config, log):
             break  # TODO: Figure out how to add more layers if needed
         # end if
     # end for
-
-    # f.tight_layout()
 
     return f
 # end func
@@ -213,6 +226,7 @@ def main(solution_file, output_file):
             #  Convert Vs parameter to k = Vp/Vs
             convert_Vs_to_k(soln, config)
             p, _, _ = plot_Nd(soln, title=config['station_id'], vars=vars)
+            scale = p.fig.get_size_inches()[0]/default_fig_width_inches
             # Annotate top left axes with number of events use in the solver.
             ndims = len(soln.bounds.lb)
             ax = p.axes[0, ndims - 1]
@@ -221,7 +235,7 @@ def main(solution_file, output_file):
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
 
-            p = plot_aux_data(soln, config, log)
+            p = plot_aux_data(soln, config, log, scale)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
         # end for
