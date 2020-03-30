@@ -91,8 +91,9 @@ def run_mcmc(waveform_data, config, logger):
     max_iter = solver_opts["max_iter"]
     target_ar = solver_opts.get("target_ar", DEFAULT_AR)
     collect_samples = solver_opts.get("collect_samples", None)
+    N = solver_opts.get("max_solutions", 3)
     soln = optimize_minimize_mhmcmc_cluster(
-        mcmc_solver_wrapper, bounds, fixed_args, T=temp, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
+        mcmc_solver_wrapper, bounds, fixed_args, T=temp, N=N, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
         collect_samples=collect_samples, logger=logger, verbose=True)
 
     # Record number of independent events processed

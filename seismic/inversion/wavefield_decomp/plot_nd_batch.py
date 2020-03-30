@@ -23,7 +23,7 @@ from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
 
 
 default_fig_width_inches = 6.4
-
+RF_TRIM_WINDOW = (-10.0, 25.0)
 
 def convert_Vs_to_k(soln, config):
     """
@@ -109,15 +109,15 @@ def _compute_rf(data, config, log):
 def plot_aux_data(soln, config, log, scale):
     f = plt.figure(constrained_layout=False, figsize=(6.4*scale, 6.4*scale))
     f.suptitle(config["station_id"], y=0.96, fontsize=16)
-    gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.9, hspace=0.3,
-                        height_ratios=[1, 2])
+    gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.85, hspace=0.3,
+                        wspace=0.3, height_ratios=[1, 2])
     gs_top = gs[0].subgridspec(1, 2)
     ax0 = f.add_subplot(gs_top[0, 0])
     ax1 = f.add_subplot(gs_top[0, 1])
 
     hist_alpha = 0.5
     soln_alpha = 0.3
-    axis_font_size = 5*scale
+    axis_font_size = 8*scale
     title_font_size = 6*scale
     nbins = 100
 
@@ -172,10 +172,10 @@ def plot_aux_data(soln, config, log, scale):
     # end for
     _tab1 = table(ax1, cellText=[[e] for e in best_events_set], colLabels=['BEST'],
                   cellLoc='left', colWidths=[0.25], loc='upper left',
-                  edges='horizontal', fontsize=6*scale, alpha=0.6)  # alpha broken in matplotlib.table!
+                  edges='horizontal', fontsize=8, alpha=0.6)  # alpha broken in matplotlib.table!
     _tab2 = table(ax1, cellText=[[e] for e in worst_events_set], colLabels=['WORST'],
                   cellLoc='left', colWidths=[0.25], loc='upper right',
-                  edges='horizontal', fontsize=6*scale, alpha=0.6)
+                  edges='horizontal', fontsize=8, alpha=0.6)
     ax1.set_title('Ranked per-event energy for each solution point',
                   fontsize=title_font_size)
     ax1.set_xlabel('Rank (out of # source events)')
@@ -185,14 +185,14 @@ def plot_aux_data(soln, config, log, scale):
     ax1.yaxis.label.set_size(axis_font_size)
 
     # Plot receiver function at base of selected layers
-    axis_font_size = 4*scale
+    axis_font_size = 8*scale
+    max_solutions = config["solver"].get("max_solutions", 3)
     for layer in config["layers"]:
         lname = layer["name"]
         if soln.subsurface and lname in soln.subsurface:
             base_seismogms = soln.subsurface[lname]
             # Generate RF and plot.
-            n_solutions = len(base_seismogms)
-            gs_bot = gs[1].subgridspec(n_solutions, 1, hspace=0.3)
+            gs_bot = gs[1].subgridspec(max_solutions, 1, hspace=0.3)
             for i, seismogm in enumerate(base_seismogms):
                 soln_rf = _compute_rf(seismogm, config, log)
                 assert isinstance(soln_rf, rf.RFStream)
@@ -203,7 +203,7 @@ def plot_aux_data(soln, config, log, scale):
                 axn = f.add_subplot(gs_bot[i])
                 if soln_rf:
                     color = 'C' + str(i)
-                    rf_R = soln_rf.select(component='R')
+                    rf_R = soln_rf.select(component='R').trim2(RF_TRIM_WINDOW[0], RF_TRIM_WINDOW[1], reftime='onset')
                     num_RFs = len(rf_R)
                     times = rf_R[0].times() + config["su_energy_opts"]["time_window"][0]
                     data = rf_R.stack()[0].data
@@ -216,7 +216,7 @@ def plot_aux_data(soln, config, log, scale):
                     axn.annotate('Empty RF plot', (0.5, 0.5), xycoords='axes fraction', ha='center')
                 # end if
                 axn.set_title(' '.join([config["station_id"], lname, 'base RF', '(soln {})'.format(i)]),
-                              fontsize=title_font_size, y=0.95, va='top')
+                              fontsize=title_font_size, y=0.92, va='top')
                 axn.tick_params(labelsize=axis_font_size)
                 axn.xaxis.label.set_size(axis_font_size)
                 axn.yaxis.label.set_size(axis_font_size)
