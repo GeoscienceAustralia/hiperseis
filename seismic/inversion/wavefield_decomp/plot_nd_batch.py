@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+from matplotlib.table import table
 import rf
 
 from seismic.inversion.wavefield_decomp.runners import load_mcmc_solution
@@ -113,12 +114,11 @@ def plot_aux_data(soln, config, log, scale):
     gs_top = gs[0].subgridspec(1, 2)
     ax0 = f.add_subplot(gs_top[0, 0])
     ax1 = f.add_subplot(gs_top[0, 1])
-    # ax2 = f.add_subplot(gs[1:, :])
 
     hist_alpha = 0.5
     soln_alpha = 0.3
-    axis_font_size = 8*scale
-    title_font_size = 8*scale
+    axis_font_size = 5*scale
+    title_font_size = 6*scale
     nbins = 100
 
     # Plot energy distribution of samples and solution clusters
@@ -141,10 +141,21 @@ def plot_aux_data(soln, config, log, scale):
     ax0.yaxis.label.set_size(axis_font_size)
 
     # Plot sorted per-event upwards S-wave energy at top of mantle per solution
+    event_ids = config["event_ids"]
     for i, esu in enumerate(soln.esu):
+        assert len(esu) == len(event_ids)
         color = 'C' + str(i)
-        esu_sorted = sorted(esu)
+        esu_sorted = sorted(zip(esu, event_ids))
+        events_best3 = [e[1] for e in esu_sorted[:3]]
+        events_worst3 = [e[1] for e in esu_sorted[-3:]]
+        esu_sorted = [e[0] for e in esu_sorted]
         ax1.plot(esu_sorted, color=color, alpha=soln_alpha)
+        _tab1 = table(ax1, cellText=[[e] for e in events_best3], colLabels=['BEST 3'],
+                      cellLoc='left', colWidths=[0.25], loc='upper left',
+                      edges='horizontal', fontsize=5*scale, color='#40404080')
+        _tab2 = table(ax1, cellText=[[e] for e in events_worst3], colLabels=['WORST 3'],
+                      cellLoc='left', colWidths=[0.25], loc='upper right',
+                      edges='horizontal', fontsize=5*scale, color='#40404080')
     # end for
     ax1.set_title('Ranked per-event energy for each solution point',
                   fontsize=title_font_size)
@@ -155,23 +166,31 @@ def plot_aux_data(soln, config, log, scale):
     ax1.yaxis.label.set_size(axis_font_size)
 
     # Plot receiver function at base of selected layers
+    axis_font_size = 4*scale
     for layer in config["layers"]:
         lname = layer["name"]
         if soln.subsurface and lname in soln.subsurface:
             base_seismogms = soln.subsurface[lname]
             # Generate RF and plot.
             n_solutions = len(base_seismogms)
-            gs_bot = gs[1].subgridspec(n_solutions, 1)
+            gs_bot = gs[1].subgridspec(n_solutions, 1, hspace=0.2)
             for i, seismogm in enumerate(base_seismogms):
                 soln_rf = _compute_rf(seismogm, config, log)
                 assert isinstance(soln_rf, rf.RFStream)
+                # Remove any traces for which deconvolution failed.
+                # First, find their unique ID. Then remove all traces with that ID.
+                exclude_ids = set([tr.stats.event_id for tr in soln_rf if len(tr) == 0])
+                soln_rf = rf.RFStream([tr for tr in soln_rf if tr.stats.event_id not in exclude_ids])
                 axn = f.add_subplot(gs_bot[i])
                 if soln_rf:
                     color = 'C' + str(i)
                     rf_R = soln_rf.select(component='R')
+                    num_RFs = len(rf_R)
                     times = rf_R[0].times() + config["su_energy_opts"]["time_window"][0]
                     data = rf_R.stack()[0].data
                     axn.plot(times, data, color=color, alpha=soln_alpha, linewidth=2)
+                    axn.text(0.95, 0.95, 'N = {}'.format(num_RFs), fontsize=10,
+                             ha='right', va='top', transform=axn.transAxes)
                     axn.set_xlabel('Time (sec)')
                     axn.grid(color='#80808080', linestyle=':')
                 else:
