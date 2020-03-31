@@ -127,8 +127,8 @@ def run_mcmc(waveform_data, config, logger):
                 base_seismograms = []
                 for _x in soln.x:
                     earth_model = []
-                    for j in range(i):
-                        earth_model.append(LayerProps(Vp[i], _x[2 * i + 1], rho[i], _x[2 * i]))
+                    for j in range(i + 1):
+                        earth_model.append(LayerProps(Vp[j], _x[2*j + 1], rho[j], _x[2*j]))
                     # end for
                     earth_model = np.array(earth_model)
                     layer_base_vel = flux_comp.propagate_to_base(earth_model)

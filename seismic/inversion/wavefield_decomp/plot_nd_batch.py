@@ -109,7 +109,7 @@ def _compute_rf(data, config, log):
 def plot_aux_data(soln, config, log, scale):
     f = plt.figure(constrained_layout=False, figsize=(6.4*scale, 6.4*scale))
     f.suptitle(config["station_id"], y=0.96, fontsize=16)
-    gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.85, hspace=0.3,
+    gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.87, hspace=0.3,
                         wspace=0.3, height_ratios=[1, 2])
     gs_top = gs[0].subgridspec(1, 2)
     ax0 = f.add_subplot(gs_top[0, 0])
@@ -117,7 +117,7 @@ def plot_aux_data(soln, config, log, scale):
 
     hist_alpha = 0.5
     soln_alpha = 0.3
-    axis_font_size = 8*scale
+    axis_font_size = 6*scale
     title_font_size = 6*scale
     nbins = 100
 
@@ -171,10 +171,10 @@ def plot_aux_data(soln, config, log, scale):
         # end if
     # end for
     _tab1 = table(ax1, cellText=[[e] for e in best_events_set], colLabels=['BEST'],
-                  cellLoc='left', colWidths=[0.25], loc='upper left',
+                  cellLoc='left', colWidths=[0.35], loc='upper left',
                   edges='horizontal', fontsize=8, alpha=0.6)  # alpha broken in matplotlib.table!
     _tab2 = table(ax1, cellText=[[e] for e in worst_events_set], colLabels=['WORST'],
-                  cellLoc='left', colWidths=[0.25], loc='upper right',
+                  cellLoc='left', colWidths=[0.35], loc='upper right',
                   edges='horizontal', fontsize=8, alpha=0.6)
     ax1.set_title('Ranked per-event energy for each solution point',
                   fontsize=title_font_size)
@@ -185,14 +185,14 @@ def plot_aux_data(soln, config, log, scale):
     ax1.yaxis.label.set_size(axis_font_size)
 
     # Plot receiver function at base of selected layers
-    axis_font_size = 8*scale
+    axis_font_size = 6*scale
     max_solutions = config["solver"].get("max_solutions", 3)
     for layer in config["layers"]:
         lname = layer["name"]
         if soln.subsurface and lname in soln.subsurface:
             base_seismogms = soln.subsurface[lname]
             # Generate RF and plot.
-            gs_bot = gs[1].subgridspec(max_solutions, 1, hspace=0.3)
+            gs_bot = gs[1].subgridspec(max_solutions, 1, hspace=0.4)
             for i, seismogm in enumerate(base_seismogms):
                 soln_rf = _compute_rf(seismogm, config, log)
                 assert isinstance(soln_rf, rf.RFStream)
@@ -205,7 +205,7 @@ def plot_aux_data(soln, config, log, scale):
                     color = 'C' + str(i)
                     rf_R = soln_rf.select(component='R').trim2(RF_TRIM_WINDOW[0], RF_TRIM_WINDOW[1], reftime='onset')
                     num_RFs = len(rf_R)
-                    times = rf_R[0].times() + config["su_energy_opts"]["time_window"][0]
+                    times = rf_R[0].times() + RF_TRIM_WINDOW[0]
                     data = rf_R.stack()[0].data
                     axn.plot(times, data, color=color, alpha=soln_alpha, linewidth=2)
                     axn.text(0.95, 0.95, 'N = {}'.format(num_RFs), fontsize=10,
