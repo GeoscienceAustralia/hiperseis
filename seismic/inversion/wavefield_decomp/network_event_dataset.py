@@ -115,6 +115,14 @@ class NetworkEventDataset:
         return '\n'.join((evid + ', ' + str(stream) for _, evid, stream in iter(self)))
     # end func
 
+    def num_stations(self):
+        """
+        Get number of stations in the dataset.
+        :return: Number of stations
+        """
+        return len(self.db_sta)
+    # end func
+
     def station(self, station_code):
         """
         Accessor for events for a given station.
@@ -123,6 +131,14 @@ class NetworkEventDataset:
         :rtype: SortedDict
         """
         return self.db_sta.get(station_code)
+    # end func
+
+    def num_events(self):
+        """
+        Get number of events in the dataset.
+        :return: Number of events
+        """
+        return len(self.db_evid)
     # end func
 
     def event(self, event_id):
