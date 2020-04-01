@@ -7,8 +7,9 @@
   },
   "layers":
   [
-    {"Vp": 2.1, "rho":  1.97, "H_range": [0.0, 6.0], "Vs_range": [0.3, 2.5], "_comment": "sediment layer 0"},
-    {"Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1], "_comment": "crust"}
+    {"name": "sediment layer 0", "Vp": 2.1, "rho":  1.97, "H_range": [0.0, 6.0], "Vs_range": [0.3, 2.5],
+     "save_seismogram": true},
+    {"name": "crust", "Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1]}
   ],
   "curation_opts":
   {

@@ -172,8 +172,9 @@ class WfContinuationSuFluxComputer:
         v0 = np.moveaxis(self._v0, 0, -1)
         # Normalize each event signal by the maximum z-component amplitude.
         # We perform this succinctly using numpy multidimensional broadcasting rules.
-        max_vz = np.abs(v0[1, :, :]).max(axis=0)
-        v0 = v0 / max_vz
+        self._max_vz = np.abs(v0[1, :, :]).max(axis=0)
+        self._max_vz.flags.writeable = False
+        v0 = v0 / self._max_vz
         # Reshape back to original shape.
         self._v0 = np.moveaxis(v0, -1, 0)
         self._v0.flags.writeable = False
@@ -209,6 +210,7 @@ class WfContinuationSuFluxComputer:
 
         # Propagate from surface
         fvm = WfContinuationSuFluxComputer._propagate_layers(self._fv0, self._w, layer_props, self._p)
+        # Decompose velocity and stress components into Pd, Pu, Sd and Su components.
         fvm = np.matmul(Minv_m, fvm)
 
         num_pos_freq_terms = (fvm.shape[2] + 1) // 2
@@ -233,6 +235,35 @@ class WfContinuationSuFluxComputer:
         Esu = np.mean(Esu_per_event)
 
         return Esu, Esu_per_event, vm
+    # end func
+
+    def propagate_to_base(self, layer_props):
+        """
+        Given a stack of layers in layer_props, propagate the surface seismograms down to the base
+        of the bottom layer.
+
+        :param layer_props: List of LayerProps through which to propagate the surface seismograms.
+        :return: (Vr, Vz) time series per event at the bottom of the stack of layers.
+        """
+        # Propagate from surface to the bottom of the layers provided
+        fv_base = WfContinuationSuFluxComputer._propagate_layers(self._fv0, self._w, layer_props, self._p)
+
+        num_pos_freq_terms = (fv_base.shape[2] + 1) // 2
+        # Velocities and stresses at bottom of stack of layers
+        v_base = irfft(fv_base[:, :, :num_pos_freq_terms], self._npts, axis=2)
+
+        # Recover source data amplitudes (undo normalization)
+        v_base = np.moveaxis(v_base, 0, -1)
+        v_base = v_base * self._max_vz
+        v_base = np.moveaxis(v_base, -1, 0)
+
+        # Return just the velocity components (Vr, Vz) and throw away the stresses
+        vel_rz_base = v_base[:, :2, :].real
+        # Negate the z-component to restore polarity swapped during original data ingestion.
+        vel_rz_base[:, 1, :] = -vel_rz_base[:, 1, :]
+        assert np.allclose(v_base[:, :2, :].imag, 0.0)
+
+        return vel_rz_base
     # end func
 
     @staticmethod
