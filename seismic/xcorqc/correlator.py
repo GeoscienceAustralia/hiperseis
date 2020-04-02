@@ -416,7 +416,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "to a certain cut-off value. Note, this parameter has no effect if instrument"
                    "response correction is not performed.")
 @click.option('--clip-to-2std', is_flag=True,
-              help="Clip data in each window to +/- 2 standard deviations")
+              help="Clip data in each window to +/- 2 standard deviations. Note that the default time-domain normalization "
+                   "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
 @click.option('--whitening-window-frequency', type=float, default=0,
@@ -425,7 +426,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "implies no smoothing of weights. Note that this parameter has no effect unless whitening is activated with "
                    "'--whitening'")
 @click.option('--one-bit-normalize', is_flag=True,
-              help="Apply one-bit normalization to data in each window")
+              help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
+                   "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--read-buffer-size', default=10,
               type=int,
               help="Data read buffer size; default is 10 x 'interval_seconds'. This parameter allows fetching data in bulk,"
@@ -473,13 +475,13 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, dry_run, no_tracking_tag):
     """
-    DATA_SOURCE1: Path to ASDF file \n
-    DATA_SOURCE2: Path to ASDF file \n
+    DATA_SOURCE1: Text file containing paths to ASDF files \n
+    DATA_SOURCE2: Text file containing paths to ASDF files \n
     OUTPUT_PATH: Output folder \n
     INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
     WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
-    WINDOW_OVERLAP: Window overlap fraction
+                    WINDOW_SECONDS \n
+    WINDOW_OVERLAP: Window overlap fraction; e.g. 0.1 for 10% overlap
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
