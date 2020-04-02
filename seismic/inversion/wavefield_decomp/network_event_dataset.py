@@ -13,6 +13,9 @@ from seismic.stream_io import read_h5_stream
 from seismic.receiver_fn.rf_util import zne_order, zrt_order
 
 
+# pylint: disable=invalid-name
+
+
 class NetworkEventDataset:
     """Collection of 3-channel ZNE streams with traces aligned to a fixed time window about
      seismic P-wave arrival events, for a given network.
@@ -164,9 +167,9 @@ class NetworkEventDataset:
         PY2 = (sys.version_info[0] == 2)
 
         if PY2:
-            from itertools import ifilterfalse as filterfalse
+            from itertools import ifilterfalse as filterfalse  # pylint: disable=no-name-in-module, import-outside-toplevel
         else:
-            from itertools import filterfalse
+            from itertools import filterfalse  # pylint: disable=import-outside-toplevel
         # end if
 
         discard_items = [(x[0], x[1]) for x in filterfalse(lambda rec: curator(*rec), iter(self))]
@@ -174,11 +177,16 @@ class NetworkEventDataset:
         self.prune(discard_items)
     # end func
 
-    def apply(self, callable):
-        # Apply a callable across all streams. Use to apply uniform processing steps
-        # to the whole dataset.
+    def apply(self, _callable):
+        """Apply a callable across all streams. Use to apply uniform processing steps to the whole dataset.
+
+        :param _callable: Callable object that takes an obspy Stream as input and applies itself to that Stream.
+            Expect that stream may be mutated in-place by the callable.
+        :type _callable: Any callable compatible with the call signature.
+        :return: None
+        """
         for _1, _2, stream in iter(self):
-            callable(stream)
+            _callable(stream)
     # end func
 
     def by_station(self):
