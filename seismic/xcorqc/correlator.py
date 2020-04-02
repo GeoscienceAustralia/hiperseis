@@ -387,9 +387,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--fmin', default=None, help="Lowest frequency for bandpass filter; default is None")
 @click.option('--fmax', default=None, help="Highest frequency for bandpass filter; default is None")
 @click.option('--station-names1', default='*', type=str,
-              help="Station name(s) (space-delimited) to process in data-source-1; default is '*', which processes all available stations.")
+              help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
+                   "process in data-source-1; default is '*', which processes all available stations.")
 @click.option('--station-names2', default='*', type=str,
-              help="Station name(s) (space-delimited) to process in data-source-2; default is '*', which processes all available stations.")
+              help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
+                   "process in data-source-2; default is '*', which processes all available stations.")
 @click.option('--pairs-to-compute', default=None, type=click.Path('r'),
               help="Text file containing station pairs (NET.STA.NET.STA) for which cross-correlations are to be computed."
                    "Note that this parameter is intended as a way to restrict the number of computations to only the "
