@@ -475,13 +475,13 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, dry_run, no_tracking_tag):
     """
-    DATA_SOURCE1: Path to ASDF file \n
-    DATA_SOURCE2: Path to ASDF file \n
+    DATA_SOURCE1: Text file containing paths to ASDF files \n
+    DATA_SOURCE2: Text file containing paths to ASDF files \n
     OUTPUT_PATH: Output folder \n
     INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
     WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
-    WINDOW_OVERLAP: Window overlap fraction
+                    WINDOW_SECONDS \n
+    WINDOW_OVERLAP: Window overlap fraction; e.g. 0.1 for 10% overlap
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
