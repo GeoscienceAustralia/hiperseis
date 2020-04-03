@@ -6,6 +6,7 @@ import os
 import itertools
 import logging
 
+from sortedcontainers import SortedDict, SortedSet
 import obspy
 from obspy.taup import TauPyModel
 from obspy.io.sac.sactrace import SACTrace
@@ -45,6 +46,17 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
 
     stream = obspy.read(src_file, format='h5', group=group)
     return stream
+# end func
+
+
+def get_obspyh5_index(src_file):
+    index = SortedDict()
+    # We use SortedSet rather than SortedList for the inner container
+    # because it allows set operations that are useful, such as finding
+    # event IDs for events which are common across multiple stations.
+    for seedid, evid, _ in iter_h5_stream(src_file, headonly=True):
+        index.setdefault(seedid, SortedSet()).add(evid)
+    # end for
 # end func
 
 
