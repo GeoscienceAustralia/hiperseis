@@ -11,48 +11,48 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
-import obspy
+# import obspy
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
+from seismic.stream_quality_filter import curate_stream3c
+from seismic.stream_io import iter_h5_stream, get_obspyh5_index
 
-net = 'OA'
-src_file = r"D:\temp\ga_work\OA_BT28_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5"
+src_file = '/g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5'
 
-ned = NetworkEventDataset(src_file)
-
-# ---------- BEGIN FILTERING ----------
-# Rotate to ZRT coordinates
-
-# # Apply curation to streams prior to rotation
-# ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
-
-# Rotate to ZRT coordinates
-ned.apply(lambda stream: stream.rotate('NE->RT'))
-
-# Trim to shorter time window
-time_window = (-20.0, 50.0)
-ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0], stream[0].stats.onset + time_window[1]))
-
-# # Detrend the traces
-# ned.apply(lambda stream: stream.detrend('linear'))
-
-# ---------- END FILTERING ----------
+index = get_obspyh5_index(src_file, seeds_only=True)
 
 # Per page
 ncols = 2
 nrows = 8
 pagesize = (8.3, 8.3*1.414)  # A4
-# channel_order = {'Z': 0, 'R': 1, 'T': 2}
 channel_order = 'ZRT'
+time_window = (-20.0, 50.0)
 
 bbstyle = dict(boxstyle="round", fc="w", alpha=0.5, linewidth=0.5)
 annot_fontsize = 5
 axes_fontsize = 6
 
-output_file = '{}_event_seismograms.pdf'.format(net)
+# output_file = '{}_event_seismograms.pdf'.format(net)
+output_file = 'OA_event_seismograms.pdf'
 
 with PdfPages(output_file) as pdf:
-    for sta, db_evid in ned.by_station():
+    for seedid in index:
+        net, sta, loc = seedid.split('.')
+        print('Loading ' + seedid)
+        ned = NetworkEventDataset(src_file, net, sta, loc)
+        # BEGIN PREPARATION & CURATION
+        # Apply curation to streams prior to rotation
+        ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
+        # Rotate to ZRT coordinates
+        ned.apply(lambda stream: stream.rotate('NE->RT'))
+        # Trim to shorter time window
+        ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
+                                             stream[0].stats.onset + time_window[1]))
+        # # Detrend the traces
+        # ned.apply(lambda stream: stream.detrend('linear'))
+        # END PREPARATION & CURATION
+        print('Rendering ' + seedid)
+        db_evid = ned.station(sta)
         num_events = len(db_evid)
         num_per_page = nrows*ncols
         ev_ids = list(db_evid.keys())
@@ -79,7 +79,8 @@ with PdfPages(output_file) as pdf:
                     axn = f.add_subplot(gs[idx])
                     t = tr.times() - (tr.stats.onset - tr.stats.starttime)
                     tr_mean = np.nanmean(tr.data)
-                    axn.plot(t, tr.data, 'k')
+                    # Rasterize so that size is fairly constant, irrespective of the number of sample points per trace
+                    axn.plot(t, tr.data, 'k', rasterized=True)
                     axn.set_ylim(tr_mean - max_half_range, tr_mean + max_half_range)
                     axn.tick_params(labelsize=axes_fontsize)
                     tag = '.'.join([tr.stats.network, tr.stats.station, tr.stats.location, tr.stats.channel])
