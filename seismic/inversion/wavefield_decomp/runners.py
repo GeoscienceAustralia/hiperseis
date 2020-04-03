@@ -426,6 +426,9 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             job_config = json.loads(station_node.attrs['config'])
             format_version = station_node.attrs['format_version']
             job_config.update({'format_version': format_version})
+            if logger:
+                logger.info('H5 storage format version: {}'.format(format_version))
+            # end if
 
             try:
                 soln = optimize.OptimizeResult()

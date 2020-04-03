@@ -9,6 +9,8 @@ import logging
 import obspy
 from obspy.taup import TauPyModel
 from obspy.io.sac.sactrace import SACTrace
+import h5py
+from obspyh5 import dataset2trace, is_obspyh5
 
 from seismic.receiver_fn.rf_util import KM_PER_DEG
 
@@ -43,6 +45,39 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
 
     stream = obspy.read(src_file, format='h5', group=group)
     return stream
+# end func
+
+
+def iter_h5_stream(src_file, headonly=False):
+    """
+    Iterate over hdf5 file containing streams in obspyh5 format.
+
+    :param src_file: str or path to file to read
+    :param root: name of root node in which to start iteration
+    :yield: obspy.Stream containing traces for a single seismic event.
+    """
+    assert is_obspyh5(src_file), '{} is not an obspyh5 file'.format(src_file)
+    logger = logging.getLogger(__name__)
+    fname = os.path.split(src_file)[-1]
+    with h5py.File(src_file, mode='r') as h5f:
+        root = h5f['/waveforms']
+        for seedid, station_grp in root.items():
+            logger.info('{}: Group {}'.format(fname, seedid))
+            num_events = len(station_grp)
+            for i, (src_event_time, event_grp) in enumerate(station_grp.items()):
+                traces = []
+                for trace_id, channel in event_grp.items():
+                    traces.append(dataset2trace(channel, headonly=headonly))
+                # end for
+                evid = traces[0].stats.event_id
+                for tr in traces[1:]:
+                    assert tr.stats.event_id == evid
+                # end for
+                logger.info('Event {} ({}/{})'.format(evid, i + 1, num_events))
+                yield seedid, evid, obspy.Stream(traces)
+            # end for
+        # end for
+    # end with
 # end func
 
 
