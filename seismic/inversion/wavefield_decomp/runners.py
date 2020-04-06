@@ -547,6 +547,7 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     try:
         soln = runner(waveform_data.station(station).values(), config, logger)
     except Exception as e:
+        logger.error('Runner failed on station {}'.format(station_id))
         soln = optimize.OptimizeResult()
         soln.success = False
         soln.message = str(e)
@@ -554,7 +555,12 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 
     # Add ordered event IDs so source waveforms can be re-extraced later
     # from source file if necessary.
-    ordered_event_ids = [st[0].stats.event_id for st in waveform_data.station(station).values()]
+    try:
+        ordered_event_ids = [st[0].stats.event_id for st in waveform_data.station(station).values()]
+    except Exception:
+        logger.error('Event ID collection failed on station {}'.format(station_id))
+        ordered_event_ids = []
+    # end try
     config.update({"event_ids": ordered_event_ids})
 
     return soln, config
