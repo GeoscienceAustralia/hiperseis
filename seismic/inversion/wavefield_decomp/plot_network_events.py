@@ -6,6 +6,8 @@
 # pylint: disable-all
 
 import math
+import logging
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,10 +16,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 # import obspy
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
+from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.stream_io import iter_h5_stream, get_obspyh5_index
 
 src_file = '/g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5'
+config_file ='/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/config_one_layer.json'
 
 index = get_obspyh5_index(src_file, seeds_only=True)
 
@@ -34,6 +38,16 @@ axes_fontsize = 6
 
 # output_file = '{}_event_seismograms.pdf'.format(net)
 output_file = 'OA_event_seismograms.pdf'
+logger = logging.getLogger(__name__)
+
+with open(config_file, 'r') as cf:
+    config = json.load(cf)
+# end with
+curation_opts = config["curation_opts"]
+su_energy_opts = config["su_energy_opts"]
+time_window = su_energy_opts["time_window"]
+fs = su_energy_opts["sampling_rate"]
+
 
 with PdfPages(output_file) as pdf:
     for seedid in index:
@@ -41,15 +55,14 @@ with PdfPages(output_file) as pdf:
         print('Loading ' + seedid)
         ned = NetworkEventDataset(src_file, net, sta, loc)
         # BEGIN PREPARATION & CURATION
-        # Apply curation to streams prior to rotation
-        ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
-        # Rotate to ZRT coordinates
-        ned.apply(lambda stream: stream.rotate('NE->RT'))
-        # Trim to shorter time window
+        # Trim streams to time window
         ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
                                              stream[0].stats.onset + time_window[1]))
-        # # Detrend the traces
-        # ned.apply(lambda stream: stream.detrend('linear'))
+        # Curate
+        curate_seismograms(ned, curation_opts, logger)
+        # Downsample
+        ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+                  .interpolate(fs, method='lanczos', a=10))
         # END PREPARATION & CURATION
         print('Rendering ' + seedid)
         db_evid = ned.station(sta)
