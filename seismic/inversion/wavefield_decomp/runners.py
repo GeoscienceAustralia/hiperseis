@@ -274,7 +274,7 @@ def curate_seismograms(data_all, curation_opts, logger):
 # end func
 
 
-def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, logger=None):
+def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job_tracking, logger=None):
     """
     Save solution to HDF5 file.
 
@@ -282,6 +282,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     :param input_file: Name of input file. Saved to job node for traceability
     :param output_file: Name of output file to create
     :param job_timestamp: Job timestamp that will be used to generate the top level job group
+    :param job_tracking: Dict containing job identification information for traceability
     :param logger: [OPTIONAL] Log message destination
     :return: None
     """
@@ -300,7 +301,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     # end func
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.4'
+    FORMAT_VERSION = '0.5'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -308,6 +309,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, log
     with h5py.File(output_file, 'a') as h5f:
         job_root = h5f.create_group(job_timestamp)
         job_root.attrs['input_file'] = input_file
+        job_root.attrs['job_tracking'] = json.dumps(job_tracking)
         for soln, config in soln_configs:
             station_id = config.get("station_id")
             if not station_id:
@@ -405,7 +407,12 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             timestamps = list(h5f.keys())
             if len(timestamps) > 1:
                 for i, ts in enumerate(timestamps):
-                    print('[{}]'.format(i), ts)
+                    job_node = h5f[ts]
+                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node else ''
+                    if job_tracking:
+                        job_tracking = '(' + ', '.join([': '.join([k, str(v)]) for k, v in job_tracking.items()]) + ')'
+                    # end if
+                    print('[{}]'.format(i), ts, job_tracking)
                 # end for
                 index = input('Choose dataset number to load: ')
                 if index.isdigit() and (0 <= int(index) < len(timestamps)):
@@ -583,7 +590,12 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     soln_config = run_station(config_file, waveform_file, network, station, location, logger=logger)
 
     # Save solution
-    save_mcmc_solution([soln_config], waveform_file, output_file, job_timestamp, logger)
+    job_tracking = {'job_name': '.'.join([network, station, location])}
+    job_id = os.getenv('PBS_JOBID')
+    if job_id is not None:
+        job_tracking.update({"job_id": job_id})
+    # end if
+    save_mcmc_solution([soln_config], waveform_file, output_file, job_timestamp, job_tracking, logger=logger)
 
     return 0
 # end func
@@ -652,7 +664,22 @@ def mpi_job(config_file, waveform_file, output_file):
     soln_config = comm.gather(soln_config, root=0)
 
     if rank == 0:
-        save_mcmc_solution(soln_config, waveform_file, output_file, job_timestamp, logger)
+        job_tracking = {}
+        # Label with job name from job queueing if available and no name given
+        if "job_name" in batch_config:
+            job_tracking.update({"job_name": batch_config["job_name"]})
+        else:
+            job_name = os.getenv('PBS_JOBNAME')
+            if job_name is not None:
+                job_tracking.update({"job_name": job_name})
+            # end if
+        # end if
+        job_id = os.getenv('PBS_JOBID')
+        if job_id is not None:
+            job_tracking.update({"job_id": job_id})
+        # end if
+
+        save_mcmc_solution(soln_config, waveform_file, output_file, job_timestamp, job_tracking, logger=logger)
     # end if
 
     return 0
