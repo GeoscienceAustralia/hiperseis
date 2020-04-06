@@ -8,6 +8,7 @@
 import math
 import logging
 import json
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,19 +55,22 @@ with PdfPages(output_file) as pdf:
     for seedid in pb:
         net, sta, loc = seedid.split('.')
         pb.set_description(seedid)
-        print('Loading ' + seedid)
-        ned = NetworkEventDataset(src_file, net, sta, loc)
-        # BEGIN PREPARATION & CURATION
-        # Trim streams to time window
-        ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
-                                             stream[0].stats.onset + time_window[1]))
-        # Curate
-        curate_seismograms(ned, curation_opts, logger)
-        # Downsample
-        ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
-                  .interpolate(fs, method='lanczos', a=10))
-        # END PREPARATION & CURATION
-        print('Rendering ' + seedid)
+        pb.write('Loading ' + seedid)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=FutureWarning)
+            ned = NetworkEventDataset(src_file, net, sta, loc)
+            # BEGIN PREPARATION & CURATION
+            # Trim streams to time window
+            ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
+                                                 stream[0].stats.onset + time_window[1]))
+            # Curate
+            curate_seismograms(ned, curation_opts, logger)
+            # Downsample
+            ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+                      .interpolate(fs, method='lanczos', a=10))
+            # END PREPARATION & CURATION
+        # end with
+        pb.write('Rendering ' + seedid)
         db_evid = ned.station(sta)
         num_events = len(db_evid)
         num_per_page = nrows*ncols
