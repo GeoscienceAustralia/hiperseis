@@ -320,6 +320,9 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
             if soln is None or not soln.success:
                 if logger:
                     logger.warning('Solver failed for station {}'.format(station_id))
+                    if soln is not None and soln.get('message'):
+                        logger.error('Station {} reported error: {}'.format(station_id, soln.message))
+                    # end if
                 continue
             # end if
             station_id = station_id.replace('.', '_')
@@ -541,7 +544,13 @@ def run_station(config_file, waveform_file, network, station, location, logger):
         # end if
     # end if
 
-    soln = runner(waveform_data.station(station).values(), config, logger)
+    try:
+        soln = runner(waveform_data.station(station).values(), config, logger)
+    except Exception as e:
+        soln = optimize.OptimizeResult()
+        soln.success = False
+        soln.message = str(e)
+    # end try
 
     # Add ordered event IDs so source waveforms can be re-extraced later
     # from source file if necessary.
