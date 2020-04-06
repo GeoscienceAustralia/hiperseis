@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
-# import obspy
+from tqdm.auto import tqdm
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
@@ -50,8 +50,10 @@ fs = su_energy_opts["sampling_rate"]
 
 
 with PdfPages(output_file) as pdf:
-    for seedid in index:
+    pb = tqdm(index)
+    for seedid in pb:
         net, sta, loc = seedid.split('.')
+        pb.set_description(seedid)
         print('Loading ' + seedid)
         ned = NetworkEventDataset(src_file, net, sta, loc)
         # BEGIN PREPARATION & CURATION
@@ -122,4 +124,5 @@ with PdfPages(output_file) as pdf:
             plt.close()
         # end for
     # end for
+    pb.close()
 # end with
