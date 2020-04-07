@@ -5,128 +5,183 @@
 
 # pylint: disable-all
 
+import os
 import math
 import logging
 import json
 import warnings
 
+import click
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
+import seaborn as sns
 from tqdm.auto import tqdm
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
-from seismic.stream_quality_filter import curate_stream3c
-from seismic.stream_io import iter_h5_stream, get_obspyh5_index
-
-src_file = '/g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5'
-config_file ='/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/config_one_layer.json'
-
-index = get_obspyh5_index(src_file, seeds_only=True)
-
-# Per page
-ncols = 2
-nrows = 8
-pagesize = (8.3, 8.3*1.414)  # A4
-channel_order = 'ZRT'
-time_window = (-20.0, 50.0)
-
-bbstyle = dict(boxstyle="round", fc="w", alpha=0.5, linewidth=0.5)
-annot_fontsize = 5
-axes_fontsize = 6
-
-# output_file = '{}_event_seismograms.pdf'.format(net)
-output_file = 'OA_event_seismograms.pdf'
-logger = logging.getLogger(__name__)
-
-with open(config_file, 'r') as cf:
-    config = json.load(cf)
-# end with
-curation_opts = config["curation_opts"]
-su_energy_opts = config["su_energy_opts"]
-time_window = su_energy_opts["time_window"]
-fs = su_energy_opts["sampling_rate"]
+from seismic.stream_io import get_obspyh5_index
 
 
-with PdfPages(output_file) as pdf:
-    pb = tqdm(index)
-    for seedid in pb:
-        net, sta, loc = seedid.split('.')
-        pb.set_description(seedid)
-        pb.write('Loading ' + seedid)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=FutureWarning)
-            ned = NetworkEventDataset(src_file, net, sta, loc)
-            # BEGIN PREPARATION & CURATION
-            # Trim streams to time window
-            ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
-                                                 stream[0].stats.onset + time_window[1]))
-            # Curate
-            curate_seismograms(ned, curation_opts, logger)
-            # Downsample
-            ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
-                      .interpolate(fs, method='lanczos', a=10))
-            # END PREPARATION & CURATION
-        # end with
-        pb.write('Rendering ' + seedid)
-        db_evid = ned.station(sta)
-        num_events = len(db_evid)
-        num_per_page = nrows*ncols
-        ev_ids = list(db_evid.keys())
-        num_pages = math.ceil(num_events/num_per_page)
-        for pagenum in range(num_pages):
-            f = plt.figure(constrained_layout=False, figsize=pagesize)
-            f.suptitle('{}.{} event seismograms (pg {}/{})'.format(net, sta, pagenum + 1, num_pages), y=0.98, fontsize=11, va='top')
-            pgspec = gridspec.GridSpec(ncols=ncols, nrows=nrows, figure=f, left=0.1, right=0.9, bottom=0.05, top=0.95, hspace=0.3, wspace=0.2)
-            for i, evid in enumerate(ev_ids[pagenum*num_per_page:(pagenum + 1)*num_per_page]):
-                stream = db_evid[evid]
-                gs = pgspec[i%nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
+@click.command()
+@click.option('--src-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
+@click.option('--output-file', type=click.Path(dir_okay=False), required=True,
+              help='Name of the output PDF file')
+@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Solver configuration file that contains filtering settings.')
+def main(src_file, output_file, config_file):
+    """
+    Example usage:
 
-                # Find max range so we can use a common scale
-                max_half_range = 0.0
-                for tr in stream:
-                    max_half_range = max(max_half_range, 0.5*(np.nanmax(tr.data) - np.nanmin(tr.data)))
+        python plot_network_events.py  --src-file OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+         --output-file OA_event_seismograms_v0.3.pdf
+         --config-file config_one_layer.json
+
+    :param src_file: File containing event waveforms
+    :param output_file: Output pdf file
+    :param config_file: Solver configuration file that contains filtering settings
+    """
+
+    if os.path.splitext(output_file)[1].lower() != '.pdf':
+        output_file += '.pdf'
+    # end if
+
+    index = get_obspyh5_index(src_file, seeds_only=True)
+
+    # Per page
+    ncols = 2
+    nrows = 8
+    pagesize = (8.3, 8.3*1.414)  # A4
+    channel_order = 'ZRT'
+    time_window = (-20.0, 50.0)
+
+    bbstyle = dict(boxstyle="round", fc="w", alpha=0.5, linewidth=0.5)
+    annot_fontsize = 5
+    axes_fontsize = 6
+
+    logger = logging.getLogger(__name__)
+
+    with open(config_file, 'r') as cf:
+        config = json.load(cf)
+    # end with
+    curation_opts = config["curation_opts"]
+    su_energy_opts = config["su_energy_opts"]
+    time_window = su_energy_opts["time_window"]
+    fs = su_energy_opts["sampling_rate"]
+
+    with PdfPages(output_file) as pdf:
+        pb = tqdm(index)
+        r_on_z = []
+        t_on_z = []
+        t_on_r = []
+        for seedid in pb:
+            net, sta, loc = seedid.split('.')
+            pb.set_description(seedid)
+            pb.write('Loading ' + seedid)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=FutureWarning)
+                ned = NetworkEventDataset(src_file, net, sta, loc)
+                # BEGIN PREPARATION & CURATION
+                # Trim streams to time window
+                ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
+                                                     stream[0].stats.onset + time_window[1]))
+                # Curate
+                curate_seismograms(ned, curation_opts, logger)
+                # Downsample
+                ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+                          .interpolate(fs, method='lanczos', a=10))
+                # END PREPARATION & CURATION
+            # end with
+
+            pb.write('Rendering ' + seedid)
+            db_evid = ned.station(sta)
+            num_events = len(db_evid)
+            num_per_page = nrows*ncols
+            ev_ids = list(db_evid.keys())
+            num_pages = math.ceil(num_events/num_per_page)
+            for pagenum in range(num_pages):
+                f = plt.figure(constrained_layout=False, figsize=pagesize)
+                f.suptitle('{}.{} event seismograms (pg {}/{})'.format(net, sta, pagenum + 1, num_pages), y=0.98,
+                           fontsize=11, va='top')
+                pgspec = gridspec.GridSpec(ncols=ncols, nrows=nrows, figure=f, left=0.1, right=0.9, bottom=0.05,
+                                           top=0.95, hspace=0.3, wspace=0.2)
+                for i, evid in enumerate(ev_ids[pagenum*num_per_page:(pagenum + 1)*num_per_page]):
+                    stream = db_evid[evid]
+                    rms_z = np.sqrt(np.mean(np.square(stream.select(component='Z')[0].data)))
+                    rms_r = np.sqrt(np.mean(np.square(stream.select(component='R')[0].data)))
+                    rms_t = np.sqrt(np.mean(np.square(stream.select(component='T')[0].data)))
+                    r_on_z.append(rms_r/rms_z)
+                    t_on_z.append(rms_t/rms_z)
+                    t_on_r.append(rms_t/rms_r)
+
+                    gs = pgspec[i%nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
+
+                    # Find max range so we can use a common scale
+                    max_half_range = 0.0
+                    for tr in stream:
+                        max_half_range = max(max_half_range, 0.5*(np.nanmax(tr.data) - np.nanmin(tr.data)))
+                    # end for
+                    max_half_range *= 1.1
+
+                    # Do plots
+                    for tr in stream:
+                        cha = tr.stats.channel[-1]
+                        idx = channel_order.index(cha)
+                        axn = f.add_subplot(gs[idx])
+                        t = tr.times() - (tr.stats.onset - tr.stats.starttime)
+                        tr_mean = np.nanmean(tr.data)
+                        # Rasterize so that size is fairly constant, irrespective
+                        # of the number of sample points per trace
+                        axn.plot(t, tr.data, 'k', rasterized=True)
+                        axn.set_ylim(tr_mean - max_half_range, tr_mean + max_half_range)
+                        axn.tick_params(labelsize=axes_fontsize)
+                        tag = '.'.join([tr.stats.network, tr.stats.station, tr.stats.location, tr.stats.channel])
+                        axn.text(0.02, 0.90, tag, fontsize=annot_fontsize, ha='left', va='top', transform=axn.transAxes,
+                                bbox=bbstyle)
+                        if idx == 0:
+                            id_label = 'Event: {}'.format(evid)
+                            axn.text(0.98, 0.90, id_label, fontsize=annot_fontsize, ha='right', va='top',
+                                    transform=axn.transAxes, bbox=bbstyle)
+                        # end if
+                        if idx != 2:
+                            axn.set_xticks([])
+                            axn.xaxis.set_visible(False)
+                            axn.xaxis.label.set_visible(False)
+                        else:
+                            axn.xaxis.label.set_size(axes_fontsize)
+                            axn.text(0.5, 0.02, 'Onset: {}'.format(str(tr.stats.onset)), fontsize=annot_fontsize,
+                                    ha='center', va='bottom', transform=axn.transAxes)
+                        # end if
+                        axn.yaxis.label.set_size(axes_fontsize)
+                        # f.add_subplot(axn)
+                    # end for
                 # end for
-                max_half_range *= 1.1
 
-                # Do plots
-                for tr in stream:
-                    cha = tr.stats.channel[-1]
-                    idx = channel_order.index(cha)
-                    axn = f.add_subplot(gs[idx])
-                    t = tr.times() - (tr.stats.onset - tr.stats.starttime)
-                    tr_mean = np.nanmean(tr.data)
-                    # Rasterize so that size is fairly constant, irrespective of the number of sample points per trace
-                    axn.plot(t, tr.data, 'k', rasterized=True)
-                    axn.set_ylim(tr_mean - max_half_range, tr_mean + max_half_range)
-                    axn.tick_params(labelsize=axes_fontsize)
-                    tag = '.'.join([tr.stats.network, tr.stats.station, tr.stats.location, tr.stats.channel])
-                    axn.text(0.02, 0.90, tag, fontsize=annot_fontsize, ha='left', va='top', transform=axn.transAxes,
-                            bbox=bbstyle)
-                    if idx == 0:
-                        id_label = 'Event: {}'.format(evid)
-                        axn.text(0.98, 0.90, id_label, fontsize=annot_fontsize, ha='right', va='top',
-                                transform=axn.transAxes, bbox=bbstyle)
-                    # end if
-                    if idx != 2:
-                        axn.set_xticks([])
-                        axn.xaxis.set_visible(False)
-                        axn.xaxis.label.set_visible(False)
-                    else:
-                        axn.xaxis.label.set_size(axes_fontsize)
-                        axn.text(0.5, 0.02, 'Onset: {}'.format(str(tr.stats.onset)), fontsize=annot_fontsize,
-                                ha='center', va='bottom', transform=axn.transAxes)
-                    # end if
-                    axn.yaxis.label.set_size(axes_fontsize)
-                    # f.add_subplot(axn)
-                # end for
+                pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+                plt.close()
             # end for
-
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
-            plt.close()
         # end for
-    # end for
-    pb.close()
-# end with
+        pb.close()
+
+        r_on_z = np.array(r_on_z)
+        t_on_z = np.array(t_on_z)
+        t_on_r = np.array(t_on_r)
+
+        rms_array = np.array([r_on_z, t_on_z, t_on_r]).T
+        print(rms_array.shape)
+        df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R'])
+        _p = sns.pairplot(df, alpha=0.2)
+        pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+        plt.close()
+
+    # end with
+# end func
+
+
+if __name__ == "__main__":
+    main()
+# end if

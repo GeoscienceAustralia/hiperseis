@@ -16,6 +16,10 @@ There are a number of manuals and literature about RF. You can refer to examples
 distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/) or [chapter 4.1 of
 Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNodeServlet/FUDISS_derivate_000000014929/dissertation_richter.pdf).
 
+The work in this module utilizes the RF framework developed in the Python [`rf` library
+developed by Tom Eulenfeld](https://doi.org/10.21105/joss.01808).
+
+
 ## Event Trace Extraction
 
 The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
