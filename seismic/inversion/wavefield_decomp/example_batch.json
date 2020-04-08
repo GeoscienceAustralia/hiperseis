@@ -1,5 +1,6 @@
 {
   "_comment": "Batch processing configuration for OA network",
+  "job_name": "example_batch",
   "jobs":
   {
     "OA.BS24.0M": "config_one_layer.json",
