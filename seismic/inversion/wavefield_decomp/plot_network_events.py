@@ -73,10 +73,15 @@ def main(src_file, output_file, config_file):
     fs = su_energy_opts["sampling_rate"]
 
     with PdfPages(output_file) as pdf:
-        pb = tqdm(index)
+
         r_on_z = []
         t_on_z = []
         t_on_r = []
+        z_cov_r = []
+        z_cov_t = []
+        r_cov_t = []
+
+        pb = tqdm(index)
         for seedid in pb:
             net, sta, loc = seedid.split('.')
             pb.set_description(seedid)
@@ -97,8 +102,28 @@ def main(src_file, output_file, config_file):
                 # END PREPARATION & CURATION
             # end with
 
-            pb.write('Rendering ' + seedid)
+            pb.write('Computing stats ' + seedid)
             db_evid = ned.station(sta)
+            for stream in db_evid.values():
+                tr_z = stream.select(component='Z')[0]
+                tr_r = stream.select(component='R')[0]
+                tr_t = stream.select(component='T')[0]
+                # Ratio of RMS amplitudes
+                rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
+                rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
+                rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
+                r_on_z.append(rms_r / rms_z)
+                t_on_z.append(rms_t / rms_z)
+                t_on_r.append(rms_t / rms_r)
+                # Correlation coefficients
+                corr_c = np.corrcoef([tr_z, tr_r, tr_t])
+                z_cov_r.append(corr_c[0, 1])
+                z_cov_t.append(corr_c[0, 2])
+                r_cov_t.append(corr_c[1, 2])
+            # end for
+            continue
+
+            pb.write('Rendering ' + seedid)
             num_events = len(db_evid)
             num_per_page = nrows*ncols
             ev_ids = list(db_evid.keys())
@@ -111,15 +136,6 @@ def main(src_file, output_file, config_file):
                                            top=0.95, hspace=0.3, wspace=0.2)
                 for i, evid in enumerate(ev_ids[pagenum*num_per_page:(pagenum + 1)*num_per_page]):
                     stream = db_evid[evid]
-                    rms_z = np.sqrt(np.mean(np.square(stream.select(component='Z')[0].data)))
-                    rms_r = np.sqrt(np.mean(np.square(stream.select(component='R')[0].data)))
-                    rms_t = np.sqrt(np.mean(np.square(stream.select(component='T')[0].data)))
-                    r_on_z.append(rms_r/rms_z)
-                    t_on_z.append(rms_t/rms_z)
-                    t_on_r.append(rms_t/rms_r)
-
-                    gs = pgspec[i%nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
-
                     # Find max range so we can use a common scale
                     max_half_range = 0.0
                     for tr in stream:
@@ -128,6 +144,7 @@ def main(src_file, output_file, config_file):
                     max_half_range *= 1.1
 
                     # Do plots
+                    gs = pgspec[i%nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
                     for tr in stream:
                         cha = tr.stats.channel[-1]
                         idx = channel_order.index(cha)
@@ -172,9 +189,22 @@ def main(src_file, output_file, config_file):
         t_on_r = np.array(t_on_r)
 
         rms_array = np.array([r_on_z, t_on_z, t_on_r]).T
-        print(rms_array.shape)
         df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R'])
-        _p = sns.pairplot(df, alpha=0.2)
+        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        plt.tight_layout()
+        plt.suptitle('Ratios of channel RMS amplitudes')
+        pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+        plt.close()
+
+        z_cov_r = np.array(z_cov_r)
+        z_cov_t = np.array(z_cov_t)
+        r_cov_t = np.array(r_cov_t)
+
+        cov_array = np.array([z_cov_r, z_cov_t, r_cov_t]).T
+        df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)'])
+        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        plt.tight_layout()
+        plt.suptitle('Cross-correlation coefficients between channels')
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
         plt.close()
 
