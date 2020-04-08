@@ -121,7 +121,6 @@ def main(src_file, output_file, config_file):
                 z_cov_t.append(corr_c[0, 2])
                 r_cov_t.append(corr_c[1, 2])
             # end for
-            continue
 
             pb.write('Rendering ' + seedid)
             num_events = len(db_evid)
