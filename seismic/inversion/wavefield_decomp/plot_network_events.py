@@ -183,6 +183,11 @@ def main(src_file, output_file, config_file):
         # end for
         pb.close()
 
+        # Cluster plot statistics.
+        # TODO: colour points by rank on energy spectrum for Tao method, to see
+        # if waveforms with high energy (ones we want to remove in advance if
+        # possible) are clustered in a way that could be filtered a priori.
+        # See https://seaborn.pydata.org/generated/seaborn.pairplot.html
         r_on_z = np.array(r_on_z)
         t_on_z = np.array(t_on_z)
         t_on_r = np.array(t_on_r)
@@ -190,8 +195,8 @@ def main(src_file, output_file, config_file):
         rms_array = np.array([r_on_z, t_on_z, t_on_r]).T
         df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R'])
         _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
-        plt.tight_layout()
         plt.suptitle('Ratios of channel RMS amplitudes')
+        plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
         plt.close()
 
@@ -202,8 +207,8 @@ def main(src_file, output_file, config_file):
         cov_array = np.array([z_cov_r, z_cov_t, r_cov_t]).T
         df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)'])
         _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
-        plt.tight_layout()
         plt.suptitle('Cross-correlation coefficients between channels')
+        plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
         plt.close()
 
