@@ -17,7 +17,7 @@ comment = 0; s1 = datenum(2000,1,1,0,0,0)-datenum(2000,1,1,0,0,1); % One second 
 % The top folder where all catalogues are located
 tf = '/g/data1a/ha3/Passive/Events'; % This is top folder that all the data is located, This is my computer at ANU ...
 % The location of different catalogues, folder names under the top folder
-folds = {'analyst-reviewed-Alexei-csv'};
+folds = {'GeoscienceAustralia'};
 % format of the files in each folder: ascii or xml
 forms = {'/*.txt'};
 
