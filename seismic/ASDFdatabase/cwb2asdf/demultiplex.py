@@ -1,7 +1,7 @@
 #!/bin/env python
 """
 Description:
-    Small utility for running the demultiplex binary in parallel.
+    Utility Program for running the demultiplex binary in parallel.
 References:
 
 CreationDate:   09/04/19
@@ -9,42 +9,41 @@ Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
     LastUpdate:     00/04/19   RH
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+    LastUpdate:     2020-04-10  Fei Zhang  Take over and clean-up the code.
+
 """
 
-from mpi4py import MPI
-import os, sys
-
-from os.path import join, exists
-from collections import defaultdict
-import numpy as np
-from obspy import Stream, Trace, UTCDateTime
-from multiprocessing import Pool, TimeoutError
-import pyasdf
-from obspy.core.trace import Trace
-import click
 import glob
-import subprocess
+import os
 import random
+import subprocess
+
+import click
+from mpi4py import MPI
+
 
 def runprocess(cmd, get_results=False):
     results = []
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     for line in p.stdout:
         if (get_results): results.append(line.strip())
-        #else: print line
+        # else: print line
     # end for
 
-    #for line in p.stderr:
+    # for line in p.stderr:
     #    print line
     p.wait()
 
     return p.returncode, results
+
+
 # end func
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+
+
 # end func
 
 class ProgressTracker:
@@ -56,22 +55,23 @@ class ProgressTracker:
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
-        self.prev_progress = 0 # progress from a previous run
+        self.prev_progress = 0  # progress from a previous run
         self.progress = 0
         self.proc_fn = os.path.join(output_folder, 'prog.%d.txt' % (self.rank))
 
-        if(self.restart_mode):
-            if(not os.path.exists(self.proc_fn)):
-                raise Exception('Progress file (%s) not found'%(self.proc_fn))
+        if (self.restart_mode):
+            if (not os.path.exists(self.proc_fn)):
+                raise Exception('Progress file (%s) not found' % (self.proc_fn))
             # end if
 
             self.prev_progress = int(open(self.proc_fn).read())
         # end if
+
     # end func
 
     def increment(self):
         self.progress += 1
-        if(self.restart_mode and (self.prev_progress > 0) and (self.progress < self.prev_progress)):
+        if (self.restart_mode and (self.prev_progress > 0) and (self.progress < self.prev_progress)):
             return False
         else:
             tmpfn = self.proc_fn + '.tmp'
@@ -83,9 +83,13 @@ class ProgressTracker:
             return True
         # end if
     # end func
+
+
 # end class
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-folder', required=True,
                 type=click.Path(exists=True))
@@ -110,11 +114,11 @@ def process(input_folder, output_folder, extension, restart):
     rank = comm.Get_rank()
 
     msfiles = None
-    if(rank == 0):
-        msfiles = glob.glob(input_folder + '/*.%s'%(extension))
+    if (rank == 0):
+        msfiles = glob.glob(input_folder + '/*.%s' % (extension))
 
-        random.Random(nproc).shuffle(msfiles) # using nproc as seed so that shuffle produces the same
-                                              # ordering when jobs are restarted.
+        random.Random(nproc).shuffle(msfiles)  # using nproc as seed so that shuffle produces the same
+        # ordering when jobs are restarted.
 
         msfiles = split_list(msfiles, nproc)
     # end if
@@ -130,18 +134,20 @@ def process(input_folder, output_folder, extension, restart):
         if (progTracker.increment()):
             pass
         else:
-            print (('Found results for mseed file %s. Moving along..'%(fn)))
+            print(('Found results for mseed file %s. Moving along..' % (fn)))
             continue
         # end if
 
-        cmd = '%s/demultiplex %s %s %s.%s'%(path, fn, output_folder, rank, ifn)
-        
+        cmd = '%s/demultiplex %s %s %s.%s' % (path, fn, output_folder, rank, ifn)
+
         ec, results = runprocess(cmd, get_results=True)
 
-        print ((ec, results))
+        print((ec, results))
     # end for
-# end func
 
+
+#######################################################################################################
+# Example Cmdline run:  mpirun -np 2 python3 demultiplex.py /Datasets/ /tmp/Output_Miniseeds/
+#######################################################################################################
 if (__name__ == '__main__'):
     process()
-# end if
