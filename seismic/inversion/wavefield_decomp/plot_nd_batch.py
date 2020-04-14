@@ -234,7 +234,8 @@ def plot_aux_data(soln, config, log, scale):
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
               help='Name of the output PDF file in which to save plots')
 def main(solution_file, output_file):
-    """
+    """Plot all the solutions found in a batch run of N-dimensional solver.
+
     Example usage:
         python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5
 

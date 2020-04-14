@@ -8,9 +8,7 @@
 import os
 import math
 import logging
-import json
 import warnings
-# from collections import defaultdict
 
 import click
 import numpy as np
@@ -26,37 +24,24 @@ from seismic.inversion.wavefield_decomp.runners import curate_seismograms, load_
 from seismic.stream_io import get_obspyh5_index
 
 
-soln_file = '/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5'
-soln_configs, _ = load_mcmc_solution(soln_file)
-station_esu = {}
-for soln, config in soln_configs:
-    evids = config['event_ids']
-    station = config['station_id']
-    for esu in soln.esu:
-        assert len(esu) == len(evids)
-    # end for
-    station_esu[station] = (soln.esu, evids)
-# end if
-
-
 @click.command()
 @click.option('--src-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
               help='Name of the output PDF file')
-@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Solver configuration file that contains filtering settings.')
-def main(src_file, output_file, config_file):
+@click.option('--soln-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Solution file that contains energy-per-event and filtering settings.')
+def main(src_file, output_file, soln_file):
     """
     Example usage:
 
         python plot_network_events.py  --src-file OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-         --output-file OA_event_seismograms_v0.3.pdf
-         --config-file config_one_layer.json
+         --output-file OA_event_seismograms.pdf
+         --soln-file /g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5
 
     :param src_file: File containing event waveforms
     :param output_file: Output pdf file
-    :param config_file: Solver configuration file that contains filtering settings
+    :param soln_file: Solution file that contains energy-per-event and filtering settings
     """
 
     if os.path.splitext(output_file)[1].lower() != '.pdf':
@@ -70,7 +55,6 @@ def main(src_file, output_file, config_file):
     nrows = 8
     pagesize = (8.3, 8.3*1.414)  # A4
     channel_order = 'ZRT'
-    time_window = (-20.0, 50.0)
 
     bbstyle = dict(boxstyle="round", fc="w", alpha=0.5, linewidth=0.5)
     annot_fontsize = 5
@@ -78,13 +62,12 @@ def main(src_file, output_file, config_file):
 
     logger = logging.getLogger(__name__)
 
-    with open(config_file, 'r') as cf:
-        config = json.load(cf)
-    # end with
-    curation_opts = config["curation_opts"]
-    su_energy_opts = config["su_energy_opts"]
-    time_window = su_energy_opts["time_window"]
-    fs = su_energy_opts["sampling_rate"]
+    soln_configs, _ = load_mcmc_solution(soln_file)
+    station_esu = {}
+    for soln, config in soln_configs:
+        station = config['station_id']
+        station_esu[station] = (soln.esu, config)
+    # end if
 
     with PdfPages(output_file) as pdf:
 
@@ -98,6 +81,11 @@ def main(src_file, output_file, config_file):
 
         pb = tqdm(index)
         for seedid in pb:
+            if not seedid in station_esu:
+                continue
+            # end if
+            soln_esu, sta_config = station_esu[seedid]
+
             net, sta, loc = seedid.split('.')
             pb.set_description(seedid)
             pb.write('Loading ' + seedid)
@@ -107,10 +95,14 @@ def main(src_file, output_file, config_file):
                 ned = NetworkEventDataset(src_file, net, sta, loc)
                 # BEGIN PREPARATION & CURATION
                 # Trim streams to time window
+                su_energy_opts = sta_config["su_energy_opts"]
+                time_window = su_energy_opts["time_window"]
                 ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
                                                      stream[0].stats.onset + time_window[1]))
                 # Curate
+                curation_opts = sta_config["curation_opts"]
                 curate_seismograms(ned, curation_opts, logger)
+                fs = su_energy_opts["sampling_rate"]
                 # Downsample
                 ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
                           .interpolate(fs, method='lanczos', a=10))
@@ -119,33 +111,33 @@ def main(src_file, output_file, config_file):
 
             pb.write('Computing stats ' + seedid)
             db_evid = ned.station(sta)
-            if seedid in station_esu:
-                esu, esu_evid = station_esu[seedid]
-                esu_mean = np.array(esu).mean(axis=0)
-                assert len(esu_evid) == len(db_evid) == len(esu_mean)
-                assert np.all(np.array(db_evid.keys()) == np.array(esu_evid))
-                for i, stream in enumerate(db_evid.values()):
-                    tr_z = stream.select(component='Z')[0]
-                    tr_r = stream.select(component='R')[0]
-                    tr_t = stream.select(component='T')[0]
-                    # Ratio of RMS amplitudes
-                    rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
-                    rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
-                    rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
-                    r_on_z.append(rms_r / rms_z)
-                    t_on_z.append(rms_t / rms_z)
-                    t_on_r.append(rms_t / rms_r)
-                    # Correlation coefficients
-                    corr_c = np.corrcoef([tr_z, tr_r, tr_t])
-                    z_cov_r.append(corr_c[0, 1])
-                    z_cov_t.append(corr_c[0, 2])
-                    r_cov_t.append(corr_c[1, 2])
-                    # Quality category based on energy value
-                    e = esu_mean[i]
-                    energy_category.append(0 if e < 2 else 1 if e < 4 else 2)
-                # end for
-            # end if
-            continue
+            esu_evid = sta_config['event_ids']
+            for esu in soln_esu:
+                assert len(esu) == len(esu_evid)
+            # end for
+            esu_mean = np.array(soln_esu).mean(axis=0)
+            assert len(esu_evid) == len(db_evid) == len(esu_mean)
+            assert np.all(np.array(db_evid.keys()) == np.array(esu_evid))
+            for i, stream in enumerate(db_evid.values()):
+                tr_z = stream.select(component='Z')[0]
+                tr_r = stream.select(component='R')[0]
+                tr_t = stream.select(component='T')[0]
+                # Ratio of RMS amplitudes
+                rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
+                rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
+                rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
+                r_on_z.append(rms_r / rms_z)
+                t_on_z.append(rms_t / rms_z)
+                t_on_r.append(rms_t / rms_r)
+                # Correlation coefficients
+                corr_c = np.corrcoef([tr_z, tr_r, tr_t])
+                z_cov_r.append(corr_c[0, 1])
+                z_cov_t.append(corr_c[0, 2])
+                r_cov_t.append(corr_c[1, 2])
+                # Quality category based on energy value
+                e = esu_mean[i]
+                energy_category.append(0 if e < 2 else 1 if e < 4 else 2)
+            # end for
 
             pb.write('Rendering ' + seedid)
             num_events = len(db_evid)
