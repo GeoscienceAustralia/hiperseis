@@ -10,6 +10,7 @@ import math
 import logging
 import json
 import warnings
+# from collections import defaultdict
 
 import click
 import numpy as np
@@ -21,8 +22,21 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
-from seismic.inversion.wavefield_decomp.runners import curate_seismograms
+from seismic.inversion.wavefield_decomp.runners import curate_seismograms, load_mcmc_solution
 from seismic.stream_io import get_obspyh5_index
+
+
+soln_file = '/g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5'
+soln_configs, _ = load_mcmc_solution(soln_file)
+station_esu = {}
+for soln, config in soln_configs:
+    evids = config['event_ids']
+    station = config['station_id']
+    for esu in soln.esu:
+        assert len(esu) == len(evids)
+    # end for
+    station_esu[station] = (soln.esu, evids)
+# end if
 
 
 @click.command()
@@ -80,6 +94,7 @@ def main(src_file, output_file, config_file):
         z_cov_r = []
         z_cov_t = []
         r_cov_t = []
+        energy_category = []
 
         pb = tqdm(index)
         for seedid in pb:
@@ -104,23 +119,33 @@ def main(src_file, output_file, config_file):
 
             pb.write('Computing stats ' + seedid)
             db_evid = ned.station(sta)
-            for stream in db_evid.values():
-                tr_z = stream.select(component='Z')[0]
-                tr_r = stream.select(component='R')[0]
-                tr_t = stream.select(component='T')[0]
-                # Ratio of RMS amplitudes
-                rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
-                rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
-                rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
-                r_on_z.append(rms_r / rms_z)
-                t_on_z.append(rms_t / rms_z)
-                t_on_r.append(rms_t / rms_r)
-                # Correlation coefficients
-                corr_c = np.corrcoef([tr_z, tr_r, tr_t])
-                z_cov_r.append(corr_c[0, 1])
-                z_cov_t.append(corr_c[0, 2])
-                r_cov_t.append(corr_c[1, 2])
-            # end for
+            if seedid in station_esu:
+                esu, esu_evid = station_esu[seedid]
+                esu_mean = np.array(esu).mean(axis=0)
+                assert len(esu_evid) == len(db_evid) == len(esu_mean)
+                assert np.all(np.array(db_evid.keys()) == np.array(esu_evid))
+                for i, stream in enumerate(db_evid.values()):
+                    tr_z = stream.select(component='Z')[0]
+                    tr_r = stream.select(component='R')[0]
+                    tr_t = stream.select(component='T')[0]
+                    # Ratio of RMS amplitudes
+                    rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
+                    rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
+                    rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
+                    r_on_z.append(rms_r / rms_z)
+                    t_on_z.append(rms_t / rms_z)
+                    t_on_r.append(rms_t / rms_r)
+                    # Correlation coefficients
+                    corr_c = np.corrcoef([tr_z, tr_r, tr_t])
+                    z_cov_r.append(corr_c[0, 1])
+                    z_cov_t.append(corr_c[0, 2])
+                    r_cov_t.append(corr_c[1, 2])
+                    # Quality category based on energy value
+                    e = esu_mean[i]
+                    energy_category.append(0 if e < 2 else 1 if e < 4 else 2)
+                # end for
+            # end if
+            continue
 
             pb.write('Rendering ' + seedid)
             num_events = len(db_evid)
@@ -184,17 +209,20 @@ def main(src_file, output_file, config_file):
         pb.close()
 
         # Cluster plot statistics.
-        # TODO: colour points by rank on energy spectrum for Tao method, to see
+        # Colour points by rank on energy spectrum for Tao method, to see
         # if waveforms with high energy (ones we want to remove in advance if
         # possible) are clustered in a way that could be filtered a priori.
         # See https://seaborn.pydata.org/generated/seaborn.pairplot.html
         r_on_z = np.array(r_on_z)
         t_on_z = np.array(t_on_z)
         t_on_r = np.array(t_on_r)
+        qual = np.array(energy_category)
 
-        rms_array = np.array([r_on_z, t_on_z, t_on_r]).T
-        df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R'])
-        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        rms_array = np.array([r_on_z, t_on_z, t_on_r, qual]).T
+        df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R', 'Energy'])
+        _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
+                          plot_kws=dict(s=5, alpha=0.4, rasterized=True))
+        _p.set(xlim=(0, 3), ylim=(0, 3))
         plt.suptitle('Ratios of channel RMS amplitudes')
         plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
@@ -204,9 +232,10 @@ def main(src_file, output_file, config_file):
         z_cov_t = np.array(z_cov_t)
         r_cov_t = np.array(r_cov_t)
 
-        cov_array = np.array([z_cov_r, z_cov_t, r_cov_t]).T
-        df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)'])
-        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        cov_array = np.array([z_cov_r, z_cov_t, r_cov_t, qual]).T
+        df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)', 'Energy'])
+        _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
+                          plot_kws=dict(s=5, alpha=0.4, rasterized=True))
         plt.suptitle('Cross-correlation coefficients between channels')
         plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')

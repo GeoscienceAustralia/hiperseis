@@ -545,6 +545,8 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     # end if
 
     try:
+        # Ordering of seismograms important here, since storage of sequential values in solution
+        # depend on it. Here the input seismograms are ordered by event ID.
         soln = runner(waveform_data.station(station).values(), config, logger)
     except Exception as e:
         logger.error('Runner failed on station {}'.format(station_id))
