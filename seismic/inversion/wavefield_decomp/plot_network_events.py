@@ -208,12 +208,12 @@ def main(src_file, output_file, soln_file):
         r_on_z = np.array(r_on_z)
         t_on_z = np.array(t_on_z)
         t_on_r = np.array(t_on_r)
-        qual = np.array(energy_category)
+        qual = np.array(energy_category, dtype=int)
 
-        rms_array = np.array([r_on_z, t_on_z, t_on_r, qual]).T
-        df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R', 'Energy'])
+        rms_array = {'R/Z': r_on_z, 'T/Z': t_on_z, 'T/R': t_on_r, 'Energy': qual}
+        df = pd.DataFrame.from_dict(rms_array)
         _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
-                          plot_kws=dict(s=5, alpha=0.4, rasterized=True))
+                          plot_kws=dict(s=5, alpha=0.5, rasterized=True))
         _p.set(xlim=(0, 3), ylim=(0, 3))
         plt.suptitle('Ratios of channel RMS amplitudes')
         plt.tight_layout()
@@ -224,10 +224,10 @@ def main(src_file, output_file, soln_file):
         z_cov_t = np.array(z_cov_t)
         r_cov_t = np.array(r_cov_t)
 
-        cov_array = np.array([z_cov_r, z_cov_t, r_cov_t, qual]).T
-        df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)', 'Energy'])
+        cov_array = {'cov(Z,R)': z_cov_r, 'cov(Z,T)': z_cov_t, 'cov(R,T)': r_cov_t, 'Energy': qual}
+        df = pd.DataFrame.from_dict(cov_array)
         _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
-                          plot_kws=dict(s=5, alpha=0.4, rasterized=True))
+                          plot_kws=dict(s=5, alpha=0.5, rasterized=True))
         plt.suptitle('Cross-correlation coefficients between channels')
         plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
