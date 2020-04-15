@@ -22,7 +22,7 @@ from tqdm import tqdm
 import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.receiver_fn.rf_util import zne_order
+from seismic.stream_processing import zne_order
 
 logging.basicConfig()
 
