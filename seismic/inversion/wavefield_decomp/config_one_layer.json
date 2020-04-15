@@ -13,7 +13,9 @@
   {
     "freq_min": 0.05,
     "min_snr": 3.0,
-    "max_raw_amplitude": 10000.0
+    "max_raw_amplitude": 10000.0,
+    "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 0.8, "T/R": 1.0},
+    "rz_min_corrcoef": 0.2
   },
   "su_energy_opts":
   {

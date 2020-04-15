@@ -10,7 +10,7 @@ from sortedcontainers import SortedDict
 import obspy
 
 from seismic.stream_io import read_h5_stream
-from seismic.receiver_fn.rf_util import zne_order, zrt_order
+from seismic.stream_processing import zne_order, zrt_order
 
 
 # pylint: disable=invalid-name

@@ -32,8 +32,8 @@ except ImportError:
     from numpy.fft import fft, ifft, irfft, fftfreq
 # end try
 
-from seismic.receiver_fn.rf_util import KM_PER_DEG
-from seismic.receiver_fn.rf_util import sinc_resampling
+from seismic.units_utils import KM_PER_DEG
+from seismic.stream_processing import sinc_resampling
 from seismic.inversion.wavefield_decomp.model_properties import LayerProps
 
 
