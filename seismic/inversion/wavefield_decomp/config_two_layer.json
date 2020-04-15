@@ -14,6 +14,7 @@
   "curation_opts":
   {
     "freq_min": 0.05,
+    "freq_max": 5.0,
     "min_snr": 3.0,
     "max_raw_amplitude": 10000.0
   },
