@@ -14,7 +14,7 @@ from scipy import interpolate
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.receiver_fn.plot_ccp import run
-from seismic.receiver_fn.rf_util import KM_PER_DEG
+from seismic.units_utils import KM_PER_DEG
 
 
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,

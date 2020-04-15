@@ -30,7 +30,7 @@ from mpl_toolkits import basemap
 import rf
 from tqdm import tqdm
 
-from seismic.receiver_fn.rf_util import KM_PER_DEG
+from seismic.units_utils import KM_PER_DEG
 
 
 def plot_ccp(matrx, length, max_depth, spacing, vlims=None, metadata=None, title=None, colormap='seismic'):

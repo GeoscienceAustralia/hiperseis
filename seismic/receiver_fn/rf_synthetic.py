@@ -10,6 +10,7 @@ import obspy
 import rf
 
 import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name
 
@@ -121,7 +122,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
         header = {'network': 'SY', 'station': 'TST', 'location': 'GA', 'channel': 'HHR', 'sampling_rate': fs,
                   'starttime': now, 'endtime': end, 'onset': onset,
                   'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
-                  'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
+                  'slowness': p*KM_PER_DEG, 'inclination': inc_deg,
                   'back_azimuth': baz, 'distance': float(distances[i])}
         tr = rf.rfstream.RFTrace(data=synth_signal.copy(), header=header)
         tr = tr.decimate(int(np.round(fs/ds)), no_filter=True)
@@ -218,7 +219,7 @@ def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcel
     receiver_lat = station_metadata.networks[0].stations[0].latitude
     receiver_lon = station_metadata.networks[0].stations[0].longitude
     dist, baz, _ = gps2dist_azimuth(receiver_lat, receiver_lon, sourcelatitude, sourcelongitude)
-    dist_deg = dist / 1000 / rf_util.KM_PER_DEG
+    dist_deg = dist / 1000 / KM_PER_DEG
     event_depth_km = sourcedepthmetres/1000
     tt_model = TauPyModel(model=earth_model)
     phase = 'P'

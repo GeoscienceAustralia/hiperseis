@@ -6,6 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name,logging-format-interpolation
 
@@ -124,7 +125,7 @@ def infer_Vp_from_traces(cha_data, log=None):
     # Determine the internal V_p consistent with the trace ray parameters and inclinations.
     V_p_values = []
     for tr in cha_data:
-        p = tr.stats.slowness / rf_util.KM_PER_DEG
+        p = tr.stats.slowness / KM_PER_DEG
         incl_deg = tr.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
         V_p_value = np.sin(incl_rad) / p
