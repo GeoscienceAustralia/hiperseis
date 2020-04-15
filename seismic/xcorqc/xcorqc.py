@@ -617,7 +617,7 @@ def IntervalStackXCorr(refds, tempds,
         try:
             tnc, tsc = temp_net_sta.split('.')
             tempSt = get_stream(tempds, tnc, tsc, temp_cha, cTime, cTime + cStep, baz=baz_temp_net_sta,
-                               logger=logger, verbose=verbose)
+                                logger=logger, verbose=verbose)
         except Exception as e:
             logger.error('\t'+str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
@@ -641,7 +641,7 @@ def IntervalStackXCorr(refds, tempds,
             tempSt.print_gaps() # output sent to stdout; fix this
             print("\n")
 
-        logger.info('\tCross-correlating station-pair: %s' % (stationPair))
+        logger.info('\tCross-correlating station-pair: %s' % stationPair)
         xcl, winsPerInterval, \
         intervalStartSeconds, intervalEndSeconds, sr = \
             xcorr2(refSt[0], tempSt[0], ref_sta_inv, temp_sta_inv,
@@ -664,7 +664,7 @@ def IntervalStackXCorr(refds, tempds,
         # Continue if no results were returned due to data-gaps
         if xcl is None:
             logger.warning("\t\tWarning: no cross-correlation results returned for station-pair %s, " %
-                  (stationPair) + " due to gaps in data.")
+                  stationPair + " due to gaps in data.")
             cTime += cStep
             continue
         # end if
@@ -832,7 +832,7 @@ def IntervalStackXCorr(refds, tempds,
                   'bandpass_fmax': fhi if fhi else -999,
                   'clip_to_2std': int(clip_to_2std),
                   'one_bit_normalize': int(one_bit_normalize),
-                  'zero_mean_1std_normalize': int(clip_to_2std==False and one_bit_normalize == False),
+                  'zero_mean_1std_normalize': int(clip_to_2std is False and one_bit_normalize is False),
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
                   'ensemble_stack': int(ensemble_stack)}
@@ -840,8 +840,8 @@ def IntervalStackXCorr(refds, tempds,
         if whitening:
             params['whitening_window_frequency'] = whitening_window_frequency
 
-        for k, v in params.items():
-            setattr(pg, k, v)
+        for _k, _v in params.items():
+            setattr(pg, _k, _v)
         # end for
 
         root_grp.close()
