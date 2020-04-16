@@ -8,7 +8,7 @@ Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
     LastUpdate:     12/12/18   RH
-    LastUpdate:     2020-04-10 Fei Zhang added example run scriplet and clean up
+    LastUpdate:     2020-04-10 Fei Zhang  clean up + added example run for the script
 """
 
 from collections import defaultdict
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
     if len(sys.argv) < 2:
-        print("USAGE: %s %s %s" % ("python", sys.argv[0], "asdf_file_list_text"))
+        print("******** USAGE: python3 %s %s **********"% (sys.argv[0], "asdf_file_list_txt"))
         sys.exit(1)
 
     asdf_file_list = sys.argv[1]
