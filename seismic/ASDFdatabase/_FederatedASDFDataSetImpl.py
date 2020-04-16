@@ -422,7 +422,8 @@ class _FederatedASDFDataSetImpl():
 
     def cleanup(self):
         for i, ds in enumerate(self.asdf_datasets):
-            if(self.logger): self.logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
+            # if self.logger:
+            #     self.logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
             del ds
         # end for
 
