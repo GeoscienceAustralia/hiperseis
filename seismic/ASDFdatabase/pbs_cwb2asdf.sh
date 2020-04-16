@@ -3,7 +3,7 @@
 #PBS -P vy72
 #PBS -N cwb2asdf
 #PBS -q normal
-#PBS -l walltime=20:00:00,mem=384GB,ncpus=96,jobfs=250GB
+#PBS -l walltime=40:00:00,mem=32GB,ncpus=2,jobfs=250GB
 #PBS -l storage=scratch/fxz547+gdata/ha3
 
 #PBS -l wd
@@ -11,6 +11,8 @@
 #PBS -M fei.zhang@ga.gov.au
 #PBS -m bae
 
+# this is tested working in NCI gadi system.
+# Alternative is to use anaconda python3 env "conda activate hiperseispy37" (vdi)
 module purge
 module load python3/3.7.4
 module load openmpi/2.1.6-mt
@@ -25,7 +27,6 @@ export LANG=en_AU.UTF-8
 
 cd /home/547/fxz547/github/hiperseis/seismic/ASDFdatabase/cwb2asdf
 
-mpirun -np 96 python3 cwb2asdf.py /g/data/ha3/GASeisDataArchive/2019_demultiplex /g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml /g/data/ha3/GASeisDataArchive/2019.h5 > /g/data/ha3/GASeisDataArchive/2019_cwb2asdf_run.out
-
-#mpirun -np 96 python3 cwb2asdf.py /g/data/ha3/GASeisDataArchive/2020_demultiplexed  /g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml /g/data/ha3/GASeisDataArchive/2020.h5 > /g/data/ha3/GASeisDataArchive/2020_cwb2asdf_run.out
+#Not much parallelization in the script. Recommend to use 1-cpu.
+mpirun -np 2 python3 cwb2asdf.py /g/data/ha3/GASeisDataArchive/2019_demultiplex /g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml /g/data/ha3/GASeisDataArchive/2019.h5 > /g/data/ha3/GASeisDataArchive/2019_cwb2asdf_run.out
 
