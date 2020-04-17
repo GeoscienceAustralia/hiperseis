@@ -6,6 +6,8 @@ Batch plotting a MCMC solution for batch of stations to a single pdf file.
 
 import os
 import logging
+import json
+import copy
 
 import click
 from tqdm.auto import tqdm
@@ -260,8 +262,22 @@ def main(solution_file, output_file):
             elif soln.x.shape[-1] == 4:
                 vars = vars4
             else:
-                assert False
+                assert False, "Not yet implemented"
             # end if
+
+            # Dump settings page (per station)
+            config_no_evids = copy.deepcopy(config)
+            config_no_evids.pop('event_ids', None)
+            config_text = json.dumps(config_no_evids, indent=4)
+            f = plt.figure(figsize=(default_fig_width_inches, default_fig_width_inches*1.414))
+            plt.gca().xaxis.set_visible(False)
+            plt.gca().yaxis.set_visible(False)
+            plt.title(config['station_id'] + ' Processing Settings')
+            f.text(0.02, 0.98, 'Settings:\n' + config_text, fontsize=6, va='top',
+                   fontname='monospace', transform=plt.gca().transAxes)
+            pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
+            plt.close()
+
             #  Convert Vs parameter to k = Vp/Vs
             convert_Vs_to_k(soln, config)
             p, _, _ = plot_Nd(soln, title=config['station_id'], vars=vars)
@@ -274,7 +290,7 @@ def main(solution_file, output_file):
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
 
-            p = plot_aux_data(soln, config, log, scale)
+            _p = plot_aux_data(soln, config, log, scale)
             pdf.savefig(dpi=300, papertype='a3', orientation='portrait')
             plt.close()
         # end for

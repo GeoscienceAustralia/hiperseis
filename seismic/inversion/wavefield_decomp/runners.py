@@ -466,7 +466,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             if len(timestamps) > 1:
                 for i, ts in enumerate(timestamps):
                     job_node = h5f[ts]
-                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node else ''
+                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node.attrs else ''
                     if job_tracking:
                         job_tracking = '(' + ', '.join([': '.join([k, str(v)]) for k, v in job_tracking.items()]) + ')'
                     # end if
