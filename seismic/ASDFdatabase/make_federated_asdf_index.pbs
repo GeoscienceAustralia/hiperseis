@@ -1,8 +1,8 @@
 #!/bin/bash
 #PBS -P vy72
-#PBS -N make_index
+#PBS -N make_fed_asdf_index
 #PBS -q normal
-#PBS -l walltime=48:00:00,mem=32GB,ncpus=2,jobfs=256GB
+#PBS -l walltime=48:00:00,mem=32GB,ncpus=1,jobfs=256GB
 #PBS -l storage=scratch/fxz547+gdata/ha3
 
 #PBS -l wd
@@ -24,7 +24,11 @@ export LANG=en_AU.UTF-8
 
 cd /home/547/fxz547/github/hiperseis/seismic/ASDFdatabase
 
-mpirun -np $PBS_NCPUS python3 FederatedASDFDataSet.py /g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt
 
-# Run inline script to generate the index. Note: change lines 6, 9 and 19 (above) and the inline file-paths (below) as required.
-# mpirun -np $PBS_NCPUS python -c "import pyasdf; from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet; ds=FederatedASDFDataSet('/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt')"
+python3 FederatedASDFDataSet.py /g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt
+
+# TODO: MPI requires HDF5/h5py to be complied with support for parallel I/O
+# File "/home/547/fxz547/.local/lib/python3.7/site-packages/pyasdf/asdf_data_set.py", line 459, in mpi
+#    raise RuntimeError(msg)
+# RuntimeError: Running under MPI requires HDF5/h5py to be complied with support for parallel I/O
+# mpirun -np $PBS_NCPUS python3 FederatedASDFDataSet.py /g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt
