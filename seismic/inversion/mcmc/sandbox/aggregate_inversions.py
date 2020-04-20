@@ -27,7 +27,7 @@ SOLUTION_FILE = 'Posterior.out'
 @click.option('--station-database', type=click.Path(exists=True, dir_okay=False), required=True,
               help='Location of station database used to generate FederatedASDFDataSet. '
                    'Provides station location metadata. e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt".')
-def main(input_folder, output_file, folder_mask, station_database):
+def aggregate(input_folder, output_file, folder_mask, station_database):
     """
     Scrape together all the trans-D inversion solutions and collect into volumetric dataset.
 
@@ -108,7 +108,15 @@ def main(input_folder, output_file, folder_mask, station_database):
 # end func
 
 
+@click.command()
+@click.argument('data-filename', type=click.Path(exists=True, file_okay=True, dir_okay=False), required=True)
 def test_plot(data_filename):
+    """
+    Load scraped dataset and generate test plot based on it.
+
+    :param data_filename: Name of dataset file to load. Run 'aggregate' commmand
+        to generate dataset.
+    """
     import cartopy as cp
     from scipy.interpolate import griddata
     import matplotlib.pyplot as plt
@@ -176,13 +184,14 @@ def test_plot(data_filename):
 # end func
 
 
+@click.group()
+def main():
+    pass
+# end if
+
+
 if __name__ == '__main__':
-    if len(sys.argv) > 2 and sys.argv[1].lower() == 'plot':
-        # Example usage:
-        # python aggregate_inversions.py plot OA_transd_a;;.npy
-        data_fname = sys.argv[2]
-        test_plot(data_fname)
-    else:
-        main()
-    # end if
+    main.add_command(aggregate)
+    main.add_command(test_plot, name='plot')
+    main()
 # end if
