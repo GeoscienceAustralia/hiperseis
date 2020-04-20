@@ -356,7 +356,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
     # end func
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.5'
+    FORMAT_VERSION = '0.6'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -418,6 +418,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
                 station_node['sample_energies'] = write_data_empty(soln.sample_funvals)
                 station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
                 station_node['version'] = soln.version
+                station_node['rnd_seed'] = soln.rnd_seed
             except TypeError as exc:
                 if logger:
                     logger.error('Error saving station {} solution'.format(station_id))
@@ -536,6 +537,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 bounds = station_node['bounds'].value
                 soln.bounds = optimize.Bounds(bounds[0], bounds[1])
                 soln.version = station_node['version'].value
+                soln.rnd_seed = read_data_empty(station_node['rnd_seed'])
 
                 soln_configs.append((soln, job_config))
             except TypeError as exc:
@@ -638,10 +640,10 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     """
     CLI dispatch function for single station. See help strings for option documentation.
 
-    Example usage:
-        python runners.py example_config.json \
-        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-        --network OA --station CD23 --location 0M --output-file out_test.h5
+    Example usage:\n
+        python runners.py single-job example_config.json \
+--waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+--network OA --station CD23 --location 0M --output-file out_test.h5
 
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
@@ -683,10 +685,10 @@ def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
 
-    Example MPI usage:
-        mpiexec -n 8 python runners.py example_batch.json \
-        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-        --output-file test_batch_output.h5
+    Example MPI usage:\n
+        mpiexec -n 8 python runners.py batch-job example_batch.json \
+--waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+--output-file test_batch_output.h5
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
@@ -759,19 +761,14 @@ def mpi_job(config_file, waveform_file, output_file):
 # end func
 
 
+@click.group()
 def main():
-    import sys
-
-    if len(sys.argv) <= 6:
-        status = mpi_job()
-    else:
-        status = station_job()
-    # end if
-
-    sys.exit(status)
+    pass
 # end func
 
 
 if __name__ == '__main__':
+    main.add_command(mpi_job, name='batch-job')
+    main.add_command(station_job, name='single-job')
     main()
 # end if
