@@ -8,7 +8,7 @@ import numpy as np
 import obspy
 
 import seismic.receiver_fn.rf_util as rf_util
-
+from seismic.stream_processing import zne_order, zrt_order
 
 def _rms(signal, axis=-1):
     return np.sqrt(np.mean(np.square(signal), axis))
@@ -60,7 +60,7 @@ def test_trace_ordering():
         for i, tr in enumerate(test_stream):
             tr.stats.channel = perm[i]
         # end for
-        test_stream.traces.sort(key=rf_util.zne_order)
+        test_stream.traces.sort(key=zne_order)
         assert tuple(tr.stats.channel for tr in test_stream) == ordered
     # end for
 
@@ -70,7 +70,7 @@ def test_trace_ordering():
         for i, tr in enumerate(test_stream):
             tr.stats.channel = perm[i]
         # end for
-        test_stream.traces.sort(key=rf_util.zrt_order)
+        test_stream.traces.sort(key=zrt_order)
         assert tuple(tr.stats.channel for tr in test_stream) == ordered
     # end for
 

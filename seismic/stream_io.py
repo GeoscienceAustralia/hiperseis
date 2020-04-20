@@ -13,7 +13,7 @@ from obspy.io.sac.sactrace import SACTrace
 import h5py
 from obspyh5 import dataset2trace, is_obspyh5
 
-from seismic.receiver_fn.rf_util import KM_PER_DEG
+from seismic.units_utils import KM_PER_DEG
 
 
 logging.basicConfig()

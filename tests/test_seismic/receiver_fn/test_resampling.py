@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 import scipy as sp
 
-from seismic.receiver_fn.rf_util import sinc_resampling
+from seismic.stream_processing import sinc_resampling
 
 
 def test_sinc_resampling():

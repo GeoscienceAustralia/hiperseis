@@ -8,7 +8,6 @@
 import os
 import math
 import logging
-import json
 import warnings
 
 import click
@@ -21,7 +20,7 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
-from seismic.inversion.wavefield_decomp.runners import curate_seismograms
+from seismic.inversion.wavefield_decomp.runners import curate_seismograms, load_mcmc_solution
 from seismic.stream_io import get_obspyh5_index
 
 
@@ -30,19 +29,19 @@ from seismic.stream_io import get_obspyh5_index
               help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
               help='Name of the output PDF file')
-@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Solver configuration file that contains filtering settings.')
-def main(src_file, output_file, config_file):
+@click.option('--soln-file', type=click.Path(exists=True, dir_okay=False), required=True,
+              help='Solution file that contains energy-per-event and filtering settings.')
+def main(src_file, output_file, soln_file):
     """
     Example usage:
 
         python plot_network_events.py  --src-file OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-         --output-file OA_event_seismograms_v0.3.pdf
-         --config-file config_one_layer.json
+         --output-file OA_event_seismograms.pdf
+         --soln-file /g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5
 
     :param src_file: File containing event waveforms
     :param output_file: Output pdf file
-    :param config_file: Solver configuration file that contains filtering settings
+    :param soln_file: Solution file that contains energy-per-event and filtering settings
     """
 
     if os.path.splitext(output_file)[1].lower() != '.pdf':
@@ -56,7 +55,6 @@ def main(src_file, output_file, config_file):
     nrows = 8
     pagesize = (8.3, 8.3*1.414)  # A4
     channel_order = 'ZRT'
-    time_window = (-20.0, 50.0)
 
     bbstyle = dict(boxstyle="round", fc="w", alpha=0.5, linewidth=0.5)
     annot_fontsize = 5
@@ -64,13 +62,12 @@ def main(src_file, output_file, config_file):
 
     logger = logging.getLogger(__name__)
 
-    with open(config_file, 'r') as cf:
-        config = json.load(cf)
-    # end with
-    curation_opts = config["curation_opts"]
-    su_energy_opts = config["su_energy_opts"]
-    time_window = su_energy_opts["time_window"]
-    fs = su_energy_opts["sampling_rate"]
+    soln_configs, _ = load_mcmc_solution(soln_file)
+    station_esu = {}
+    for soln, config in soln_configs:
+        station = config['station_id']
+        station_esu[station] = (soln.esu, config)
+    # end if
 
     with PdfPages(output_file) as pdf:
 
@@ -80,9 +77,15 @@ def main(src_file, output_file, config_file):
         z_cov_r = []
         z_cov_t = []
         r_cov_t = []
+        energy_category = []
 
         pb = tqdm(index)
         for seedid in pb:
+            if not seedid in station_esu:
+                continue
+            # end if
+            soln_esu, sta_config = station_esu[seedid]
+
             net, sta, loc = seedid.split('.')
             pb.set_description(seedid)
             pb.write('Loading ' + seedid)
@@ -92,10 +95,14 @@ def main(src_file, output_file, config_file):
                 ned = NetworkEventDataset(src_file, net, sta, loc)
                 # BEGIN PREPARATION & CURATION
                 # Trim streams to time window
+                su_energy_opts = sta_config["su_energy_opts"]
+                time_window = su_energy_opts["time_window"]
                 ned.apply(lambda stream: stream.trim(stream[0].stats.onset + time_window[0],
                                                      stream[0].stats.onset + time_window[1]))
                 # Curate
+                curation_opts = sta_config["curation_opts"]
                 curate_seismograms(ned, curation_opts, logger)
+                fs = su_energy_opts["sampling_rate"]
                 # Downsample
                 ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
                           .interpolate(fs, method='lanczos', a=10))
@@ -104,7 +111,14 @@ def main(src_file, output_file, config_file):
 
             pb.write('Computing stats ' + seedid)
             db_evid = ned.station(sta)
-            for stream in db_evid.values():
+            esu_evid = sta_config['event_ids']
+            for esu in soln_esu:
+                assert len(esu) == len(esu_evid)
+            # end for
+            esu_mean = np.array(soln_esu).mean(axis=0)
+            assert len(esu_evid) == len(db_evid) == len(esu_mean)
+            assert np.all(np.array(db_evid.keys()) == np.array(esu_evid))
+            for i, stream in enumerate(db_evid.values()):
                 tr_z = stream.select(component='Z')[0]
                 tr_r = stream.select(component='R')[0]
                 tr_t = stream.select(component='T')[0]
@@ -120,6 +134,9 @@ def main(src_file, output_file, config_file):
                 z_cov_r.append(corr_c[0, 1])
                 z_cov_t.append(corr_c[0, 2])
                 r_cov_t.append(corr_c[1, 2])
+                # Quality category based on energy value
+                e = esu_mean[i]
+                energy_category.append(0 if e < 2 else 1 if e < 4 else 2)
             # end for
 
             pb.write('Rendering ' + seedid)
@@ -184,17 +201,20 @@ def main(src_file, output_file, config_file):
         pb.close()
 
         # Cluster plot statistics.
-        # TODO: colour points by rank on energy spectrum for Tao method, to see
+        # Colour points by rank on energy spectrum for Tao method, to see
         # if waveforms with high energy (ones we want to remove in advance if
         # possible) are clustered in a way that could be filtered a priori.
         # See https://seaborn.pydata.org/generated/seaborn.pairplot.html
         r_on_z = np.array(r_on_z)
         t_on_z = np.array(t_on_z)
         t_on_r = np.array(t_on_r)
+        qual = np.array(energy_category, dtype=int)
 
-        rms_array = np.array([r_on_z, t_on_z, t_on_r]).T
-        df = pd.DataFrame(rms_array, columns=['R/Z', 'T/Z', 'T/R'])
-        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        rms_array = {'R/Z': r_on_z, 'T/Z': t_on_z, 'T/R': t_on_r, 'Energy': qual}
+        df = pd.DataFrame.from_dict(rms_array)
+        _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
+                          plot_kws=dict(s=5, alpha=0.5, rasterized=True))
+        _p.set(xlim=(0, 3), ylim=(0, 3))
         plt.suptitle('Ratios of channel RMS amplitudes')
         plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
@@ -204,9 +224,10 @@ def main(src_file, output_file, config_file):
         z_cov_t = np.array(z_cov_t)
         r_cov_t = np.array(r_cov_t)
 
-        cov_array = np.array([z_cov_r, z_cov_t, r_cov_t]).T
-        df = pd.DataFrame(cov_array, columns=['cov(Z,R)', 'cov(Z,T)', 'cov(R,T)'])
-        _p = sns.pairplot(df, plot_kws=dict(s=10, alpha=0.2, rasterized=True))
+        cov_array = {'cov(Z,R)': z_cov_r, 'cov(Z,T)': z_cov_t, 'cov(R,T)': r_cov_t, 'Energy': qual}
+        df = pd.DataFrame.from_dict(cov_array)
+        _p = sns.pairplot(df, hue='Energy', palette=sns.color_palette("Set2"),
+                          plot_kws=dict(s=5, alpha=0.5, rasterized=True))
         plt.suptitle('Cross-correlation coefficients between channels')
         plt.tight_layout()
         pdf.savefig(dpi=300, papertype='a4', orientation='portrait')

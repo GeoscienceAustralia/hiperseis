@@ -21,6 +21,7 @@ from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEven
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
+from seismic.stream_processing import zrt_order
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
 
 
@@ -213,6 +214,38 @@ def curate_seismograms(data_all, curation_opts, logger):
                 (baz_range[0] <= baz + 360 <= baz_range[1]))
     # end func
 
+    def rms_ampl_filter(_stream, rms_ampl_bounds):
+        _stream.traces.sort(key=zrt_order)
+        tr_z = _stream[0]
+        tr_r = _stream[1]
+        tr_t = _stream[2]
+        # Ratio of RMS amplitudes
+        rms_z = np.sqrt(np.nanmean(np.square(tr_z.data)))
+        rms_r = np.sqrt(np.nanmean(np.square(tr_r.data)))
+        rms_t = np.sqrt(np.nanmean(np.square(tr_t.data)))
+        r_on_z = rms_r/rms_z
+        t_on_z = rms_t/rms_z
+        t_on_r = rms_t/rms_r
+        r_on_z_limit = rms_ampl_bounds.get("R/Z")
+        t_on_z_limit = rms_ampl_bounds.get("T/Z")
+        t_on_r_limit = rms_ampl_bounds.get("T/R")
+        keep = True
+        keep = (r_on_z < r_on_z_limit) if r_on_z_limit is not None else keep
+        keep = keep and (t_on_z < t_on_z_limit) if t_on_z_limit is not None else keep
+        keep = keep and (t_on_r < t_on_r_limit) if t_on_r_limit is not None else keep
+        return keep
+    # end func
+
+    def rz_corrcoef_filter(_stream, rz_min_xcorr_coeff):
+        # Correlation coefficient
+        tr_z = _stream.select(component='Z')[0].data
+        tr_r = _stream.select(component='R')[0].data
+        corr_c = np.corrcoef([tr_z, tr_r])
+        z_cov_r = corr_c[0, 1]
+        return z_cov_r >= rz_min_xcorr_coeff
+    # end func
+
+
     logger.info("Curating input data...")
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
@@ -232,12 +265,25 @@ def curate_seismograms(data_all, curation_opts, logger):
     # Detrend the traces
     data_all.apply(lambda stream: stream.detrend('linear'))
 
-    if "freq_min" in curation_opts:
-        # Run high pass filter to remove high amplitude, low freq noise, if present.
-        f_min = curation_opts["freq_min"]
+    # Spectral filtering
+    f_min = curation_opts.get("freq_min")
+    f_max = curation_opts.get("freq_max")
+    if f_min is not None and f_max is None:
+        # Run high pass filter
         data_all.apply(lambda stream: stream.filter('highpass', freq=f_min, corners=2, zerophase=True))
+    elif f_min is None and f_max is not None:
+        # Run low pass filter
+        data_all.apply(lambda stream: stream.filter('lowpass', freq=f_max, corners=2, zerophase=True))
+    elif f_min is not None and f_max is not None:
+        # Run bandpass filter
+        data_all.apply(lambda stream: stream.filter('bandpass', freqmin=f_min, freqmax=f_max,
+                                                    corners=2, zerophase=True))
     # end if
 
+    # It does not make sense to filter by similarity, since these are raw waveforms, not RFs,
+    # and the waveform will be dominated by the source waveform which differs for each event.
+
+    # Filter by z-component SNR prior to filtering
     if "min_snr" in curation_opts:
         min_snr = curation_opts["min_snr"]
         # Compute SNR of Z component to use as a quality metric
@@ -247,8 +293,23 @@ def curate_seismograms(data_all, curation_opts, logger):
         data_all.curate(lambda _1, _2, stream: stream[0].stats.snr_prior >= min_snr)
     # end if
 
-    # It does not make sense to filter by similarity, since these are raw waveforms, not RFs,
-    # and the waveform will be dominated by the source waveform which differs for each event.
+    if "max_raw_amplitude" in curation_opts:
+        # Filter streams with spuriously high amplitude
+        max_amp = curation_opts["max_raw_amplitude"]
+        data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, max_amp))
+    # end if
+
+    # Filter by bounds on RMS channel amplitudes
+    rms_ampl_bounds = curation_opts.get("rms_amplitude_bounds")
+    if rms_ampl_bounds is not None:
+        data_all.curate(lambda _1, _2, stream: rms_ampl_filter(stream, rms_ampl_bounds))
+    # end if
+
+    # Filter by bounds on correlation coefficients between Z and R traces
+    rz_min_xcorr_coeff = curation_opts.get("rz_min_corrcoef")
+    if rz_min_xcorr_coeff is not None:
+        data_all.curate(lambda _1, _2, stream: rz_corrcoef_filter(stream, rz_min_xcorr_coeff))
+    # end if
 
     # Filter streams with incorrect number of traces
     discard = []
@@ -264,12 +325,6 @@ def curate_seismograms(data_all, curation_opts, logger):
         # end for
     # end for
     data_all.prune(discard)
-
-    if "max_raw_amplitude" in curation_opts:
-        # Filter streams with spuriously high amplitude
-        max_amp = curation_opts["max_raw_amplitude"]
-        data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, max_amp))
-    # end if
 
 # end func
 
@@ -301,7 +356,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
     # end func
 
     # Version string for layout of data in a node containing MCMC solution
-    FORMAT_VERSION = '0.5'
+    FORMAT_VERSION = '0.6'
 
     # Convert timestamp to valid Python identifier
     job_timestamp = 'T' + job_timestamp.replace('-', '_').replace(' ', '__').replace(':', '').replace('.', '_')
@@ -363,6 +418,7 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
                 station_node['sample_energies'] = write_data_empty(soln.sample_funvals)
                 station_node['bounds'] = np.array([soln.bounds.lb, soln.bounds.ub])
                 station_node['version'] = soln.version
+                station_node['rnd_seed'] = soln.rnd_seed
             except TypeError as exc:
                 if logger:
                     logger.error('Error saving station {} solution'.format(station_id))
@@ -411,7 +467,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             if len(timestamps) > 1:
                 for i, ts in enumerate(timestamps):
                     job_node = h5f[ts]
-                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node else ''
+                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node.attrs else ''
                     if job_tracking:
                         job_tracking = '(' + ', '.join([': '.join([k, str(v)]) for k, v in job_tracking.items()]) + ')'
                     # end if
@@ -481,6 +537,7 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 bounds = station_node['bounds'].value
                 soln.bounds = optimize.Bounds(bounds[0], bounds[1])
                 soln.version = station_node['version'].value
+                soln.rnd_seed = read_data_empty(station_node['rnd_seed'])
 
                 soln_configs.append((soln, job_config))
             except TypeError as exc:
@@ -545,6 +602,8 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     # end if
 
     try:
+        # Ordering of seismograms important here, since storage of sequential values in solution
+        # depend on it. Here the input seismograms are ordered by event ID.
         soln = runner(waveform_data.station(station).values(), config, logger)
     except Exception as e:
         logger.error('Runner failed on station {}'.format(station_id))
@@ -581,10 +640,10 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     """
     CLI dispatch function for single station. See help strings for option documentation.
 
-    Example usage:
-        python runners.py example_config.json \
-        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-        --network OA --station CD23 --location 0M --output-file out_test.h5
+    Example usage:\n
+        python runners.py single-job example_config.json \
+--waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+--network OA --station CD23 --location 0M --output-file out_test.h5
 
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
@@ -626,10 +685,10 @@ def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
 
-    Example MPI usage:
-        mpiexec -n 8 python runners.py example_batch.json \
-        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
-        --output-file test_batch_output.h5
+    Example MPI usage:\n
+        mpiexec -n 8 python runners.py batch-job example_batch.json \
+--waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+--output-file test_batch_output.h5
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
@@ -702,19 +761,14 @@ def mpi_job(config_file, waveform_file, output_file):
 # end func
 
 
+@click.group()
 def main():
-    import sys
-
-    if len(sys.argv) <= 6:
-        status = mpi_job()
-    else:
-        status = station_job()
-    # end if
-
-    sys.exit(status)
+    pass
 # end func
 
 
 if __name__ == '__main__':
+    main.add_command(mpi_job, name='batch-job')
+    main.add_command(station_job, name='single-job')
     main()
 # end if
