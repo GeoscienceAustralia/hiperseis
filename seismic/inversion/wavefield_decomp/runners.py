@@ -265,6 +265,17 @@ def curate_seismograms(data_all, curation_opts, logger):
     # Detrend the traces
     data_all.apply(lambda stream: stream.detrend('linear'))
 
+    # Compute SNR of Z component prior to filtering to use as a quality metric
+    if "min_snr" in curation_opts:
+        data_all.apply(stream_snr_compute)
+    # end if
+
+    if "max_raw_amplitude" in curation_opts:
+        # Filter streams with spuriously high amplitude
+        max_amp = curation_opts["max_raw_amplitude"]
+        data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, max_amp))
+    # end if
+
     # Spectral filtering
     f_min = curation_opts.get("freq_min")
     f_max = curation_opts.get("freq_max")
@@ -286,17 +297,7 @@ def curate_seismograms(data_all, curation_opts, logger):
     # Filter by z-component SNR prior to filtering
     if "min_snr" in curation_opts:
         min_snr = curation_opts["min_snr"]
-        # Compute SNR of Z component to use as a quality metric
-        data_all.apply(stream_snr_compute)
-
-        # Filter by SNR
         data_all.curate(lambda _1, _2, stream: stream[0].stats.snr_prior >= min_snr)
-    # end if
-
-    if "max_raw_amplitude" in curation_opts:
-        # Filter streams with spuriously high amplitude
-        max_amp = curation_opts["max_raw_amplitude"]
-        data_all.curate(lambda _1, _2, stream: amplitude_nominal(stream, max_amp))
     # end if
 
     # Filter by bounds on RMS channel amplitudes
