@@ -25,11 +25,13 @@ export PATH=$HOME/.local/bin:$PATH
 export LC_ALL=en_AU.UTF-8
 export LANG=en_AU.UTF-8
 
+
+# files paths 
 ASDF_FILES="/g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt"
 CATALOGD="/g/data/ha3/Passive/Events/Unified/"
 PICK_OUTPUT="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow"
 
-cd $PICK_OUTPUT
-
-mpirun -np $PBS_NCPUS python3 /home/547/fxz547/github/hiperseis/seismic/pick_harvester/pick.py $ASDF_FILES $CATALOGD $PICK_OUTPUT > $PICK_OUTPUT/run_output.txt 2>&1
+# the cmdline 
+mpirun -np $PBS_NCPUS python3 /home/547/fxz547/github/hiperseis/seismic/pick_harvester/pick.py $ASDF_FILES $PICK_OUTPUT/catalog/ $PICK_OUTPUT > $PICK_OUTPUT/run_output2.txt
+# mpirun -np $PBS_NCPUS python3 /home/547/fxz547/github/hiperseis/seismic/pick_harvester/pick.py $ASDF_FILES $CATALOGD $PICK_OUTPUT > $PICK_OUTPUT/run_output.txt 2>&1
 
