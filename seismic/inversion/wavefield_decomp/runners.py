@@ -537,7 +537,11 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
                 bounds = station_node['bounds'].value
                 soln.bounds = optimize.Bounds(bounds[0], bounds[1])
                 soln.version = station_node['version'].value
-                soln.rnd_seed = read_data_empty(station_node['rnd_seed'])
+                if 'rnd_seed' in station_node:
+                    soln.rnd_seed = int(station_node['rnd_seed'].value)
+                else:
+                    soln.rnd_seed = None
+                # end if
 
                 soln_configs.append((soln, job_config))
             except TypeError as exc:

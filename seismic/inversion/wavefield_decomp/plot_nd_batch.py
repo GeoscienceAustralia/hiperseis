@@ -262,7 +262,13 @@ def main(solution_file, output_file):
             elif soln.x.shape[-1] == 4:
                 vars = vars4
             else:
-                assert False, "Not yet implemented"
+                assert (soln.x.shape[-1] % 2) == 0
+                vars = []
+                for i in range((soln.x.shape[-1]//2) - 1):
+                    vars += ['$H_{}$'.format(i), '$k_{}$'.format(i)]
+                # end for
+                vars += ['$H_{crust}$', '$k_{s,crust}$']
+                vars = tuple(vars)
             # end if
 
             # Dump settings page (per station)
