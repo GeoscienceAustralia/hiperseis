@@ -14,38 +14,33 @@ Revision History:
 """
 
 from mpi4py import MPI
-import glob, os, sys
 from collections import defaultdict
-from ordered_set import OrderedSet as set
-import numpy as np
-from obspy import Stream, Trace, UTCDateTime
-from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-
-import click, logging
-import matplotlib.pyplot as plt
-import glob
-from mpl_toolkits.basemap import Basemap
-from descartes import PolygonPatch
-from shapely.geometry import Polygon
-from matplotlib.patches import Ellipse
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.dates import DateFormatter, \
-    AutoDateLocator, \
-    HourLocator, \
-    MinuteLocator, \
-    epoch2num
-import matplotlib
-from matplotlib.ticker import ScalarFormatter, FuncFormatter
-import matplotlib.cm as cm
-from tqdm import tqdm
+import logging
 import gc
 
+from ordered_set import OrderedSet as set
+import numpy as np
+from obspy import UTCDateTime
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+
+import click
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.dates import DateFormatter, AutoDateLocator
+import matplotlib
+import matplotlib.cm as cm
+from tqdm import tqdm
+
+
 logging.basicConfig()
+
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
+
 
 def setup_logger(name, log_file, level=logging.INFO):
     """
@@ -60,6 +55,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.addHandler(handler)
     return logger
 # end func
+
 
 def process_data(rank, fds, stations, start_time, end_time):
     """
@@ -132,6 +128,7 @@ def process_data(rank, fds, stations, start_time, end_time):
     return results
 # end func
 
+
 def plot_results(stations, results, output_basename):
 
     # collate indices for each channel for each station
@@ -145,7 +142,7 @@ def plot_results(stations, results, output_basename):
     usableStationDays = defaultdict(int)
     maxUsableDays = -1e32
     minUsableDays = 1e32
-    for k,v in groupIndices.iteritems():
+    for k,v in groupIndices.items():
         for i, index in enumerate(v):
             x, means = results[index]
 
@@ -227,7 +224,7 @@ def plot_results(stations, results, output_basename):
     pdf.savefig()
 
     # Plot results
-    for k,v in groupIndices.iteritems():
+    for k,v in groupIndices.items():
         axesCount = 0
         for i in v:
 
@@ -303,6 +300,7 @@ def plot_results(stations, results, output_basename):
     pdf.close()
 # end func
 
+
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -350,11 +348,11 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     if(rank == 0):
         stations = fds.get_stations(start_time, end_time, network=net, station=sta, channel=cha)
 
-        stations = split_list(stations, nproc)
+        stations = split_list(sorted(stations), nproc)
     # end if
 
     stations = comm.bcast(stations, root=0)
-    results = process_data(rank, fds, stations[rank], start_time, end_time)
+    results = process_data(rank, fds, sorted(stations[rank]), start_time, end_time)
 
     results = comm.gather(results, root=0)
     if (rank == 0):
@@ -363,6 +361,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
         plot_results(stations, results, output_basename)
     # end if
 # end func
+
 
 if (__name__=='__main__'):
     '''
