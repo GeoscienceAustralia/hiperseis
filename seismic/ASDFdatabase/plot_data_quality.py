@@ -95,11 +95,12 @@ def process_data(rank, fds, stations, start_time, end_time):
         while (ct < et):
             times.append(ct)
 
-            if(True):
+            debug = False
+            if not debug:
                 stream = fds.get_waveforms(s[0], s[1], s[2], s[3],
-                                          ct, ct + day,
-                                          trace_count_threshold=200)
-                if (len(stream)):
+                                           ct, ct + day,
+                                           trace_count_threshold=200)
+                if len(stream):
                     try:
                         tr = stream.merge()
                         means.append(np.mean(tr[0].data))
@@ -111,7 +112,7 @@ def process_data(rank, fds, stations, start_time, end_time):
                 # end if
             else:
                 # Used for debug purposes only
-                if(np.int_(np.round(np.random.random()))):
+                if np.int_(np.round(np.random.random())):
                     means.append(np.random.random())
                 else:
                     means.append(np.nan)
@@ -119,7 +120,6 @@ def process_data(rank, fds, stations, start_time, end_time):
             # end if
 
             ct += day
-            #break
         # end while
 
         results.append([times, means])
@@ -135,7 +135,7 @@ def plot_results(stations, results, output_basename):
     assert len(stations) == len(results)
     groupIndices = defaultdict(list)
     for i in np.arange(len(results)):
-        groupIndices['%s.%s'%(stations[i][0], stations[i][1])].append(i)
+        groupIndices['%s.%s' % (stations[i][0], stations[i][1])].append(i)
     # end for
 
     # gather number of days of usable data for each station
@@ -148,17 +148,16 @@ def plot_results(stations, results, output_basename):
 
             means = np.array(means)
             days = np.sum(~np.isnan(means) & np.bool_(means!=0))
-            if(usableStationDays[k] < days):
+            if usableStationDays[k] < days:
                 usableStationDays[k] = days
-
-                if(maxUsableDays < days): maxUsableDays = days
-                if(minUsableDays > days): minUsableDays = days
+                maxUsableDays = max(maxUsableDays, days)
+                minUsableDays = min(minUsableDays, days)
             # end if
         # end for
     # end for
 
     # Plot station map
-    pdf = PdfPages('%s.pdf'%(output_basename))
+    pdf = PdfPages('%s.pdf' % output_basename)
 
     fig = plt.figure(figsize=(20, 30))
     ax1 = fig.add_axes([0.05, 0.05, 0.9, 0.7])
@@ -171,13 +170,13 @@ def plot_results(stations, results, output_basename):
     maxLat = -1e32
     for s in stations:
         lon, lat = s[4], s[5]
-
-        if(lon<0): lon += 360
-
-        if (minLon > lon): minLon = lon
-        if (maxLon < lon): maxLon = lon
-        if (minLat > lat): minLat = lat
-        if (maxLat < lat): maxLat = lat
+        if lon < 0:
+            lon += 360
+        # end if
+        minLon = min(minLon, lon)
+        maxLon = max(maxLon, lon)
+        minLat = min(minLat, lat)
+        maxLat = max(maxLat, lat)
     # end for
 
     minLon -= 1
@@ -194,17 +193,20 @@ def plot_results(stations, results, output_basename):
 
     # draw grid
     parallels = np.linspace(np.around(minLat / 5) * 5 - 5, np.around(maxLat / 5) * 5 + 5, 6)
-    m.drawparallels(parallels, labels=[True, True, False, False])
+    m.drawparallels(parallels, labels=[True, True, False, False], fontsize=16)
     meridians = np.linspace(np.around(minLon / 5) * 5 - 5, np.around(maxLon / 5) * 5 + 5, 6)
-    m.drawmeridians(meridians, labels=[False, False, True, True])
+    m.drawmeridians(meridians, labels=[False, False, True, True], fontsize=16)
 
     # plot stations
     norm = matplotlib.colors.Normalize(vmin=minUsableDays, vmax=maxUsableDays, clip=True)
     mapper = cm.ScalarMappable(norm=norm, cmap=cm.jet_r)
     plotted = set()
     for s in stations:
-        if(s[1] in plotted): continue
-        else: plotted.add(s[1])
+        if s[1] in plotted:
+            continue
+        else:
+            plotted.add(s[1])
+        # end if
 
         lon, lat = s[4], s[5]
 
@@ -214,22 +216,22 @@ def plot_results(stations, results, output_basename):
         m.scatter(px, py, 50, marker='v',
                   c=mapper.to_rgba(days),
                   edgecolor='none', label='%s: %d'%(s[1], days))
-        ax1.annotate(s[1], xy=(px, py), fontsize=5)
+        ax1.annotate(s[1], xy=(px + 0.01, py + 0.01), fontsize=12)
     # end for
 
-    fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=20, y=1.05)
+    fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=24, y=1.05)
     fig.axes[0].legend(prop={'size':5}, bbox_to_anchor=(0.2, 1.3),
-                       ncol=5, fancybox=True, title='No. of Usable Days')
+                       ncol=5, fancybox=True, title='No. of Usable Days',
+                       fontsize=16)
 
     pdf.savefig()
+    plt.close()
 
     # Plot results
-    for k,v in groupIndices.items():
+    for k, v in groupIndices.items():
         axesCount = 0
         for i in v:
-
             assert (k == '%s.%s'%(stations[i][0], stations[i][1]))
-
             # only need axes for non-null results
             a, b = results[i]
             if(len(a) and len(b)): axesCount += 1
@@ -239,35 +241,34 @@ def plot_results(stations, results, output_basename):
 
         axes = np.atleast_1d(axes)
 
-        if(len(axes)):
+        if len(axes):
             axesIdx = 0
             for i, index in enumerate(v):
                 try:
                     x, means = results[index]
 
-                    if(len(x) and len(means)):
+                    if len(x) and len(means):
                         x = [a.matplotlib_date for a in x]
                         d = np.array(means)
 
-                        if(len(d)): d[0] = np.nanmedian(d)
+                        if len(d):
+                            d[0] = np.nanmedian(d)
+                        # end if
 
-                        # print k
-                        # for val in d: print val
-                        #dnorm = 2 * ((d - np.nanmin(d)) / (np.nanmax(d) - np.nanmin(d))) - 1
                         dnorm = d
                         dnormmin = np.nanmin(dnorm)
                         dnormmax = np.nanmax(dnorm)
 
                         axes[axesIdx].scatter(x, dnorm, marker='.')
-                        axes[axesIdx].plot(x, dnorm, c='k', label='Mean %s over 24 Hrs\n'
-                                                            'Gaps indicate no-data' % stations[index][3], lw=2)
+                        axes[axesIdx].plot(x, dnorm, c='k', label='24 hr mean\n'
+                                           'Gaps indicate no-data', lw=2)
 
-                        axes[axesIdx].fill_between(x, dnormmax * np.int_(d == 0), dnormmin * np.int_(d == 0),
-                                             where=dnormmax * np.int_(d == 0) - dnormmin * np.int_(d == 0) > 0,
+                        axes[axesIdx].fill_between(x, dnormmax*np.int_(d == 0), dnormmin*np.int_(d == 0),
+                                             where=dnormmax*np.int_(d == 0) - dnormmin*np.int_(d == 0) > 0,
                                              color='r', alpha=0.5, label='All 0 Samples')
 
-                        axes[axesIdx].fill_between(x, dnormmax * np.int_(np.isnan(d)), dnormmin * np.int_(np.isnan(d)),
-                                             where=dnormmax * np.int_(np.isnan(d)) - dnormmin * np.int_(np.isnan(d)) > 1,
+                        axes[axesIdx].fill_between(x, dnormmax*np.int_(np.isnan(d)), dnormmin*np.int_(np.isnan(d)),
+                                             where=dnormmax*np.int_(np.isnan(d)) - dnormmin*np.int_(np.isnan(d)) > 1,
                                              color='b', alpha=0.5, label='No Data')
 
                         axes[axesIdx].xaxis.set_major_locator(AutoDateLocator())
@@ -276,25 +277,28 @@ def plot_results(stations, results, output_basename):
                         for tick in axes[axesIdx].get_xticklabels():
                             tick.set_rotation(45)
                         # end for
-                        #axes[axesIdx].set_ylim(-1.5, 1.5)
-                        axes[axesIdx].legend(loc='upper right', prop={'size':5})
+                        axes[axesIdx].legend(loc='upper right', prop={'size': 12})
                         axes[axesIdx].tick_params(axis='both', labelsize=14)
+                        axes[axesIdx].set_title('Channel %s' % stations[index][3], fontsize=16)
+                        axes[axesIdx].set_xlim(xmin=min(x), xmax=max(x))
+                        axes[axesIdx].set_ylim(ymin=dnormmin, ymax=dnormmax)
 
                         axesIdx += 1
                     # end if
                 except:
                     # plotting fails when each axes contain <2 values; just move on in those instances
-                    pass
+                    logging.warning('Plotting failed on station %s' % k)
                 # end try
             # end for
             axes[-1].set_xlabel('Days', fontsize=14)
         # end if
 
-        plt.suptitle('%s Data Availability (~%d days)'%(k, usableStationDays[k]), fontsize=20)
+        plt.suptitle('%s Data Availability (~%d days)' % (k, usableStationDays[k]),
+                     y=0.98, fontsize=20)
         pdf.savefig()
+        plt.close()
         gc.collect()
 
-        #break
     # end for
 
     pdf.close()
@@ -341,7 +345,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
-    l = setup_logger(name=output_basename, log_file='%s.log'%output_basename)
+    l = setup_logger(name=output_basename, log_file='%s.log' % output_basename)
     fds = FederatedASDFDataSet(asdf_source, logger=l)
 
     stations = []
