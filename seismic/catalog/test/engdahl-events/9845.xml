@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<seiscomp xmlns="http://geofon.gfz-potsdam.de/ns/seiscomp3-schema/0.9" version="0.9">
+  <EventParameters publicID="smi:local/7b2007da-3a8f-41f4-8a64-b5faa0f3cb08">
+    <origin publicID="smi:engdahl.ga.gov.au/origin/9845">
+      <time>
+        <value>2008-07-17T23:59:18.000980Z</value>
+      </time>
+      <latitude>
+        <value>-17.966</value>
+      </latitude>
+      <longitude>
+        <value>-177.676</value>
+      </longitude>
+      <depth>
+        <value>412.5</value>
+        <uncertainty>0</uncertainty>
+      </depth>
+      <methodID>smi:local/EHB</methodID>
+      <earthModelID>smi:local/ak135</earthModelID>
+      <quality>
+        <associatedPhaseCount>47</associatedPhaseCount>
+        <usedPhaseCount>47</usedPhaseCount>
+        <standardError>0.65</standardError>
+        <azimuthalGap>173.8</azimuthalGap>
+      </quality>
+      <evaluationMode>automatic</evaluationMode>
+      <creationInfo>
+        <agencyID>ga-engdahl</agencyID>
+        <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+        <author>niket_engdahl_parser</author>
+        <creationTime>2017-11-10T08:16:02.255956Z</creationTime>
+      </creationInfo>
+      <magnitude publicID="smi:engdahl.ga.gov.au/origin/9845#netMag.Mb">
+        <magnitude>
+          <value>4.0</value>
+        </magnitude>
+        <type>Mb</type>
+        <originID>smi:engdahl.ga.gov.au/origin/9845</originID>
+        <azimuthalGap>122.7</azimuthalGap>
+        <creationInfo>
+          <agencyID>ga-engdahl</agencyID>
+          <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+          <author>niket_engdahl_parser</author>
+          <creationTime>2017-11-10T08:16:02.255956Z</creationTime>
+        </creationInfo>
+      </magnitude>
+    </origin>
+    <event publicID="smi:engdahl.ga.gov.au/event/9845">
+      <preferredOriginID>smi:engdahl.ga.gov.au/origin/9845</preferredOriginID>
+      <preferredMagnitudeID>smi:engdahl.ga.gov.au/origin/9845#netMag.Mb</preferredMagnitudeID>
+      <type>earthquake</type>
+      <creationInfo>
+        <agencyID>ga-engdahl</agencyID>
+        <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+        <author>niket_engdahl_parser</author>
+        <creationTime>2017-11-10T08:16:02.255956Z</creationTime>
+      </creationInfo>
+      <originReference>smi:engdahl.ga.gov.au/origin/9845</originReference>
+    </event>
+  </EventParameters>
+</seiscomp>
