@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<seiscomp xmlns="http://geofon.gfz-potsdam.de/ns/seiscomp3-schema/0.9" version="0.9">
+  <EventParameters publicID="smi:local/610d3542-1de5-4754-b03e-3e89d3ca7fbe">
+    <pick publicID="smi:engdahl.ga.gov.au/pick/1965443">
+      <time>
+        <value>2007-11-04T23:58:51.000140Z</value>
+      </time>
+      <waveformID networkCode="" stationCode="AFI" channelCode="BHZ"/>
+      <backazimuth>
+        <value>237.06</value>
+      </backazimuth>
+      <phaseHint>P</phaseHint>
+      <evaluationMode>automatic</evaluationMode>
+      <creationInfo>
+        <agencyID>ga-engdahl</agencyID>
+        <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+        <author>niket_engdahl_parser</author>
+        <creationTime>2017-11-10T07:28:01.849761Z</creationTime>
+      </creationInfo>
+    </pick>
+    <origin publicID="smi:engdahl.ga.gov.au/origin/7607">
+      <time>
+        <value>2007-11-04T23:57:03.000850Z</value>
+      </time>
+      <latitude>
+        <value>-17.768</value>
+      </latitude>
+      <longitude>
+        <value>-178.129</value>
+      </longitude>
+      <depth>
+        <value>435.7</value>
+        <uncertainty>0</uncertainty>
+      </depth>
+      <methodID>smi:local/EHB</methodID>
+      <earthModelID>smi:local/ak135</earthModelID>
+      <quality>
+        <associatedPhaseCount>100</associatedPhaseCount>
+        <usedPhaseCount>100</usedPhaseCount>
+        <standardError>0.6</standardError>
+        <azimuthalGap>134.1</azimuthalGap>
+      </quality>
+      <evaluationMode>automatic</evaluationMode>
+      <creationInfo>
+        <agencyID>ga-engdahl</agencyID>
+        <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+        <author>niket_engdahl_parser</author>
+        <creationTime>2017-11-10T07:28:01.849761Z</creationTime>
+      </creationInfo>
+      <arrival>
+        <pickID>smi:engdahl.ga.gov.au/pick/1965443</pickID>
+        <phase>P</phase>
+        <azimuth>237.06</azimuth>
+        <distance>7.22</distance>
+        <timeResidual>0.38</timeResidual>
+        <weight>0.2</weight>
+      </arrival>
+      <magnitude publicID="smi:engdahl.ga.gov.au/origin/7607#netMag.Mb">
+        <magnitude>
+          <value>4.2</value>
+        </magnitude>
+        <type>Mb</type>
+        <originID>smi:engdahl.ga.gov.au/origin/7607</originID>
+        <azimuthalGap>120.3</azimuthalGap>
+        <creationInfo>
+          <agencyID>ga-engdahl</agencyID>
+          <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+          <author>niket_engdahl_parser</author>
+          <creationTime>2017-11-10T07:28:01.849761Z</creationTime>
+        </creationInfo>
+      </magnitude>
+    </origin>
+    <event publicID="smi:engdahl.ga.gov.au/event/7607">
+      <preferredOriginID>smi:engdahl.ga.gov.au/origin/7607</preferredOriginID>
+      <preferredMagnitudeID>smi:engdahl.ga.gov.au/origin/7607#netMag.Mb</preferredMagnitudeID>
+      <type>earthquake</type>
+      <creationInfo>
+        <agencyID>ga-engdahl</agencyID>
+        <agencyURI>smi:engdahl.ga.gov.au/ga-engdahl</agencyURI>
+        <author>niket_engdahl_parser</author>
+        <creationTime>2017-11-10T07:28:01.849761Z</creationTime>
+      </creationInfo>
+      <originReference>smi:engdahl.ga.gov.au/origin/7607</originReference>
+    </event>
+  </EventParameters>
+</seiscomp>
