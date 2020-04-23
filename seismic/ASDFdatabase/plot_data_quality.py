@@ -230,10 +230,12 @@ def plot_results(stations, results, output_basename):
     for k, v in groupIndices.items():
         axesCount = 0
         for i in v:
-            assert (k == '%s.%s'%(stations[i][0], stations[i][1]))
+            assert (k == '%s.%s' % (stations[i][0], stations[i][1]))
             # only need axes for non-null results
             a, b = results[i]
-            if(len(a) and len(b)): axesCount += 1
+            if len(a) and len(b):
+                axesCount += 1
+            # end if
         # end for
         fig, axes = plt.subplots(axesCount, sharex=True)
         fig.set_size_inches(20, 15)
@@ -279,7 +281,9 @@ def plot_results(stations, results, output_basename):
                         # end for
                         axes[axesIdx].legend(loc='upper right', prop={'size': 12})
                         axes[axesIdx].tick_params(axis='both', labelsize=16)
-                        axes[axesIdx].set_title('Channel %s' % stations[index][3], fontsize=18)
+                        stn = stations[index]
+                        axes[axesIdx].set_title('Channel %s.%s' % (stn[2], stn[3]),
+                                                fontsize=18, y=0.95, va='top')
                         axes[axesIdx].set_xlim(xmin=min(x), xmax=max(x))
                         axes[axesIdx].set_ylim(ymin=dnormmin, ymax=dnormmax)
 
@@ -350,7 +354,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     fds = FederatedASDFDataSet(asdf_source, logger=l)
 
     stations = []
-    if(rank == 0):
+    if rank == 0:
         stations = fds.get_stations(start_time, end_time, network=net, station=sta, channel=cha)
 
         stations = split_list(sorted(stations), nproc)
@@ -360,7 +364,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     results = process_data(rank, fds, sorted(stations[rank]), start_time, end_time)
 
     results = comm.gather(results, root=0)
-    if (rank == 0):
+    if rank == 0:
         results = [item for sublist in results for item in sublist] # flatten sublists for each proc
         stations = [item for sublist in stations for item in sublist]  # flatten sublists for each proc
         plot_results(stations, results, output_basename)
