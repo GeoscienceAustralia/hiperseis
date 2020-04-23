@@ -193,9 +193,9 @@ def plot_results(stations, results, output_basename):
 
     # draw grid
     parallels = np.linspace(np.around(minLat / 5) * 5 - 5, np.around(maxLat / 5) * 5 + 5, 6)
-    m.drawparallels(parallels, labels=[True, True, False, False], fontsize=16)
+    m.drawparallels(parallels, labels=[True, True, False, False], fontsize=20)
     meridians = np.linspace(np.around(minLon / 5) * 5 - 5, np.around(maxLon / 5) * 5 + 5, 6)
-    m.drawmeridians(meridians, labels=[False, False, True, True], fontsize=16)
+    m.drawmeridians(meridians, labels=[False, False, True, True], fontsize=20)
 
     # plot stations
     norm = matplotlib.colors.Normalize(vmin=minUsableDays, vmax=maxUsableDays, clip=True)
@@ -213,16 +213,15 @@ def plot_results(stations, results, output_basename):
         px, py = m(lon, lat)
         pxl, pyl = m(lon, lat - 0.1)
         days = usableStationDays['%s.%s' % (s[0], s[1])]
-        m.scatter(px, py, 50, marker='v',
+        m.scatter(px, py, s=500, marker='v',
                   c=mapper.to_rgba(days),
-                  edgecolor='none', label='%s: %d'%(s[1], days))
-        ax1.annotate(s[1], xy=(px + 0.01, py + 0.01), fontsize=12)
+                  edgecolor='none', label='%s: %d' % (s[1], days))
+        ax1.annotate(s[1], xy=(px + 0.03, py + 0.03), fontsize=24)
     # end for
 
-    fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=24, y=1.05)
-    fig.axes[0].legend(prop={'size':5}, bbox_to_anchor=(0.2, 1.3),
-                       ncol=5, fancybox=True, title='No. of Usable Days',
-                       fontsize=16)
+    fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=30, y=1.05)
+    fig.axes[0].legend(prop={'size': 16}, bbox_to_anchor=(0.2, 1.3),
+                       ncol=5, fancybox=True, title='No. of Usable Days')
 
     pdf.savefig()
     plt.close()
@@ -259,9 +258,10 @@ def plot_results(stations, results, output_basename):
                         dnormmin = np.nanmin(dnorm)
                         dnormmax = np.nanmax(dnorm)
 
-                        axes[axesIdx].scatter(x, dnorm, marker='.')
+                        axes[axesIdx].scatter(x, dnorm, marker='.', s=20)
                         axes[axesIdx].plot(x, dnorm, c='k', label='24 hr mean\n'
                                            'Gaps indicate no-data', lw=2)
+                        axes[axesIdx].grid(axis='x', linestyle=':', alpha=0.3)
 
                         axes[axesIdx].fill_between(x, dnormmax*np.int_(d == 0), dnormmin*np.int_(d == 0),
                                              where=dnormmax*np.int_(d == 0) - dnormmin*np.int_(d == 0) > 0,
@@ -278,8 +278,8 @@ def plot_results(stations, results, output_basename):
                             tick.set_rotation(45)
                         # end for
                         axes[axesIdx].legend(loc='upper right', prop={'size': 12})
-                        axes[axesIdx].tick_params(axis='both', labelsize=14)
-                        axes[axesIdx].set_title('Channel %s' % stations[index][3], fontsize=16)
+                        axes[axesIdx].tick_params(axis='both', labelsize=16)
+                        axes[axesIdx].set_title('Channel %s' % stations[index][3], fontsize=18)
                         axes[axesIdx].set_xlim(xmin=min(x), xmax=max(x))
                         axes[axesIdx].set_ylim(ymin=dnormmin, ymax=dnormmax)
 
@@ -290,11 +290,12 @@ def plot_results(stations, results, output_basename):
                     logging.warning('Plotting failed on station %s' % k)
                 # end try
             # end for
-            axes[-1].set_xlabel('Days', fontsize=14)
+            axes[-1].set_xlabel('Days', fontsize=16)
+            axes[-1].set_ylabel('Ampl.', fontsize=16)
         # end if
 
         plt.suptitle('%s Data Availability (~%d days)' % (k, usableStationDays[k]),
-                     y=0.98, fontsize=20)
+                     y=0.96, fontsize=20)
         pdf.savefig()
         plt.close()
         gc.collect()
