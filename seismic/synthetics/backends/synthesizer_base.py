@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-TBD
+Base class for seismogram synthesis class
 """
 
 import abc
@@ -21,6 +21,7 @@ class Synthesizer(object):
 
     def __init__(self, station_latlon):
         """
+        Initialization
 
         :param station_latlon: Either a tuple of (lat, lon) coordinates, or a station
             code in the format 'NET.STA' string.
@@ -54,6 +55,7 @@ class Synthesizer(object):
     @abc.abstractmethod
     def synthesize(self, src_latlon, fs, time_window):
         """
+        Function signature for function to compute synthetic dataset of obspy streams.
 
         :param src_latlon: Iterable of source (lat, lon) locations
         :param fs: Sampling rate in Hz
@@ -66,16 +68,16 @@ class Synthesizer(object):
     def compute_event_stats(self, src_lat, src_lon, eventid_base, src_depth_m=0,
                             earth_model='iasp91', phase='P', origin_time=None):
         """
-        TBD
+        Compute trace stats fields for a source single event.
 
-        :param src_lat:
-        :param src_lon:
-        :param eventid_base:
-        :param src_depth_m:
-        :param earth_model:
-        :param phase:
-        :param origin_time:
-        :return:
+        :param src_lat: Source latitude
+        :param src_lon: Source longitude
+        :param eventid_base: Base string for event id
+        :param src_depth_m: Source depth in metres
+        :param earth_model: String name of earth model to use for ray tracing
+        :param phase: Which phase is being modelled
+        :param origin_time: Timestamp of the source event
+        :return: stats dict
         """
 
         if origin_time is None:

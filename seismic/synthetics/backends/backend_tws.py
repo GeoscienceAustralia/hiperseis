@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-TBD
+Backend for making synthetic seismograms using Telewavesim.
 """
 
 import numpy as np
@@ -26,7 +26,9 @@ class SynthesizerMatrixPropagator(Synthesizer):
 
     def __init__(self, station_latlon, layerprops):
         """
+        Initialization
 
+        :param station_latlon: See documentation for :func:`~seismic.synthetics.backends.synthesizer_base.Synthesizer.synthesize`
         :param layerprops: List of LayerProps. Last layer should be mantle properties.
         """
         super().__init__(station_latlon)
@@ -40,6 +42,7 @@ class SynthesizerMatrixPropagator(Synthesizer):
 
     @property
     def kappa(self):
+        # Return ratio of Vp/Vs for each layer
         return self._kappa
     # end func
 
@@ -63,6 +66,9 @@ class SynthesizerMatrixPropagator(Synthesizer):
     # end func
 
     def _synthone(self, src_lat, src_lon, dt, npts):
+        """
+        Synthesize single event
+        """
         event_id_base = 'hiperseis:PRM/evid='
         stats = self.compute_event_stats(src_lat, src_lon, event_id_base)
         stats.pop('tt_model')

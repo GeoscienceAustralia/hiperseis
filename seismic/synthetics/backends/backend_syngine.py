@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-TBD
+Backend for making synthetic seismograms using Syngine.
 """
 
 import obspy
@@ -26,7 +26,9 @@ class SynthesizerSyngine(Synthesizer):
 
     def __init__(self, station_latlon, earth_model='iasp91'):
         """
+        Initialization
 
+        :param station_latlon: See documentation for :func:`~seismic.synthetics.backends.synthesizer_base.Synthesizer.synthesize`
         :param earth_model: String naming which standard earth model to use.
         """
         super().__init__(station_latlon)
@@ -35,6 +37,9 @@ class SynthesizerSyngine(Synthesizer):
     # end func
 
     def synthesize(self, src_latlon, fs, time_window):
+        """
+        See documentation for :func:`~seismic.synthetics.backends.synthesizer_base.Synthesizer.synthesize`
+        """
         dt = 1.0/fs
         stream_all = obspy.Stream()
         for src_lat, src_lon in src_latlon:
@@ -46,6 +51,9 @@ class SynthesizerSyngine(Synthesizer):
     # end func
 
     def _synthone(self, src_lat, src_lon, time_window, dt, src_depth_m=0, origintime=None):
+        """
+        Synthesize single event
+        """
         components = 'ZNE'
         units = 'velocity'
         default_model = self.earth_model + '_2s'
