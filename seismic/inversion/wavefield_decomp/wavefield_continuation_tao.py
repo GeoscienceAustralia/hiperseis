@@ -34,7 +34,7 @@ except ImportError:
 
 from seismic.units_utils import KM_PER_DEG
 from seismic.stream_processing import sinc_resampling
-from seismic.inversion.wavefield_decomp.model_properties import LayerProps
+from seismic.model_properties import LayerProps
 
 
 class WfContinuationSuFluxComputer:
