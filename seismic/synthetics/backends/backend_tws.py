@@ -4,7 +4,6 @@ TBD
 """
 
 import numpy as np
-# import telewavesim as tws
 from telewavesim.utils import Model, run_plane
 import obspy
 
@@ -64,7 +63,8 @@ class SynthesizerMatrixPropagator(Synthesizer):
     # end func
 
     def _synthone(self, src_lat, src_lon, dt, npts):
-        stats = self.compute_event_stats(src_lat, src_lon)
+        event_id_base = 'hiperseis:PRM/evid='
+        stats = self.compute_event_stats(src_lat, src_lon, event_id_base)
         stats.pop('tt_model')
         ray_param_sec_per_km = stats['slowness']/KM_PER_DEG
         traces_zne = run_plane(self.model, ray_param_sec_per_km, npts, dt, baz=stats['back_azimuth'])

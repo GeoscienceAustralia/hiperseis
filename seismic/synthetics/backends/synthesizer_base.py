@@ -8,6 +8,8 @@ import abc
 from obspy import UTCDateTime
 from obspy.geodetics import gps2dist_azimuth
 from obspy.taup import TauPyModel
+from obspy.clients.fdsn import Client as ClientF
+import geohash as gh
 
 from seismic.units_utils import KM_PER_DEG
 
@@ -20,8 +22,18 @@ class Synthesizer(object):
     def __init__(self, station_latlon):
         """
 
-        :param station_latlon: Location of receiving station (lat, lon)
+        :param station_latlon: Either a tuple of (lat, lon) coordinates, or a station
+            code in the format 'NET.STA' string.
         """
+        if isinstance(station_latlon, str):
+            net, sta = station_latlon.split('.')
+            client_real = ClientF()
+            station_metadata = client_real.get_stations(network=net, station=sta)
+            station_metadata = station_metadata.select(channel='*Z')
+            receiver_lat = station_metadata.networks[0].stations[0].latitude
+            receiver_lon = station_metadata.networks[0].stations[0].longitude
+            station_latlon = (receiver_lat, receiver_lon)
+        # end if
         self.station_latlon = station_latlon
     # end func
 
@@ -51,12 +63,14 @@ class Synthesizer(object):
         pass  # Implement this interface in the derived class
     # end func
 
-    def compute_event_stats(self, src_lat, src_lon, src_depth_m=0, earth_model='iasp91', phase='P', origin_time=None):
+    def compute_event_stats(self, src_lat, src_lon, eventid_base, src_depth_m=0,
+                            earth_model='iasp91', phase='P', origin_time=None):
         """
         TBD
 
         :param src_lat:
         :param src_lon:
+        :param eventid_base:
         :param src_depth_m:
         :param earth_model:
         :param phase:
@@ -77,8 +91,15 @@ class Synthesizer(object):
         ray_param = arrival.ray_param_sec_degree
         onset = origin_time + arrival.time
         inc = arrival.incident_angle
+        event_id = eventid_base + '_'.join([
+            gh.encode(receiver_lat, receiver_lon),
+            gh.encode(src_lat, src_lon),
+            origin_time.format_fissures()
+        ])
         stats = {'distance': dist_deg, 'back_azimuth': baz, 'inclination': inc,
-                 'onset': onset, 'slowness': ray_param, 'phase': phase, 'tt_model': earth_model}
+                 'onset': onset, 'slowness': ray_param, 'phase': phase,
+                 'origin_time': origin_time, 'tt_model': earth_model,
+                 'event_id': event_id}
         return stats
     # end func
 
