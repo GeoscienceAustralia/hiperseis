@@ -213,15 +213,16 @@ def plot_results(stations, results, output_basename):
         px, py = m(lon, lat)
         pxl, pyl = m(lon, lat - 0.1)
         days = usableStationDays['%s.%s' % (s[0], s[1])]
-        m.scatter(px, py, s=500, marker='v',
+        m.scatter(px, py, s=400, marker='v',
                   c=mapper.to_rgba(days),
                   edgecolor='none', label='%s: %d' % (s[1], days))
-        ax1.annotate(s[1], xy=(px + 0.03, py + 0.03), fontsize=24)
+        ax1.annotate(s[1], xy=(px + 0.05, py + 0.05), fontsize=22)
     # end for
 
     fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=30, y=1.05)
-    fig.axes[0].legend(prop={'size': 16}, bbox_to_anchor=(0.2, 1.3),
-                       ncol=5, fancybox=True, title='No. of Usable Days')
+    fig.axes[0].legend(prop={'size': 16}, loc=(0.2, 1.3),
+                       ncol=5, fancybox=True, title='No. of Usable Days',
+                       title_fontsize=16)
 
     pdf.savefig()
     plt.close()
@@ -262,7 +263,7 @@ def plot_results(stations, results, output_basename):
 
                         axes[axesIdx].scatter(x, dnorm, marker='.', s=20)
                         axes[axesIdx].plot(x, dnorm, c='k', label='24 hr mean\n'
-                                           'Gaps indicate no-data', lw=2)
+                                           'Gaps indicate no-data', lw=2, alpha=0.7)
                         axes[axesIdx].grid(axis='x', linestyle=':', alpha=0.3)
 
                         axes[axesIdx].fill_between(x, dnormmax*np.int_(d == 0), dnormmin*np.int_(d == 0),
@@ -286,6 +287,7 @@ def plot_results(stations, results, output_basename):
                                                 fontsize=18, y=0.95, va='top')
                         axes[axesIdx].set_xlim(xmin=min(x), xmax=max(x))
                         axes[axesIdx].set_ylim(ymin=dnormmin, ymax=dnormmax)
+                        axes[axesIdx].set_ylabel('Ampl.', fontsize=16)
 
                         axesIdx += 1
                     # end if
@@ -295,7 +297,6 @@ def plot_results(stations, results, output_basename):
                 # end try
             # end for
             axes[-1].set_xlabel('Days', fontsize=16)
-            axes[-1].set_ylabel('Ampl.', fontsize=16)
         # end if
 
         plt.suptitle('%s Data Availability (~%d days)' % (k, usableStationDays[k]),
