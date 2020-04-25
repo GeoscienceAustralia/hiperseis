@@ -11,8 +11,7 @@
   ],
   "curation_opts":
   {
-    "freq_min": 0.1,
-    "freq_max": 5.0
+    "freq_min": 0.1
   },
   "su_energy_opts":
   {
@@ -27,9 +26,9 @@
     "_comment": "Solver options",
     "type": "mcmc",
     "temp": 0.025,
-    "burnin": 100000,
-    "max_iter": 1000000,
-    "collect_samples": 100000,
+    "burnin": 10000,
+    "max_iter": 100000,
+    "collect_samples": 10000,
     "target_ar": 0.5
   }
 }
