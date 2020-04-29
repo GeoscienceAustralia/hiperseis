@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Generate common conversion point (CCP) plot as per *C.Sippl, "Moho geometry along a north-south passive seismic
-transect through Central Australia", Technophysics 676 (2016), pp.56-69, 
+transect through Central Australia", Technophysics 676 (2016), pp.56-69,
 DOI https://doi.org/10.1016/j.tecto.2016.03.031*
 
 This code adapted from Christian Sippl's original code.
@@ -83,9 +83,12 @@ def plot_ccp(matrx, length, max_depth, spacing, vlims=None, metadata=None, title
     plt.xticks(np.arange(0.0, length*1.0001, tickstep_x), fontsize=12)
     plt.yticks(np.arange(0, max_depth*1.0001, tickstep_y), fontsize=12)
     plt.tick_params(right=True, labelright=True, axis='y', labelsize=12)
+    plt.gca().xaxis.set_major_locator(MultipleLocator(50))
+    plt.gca().xaxis.set_minor_locator(MultipleLocator(5))
+    plt.gca().yaxis.set_major_locator(MultipleLocator(10))
     plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
     plt.gca().yaxis.set_tick_params(which='minor', right=True)
-    plt.grid(color='#80808080', linestyle=':', axis='y')
+    plt.grid(color='#80808080', linestyle=':')
 
     if metadata is not None:
         stn_labels = []
@@ -122,7 +125,7 @@ def setup_ccp_profile(length, spacing, maxdep):
     :return: Zeroed matrix and mesh coordinates
     :rtype: numpy.array, numpy.array, numpy.array
     """
-    #calculate number of cells in x and y direction 
+    #calculate number of cells in x and y direction
     n_y = int(round(maxdep / spacing, 0))
     n_x = int(round(length / spacing, 0))
 
@@ -152,7 +155,7 @@ def add_ccp_trace(trace, inc_p, matrx, matrx_entry, vmod, depstep, lenstep, sta_
     """
     project amplitudes from all RFs onto the profile...2D rot:
     """
-    # start at zero: inc_p given, inc_s needs to be calculated  
+    # start at zero: inc_p given, inc_s needs to be calculated
     h = 0
     c = 0
     d = 0
