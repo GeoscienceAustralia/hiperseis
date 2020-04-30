@@ -85,10 +85,12 @@ def plot_ccp(matrx, length, max_depth, spacing, vlims=None, metadata=None, title
     plt.tick_params(right=True, labelright=True, axis='y', labelsize=12)
     plt.gca().xaxis.set_major_locator(MultipleLocator(50))
     plt.gca().xaxis.set_minor_locator(MultipleLocator(5))
+    plt.gca().xaxis.set_tick_params(which='both', top=True)
     plt.gca().yaxis.set_major_locator(MultipleLocator(10))
     plt.gca().yaxis.set_minor_locator(MultipleLocator(1))
     plt.gca().yaxis.set_tick_params(which='minor', right=True)
-    plt.grid(color='#80808080', linestyle=':')
+    plt.grid(color='#808080', which='major', linestyle=':', alpha=0.5)
+    plt.grid(color='#a0a0a0', which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
 
     if metadata is not None:
         stn_labels = []
