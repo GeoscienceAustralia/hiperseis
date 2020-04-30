@@ -17,6 +17,12 @@ before_install:
   - sudo apt-get install libproj-dev proj-bin
   - sudo apt-get install libgeos-dev
   - sudo apt-get install libnetcdf-dev
+  # Log package versions
+  - dpkg -s libhdf5-dev
+  - dpkg -s libmpich-dev
+  - dpkg -s libproj-dev proj-bin
+  - dpkg -s libgeos-dev
+  - dpkg -s libnetcdf-dev
   - pip install -U pip
   - pip install Cython --install-option="--no-cython-compile"
   - pip install pytest-cov
