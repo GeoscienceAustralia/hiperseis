@@ -6,27 +6,28 @@ language: python
 cache: pip
 
 python:
-- '2.7'
-- '3.5'
-- '3.6'
-- '3.7'
+  - '2.7'
+  - '3.5'
+  - '3.6'
+  - '3.7'
 
 before_install:
-- sudo apt-get install libhdf5-dev
-- sudo apt-get install libmpich-dev
-- sudo apt-get install libproj-dev proj-bin
-- sudo apt-get install libgeos-dev
-- sudo apt-get install libnetcdf-dev
-- pip install Cython --install-option="--no-cython-compile"
-- pip install pytest-cov
-- pip install coveralls
+  - sudo apt-get install libhdf5-dev
+  - sudo apt-get install libmpich-dev
+  - sudo apt-get install libproj-dev proj-bin
+  - sudo apt-get install libgeos-dev
+  - sudo apt-get install libnetcdf-dev
+  - pip install -U pip
+  - pip install Cython --install-option="--no-cython-compile"
+  - pip install pytest-cov
+  - pip install coveralls
 
 install:
-- pip install -r requirements.txt
-- pip install -r tests/requirements.txt
+  - pip install -r requirements.txt
+  - pip install -r tests/requirements.txt
 
 script:
-- pytest -v --cov=seismic --cov-report= tests
+  - pytest -v --cov=seismic --cov-report=tests
 
 after_success: coveralls
 
