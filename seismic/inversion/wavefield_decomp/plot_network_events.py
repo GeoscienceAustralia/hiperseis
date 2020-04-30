@@ -40,7 +40,7 @@ def main(src_file, output_file, soln_file):
          --soln-file /g/data/ha3/am7399/shared/OA_wfdecomp_inversion/OA_wfd_out.h5
 
     :param src_file: File containing event waveforms
-    :param output_file: Output pdf file
+    :param output_file: Output pdf file name. Will be extended with a job id string.
     :param soln_file: Solution file that contains energy-per-event and filtering settings
     """
 
@@ -62,12 +62,15 @@ def main(src_file, output_file, soln_file):
 
     logger = logging.getLogger(__name__)
 
-    soln_configs, _ = load_mcmc_solution(soln_file)
+    soln_configs, job_id = load_mcmc_solution(soln_file)
     station_esu = {}
     for soln, config in soln_configs:
         station = config['station_id']
         station_esu[station] = (soln.esu, config)
     # end if
+    out_basename, ext = os.path.splitext(output_file)
+    out_basename += '_' + job_id
+    output_file = out_basename + ext
 
     with PdfPages(output_file) as pdf:
 
