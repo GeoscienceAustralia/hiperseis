@@ -16,7 +16,7 @@ from scipy import stats
 import scipy.optimize as optimize
 import h5py
 
-from seismic.inversion.wavefield_decomp.model_properties import LayerProps
+from seismic.model_properties import LayerProps
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.stream_quality_filter import curate_stream3c

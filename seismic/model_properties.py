@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
 class LayerProps():
     """
     Helper class to contain layer bulk material properties
@@ -49,4 +50,3 @@ class LayerProps():
     # end func
 
 # end class
-

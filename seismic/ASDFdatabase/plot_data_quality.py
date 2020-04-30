@@ -213,15 +213,16 @@ def plot_results(stations, results, output_basename):
         px, py = m(lon, lat)
         pxl, pyl = m(lon, lat - 0.1)
         days = usableStationDays['%s.%s' % (s[0], s[1])]
-        m.scatter(px, py, s=500, marker='v',
+        m.scatter(px, py, s=400, marker='v',
                   c=mapper.to_rgba(days),
                   edgecolor='none', label='%s: %d' % (s[1], days))
-        ax1.annotate(s[1], xy=(px + 0.03, py + 0.03), fontsize=24)
+        ax1.annotate(s[1], xy=(px + 0.05, py + 0.05), fontsize=22)
     # end for
 
     fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=30, y=1.05)
-    fig.axes[0].legend(prop={'size': 16}, bbox_to_anchor=(0.2, 1.3),
-                       ncol=5, fancybox=True, title='No. of Usable Days')
+    fig.axes[0].legend(prop={'size': 16}, loc=(0.2, 1.3),
+                       ncol=5, fancybox=True, title='No. of Usable Days',
+                       title_fontsize=16)
 
     pdf.savefig()
     plt.close()
@@ -230,10 +231,12 @@ def plot_results(stations, results, output_basename):
     for k, v in groupIndices.items():
         axesCount = 0
         for i in v:
-            assert (k == '%s.%s'%(stations[i][0], stations[i][1]))
+            assert (k == '%s.%s' % (stations[i][0], stations[i][1]))
             # only need axes for non-null results
             a, b = results[i]
-            if(len(a) and len(b)): axesCount += 1
+            if len(a) and len(b):
+                axesCount += 1
+            # end if
         # end for
         fig, axes = plt.subplots(axesCount, sharex=True)
         fig.set_size_inches(20, 15)
@@ -260,7 +263,7 @@ def plot_results(stations, results, output_basename):
 
                         axes[axesIdx].scatter(x, dnorm, marker='.', s=20)
                         axes[axesIdx].plot(x, dnorm, c='k', label='24 hr mean\n'
-                                           'Gaps indicate no-data', lw=2)
+                                           'Gaps indicate no-data', lw=2, alpha=0.7)
                         axes[axesIdx].grid(axis='x', linestyle=':', alpha=0.3)
 
                         axes[axesIdx].fill_between(x, dnormmax*np.int_(d == 0), dnormmin*np.int_(d == 0),
@@ -279,9 +282,12 @@ def plot_results(stations, results, output_basename):
                         # end for
                         axes[axesIdx].legend(loc='upper right', prop={'size': 12})
                         axes[axesIdx].tick_params(axis='both', labelsize=16)
-                        axes[axesIdx].set_title('Channel %s' % stations[index][3], fontsize=18)
+                        stn = stations[index]
+                        axes[axesIdx].set_title('Channel %s.%s' % (stn[2], stn[3]),
+                                                fontsize=18, y=0.95, va='top')
                         axes[axesIdx].set_xlim(xmin=min(x), xmax=max(x))
                         axes[axesIdx].set_ylim(ymin=dnormmin, ymax=dnormmax)
+                        axes[axesIdx].set_ylabel('Ampl.', fontsize=16)
 
                         axesIdx += 1
                     # end if
@@ -291,7 +297,6 @@ def plot_results(stations, results, output_basename):
                 # end try
             # end for
             axes[-1].set_xlabel('Days', fontsize=16)
-            axes[-1].set_ylabel('Ampl.', fontsize=16)
         # end if
 
         plt.suptitle('%s Data Availability (~%d days)' % (k, usableStationDays[k]),
@@ -350,7 +355,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     fds = FederatedASDFDataSet(asdf_source, logger=l)
 
     stations = []
-    if(rank == 0):
+    if rank == 0:
         stations = fds.get_stations(start_time, end_time, network=net, station=sta, channel=cha)
 
         stations = split_list(sorted(stations), nproc)
@@ -360,7 +365,7 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     results = process_data(rank, fds, sorted(stations[rank]), start_time, end_time)
 
     results = comm.gather(results, root=0)
-    if (rank == 0):
+    if rank == 0:
         results = [item for sublist in results for item in sublist] # flatten sublists for each proc
         stations = [item for sublist in stations for item in sublist]  # flatten sublists for each proc
         plot_results(stations, results, output_basename)

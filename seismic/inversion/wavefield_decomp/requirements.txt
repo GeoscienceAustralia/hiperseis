@@ -5,3 +5,4 @@ pyFFTW
 numexpr
 mpi4py
 h5py
+scikit-learn

@@ -17,7 +17,7 @@ import scipy.optimize as optimize
 
 from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
-from seismic.inversion.wavefield_decomp.model_properties import LayerProps
+from seismic.model_properties import LayerProps
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.inversion.wavefield_decomp.wfd_plot import plot_Esu_space, plot_Nd
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster

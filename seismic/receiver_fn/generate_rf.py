@@ -235,7 +235,14 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
          trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=True, parallel=True, memmap=False,
          temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
     """
-    Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
+    Main entry point for generating RFs from event traces.
+    See Click documentation for details on options.
+
+    :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
+    :type input_file: str or pathlib.Path
+    :param output_file: Name of hdf5 file to produce containing RFs
+    :type output_file: str or pathlib.Path
+    :return: None
     """
     assert resample_rate >= 2.0*filter_band[1], "Too low sample rate will alias signal"
 

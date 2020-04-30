@@ -39,7 +39,10 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
     elif network and station:
-        group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
+        group = root + '/{}.{}'.format(network.upper(), station.upper())
+        if loc:
+            group += '.{}'.format(loc.upper())
+        # end if
     else:
         group = root
     # end if
