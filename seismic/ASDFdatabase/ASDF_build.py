@@ -7,7 +7,7 @@ import pyasdf
 from pyasdf import ASDFWarning
 import warnings
 from collections import Counter, defaultdict
-from scripts.convert_logs.decode_datfile import decode_anulog
+from legacy.convert_logs.decode_datfile import decode_anulog
 
 import glob
 
@@ -16,7 +16,7 @@ import numpy as np
 from obspy.core import inventory, read, UTCDateTime
 
 import sys
-from query_input_yes_no import query_yes_no
+from seismic.ASDFdatabase.query_input_yes_no import query_yes_no
 
 warnings.filterwarnings("error")
 
@@ -156,7 +156,7 @@ for service in service_dir_list:
     if not isdir(service):
         continue
 
-    print '\r Processing: ', basename(service)
+    print('\r Processing: ', basename(service))
 
     station_dir_list = glob.glob(service + '/*')
 
@@ -348,15 +348,14 @@ for service in service_dir_list:
         if len(seed_files) == 0:
             continue
 
-        print '\r Working on station: ', new_station
+        print('\r Working on station: ', new_station)
 
         # dictionary for channel_location (keys) so that we can create an inventory to location level later
         channel_loc_dict = {}
 
         # Iterate through the miniseed files, fix the header values and add waveforms
         for _i, filename in enumerate(seed_files):
-            print "\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....',
-            sys.stdout.flush()
+            print("\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....', sys.stdout.flush())
 
             try:
                 # Read the stream
@@ -473,7 +472,7 @@ station_inventories_list =[]
 
 # Now go through the station inventory dictionary and see if there are any mismatches for channel inventories
 # for a station
-for station, value in station_inventory_dict.iteritems():
+for station, value in station_inventory_dict.items():
     prev_channel_inv_set = False
     matched_channel = False
     service_mismatch_list = []
@@ -515,7 +514,7 @@ for station, value in station_inventory_dict.iteritems():
 
 network_start_end = False
 # go through station start/end date dict and get the overall start_end date
-for key, (start, end) in station_start_end_dict.iteritems():
+for key, (start, end) in station_start_end_dict.items():
     if not network_start_end:
         network_start_end = [start, end]
         continue
@@ -551,15 +550,15 @@ with open(JSON_out, 'w') as fp:
     json.dump(big_dictionary, fp)
 
 del ds
-print '\n'
+print('\n')
 
 exec_time = time.time() - code_start_time
 
 exec_str = "--- Execution time: %s seconds ---" % exec_time
 added_str = '--- Added ' + str(waveforms_added) + ' waveforms to ASDF and JSON database files ---'
 
-print exec_str
-print added_str
+print(exec_str)
+print(added_str)
 
 ASDF_log_file.write(exec_str + '\n')
 ASDF_log_file.write(added_str + '\n')

@@ -9,6 +9,7 @@ python:
 - '2.7'
 - '3.5'
 - '3.6'
+- '3.7'
 
 before_install:
 - sudo apt-get install libhdf5-dev
@@ -24,7 +25,7 @@ install:
 - pip install -r tests/requirements.txt
 
 script:
-- pytest -v --cov=seismic --cov-report= tests 
+- pytest -v --cov=seismic --cov-report= tests
 
 after_success: coveralls
 

@@ -6,7 +6,7 @@ pandas
 pyproj
 h5py
 pyasdf
-obspy==1.1.0
+obspy>=1.1.0
 obspyh5
 shapely
 geographiclib
