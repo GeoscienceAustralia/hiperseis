@@ -106,8 +106,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             # and will break down near poles, for long transects, or if transect crosses the antimeridian.
             dirn = (end - start)
             dirn = dirn/np.linalg.norm(dirn)
-            start -= 25*dirn/rf_util.KM_PER_DEG
-            end += 25*dirn/rf_util.KM_PER_DEG
+            start -= 25*dirn/KM_PER_DEG
+            end += 25*dirn/KM_PER_DEG
             start_latlon = (start[1], start[0])
             end_latlon = (end[1], end[0])
 
