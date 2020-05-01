@@ -34,6 +34,7 @@ install:
   - pip list
 
 script:
+  - python -c 'import h5py; print("h5py MPI:", h5py.get_config().mpi)'
   - pytest -v --cov=seismic --cov-report= tests
 
 after_success: coveralls
