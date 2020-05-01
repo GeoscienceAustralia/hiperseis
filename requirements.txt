@@ -2,7 +2,6 @@ sphinx>=1.8
 ordered-set
 numpy==1.16.4
 pandas
-#pyproj==1.9.6
 pyproj
 h5py
 pyasdf
@@ -19,13 +18,12 @@ psutil
 pytest>=4.6.5
 joblib
 click
-netcdf4==1.4.0
+netCDF4==1.5.2
 ujson
 deprecated
 pyyaml
 requests
 Cython  # On NCI, use module load
-#mpi4py # On NCI, use module load
 tqdm
 rf==0.8.0
 sortedcontainers
