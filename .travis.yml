@@ -34,7 +34,8 @@ install:
   - pip list
 
 script:
-  - python -c 'import h5py; print("h5py MPI:", h5py.get_config().mpi)'
+  # Report detailed HDF5 version information, which has potential impact on netCDF4 and pyasdf
+  - python -c 'import h5py; print("h5py MPI:", h5py.get_config().mpi); print("h5py API version:", h5py.version.api_version); print(h5py.version.info)'
   - pytest -v --cov=seismic --cov-report= tests
 
 after_success: coveralls
