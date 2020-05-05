@@ -306,8 +306,16 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
             # can be processed. If the file already exists, then existing streams will
             # be overwritten rather than duplicated.
             # Check first if rotation for unaligned *H1, *H2 channels to *HN, *HE is required.
+            if not s:
+                continue
+            # end if
             if s.select(component='1') and s.select(component='2'):
-                s.rotate('->ZNE', inventory=inventory)
+                try:
+                    s.rotate('->ZNE', inventory=inventory)
+                except ValueError as e:
+                    log.error('Unable to rotate to ZNE with error:\n{}'.format(str(e)))
+                    continue
+                # end try
             # end if
             # Order the traces in ZNE ordering. This is required so that normalization
             # can be specified in terms of an integer index, i.e. the default of 0 in rf
