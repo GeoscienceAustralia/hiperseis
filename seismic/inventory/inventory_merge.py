@@ -29,7 +29,11 @@ except ImportError:
 # need to see more details in the table.
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_colwidth', -1)
+try:
+    pd.set_option('display.max_colwidth', None)
+except ValueError:
+    pd.set_option('display.max_colwidth', -1)
+# end try
 pd.set_option('display.width', 240)
 
 # Timestamp to be added to output file names, so that each run generates unique log files.

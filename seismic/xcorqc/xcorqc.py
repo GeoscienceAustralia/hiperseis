@@ -790,9 +790,9 @@ def IntervalStackXCorr(refds, tempds,
             ist[:] = int(np.min(intervalStartTimesDict[k]))
             iet[:] = int(np.max(intervalEndTimesDict[k]))
             if totalIntervalCount > 0:
-                xc[:] = xcorrResultsDict[k] / float(totalIntervalCount)
+                xc[:] = xcorrResultsDict[k].real / float(totalIntervalCount)
             else:
-                xc[:] = xcorrResultsDict[k]
+                xc[:] = xcorrResultsDict[k].real
             # end if
         else:
             root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
@@ -808,7 +808,7 @@ def IntervalStackXCorr(refds, tempds,
             nsw[:] = windowCountResultsDict[k]
             ist[:] = intervalStartTimesDict[k]
             iet[:] = intervalEndTimesDict[k]
-            xc[:, :] = xcorrResultsDict[k]
+            xc[:, :] = xcorrResultsDict[k].real
         # end if
 
         lag[:] = x

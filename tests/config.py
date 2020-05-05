@@ -18,7 +18,7 @@ class Config:
 
     def __init__(self, yaml_file):
         with open(yaml_file, 'r') as f:
-            s = yaml.load(f)
+            s = yaml.load(f, Loader=yaml.SafeLoader)
 
         self.name = path.basename(yaml_file).rsplit(".", 1)[0]
         self.inputs = s['inputs']

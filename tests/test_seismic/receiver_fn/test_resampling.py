@@ -24,7 +24,7 @@ def test_sinc_resampling():
     t = np.linspace(0, 5, 17)
     x = sp.signal.gausspulse(t - t.mean(), fc=4, bw=0.12)
     t_new = np.linspace(0, 5, 51)
-    nan_idx = np.random.random_integers(1, len(t_new) - 2, 10)
+    nan_idx = np.random.randint(1, len(t_new) - 2, 10)
     t_new[nan_idx] = np.NaN
     t_new = t_new[~np.isnan(t_new)]
     x_new = sinc_resampling(t, x, t_new)

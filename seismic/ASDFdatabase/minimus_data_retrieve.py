@@ -1,11 +1,12 @@
 import os
-from query_input_yes_no import query_yes_no
-import glob
 from os.path import join
+import glob
 import subprocess
-from obspy import read_inventory
 import sys
 import shutil
+
+from seismic.ASDFdatabase.query_input_yes_no import query_yes_no
+from obspy import read_inventory
 
 
 # =========================== User Input Required =========================== #
@@ -60,8 +61,8 @@ network_code = station_inv[0].code
 station_code = station_inv[0][0].code
 
 
-print "Network Code: ", network_code
-print "Station Code: ", station_code
+print("Network Code: ", network_code)
+print("Station Code: ", station_code)
 
 copy_query = query_yes_no("Copy Data for " + network_code+"."+station_code + "?")
 
@@ -102,20 +103,11 @@ ret_seed_files = listdir_nohidden(join(sd_card, "all_miniSEED_files_are_in_here"
 seed_file_count = 0
 
 for _i, seed_file in enumerate(ret_seed_files):
-    print "\r     Parsing miniseed file ", _i + 1, ' of ', len(ret_seed_files), ' ....'
-    sys.stdout.flush()
+    print("\r     Parsing miniseed file ", _i + 1, ' of ', len(ret_seed_files), ' ....', sys.stdout.flush())
     shutil.copy(seed_file, station_seed_path)
     seed_file_count += 1
 
 
-print "\n"
-print "All Done!"
-print "-------- Retrieved {0} MiniSEED files from External Card --------".format(seed_file_count)
-
-
-
-
-
-
-
-
+print("\n")
+print("All Done!")
+print("-------- Retrieved {0} MiniSEED files from External Card --------".format(seed_file_count))

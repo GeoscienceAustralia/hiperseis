@@ -19,8 +19,7 @@ PY3 = (sys.version_info[0] == 3)
 def logfile(request):
     return request.param
 
-
-@pytest.mark.skipif(PY3, reason='Decoding needs to be ported to Python 3')
+@pytest.mark.skipif(not PY3, reason='Decoding byte streams requries Python 3')
 def test_convert_logs(random_filename, logfile):
     output_dir = os.path.dirname(random_filename())
     logfile = join(TESTDATA, logfile)
@@ -32,9 +31,9 @@ def test_convert_logs(random_filename, logfile):
     d_out = json.load(open(join(output_dir, basename + '.json'), 'r'))
     d_stored = json.load(open(join(TESTDATA, basename + '.json'), 'r'))
     assert d_out == d_stored
+# end func
 
-
-@pytest.mark.skipif(PY3, reason='Decoding needs to be ported to Python 3')
+@pytest.mark.skipif(not PY3, reason='Decoding byte streams requries Python 3')
 def test_convert_logs_parallel(random_filename):
     output_dir = os.path.dirname(random_filename())
     logfiles = [join(TESTDATA, f) for f in test_dat_files]
@@ -50,3 +49,9 @@ def test_convert_logs_parallel(random_filename):
         d_out = json.load(open(join(output_dir, basename + '.json'), 'r'))
         d_stored = json.load(open(join(TESTDATA, basename + '.json'), 'r'))
         assert d_out == d_stored
+# end func
+
+if __name__ == '__main__':
+    import tempfile
+    test_convert_logs(tempfile.mkdtemp, test_dat_files[0])
+# end if

@@ -4,10 +4,10 @@ Description:
     Tests various aspects of x-correlation functionality
 
 References:
- 
+
 CreationDate:   5/20/19
 Developer:      rakib.hassan@ga.gov.au
- 
+
 Revision History:
     LastUpdate:     5/20/19   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
@@ -109,7 +109,12 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     # skipping inconsistent parameterizations
     if (one_bit_normalize and clip_to_2std): return
 
-    output_folder = str(tmpdir.mkdir('output'))
+    if isinstance(tmpdir, str):
+        output_folder = os.path.join(tmpdir, 'output')
+        os.makedirs(output_folder)
+    else:
+        output_folder = str(tmpdir.mkdir('output'))
+    # end if
 
     IntervalStackXCorr(fds1, fds2,
                        start_time, end_time,
@@ -152,3 +157,20 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     shutil.rmtree(output_folder)
 # end func
 
+
+if __name__ == '__main__':
+    test_dir = tempfile.mkdtemp()
+    cha = 'BHZ'
+    inv1 = inv.select(network='AU', station='ARMA')
+    inv2 = inv.select(network='AU', station='QLP')
+    interval_seconds = 86400
+    window_seconds = 3600
+    clip_to_2std = False
+    whitening = False
+    one_bit_normalize = False
+    envelope_normalize = False
+    ensemble_stack = False
+    test_interval_stack_xcorr_(test_dir, cha, inv1, inv2, interval_seconds, window_seconds,
+                               clip_to_2std, whitening, one_bit_normalize,
+                               envelope_normalize, ensemble_stack)
+# end if

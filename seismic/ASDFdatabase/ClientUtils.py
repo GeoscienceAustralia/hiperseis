@@ -1,11 +1,10 @@
-import json
-from obspy import read_inventory, read_events, UTCDateTime, Stream, read
+
+import os
+
+from obspy import UTCDateTime, Stream
 from obspy.clients.fdsn.client import Client
 from obspy.clients.fdsn.header import FDSNException
 import pyasdf
-import itertools
-import sys
-import os
 
 
 class Client2ASDF(object):
@@ -52,10 +51,10 @@ class Client2ASDF(object):
                                                       channel=chan, location='*',
                                                       starttime=stime,
                                                       endtime=stime+step)
-                        print ref_st
+                        print(ref_st)
                         self.ref_stations.append(net.code + '.' + stn.code)
                         st_inv = ref_inv.select(station=stn.code, channel=chan)
-                        
+
                         query_ds.add_stationxml(st_inv)
                         for tr in ref_st:
                             query_ds.add_waveforms(tr, "reference_station")

@@ -229,7 +229,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
                              edgecolors=None, linewidths=0)
             time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
-            plt.axes().xaxis.set_major_formatter(time_formatter)
+            plt.gca().xaxis.set_major_formatter(time_formatter)
             cb = plt.colorbar(sc, drawedges=False)
             cb.set_label('Signal to noise ratio', fontsize=12)
             plt.grid(color='#808080', linestyle=':', alpha=0.7)
@@ -662,7 +662,7 @@ def _get_known_temporary_deployments():
 @click.option('--interactive', is_flag=True, default=False, show_default=True,
               help='If True, plots will be displayed as popup windows instead of saving to file. '
                    'Use this option to interact with the data.')
-def main(picks_file, network1, networks2, stations1=None, stations2=None, 
+def main(picks_file, network1, networks2, stations1=None, stations2=None,
          min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
          min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
