@@ -93,7 +93,7 @@ class Synthesizer(object):
         arrival = arrivals[0]
         ray_param = arrival.ray_param_sec_degree
         onset = origin_time + arrival.time
-        inc = arrival.incident_angle
+        inc = arrival.incident_angle  # degrees
         event_id = eventid_base + '_'.join([
             gh.encode(receiver_lat, receiver_lon),
             gh.encode(src_lat, src_lon),
