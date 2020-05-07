@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# Fei Zhang 2020-05-01
+# Fei Zhang 2020-05-03
+# collate many mseed files into a single ASDF file by mpi parallel writing
 
-# PBS directives
+### PBS directives
 #PBS -P vy72
-#PBS -N pick2_pbs_job
+#PBS -N cwb2asdf_para
 #PBS -q normal
-#PBS -l walltime=48:00:00,mem=950GB,ncpus=240,jobfs=160GB
+#PBS -l walltime=10:00:00,mem=96GB,ncpus=16,jobfs=250GB
 #PBS -l storage=scratch/fxz547+gdata/ha3
+
 #PBS -l wd
 #PBS -j oe
 #PBS -M fei.zhang@ga.gov.au
@@ -31,13 +33,11 @@ export LANG=en_AU.UTF-8
 # pip install pykml  pyyaml  joblib pywavelets
 source /g/data/ha3/Passive/Software/VENV/para_h5py/bin/activate
 
-
-# files paths 
-ASDF_FILES="/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"    # "/g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt"
-PICK_OUTPUT="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow2"
-CATALOGD="/g/data/ha3/Passive/Events/Unified/"  # $PICK_OUTPUT/catalog/
-
 # the cmdline 
-mpirun -np $PBS_NCPUS python3 /home/547/fxz547/github/hiperseis/seismic/pick_harvester/pick.py $ASDF_FILES $CATALOGD $PICK_OUTPUT > $PICK_OUTPUT/run_output_0501.txt
-# mpirun -np $PBS_NCPUS python3 /home/547/fxz547/github/hiperseis/seismic/pick_harvester/pick.py $ASDF_FILES $CATALOGD $PICK_OUTPUT > $PICK_OUTPUT/run_output.txt 2>&1
+
+cd /home/547/fxz547/github/hiperseis/seismic/ASDFdatabase/cwb2asdf
+
+# In order to use more than 1-processor h5py pyasdf must be parallel-IO support.
+# with parallel pyasdf installed in venv, test run shown that the writing is not scaled-up. Less than 2 CPU is used even though 16 are requested!!
+mpirun -np  $PBS_NCPUS python3 cwb2asdf.py /g/data/ha3/GASeisDataArchive/2019_demultiplex /g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml /g/data/ha3/GASeisDataArchive/2019.h5 > /g/data/ha3/GASeisDataArchive/2019_cwb2asdf_run.out
 

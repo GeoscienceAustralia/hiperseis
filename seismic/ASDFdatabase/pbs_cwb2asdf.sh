@@ -27,6 +27,6 @@ export LANG=en_AU.UTF-8
 
 cd /home/547/fxz547/github/hiperseis/seismic/ASDFdatabase/cwb2asdf
 
-#Not much parallelization in the script. Recommend to use 1-cpu.
+# In order to use more than 1-processor h5py pyasdf must be parallel-IO support.
 mpirun -np 2 python3 cwb2asdf.py /g/data/ha3/GASeisDataArchive/2019_demultiplex /g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml /g/data/ha3/GASeisDataArchive/2019.h5 > /g/data/ha3/GASeisDataArchive/2019_cwb2asdf_run.out
 
