@@ -76,6 +76,7 @@ class SynthesizerMatrixPropagator(Synthesizer):
         traces_zne = run_plane(self.model, ray_param_sec_per_km, npts, dt, baz=stats['back_azimuth'])
         traces_zne.differentiate()
         for tr in traces_zne:
+            stats['channel'] = '**' + tr.stats['channel'][-1]
             tr.stats.update(stats)
         # end for
         return traces_zne

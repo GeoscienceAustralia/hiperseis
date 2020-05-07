@@ -24,7 +24,8 @@ import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.stream_processing import zne_order
-from seismic.stream_io import EVENTIO_H5INDEX
+from seismic.stream_io import write_h5_event_stream
+
 
 logging.basicConfig()
 
@@ -301,11 +302,6 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
         waveform_getter = closure_get_waveforms
     # end if
 
-    # Lock down format of obspyh5 node mayout in HDF5 to ensure compatibility with
-    # custom iterators.
-    old_index = obspyh5._INDEX
-    obspyh5.set_index(EVENTIO_H5INDEX)
-
     with tqdm(smoothing=0) as pbar:
         stream_count = 0
         for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
@@ -340,7 +336,7 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
             assert out_stream[0].stats.channel[-1] == 'Z'
             assert out_stream[1].stats.channel[-1] == 'N'
             assert out_stream[2].stats.channel[-1] == 'E'
-            out_stream.write(event_trace_datafile, 'H5', mode='a')
+            write_h5_event_stream(event_trace_datafile, out_stream, mode='a')
             stream_count += 1
         # end for
 
@@ -350,7 +346,6 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
             log.info("Wrote {} streams to output file".format(stream_count))
         # end if
     # end with
-    obspyh5.set_index(old_index)
 
 # end main
 

@@ -7,7 +7,7 @@ import os
 import numpy as np
 import obspy
 
-from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
+from seismic.network_event_dataset import NetworkEventDataset
 
 
 def _mock_test_stream():

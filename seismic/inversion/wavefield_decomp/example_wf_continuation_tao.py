@@ -15,7 +15,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
 import numpy as np
 import scipy.optimize as optimize
 
-from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
+from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.model_properties import LayerProps
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms

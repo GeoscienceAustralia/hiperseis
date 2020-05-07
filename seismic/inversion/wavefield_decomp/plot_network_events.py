@@ -19,7 +19,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 from tqdm.auto import tqdm
 
-from seismic.inversion.wavefield_decomp.network_event_dataset import NetworkEventDataset
+from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms, load_mcmc_solution
 from seismic.stream_io import get_obspyh5_index
 
