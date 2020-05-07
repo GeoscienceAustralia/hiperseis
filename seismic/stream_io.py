@@ -19,6 +19,14 @@ from seismic.units_utils import KM_PER_DEG
 logging.basicConfig()
 
 
+# Source event centric indexing format
+EVENTIO_TF = '.datetime:%Y-%m-%dT%H:%M:%S'
+EVENTIO_H5INDEX = (
+    'waveforms/{network}.{station}.{location}/{event_time%s}/' % EVENTIO_TF +
+    '{channel}_{starttime%s}_{endtime%s}' % (EVENTIO_TF, EVENTIO_TF)
+    )
+
+
 def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveforms'):
     """Helper function to load stream data from hdf5 file saved by obspyh5 HDF5 file IO.
     Typically the source file is generated using `extract_event_traces.py` script.
@@ -39,10 +47,7 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
     elif network and station:
-        group = root + '/{}.{}'.format(network.upper(), station.upper())
-        if loc:
-            group += '.{}'.format(loc.upper())
-        # end if
+        group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
     else:
         group = root
     # end if
