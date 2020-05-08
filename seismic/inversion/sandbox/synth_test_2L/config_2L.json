@@ -7,7 +7,8 @@
   },
   "layers":
   [
-    {"name": "crust", "Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1]}
+    {"name": "upper_crust", "Vp": 5.6, "rho":  2.4, "H_range": [0.0, 20.0], "k_range": [1.5, 2.1]},
+    {"name": "lower_crust", "Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1]}
   ],
   "curation_opts":
   {
@@ -25,7 +26,7 @@
   {
     "_comment": "Solver options",
     "type": "mcmc",
-    "temp": 0.025,
+    "temp": 0.005,
     "burnin": 10000,
     "max_iter": 100000,
     "collect_samples": 10000,

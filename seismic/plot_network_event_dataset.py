@@ -8,13 +8,14 @@ import math
 # import logging
 # import warnings
 
+import click
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm.auto import tqdm
 
-# from seismic.network_event_dataset import NetworkEventDataset
+from seismic.network_event_dataset import NetworkEventDataset
 # from seismic.stream_io import get_obspyh5_index
 
 
@@ -115,9 +116,24 @@ def plot_ned_seismograms(ned, output_file, channel_order='ZNE'):
 # end func
 
 
+@click.command()
+@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(exists=False, dir_okay=False), required=True)
+@click.option('--channel-order', type=click.Choice(['ZNE', 'ZRT', 'Z12', 'LQT']),
+              required=False, default='ZNE', show_default=True)
+def main(input_file, output_file, channel_order):
+    ned = NetworkEventDataset(input_file)
+    if channel_order == 'ZNE':
+        ned.apply(lambda stream: stream.rotate('->ZNE'))
+    elif channel_order == 'ZRT':
+        ned.apply(lambda stream: stream.rotate('NE->RT'))
+    elif channel_order == 'LQT':
+        ned.apply(lambda stream: stream.rotate('ZNE->LQT'))
+    # end if
+    plot_ned_seismograms(ned, output_file, channel_order)
+# end func
+
+
 if __name__ == "__main__":
-    from seismic.network_event_dataset import NetworkEventDataset
-    ned = NetworkEventDataset('test_prop_synth.h5')
-    ned.apply(lambda stream: stream.rotate('NE->RT'))
-    plot_ned_seismograms(ned, 'test_prop_synth.pdf', channel_order='ZRT')
+    main()
 # end if
