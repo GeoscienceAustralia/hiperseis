@@ -14,7 +14,7 @@ import tqdm.auto as tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
-import seismic.receiver_fn.inversion.plot_inversion as plot_inversion
+import seismic.inversion.mcmc.plot_inversion as plot_inversion
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
