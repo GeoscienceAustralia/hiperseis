@@ -11,6 +11,7 @@ import obspy
 from obspy.taup import TauPyModel
 from obspy.io.sac.sactrace import SACTrace
 import h5py
+import obspyh5
 from obspyh5 import dataset2trace, is_obspyh5
 
 from seismic.units_utils import KM_PER_DEG
@@ -115,6 +116,29 @@ def iter_h5_stream(src_file, headonly=False):
             # end for
         # end for
     # end with
+# end func
+
+
+def write_h5_event_stream(dest_h5_file, stream, mode='a', ignore=()):
+    """
+    Write stream to HDF5 file in event indexed format using obspy.
+
+    :param dest_h5_file: File in which to write the stream.
+    :type dest_h5_file: str or pathlib.Path
+    :param stream: The stream to write
+    :type stream: obspy.Stream
+    :param mode: Write mode, such as 'w' or 'a'. Use 'a' to iteratively write multiple streams to one file.
+    :type mode: str
+    :param ignore: List of headers to ignore when writing attributes to group. Passed on directly to obspyh5.writeh5
+    :type ignore: Any iterable of str
+    """
+    # Lock down format of obspyh5 node layout in HDF5 to ensure compatibility with
+    # custom iterators.
+    assert mode.lower() != 'r', 'Write mode cannot be \'r\''
+    prior_index = obspyh5._INDEX
+    obspyh5.set_index(EVENTIO_H5INDEX)
+    stream.write(dest_h5_file, 'H5', mode=mode, ignore=ignore)
+    obspyh5.set_index(prior_index)
 # end func
 
 

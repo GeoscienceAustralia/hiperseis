@@ -5,6 +5,7 @@ Base class for seismogram synthesis class
 
 import abc
 
+import numpy as np
 from obspy import UTCDateTime
 from obspy.geodetics import gps2dist_azimuth
 from obspy.taup import TauPyModel
@@ -81,7 +82,7 @@ class Synthesizer(object):
         """
 
         if origin_time is None:
-            origin_time = UTCDateTime.now()
+            origin_time = UTCDateTime.now() - 60*np.random.rand()
         # end if
         receiver_lat, receiver_lon = self.station_latlon
         dist_m, baz, _ = gps2dist_azimuth(receiver_lat, receiver_lon, src_lat, src_lon)
@@ -92,7 +93,7 @@ class Synthesizer(object):
         arrival = arrivals[0]
         ray_param = arrival.ray_param_sec_degree
         onset = origin_time + arrival.time
-        inc = arrival.incident_angle
+        inc = arrival.incident_angle  # degrees
         event_id = eventid_base + '_'.join([
             gh.encode(receiver_lat, receiver_lon),
             gh.encode(src_lat, src_lon),
@@ -100,7 +101,7 @@ class Synthesizer(object):
         ])
         stats = {'distance': dist_deg, 'back_azimuth': baz, 'inclination': inc,
                  'onset': onset, 'slowness': ray_param, 'phase': phase,
-                 'origin_time': origin_time, 'tt_model': earth_model,
+                 'event_time': origin_time, 'tt_model': earth_model,
                  'event_id': event_id}
         return stats
     # end func

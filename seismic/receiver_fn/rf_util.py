@@ -377,18 +377,30 @@ def choose_rf_source_channel(rf_type, db_station):
     :rtype: str
     """
     if rf_type[0:3].upper() == 'ZRT':
-        prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR']
+        prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR', '**R']
+        fallback = 'R'
     elif rf_type[0:3].upper() == 'LQT':
-        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ']
+        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ', '**Q']
+        fallback = 'Q'
     else:
         prospective_channels = []
+        fallback = None
     # end if
     best_channel = None
     for c in prospective_channels:
         if c in db_station:
             best_channel = c
             break
+        # end if
     # end for
+    if best_channel is None:
+        for c in db_station.keys():
+            if c[-1] == fallback:
+                best_channel = c
+                break
+            # end if
+        # end for
+    # end if
     return best_channel
 # end func
 

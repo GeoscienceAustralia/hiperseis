@@ -9,7 +9,7 @@ import numpy as np
 
 from seismic.synthetics.backends import backend_tws, backend_syngine
 from seismic.model_properties import LayerProps
-
+from seismic.stream_io import write_h5_event_stream
 
 def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_window, **kwargs):
     """
@@ -39,18 +39,19 @@ def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_windo
         tr.stats.network = net
         tr.stats.station = sta
     # end for
-    synth_streams.write(output_file, 'H5', ignore=('mseed',))
+    # Use mode='w' to write brand new file.
+    write_h5_event_stream(output_file, synth_streams, mode='w', ignore=('mseed',))
     return os.path.isfile(output_file)
 # end func
 
 
 if __name__ == '__main__':
     # Example using propagator matrix method
-    crust = LayerProps(6.4, 4.2, 2.7, 35.0)
+    crust = LayerProps(6.4, 3.8, 2.7, 38.0)
     mantle = LayerProps(8.2, 6.8, 3.3, np.nan)
-    src_latlon = 2 * (np.random.random((5, 2)) - 0.5) + np.array([30, 160])
+    src_latlon = 20 * (np.random.random((5, 2)) - 0.5) + np.array([30, 160])
     fs = 100.0
-    time_window = (-20, 40)
+    time_window = (-50, 150)
     generator_args = {
         'station_latlon': (-20, 140),
         'layerprops': [crust, mantle]
