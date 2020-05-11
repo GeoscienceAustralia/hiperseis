@@ -1,6 +1,6 @@
 sphinx>=1.8
 ordered-set
-numpy==1.16.4
+numpy>=1.16.4
 pandas
 pyproj
 h5py
