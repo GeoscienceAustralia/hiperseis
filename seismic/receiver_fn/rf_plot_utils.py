@@ -213,6 +213,8 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
     fig = plt.figure(figsize=figsize)
 
     for n, stream in enumerate(rf_stream):
+        if not stream:
+            continue
         ax = plt.subplot(*tuple(list(layout) + [n + 1]), projection="polar")
         # Orient with north
         ax.set_theta_zero_location("N")

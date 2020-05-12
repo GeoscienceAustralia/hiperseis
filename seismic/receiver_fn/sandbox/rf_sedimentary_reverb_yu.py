@@ -9,8 +9,7 @@ Yu, Y., J. Song, K. H. Liu, and S. S. Gao (2015), Determining crustal structure 
 Applies to R-channel only, so output file will have only R-channel.
 """
 
-import logging
-
+from tqdm.auto import tqdm
 import click
 import numpy as np
 import scipy.signal as signal
@@ -42,8 +41,7 @@ def _estimate_Pbs_timedelta(tr):
 
 
 def _dereverb_yu_autocorr(rf_stream):
-
-    # Generate reverb removal filter
+    # Modified traces in-place.
 
     x = np.array([tr.data for tr in rf_stream])
 
@@ -60,19 +58,17 @@ def _dereverb_yu_autocorr(rf_stream):
 
     # Apply reverb removal filter
     x_norev = [np.convolve(_x, de_reverb[i], 'full') for i, _x in enumerate(x)]
-    x_norev = [_x[:(-ac_extrema[i] + 1)] for i, _x in enumerate(x_norev)]
+    keep_len = x.shape[-1]
+    x_norev = [_x[:keep_len] for _x in x_norev]
 
-    traces = []
     for i, tr in enumerate(rf_stream):
-        new_tr = tr.copy()
-        new_tr.data = x_norev[i]
-        traces.append(new_tr)
+        assert tr.data.shape == x_norev[i].shape, 'Shape mismatch'
+        tr.data = x_norev[i]
     # end for
-    rf_stream_noreverb = rf.RFStream(traces)
 
     # Compute time offsets allowed for in the H-k stacking code. These time offsets
     # are from Yu's paper.
-    for i, tr in enumerate(rf_stream_noreverb):
+    for i, tr in enumerate(rf_stream):
         pbs_delta = _estimate_Pbs_timedelta(tr)
         tt_delta = ac_extrema[i]/tr.stats.sampling_rate
         tr.stats.sediment = {'t1_offset': pbs_delta,
@@ -80,16 +76,20 @@ def _dereverb_yu_autocorr(rf_stream):
                              't3_offset': tt_delta}
     # end for
 
-    return rf_stream_noreverb
+    return rf_stream
 # end func
 
 
 @click.command()
-@click.option('--network', type=str)
-@click.option('--station', type=str)
+@click.option('--network', type=str, required=True,
+              help='Network in source file to apply de-reverb to.')
+@click.option('--reverb-stations', type=click.File(),
+              help='File containing one station code per line flagging which '
+                   'stations need de-reverb applied. Stations not in this list '
+                   'will be passed through unmodified.')
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False))
 @click.argument('output-file', type=click.Path(exists=False, dir_okay=False))
-def main(input_file, output_file, network, station):
+def main(input_file, output_file, network, reverb_stations=None):
     """
     Apply dereverberation to the R-component of receiver function.
     This is not a fully fledged sediment compensation method, and
@@ -99,23 +99,24 @@ def main(input_file, output_file, network, station):
     :param input_file: RF file to load in obspyh5 format with rf indexing
     :param output_file: RF file to write in obspyh5 format with rf indexing
     :param network: Network code of data to load from input file
-    :param station: Station code of data to load from input file
+    :param reverb_stations: File of station codes (one per line) to filter.
     """
-    # Data loading
-    data_all = rf_util.read_h5_rf(input_file, network, station)
-
-    # Select R-channel data
-    db = rf_util.rf_to_dict(data_all)
-    station_db = db[station]
-
-    rf_type = 'ZRT'
-    channel = rf_util.choose_rf_source_channel(rf_type, station_db)
-    logging.warning("Selected channel: {}".format(channel))
-    channel_data = station_db[channel]
-
-    rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
-    rf_stream_noreverb = _dereverb_yu_autocorr(rf_stream)
-    rf_stream_noreverb.write(output_file, format='h5')
+    if reverb_stations is None:
+        reverb_stations = []
+    else:
+        reverb_stations = reverb_stations.read().splitlines()
+    # end if
+    rf_stream = rf_util.read_h5_rf(input_file)
+    rf_stream = rf_stream.select(network=network, component='R')
+    stations = tqdm(reverb_stations, total=len(reverb_stations))
+    for sta in stations:
+        stations.set_description(sta)
+        sta_stream = rf_stream.select(station=sta)
+        if not sta_stream:
+            continue
+        _dereverb_yu_autocorr(sta_stream)
+    # end if
+    rf_stream.write(output_file, format='h5')
 # end func
 
 
