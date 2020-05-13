@@ -354,8 +354,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             transverse_data = station_db[t_channel]
             t_stream = rf.RFStream(
                 [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
-            if not t_stream:
-                continue
 
             # Plot pinwheel of primary and transverse components
             fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
@@ -368,7 +366,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             num_traces = len(rf_stream)
-            assert len(t_stream) == num_traces
+            assert len(t_stream) == num_traces or not t_stream
 
             # Plot RF stack of primary component
             trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
@@ -382,14 +380,16 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot RF stack of transverse component
-            fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
-                                              fig_width=paper_size_A4[0])
-            fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
-            # Customize layout to pack to top of page while preserving RF plots aspect ratios
-            _rf_layout_A4(fig)
-            # Save to new page in file
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
-            plt.close()
+            if t_stream:
+                fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                                                  fig_width=paper_size_A4[0])
+                fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
+                # Customize layout to pack to top of page while preserving RF plots aspect ratios
+                _rf_layout_A4(fig)
+                # Save to new page in file
+                pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+                plt.close()
+            # end if
 
             # Plot H-k stack using primary RF component
             fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
