@@ -38,10 +38,6 @@ def main(src_h5_event_file, network=None, station=None, dest_file=None):
     evids_discarded = evids_orig - evids_to_keep
     print('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
 
-    # Reload and apply event filter
-    ned = NetworkEventDataset(src_h5_event_file, network, station)
-    ned.curate(lambda _0, evid, _2: evid in evids_to_keep)
-
     # Methodology from M. Wilde-Piórko et al. paper (ZRT method):
     # 1.
 
@@ -51,18 +47,16 @@ def main(src_h5_event_file, network=None, station=None, dest_file=None):
         s.detrend(type='linear')
         s.taper(0.05)
         s.resample(10.0, no_filter=False)
-        tr_n = s.select(component='N')[0]
-        tr_n.trim(tr_n.stats.onset - 1.0, tr_n.stats.onset + 3.0)
-        if tr_n.stats.event_magnitude < 5.5:
+        tr_r = s.select(component='R')[0]
+        tr_r.trim(tr_r.stats.onset - 1.0, tr_r.stats.onset + 3.0)
+        if tr_r.stats.event_magnitude < 5.5:
             continue
-        # print('Mag:', tr_n.stats.event_magnitude)
-        tr_e = s.select(component='E')[0]
-        tr_e.trim(tr_e.stats.onset - 1.0, tr_e.stats.onset + 3.0)
-        if len(tr_n) != len(tr_e):
+        tr_t = s.select(component='T')[0]
+        tr_t.trim(tr_t.stats.onset - 1.0, tr_t.stats.onset + 3.0)
+        if len(tr_r) != len(tr_t):
             continue
-        event_baz = tr_n.stats.back_azimuth
-        # print('baz:', event_baz)
-        data = np.array([tr_n.data, tr_e.data])
+
+        data = np.array([tr_r.data, tr_t.data])
 
         # -----------
         # EXPERIMENT: NOT Wilde-Piórko method.
@@ -73,15 +67,12 @@ def main(src_h5_event_file, network=None, station=None, dest_file=None):
         sk_evecs = sk_pca.components_
         if sk_pca.explained_variance_ratio_[0] < 0.80:
             continue
-        sk_baz = np.rad2deg(np.arctan2(sk_evecs[0,1], sk_evecs[0,0]))
-        sk_residual = sk_baz - event_baz
-        while sk_residual < -90:
-            sk_baz += 180
-            sk_residual = sk_baz - event_baz
-        while sk_residual > 90:
-            sk_baz -= 180
-            sk_residual = sk_baz - event_baz
-        resids.append(sk_residual)
+        sk_baz_error = np.rad2deg(np.arctan2(sk_evecs[0,1], sk_evecs[0,0]))
+        while sk_baz_error < -90:
+            sk_baz_error += 180
+        while sk_baz_error > 90:
+            sk_baz_error -= 180
+        resids.append(sk_baz_error)
         # -----------
 
         pass
@@ -101,5 +92,5 @@ def main(src_h5_event_file, network=None, station=None, dest_file=None):
 
 if __name__ == '__main__':
     main('/g/data1a/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5',
-         '7X', 'MA01')
+         '7X', 'MA21')
 # end if
