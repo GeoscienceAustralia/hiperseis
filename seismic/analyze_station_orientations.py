@@ -6,8 +6,18 @@ detect and estimate any station orientation error.
 In future, consider moving this script to the `inventory` module and applying
 corrections to the station inventory xml (to the azimuth tag).
 
-Reference:
-Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al. On the rotation of teleseismic seismograms based on the receiver function technique.
+Methods explored:
+
+1. Wang, Xin & Chen, Qi-fu & Li, Juan & Wei, Shengji. (2016).
+Seismic Sensor Misorientation Measurement Using P -Wave Particle Motion: An Application to the NECsaids Array.
+Seismological Research Letters. 87. 901-911. doi: 10.1785/0220160005
+
+2. Abt, D. L., Fischer, K. M., French, S. W., Ford, H. A., Yuan, H., and Romanowicz, B. ( 2010),
+North American lithospheric discontinuity structure imaged by Ps and Sp receiver functions,
+J. Geophys. Res., 115, B09301, doi:10.1029/2009JB006914.
+
+3. Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al.
+On the rotation of teleseismic seismograms based on the receiver function technique.
 J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
 
@@ -15,18 +25,14 @@ import click
 import logging
 
 import numpy as np
-from numpy.linalg import eig
 from sklearn.decomposition import PCA
 
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 
 
-@click.command()
-@click.option('--dest-file', type=click.Path(dir_okay=False))
-@click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
-                required=True)
-def main(src_h5_event_file, dest_file=None):
+def method_wang(src_h5_event_file, dest_file=None):
+    # EXPERIMENT: Wang PCA method.
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -55,9 +61,6 @@ def main(src_h5_event_file, dest_file=None):
     evids_discarded = evids_orig - evids_to_keep
     logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
 
-    # Methodology from M. Wilde-Piórko et al. paper (ZRT method):
-    # 1.
-
     logger.info('Analysing arrivals')
     for sta, db_evid in ned.by_station():
         resids = []
@@ -77,8 +80,6 @@ def main(src_h5_event_file, dest_file=None):
 
             data = np.array([tr_r.data, tr_t.data])
 
-            # -----------
-            # EXPERIMENT: NOT Wilde-Piórko method.
             # sklearn method
             sk_pca = PCA()
             sk_pca.fit(data.T)
@@ -92,9 +93,10 @@ def main(src_h5_event_file, dest_file=None):
             while sk_baz_error > 90:
                 sk_baz_error -= 180
             resids.append(sk_baz_error)
-            # -----------
+
         # end for
         resids = np.array(sorted(resids))
+        # TODO: Detect outliers to Gaussian fit and remove from set before computing stats
         mean = np.mean(resids)
         stddev = np.std(resids)
         N = len(resids)
@@ -110,6 +112,15 @@ def main(src_h5_event_file, dest_file=None):
     if dest_file is not None:
         ned.write(dest_file)
     # end if
+# end func
+
+
+@click.command()
+@click.option('--dest-file', type=click.Path(dir_okay=False))
+@click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
+                required=True)
+def main(src_h5_event_file, dest_file=None):
+    method_wang(src_h5_event_file, dest_file)
 # end func
 
 
