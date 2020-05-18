@@ -38,6 +38,12 @@ def main(src_h5_event_file, dest_file=None):
     logger.info('Trimming dataset')
     ned.apply(lambda stream: stream.trim(stream[0].stats.onset - 10, stream[0].stats.onset + 30))
 
+    # Downsample.
+    logger.info('Downsampling dataset')
+    fs = 20.0
+    ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+              .interpolate(fs, method='lanczos', a=10))
+
     curation_opts = {
         "min_snr": 2.0,
         "max_raw_amplitude": 20000.0,
@@ -52,6 +58,7 @@ def main(src_h5_event_file, dest_file=None):
     # Methodology from M. Wilde-Piórko et al. paper (ZRT method):
     # 1.
 
+    logger.info('Analysing arrivals')
     for sta, db_evid in ned.by_station():
         resids = []
         for stream in db_evid.values():
@@ -79,7 +86,7 @@ def main(src_h5_event_file, dest_file=None):
             sk_evecs = sk_pca.components_
             if sk_pca.explained_variance_ratio_[0] < 0.80:
                 continue
-            sk_baz_error = np.rad2deg(np.arctan2(sk_evecs[0,1], sk_evecs[0,0]))
+            sk_baz_error = np.rad2deg(np.arctan2(sk_evecs[0, 1], sk_evecs[0, 0]))
             while sk_baz_error < -90:
                 sk_baz_error += 180
             while sk_baz_error > 90:
@@ -90,8 +97,13 @@ def main(src_h5_event_file, dest_file=None):
         resids = np.array(sorted(resids))
         mean = np.mean(resids)
         stddev = np.std(resids)
-        stderr = stddev / np.sqrt(len(resids))  # standard error of the mean
-        logger.info('{}:  {:.4f}° ± {:.4f}°, stddev {:.4f}° (N = {})'.format(sta, mean, stderr, stddev, len(resids)))
+        N = len(resids)
+        stderr = stddev/np.sqrt(N)  # standard error of the mean
+        if N >= 5:
+            logger.info('{}:  {:.4f}° ± {:.4f}°, stddev {:.4f}° (N = {})'.format(sta, mean, stderr, stddev, N))
+        else:
+            logger.info('{}:  Insufficient data (N = {})'.format(sta, N))
+        # end if
         # print(resids)
     # end for
 
@@ -102,5 +114,5 @@ def main(src_h5_event_file, dest_file=None):
 
 
 if __name__ == '__main__':
-    main()
+    main()  # pylint: disable=no-value-for-parameter
 # end if
