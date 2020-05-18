@@ -34,6 +34,10 @@ def main(src_h5_event_file, dest_file=None):
     ned = NetworkEventDataset(src_h5_event_file)
     evids_orig = set([evid for _, evid, _ in ned])
 
+    # Trim streams to time window
+    logger.info('Trimming dataset')
+    ned.apply(lambda stream: stream.trim(stream[0].stats.onset - 10, stream[0].stats.onset + 30))
+
     curation_opts = {
         "min_snr": 2.0,
         "max_raw_amplitude": 20000.0,
