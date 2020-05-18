@@ -24,7 +24,7 @@ from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 
 @click.command()
 @click.option('--dest-file', type=click.Path(dir_okay=False))
-@click.argument('--src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
+@click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
 
