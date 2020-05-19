@@ -16,6 +16,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from tqdm.auto import tqdm
 
 from seismic.network_event_dataset import NetworkEventDataset
+from seismic.stream_quality_filter import curate_stream3c
 # from seismic.stream_io import get_obspyh5_index
 
 
@@ -126,8 +127,12 @@ def main(input_file, output_file, channel_order):
     if channel_order == 'ZNE':
         ned.apply(lambda stream: stream.rotate('->ZNE'))
     elif channel_order == 'ZRT':
+        # Apply curation to streams prior to rotation. Rotation can't be done on streams
+        # that fail this curation.
+        ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
         ned.apply(lambda stream: stream.rotate('NE->RT'))
     elif channel_order == 'LQT':
+        ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
         ned.apply(lambda stream: stream.rotate('ZNE->LQT'))
     # end if
     plot_ned_seismograms(ned, output_file, channel_order)
