@@ -44,6 +44,15 @@ def pdf_prune_outliers(data, cull_n_stddev=2.5):
 # end func
 
 
+def resids_stats(resids):
+    N = len(resids)
+    mean = np.mean(resids)
+    stddev = np.std(resids)
+    stderr = stddev / np.sqrt(N)  # standard error of the mean
+    return N, mean, stderr, stddev
+# end func
+
+
 def method_wang(src_h5_event_file, dest_file=None):
     # EXPERIMENT: Wang PCA method.
 
@@ -109,14 +118,15 @@ def method_wang(src_h5_event_file, dest_file=None):
 
         # end for
         resids = np.array(sorted(resids))
+        N, mean, stderr, stddev = resids_stats(resids)
         # Detect outliers to Gaussian fit and remove from set before computing stats
-        resids = pdf_prune_outliers(resids)
-        mean = np.mean(resids)
-        stddev = np.std(resids)
-        N = len(resids)
-        stderr = stddev/np.sqrt(N)  # standard error of the mean
+        resids_culled = pdf_prune_outliers(resids)
+        N_c, mean_c, stderr_c, stddev_c = resids_stats(resids_culled)
         if N >= 5:
-            logger.info('{}:  {:.4f}° ± {:.4f}°, stddev {:.4f}° (N = {})'.format(sta, mean, stderr, stddev, N))
+            logger.info('{}: {:2.3f}° ± {:2.3f}°, stddev {:2.3f}° (N = {:3d})  '
+                        '[CULLED: {:2.3f}° ± {:2.3f}°, stddev {:2.3f}° (N = {:3d})]'
+                        .format(sta, mean, stderr, stddev, N,
+                                mean_c, stderr_c, stddev_c, N_c))
         else:
             logger.info('{}:  Insufficient data (N = {})'.format(sta, N))
         # end if
