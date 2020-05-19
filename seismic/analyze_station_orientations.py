@@ -25,10 +25,23 @@ import click
 import logging
 
 import numpy as np
+from scipy import stats
 from sklearn.decomposition import PCA
 
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
+
+
+def pdf_prune_outliers(data, cull_n_stddev=2.5):
+    n_outside = len(data)
+    while n_outside > 0:
+        mean, stddev = stats.norm.fit(data)
+        mask = ((data < mean - cull_n_stddev*stddev) | (data > mean + cull_n_stddev*stddev))
+        n_outside = np.sum(mask)
+        data = data[~mask]
+    # end while
+    return data
+# end func
 
 
 def method_wang(src_h5_event_file, dest_file=None):
@@ -96,7 +109,8 @@ def method_wang(src_h5_event_file, dest_file=None):
 
         # end for
         resids = np.array(sorted(resids))
-        # TODO: Detect outliers to Gaussian fit and remove from set before computing stats
+        # Detect outliers to Gaussian fit and remove from set before computing stats
+        resids = pdf_prune_outliers(resids)
         mean = np.mean(resids)
         stddev = np.std(resids)
         N = len(resids)
