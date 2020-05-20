@@ -102,7 +102,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     stream_z.taper(taper_limit, **kwargs)
     compute_vertical_snr(stream_z)
 
-    assert rotation_type.lower() in ['zrt', 'lqt']
+    rotation_type = rotation_type.lower()
+    assert rotation_type in ['zrt', 'lqt']
     if rotation_type == 'zrt':
         rf_rotation = 'NE->RT'
     else:
@@ -191,52 +192,18 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     oqueue.put(output_stream)
 
     return True
+# end func
 
 
-# --------------Main---------------------------------
-
-@click.command()
-@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-@click.option('--resample-rate', type=float, default=DEFAULT_RESAMPLE_RATE_HZ, show_default=True,
-              help="Resampling rate in Hz")
-@click.option('--channel-pattern', type=str,
-              help="Ordered list of preferred channels, e.g. 'HH*,BH*', where channel selection is ambiguous.")
-@click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
-              help="Fraction of signal to taper at end, between 0 and 0.5")
-@click.option('--filter-band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
-              help="Filter pass band (Hz). Only required for time-domain deconvolution.")
-@click.option('--gauss-width', type=float, default=DEFAULT_GAUSS_WIDTH, show_default=True,
-              help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
-@click.option('--water-level', type=float, default=DEFAULT_WATER_LEVEL, show_default=True,
-              help="Water-level for freq domain spectrum. Only required for freq-domain deconvolution")
-@click.option('--spiking', type=float, default=DEFAULT_SPIKING, show_default=True,
-              help="Spiking factor (noise suppression), only required for time-domain deconvolution")
-@click.option('--trim-start-time', type=float, default=DEFAULT_TRIM_START_TIME_SEC, show_default=True,
-              help="Trace trim start time in sec, relative to onset")
-@click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
-              help="Trace trim end time in sec, relative to onset")
-@click.option('--rotation-type', type=click.Choice(['zrt', 'lqt'], case_sensitive=False),
-              default=DEFAULT_ROTATION_TYPE, show_default=True,
-              help="Rotational coordinate system for aligning ZNE trace components with incident wave direction")
-@click.option('--deconv-domain', type=click.Choice(['time', 'freq', 'iter'], case_sensitive=False),
-              default=DEFAULT_DECONV_DOMAIN, show_default=True,
-              help="Whether to perform deconvolution in time or freq domain, or iterative technique")
-@click.option('--normalize/--no-normalize', default=True, show_default=True, help="Whether to normalize RF amplitude")
-@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
-@click.option('--memmap/--no-memmap', default=False, show_default=True,
-              help="Memmap input file for improved performance in data reading thread. Useful when data input "
-                   "is bottleneck, if system memory permits.")
-@click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
-@click.option('--aggressive-dispatch/--no-aggressive-dispatch', default=False, show_default=True,
-              help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
-                   "starved of work. Uses more memory.")
-def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
-         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=True, parallel=True, memmap=False,
-         temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
+def event_waveforms_to_rf(input_file, output_file, resample_rate, taper_limit, filter_band,
+                          trim_start_time, trim_end_time, rotation_type, deconv_domain,
+                          gauss_width=None, water_level=None, spiking=None,
+                          normalize=True, parallel=True, memmap=False, temp_dir=None,
+                          aggressive_dispatch=False, channel_pattern=None):
     """
     Main entry point for generating RFs from event traces.
-    See Click documentation for details on options.
+
+    FILL IN MISSING DOCS HERE
 
     :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
     :type input_file: str or pathlib.Path
@@ -298,5 +265,54 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
 # end func
 
 
+# --------------Main---------------------------------
+
+@click.command()
+@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--resample-rate', type=float, default=DEFAULT_RESAMPLE_RATE_HZ, show_default=True,
+              help="Resampling rate in Hz")
+@click.option('--channel-pattern', type=str,
+              help="Ordered list of preferred channels, e.g. 'HH*,BH*', where channel selection is ambiguous.")
+@click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
+              help="Fraction of signal to taper at end, between 0 and 0.5")
+@click.option('--filter-band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
+              help="Filter pass band (Hz). Only required for time-domain deconvolution.")
+@click.option('--gauss-width', type=float, default=DEFAULT_GAUSS_WIDTH, show_default=True,
+              help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
+@click.option('--water-level', type=float, default=DEFAULT_WATER_LEVEL, show_default=True,
+              help="Water-level for freq domain spectrum. Only required for freq-domain deconvolution")
+@click.option('--spiking', type=float, default=DEFAULT_SPIKING, show_default=True,
+              help="Spiking factor (noise suppression), only required for time-domain deconvolution")
+@click.option('--trim-start-time', type=float, default=DEFAULT_TRIM_START_TIME_SEC, show_default=True,
+              help="Trace trim start time in sec, relative to onset")
+@click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
+              help="Trace trim end time in sec, relative to onset")
+@click.option('--rotation-type', type=click.Choice(['zrt', 'lqt'], case_sensitive=False),
+              default=DEFAULT_ROTATION_TYPE, show_default=True,
+              help="Rotational coordinate system for aligning ZNE trace components with incident wave direction")
+@click.option('--deconv-domain', type=click.Choice(['time', 'freq', 'iter'], case_sensitive=False),
+              default=DEFAULT_DECONV_DOMAIN, show_default=True,
+              help="Whether to perform deconvolution in time or freq domain, or iterative technique")
+@click.option('--normalize/--no-normalize', default=True, show_default=True, help="Whether to normalize RF amplitude")
+@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
+@click.option('--memmap/--no-memmap', default=False, show_default=True,
+              help="Memmap input file for improved performance in data reading thread. Useful when data input "
+                   "is bottleneck, if system memory permits.")
+@click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
+@click.option('--aggressive-dispatch/--no-aggressive-dispatch', default=False, show_default=True,
+              help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
+                   "starved of work. Uses more memory.")
+def _main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
+         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=True, parallel=True, memmap=False,
+         temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
+    # Dispatch call to worker function. See worker function for documentation.
+    event_waveforms_to_rf(input_file, output_file, resample_rate, taper_limit, filter_band,
+                          trim_start_time, trim_end_time,  rotation_type, deconv_domain,
+                          gauss_width, water_level, spiking, normalize, parallel, memmap,
+                          temp_dir, aggressive_dispatch, channel_pattern)
+# end main
+
+
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    _main()  # pylint: disable=no-value-for-parameter
