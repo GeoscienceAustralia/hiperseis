@@ -8,20 +8,21 @@ from seismic.model_properties import LayerProps
 from seismic.receiver_fn.generate_rf import event_waveforms_to_rf
 
 mantle = LayerProps(8.0, 4.5, 3.3, np.nan)
-crust = LayerProps(6.4, 6.4/1.7, 2.7, 35.0)
+upper_crust = LayerProps(5.6, 5.6/1.65, 2.4, 10.0)
+lower_crust = LayerProps(6.4, 6.4/1.7, 2.7, 30.0)
 
 src_latlon = ((35, 140),)
 fs = 100.0
 time_window = (-20, 60)
 generator_args = {
     'station_latlon': (-25, 140),
-    'layerprops': [crust, mantle]
+    'layerprops': [upper_crust, lower_crust, mantle]
 }
-raw_file = 'synth_events_1L.h5'
+raw_file = 'synth_events_2L.h5'
 synthesize_dataset('propmatrix', raw_file, 'SY', 'AAA', src_latlon, fs, time_window, **generator_args)
 
 # Generate receiver function
-rf_file = 'synth_rf_1L.h5'
+rf_file = 'synth_rf_2L.h5'
 resample_rate = 6.25  # Hz
 event_waveforms_to_rf(raw_file, rf_file, resample_rate, taper_limit=0.05, filter_band=(0.02, 1.0),
                       trim_start_time=-5.0 - 275*resample_rate, trim_end_time=150,
