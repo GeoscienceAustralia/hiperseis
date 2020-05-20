@@ -83,7 +83,7 @@ def plot_ned_seismograms(ned, output_file, channel_order='ZNE'):
                         tr_mean = np.nanmean(tr.data)
                         # Rasterize so that size is fairly constant, irrespective
                         # of the number of sample points per trace
-                        axn.plot(t, tr.data, 'k', rasterized=True)
+                        axn.plot(t, tr.data, 'k', rasterized=True, linewidth=0.6, alpha=0.8)
                         axn.set_ylim(tr_mean - max_half_range, tr_mean + max_half_range)
                         axn.tick_params(labelsize=axes_fontsize)
                         tag = '.'.join([tr.stats.network, tr.stats.station, tr.stats.location, tr.stats.channel])
