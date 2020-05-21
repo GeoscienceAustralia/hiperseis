@@ -87,10 +87,10 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
         return False
 
     if baz_range is not None:
-        if not isinstance(baz_range, list):
+        if not isinstance(baz_range[0], list):
             baz_range = [baz_range]
         baz = stream3c[0].stats.back_azimuth
-        if not any([back_azimuth_filter(baz, b) for b in baz_range]):
+        if not any([back_azimuth_filter(baz, tuple(b)) for b in baz_range]):
             return False
     # end if
 

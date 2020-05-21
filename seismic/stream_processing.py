@@ -68,7 +68,7 @@ def back_azimuth_filter(baz, baz_range):
     assert 0 <= baz <= 360
     assert 0 <= baz_range[0] <= 360
     assert 0 <= baz_range[1] <= 360
-    baz_range = copy.copy(baz_range)
+    baz_range = list(copy.copy(baz_range))
     while baz_range[0] > baz_range[1]:
         baz_range[0] -= 360
     return ((baz_range[0] <= baz <= baz_range[1]) or
