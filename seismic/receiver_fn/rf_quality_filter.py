@@ -15,6 +15,7 @@ from multiprocessing import Process, Manager
 import numpy as np
 import pandas as pd
 import click
+import h5py
 
 from scipy import signal
 from scipy import stats
@@ -428,8 +429,10 @@ def main(input_file, output_file, temp_dir=None, parallel=True):
 
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
+    with h5py.File(input_file, mode='r') as h5f:
+        config_str = h5f.attrs['metadata'] if 'metadata' in h5f.attrs else ''
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 20))
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 20, config_str))
     output_thread.daemon = True
     output_thread.start()
 
