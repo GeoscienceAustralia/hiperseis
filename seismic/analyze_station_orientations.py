@@ -12,11 +12,7 @@ Methods explored:
 Seismic Sensor Misorientation Measurement Using P -Wave Particle Motion: An Application to the NECsaids Array.
 Seismological Research Letters. 87. 901-911. doi: 10.1785/0220160005
 
-2. Abt, D. L., Fischer, K. M., French, S. W., Ford, H. A., Yuan, H., and Romanowicz, B. ( 2010),
-North American lithospheric discontinuity structure imaged by Ps and Sp receiver functions,
-J. Geophys. Res., 115, B09301, doi:10.1029/2009JB006914.
-
-3. Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al.
+2. Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al.
 On the rotation of teleseismic seismograms based on the receiver function technique.
 J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
@@ -139,12 +135,18 @@ def method_wang(src_h5_event_file, dest_file=None):
 # end func
 
 
+def method_wilde_piorko(src_h5_event_file, dest_file=None):
+    pass
+# end if
+
+
 @click.command()
 @click.option('--dest-file', type=click.Path(dir_okay=False))
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
     method_wang(src_h5_event_file, dest_file)
+    method_wilde_piorko(src_h5_event_file, dest_file)
 # end func
 
 

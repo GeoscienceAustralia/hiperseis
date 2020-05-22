@@ -22,7 +22,7 @@ from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfCont
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.stream_processing import zrt_order
-from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster
+from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster, DEFAULT_CLUSTER_EPS
 
 
 # Custom logging format to add timestamps to each output line.
@@ -92,10 +92,11 @@ def run_mcmc(waveform_data, config, logger):
     max_iter = solver_opts["max_iter"]
     target_ar = solver_opts.get("target_ar", DEFAULT_AR)
     collect_samples = solver_opts.get("collect_samples", None)
+    cluster_eps = solver_opts.get("cluster_eps", DEFAULT_CLUSTER_EPS)
     N = solver_opts.get("max_solutions", 3)
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, N=N, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
-        collect_samples=collect_samples, logger=logger, verbose=True)
+        cluster_eps=cluster_eps, collect_samples=collect_samples, logger=logger, verbose=True)
 
     # Record number of independent events processed
     soln.num_input_seismograms = len(waveform_data)

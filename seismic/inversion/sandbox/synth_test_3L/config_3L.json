@@ -27,7 +27,7 @@
   {
     "_comment": "Solver options",
     "type": "mcmc",
-    "temp": 0.005,
+    "temp": 0.010,
     "burnin": 100000,
     "max_iter": 1000000,
     "collect_samples": 50000,

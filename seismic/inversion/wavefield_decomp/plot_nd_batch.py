@@ -255,6 +255,9 @@ def main(solution_file, output_file):
 
     with PdfPages(output_file) as pdf:
         for soln, config in tqdm(soln_config):
+            empty_soln = (soln.x.shape[0] == 0)
+            if empty_soln:
+                continue
             assert soln.x.shape[-1] == len(config['layers'])*2
             vars = []
             for layer in config['layers']:
