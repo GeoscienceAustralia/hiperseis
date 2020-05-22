@@ -21,7 +21,7 @@ from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.wavefield_continuation_tao import WfContinuationSuFluxComputer
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.receiver_fn.rf_util import compute_vertical_snr
-from seismic.stream_processing import zrt_order
+from seismic.stream_processing import zrt_order, back_azimuth_filter
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster, DEFAULT_CLUSTER_EPS
 
 
@@ -193,26 +193,6 @@ def curate_seismograms(data_all, curation_opts, logger):
         return ((np.max(np.abs(_stream[0].data)) <= max_amplitude) and
                 (np.max(np.abs(_stream[1].data)) <= max_amplitude) and
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
-    # end func
-
-    def back_azimuth_filter(baz, baz_range):
-        """Check if back azimuth `baz` is within range. Inputs must be in the range [0, 360] degrees.
-
-        :param baz_range: Pair of angles in degrees.
-        :type baz_range: List or array of 2 floats, min and max back azimuth
-        :return: True if baz is within baz_range, False otherwise.
-        """
-        assert not np.any(np.isinf(np.array(baz_range)))
-        assert not np.any(np.isnan(np.array(baz_range)))
-        assert 0 <= baz <= 360
-        assert 0 <= baz_range[0] <= 360
-        assert 0 <= baz_range[1] <= 360
-        baz_range = copy.copy(baz_range)
-        while baz_range[0] > baz_range[1]:
-            baz_range[0] -= 360
-        return ((baz_range[0] <= baz <= baz_range[1]) or
-                (baz_range[0] <= baz - 360 <= baz_range[1]) or
-                (baz_range[0] <= baz + 360 <= baz_range[1]))
     # end func
 
     def rms_ampl_filter(_stream, rms_ampl_bounds):
