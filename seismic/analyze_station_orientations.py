@@ -141,6 +141,31 @@ def method_wang(src_h5_event_file, dest_file=None):
 # end func
 
 
+def _run_single_angle(db_evid, angle, config_filtering, config_processing):
+    rf_stream_all = RFStream()
+    for evid, stream in db_evid.items():
+        stream_rot = copy.deepcopy(stream)
+        for tr in stream_rot:
+            tr.stats.back_azimuth += angle
+            while tr.stats.back_azimuth < 0:
+                tr.stats.back_azimuth += 360
+            while tr.stats.back_azimuth >= 360:
+                tr.stats.back_azimuth -= 360
+        rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
+                                        config_filtering, config_processing)
+        if rf_3ch is not None:
+            rf_stream_all += rf_3ch
+    # end for
+    rf_stream_R = rf_stream_all.select(component='R')
+    rf_stream_R.trim2(-5, 5, reftime='onset')
+    rf_stream_R.detrend('linear')
+    rf_stream_R.taper(0.1)
+    R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
+    ampl_cum = np.sum(R_stack)
+    return ampl_cum
+# end func
+
+
 def method_wilde_piorko(src_h5_event_file, dest_file=None):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -188,32 +213,15 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
     }
     sta_ori_metrics = defaultdict(list)
     angles = np.linspace(0, 360, num=12, endpoint=False)
-    job_runner = Parallel(n_jobs=1, verbose=5, max_nbytes='16M')
+    job_runner = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')
     for sta, db_evid in ned.by_station():
+        jobs = []
         for correction in angles:
-            jobs = []
-            for evid, stream in db_evid.items():
-                stream_rot = copy.deepcopy(stream)
-                for tr in stream_rot:
-                    tr.stats.back_azimuth += correction
-                    while tr.stats.back_azimuth < 0:
-                        tr.stats.back_azimuth += 360
-                    while tr.stats.back_azimuth >= 360:
-                        tr.stats.back_azimuth -= 360
-                job = delayed(transform_stream_to_rf)(evid, RFStream(stream_rot),
-                                                      config_filtering, config_processing)
-                jobs.append(job)
-            # end for
-            rfs_3ch = job_runner(jobs)
-            rf_stream_all = RFStream([_tr for _rf in rfs_3ch for _tr in _rf])
-            rf_stream_R = rf_stream_all.select(component='R')
-            rf_stream_R.trim2(-5, 5, reftime='onset')
-            rf_stream_R.detrend('linear')
-            rf_stream_R.taper(0.1)
-            R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
-            ampl_cum = np.sum(R_stack)
-            sta_ori_metrics[sta].append(ampl_cum)
+            job = delayed(_run_single_angle)(db_evid, correction, config_filtering, config_processing)
+            jobs.append(job)
         # end for
+        ampls = job_runner(jobs)
+        sta_ori_metrics[sta] += ampls
     # end for
     print(sta_ori_metrics['MB21'])
     pass
