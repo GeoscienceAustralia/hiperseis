@@ -19,13 +19,19 @@ J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 
 import click
 import logging
+import copy
+from joblib import Parallel, delayed
+from collections import defaultdict
 
 import numpy as np
 from scipy import stats
 from sklearn.decomposition import PCA
+from rf import RFStream
 
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
+from seismic.receiver_fn.generate_rf import transform_stream_to_rf
+from seismic.stream_quality_filter import curate_stream3c
 
 
 def pdf_prune_outliers(data, cull_n_stddev=2.5):
@@ -136,6 +142,80 @@ def method_wang(src_h5_event_file, dest_file=None):
 
 
 def method_wilde_piorko(src_h5_event_file, dest_file=None):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.info('Loading dataset')
+    ned = NetworkEventDataset(src_h5_event_file, '7X', 'MB21')
+    evids_orig = set([evid for _, evid, _ in ned])
+
+    # Trim streams to time window
+    logger.info('Trimming dataset')
+    ned.apply(lambda stream: stream.trim(stream[0].stats.onset - 30, stream[0].stats.onset + 60))
+    ned.apply(lambda stream: stream.detrend('linear'))
+    ned.apply(lambda stream: stream.taper(0.05))
+
+    # # Downsample.
+    # logger.info('Downsampling dataset')
+    # fs = 20.0
+    # ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+    #           .interpolate(fs, method='lanczos', a=10))
+
+    # curation_opts = {
+    #     "min_snr": 3.0,
+    #     "max_raw_amplitude": 20000.0,
+    #     "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
+    # }
+    # logger.info('Curating dataset')
+    # curate_seismograms(ned, curation_opts, logger)
+    # evids_to_keep = set([evid for _, evid, _ in ned])
+    # evids_discarded = evids_orig - evids_to_keep
+    # logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
+
+    ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
+
+    logger.info('Analysing arrivals')
+    config_filtering = {
+        "resample_rate": 10.0,
+        "taper_limit": 0.05,
+        "filter_band": [0.02, 1.0],
+    }
+    config_processing = {
+        "rotation_type": "ZRT",
+        "deconv_domain": "time",  # time is quicker than iter
+        "normalize": True,
+        "trim_start_time": -30,
+        "trim_end_time": 60
+    }
+    sta_ori_metrics = defaultdict(list)
+    angles = np.linspace(0, 360, num=12, endpoint=False)
+    job_runner = Parallel(n_jobs=1, verbose=5, max_nbytes='16M')
+    for sta, db_evid in ned.by_station():
+        for correction in angles:
+            jobs = []
+            for evid, stream in db_evid.items():
+                stream_rot = copy.deepcopy(stream)
+                for tr in stream_rot:
+                    tr.stats.back_azimuth += correction
+                    while tr.stats.back_azimuth < 0:
+                        tr.stats.back_azimuth += 360
+                    while tr.stats.back_azimuth >= 360:
+                        tr.stats.back_azimuth -= 360
+                job = delayed(transform_stream_to_rf)(evid, RFStream(stream_rot),
+                                                      config_filtering, config_processing)
+                jobs.append(job)
+            # end for
+            rfs_3ch = job_runner(jobs)
+            rf_stream_all = RFStream([_tr for _rf in rfs_3ch for _tr in _rf])
+            rf_stream_R = rf_stream_all.select(component='R')
+            rf_stream_R.trim2(-5, 5, reftime='onset')
+            rf_stream_R.detrend('linear')
+            rf_stream_R.taper(0.1)
+            R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
+            ampl_cum = np.sum(R_stack)
+            sta_ori_metrics[sta].append(ampl_cum)
+        # end for
+    # end for
+    print(sta_ori_metrics['MB21'])
     pass
 # end if
 
@@ -145,7 +225,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
-    method_wang(src_h5_event_file, dest_file)
+    # method_wang(src_h5_event_file, dest_file)
     method_wilde_piorko(src_h5_event_file, dest_file)
 # end func
 
