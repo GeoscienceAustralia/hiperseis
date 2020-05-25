@@ -28,6 +28,8 @@ from scipy.interpolate import CubicSpline
 from sklearn.decomposition import PCA
 from rf import RFStream
 
+import matplotlib.pyplot as plt
+
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.receiver_fn.generate_rf import transform_stream_to_rf
@@ -170,7 +172,7 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
 # end func
 
 
-def method_wilde_piorko(src_h5_event_file, dest_file=None):
+def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     logger.info('Loading dataset')
@@ -215,7 +217,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
         "trim_start_time": -30,
         "trim_end_time": 60
     }
-    angles = np.linspace(-180, 180, num=120, endpoint=False)
+    angles = np.linspace(-180, 180, num=30, endpoint=False)
     job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
     for sta, db_evid in ned.by_station():
@@ -226,13 +228,23 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
     sta_ori_metrics = [(sta, ampls) for sta, ampls in zip(ned.db_sta.keys(), sta_ampls)]
 
     x = np.hstack((angles, angles[0] + 360))
-    angles_fine = np.linspace(-180, 180, num=3600, endpoint=False)
+    angles_fine = np.linspace(-180, 180, num=361)
     for sta, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
         interp = CubicSpline(x, y, bc_type='periodic')
         yint = interp(angles_fine)
         angle_max = angles_fine[np.argmax(yint)]
         logger.info('{}: {:2.3f}°'.format(sta, angle_max))
+        if save_plot:
+            f = plt.figure(figsize=(16,9))
+            plt.plot(x, y, 'x')
+            plt.plot(angles_fine, yint, '--', alpha=0.7)
+            plt.grid(linestyle=':', color="#80808080")
+            plt.xlabel('Orientation correction (deg)')
+            plt.ylabel('P phase ampl. sum (0-1 sec)')
+            plt.savefig(sta + '_ori.png', dpi=300)
+            plt.close()
+        # end if
     # end for
 # end if
 
