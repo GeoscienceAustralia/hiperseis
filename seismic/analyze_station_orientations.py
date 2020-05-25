@@ -216,7 +216,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
         "trim_end_time": 60
     }
     angles = np.linspace(-180, 180, num=120, endpoint=False)
-    job_runner = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')
+    job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
     for sta, db_evid in ned.by_station():
         job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
