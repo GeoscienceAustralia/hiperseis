@@ -21,10 +21,10 @@ import click
 import logging
 import copy
 from joblib import Parallel, delayed
-from collections import defaultdict
 
 import numpy as np
 from scipy import stats
+from scipy.interpolate import CubicSpline
 from sklearn.decomposition import PCA
 from rf import RFStream
 
@@ -141,28 +141,32 @@ def method_wang(src_h5_event_file, dest_file=None):
 # end func
 
 
-def _run_single_angle(db_evid, angle, config_filtering, config_processing):
-    rf_stream_all = RFStream()
-    for evid, stream in db_evid.items():
-        stream_rot = copy.deepcopy(stream)
-        for tr in stream_rot:
-            tr.stats.back_azimuth += angle
-            while tr.stats.back_azimuth < 0:
-                tr.stats.back_azimuth += 360
-            while tr.stats.back_azimuth >= 360:
-                tr.stats.back_azimuth -= 360
-        rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
-                                        config_filtering, config_processing)
-        if rf_3ch is not None:
-            rf_stream_all += rf_3ch
+def _run_single_station(db_evid, angles, config_filtering, config_processing):
+    ampls = []
+    for correction in angles:
+        rf_stream_all = RFStream()
+        for evid, stream in db_evid.items():
+            stream_rot = copy.deepcopy(stream)
+            for tr in stream_rot:
+                tr.stats.back_azimuth += correction
+                while tr.stats.back_azimuth < 0:
+                    tr.stats.back_azimuth += 360
+                while tr.stats.back_azimuth >= 360:
+                    tr.stats.back_azimuth -= 360
+            rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
+                                            config_filtering, config_processing)
+            if rf_3ch is not None:
+                rf_stream_all += rf_3ch
+        # end for
+        rf_stream_R = rf_stream_all.select(component='R')
+        rf_stream_R.trim2(-5, 5, reftime='onset')
+        rf_stream_R.detrend('linear')
+        rf_stream_R.taper(0.1)
+        R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
+        ampl_cum = np.sum(R_stack)
+        ampls.append(ampl_cum)
     # end for
-    rf_stream_R = rf_stream_all.select(component='R')
-    rf_stream_R.trim2(-5, 5, reftime='onset')
-    rf_stream_R.detrend('linear')
-    rf_stream_R.taper(0.1)
-    R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
-    ampl_cum = np.sum(R_stack)
-    return ampl_cum
+    return ampls
 # end func
 
 
@@ -170,8 +174,8 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     logger.info('Loading dataset')
-    ned = NetworkEventDataset(src_h5_event_file, '7X', 'MB21')
-    evids_orig = set([evid for _, evid, _ in ned])
+    ned = NetworkEventDataset(src_h5_event_file)
+    # evids_orig = set([evid for _, evid, _ in ned])
 
     # Trim streams to time window
     logger.info('Trimming dataset')
@@ -211,20 +215,25 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None):
         "trim_start_time": -30,
         "trim_end_time": 60
     }
-    sta_ori_metrics = defaultdict(list)
-    angles = np.linspace(0, 360, num=12, endpoint=False)
+    angles = np.linspace(-180, 180, num=120, endpoint=False)
     job_runner = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M')
     for sta, db_evid in ned.by_station():
         jobs = []
-        for correction in angles:
-            job = delayed(_run_single_angle)(db_evid, correction, config_filtering, config_processing)
-            jobs.append(job)
-        # end for
-        ampls = job_runner(jobs)
-        sta_ori_metrics[sta] += ampls
+        job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
+        jobs.append(job)
     # end for
-    print(sta_ori_metrics['MB21'])
-    pass
+    sta_ampls = job_runner(jobs)
+    sta_ori_metrics = [(sta, ampls) for sta, ampls in zip(ned.db_sta.keys(), sta_ampls)]
+
+    x = np.hstack((angles, angles[0] + 360))
+    angles_fine = np.linspace(-180, 180, num=3600, endpoint=False)
+    for sta, ampls in sta_ori_metrics:
+        y = np.array(ampls + [ampls[0]])
+        interp = CubicSpline(x, y, bc_type='periodic')
+        yint = interp(angles_fine)
+        angle_max = angles_fine[np.argmax(yint)]
+        logger.info('{}: {:2.3f}°'.format(sta, angle_max))
+    # end for
 # end if
 
 
