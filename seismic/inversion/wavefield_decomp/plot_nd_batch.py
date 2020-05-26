@@ -262,7 +262,7 @@ def main(solution_file, output_file):
             vars = []
             for layer in config['layers']:
                 layer_name = layer['name']
-                vars += ['$H_{}$'.format(layer_name), '$k_{}$'.format(layer_name)]
+                vars += ['$H_{{{}}}$'.format(layer_name), '$k_{{{}}}$'.format(layer_name)]
             # end for
             vars = tuple(vars)
 
