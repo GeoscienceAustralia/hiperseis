@@ -44,14 +44,14 @@ RAW_RESAMPLE_RATE_HZ = 20.0
 BANDPASS_FILTER_ORDER = 2
 
 
-def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
+def transform_stream_to_rf(ev_id, stream3c, config_filtering,
                            config_processing, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
     See documentation for function event_waveforms_to_rf for details of
     config dictionary contents.
 
     :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: multiprocessing.Manager.Queue
+    :type oqueue: queue or multiprocessing.Manager.Queue
     :param ev_id: The event id
     :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
@@ -62,9 +62,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
     :type config_processing: dict
     :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
     :type kwargs: dict
-    :return: True if stream containing receiver function is pushed into output queue
-        oqueue, False otherwise
-    :rtype: bool
+    :return: RFstream containing receiver function if successful, None otherwise
+    :rtype: rf.RFStream or NoneType
     """
 
     resample_rate_hz = config_filtering.get("resample_rate", DEFAULT_RESAMPLE_RATE_HZ)
@@ -84,14 +83,14 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
     assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
     if not curate_stream3c(ev_id, stream3c, logger):
-        return False
+        return None
 
     if baz_range is not None:
         if not isinstance(baz_range[0], list):
             baz_range = [baz_range]
         baz = stream3c[0].stats.back_azimuth
         if not any([back_azimuth_filter(baz, tuple(b)) for b in baz_range]):
-            return False
+            return None
     # end if
 
     # Compute SNR of prior z-component after some low pass filtering.
@@ -161,7 +160,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
         # end if
     except (IndexError, ValueError) as e:
         logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
-        return False
+        return None
     # end try
 
     # Check for any empty channels after deconvolution.
@@ -169,7 +168,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
         if len(tr.data) == 0:
             logger.warning("No data left in channel {} of stream {} after deconv (skipping)".format(
                            tr.stats.channel, ev_id))
-            return False
+            return None
         # end if
     # end for
 
@@ -181,7 +180,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
     if len(stream3c) != 3:
         logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
                        .format(ev_id, stream3c))
-        return False
+        return None
     # end if
 
     assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
@@ -198,10 +197,34 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, config_filtering,
         tr.stats.update(metadata)
     # end for
 
-    output_stream = stream3c
-    oqueue.put(output_stream)
+    return stream3c
+# end func
 
-    return True
+
+def transform_stream_to_rf_queue(oqueue, ev_id, stream3c, config_filtering,
+                                 config_processing, **kwargs):
+    """
+    Process using transform_stream_to_rf and queue results for further handling.
+
+    :param oqueue: Output queue where filtered streams are queued
+    :type oqueue: queue or multiprocessing.Manager.Queue
+    :param ev_id: Event ID to pass on to transform_stream_to_rf
+    :param stream3c: 3-channel stream to process
+    :param config_filtering: Filtering settings
+    :param config_processing: Processing settings
+    :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
+    :type kwargs: dict
+    :return: True if stream containing receiver function is pushed into output queue
+        oqueue, False otherwise
+    :rtype: bool
+    """
+    output_stream = transform_stream_to_rf(ev_id, stream3c, config_filtering, config_processing, **kwargs)
+    if output_stream is not None:
+        oqueue.put(output_stream)
+        return True
+    else:
+        return False
+    # end if
 # end func
 
 
@@ -299,12 +322,12 @@ def event_waveforms_to_rf(input_file, output_file, config):
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
-            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, config_filtering, config_processing)
+            (delayed(transform_stream_to_rf_queue)(write_queue, id, stream3c, config_filtering, config_processing)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
     else:
         # Process in serial
         logger.info("Serial processing")
-        status = list((transform_stream_to_rf(write_queue, id, stream3c, config_filtering, config_processing)
+        status = list((transform_stream_to_rf_queue(write_queue, id, stream3c, config_filtering, config_processing)
                        for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
     # end if
     num_tasks = len(status)
