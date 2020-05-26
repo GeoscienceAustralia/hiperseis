@@ -169,7 +169,7 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
         rf_stream_R.trim2(-5, 5, reftime='onset')
         rf_stream_R.detrend('linear')
         rf_stream_R.taper(0.1)
-        R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
+        R_stack = rf_stream_R.stack().trim2(-1, 1, reftime='onset')[0].data
         ampl_mean = np.mean(R_stack)
         ampls.append(ampl_mean)
     # end for
@@ -213,13 +213,13 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     }
     config_processing = {
         "rotation_type": "ZRT",
-        "deconv_domain": "time",  # time is quicker than iter
+        "deconv_domain": "iter",
         "normalize": True,
         "trim_start_time": -10,
         "trim_end_time": 30
     }
     angles = np.linspace(-180, 180, num=30, endpoint=False)
-    job_runner = Parallel(n_jobs=1, verbose=5, max_nbytes='16M')
+    job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
     stations = []
     for sta, db_evid in ned.by_station():
