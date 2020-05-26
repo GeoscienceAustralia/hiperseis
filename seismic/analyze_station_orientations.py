@@ -138,9 +138,9 @@ def method_wang(src_h5_event_file, dest_file=None):
         # print(resids)
     # end for
 
-    if dest_file is not None:
-        ned.write(dest_file)
-    # end if
+    # if dest_file is not None:
+    #     ned.write(dest_file)
+    # # end if
 # end func
 
 
@@ -156,18 +156,22 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
                     tr.stats.back_azimuth += 360
                 while tr.stats.back_azimuth >= 360:
                     tr.stats.back_azimuth -= 360
+            # end for
+
             rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
                                             config_filtering, config_processing)
-            if rf_3ch is not None:
-                rf_stream_all += rf_3ch
+            if rf_3ch is None:
+                continue
+
+            rf_stream_all += rf_3ch
         # end for
         rf_stream_R = rf_stream_all.select(component='R')
         rf_stream_R.trim2(-5, 5, reftime='onset')
         rf_stream_R.detrend('linear')
         rf_stream_R.taper(0.1)
         R_stack = rf_stream_R.stack().trim2(0, 1, reftime='onset')[0].data
-        ampl_cum = np.sum(R_stack)
-        ampls.append(ampl_cum)
+        ampl_mean = np.mean(R_stack)
+        ampls.append(ampl_mean)
     # end for
     return ampls
 # end func
@@ -182,9 +186,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
 
     # Trim streams to time window
     logger.info('Trimming dataset')
-    ned.apply(lambda stream: stream.trim(stream[0].stats.onset - 30, stream[0].stats.onset + 60))
-    ned.apply(lambda stream: stream.detrend('linear'))
-    ned.apply(lambda stream: stream.taper(0.05))
+    ned.apply(lambda stream: stream.trim(stream[0].stats.onset - 10, stream[0].stats.onset + 30))
 
     # Downsample.
     logger.info('Downsampling dataset')
@@ -203,11 +205,9 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     evids_discarded = evids_orig - evids_to_keep
     logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
 
-    # ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
-
     logger.info('Analysing arrivals')
     config_filtering = {
-        "resample_rate": 5.0,
+        "resample_rate": 10.0,
         "taper_limit": 0.05,
         "filter_band": [0.02, 1.0],
     }
@@ -215,38 +215,39 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
         "rotation_type": "ZRT",
         "deconv_domain": "time",  # time is quicker than iter
         "normalize": True,
-        "trim_start_time": -30,
-        "trim_end_time": 60
+        "trim_start_time": -10,
+        "trim_end_time": 30
     }
     angles = np.linspace(-180, 180, num=30, endpoint=False)
-    job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
+    job_runner = Parallel(n_jobs=1, verbose=5, max_nbytes='16M')
     jobs = []
     stations = []
     for sta, db_evid in ned.by_station():
-        if sta[0:2] != 'MA':  # DEVELOPMENT time saver
-            continue
-        stations.append(sta)
+        stations.append((sta, len(db_evid)))
         job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
         jobs.append(job)
     # end for
     sta_ampls = job_runner(jobs)
-    sta_ori_metrics = [(sta, ampls) for sta, ampls in zip(stations, sta_ampls)]
+    sta_ori_metrics = [(sta, N, ampls) for (sta, N), ampls in zip(stations, sta_ampls)]
 
     x = np.hstack((angles, angles[0] + 360))
     angles_fine = np.linspace(-180, 180, num=361)
-    for sta, ampls in sta_ori_metrics:
+    for sta, N, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
         interp = CubicSpline(x, y, bc_type='periodic')
         yint = interp(angles_fine)
         angle_max = angles_fine[np.argmax(yint)]
-        logger.info('{}: {:2.3f}°'.format(sta, angle_max))
+        logger.info('{}: {:2.3f}° (N = {:3d})'.format(sta, angle_max, N))
         if save_plot:
             f = plt.figure(figsize=(16,9))
             plt.plot(x, y, 'x')
             plt.plot(angles_fine, yint, '--', alpha=0.7)
             plt.grid(linestyle=':', color="#80808080")
-            plt.xlabel('Orientation correction (deg)')
-            plt.ylabel('P phase ampl. sum (0-1 sec)')
+            plt.xlabel('Orientation correction (deg)', fontsize=12)
+            plt.ylabel('P phase ampl. mean (0-1 sec)', fontsize=12)
+            plt.title('{}.{}'.format(ned.network, sta), fontsize=14)
+            plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
+                     transform=plt.gca().transAxes)
             plt.savefig(sta + '_ori.png', dpi=300)
             plt.close()
         # end if
@@ -255,11 +256,11 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
 
 
 @click.command()
-@click.option('--dest-file', type=click.Path(dir_okay=False))
+@click.option('--dest-file', type=click.Path(dir_okay=False), help='NYI')
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
-    # method_wang(src_h5_event_file, dest_file)
+    method_wang(src_h5_event_file, dest_file)
     method_wilde_piorko(src_h5_event_file, dest_file, save_plot=True)
 # end func
 
