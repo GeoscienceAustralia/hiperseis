@@ -82,6 +82,7 @@ def method_wang(src_h5_event_file, dest_file=None):
         "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
     }
     logger.info('Curating dataset')
+    # This also rotates to ZRT coordinates
     curate_seismograms(ned, curation_opts, logger)
     evids_to_keep = set([evid for _, evid, _ in ned])
     evids_discarded = evids_orig - evids_to_keep
@@ -177,7 +178,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     logger.setLevel(logging.INFO)
     logger.info('Loading dataset')
     ned = NetworkEventDataset(src_h5_event_file)
-    # evids_orig = set([evid for _, evid, _ in ned])
+    evids_orig = set([evid for _, evid, _ in ned])
 
     # Trim streams to time window
     logger.info('Trimming dataset')
@@ -185,28 +186,28 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     ned.apply(lambda stream: stream.detrend('linear'))
     ned.apply(lambda stream: stream.taper(0.05))
 
-    # # Downsample.
-    # logger.info('Downsampling dataset')
-    # fs = 20.0
-    # ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
-    #           .interpolate(fs, method='lanczos', a=10))
+    # Downsample.
+    logger.info('Downsampling dataset')
+    fs = 20.0
+    ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+              .interpolate(fs, method='lanczos', a=10))
 
-    # curation_opts = {
-    #     "min_snr": 3.0,
-    #     "max_raw_amplitude": 20000.0,
-    #     "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
-    # }
-    # logger.info('Curating dataset')
-    # curate_seismograms(ned, curation_opts, logger)
-    # evids_to_keep = set([evid for _, evid, _ in ned])
-    # evids_discarded = evids_orig - evids_to_keep
-    # logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
+    curation_opts = {
+        "min_snr": 2.0,
+        "max_raw_amplitude": 20000.0,
+        "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
+    }
+    logger.info('Curating dataset')
+    curate_seismograms(ned, curation_opts, logger, rotate_to_zrt=False)
+    evids_to_keep = set([evid for _, evid, _ in ned])
+    evids_discarded = evids_orig - evids_to_keep
+    logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
 
-    ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
+    # ned.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
 
     logger.info('Analysing arrivals')
     config_filtering = {
-        "resample_rate": 10.0,
+        "resample_rate": 5.0,
         "taper_limit": 0.05,
         "filter_band": [0.02, 1.0],
     }
@@ -220,12 +221,16 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     angles = np.linspace(-180, 180, num=30, endpoint=False)
     job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
+    stations = []
     for sta, db_evid in ned.by_station():
+        if sta[0:2] != 'MA':  # DEVELOPMENT time saver
+            continue
+        stations.append(sta)
         job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
         jobs.append(job)
     # end for
     sta_ampls = job_runner(jobs)
-    sta_ori_metrics = [(sta, ampls) for sta, ampls in zip(ned.db_sta.keys(), sta_ampls)]
+    sta_ori_metrics = [(sta, ampls) for sta, ampls in zip(stations, sta_ampls)]
 
     x = np.hstack((angles, angles[0] + 360))
     angles_fine = np.linspace(-180, 180, num=361)
@@ -255,7 +260,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
                 required=True)
 def main(src_h5_event_file, dest_file=None):
     # method_wang(src_h5_event_file, dest_file)
-    method_wilde_piorko(src_h5_event_file, dest_file)
+    method_wilde_piorko(src_h5_event_file, dest_file, save_plot=True)
 # end func
 
 

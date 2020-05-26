@@ -33,6 +33,7 @@ LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
 DEFAULT_TEMP = 1.0
 # Default target acceptance rate for MCMC solver.
 DEFAULT_AR = 0.4
+DEFAULT_ROTATION = 'NE->RT'
 
 
 def run_mcmc(waveform_data, config, logger):
@@ -174,13 +175,15 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 # end func
 
 
-def curate_seismograms(data_all, curation_opts, logger):
+def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
     """
-    Curation function to remove bad data from streams.
+    Curation function to remove bad data from streams. Note that this function
+    will modify the input dataset during curation.
 
     :param data_all: NetworkEventDataset containing seismograms to curate.
     :param curation_opts: Dict containing curation options.
     :param logger: Logger for emitting log messages
+    :param rotate_to_zrt: Whether to automatically rotate to ZRT coords.
     :return: None, curation operates directly on data_all
     """
 
@@ -195,7 +198,11 @@ def curate_seismograms(data_all, curation_opts, logger):
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    def rms_ampl_filter(_stream, rms_ampl_bounds):
+    def rms_ampl_filter(_stream, rms_ampl_bounds, rotation_needed):
+        if rotation_needed:
+            _stream = _stream.copy()
+            _stream.rotate('NE->RT')
+        # end if
         _stream.traces.sort(key=zrt_order)
         tr_z = _stream[0]
         tr_r = _stream[1]
@@ -217,7 +224,11 @@ def curate_seismograms(data_all, curation_opts, logger):
         return keep
     # end func
 
-    def rz_corrcoef_filter(_stream, rz_min_xcorr_coeff):
+    def rz_corrcoef_filter(_stream, rz_min_xcorr_coeff, rotation_needed):
+        if rotation_needed:
+            _stream = _stream.copy()
+            _stream.rotate('NE->RT')
+        # end if
         # Correlation coefficient
         tr_z = _stream.select(component='Z')[0].data
         tr_r = _stream.select(component='R')[0].data
@@ -240,8 +251,14 @@ def curate_seismograms(data_all, curation_opts, logger):
         data_all.curate(lambda _1, _2, stream: back_azimuth_filter(stream[0].stats.back_azimuth, baz_range))
     # end if
 
+    # Keep track of whether we have already rotated
+    rotated = False
+
     # Rotate to ZRT coordinates
-    data_all.apply(lambda stream: stream.rotate('NE->RT'))
+    if rotate_to_zrt:
+        data_all.apply(lambda stream: stream.rotate('NE->RT'))
+        rotated = True
+    # end if
 
     # Detrend the traces
     data_all.apply(lambda stream: stream.detrend('linear'))
@@ -278,19 +295,24 @@ def curate_seismograms(data_all, curation_opts, logger):
     # Filter by z-component SNR prior to filtering
     if "min_snr" in curation_opts:
         min_snr = curation_opts["min_snr"]
-        data_all.curate(lambda _1, _2, stream: stream[0].stats.snr_prior >= min_snr)
+        data_all.curate(lambda _1, _2, stream:
+                        stream.select(component='Z')[0].stats.snr_prior >= min_snr)
     # end if
 
     # Filter by bounds on RMS channel amplitudes
     rms_ampl_bounds = curation_opts.get("rms_amplitude_bounds")
     if rms_ampl_bounds is not None:
-        data_all.curate(lambda _1, _2, stream: rms_ampl_filter(stream, rms_ampl_bounds))
+        rotation_needed = not rotated
+        data_all.curate(lambda _1, _2, stream:
+                        rms_ampl_filter(stream, rms_ampl_bounds, rotation_needed))
     # end if
 
     # Filter by bounds on correlation coefficients between Z and R traces
     rz_min_xcorr_coeff = curation_opts.get("rz_min_corrcoef")
     if rz_min_xcorr_coeff is not None:
-        data_all.curate(lambda _1, _2, stream: rz_corrcoef_filter(stream, rz_min_xcorr_coeff))
+        rotation_needed = not rotated
+        data_all.curate(lambda _1, _2, stream:
+                        rz_corrcoef_filter(stream, rz_min_xcorr_coeff,  rotation_needed))
     # end if
 
     # Filter streams with incorrect number of traces
