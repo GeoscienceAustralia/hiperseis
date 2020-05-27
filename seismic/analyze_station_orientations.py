@@ -33,7 +33,6 @@ import matplotlib.pyplot as plt
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.receiver_fn.generate_rf import transform_stream_to_rf
-from seismic.stream_quality_filter import curate_stream3c
 
 
 def pdf_prune_outliers(data, cull_n_stddev=2.5):
