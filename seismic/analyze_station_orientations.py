@@ -23,8 +23,7 @@ import copy
 from joblib import Parallel, delayed
 
 import numpy as np
-from scipy import stats
-from scipy.interpolate import CubicSpline
+from scipy import stats, optimize, interpolate
 from sklearn.decomposition import PCA
 from rf import RFStream
 
@@ -233,20 +232,31 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     angles_fine = np.linspace(-180, 180, num=361)
     for sta, N, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
-        interp = CubicSpline(x, y, bc_type='periodic')
-        yint = interp(angles_fine)
-        angle_max = angles_fine[np.argmax(yint)]
-        logger.info('{}: {:2.3f}° (N = {:3d})'.format(sta, angle_max, N))
+        #  Fit cubic spline through all points, used for visualization
+        interp_cubsp = interpolate.CubicSpline(x, y, bc_type='periodic')
+        yint_cubsp = interp_cubsp(angles_fine)
+        # Fit cosine curve to all data points, used to estimate correction angle
+        fitted, cov = optimize.curve_fit(lambda _x, _amp, _ph: _amp*np.cos(np.deg2rad(_x + _ph)),
+                                         x, y, p0=[0.2, 0.0], bounds=([-1, -180], [1, 180]))
+        A_fit, ph_fit = fitted
+        y_fitted = A_fit*np.cos(np.deg2rad(angles_fine + ph_fit))
+        ph_uncertainty = np.sqrt(cov[1, 1])
+        # Estimate correction angle
+        angle_max = angles_fine[np.argmax(y_fitted)]
+        logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
+            sta, angle_max, ph_uncertainty, N))
         if save_plot:
             f = plt.figure(figsize=(16,9))
-            plt.plot(x, y, 'x')
-            plt.plot(angles_fine, yint, '--', alpha=0.7)
+            plt.plot(x, y, 'x', label='Computed P arrival strength')
+            plt.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
+            plt.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
             plt.grid(linestyle=':', color="#80808080")
             plt.xlabel('Orientation correction (deg)', fontsize=12)
             plt.ylabel('P phase ampl. mean (0-1 sec)', fontsize=12)
             plt.title('{}.{}'.format(ned.network, sta), fontsize=14)
             plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                      transform=plt.gca().transAxes)
+            plt.legend(alpha=0.7)
             plt.savefig(sta + '_ori.png', dpi=300)
             plt.close()
         # end if
