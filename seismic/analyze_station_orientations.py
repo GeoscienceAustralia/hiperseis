@@ -256,7 +256,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
             plt.title('{}.{}'.format(ned.network, sta), fontsize=14)
             plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                      transform=plt.gca().transAxes)
-            plt.legend(alpha=0.7)
+            plt.legend(framealpha=0.7)
             plt.savefig(sta + '_ori.png', dpi=300)
             plt.close()
         # end if
