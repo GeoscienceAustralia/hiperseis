@@ -34,6 +34,8 @@ source /g/data/ha3/Passive/Software/VENV/para_h5py/bin/activate
 # the cmdline 
 cd /home/547/fxz547/github/hiperseis/seismic/ASDFdatabase
 
-# In preparation for Local Earthquake Picking, convert ASDF into mseed files
-mpirun -np $PBS_NCPUS python plot_data_quality.py /g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt 2019:01:01 2020:01:01 'AU' '*' '*' test_plot_data_quality_gadi
+# The pointer to Fed ASDF
+FED_ASDF_DB_TXT=/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt
+
+mpirun -np $PBS_NCPUS python plot_data_quality.py $FED_ASDF_DB_TXT  2018:01:01 2019:01:01 'AU' '*' '*' test2018_plot_data_quality_gadi
 
