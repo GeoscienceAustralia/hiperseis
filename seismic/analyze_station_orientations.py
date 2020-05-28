@@ -163,12 +163,16 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
 
             rf_stream_all += rf_3ch
         # end for
-        rf_stream_R = rf_stream_all.select(component='R')
-        rf_stream_R.trim2(-5, 5, reftime='onset')
-        rf_stream_R.detrend('linear')
-        rf_stream_R.taper(0.1)
-        R_stack = rf_stream_R.stack().trim2(-1, 1, reftime='onset')[0].data
-        ampl_mean = np.mean(R_stack)
+        if len(rf_stream_all) > 0:
+            rf_stream_R = rf_stream_all.select(component='R')
+            rf_stream_R.trim2(-5, 5, reftime='onset')
+            rf_stream_R.detrend('linear')
+            rf_stream_R.taper(0.1)
+            R_stack = rf_stream_R.stack(npts_tol=1).trim2(-1, 1, reftime='onset')[0].data
+            ampl_mean = np.mean(R_stack)
+        else:
+            ampl_mean = np.nan
+        # endif
         ampls.append(ampl_mean)
     # end for
     return ampls
@@ -232,12 +236,25 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     angles_fine = np.linspace(-180, 180, num=361)
     for sta, N, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
+        mask = np.isfinite(y)
+        n_valid = np.sum(mask)
+        if n_valid < 5:
+            logger.info('{}: Insufficient data ({} valid points)'.format(sta, n_valid))
+            continue
+        # end if
+        x_valid = x[mask]
+        y_valid = y[mask]
         #  Fit cubic spline through all points, used for visualization
-        interp_cubsp = interpolate.CubicSpline(x, y, bc_type='periodic')
+        if np.isfinite(y[0]):
+            bc_type = 'periodic'
+        else:
+            bc_type = 'not-a-knot'
+        # end if
+        interp_cubsp = interpolate.CubicSpline(x_valid, y_valid, bc_type=bc_type)
         yint_cubsp = interp_cubsp(angles_fine)
         # Fit cosine curve to all data points, used to estimate correction angle
         fitted, cov = optimize.curve_fit(lambda _x, _amp, _ph: _amp*np.cos(np.deg2rad(_x + _ph)),
-                                         x, y, p0=[0.2, 0.0], bounds=([-1, -180], [1, 180]))
+                                         x_valid, y_valid, p0=[0.2, 0.0], bounds=([-1, -180], [1, 180]))
         A_fit, ph_fit = fitted
         y_fitted = A_fit*np.cos(np.deg2rad(angles_fine + ph_fit))
         ph_uncertainty = np.sqrt(cov[1, 1])
@@ -247,7 +264,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
             sta, angle_max, ph_uncertainty, N))
         if save_plot:
             f = plt.figure(figsize=(16,9))
-            plt.plot(x, y, 'x', label='Computed P arrival strength')
+            plt.plot(x_valid, y_valid, 'x', label='Computed P arrival strength')
             plt.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
             plt.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
             plt.grid(linestyle=':', color="#80808080")
