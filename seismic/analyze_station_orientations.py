@@ -168,7 +168,7 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
             rf_stream_R.trim2(-5, 5, reftime='onset')
             rf_stream_R.detrend('linear')
             rf_stream_R.taper(0.1)
-            R_stack = rf_stream_R.stack(npts_tol=1).trim2(-1, 1, reftime='onset')[0].data
+            R_stack = rf_stream_R.stack().trim2(-1, 1, reftime='onset')[0].data
             ampl_mean = np.mean(R_stack)
         else:
             ampl_mean = np.nan
