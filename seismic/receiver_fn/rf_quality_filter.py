@@ -209,7 +209,7 @@ def compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps):
     :type station_stream3c: list(rf.RFStream) with 3 components
     :param similarity_eps: Distance threshold used for DBSCAN clustering
     :type similarity_eps: float
-    :return Pair of RF streams with R or Q and T components with populated
+    :return Triplet of RF streams with Z, R or Q, and T components with populated
         quality metrics. Otherwise return None in case of failure.
     """
 
@@ -391,14 +391,7 @@ def compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps):
     # High similarity to the strongest eigenvectors might indicate waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost of DBSCAN.
 
-    # Return stream with just p and t components in it (no L or Z component)
-    p_trace = p_stream[0]
-    t_trace = t_stream[0]
-    z_trace = z_stream[0]
-    assert isinstance(p_trace, rf.rfstream.RFTrace)
-    assert isinstance(t_trace, rf.rfstream.RFTrace)
-    assert isinstance(z_trace, rf.rfstream.RFTrace)
-    return rf.RFStream([z_trace, p_trace, t_trace])
+    return (z_stream, p_stream, t_stream)
 # end func
 
 
@@ -415,10 +408,16 @@ def rf_quality_metrics_queue(oqueue, station_id, station_stream3c, similarity_ep
     :param similarity_eps: Distance threshold used for DBSCAN clustering
     :type similarity_eps: float
     """
-    stream_qual = compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps)
-    if stream_qual is not None:
+    streams_qual = compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps)
+    if streams_qual is not None:
+        z_stream, p_stream, t_stream = streams_qual
         if drop_z:
-            stream_qual = rf.RFStream([stream_qual[1], stream_qual[2]])
+            stream_qual = rf.RFStream([tr for doublet in zip(p_stream, t_stream)
+                                       for tr in doublet])
+        else:
+            stream_qual = rf.RFStream([tr for triplet in zip(z_stream, p_stream, t_stream)
+                                       for tr in triplet])
+        # end if
         oqueue.put(stream_qual)
     # end if
 # end func
