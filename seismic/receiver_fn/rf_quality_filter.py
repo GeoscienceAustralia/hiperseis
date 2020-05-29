@@ -395,9 +395,9 @@ def compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps):
     p_trace = p_stream[0]
     t_trace = t_stream[0]
     z_trace = z_stream[0]
-    assert isinstance(p_trace, rf.RFTrace)
-    assert isinstance(t_trace, rf.RFTrace)
-    assert isinstance(z_trace, rf.RFTrace)
+    assert isinstance(p_trace, rf.rfstream.RFTrace)
+    assert isinstance(t_trace, rf.rfstream.RFTrace)
+    assert isinstance(z_trace, rf.rfstream.RFTrace)
     return rf.RFStream([z_trace, p_trace, t_trace])
 # end func
 
