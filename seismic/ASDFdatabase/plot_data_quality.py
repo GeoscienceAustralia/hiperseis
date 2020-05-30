@@ -1,7 +1,18 @@
 #!/usr/env python
 """
 Description:
-    Reads waveform data from a FederatedASDFDataSet and generates data-quality plots into a PDF file
+    Reads waveform data from a FederatedASDFDataSet and generates data-quality plots into a multi-page PDF file
+
+    For each station, the program read-in all the waveform data over the period specified (usually over a  year),
+    and then perform statistics analysis over the waveform data for subsequent plotting.
+
+    The first page of the PDF shows the stations on a basemap with marker colored according to the number of usable days
+    ("good" data available in the day, not gap, not all zeros) And  the color is determined by c=mapper.to_rgba(days):
+    Relatively speaking, black/blue/cold-ish colors indicate higher percentage of good data in the station.
+    And red/yellow/warm-ish colors indicate higher percentage of problematic data.
+
+    The following pages of the PDF will be plotting the daily-averaged seismic wave data
+    with gaps and all-zeros days are shaded.
 
 CreationDate:   19/09/19
 Developer:      rakib.hassan@ga.gov.au
@@ -9,6 +20,12 @@ Developer:      rakib.hassan@ga.gov.au
 Revision History:
     LastUpdate:     19/09/2019   RH
     LastUpdate:     27/05/2020   FZ     Refactoring and docs run examples etc.
+
+Todo:
+    The script currently have a low pylint score 4.3/10.
+    Need to refactor to  comply with Python standard pep-8: add required docstrings.
+    use smaller function to modularize better.
+    Consider to generate an additional page to executive summarise info for user.
 """
 
 import gc
