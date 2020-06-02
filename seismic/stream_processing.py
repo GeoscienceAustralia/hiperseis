@@ -102,6 +102,13 @@ def negate_channel(_event_id, stream, channel):
 
 
 def correct_back_azimuth(_event_id, stream, baz_correction):
-    assert False, 'NYI'
+    for tr in stream:
+        # Each station may have a custom correction. Expect that all such
+        # possible corrections are represented in baz_correction argument.
+        stats = tr.stats
+        sta = stats.station
+        correction = baz_correction[sta]
+        stats.back_azimuth += correction
+    # end for
     return stream
 # end func
