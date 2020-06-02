@@ -75,3 +75,33 @@ def back_azimuth_filter(baz, baz_range):
             (baz_range[0] <= baz - 360 <= baz_range[1]) or
             (baz_range[0] <= baz + 360 <= baz_range[1]))
 # end func
+
+
+def swap_ne_channels(_event_id, stream):
+    """
+    Swap N and E channels on a stream. Changes the input stream.
+
+    :param _event_id: Ignored
+    :param stream: Stream whose N and E channels are to be swapped
+    :return: Stream with channel swapping applied
+    """
+    stream_n = stream.select(component='N')
+    stream_e = stream.select(component='E')
+    data_n = copy.deepcopy(stream_n[0].data)
+    stream_n[0].data = stream_e[0].data
+    stream_e[0].data = data_n
+    return stream
+# end func
+
+
+def negate_channel(_event_id, stream, channel):
+    trace_selected = stream.select(component=channel)[0]
+    trace_selected.data = -trace_selected.data
+    return stream
+# end func
+
+
+def correct_back_azimuth(_event_id, stream, baz_correction):
+    assert False, 'NYI'
+    return stream
+# end func
