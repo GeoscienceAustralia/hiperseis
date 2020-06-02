@@ -107,8 +107,19 @@ def correct_back_azimuth(_event_id, stream, baz_correction):
         # possible corrections are represented in baz_correction argument.
         stats = tr.stats
         sta = stats.station
-        correction = baz_correction[sta]
-        stats.back_azimuth += correction
+        if isinstance(baz_correction, (float, int)):
+            correction = baz_correction
+        else:
+            assert isinstance(baz_correction, dict)
+            correction = baz_correction[sta]
+        # end if
+        baz = stats.back_azimuth
+        baz += correction
+        while baz < 0:
+            baz += 360
+        while baz >= 360:
+            baz -= 360
+        stats.back_azimuth = baz
     # end for
     return stream
 # end func
