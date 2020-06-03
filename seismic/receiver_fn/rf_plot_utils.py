@@ -8,8 +8,10 @@ from collections import defaultdict
 
 import numpy as np
 import scipy.signal
+from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import rf
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
@@ -30,9 +32,19 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
     :param save_file: File to save resulting image into, defaults to None
     :type save_file: str to valid file path, optional
     """
-    fig = rf_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
-                            stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
+    # Ensure traces are stackable by ignoring those that don't conform to the predominant data shape
+    all_trace_lens = np.array([len(tr) for tr in rf_stream])
+    most_common_len, _ = stats.mode(all_trace_lens, axis=None)
+    stackable_stream = rf.RFStream([tr for tr in rf_stream if len(tr) == most_common_len])
+    num_stackable = len(stackable_stream)
+    if num_stackable < len(rf_stream):
+        logging.warning('Removed {} traces from RF plot to make it stackable!'.format(num_stackable))
+    # end if
+
+    fig = stackable_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
+                                   stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
     return fig
+
 
 
 def plot_station_rf_overlays(db_station, title=None, time_range=None):
