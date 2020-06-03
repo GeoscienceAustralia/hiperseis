@@ -1,37 +1,51 @@
 #!/usr/env python
 """
 Description:
-    Reads waveform data from a FederatedASDFDataSet and generates data-quality
-    plots
-References:
+    Reads waveform data from a FederatedASDFDataSet and generates data-quality plots into a multi-page PDF file
+
+    For each station, the program read-in all the waveform data over the period specified (usually over a  year),
+    and then perform statistics analysis over the waveform data for subsequent plotting.
+
+    The first page of the PDF shows the stations on a basemap with marker colored according to the number of usable days
+    ("good" data available in the day, not gap, not all zeros) And  the color is determined by c=mapper.to_rgba(days):
+    Relatively speaking, black/blue/cold-ish colors indicate higher percentage of good data in the station.
+    And red/yellow/warm-ish colors indicate higher percentage of problematic data.
+
+    The following pages of the PDF will be plotting the daily-averaged seismic wave data
+    with gaps and all-zeros days are shaded.
 
 CreationDate:   19/09/19
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
-    LastUpdate:     19/09/19   RH
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+    LastUpdate:     19/09/2019   RH
+    LastUpdate:     27/05/2020   FZ     Refactoring and docs run examples etc.
+
+Todo:
+    The script currently have a low pylint score 4.3/10.
+    Need to refactor to  comply with Python standard pep-8: add required docstrings.
+    use smaller function to modularize better.
+    Consider to generate an additional page to executive summarise info for user.
 """
 
-from mpi4py import MPI
-from collections import defaultdict
-import logging
 import gc
-
-from ordered_set import OrderedSet as set
-import numpy as np
-from obspy import UTCDateTime
-from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+import logging
+from collections import defaultdict
 
 import click
-import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.dates import DateFormatter, AutoDateLocator
 import matplotlib
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.dates import DateFormatter, AutoDateLocator
+from mpi4py import MPI
+from mpl_toolkits.basemap import Basemap
+from obspy import UTCDateTime
+from ordered_set import OrderedSet as set
 from tqdm import tqdm
 
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 logging.basicConfig()
 
@@ -39,6 +53,8 @@ logging.basicConfig()
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+
+
 # end func
 
 
@@ -50,10 +66,12 @@ def setup_logger(name, log_file, level=logging.INFO):
     handler = logging.FileHandler(log_file, mode='w')
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger(name+log_file)
+    logger = logging.getLogger(name + log_file)
     logger.setLevel(level)
     logger.addHandler(handler)
     return logger
+
+
 # end func
 
 
@@ -70,11 +88,11 @@ def process_data(rank, fds, stations, start_time, end_time):
     """
     results = []
 
-    day = 3600*24
+    day = 3600 * 24
     # Discard aux channels not in the following list
-    chaSet = {'BH1','BH2','BHE','BHN','BHZ','BNZ','EHE','EHN','EHZ','HHE','HHN',
-              'HHZ','LHE','LHN','LHZ','SHE','SHN','SHZ'}
-    for s in tqdm(stations, desc='Rank: %d'%(rank)):
+    chaSet = {'BH1', 'BH2', 'BHE', 'BHN', 'BHZ', 'BNZ', 'EHE', 'EHN', 'EHZ', 'HHE', 'HHN',
+              'HHZ', 'LHE', 'LHN', 'LHZ', 'SHE', 'SHN', 'SHZ'}
+    for s in tqdm(stations, desc='Rank: %d' % (rank)):
         # discard aux channels
         if (s[3] not in chaSet):
             results.append(([], []))
@@ -83,8 +101,8 @@ def process_data(rank, fds, stations, start_time, end_time):
 
         st, et = fds.get_global_time_range(s[0], s[1])
 
-        if(start_time > st): st = start_time
-        if(end_time < et): et = end_time
+        if (start_time > st): st = start_time
+        if (end_time < et): et = end_time
 
         # align st to day
         st = UTCDateTime(year=st.year, month=st.month, day=st.day)
@@ -126,11 +144,12 @@ def process_data(rank, fds, stations, start_time, end_time):
     # end for
 
     return results
+
+
 # end func
 
 
 def plot_results(stations, results, output_basename):
-
     # collate indices for each channel for each station
     assert len(stations) == len(results)
     groupIndices = defaultdict(list)
@@ -142,12 +161,12 @@ def plot_results(stations, results, output_basename):
     usableStationDays = defaultdict(int)
     maxUsableDays = -1e32
     minUsableDays = 1e32
-    for k,v in groupIndices.items():
+    for k, v in groupIndices.items():
         for i, index in enumerate(v):
             x, means = results[index]
 
             means = np.array(means)
-            days = np.sum(~np.isnan(means) & np.bool_(means!=0))
+            days = np.sum(~np.isnan(means) & np.bool_(means != 0))
             if usableStationDays[k] < days:
                 usableStationDays[k] = days
                 maxUsableDays = max(maxUsableDays, days)
@@ -219,7 +238,7 @@ def plot_results(stations, results, output_basename):
         ax1.annotate(s[1], xy=(px + 0.05, py + 0.05), fontsize=22)
     # end for
 
-    fig.axes[0].set_title("Network Name: %s"%s[0], fontsize=30, y=1.05)
+    fig.axes[0].set_title("Network Name: %s" % s[0], fontsize=30, y=1.05)
     fig.axes[0].legend(prop={'size': 16}, loc=(0.2, 1.3),
                        ncol=5, fancybox=True, title='No. of Usable Days',
                        title_fontsize=16)
@@ -263,16 +282,17 @@ def plot_results(stations, results, output_basename):
 
                         axes[axesIdx].scatter(x, dnorm, marker='.', s=20)
                         axes[axesIdx].plot(x, dnorm, c='k', label='24 hr mean\n'
-                                           'Gaps indicate no-data', lw=2, alpha=0.7)
+                                                                  'Gaps indicate no-data', lw=2, alpha=0.7)
                         axes[axesIdx].grid(axis='x', linestyle=':', alpha=0.3)
 
-                        axes[axesIdx].fill_between(x, dnormmax*np.int_(d == 0), dnormmin*np.int_(d == 0),
-                                             where=dnormmax*np.int_(d == 0) - dnormmin*np.int_(d == 0) > 0,
-                                             color='r', alpha=0.5, label='All 0 Samples')
+                        axes[axesIdx].fill_between(x, dnormmax * np.int_(d == 0), dnormmin * np.int_(d == 0),
+                                                   where=dnormmax * np.int_(d == 0) - dnormmin * np.int_(d == 0) > 0,
+                                                   color='r', alpha=0.5, label='All 0 Samples')
 
-                        axes[axesIdx].fill_between(x, dnormmax*np.int_(np.isnan(d)), dnormmin*np.int_(np.isnan(d)),
-                                             where=dnormmax*np.int_(np.isnan(d)) - dnormmin*np.int_(np.isnan(d)) > 1,
-                                             color='b', alpha=0.5, label='No Data')
+                        axes[axesIdx].fill_between(x, dnormmax * np.int_(np.isnan(d)), dnormmin * np.int_(np.isnan(d)),
+                                                   where=dnormmax * np.int_(np.isnan(d)) - dnormmin * np.int_(
+                                                       np.isnan(d)) > 1,
+                                                   color='b', alpha=0.5, label='No Data')
 
                         axes[axesIdx].xaxis.set_major_locator(AutoDateLocator())
                         axes[axesIdx].xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
@@ -308,10 +328,13 @@ def plot_results(stations, results, output_basename):
     # end for
 
     pdf.close()
+
+
 # end func
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('asdf-source', required=True,
@@ -366,18 +389,26 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
 
     results = comm.gather(results, root=0)
     if rank == 0:
-        results = [item for sublist in results for item in sublist] # flatten sublists for each proc
+        results = [item for sublist in results for item in sublist]  # flatten sublists for each proc
         stations = [item for sublist in stations for item in sublist]  # flatten sublists for each proc
         plot_results(stations, results, output_basename)
     # end if
+
+
 # end func
 
 
-if (__name__=='__main__'):
-    '''
+if (__name__ == '__main__'):
+    """
     Example usage:
     mpirun -np 112 python plot_data_quality.py asdf_files.txt 1980:01:01 2020:01:01 OA '*' '*' data_quality.oa
-    '''
+    
+    How to run without MPI in background 
+
+    Example commandline:
+    (hiperseispy37) fxz547@vdi-n16 /g/data/ha3/fxz547/Githubz/hiperseis (develop)
+    $ nohup python seismic/ASDFdatabase/plot_data_quality.py /g/data/ha3/GASeisDataArchive/DevSpace/test_asdf_files.txt 2019:01:01 2019:03:01 'AU' '*' '*' test_plot_data_quality_AU &
+
+    """
 
     process()
-# end if
