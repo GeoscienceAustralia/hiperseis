@@ -1,11 +1,15 @@
 """
-Requirements:
+Non-workflow script to convert hand-digitized data from CCP stacking along lines
+into volumetric dataset of local Moho depth.
+
+Python package requirements:
 - pandas
 - xlrd
 """
 
 import os
 
+import click
 import numpy as np
 import pandas as pd
 import xlrd
@@ -15,7 +19,18 @@ from seismic.units_utils import KM_PER_DEG
 from seismic.receiver_fn.plot_ccp_batch import LEAD_INOUT_DIST_KM
 
 
+@click.command()
+@click.option('--fds-file', type=click.Path(dir_okay=False, exists=True), required=True,
+              help='Input file for FederatedASDFDataSet containing station coordinates')
+@click.argument('infile', type=click.Path(dir_okay=False, exists=True), required=True)
 def main(infile, fds_file):
+    """
+    Process Excel spreadsheet into volumetric dataset based on line profiles.
+
+    :param infile: Input Excel file containing bespoke digitized Moho depths
+    :param fds_file: Index file used to instantiate FederatedASDFDataSet
+    :return: None
+    """
 
     with xlrd.open_workbook(infile) as wb:
         sheet = wb.sheet_by_index(0)
@@ -65,6 +80,5 @@ def main(infile, fds_file):
 
 
 if __name__ == '__main__':
-    main('ccp_line_data_sample.xlsx',
-         '/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt')
+    main()
 # end if
