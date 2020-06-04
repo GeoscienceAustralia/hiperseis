@@ -286,6 +286,16 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
+    """
+    Run station orientation checking algorithms.
+
+    Example usage:
+    python seismic/analyze_station_orientations.py \
+      /g/data/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5
+
+    :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
+    :param dest_file: UNUSED - TO BE IMPLEMENTED
+    """
     method_wang(src_h5_event_file, dest_file)
     method_wilde_piorko(src_h5_event_file, dest_file, save_plot=True)
 # end func
