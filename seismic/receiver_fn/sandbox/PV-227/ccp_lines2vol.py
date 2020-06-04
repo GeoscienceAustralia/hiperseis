@@ -49,17 +49,18 @@ def main(infile, fds_file):
             continue
         dist = dist_col[valid].values - LEAD_INOUT_DIST_KM
         depth = df.iloc[:, 3*i + 2][valid].values
-        latlon = start + np.outer(dist, dirn)/KM_PER_DEG
+        lonlat = start + np.outer(dist, dirn)/KM_PER_DEG
         # Difficult to correct for differences in station elevation because
         # FDS does not include it in station coords. Ignore for now.
-        vol_data = np.hstack((latlon, depth[:, np.newaxis]))
+        vol_data = np.hstack((lonlat, depth[:, np.newaxis]))
         vol_data_dict[line] = vol_data
     # end for
 
     filebase = os.path.splitext(infile)[0]
     outfile = filebase + '.csv'
-    all_data = np.vstack((v for v in vol_data_dict.values()))
-    np.savetxt(outfile, all_data, delimiter=',', header='Lat,Lon,Depth')
+    all_data = np.vstack(tuple(v for v in vol_data_dict.values()))
+    np.savetxt(outfile, all_data, fmt=['%.6f', '%.6f', '%.1f'], delimiter=',',
+               header='Lon,Lat,Depth')
 # end func
 
 
