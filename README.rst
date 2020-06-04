@@ -32,9 +32,9 @@ Contacts
 System Requirements
 ==========================
 
-- Linux OS
-- Python 2.7 (to be deprected)
-- Python 3.5 or higher (recommended)
+- Linux OS, including Ubuntu and CentOS
+- Python 3.6 or higher (recommended)
+- Python 2.7 (deprected, no longer supported)
 
 Third Party Library Dependencies
 ================================
