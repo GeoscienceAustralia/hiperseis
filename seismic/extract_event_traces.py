@@ -56,8 +56,7 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
 
     # If file needs to be generated, then this function requires internet access.
     if os.path.exists(cat_file):
-        # FIXME: This is a bad design - it will read events from a file generated using completely
-        # different settings just because the file is there!
+        # For HPC systems with no internet access, the catalog file must be pre-generated
         log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
         log.info("Using catalog file: {}".format(cat_file))
         catalog = read_events(cat_file)
@@ -233,8 +232,11 @@ def is_url(resource_path):
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
 @click.option('--magnitude-range', type=(float, float), default=(5.5, 7.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
+@click.option('--catalog-only', is_flag=True, default=False, show_default=True,
+              help='If set, only generate catalog file and exit. Used for preparing '
+                   'input file on HPC systems with no internet access.')
 def main(inventory_file, waveform_database, event_catalog_file, event_trace_datafile, start_time, end_time, taup_model,
-         distance_range, magnitude_range):
+         distance_range, magnitude_range, catalog_only=False):
 
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
@@ -286,7 +288,7 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
         "Output file {} already exists, please remove!".format(event_trace_datafile)
     log.info("Traces will be written to: {}".format(event_trace_datafile))
 
-    exit_after_catalog = False
+    exit_after_catalog = catalog_only
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
                          (min_mag, max_mag), exit_after_catalog)
 

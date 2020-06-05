@@ -253,23 +253,18 @@ def main(solution_file, output_file):
     out_basename += '_' + job_id
     output_file = out_basename + ext
 
-    vars2 = ('$H_{crust}$', '$k_{s,crust}$')
-    vars4 = ('$H_{sed}$', '$k_{s,sed}$', '$H_{crust}$', '$k_{s,crust}$')
     with PdfPages(output_file) as pdf:
         for soln, config in tqdm(soln_config):
-            if soln.x.shape[-1] == 2:
-                vars = vars2
-            elif soln.x.shape[-1] == 4:
-                vars = vars4
-            else:
-                assert (soln.x.shape[-1] % 2) == 0
-                vars = []
-                for i in range((soln.x.shape[-1]//2) - 1):
-                    vars += ['$H_{}$'.format(i), '$k_{}$'.format(i)]
-                # end for
-                vars += ['$H_{crust}$', '$k_{s,crust}$']
-                vars = tuple(vars)
-            # end if
+            empty_soln = (soln.x.shape[0] == 0)
+            if empty_soln:
+                continue
+            assert soln.x.shape[-1] == len(config['layers'])*2
+            vars = []
+            for layer in config['layers']:
+                layer_name = layer['name']
+                vars += ['$H_{{{}}}$'.format(layer_name), '$k_{{{}}}$'.format(layer_name)]
+            # end for
+            vars = tuple(vars)
 
             # Dump settings page (per station)
             config_no_evids = copy.deepcopy(config)
