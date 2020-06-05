@@ -47,8 +47,11 @@ mask = (dist_matrix != 0)
 denom = dist_weighting_m1.sum(axis=1) + mask.sum(axis=1)
 numer = (dist_weighting_m1 + mask)*z
 z_interp = numer/denom
+# Compute pointwise variance
+numer = (dist_weighting_m1 + mask)*np.square(z)
+S = np.sqrt(numer/denom - np.square(z_interp))
 
-data_vol_gridded = np.hstack((grid, z_interp))
+data_vol_gridded = np.hstack((grid, z_interp, S))
 outfile = os.path.splitext(infile)[0] + '_gridded.csv'
-np.savetxt(outfile, data_vol_gridded, fmt=['%.6f', '%.6f', '%.1f'], delimiter=',',
-           header='Lon,Lat,Depth')
+np.savetxt(outfile, data_vol_gridded, fmt=['%.6f', '%.6f', '%.1f', '%.1f'], delimiter=',',
+           header='Lon,Lat,Depth,Stddev')
