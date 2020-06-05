@@ -9,7 +9,7 @@ import sys
 from sortedcontainers import SortedDict
 import obspy
 
-from seismic.stream_io import read_h5_stream
+from seismic.stream_io import read_h5_stream, write_h5_event_stream
 from seismic.stream_processing import zne_order, zrt_order
 
 
@@ -227,6 +227,32 @@ class NetworkEventDataset:
             # end if
         # end for
 
+    # end func
+
+    def write(self, output_h5_filename, index_format='event'):
+        """
+        Write event dataset back out to HDF5 file.
+
+        :param output_h5_filename: Output file name
+        :type output_h5_filename: str or path
+        :param index_format: Format to use for index. Must be 'event' (default) or 'standard' (obspy default)
+        :type index_format: str
+        :return: True if file was written
+        """
+        assert not os.path.exists(output_h5_filename), 'Output file already exists'
+        if index_format not in ['event', 'standard']:
+            raise ValueError('Index format %s not supported' % index_format)
+        # end if
+        all = obspy.Stream()
+        for sta, evid, stream in iter(self):
+            all += stream
+        # end for
+        if index_format == 'event':
+            write_h5_event_stream(output_h5_filename, all, mode='w')
+        elif index_format == 'standard':
+            all.write(output_h5_filename, format='H5', mode='w')
+        # end if
+        return os.path.isfile(output_h5_filename)
     # end func
 
 # end class

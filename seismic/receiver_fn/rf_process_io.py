@@ -4,13 +4,15 @@
 
 import logging
 
+import h5py
 from rf import RFStream
 
 logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
-def async_write(rfstream_queue, outfile_name, max_buffered=100):
+
+def async_write(rfstream_queue, outfile_name, max_buffered=100, metadata=''):
     """Monitors asynchronous queue for data, removes from queue to buffer, then
        flushes buffer intermittently and when queue termination signal is put.
 
@@ -23,12 +25,16 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
     :type outfile_name: str or Path
     :param max_buffered: Maximum number of RFStreams to buffer before flushing to file, defaults to 100
     :type max_buffered: int, optional
+    :param metadata: Metadata string to write to root attribute
+    :type metadata: str, optional
     """
     buffered_streams = []
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     logger.info("Starting async write thread")
-    first_write = True
+    with h5py.File(outfile_name, mode='w') as h5f:
+        h5f.attrs['metadata'] = metadata
+    # end with
     while True:
         # Passing None into the queue is taken as signal to flush buffer and terminate thread
         rfstream = rfstream_queue.get()
@@ -43,12 +49,7 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100):
             stream = RFStream()
             for rf in buffered_streams:
                 stream.extend(rf)
-            if first_write:
-                mode = 'w'
-                first_write = False
-            else:
-                mode = 'a'
-            stream.write(outfile_name, 'H5', mode=mode)
+            stream.write(outfile_name, 'H5', mode='a')
             logger.info("Flushed {} streams to output file {}".format(len(buffered_streams), outfile_name))
 
             while buffered_streams:
