@@ -32,20 +32,20 @@ grid = np.hstack((x_grid.flatten()[:, np.newaxis], y_grid.flatten()[:, np.newaxi
 
 # Proximity weighting based on http://dx.doi.org/10.1098/rspa.2019.0352 with only
 # one dataset
-sigma = 10.0/KM_PER_DEG
+sigma = 25.0/KM_PER_DEG
 sig_sq = np.square(sigma)
 max_dist = 3.5*sigma
-dist_matrix = tree.sparse_distance_matrix(cKDTree(grid), max_distance=max_dist).tobsr()
+dist_matrix = tree.sparse_distance_matrix(cKDTree(grid), max_distance=max_dist).tocsr()
 dist_matrix = dist_matrix.transpose()
 dist_sq_matrix = -dist_matrix.power(2)/sig_sq  # Note the sign negation
-del dist_matrix  # Release resources
 
-# TRICKY: we computing the exponential terms as exp(x) - 1 rather than exp(x), so that we
-# can remain in sparse matrix format until the matrix multiplication. After that, we will
-# compensate for the missing +1 term in the sum.
+# TRICKY point: We compute the exponential terms as exp(x) - 1 rather than exp(x),
+# so that we can remain in sparse matrix format until the matrix multiplication.
+# After that, we will compensate for the missing +1 term in the sum.
 dist_weighting_m1 = dist_sq_matrix.expm1()
-denom = dist_weighting_m1.sum(axis=1) + dist_weighting_m1.shape[1]
-numer = dist_weighting_m1*z + z.sum()
+mask = (dist_matrix != 0)
+denom = dist_weighting_m1.sum(axis=1) + mask.sum(axis=1)
+numer = (dist_weighting_m1 + mask)*z
 z_interp = numer/denom
 
 data_vol_gridded = np.hstack((grid, z_interp))
