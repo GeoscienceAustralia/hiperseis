@@ -26,10 +26,11 @@
   {
     "_comment": "Solver options",
     "type": "mcmc",
-    "temp": 0.005,
+    "temp": 0.009,
     "burnin": 10000,
     "max_iter": 100000,
     "collect_samples": 10000,
-    "target_ar": 0.5
+    "target_ar": 0.5,
+    "cluster_eps": 0.08
   }
 }

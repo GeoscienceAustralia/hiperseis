@@ -18,6 +18,9 @@ from seismic.inversion.wavefield_decomp.call_count_decorator import call_counter
 
 # pylint: disable=invalid-name
 
+DEFAULT_CLUSTER_EPS = 0.05
+
+
 class SolverGlobalMhMcmc:
     """
     Drop-in custom solver for scipy.optimize.minimize, based on Metrolpolis-Hastings Monte Carlo
@@ -178,7 +181,8 @@ class AdaptiveStepsize():
 
 
 def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N=3, burnin=100000, maxiter=1000000,
-                                     target_ar=0.4, ar_tolerance=0.05, cluster_eps=0.05, rnd_seed=None,
+                                     target_ar=0.4, ar_tolerance=0.05,
+                                     cluster_eps=DEFAULT_CLUSTER_EPS, rnd_seed=None,
                                      collect_samples=None, logger=None, verbose=False):
     """
     Minimize objective function and return up to N local minima solutions.
@@ -354,7 +358,11 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
     solution.acceptance_rate = ar
     solution.success = True
     solution.status = 0
-    solution.message = 'SUCCESS: Found {} local minima'.format(len(solutions))
+    if len(solutions) > 0:
+        solution.message = 'SUCCESS: Found {} local minima'.format(len(solutions))
+    else:
+        solution.message = 'WARNING: Found no clusters within tolerance {}'.format(cluster_eps)
+    # end if
     solution.fun = np.array([s[2] for s in solutions])
     solution.jac = None
     solution.nfev = obj_counted.counter
