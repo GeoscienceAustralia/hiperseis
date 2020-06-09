@@ -180,6 +180,12 @@ def main(config_file, output_file):
         np.savetxt(f, [n_x, n_y], fmt='%d')
         np.savetxt(f, data_agg_gridded, fmt=['%.6f', '%.6f', '%.1f', '%.1f'], delimiter=',',
                    header='Lon,Lat,Depth,Stddev')
+        # To load this data back in:
+        # >>> with open('test_pts2grid.csv', 'r') as f:
+        # ...   nx = int(f.readline())
+        # ...   ny = int(f.readline())
+        # ...   ds = np.loadtxt(f, delimiter=',')
+        # >>> # For each column in ds, reshape((ny, nx))
     # end with
 
     # See https://scitools.org.uk/cartopy/docs/latest/tutorials/understanding_transform.html
