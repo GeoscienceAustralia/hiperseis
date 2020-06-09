@@ -12,6 +12,7 @@ On the rotation of teleseismic seismograms based on the receiver function techni
 J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
 
+import json
 import click
 import logging
 import copy
@@ -108,7 +109,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
         "trim_end_time": 30,
         "spiking": 1.0
     }
-    angles = np.linspace(-180, 180, num=30, endpoint=False)
+    angles = np.linspace(-180, 180, num=20, endpoint=False)
     job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
     stations = []
@@ -122,6 +123,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
 
     x = np.hstack((angles, angles[0] + 360))
     angles_fine = np.linspace(-180, 180, num=361)
+    results = {}
     for sta, N, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
         mask = np.isfinite(y)
@@ -148,6 +150,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
         ph_uncertainty = np.sqrt(cov[1, 1])
         # Estimate correction angle
         angle_max = angles_fine[np.argmax(y_fitted)]
+        results['.'.join([ned.network, sta])] = angle_max
         logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
             sta, angle_max, ph_uncertainty, N))
         if save_plot:
@@ -166,11 +169,17 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
             plt.close()
         # end if
     # end for
-# end if
+
+    if dest_file is not None:
+        with open(dest_file, 'w') as f:
+            json.dump(results, f, indent=4)
+    # end if
+# end func
 
 
 @click.command()
-@click.option('--dest-file', type=click.Path(dir_okay=False), help='NYI')
+@click.option('--dest-file', type=click.Path(dir_okay=False),
+              help='Output file in which to store results in JSON text format')
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None):
@@ -178,11 +187,11 @@ def main(src_h5_event_file, dest_file=None):
     Run station orientation checks.
 
     Example usage:
-    python seismic/analyze_station_orientations.py \
+    python seismic/analyze_station_orientations.py --dest-file 7X_ori_estimates.json \
       /g/data/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5
 
     :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
-    :param dest_file: UNUSED - TO BE IMPLEMENTED
+    :param dest_file: Output file in which to store results in JSON text format
     """
     method_wilde_piorko(src_h5_event_file, dest_file, save_plot=True)
 # end func
