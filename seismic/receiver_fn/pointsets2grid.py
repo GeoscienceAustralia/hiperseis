@@ -62,13 +62,14 @@ def main(config_file, output_file):
     Run multi point dataset weighted averaging over Gaussian interpolation functions
     to produce aggregate dataset.
     Source data coordinates are assumed to be in lon/lat (WGS84).
+    First 2 rows of output file contain grid dimensions, followed by CSV data.
 
     Example usage:
     python pointsets2grid.py --config-file config_pts2grid_example.json \
         --output-file test_pts2grid.csv
 
-    :param config_file:
-    :param output_file:
+    :param config_file: Input filename of the job configuration in JSON format
+    :param output_file: Name of output file
     :return: None
     """
 
@@ -175,8 +176,11 @@ def main(config_file, output_file):
 
     # Collect data and write to file
     data_agg_gridded = np.hstack((grid_lonlat, z_agg, s_agg))
-    np.savetxt(output_file, data_agg_gridded, fmt=['%.6f', '%.6f', '%.1f', '%.1f'], delimiter=',',
-               header='Lon,Lat,Depth,Stddev')
+    with open(output_file, mode='w') as f:
+        np.savetxt(f, [n_x, n_y], fmt='%d')
+        np.savetxt(f, data_agg_gridded, fmt=['%.6f', '%.6f', '%.1f', '%.1f'], delimiter=',',
+                   header='Lon,Lat,Depth,Stddev')
+    # end with
 
     # See https://scitools.org.uk/cartopy/docs/latest/tutorials/understanding_transform.html
     # for how to use projection and transform settings with matplotlib.
