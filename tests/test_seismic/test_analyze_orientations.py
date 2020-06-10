@@ -43,3 +43,12 @@ def test_channel_negated(ned_channel_negated):
     assert result[EXPECTED_SYNTH_KEY] != 0.0
 # end func
 
+
+def test_rotation_error(ned_rotation_error):
+    result = analyze_station_orientations(ned_rotation_error, SYNTH_CURATION_OPTS,
+                                          DEFAULT_CONFIG_FILTERING,
+                                          DEFAULT_CONFIG_PROCESSING)
+    print(ned_rotation_error.param, result)
+    assert EXPECTED_SYNTH_KEY in result
+    assert result[EXPECTED_SYNTH_KEY] == -ned_rotation_error.param
+# end func

@@ -5,7 +5,7 @@ import copy
 import pytest
 
 from seismic.network_event_dataset import NetworkEventDataset
-from seismic.stream_processing import swap_ne_channels, negate_channel
+from seismic.stream_processing import swap_ne_channels, negate_channel, correct_back_azimuth
 
 
 @pytest.fixture(scope='session')
@@ -43,3 +43,10 @@ def ned_channel_negated(_master_event_dataset, request):
     ned.param = request.param
     return ned
 
+
+@pytest.fixture(scope='function', params=list(range(-150, 181, 30)))
+def ned_rotation_error(_master_event_dataset, request):
+    ned = copy.deepcopy(_master_event_dataset)
+    ned.apply(lambda stream: correct_back_azimuth(None, stream, baz_correction=request.param))
+    ned.param = request.param
+    return ned

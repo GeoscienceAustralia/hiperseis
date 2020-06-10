@@ -233,7 +233,7 @@ def process_event_file(src_h5_event_file, dest_file=None, save_plot=False):
 @click.command()
 @click.option('--dest-file', type=click.Path(dir_okay=False),
               help='Output file in which to store results in JSON text format')
-@click.option('--save-plot/--no-save-plot', type=bool, help='Flag to save plot per  station')
+@click.option('--save-plot', is_flag=True, help='Flag to save plot per station')
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 def main(src_h5_event_file, dest_file=None, save_plot=False):
@@ -246,6 +246,7 @@ def main(src_h5_event_file, dest_file=None, save_plot=False):
 
     :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
     :param dest_file: Output file in which to store results in JSON text format
+    :param save_plot: Set option to save plot per station of mean arrival RF amplitude as function of correction angle
     """
     process_event_file(src_h5_event_file, dest_file, save_plot=save_plot)
 # end func
