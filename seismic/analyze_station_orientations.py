@@ -28,8 +28,41 @@ from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.receiver_fn.generate_rf import transform_stream_to_rf
 
+# Take care not to use any curation options that would vary if there were a station orientation error.
+DEFAULT_CURATION_OPTS = {
+    "min_snr": 2.0,
+    "max_raw_amplitude": 20000.0,
+    "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
+}
+
+DEFAULT_CONFIG_FILTERING = {
+    "resample_rate": 10.0,
+    "taper_limit": 0.05,
+    "filter_band": [0.02, 1.0],
+}
+
+DEFAULT_CONFIG_PROCESSING = {
+    "rotation_type": "ZRT",
+    "deconv_domain": "time",
+    "normalize": True,
+    "trim_start_time": -10,
+    "trim_end_time": 30,
+    "spiking": 1.0
+}
+
 
 def _run_single_station(db_evid, angles, config_filtering, config_processing):
+    """
+    Internal processing function for running sequence of candidate angles
+    over a single station.
+
+    :param db_evid: Dictionary of event streams (3-channel ZNE) keyed by event ID.
+        Best obtained using class NetworkEventDataset
+    :param angles: Sequence of candidate correction angles to try (degrees)
+    :param config_filtering: Waveform filtering options for RF processing
+    :param config_processing: RF processing options
+    :return:
+    """
     ampls = []
     for correction in angles:
         rf_stream_all = RFStream()
@@ -66,11 +99,29 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
 # end func
 
 
-def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
+def analyze_station_orientations(ned, curation_opts, config_filtering,
+                                 config_processing, save_plot=False):
+    """
+    Main processing function for analyzing station orientation using 3-channel
+    event waveforms. Uses method of Wilde-Piorko https://doi.org/10.1007/s10950-017-9640-x
+
+    One should not worry about estimates that come back with error of less than
+    about 20 degrees from zero, since this analysis provides only an estimate.
+
+    :param ned: NetworkEventDataset containing waveforms to analyze
+    :param curation_opts: Seismogram curation options.
+        Safe default to use is `DEFAULT_CURATION_OPTS`.
+    :param config_filtering: Seismogram filtering options for RF computation.
+        Safe default to use is `DEFAULT_CONFIG_FILTERING`.
+    :param config_processing: Seismogram RF processing options.
+        Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
+    :param save_plot: Flag to save plot of analysis results on each station
+    :return: Dict of estimated orientation error with net.sta code as the key.
+    """
+    assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-    logger.info('Loading dataset')
-    ned = NetworkEventDataset(src_h5_event_file)
+
     evids_orig = set([evid for _, evid, _ in ned])
 
     # Trim streams to time window
@@ -83,12 +134,6 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
               .interpolate(fs, method='lanczos', a=10))
 
-    # Take care not to use any curation options that would vary if there were a station orientation error.
-    curation_opts = {
-        "min_snr": 2.0,
-        "max_raw_amplitude": 20000.0,
-        "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
-    }
     logger.info('Curating dataset')
     curate_seismograms(ned, curation_opts, logger, rotate_to_zrt=False)
     evids_to_keep = set([evid for _, evid, _ in ned])
@@ -96,19 +141,6 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
     logger.info('Discarded {}/{} events'.format(len(evids_discarded), len(evids_orig)))
 
     logger.info('Analysing arrivals')
-    config_filtering = {
-        "resample_rate": 10.0,
-        "taper_limit": 0.05,
-        "filter_band": [0.02, 1.0],
-    }
-    config_processing = {
-        "rotation_type": "ZRT",
-        "deconv_domain": "time",
-        "normalize": True,
-        "trim_start_time": -10,
-        "trim_end_time": 30,
-        "spiking": 1.0
-    }
     angles = np.linspace(-180, 180, num=20, endpoint=False)
     job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
     jobs = []
@@ -154,7 +186,7 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
         logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
             sta, angle_max, ph_uncertainty, N))
         if save_plot:
-            f = plt.figure(figsize=(16,9))
+            _f = plt.figure(figsize=(16,9))
             plt.plot(x_valid, y_valid, 'x', label='Computed P arrival strength')
             plt.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
             plt.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
@@ -170,6 +202,27 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
         # end if
     # end for
 
+    return results
+# end func
+
+
+def process_event_file(src_h5_event_file, dest_file=None, save_plot=False):
+    """
+    Use event dataset from an HDF5 file to analyze station for orientation errors.
+
+    :param src_h5_event_file: HDF5 file to load. Typically one created by `extract_event_traces.py` script
+    :param dest_file: File in which to save results in JSON format
+    :param save_plot: Flag to save plot of analysis results on each station
+    :return: None
+    """
+
+    ned = NetworkEventDataset(src_h5_event_file)
+
+    results = analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
+                                           config_filtering=DEFAULT_CONFIG_FILTERING,
+                                           config_processing=DEFAULT_CONFIG_PROCESSING,
+                                           save_plot=save_plot)
+
     if dest_file is not None:
         with open(dest_file, 'w') as f:
             json.dump(results, f, indent=4)
@@ -180,9 +233,10 @@ def method_wilde_piorko(src_h5_event_file, dest_file=None, save_plot=False):
 @click.command()
 @click.option('--dest-file', type=click.Path(dir_okay=False),
               help='Output file in which to store results in JSON text format')
+@click.option('--save-plot/--no-save-plot', type=bool, help='Flag to save plot per  station')
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
-def main(src_h5_event_file, dest_file=None):
+def main(src_h5_event_file, dest_file=None, save_plot=False):
     """
     Run station orientation checks.
 
@@ -193,7 +247,7 @@ def main(src_h5_event_file, dest_file=None):
     :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
     :param dest_file: Output file in which to store results in JSON text format
     """
-    method_wilde_piorko(src_h5_event_file, dest_file, save_plot=True)
+    process_event_file(src_h5_event_file, dest_file, save_plot=save_plot)
 # end func
 
 
