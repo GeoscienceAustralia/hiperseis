@@ -2,8 +2,7 @@
 
 from seismic.analyze_station_orientations import (analyze_station_orientations,
                                                   process_event_file)
-from seismic.analyze_station_orientations import (DEFAULT_CURATION_OPTS,
-                                                  DEFAULT_CONFIG_FILTERING,
+from seismic.analyze_station_orientations import (DEFAULT_CONFIG_FILTERING,
                                                   DEFAULT_CONFIG_PROCESSING)
 
 
@@ -30,6 +29,16 @@ def test_ne_swapped(ned_channel_swapped):
                                           DEFAULT_CONFIG_FILTERING,
                                           DEFAULT_CONFIG_PROCESSING)
     print('N-E channels swapped', result)
+    assert EXPECTED_SYNTH_KEY in result
+    assert result[EXPECTED_SYNTH_KEY] != 0.0
+# end func
+
+
+def test_channel_negated(ned_channel_negated):
+    result = analyze_station_orientations(ned_channel_negated, SYNTH_CURATION_OPTS,
+                                          DEFAULT_CONFIG_FILTERING,
+                                          DEFAULT_CONFIG_PROCESSING)
+    print(ned_channel_negated.param, result)
     assert EXPECTED_SYNTH_KEY in result
     assert result[EXPECTED_SYNTH_KEY] != 0.0
 # end func
