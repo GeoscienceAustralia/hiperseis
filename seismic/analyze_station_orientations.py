@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 """
 Analyze a data set of seismic arrival events on a per-station basis and try to
 detect and estimate any station orientation error.
@@ -206,11 +207,20 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
 # end func
 
 
-def process_event_file(src_h5_event_file, dest_file=None, save_plot=False):
+def process_event_file(src_h5_event_file, curation_opts=DEFAULT_CURATION_OPTS,
+                       config_filtering=DEFAULT_CONFIG_FILTERING,
+                       config_processing=DEFAULT_CONFIG_PROCESSING,
+                       dest_file=None, save_plot=False):
     """
     Use event dataset from an HDF5 file to analyze station for orientation errors.
 
     :param src_h5_event_file: HDF5 file to load. Typically one created by `extract_event_traces.py` script
+    :param curation_opts: Seismogram curation options.
+        Safe default to use is `DEFAULT_CURATION_OPTS`.
+    :param config_filtering: Seismogram filtering options for RF computation.
+        Safe default to use is `DEFAULT_CONFIG_FILTERING`.
+    :param config_processing: Seismogram RF processing options.
+        Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
     :param dest_file: File in which to save results in JSON format
     :param save_plot: Flag to save plot of analysis results on each station
     :return: None
@@ -218,10 +228,8 @@ def process_event_file(src_h5_event_file, dest_file=None, save_plot=False):
 
     ned = NetworkEventDataset(src_h5_event_file)
 
-    results = analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
-                                           config_filtering=DEFAULT_CONFIG_FILTERING,
-                                           config_processing=DEFAULT_CONFIG_PROCESSING,
-                                           save_plot=save_plot)
+    results = analyze_station_orientations(ned, curation_opts, config_filtering,
+                                           config_processing, save_plot=save_plot)
 
     if dest_file is not None:
         with open(dest_file, 'w') as f:
@@ -248,7 +256,7 @@ def main(src_h5_event_file, dest_file=None, save_plot=False):
     :param dest_file: Output file in which to store results in JSON text format
     :param save_plot: Set option to save plot per station of mean arrival RF amplitude as function of correction angle
     """
-    process_event_file(src_h5_event_file, dest_file, save_plot=save_plot)
+    process_event_file(src_h5_event_file, dest_file=dest_file, save_plot=save_plot)
 # end func
 
 
