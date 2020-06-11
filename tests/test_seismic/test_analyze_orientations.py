@@ -88,8 +88,9 @@ def test_channel_negated(ned_channel_negated):
 # end func
 
 
-def test_rotation_error(ned_rotation_error, expected_receiver_fn):
+def test_rotation_error(ned_rotation_error, expected_receiver_fn, tmpdir_factory):
     # Test simple rotation error
+    ned_duplicate = copy.deepcopy(ned_rotation_error)
     result = analyze_station_orientations(ned_rotation_error, SYNTH_CURATION_OPTS,
                                           DEFAULT_CONFIG_FILTERING,
                                           DEFAULT_CONFIG_PROCESSING)
@@ -98,9 +99,14 @@ def test_rotation_error(ned_rotation_error, expected_receiver_fn):
     assert result[EXPECTED_SYNTH_KEY] == -ned_rotation_error.param
 
     # Apply correction and check that we can recover proper receiver function
-    ned_rotation_error.apply(lambda stream: correct_back_azimuth(None, stream,
-                             baz_correction=-result[EXPECTED_SYNTH_KEY]))
-    stacked_rf_R, _ = compute_ned_stacked_rf(ned_rotation_error)
+    ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
+                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+    stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
+    actual_plot_filename = 'test_analyze_orientations_actual_{}.png'.format(ned_rotation_error.param)
+    actual_outfile = os.path.join(tmpdir_factory.mktemp('expected_receiver_fn').strpath,
+                                  actual_plot_filename)
+    plot_rf_stack(rfs, save_file=actual_outfile)
+    print('Actual RF plot saved to tmp file {}'.format(actual_outfile))
     expected_data = expected_receiver_fn[0].data
     actual_data = stacked_rf_R[0].data
     assert np.allclose(actual_data, expected_data, rtol=1.0e-3, atol=1.0e-5)

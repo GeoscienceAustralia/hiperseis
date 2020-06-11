@@ -109,7 +109,8 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
     One should not worry about estimates that come back with error of less than
     about 20 degrees from zero, since this analysis provides only an estimate.
 
-    :param ned: NetworkEventDataset containing waveforms to analyze
+    :param ned: NetworkEventDataset containing waveforms to analyze. Note: the data in
+        this dataset will be modified by this function.
     :param curation_opts: Seismogram curation options.
         Safe default to use is `DEFAULT_CURATION_OPTS`.
     :param config_filtering: Seismogram filtering options for RF computation.
