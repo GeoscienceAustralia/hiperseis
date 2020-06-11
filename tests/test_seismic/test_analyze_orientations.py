@@ -66,8 +66,9 @@ def test_unmodified_data(ned_original):
 # end func
 
 
-def test_ne_swapped(ned_channel_swapped, tmpdir_factory):
+def test_ne_swapped(ned_channel_swapped, expected_receiver_fn, tmpdir_factory):
     # Test swapping of N and E channels
+    ned_duplicate = copy.deepcopy(ned_channel_swapped)
     plot_folder = tmpdir_factory.mktemp('test_ne_swapped').strpath
     result = analyze_station_orientations(ned_channel_swapped, SYNTH_CURATION_OPTS,
                                           DEFAULT_CONFIG_FILTERING,
@@ -77,11 +78,35 @@ def test_ne_swapped(ned_channel_swapped, tmpdir_factory):
     print('N-E channels swapped', result)
     assert EXPECTED_SYNTH_KEY in result
     assert result[EXPECTED_SYNTH_KEY] != 0.0
+
+    # Even though the induced error here is not a rotation,
+    # prospectively apply correction and check how it relates to the
+    # proper, unperturbed receiver function.
+    # This test demonstrates that a channel swapping can be repaired by
+    # treating it as if it were a rotation error.
+    ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
+                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+    stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
+    actual_plot_filename = 'test_analyze_orientations_actual_swapped.png'
+    actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
+                                  actual_plot_filename)
+    plot_rf_stack(rfs, save_file=actual_outfile)
+    print('Actual RF plot saved to tmp file {}'.format(actual_outfile))
+    expected_data = expected_receiver_fn[0].data
+    actual_data = stacked_rf_R[0].data
+    delta = np.abs(actual_data - expected_data)
+    rmse = np.sqrt(np.mean(np.square(delta)))
+    rms = np.sqrt(np.mean(np.square(expected_data)))
+    rmse_rel = rmse/rms
+    print('Swapped RMSE:', rmse, ', RMSE rel:', rmse_rel)
+    assert rmse_rel < 0.05
+
 # end func
 
 
-def test_channel_negated(ned_channel_negated, tmpdir_factory):
+def test_channel_negated(ned_channel_negated, expected_receiver_fn, tmpdir_factory):
     # Test negation of one or both transverse channels
+    ned_duplicate = copy.deepcopy(ned_channel_negated)
     plot_folder = tmpdir_factory.mktemp('test_channel_negated_{}'.format(ned_channel_negated.param)).strpath
     result = analyze_station_orientations(ned_channel_negated, SYNTH_CURATION_OPTS,
                                           DEFAULT_CONFIG_FILTERING,
@@ -91,6 +116,29 @@ def test_channel_negated(ned_channel_negated, tmpdir_factory):
     print('Negated {}'.format(ned_channel_negated.param), result)
     assert EXPECTED_SYNTH_KEY in result
     assert result[EXPECTED_SYNTH_KEY] != 0.0
+
+    # Even though the induced error here is not a rotation,
+    # prospectively apply correction and check how it relates to the
+    # proper, unperturbed receiver function.
+    # This test demonstrates that a channel negation can be repaired by
+    # treating it as if it were a rotation error.
+    ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
+                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+    stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
+    actual_plot_filename = 'test_analyze_orientations_actual_{}.png'.format(ned_channel_negated.param)
+    actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
+                                  actual_plot_filename)
+    plot_rf_stack(rfs, save_file=actual_outfile)
+    print('Actual RF plot saved to tmp file {}'.format(actual_outfile))
+    expected_data = expected_receiver_fn[0].data
+    actual_data = stacked_rf_R[0].data
+    delta = np.abs(actual_data - expected_data)
+    rmse = np.sqrt(np.mean(np.square(delta)))
+    rms = np.sqrt(np.mean(np.square(expected_data)))
+    rmse_rel = rmse/rms
+    print('Negated RMSE:', rmse, ', RMSE rel:', rmse_rel)
+    assert rmse_rel < 0.05
+
 # end func
 
 
@@ -109,12 +157,16 @@ def test_rotation_error(ned_rotation_error, expected_receiver_fn, tmpdir_factory
                         baz_correction=result[EXPECTED_SYNTH_KEY]))
     stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
     actual_plot_filename = 'test_analyze_orientations_actual_{}.png'.format(ned_rotation_error.param)
-    actual_outfile = os.path.join(tmpdir_factory.mktemp('expected_receiver_fn').strpath,
+    actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
                                   actual_plot_filename)
     plot_rf_stack(rfs, save_file=actual_outfile)
     print('Actual RF plot saved to tmp file {}'.format(actual_outfile))
     expected_data = expected_receiver_fn[0].data
     actual_data = stacked_rf_R[0].data
+    delta = np.abs(actual_data - expected_data)
+    rmse = np.sqrt(np.mean(np.square(delta)))
+    rms = np.sqrt(np.mean(np.square(expected_data)))
+    print('Rotated RMSE:', rmse, ', RMSE rel:', rmse/rms)
     assert np.allclose(actual_data, expected_data, rtol=1.0e-3, atol=1.0e-5)
 # end func
 
