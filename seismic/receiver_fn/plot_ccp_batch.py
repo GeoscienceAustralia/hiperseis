@@ -17,6 +17,9 @@ from seismic.receiver_fn.plot_ccp import run
 from seismic.units_utils import KM_PER_DEG
 
 
+LEAD_INOUT_DIST_KM = 25.0
+
+
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,
               stack_scale=0.4, width=30.0, spacing=2.0, max_depth=200.0,
               channel='R', output_folder='', colormap='seismic', annotators=None):
@@ -106,8 +109,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             # and will break down near poles, for long transects, or if transect crosses the antimeridian.
             dirn = (end - start)
             dirn = dirn/np.linalg.norm(dirn)
-            start -= 25*dirn/KM_PER_DEG
-            end += 25*dirn/KM_PER_DEG
+            start -= LEAD_INOUT_DIST_KM*dirn/KM_PER_DEG
+            end += LEAD_INOUT_DIST_KM*dirn/KM_PER_DEG
             start_latlon = (start[1], start[0])
             end_latlon = (end[1], end[0])
 
