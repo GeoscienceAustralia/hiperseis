@@ -426,7 +426,8 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
 
     direction = '(one way)' if not zero_phase else '(two way)'
     plt.suptitle("Reponse characteristics for filter band ({}, {})/{} Hz, order {} {}"
-                 .format(*filter_band_hz, sampling_rate_hz, corners, direction))
+                 .format(filter_band_hz[0], filter_band_hz[1],
+                         sampling_rate_hz, corners, direction))
     return fig
 # end func
 

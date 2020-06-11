@@ -8,9 +8,10 @@ from seismic.network_event_dataset import NetworkEventDataset
 from seismic.stream_processing import swap_ne_channels, negate_channel, correct_back_azimuth
 
 
-@pytest.fixture(scope='session')
-def synth_event_file():
-    return os.path.join(os.path.split(__file__)[0], 'data', 'synth_event_waveforms_for_rf_test.h5')
+@pytest.fixture(scope='session', params=['synth_event_waveforms_for_rf_test.h5',
+                                         'synth_event_waveforms_for_rf_test2.h5'])
+def synth_event_file(request):
+    return os.path.join(os.path.split(__file__)[0], 'data', request.param)
 
 
 @pytest.fixture(scope='module')
