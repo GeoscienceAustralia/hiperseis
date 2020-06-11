@@ -2,11 +2,13 @@
 
 import os
 import copy
+import json
 import pytest
 
 import numpy as np
 import matplotlib.pyplot as plt
 from rf import RFStream
+from obspy import UTCDateTime
 
 from seismic.analyze_station_orientations import (analyze_station_orientations,
                                                   process_event_file)
@@ -62,7 +64,7 @@ def test_unmodified_data(ned_original):
                                           DEFAULT_CONFIG_PROCESSING)
     print('Original synth data', result)
     assert EXPECTED_SYNTH_KEY in result
-    assert result[EXPECTED_SYNTH_KEY] == 0.0
+    assert result[EXPECTED_SYNTH_KEY]['azimuth_correction'] == 0.0
 # end func
 
 
@@ -77,7 +79,7 @@ def test_ne_swapped(ned_channel_swapped, expected_receiver_fn, tmpdir_factory):
     print('Swapped Analysis plots saved to', plot_folder)
     print('N-E channels swapped', result)
     assert EXPECTED_SYNTH_KEY in result
-    assert result[EXPECTED_SYNTH_KEY] != 0.0
+    assert result[EXPECTED_SYNTH_KEY]['azimuth_correction'] != 0.0
 
     # Even though the induced error here is not a rotation,
     # prospectively apply correction and check how it relates to the
@@ -85,7 +87,7 @@ def test_ne_swapped(ned_channel_swapped, expected_receiver_fn, tmpdir_factory):
     # This test demonstrates that a channel swapping can be repaired by
     # treating it as if it were a rotation error.
     ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
-                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+                        baz_correction=result[EXPECTED_SYNTH_KEY]['azimuth_correction']))
     stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
     actual_plot_filename = 'test_analyze_orientations_actual_swapped.png'
     actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
@@ -115,7 +117,7 @@ def test_channel_negated(ned_channel_negated, expected_receiver_fn, tmpdir_facto
     print('Negated Analysis plots saved to', plot_folder)
     print('Negated {}'.format(ned_channel_negated.param), result)
     assert EXPECTED_SYNTH_KEY in result
-    assert result[EXPECTED_SYNTH_KEY] != 0.0
+    assert result[EXPECTED_SYNTH_KEY]['azimuth_correction'] != 0.0
 
     # Even though the induced error here is not a rotation,
     # prospectively apply correction and check how it relates to the
@@ -123,7 +125,7 @@ def test_channel_negated(ned_channel_negated, expected_receiver_fn, tmpdir_facto
     # This test demonstrates that a channel negation can be repaired by
     # treating it as if it were a rotation error.
     ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
-                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+                        baz_correction=result[EXPECTED_SYNTH_KEY]['azimuth_correction']))
     stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
     actual_plot_filename = 'test_analyze_orientations_actual_{}.png'.format(ned_channel_negated.param)
     actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
@@ -150,11 +152,11 @@ def test_rotation_error(ned_rotation_error, expected_receiver_fn, tmpdir_factory
                                           DEFAULT_CONFIG_PROCESSING)
     print(ned_rotation_error.param, result)
     assert EXPECTED_SYNTH_KEY in result
-    assert result[EXPECTED_SYNTH_KEY] == -ned_rotation_error.param
+    assert result[EXPECTED_SYNTH_KEY]['azimuth_correction'] == -ned_rotation_error.param
 
     # Apply correction and check that we can recover proper receiver function
     ned_duplicate.apply(lambda stream: correct_back_azimuth(None, stream,
-                        baz_correction=result[EXPECTED_SYNTH_KEY]))
+                        baz_correction=result[EXPECTED_SYNTH_KEY]['azimuth_correction']))
     stacked_rf_R, rfs = compute_ned_stacked_rf(ned_duplicate)
     actual_plot_filename = 'test_analyze_orientations_actual_{}.png'.format(ned_rotation_error.param)
     actual_outfile = os.path.join(tmpdir_factory.mktemp('actual_receiver_fn').strpath,
@@ -178,5 +180,14 @@ def test_analyze_file(synth_event_file, tmpdir):
                        dest_file=output_file)
     assert os.path.isfile(output_file)
     with open(output_file, 'r') as f:
-        assert f.read() == '{{\n    "{}": 0.0\n}}'.format(EXPECTED_SYNTH_KEY)
+        result = json.load(f)
+        assert EXPECTED_SYNTH_KEY in result
+        result = result[EXPECTED_SYNTH_KEY]
+        dates = result['date_range']
+        t0 = UTCDateTime(dates[0])
+        t1 = UTCDateTime(dates[1])
+        assert t1 > t0
+        correction = result['azimuth_correction']
+        assert correction == 0
+    # end with
 # end func

@@ -19,6 +19,7 @@ import click
 import logging
 import copy
 from joblib import Parallel, delayed
+from collections import defaultdict
 
 import numpy as np
 from scipy import optimize, interpolate
@@ -123,8 +124,32 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
     :return: Dict of estimated orientation error with net.sta code as the key.
     """
     assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
+
+    if len(ned) == 0:
+        return {}
+
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
+
+    # Determine limiting date range per station
+    results = defaultdict(dict)
+    for sta, db_evid in ned.by_station():
+        start_time = end_time = None
+        full_code = '.'.join([ned.network, sta])
+        for _evid, stream in db_evid.items():
+            if start_time is None:
+                start_time = stream[0].stats.starttime
+            # end if
+            if end_time is None:
+                end_time = stream[0].stats.endtime
+            # end if
+            for tr in stream:
+                start_time = min(start_time, tr.stats.starttime)
+                end_time = max(end_time, tr.stats.endtime)
+            # end for
+        # end for
+        results[full_code]['date_range'] = [str(start_time), str(end_time)]
+    # end for
 
     evids_orig = set([evid for _, evid, _ in ned])
 
@@ -159,7 +184,6 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
 
     x = np.hstack((angles, angles[0] + 360))
     angles_fine = np.linspace(-180, 180, num=361)
-    results = {}
     for sta, N, ampls in sta_ori_metrics:
         y = np.array(ampls + [ampls[0]])
         mask = np.isfinite(y)
@@ -186,7 +210,8 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
         ph_uncertainty = np.sqrt(cov[1, 1])
         # Estimate correction angle
         angle_max = angles_fine[np.argmax(y_fitted)]
-        results['.'.join([ned.network, sta])] = angle_max
+        code = '.'.join([ned.network, sta])
+        results[code]['azimuth_correction'] = angle_max
         logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
             sta, angle_max, ph_uncertainty, N))
         if save_plots_path is not None:
@@ -201,7 +226,6 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
             plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                      transform=plt.gca().transAxes)
             plt.legend(framealpha=0.7)
-            code = '.'.join([ned.network, sta])
             outfile = '_'.join([code, config_processing["deconv_domain"], 'ori.png'])
             outfile = os.path.join(str(save_plots_path), outfile)
             plt.savefig(outfile, dpi=300)
