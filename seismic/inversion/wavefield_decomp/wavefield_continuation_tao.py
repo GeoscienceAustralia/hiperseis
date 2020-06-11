@@ -82,7 +82,8 @@ class WfContinuationSuFluxComputer:
         # Number of sample points. Since the last point is considered the end of a closed interval,
         # we +1 to the numer of points to ensure f_s == 1/dt.
         self._npts = int(np.rint((time_window[1] - time_window[0])*f_s)) + 1
-        self._time_axis = np.linspace(*self._time_window, self._npts)
+        time_start, time_end = self._time_window
+        self._time_axis = np.linspace(time_start, time_end, self._npts)
         self._time_axis.flags.writeable = False
         assert np.isclose(np.mean(np.diff(self._time_axis)), self._dt)
         self._station_eventdataset_to_v0(station_event_dataset)

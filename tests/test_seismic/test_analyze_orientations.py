@@ -66,23 +66,29 @@ def test_unmodified_data(ned_original):
 # end func
 
 
-def test_ne_swapped(ned_channel_swapped):
+def test_ne_swapped(ned_channel_swapped, tmpdir_factory):
     # Test swapping of N and E channels
+    plot_folder = tmpdir_factory.mktemp('test_ne_swapped').strpath
     result = analyze_station_orientations(ned_channel_swapped, SYNTH_CURATION_OPTS,
                                           DEFAULT_CONFIG_FILTERING,
-                                          DEFAULT_CONFIG_PROCESSING)
+                                          DEFAULT_CONFIG_PROCESSING,
+                                          save_plots_path=plot_folder)
+    print('Swapped Analysis plots saved to', plot_folder)
     print('N-E channels swapped', result)
     assert EXPECTED_SYNTH_KEY in result
     assert result[EXPECTED_SYNTH_KEY] != 0.0
 # end func
 
 
-def test_channel_negated(ned_channel_negated):
+def test_channel_negated(ned_channel_negated, tmpdir_factory):
     # Test negation of one or both transverse channels
+    plot_folder = tmpdir_factory.mktemp('test_channel_negated_{}'.format(ned_channel_negated.param)).strpath
     result = analyze_station_orientations(ned_channel_negated, SYNTH_CURATION_OPTS,
                                           DEFAULT_CONFIG_FILTERING,
-                                          DEFAULT_CONFIG_PROCESSING)
-    print(ned_channel_negated.param, result)
+                                          DEFAULT_CONFIG_PROCESSING,
+                                          save_plots_path=plot_folder)
+    print('Negated Analysis plots saved to', plot_folder)
+    print('Negated {}'.format(ned_channel_negated.param), result)
     assert EXPECTED_SYNTH_KEY in result
     assert result[EXPECTED_SYNTH_KEY] != 0.0
 # end func

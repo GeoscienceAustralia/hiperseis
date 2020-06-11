@@ -28,3 +28,4 @@ tqdm
 rf==0.8.0
 sortedcontainers
 scikit-learn
+urllib3

@@ -13,6 +13,7 @@ On the rotation of teleseismic seismograms based on the receiver function techni
 J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
 
+import os
 import json
 import click
 import logging
@@ -101,7 +102,7 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
 
 
 def analyze_station_orientations(ned, curation_opts, config_filtering,
-                                 config_processing, save_plot=False):
+                                 config_processing, save_plots_path=None):
     """
     Main processing function for analyzing station orientation using 3-channel
     event waveforms. Uses method of Wilde-Piorko https://doi.org/10.1007/s10950-017-9640-x
@@ -117,7 +118,8 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
         Safe default to use is `DEFAULT_CONFIG_FILTERING`.
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
-    :param save_plot: Flag to save plot of analysis results on each station
+    :param save_plots_path: Optional folder in which to save plot per station of mean
+        arrival RF amplitude as function of correction angle
     :return: Dict of estimated orientation error with net.sta code as the key.
     """
     assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
@@ -133,7 +135,7 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
     # Downsample.
     logger.info('Downsampling dataset')
     fs = 20.0
-    ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+    ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True)
               .interpolate(fs, method='lanczos', a=10))
 
     logger.info('Curating dataset')
@@ -187,8 +189,8 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
         results['.'.join([ned.network, sta])] = angle_max
         logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
             sta, angle_max, ph_uncertainty, N))
-        if save_plot:
-            _f = plt.figure(figsize=(16,9))
+        if save_plots_path is not None:
+            _f = plt.figure(figsize=(16, 9))
             plt.plot(x_valid, y_valid, 'x', label='Computed P arrival strength')
             plt.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
             plt.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
@@ -199,7 +201,10 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
             plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                      transform=plt.gca().transAxes)
             plt.legend(framealpha=0.7)
-            plt.savefig('_'.join([sta, config_processing["deconv_domain"], 'ori.png']), dpi=300)
+            code = '.'.join([ned.network, sta])
+            outfile = '_'.join([code, config_processing["deconv_domain"], 'ori.png'])
+            outfile = os.path.join(str(save_plots_path), outfile)
+            plt.savefig(outfile, dpi=300)
             plt.close()
         # end if
     # end for
@@ -208,10 +213,9 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
 # end func
 
 
-def process_event_file(src_h5_event_file, curation_opts=DEFAULT_CURATION_OPTS,
-                       config_filtering=DEFAULT_CONFIG_FILTERING,
-                       config_processing=DEFAULT_CONFIG_PROCESSING,
-                       dest_file=None, save_plot=False):
+def process_event_file(src_h5_event_file, curation_opts=None,
+                       config_filtering=None, config_processing=None,
+                       dest_file=None, save_plots_path=None):
     """
     Use event dataset from an HDF5 file to analyze station for orientation errors.
 
@@ -223,14 +227,21 @@ def process_event_file(src_h5_event_file, curation_opts=DEFAULT_CURATION_OPTS,
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
     :param dest_file: File in which to save results in JSON format
-    :param save_plot: Flag to save plot of analysis results on each station
+    :param save_plots_path: Optional folder in which to save plot per station of mean
+        arrival RF amplitude as function of correction angle
     :return: None
     """
+    if curation_opts is None:
+        curation_opts = DEFAULT_CURATION_OPTS
+    if config_filtering is None:
+        config_filtering = DEFAULT_CONFIG_FILTERING
+    if config_processing is None:
+        config_processing = DEFAULT_CONFIG_PROCESSING
 
     ned = NetworkEventDataset(src_h5_event_file)
 
     results = analyze_station_orientations(ned, curation_opts, config_filtering,
-                                           config_processing, save_plot=save_plot)
+                                           config_processing, save_plots_path=save_plots_path)
 
     if dest_file is not None:
         with open(dest_file, 'w') as f:
@@ -242,10 +253,11 @@ def process_event_file(src_h5_event_file, curation_opts=DEFAULT_CURATION_OPTS,
 @click.command()
 @click.option('--dest-file', type=click.Path(dir_okay=False),
               help='Output file in which to store results in JSON text format')
-@click.option('--save-plot', is_flag=True, help='Flag to save plot per station')
+@click.option('--save-plots-path', type=click.Path(file_okay=False),
+              help='Optional folder in which to save plot per station')
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
-def main(src_h5_event_file, dest_file=None, save_plot=False):
+def main(src_h5_event_file, dest_file=None, save_plots_path=None):
     """
     Run station orientation checks.
 
@@ -255,9 +267,10 @@ def main(src_h5_event_file, dest_file=None, save_plot=False):
 
     :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
     :param dest_file: Output file in which to store results in JSON text format
-    :param save_plot: Set option to save plot per station of mean arrival RF amplitude as function of correction angle
+    :param save_plots_path: Optional folder in which to save plot per station of mean
+        arrival RF amplitude as function of correction angle
     """
-    process_event_file(src_h5_event_file, dest_file=dest_file, save_plot=save_plot)
+    process_event_file(src_h5_event_file, dest_file=dest_file, save_plots_path=save_plots_path)
 # end func
 
 

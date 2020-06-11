@@ -212,6 +212,7 @@ class NetworkEventDataset:
         Remove a given sequence of (station, event) pairs from the dataset.
 
         :param items: Iterable of (station, event) pairs
+        :param cull: If True, then empty entries in the top level index will be removed.
         :return: None
         """
         for station, event_id in items:
