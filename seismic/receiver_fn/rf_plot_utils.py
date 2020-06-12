@@ -324,7 +324,7 @@ def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
     fig = plt.figure(figsize=(16, 9))
     ax1 = fig.add_subplot(1, 1, 1)
     ax1.set_title('Bandpass filter frequency response: band ({}, {})/{} Hz, order {}'
-                  .format(*filter_band_hz, sampling_rate_hz, corners), fontsize=18)
+                  .format(filter_band_hz[0], filter_band_hz[1], sampling_rate_hz, corners), fontsize=18)
     ax1.plot(w, 10*np.log10(np.abs(h)), alpha=0.8, color='C0', linewidth=2)
     # ax1.set_xlim(0, 4*filter_band_hz[1])
     ax1.set_ylim(-100.0, 5)
@@ -426,7 +426,8 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
 
     direction = '(one way)' if not zero_phase else '(two way)'
     plt.suptitle("Reponse characteristics for filter band ({}, {})/{} Hz, order {} {}"
-                 .format(*filter_band_hz, sampling_rate_hz, corners, direction))
+                 .format(filter_band_hz[0], filter_band_hz[1],
+                         sampling_rate_hz, corners, direction))
     return fig
 # end func
 

@@ -39,7 +39,7 @@ DEFAULT_Vp = 6.4  # km/sec
 
 
 def _get_aspect(ax):
-    '''Compute aspect ratio of given axes data.'''
+    """Compute aspect ratio of given axes data."""
     from operator import sub
     # Total figure size
     figW, figH = ax.get_figure().get_size_inches()
@@ -56,7 +56,7 @@ def _get_aspect(ax):
 
 
 def _rf_layout_A4(fig):
-    '''Layout plots for A4 paper size'''
+    """Layout plots for A4 paper size"""
     # Fix aspect ratio of stack plot
     ax = fig.axes[3]
     ax.set_aspect(_get_aspect(ax))
@@ -95,7 +95,7 @@ def _rf_layout_A4(fig):
 
 def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0), filter_options=None,
                          labelling=DEFAULT_HK_SOLN_LABEL):
-    '''Helper function to produce H-k stacking figure.'''
+    """Helper function to produce H-k stacking figure."""
 
     if filter_options is not None:
         channel_data.filter(**filter_options)
@@ -282,8 +282,8 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             if not match_result:
                 continue
             code = match_result[1]
-            with open(os.path.join(event_mask_folder, f), 'r') as f:
-                events = f.readlines()
+            with open(os.path.join(event_mask_folder, f), 'r') as _f:
+                events = _f.readlines()
                 events = set([e.strip() for e in events])
                 event_mask_dict[code] = events
             # end with
@@ -381,7 +381,8 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
             # Plot RF stack of transverse component
             if t_stream:
-                fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
+                                                  stack_height=fixed_stack_height_inches,
                                                   fig_width=paper_size_A4[0])
                 fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios

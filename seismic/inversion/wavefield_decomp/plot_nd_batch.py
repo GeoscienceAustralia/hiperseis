@@ -27,6 +27,7 @@ from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
 default_fig_width_inches = 6.4
 RF_TRIM_WINDOW = (-10.0, 25.0)
 
+
 def convert_Vs_to_k(soln, config):
     """
     Transform Vs variable into k variable in MCMC solution. Modifies soln in-place.
@@ -89,7 +90,8 @@ def _compute_rf(data, config, log):
         z_header.sampling_rate = su_opts["sampling_rate"]
         z_header.delta = 1.0/z_header.sampling_rate
         z_header.npts = event_data.shape[1]
-        assert np.isclose(float(z_header.endtime - z_header.starttime), su_opts["time_window"][1] - su_opts["time_window"][0])
+        assert np.isclose(float(z_header.endtime - z_header.starttime),
+                          su_opts["time_window"][1] - su_opts["time_window"][0])
         tr = rf.rfstream.RFTrace(event_data[1, :], header=z_header)
         st += tr
         # R component
