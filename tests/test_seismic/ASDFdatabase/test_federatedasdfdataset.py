@@ -14,7 +14,7 @@ Revision History:
 """
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-import os, sys
+import os
 import pytest
 from ordered_set import OrderedSet as set
 import numpy as np

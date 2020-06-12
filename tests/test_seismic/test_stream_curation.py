@@ -2,8 +2,6 @@
 """Unit testing for seismic stream quality management.
 """
 
-import pytest
-
 import numpy as np
 import obspy
 

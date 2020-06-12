@@ -9,7 +9,7 @@ import rf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import pandas as pd
-from scipy import interpolate
+# from scipy import interpolate
 
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet

@@ -17,7 +17,6 @@ import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
 from obspy.clients.fdsn import Client
 from obspy.core import Stream
-import obspyh5
 from rf import iter_event_data
 from tqdm import tqdm
 import click

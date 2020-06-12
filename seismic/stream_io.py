@@ -47,6 +47,7 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
     logger = logging.getLogger(__name__)
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
+        group = root
     elif network and station:
         group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
     else:
@@ -91,7 +92,7 @@ def iter_h5_stream(src_file, headonly=False):
     Iterate over hdf5 file containing streams in obspyh5 format.
 
     :param src_file: str or path to file to read
-    :param root: name of root node in which to start iteration
+    :param headonly: Only read trace stats, do not read actual time series data
     :yield: obspy.Stream containing traces for a single seismic event.
     """
     assert is_obspyh5(src_file), '{} is not an obspyh5 file'.format(src_file)

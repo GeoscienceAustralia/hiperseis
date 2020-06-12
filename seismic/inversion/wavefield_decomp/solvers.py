@@ -183,7 +183,7 @@ class AdaptiveStepsize():
 def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N=3, burnin=100000, maxiter=1000000,
                                      target_ar=0.4, ar_tolerance=0.05,
                                      cluster_eps=DEFAULT_CLUSTER_EPS, rnd_seed=None,
-                                     collect_samples=None, logger=None, verbose=False):
+                                     collect_samples=None, logger=None):
     """
     Minimize objective function and return up to N local minima solutions.
 

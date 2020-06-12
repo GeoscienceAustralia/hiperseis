@@ -87,6 +87,7 @@ def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
     logger = logging.getLogger(__name__)
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
+        group = root
     elif network and station:
         group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
     else:
