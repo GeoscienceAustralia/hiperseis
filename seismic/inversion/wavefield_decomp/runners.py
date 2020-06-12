@@ -8,7 +8,6 @@ import os
 import json
 import logging
 from datetime import datetime
-import copy
 
 import click
 import numpy as np
@@ -71,7 +70,7 @@ def run_mcmc(waveform_data, config, logger):
     logger.info('Solver options:\n{}'.format(json.dumps(solver_opts, indent=4)))
     flux_window = flux_computer_opts["flux_window"]
     Vp = [layer["Vp"] for layer in layers]
-    rho= [layer["rho"] for layer in layers]
+    rho = [layer["rho"] for layer in layers]
     fixed_args = (flux_comp, mantle_props, Vp, rho, flux_window)
     bounds_min = []
     bounds_max = []
@@ -236,7 +235,6 @@ def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
         z_cov_r = corr_c[0, 1]
         return z_cov_r >= rz_min_xcorr_coeff
     # end func
-
 
     logger.info("Curating input data...")
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
@@ -471,7 +469,8 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             if len(timestamps) > 1:
                 for i, ts in enumerate(timestamps):
                     job_node = h5f[ts]
-                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node.attrs else ''
+                    job_tracking = json.loads(job_node.attrs['job_tracking']) \
+                        if 'job_tracking' in job_node.attrs else ''
                     if job_tracking:
                         job_tracking = '(' + ', '.join([': '.join([k, str(v)]) for k, v in job_tracking.items()]) + ')'
                     # end if

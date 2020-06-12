@@ -84,7 +84,7 @@ def main(src_file, output_file, soln_file):
 
         pb = tqdm(index)
         for seedid in pb:
-            if not seedid in station_esu:
+            if seedid not in station_esu:
                 continue
             # end if
             soln_esu, sta_config = station_esu[seedid]
@@ -107,7 +107,7 @@ def main(src_file, output_file, soln_file):
                 curate_seismograms(ned, curation_opts, logger)
                 fs = su_energy_opts["sampling_rate"]
                 # Downsample
-                ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True) \
+                ned.apply(lambda stream: stream.filter('lowpass', freq=fs/2.0, corners=2, zerophase=True)
                           .interpolate(fs, method='lanczos', a=10))
                 # END PREPARATION & CURATION
             # end with
@@ -163,7 +163,7 @@ def main(src_file, output_file, soln_file):
                     max_half_range *= 1.1
 
                     # Do plots
-                    gs = pgspec[i%nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
+                    gs = pgspec[i % nrows, i//nrows].subgridspec(3, 1, hspace=0.0)
                     for tr in stream:
                         cha = tr.stats.channel[-1]
                         idx = channel_order.index(cha)
@@ -177,11 +177,11 @@ def main(src_file, output_file, soln_file):
                         axn.tick_params(labelsize=axes_fontsize)
                         tag = '.'.join([tr.stats.network, tr.stats.station, tr.stats.location, tr.stats.channel])
                         axn.text(0.02, 0.90, tag, fontsize=annot_fontsize, ha='left', va='top', transform=axn.transAxes,
-                                bbox=bbstyle)
+                                 bbox=bbstyle)
                         if idx == 0:
                             id_label = 'Event: {}'.format(evid)
                             axn.text(0.98, 0.90, id_label, fontsize=annot_fontsize, ha='right', va='top',
-                                    transform=axn.transAxes, bbox=bbstyle)
+                                     transform=axn.transAxes, bbox=bbstyle)
                         # end if
                         if idx != 2:
                             axn.set_xticks([])
@@ -190,7 +190,7 @@ def main(src_file, output_file, soln_file):
                         else:
                             axn.xaxis.label.set_size(axes_fontsize)
                             axn.text(0.5, 0.02, 'Onset: {}'.format(str(tr.stats.onset)), fontsize=annot_fontsize,
-                                    ha='center', va='bottom', transform=axn.transAxes)
+                                     ha='center', va='bottom', transform=axn.transAxes)
                         # end if
                         axn.yaxis.label.set_size(axes_fontsize)
                         # f.add_subplot(axn)

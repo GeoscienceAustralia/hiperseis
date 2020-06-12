@@ -95,6 +95,14 @@ def swap_ne_channels(_event_id, stream):
 
 
 def negate_channel(_event_id, stream, channel):
+    """
+    Negate the data in the given channel of the stream
+
+    :param _event_id: Ignored
+    :param stream: Stream containing channel to flip
+    :param channel: Single character string indicating which component to flip
+    :return: Stream with channel data negated
+    """
     trace_selected = stream.select(component=channel)[0]
     trace_selected.data = -trace_selected.data
     return stream
@@ -102,6 +110,14 @@ def negate_channel(_event_id, stream, channel):
 
 
 def correct_back_azimuth(_event_id, stream, baz_correction):
+    """
+    Apply modification to the back azimuth value in the stream stats
+
+    :param _event_id: Ignored
+    :param stream: Stream to which correction is applied
+    :param baz_correction: Angle of correction in degrees
+    :return: Stream with modified back azimuth
+    """
     for tr in stream:
         # Each station may have a custom correction. Expect that all such
         # possible corrections are represented in baz_correction argument.

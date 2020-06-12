@@ -50,8 +50,6 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     See documentation for function event_waveforms_to_rf for details of
     config dictionary contents.
 
-    :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: queue or multiprocessing.Manager.Queue
     :param ev_id: The event id
     :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data

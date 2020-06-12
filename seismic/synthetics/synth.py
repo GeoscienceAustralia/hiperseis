@@ -11,6 +11,7 @@ from seismic.synthetics.backends import backend_tws, backend_syngine
 from seismic.model_properties import LayerProps
 from seismic.stream_io import write_h5_event_stream
 
+
 def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_window, **kwargs):
     """
     User function for creating a synthetic seismogram dataset of obspy streams in HDF5 format.
@@ -25,7 +26,6 @@ def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_windo
     :param time_window: Time window about onset. First value should be < 0, second should be > 0
     :return: Whether the dataset was successfully created.
     """
-    backend = None
     if method == 'propmatrix':
         backend = backend_tws.synthesizer()
     elif method == 'syngine':
