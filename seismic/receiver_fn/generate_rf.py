@@ -83,6 +83,7 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     # Apply any custom preprocessing step
     custom_preproc = config_processing.get("custom_preproc")
     if custom_preproc is not None:
+        # TODO: Improve security of exec and eval usage here.
         load_statement = custom_preproc.get("import")
         if load_statement is not None:
             exec(load_statement)

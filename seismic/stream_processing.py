@@ -3,6 +3,9 @@
 """
 
 import copy
+import functools
+import numbers
+import json
 
 import numpy as np
 
@@ -59,6 +62,8 @@ def sinc_resampling(t, y, t_new):
 def back_azimuth_filter(baz, baz_range):
     """Check if back azimuth `baz` is within range. Inputs must be in the range [0, 360] degrees.
 
+    :param baz: Value to check
+    :type baz: int or float
     :param baz_range: Pair of angles in degrees.
     :type baz_range: List or array of 2 floats, min and max back azimuth
     :return: True if baz is within baz_range, False otherwise.
@@ -109,26 +114,65 @@ def negate_channel(_event_id, stream, channel):
 # end func
 
 
+@functools.singledispatch
+def scalarize(_obj, _stats):
+    raise NotImplementedError('Cannot convert generic object to scalar')
+# end func
+
+
+@scalarize.register(numbers.Number)
+def _(val, _stats):
+    return float(val)
+# end func
+
+
+@scalarize.register(dict)
+def _(d, stats):
+    net = stats.network
+    sta = stats.station
+    key = '.'.join([net, sta])
+    record = d.get(key)
+    if record is None:
+        return 0.0
+    else:
+        return record.get('azimuth_correction', 0.0)
+    # end if
+# end func
+
+
+@scalarize.register(str)
+def _(filename, stats):
+    @functools.lru_cache()
+    def load_correction_database(_fname):
+        with open(_fname, 'r') as _f:
+            _db = json.load(_f)
+        # end with
+        return _db
+    # end func
+    # Load function uses lru_cache, effectively equivalent to runonce, so this function
+    # can be performant when called at high frequency.
+    db = load_correction_database(filename)
+    return scalarize(db, stats)
+# end func
+
+
 def correct_back_azimuth(_event_id, stream, baz_correction):
     """
     Apply modification to the back azimuth value in the stream stats
 
     :param _event_id: Ignored
     :param stream: Stream to which correction is applied
-    :param baz_correction: Angle of correction in degrees
+    :param baz_correction: Any object with a registered `scalarize` function for
+        generating an angle correction for a trace in degrees. E.g. could be a
+        numeric value, a dictionary of correction values, or a file produced by
+        script `analyze_station_orientations.py`
     :return: Stream with modified back azimuth
     """
     for tr in stream:
         # Each station may have a custom correction. Expect that all such
         # possible corrections are represented in baz_correction argument.
         stats = tr.stats
-        sta = stats.station
-        if isinstance(baz_correction, (float, int)):
-            correction = baz_correction
-        else:
-            assert isinstance(baz_correction, dict)
-            correction = baz_correction[sta]
-        # end if
+        correction = scalarize(baz_correction, stats)
         baz = stats.back_azimuth
         baz += correction
         while baz < 0:
