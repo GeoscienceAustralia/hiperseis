@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """
-
+Use cartopy to plot point dataset onto map.
 """
+
+import os
 
 import click
 import numpy as np
@@ -11,9 +13,13 @@ import cartopy as cp
 
 def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=None):
     """
+    Make spatial plot of point dataset with filled contours overlaid on map.
 
-    :param point_dataset:
-    :param projection_code:
+    :param point_dataset: Name of point dataset file. Should be in format produced by
+        script `pointsets2grid.py`
+    :param projection_code: EPSG projection code, e.g. 3577 for Australia
+    :param title: Title string for top of plot
+    :param feature_label: Label for the color bar of the plotted feature
     :return:
     """
     with open(point_dataset, 'r') as f:
@@ -41,7 +47,7 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
     xy_min -= 0.2*span
     xy_max += 0.2*span
 
-    _f = plt.figure(figsize=(16,9))
+    fig = plt.figure(figsize=(16,9))
     ax = plt.axes(projection=map_projection)
     ax.set_xlim(xy_min[0], xy_max[0])
     ax.set_ylim(xy_min[1], xy_max[1])
@@ -59,19 +65,29 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
         _cb.set_label(feature_label)
     if title is not None:
         plt.title(title)
-    plt.show()
-    plt.close()
+    return fig
 # end func
 
 
 @click.command()
-@click.option('--projection-code', type=int, required=True)
+@click.option('--projection-code', type=int, required=True,
+              help='EPSG projection code, e.g. 3577 for Australia')
 @click.argument('point-dataset', type=click.Path(dir_okay=False, exists=True),
                 required=True)
-def main(point_dataset, projection_code):
-    plot_spatial_map(point_dataset, projection_code,
-                     title='Moho depth from blended data',
-                     feature_label='Moho depth (km)')
+@click.argument('output-file', type=click.Path(dir_okay=False, exists=False),
+                required=False)
+def main(point_dataset, projection_code, output_file=None):
+    _f = plot_spatial_map(point_dataset, projection_code,
+                          title='Moho depth from blended data',
+                          feature_label='Moho depth (km)')
+    if output_file is not None:
+        _, ext = os.path.splitext(output_file)
+        assert ext and ext.lower() in ['.png', '.pdf'], 'Provide output file extension to specify output format!'
+        plt.savefig(output_file, dpi=300)
+        print('Saved plot in file', output_file)
+    # end if
+    plt.show()
+    plt.close()
 # end func
 
 
