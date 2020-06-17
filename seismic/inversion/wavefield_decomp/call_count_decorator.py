@@ -4,6 +4,7 @@
 Decorator to count number of times a function is called.
 """
 
+
 def call_counter(func):
     """
     Decorator to count calls to a function. The number of calls can be queryied from func.counter.

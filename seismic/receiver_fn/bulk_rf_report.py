@@ -35,9 +35,11 @@ paper_size_A4 = (8.27, 11.69)  # inches
 
 DEFAULT_HK_WEIGHTS = (0.5, 0.5, 0.0)
 DEFAULT_HK_SOLN_LABEL = 'global'
+DEFAULT_Vp = 6.4  # km/sec
+
 
 def _get_aspect(ax):
-    '''Compute aspect ratio of given axes data.'''
+    """Compute aspect ratio of given axes data."""
     from operator import sub
     # Total figure size
     figW, figH = ax.get_figure().get_size_inches()
@@ -54,7 +56,7 @@ def _get_aspect(ax):
 
 
 def _rf_layout_A4(fig):
-    '''Layout plots for A4 paper size'''
+    """Layout plots for A4 paper size"""
     # Fix aspect ratio of stack plot
     ax = fig.axes[3]
     ax.set_aspect(_get_aspect(ax))
@@ -91,9 +93,9 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(channel_data, V_p=6.4, weighting=(0.5, 0.5, 0.0), filter_options=None,
+def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0), filter_options=None,
                          labelling=DEFAULT_HK_SOLN_LABEL):
-    '''Helper function to produce H-k stacking figure.'''
+    """Helper function to produce H-k stacking figure."""
 
     if filter_options is not None:
         channel_data.filter(**filter_options)
@@ -247,13 +249,15 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
               'clustering, none: do not label any solutions on H-k stack plot.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use to generate secondary H-k stacking plot.')
+@click.option('--hk-vp', type=float, default=DEFAULT_Vp, show_default=True,
+              help='Value to use for Vp (crustal P-wave velocity) for H-k stacking')
 @click.option('--save-hk-solution', is_flag=True, default=False, show_default=True,
               help='If True, save H-k estimated solutions to CSV file with name matching output file. '
                    'If high pass filter frequency is provided (--hk-hpf-filter option), the saved solutions '
                    'will be for the filtered H-k plot rather than the original.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
          apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
-         hk_hpf_freq=None, save_hk_solution=False):
+         hk_hpf_freq=None, hk_vp=DEFAULT_Vp, save_hk_solution=False):
     # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
@@ -278,8 +282,8 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             if not match_result:
                 continue
             code = match_result[1]
-            with open(os.path.join(event_mask_folder, f), 'r') as f:
-                events = f.readlines()
+            with open(os.path.join(event_mask_folder, f), 'r') as _f:
+                events = _f.readlines()
                 events = set([e.strip() for e in events])
                 event_mask_dict[code] = events
             # end with
@@ -350,8 +354,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             transverse_data = station_db[t_channel]
             t_stream = rf.RFStream(
                 [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
-            if not t_stream:
-                continue
 
             # Plot pinwheel of primary and transverse components
             fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
@@ -364,7 +366,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             num_traces = len(rf_stream)
-            assert len(t_stream) == num_traces
+            assert len(t_stream) == num_traces or not t_stream
 
             # Plot RF stack of primary component
             trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
@@ -378,17 +380,21 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.close()
 
             # Plot RF stack of transverse component
-            fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
-                                              fig_width=paper_size_A4[0])
-            fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
-            # Customize layout to pack to top of page while preserving RF plots aspect ratios
-            _rf_layout_A4(fig)
-            # Save to new page in file
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
-            plt.close()
+            if t_stream:
+                fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
+                                                  stack_height=fixed_stack_height_inches,
+                                                  fig_width=paper_size_A4[0])
+                fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
+                # Customize layout to pack to top of page while preserving RF plots aspect ratios
+                _rf_layout_A4(fig)
+                # Save to new page in file
+                pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+                plt.close()
+            # end if
 
             # Plot H-k stack using primary RF component
-            fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels)
+            fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+                                               labelling=hk_solution_labels, V_p=hk_vp)
             if save_hk_solution and hk_hpf_freq is None:
                 hk_soln[st] = maxima
                 station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
@@ -402,7 +408,9 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
             if hk_hpf_freq is not None:
                 # Repeat H-k stack with high pass filtering
-                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights, labelling=hk_solution_labels,
+                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+                                                   labelling=hk_solution_labels,
+                                                   V_p=hk_vp,
                                                    filter_options={'type': 'highpass', 'freq': hk_hpf_freq,
                                                                    'corners': 1, 'zerophase': True})
                 if save_hk_solution:

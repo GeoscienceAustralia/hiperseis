@@ -15,7 +15,7 @@ from obspy.core import inventory, read, UTCDateTime
 
 import sys
 import subprocess
-from query_input_yes_no import query_yes_no
+from seismic.ASDFdatabase.query_input_yes_no import query_yes_no
 
 warnings.filterwarnings("error")
 
@@ -147,7 +147,7 @@ for service in service_dir_list:
     if not isdir(service):
         continue
 
-    print '\r Processing: ', basename(service)
+    print('\r Processing: ', basename(service))
 
     station_dir_list = glob.glob(service + '/*')
 
@@ -180,12 +180,11 @@ for service in service_dir_list:
         if len(seed_files) == 0:
             continue
 
-        print '\r Working on station: ', station_name
+        print('\r Working on station: ', station_name)
 
         # Iterate through the miniseed files, fix the header values and add waveforms
         for _i, filename in enumerate(seed_files):
-            print "\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....',
-            sys.stdout.flush()
+            print("\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....', sys.stdout.flush())
 
             try:
                 # Read the stream
@@ -339,10 +338,10 @@ station_inventories_list =[]
 station_inventories_default_dict = defaultdict(list)
 station_inv_dict = {}
 
-for nscl, inv in nscl_inventory_dict.iteritems():
+for nscl, inv in nscl_inventory_dict.items():
     # get the channel level inventory
-    print ""
-    print nscl
+    print("")
+    print(nscl)
 
     #modify the start and end dates for the channeel/location level inventory
     inv[0][0][0].start_date = UTCDateTime(nscl_start_end_dict[nscl][0])
@@ -359,10 +358,10 @@ for nscl, inv in nscl_inventory_dict.iteritems():
     station_inv_dict[nscl.split(".")[1]] = inv[0][0]
 
 # go through stations
-for station, chan_inv_list in station_inventories_default_dict.iteritems():
+for station, chan_inv_list in station_inventories_default_dict.items():
 
-    print ""
-    print station
+    print("")
+    print(station)
 
     #make a new station inventory object with all of the channels and updated start and end dates
     # get the start/end dates from dict
@@ -390,7 +389,7 @@ for station, chan_inv_list in station_inventories_default_dict.iteritems():
 
 network_start_end = False
 # go through station start/end date dict and get the overall start_end date
-for key, (start, end) in station_start_end_dict.iteritems():
+for key, (start, end) in station_start_end_dict.items():
     if not network_start_end:
         network_start_end = [start, end]
         continue
@@ -411,8 +410,8 @@ network_inv = inventory.Network(code=FDSNnetwork[0:2], start_date=UTCDateTime(ne
 inv = inventory.Inventory(networks=[network_inv], source= "Geoscience Australia")
 
 
-print "+==============================+++"
-print ""
+print("+==============================+++")
+print("")
 
 print(inv)
 print(inv[0])
@@ -429,7 +428,7 @@ if exists(XML_file):
 inv.write(path_or_file_object=XML_file, format='STATIONXML')
 
 inv = read_inventory(XML_file)
-print "---------"
+print("---------")
 print(inv)
 print(inv[0])
 print(inv[0][0])
@@ -447,15 +446,15 @@ with open(JSON_out, 'w') as fp:
     json.dump(big_dictionary, fp)
 
 del ds
-print '\n'
+print('\n')
 
 exec_time = time.time() - code_start_time
 
 exec_str = "--- Execution time: %s seconds ---" % exec_time
 added_str = '--- Added ' + str(waveforms_added) + ' waveforms to ASDF and JSON database files ---'
 
-print exec_str
-print added_str
+print(exec_str)
+print(added_str)
 
 ASDF_log_file.write(exec_str + '\n')
 ASDF_log_file.write(added_str + '\n')

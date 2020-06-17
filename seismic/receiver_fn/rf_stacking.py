@@ -6,6 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name,logging-format-interpolation
 
@@ -36,16 +37,20 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
     # inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
 
     log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
 
     infer_Vp = (V_p is None)
+    V_p_inferred = infer_Vp_from_traces(cha_data, log)
     if infer_Vp:
-        V_p = infer_Vp_from_traces(cha_data, log)
-        log.info("Inferred V_p = {}".format(V_p))
+        V_p = V_p_inferred
+        log.debug("Inferred V_p = {}".format(V_p))
+    else:
+        log.debug("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
     # end if
 
     # Pre-compute grid quantities
     k_grid, h_grid = np.meshgrid(k_range, h_range)
-    hk_stack = np.zeros_like(k_grid)
+    # hk_stack = np.zeros_like(k_grid)
 
     # Whether to use RF slowness as the ray parameter (after unit conversion) and as source of V_p,
     # or else use specific V_p given by user.
@@ -124,7 +129,7 @@ def infer_Vp_from_traces(cha_data, log=None):
     # Determine the internal V_p consistent with the trace ray parameters and inclinations.
     V_p_values = []
     for tr in cha_data:
-        p = tr.stats.slowness / rf_util.KM_PER_DEG
+        p = tr.stats.slowness / KM_PER_DEG
         incl_deg = tr.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
         V_p_value = np.sin(incl_rad) / p

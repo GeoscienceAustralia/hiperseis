@@ -11,12 +11,12 @@ import glob
 
 from obspy import read_inventory, read, UTCDateTime
 from obspy.core.inventory import Inventory, Network, Station, Site
-from obspy.io.mseed.core import InternalMSEEDReadingWarning
+from obspy.io.mseed import InternalMSEEDWarning
 
 import warnings
 
 import sys
-from query_input_yes_no import query_yes_no
+from seismic.ASDFdatabase.query_input_yes_no import query_yes_no
 
 warnings.filterwarnings("error")
 
@@ -135,7 +135,7 @@ for service in service_dir_list:
     if not isdir(service):
         continue
 
-    print '\r Processing: ', basename(service)
+    print('\r Processing: ', basename(service))
 
     station_dir_list = glob.glob(service + '/*')
 
@@ -158,12 +158,11 @@ for service in service_dir_list:
         if len(seed_files) == 0:
             continue
 
-        print '\r Working on station: ', station_name
+        print('\r Working on station: ', station_name)
 
         # Iterate through the miniseed files, fix the header values and add waveforms
         for _i, filename in enumerate(seed_files):
-            print "\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....',
-            sys.stdout.flush()
+            print("\r     Parsing miniseed file ", _i + 1, ' of ', len(seed_files), ' ....', sys.stdout.flush())
 
 
 
@@ -177,7 +176,7 @@ for service in service_dir_list:
                 # Read the stream
                 st = read(filename)
 
-            except (TypeError, StructError, InternalMSEEDReadingWarning) as e:
+            except (TypeError, StructError, InternalMSEEDWarning) as e:
                 # the file is not miniseed
                 ASDF_log_file.write(filename + '\t' + "TypeError\n")
 
@@ -333,13 +332,13 @@ for service in service_dir_list:
 
 
 # go through the stations in the station inventory dict and append them to the network inventory
-for station, sta_inv in station_inventory_dict.iteritems():
+for station, sta_inv in station_inventory_dict.items():
     net_inv.stations.append(sta_inv)
 
 
 network_start_end = False
 # go through station start/end date dict and get the overall start_end date
-for key, (start, end) in station_start_end_dict.iteritems():
+for key, (start, end) in station_start_end_dict.items():
     if not network_start_end:
         network_start_end = [start, end]
         continue
@@ -376,15 +375,15 @@ with open(JSON_out, 'w') as fp:
     json.dump(big_dictionary, fp)
 
 del ds
-print '\n'
+print('\n')
 
 exec_time = time.time() - code_start_time
 
 exec_str = "--- Execution time: %s seconds ---" % exec_time
 added_str = '--- Added ' + str(waveforms_added) + ' waveforms to ASDF and JSON database files ---'
 
-print exec_str
-print added_str
+print(exec_str)
+print(added_str)
 
 ASDF_log_file.write(exec_str + '\n')
 ASDF_log_file.write(added_str + '\n')
