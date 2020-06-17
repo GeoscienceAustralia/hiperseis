@@ -6,6 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name,logging-format-interpolation
 
@@ -36,31 +37,20 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
     # inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
 
     log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
 
     infer_Vp = (V_p is None)
+    V_p_inferred = infer_Vp_from_traces(cha_data, log)
     if infer_Vp:
-        # Determine the internal V_p consistent with the trace ray parameters and inclinations.
-        V_p_values = []
-        for tr in cha_data:
-            p = tr.stats.slowness/rf_util.KM_PER_DEG
-            incl_deg = tr.stats.inclination
-            incl_rad = np.deg2rad(incl_deg)
-            V_p_value = np.sin(incl_rad)/p
-            V_p_values.append(V_p_value)
-        # end for
-        V_p_values = np.array(V_p_values)
-        if not np.allclose(V_p_values, V_p_values, rtol=1e-3, atol=1e-4):
-            log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
-        # end if
-        V_p = np.mean(V_p_values)
-        log.info("Inferred V_p = {}".format(V_p))
+        V_p = V_p_inferred
+        log.debug("Inferred V_p = {}".format(V_p))
+    else:
+        log.debug("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
     # end if
 
     # Pre-compute grid quantities
     k_grid, h_grid = np.meshgrid(k_range, h_range)
-    hk_stack = np.zeros_like(k_grid)
-    H_on_V_p = h_grid/V_p
-    k2 = k_grid*k_grid
+    # hk_stack = np.zeros_like(k_grid)
 
     # Whether to use RF slowness as the ray parameter (after unit conversion) and as source of V_p,
     # or else use specific V_p given by user.
@@ -74,30 +64,18 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
             assert tr.stats.channel == channel_id, \
                 "Stacking mismatching channel data: expected {}, found {}".format(channel_id, tr.stats.channel)
         # end if
-        # p is the ray parameter in seconds-per-km.
-        if infer_Vp:
-            # The "slowness" from rf.Trace.stats is actually the ray parameter, computed using the tau-py model
-            # that is also used to compute the inclination, then converted to seconds-per-degree. Therefore the
-            # "slowness" from rf.Trace.stats already contains the sin_i factor.
-            p = tr.stats.slowness/rf_util.KM_PER_DEG
-        else:
-            # User-provided velocity. It should be the same as that used during computation of tr.stats.inclination.
-            incl_deg = tr.stats.inclination
-            incl_rad = np.deg2rad(incl_deg)
-            sin_i = np.sin(incl_rad)
-            p = sin_i/V_p
-        # end if
-        p2_Vp2 = p*p*V_p*V_p
-        term1 = H_on_V_p*np.sqrt(k2 - p2_Vp2)
-        term2 = H_on_V_p*np.sqrt(1 - p2_Vp2)
-        # Time for Ps
-        t1 = term1 - term2
-        # Time for PpPs
-        t2 = term1 + term2
-        if include_t3:
-            # Time for PpSs + PsPs
-            t3 = 2*term1
-        # end if
+
+        t1, t2, t3 = compute_theoretical_phase_times(tr, h_grid, k_grid, V_p, include_t3=include_t3)
+
+        # Apply custom time offsets if given.
+        for tval, offset_name in ((t1, 't1_offset'), (t2, 't2_offset'), (t3, 't3_offset')):
+            try:
+                if tval is not None:
+                    tval += tr.stats.sediment[offset_name]
+            except AttributeError:
+                pass
+            # end try
+        # end for
 
         # Subtract lead time so that primary P-wave arrival is at time zero.
         lead_time = tr.stats.onset - tr.stats.starttime
@@ -128,6 +106,7 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
         hk_stack = rf_util.signed_nth_power(hk_stack, root_order)
 
     return k_grid, h_grid, hk_stack
+# end func
 
 
 def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
@@ -143,6 +122,57 @@ def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
     assert hk_components.shape[0] == len(weighting), hk_components.shape
     hk_phase_stacked = np.dot(np.moveaxis(hk_components, 0, -1), np.array(weighting))
     return hk_phase_stacked
+# end func
+
+
+def infer_Vp_from_traces(cha_data, log=None):
+    # Determine the internal V_p consistent with the trace ray parameters and inclinations.
+    V_p_values = []
+    for tr in cha_data:
+        p = tr.stats.slowness / KM_PER_DEG
+        incl_deg = tr.stats.inclination
+        incl_rad = np.deg2rad(incl_deg)
+        V_p_value = np.sin(incl_rad) / p
+        V_p_values.append(V_p_value)
+    # end for
+    V_p_values = np.array(V_p_values)
+    if  log is not None and not np.allclose(V_p_values, V_p_values, rtol=1e-3, atol=1e-4):
+        log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
+    # end if
+    V_p = np.mean(V_p_values)
+
+    return V_p
+# end func
+
+
+def compute_theoretical_phase_times(tr, H, k, V_p, include_t3=True):
+    incl_deg = tr.stats.inclination
+    incl_rad = np.deg2rad(incl_deg)
+    sin_i = np.sin(incl_rad)
+    p = sin_i / V_p
+
+    H_on_V_p = H/V_p
+    k2 = k*k
+
+    p2_Vp2 = p * p * V_p * V_p
+    term1 = H_on_V_p * np.sqrt(k2 - p2_Vp2)
+    term2 = H_on_V_p * np.sqrt(1 - p2_Vp2)
+
+    # Time for Ps
+    t1 = term1 - term2
+
+    # Time for PpPs
+    t2 = term1 + term2
+
+    if include_t3:
+        # Time for PpSs + PsPs
+        t3 = 2 * term1
+    else:
+        t3 = None
+    # end if
+
+    return t1, t2, t3
+# end func
 
 
 def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
@@ -163,6 +193,7 @@ def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
     h_max = h_grid[max_loc[0], 0]
     k_max = k_grid[0, max_loc[1]]
     return (h_max, k_max)
+# end func
 
 
 def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
@@ -186,8 +217,8 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     # proportion of this value.
     global_max = np.nanmax(hk_stack)
     # Compute 2D mask of all values that are greater than or equal to their 4 neighbours.
-    m = ((hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 0:-2]) & (hk_stack[1:-1, 1:-1] >= hk_stack[1:-1, 2:]) &
-         (hk_stack[1:-1, 1:-1] >= hk_stack[0:-2, 1:-1]) & (hk_stack[1:-1, 1:-1] >= hk_stack[2:, 1:-1]) &
+    m = ((hk_stack[1:-1, 1:-1] > hk_stack[1:-1, 0:-2]) & (hk_stack[1:-1, 1:-1] > hk_stack[1:-1, 2:]) &
+         (hk_stack[1:-1, 1:-1] > hk_stack[0:-2, 1:-1]) & (hk_stack[1:-1, 1:-1] > hk_stack[2:, 1:-1]) &
          (hk_stack[1:-1, 1:-1] >= min_rel_value*global_max))
     # Find the row and column indices where m is True
     m_idx = np.nonzero(m)
@@ -204,3 +235,4 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     # Sort the solutions from highest stack value to the lowest.
     solutions = sorted(solutions, key=lambda v: v[2], reverse=True)
     return solutions
+# end func

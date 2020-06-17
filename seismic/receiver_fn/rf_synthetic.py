@@ -9,9 +9,10 @@ from scipy.interpolate import interp1d
 import obspy
 import rf
 
-import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name
+
 
 def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec=(-10, 30), f_cutoff_hz=2.0):
     """Simple generator of synthetic R component receiver function with pulses at given arrival times.
@@ -83,6 +84,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
 
     k = V_p/V_s
     traces = []
+    arrivals = None
     for i, inc_deg in enumerate(inclinations):
         theta_p = np.deg2rad(inc_deg)
         p = np.sin(theta_p)/V_p
@@ -121,7 +123,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
         header = {'network': 'SY', 'station': 'TST', 'location': 'GA', 'channel': 'HHR', 'sampling_rate': fs,
                   'starttime': now, 'endtime': end, 'onset': onset,
                   'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
-                  'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
+                  'slowness': p*KM_PER_DEG, 'inclination': inc_deg,
                   'back_azimuth': baz, 'distance': float(distances[i])}
         tr = rf.rfstream.RFTrace(data=synth_signal.copy(), header=header)
         tr = tr.decimate(int(np.round(fs/ds)), no_filter=True)

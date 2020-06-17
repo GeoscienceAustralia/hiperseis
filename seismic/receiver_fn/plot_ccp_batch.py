@@ -6,14 +6,23 @@ import numpy as np
 import click
 import rf
 
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import pandas as pd
+# from scipy import interpolate
+
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
 from seismic.receiver_fn.plot_ccp import run
+from seismic.units_utils import KM_PER_DEG
+
+
+LEAD_INOUT_DIST_KM = 25.0
 
 
 def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=False, similarity_filter=False,
               stack_scale=0.4, width=30.0, spacing=2.0, max_depth=200.0,
-              channel='R', output_folder='', colormap='seismic'):
+              channel='R', output_folder='', colormap='seismic', annotators=None):
     """Run CCP generation in batch mode along a series of transects.
 
     :param transect_file: File containing specification of network and station locations of ends of transects
@@ -67,6 +76,11 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
         # end for
     # end if
 
+    spectral_filter = {'type': 'highpass', 'freq': 0.2, 'corners': 1, 'zerophase': True}
+    if spectral_filter is not None:
+        rf_stream.filter(**spectral_filter)
+    # end if
+
     db = FederatedASDFDataSet.FederatedASDFDataSet(fed_db_file)
     sta_coords = db.unique_coordinates
 
@@ -78,8 +92,10 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     with open(transect_file, 'r') as f:
         net = f.readline().strip()
         for transect in f.readlines():
+
             if not transect.strip():
                 continue
+
             sta_start, sta_end = transect.split(',')
             sta_start = sta_start.strip()
             sta_end = sta_end.strip()
@@ -87,27 +103,145 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             end = '.'.join([net, sta_end])
             start = np.array(sta_coords[start])
             end = np.array(sta_coords[end])
+
             # Offset ends slightly to make sure we don't lose end stations due to truncation error.
             # Note: for simplicity this treats lat/lon like cartesian coords, but this is approximate
             # and will break down near poles, for long transects, or if transect crosses the antimeridian.
             dirn = (end - start)
             dirn = dirn/np.linalg.norm(dirn)
-            start -= 25*dirn/rf_util.KM_PER_DEG
-            end += 25*dirn/rf_util.KM_PER_DEG
+            start -= LEAD_INOUT_DIST_KM*dirn/KM_PER_DEG
+            end += LEAD_INOUT_DIST_KM*dirn/KM_PER_DEG
             start_latlon = (start[1], start[0])
             end_latlon = (end[1], end[0])
 
-            outfile = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing.png'.format(net, sta_start, sta_end, spacing)
             title = 'Network {} CCP R-stacking (profile {}-{})'.format(net, sta_start, sta_end)
+            hf_main, hf_map, metadata = run(rf_stream, start_latlon, end_latlon, width, spacing, max_depth, channel,
+                                            stacked_scale=stack_scale, title=title, colormap=colormap,
+                                            background_model='ak135_60')
+
+            metadata['transect_start'] = start
+            metadata['transect_end'] = end
+            metadata['transect_dirn'] = dirn
+            if annotators is not None:
+                for ant in annotators:
+                    ant(hf_main, metadata)
+                # end for
+            # end if
+
+            outfile_base = '{}-ZRT-R_CCP_stack_{}-{}_{}km_spacing'.format(net, sta_start, sta_end, spacing)
+            outfile = outfile_base + '.pdf'
+            outfile_map = outfile_base + '_MAP.pdf'
 
             outfile = os.path.join(output_folder, outfile)
-            run(rf_stream, outfile, start_latlon, end_latlon, width, spacing, max_depth, channel,
-                stacked_scale=stack_scale, title=title, colormap=colormap)
+            outfile_map = os.path.join(output_folder, outfile_map)
+
+            if hf_main is not None:
+                hf_main.savefig(outfile, dpi=300)
+                plt.close(hf_main)
+            # endif
+
+            if hf_map is not None:
+                hf_map.savefig(outfile_map, dpi=300)
+                plt.close(hf_map)
+            # endif
 
         # end for
     # end with
 # end func
 
+
+def moho_annotator(hf, metadata):
+    """
+    Custom plot annotator to add markers to the main figure showing locations of Moho
+    estimates from other sources.
+
+    :param hf: Figure containing main CCP plot
+    :type hf: matplotlib.pyplot.Figure
+    :param metadata: Dictionary from CCP plotting code containing metadata of the transect and station data
+    :type metadata: dict
+    """
+    if hf is None or metadata is None:
+        return
+    # end if
+
+    filename = "post_analysis/OA_Hk+RFinversion_moho_2019-12-12.csv"
+    data = pd.read_csv(filename, usecols=['Site', 'HKM_Depth', 'Inv_Dp'], skipinitialspace=True, index_col='Site',
+                       dtype={'Site': str, 'HKM_Depth': np.float64, 'Inv_Dp': np.float64,})
+
+    x = []
+    y1 = []
+    y2 = []
+    for stn, md in metadata.items():
+        if 'transect_' in stn:
+            continue  # Skip non-station metadata
+        if md is None:
+            continue
+        x.append(md['sta_offset'])
+        y1.append(data.loc[stn]['HKM_Depth'])
+        y2.append(data.loc[stn]['Inv_Dp'])
+    # end for
+    x = np.array(x)
+    y1 = np.array(y1)
+    y2 = np.array(y2)
+    plt.figure(hf.number)
+    plt.plot(x, y1, 'o', markerfacecolor="C2", alpha=0.8, markersize=10,
+             markeredgecolor="#101010", markeredgewidth=2, aa=True)
+    plt.plot(x, y2, 'v', markerfacecolor="#ffd700", alpha=0.8, markersize=10,
+             markeredgecolor="#101010", markeredgewidth=2, aa=True)
+    plt.legend(['H-k depth', 'RF Inv. depth'], loc='lower right')
+
+# end func
+
+
+def gravity_subplot(hf, metadata, grav_map):
+    """
+    Custom plot modifier to add a gravity subplot along the CCP transect line.
+
+    :param hf: Figure containing main CCP plot
+    :type hf: matplotlib.pyplot.Figure
+    :param metadata: Dictionary from CCP plotting code containing metadata of the transect and station data
+    :type metadata: dict
+    :param grav_map: Interpolator callable that takes a iterable of 2D coordinates and interpolates a gravity
+        value at each, based on external data source.
+    :type grav_map: Instance of 2D interpolation class from scipy.interpolator
+    """
+    if hf is None or metadata is None:
+        return
+    # end if
+
+    # Move the bottom of the main axes bounding box up to make space to gravity plot beneath
+    pos = hf.axes[0].get_position()
+    pos.y0 += 0.2
+    hf.axes[0].set_position(pos)
+    # Also move colorbar
+    pos_cb = hf.axes[1].get_position()
+    pos_cb.y0 += 0.2
+    hf.axes[1].set_position(pos_cb)
+
+    # Add gravity plot
+    start = metadata['transect_start']
+    end = metadata['transect_end']
+    dirn = metadata['transect_dirn']
+    grid_spec = gridspec.GridSpec(ncols=1, nrows=2, figure=hf, height_ratios=[4, 1])
+    ax_grav = hf.add_subplot(grid_spec[1])
+    pos_grav = ax_grav.get_position()
+    pos_grav.x0 = pos.x0
+    pos_grav.x1 = pos.x1
+    ax_grav.set_position(pos_grav)
+    plt.sca(ax_grav)
+    plt.title("Gravity survey", fontsize=8, y=0.80)
+    grav_pos = np.linspace(start, end, 1000)
+    grav_vals = grav_map(grav_pos)
+    grav_dist = np.dot((grav_pos - start), dirn)*KM_PER_DEG
+    plt.plot(grav_dist, grav_vals)
+    plt.grid("#80808080", linestyle=':')
+    tickstep_x = 50.0
+    xlim = hf.axes[0].get_xlim()
+    plt.xticks(np.arange(0.0, xlim[1], tickstep_x), fontsize=12)
+    plt.xlim(xlim)
+    plt.ylabel('Gravity (mGal)')
+
+# end func
 
 @click.command()
 @click.option('--rf-file', type=click.Path(exists=True, dir_okay=False), required=True,
@@ -144,9 +278,19 @@ def main(transect_file, output_folder, rf_file, waveform_database, stack_scale, 
     output_folder: Folder in which to place output files.
     """
     assert len(channel)  == 1, "Batch stack only on one channel at a time"
+
+    # Custom plot modifiers. Leave commented for now until refactoring in ticket PST-479
+    # print("Loading gravity data...")
+    # grav = np.load('post_analysis/GravityGrid.xyz.npy')
+    # print("Creating interpolator...")
+    # grav_map = interpolate.NearestNDInterpolator(grav[:, 0:2], grav[:, 2])
+    # annotators = [moho_annotator, lambda hf, md: gravity_subplot(hf, md, grav_map)]
+    annotators = None
+    print("Producing plot...")
     run_batch(transect_file, rf_file, waveform_database, stack_scale=stack_scale, width=width, spacing=spacing,
               max_depth=depth, channel=channel, output_folder=output_folder, colormap=colormap,
-              amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter)
+              amplitude_filter=apply_amplitude_filter, similarity_filter=apply_similarity_filter,
+              annotators=annotators)
 # end main
 
 

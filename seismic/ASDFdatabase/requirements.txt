@@ -2,6 +2,6 @@ numpy
 scipy
 mpi4py
 pyasdf
-obspy
+obspy>=1.1.0
 ujson
 Rtree

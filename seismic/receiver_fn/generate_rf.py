@@ -4,6 +4,7 @@
 
 import logging
 from multiprocessing import Process, Manager
+import json
 
 import numpy as np
 import click
@@ -15,11 +16,14 @@ try:
     parallel_available = True
 except ImportError:
     parallel_available = False
+# end try
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
+from seismic.stream_quality_filter import curate_stream3c
+from seismic.stream_processing import back_azimuth_filter
 
 
 logging.basicConfig()
@@ -40,101 +44,71 @@ RAW_RESAMPLE_RATE_HZ = 20.0
 BANDPASS_FILTER_ORDER = 2
 
 
-def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limit, rotation_type, filter_band_hz,
-                           gauss_width, water_level, trim_start_time_sec, trim_end_time_sec,
-                           deconv_domain, spiking, normalize, **kwargs):
+def transform_stream_to_rf(ev_id, stream3c, config_filtering,
+                           config_processing, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
+    See documentation for function event_waveforms_to_rf for details of
+    config dictionary contents.
 
-    :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: multiprocessing.Manager.Queue
     :param ev_id: The event id
-    :type ev_id: int
+    :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: rf.RFStream
-    :param resample_rate_hz: Resampling rate of generated RF
-    :type resample_rate_hz: float
-    :param taper_limit: Taper limit passed to obspy.core.stream.Stream.taper
-    :type taper_limit: float
-    :param rotation_type: Rotation type, should be one of ['ZRT', 'LQT']
-    :type rotation_type: str
-    :param filter_band_hz: Limits of passband for frequency filtering of raw traces.
-    :type filter_band_hz: tuple(float, float)
-    :param gauss_width: Gauss width for frequency-domain deconvolution
-    :type gauss_width: float
-    :param water_level: Water-level for frequency-domain deconvolution
-    :type water_level: float
-    :param trim_start_time_sec: Trim start time of RF relative to theoretical onset
-    :type trim_start_time_sec: float
-    :param trim_end_time_sec: Trim end time of RF relative to theoretical onset
-    :type trim_end_time_sec: float
-    :param deconv_domain: Domain in which to perform deconvolution
-    :type deconv_domain: str
-    :param spiking: Spiking value to use for time-domain deconvolution
-    :type spiking: float
-    :param normalize: Whether to normalize RFs
-    :type normalize: bool
+    :param config_filtering: Dictionary containing stream filtering settings
+    :type config_filtering: dict
+    :param config_processing: Dictionary containing RF processing settings
+    :type config_processing: dict
     :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
     :type kwargs: dict
-    :return: Stream containing receiver function
-    :rtype: rf.RFStream
+    :return: RFstream containing receiver function if successful, None otherwise
+    :rtype: rf.RFStream or NoneType
     """
+
+    resample_rate_hz = config_filtering.get("resample_rate", DEFAULT_RESAMPLE_RATE_HZ)
+    filter_band_hz = config_filtering.get("filter_band", DEFAULT_FILTER_BAND_HZ)
+    assert resample_rate_hz >= 2.0*filter_band_hz[1], "Too low sample rate will alias signal"
+    taper_limit = config_filtering.get("taper_limit", DEFAULT_TAPER_LIMIT)
+    baz_range = config_filtering.get("baz_range")
+
+    trim_start_time_sec = config_processing.get("trim_start_time", DEFAULT_TRIM_START_TIME_SEC)
+    trim_end_time_sec = config_processing.get("trim_end_time", DEFAULT_TRIM_END_TIME_SEC)
+    rotation_type = config_processing.get("rotation_type", DEFAULT_ROTATION_TYPE)
+    deconv_domain = config_processing.get("deconv_domain", DEFAULT_DECONV_DOMAIN)
 
     logger = logging.getLogger(__name__)
     logger.info("Event #{}".format(ev_id))
 
     assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
-    # Apply essential sanity checks before trying to compute RFs.
-    for tr in stream3c:
-        if np.isnan(tr.stats.inclination):
-            logger.warning("Invalid inclination found in stream {} (skipping):\n{}".format(ev_id, stream3c))
-            return False
-    # end for
-
-    if len(stream3c) != 3:
-        logger.warning("Unexpected number of channels in stream {} (skipping):\n{}".format(ev_id, stream3c))
-        return False
-    # end if
-
-    # Strongly assert expected ordering of traces. This must be respected so that
-    # RF normalization works properly.
-    assert stream3c.traces[0].stats.channel[-1] == 'Z'
-    assert stream3c.traces[1].stats.channel[-1] == 'N'
-    assert stream3c.traces[2].stats.channel[-1] == 'E'
-
-    # If traces have inconsistent time ranges, clip to time range during which they overlap. Not guaranteed
-    # to make time ranges consistent due to possible inconsistent sampling times across channels.
-    start_times = np.array([tr.stats.starttime for tr in stream3c])
-    end_times = np.array([tr.stats.endtime for tr in stream3c])
-    if not (np.all(start_times == start_times[0]) and np.all(end_times == end_times[0])):
-        clip_start_time = np.max(start_times)
-        clip_end_time = np.min(end_times)
-        stream3c.trim(clip_start_time, clip_end_time)
-    # end if
-
-    if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
-        logger.warning("Channels in stream {} have different lengths, cannot generate RF (skipping):\n{}"
-                       .format(ev_id, stream3c))
-        return False
-    # end if
-
-    for tr in stream3c:
-        # Each tr here is one component.
-        # Check for any NaNs in any component. Discard such traces, as we don't want any NaNs
-        # propagating through workflow.
-        if np.any(np.isnan(tr.data)):
-            logger.warning("NaN detected in trace {} of stream {} (skipping):\n{}"
-                           .format(tr.stats.channel, ev_id, stream3c))
-            return False
+    # Apply any custom preprocessing step
+    custom_preproc = config_processing.get("custom_preproc")
+    if custom_preproc is not None:
+        # TODO: Improve security of exec and eval usage here.
+        load_statement = custom_preproc.get("import")
+        if load_statement is not None:
+            exec(load_statement)
         # end if
-        # Check for all zeros or all same value in any component. This is infeasible for an operational
-        # station, and has been observed as a failure mode in practice.
-        if np.std(tr.data) == 0:
-            logger.warning("Invariant data detected in trace {} of stream {} (skipping):\n{}"
-                           .format(tr.stats.channel, ev_id, stream3c))
-            return False
-        # end if
-    # end for
+        # "Func" field must be present
+        func = eval(custom_preproc["func"])
+        func_args = custom_preproc.get("args")
+        if func_args is None:
+            func_args = {}
+        # Apply custom preprocessing function
+        stream3c = func(ev_id, stream3c, **func_args)
+        # Functor must return the preprocessed stream
+        assert stream3c is not None
+    # end if
+
+    if not curate_stream3c(ev_id, stream3c, logger):
+        return None
+
+    if baz_range is not None:
+        if not isinstance(baz_range[0], list):
+            baz_range = [baz_range]
+        baz = stream3c[0].stats.back_azimuth
+        if not any([back_azimuth_filter(baz, tuple(b)) for b in baz_range]):
+            return None
+    # end if
 
     # Compute SNR of prior z-component after some low pass filtering.
     # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
@@ -150,7 +124,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     stream_z.taper(taper_limit, **kwargs)
     compute_vertical_snr(stream_z)
 
-    assert rotation_type.lower() in ['zrt', 'lqt']
+    rotation_type = rotation_type.lower()
+    assert rotation_type in ['zrt', 'lqt']
     if rotation_type == 'zrt':
         rf_rotation = 'NE->RT'
     else:
@@ -160,10 +135,12 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     stream3c.detrend('linear')
     stream3c.taper(taper_limit, **kwargs)
     try:
+        normalize = config_processing.get("normalize", True)
         if deconv_domain == 'time':
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
                             corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
+            spiking = config_processing.get("spiking", DEFAULT_SPIKING)
             kwargs.update({'spiking': spiking})
             if not normalize:
                 # No normalization. The "normalize" argument must be set to None.
@@ -177,6 +154,8 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
                 # No normalization. The "normalize" argument must be set to None.
                 kwargs['normalize'] = None
             # end if
+            gauss_width = config_processing.get("gauss_width", DEFAULT_GAUSS_WIDTH)
+            water_level = config_processing.get("water_level", DEFAULT_WATER_LEVEL)
             stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
             # Interpolate to requested sampling rate.
             stream3c.interpolate(resample_rate_hz)
@@ -198,7 +177,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         # end if
     except (IndexError, ValueError) as e:
         logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
-        return False
+        return None
     # end try
 
     # Check for any empty channels after deconvolution.
@@ -206,7 +185,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         if len(tr.data) == 0:
             logger.warning("No data left in channel {} of stream {} after deconv (skipping)".format(
                            tr.stats.channel, ev_id))
-            return False
+            return None
         # end if
     # end for
 
@@ -218,7 +197,7 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
     if len(stream3c) != 3:
         logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
                        .format(ev_id, stream3c))
-        return False
+        return None
     # end if
 
     assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
@@ -235,63 +214,114 @@ def transform_stream_to_rf(oqueue, ev_id, stream3c, resample_rate_hz, taper_limi
         tr.stats.update(metadata)
     # end for
 
-    output_stream = stream3c
-    oqueue.put(output_stream)
-
-    return True
+    return stream3c
+# end func
 
 
-# --------------Main---------------------------------
-
-@click.command()
-@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-@click.option('--resample-rate', type=float, default=DEFAULT_RESAMPLE_RATE_HZ, show_default=True,
-              help="Resampling rate in Hz")
-@click.option('--channel-pattern', type=str,
-              help="Ordered list of preferred channels, e.g. 'HH*,BH*', where channel selection is ambiguous.")
-@click.option('--taper-limit', type=click.FloatRange(0.0, 0.5), default=DEFAULT_TAPER_LIMIT, show_default=True,
-              help="Fraction of signal to taper at end, between 0 and 0.5")
-@click.option('--filter-band', type=(float, float), default=DEFAULT_FILTER_BAND_HZ, show_default=True,
-              help="Filter pass band (Hz). Only required for time-domain deconvolution.")
-@click.option('--gauss-width', type=float, default=DEFAULT_GAUSS_WIDTH, show_default=True,
-              help="Gaussian freq domain filter width. Only required for freq-domain deconvolution")
-@click.option('--water-level', type=float, default=DEFAULT_WATER_LEVEL, show_default=True,
-              help="Water-level for freq domain spectrum. Only required for freq-domain deconvolution")
-@click.option('--spiking', type=float, default=DEFAULT_SPIKING, show_default=True,
-              help="Spiking factor (noise suppression), only required for time-domain deconvolution")
-@click.option('--trim-start-time', type=float, default=DEFAULT_TRIM_START_TIME_SEC, show_default=True,
-              help="Trace trim start time in sec, relative to onset")
-@click.option('--trim-end-time', type=float, default=DEFAULT_TRIM_END_TIME_SEC, show_default=True,
-              help="Trace trim end time in sec, relative to onset")
-@click.option('--rotation-type', type=click.Choice(['zrt', 'lqt'], case_sensitive=False),
-              default=DEFAULT_ROTATION_TYPE, show_default=True,
-              help="Rotational coordinate system for aligning ZNE trace components with incident wave direction")
-@click.option('--deconv-domain', type=click.Choice(['time', 'freq', 'iter'], case_sensitive=False),
-              default=DEFAULT_DECONV_DOMAIN, show_default=True,
-              help="Whether to perform deconvolution in time or freq domain, or iterative technique")
-@click.option('--normalize/--no-normalize', default=True, show_default=True, help="Whether to normalize RF amplitude")
-@click.option('--parallel/--no-parallel', default=True, show_default=True, help="Use parallel execution")
-@click.option('--memmap/--no-memmap', default=False, show_default=True,
-              help="Memmap input file for improved performance in data reading thread. Useful when data input "
-                   "is bottleneck, if system memory permits.")
-@click.option('--temp-dir', type=click.Path(dir_okay=True), help="Temporary directory to use for best performance")
-@click.option('--aggressive-dispatch/--no-aggressive-dispatch', default=False, show_default=True,
-              help="Dispatch all worker jobs as aggressively as possible to minimize chance of worker being "
-                   "starved of work. Uses more memory.")
-def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss_width, water_level, spiking,
-         trim_start_time, trim_end_time, rotation_type, deconv_domain, normalize=True, parallel=True, memmap=False,
-         temp_dir=None, aggressive_dispatch=False, channel_pattern=None):
+def transform_stream_to_rf_queue(oqueue, ev_id, stream3c, config_filtering,
+                                 config_processing, **kwargs):
     """
-    Main entry point for generating RFs from event traces. See Click documentation for details on arguments.
+    Process using transform_stream_to_rf and queue results for further handling.
+
+    :param oqueue: Output queue where filtered streams are queued
+    :type oqueue: queue or multiprocessing.Manager.Queue
+    :param ev_id: Event ID to pass on to transform_stream_to_rf
+    :param stream3c: 3-channel stream to process
+    :param config_filtering: Filtering settings
+    :param config_processing: Processing settings
+    :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
+    :type kwargs: dict
+    :return: True if stream containing receiver function is pushed into output queue
+        oqueue, False otherwise
+    :rtype: bool
     """
-    assert resample_rate >= 2.0*filter_band[1], "Too low sample rate will alias signal"
+    output_stream = transform_stream_to_rf(ev_id, stream3c, config_filtering, config_processing, **kwargs)
+    if output_stream is not None:
+        oqueue.put(output_stream)
+        return True
+    else:
+        return False
+    # end if
+# end func
+
+
+def event_waveforms_to_rf(input_file, output_file, config):
+    """
+    Main entry point for generating RFs from event traces.
+
+    Config file consists of 3 sub-dictionaries. One named "filtering" for
+    input stream filtering settings, one named "processing" for RF processing
+    settings, and one named "system" for options on how the system will run the
+    job. Each of these sub-dicts is described below.
+
+    "filtering":  # Filtering settings
+    {
+      "resample_rate": float # Resampling rate in Hz
+      "taper_limit": float   # Fraction of signal to taper at end, between 0 and 0.5
+      "filter_band": (float, float) # Filter pass band (Hz). Not required for freq-domain deconvolution.
+      "channel_pattern": # Ordered list of preferred channels, e.g. 'HH*,BH*',
+                         # where channel selection is ambiguous.
+      "baz_range": (float, float) or [(float, float), ...] # Discrete ranges of source back azimuth to use (degrees).
+          # Each value must be between 0 and 360. May be a pair or a list of pairs for multiple ranges.
+    }
+
+    "processing":  # RF processing settings
+    {
+      "custom_preproc":
+      {
+        "import": 'import custom symbols',  # statement to import required symbols
+        "func": 'preproc functor'  # expression to get handle to custom preprocessing functor
+        "args": {}  # additional kwargs to pass to func
+      }
+      "trim_start_time": float # Trace trim start time in sec, relative to onset
+      "trim_end_time": float # Trace trim end time in sec, relative to onset
+      "rotation_type": str # Choice of ['zrt', 'lqt']. Rotational coordinate system
+                           # for aligning ZNE trace components with incident wave direction
+      "deconv_domain": str # Choice of ['time', 'freq', 'iter']. Whether to perform deconvolution
+                           # in time or freq domain, or iterative technique
+      "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
+      "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
+      "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
+      "normalize": bool # Whether to normalize RF amplitude
+    }
+
+    "system":  # job run settings
+    {
+      "parallel": bool # Use parallel execution
+      "memmap": bool # Memmap input file for improved performance in data reading thread.
+                     # Useful when data input is bottleneck, if system memory permits.
+      "temp_dir": str or path # Temporary directory to use for best performance
+      "aggressive_dispatch": bool # Dispatch all worker jobs as aggressively as possible to minimize
+                                  # chance of worker being starved of work. Uses more memory.
+    }
+
+    :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
+    :type input_file: str or pathlib.Path
+    :param output_file: Name of hdf5 file to produce containing RFs
+    :type output_file: str or pathlib.Path
+    :param config: Dictionary containing job configuration parameters
+    :type config: dict
+    :return: None
+    """
+
+    config_filtering = config.setdefault("filtering", {})
+    channel_pattern = config_filtering.get("channel_pattern")
+
+    config_processing = config.setdefault("processing", {})
+
+    config_system = config.setdefault("system", {})
+    parallel = config_system.get("parallel", True)
+    aggressive_dispatch = config_system.get("aggressive_dispatch", False)
+    memmap = config_system.get("memmap", False)
+    temp_dir = config_system.get("temp_dir")
 
     dispatch_policy = '5*n_jobs'
     if parallel:
         assert parallel_available, "Cannot run parallel as joblib import failed"
         if aggressive_dispatch:
             dispatch_policy = 'all'
+        # end if
+    # end if
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -299,11 +329,13 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
     if channel_pattern is not None:
         channel_pattern = channel_pattern.strip()
         logger.info("Using channel matching pattern {}".format(channel_pattern))
+    # end if
 
     # Set up asynchronous buffered writing of results to file
     mgr = Manager()
     write_queue = mgr.Queue()
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 500))
+    config_str = json.dumps(config)
+    output_thread = Process(target=async_write, args=(write_queue, output_file, 500, config_str))
     output_thread.daemon = True
     output_thread.start()
 
@@ -313,16 +345,12 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
         logger.info("Parallel processing")
         # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
         status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
-            (delayed(transform_stream_to_rf)(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
-                                             filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
-                                             deconv_domain, spiking=spiking, normalize=normalize)
+            (delayed(transform_stream_to_rf_queue)(write_queue, id, stream3c, config_filtering, config_processing)
              for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
     else:
         # Process in serial
         logger.info("Serial processing")
-        status = list((transform_stream_to_rf(write_queue, id, stream3c, resample_rate, taper_limit, rotation_type,
-                                              filter_band, gauss_width, water_level, trim_start_time, trim_end_time,
-                                              deconv_domain, spiking=spiking, normalize=normalize)
+        status = list((transform_stream_to_rf_queue(write_queue, id, stream3c, config_filtering, config_processing)
                        for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
     # end if
     num_tasks = len(status)
@@ -339,5 +367,24 @@ def main(input_file, output_file, resample_rate, taper_limit, filter_band, gauss
 # end func
 
 
+@click.command()
+@click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--config-file', type=click.Path(dir_okay=False),
+              help="Job configuration file in JSON format")
+def _main(input_file, output_file, config_file=None):
+    if config_file is not None:
+        with open(config_file, 'r') as cf:
+            config = json.load(cf)
+        # end with
+    else:
+        config = {}  # all default settings
+    # end if
+    # Dispatch call to worker function. See worker function for documentation.
+    event_waveforms_to_rf(input_file, output_file, config)
+# end main
+
+
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    _main()  # pylint: disable=no-value-for-parameter
+# end if

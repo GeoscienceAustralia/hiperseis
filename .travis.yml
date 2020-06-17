@@ -6,25 +6,37 @@ language: python
 cache: pip
 
 python:
-- '2.7'
-- '3.5'
-- '3.6'
+ #deprecated - '2.7'
+  - '3.5'
+  - '3.6'
+  - '3.7'
 
 before_install:
-- sudo apt-get install libhdf5-dev
-- sudo apt-get install libmpich-dev
-- sudo apt-get install libproj-dev proj-bin
-- sudo apt-get install libgeos-dev
-- pip install Cython --install-option="--no-cython-compile"
-- pip install pytest-cov
-- pip install coveralls
+  - sudo apt-get install libhdf5-dev
+  - sudo apt-get install libmpich-dev
+  - sudo apt-get install libproj-dev proj-bin
+  - sudo apt-get install libgeos-dev
+  - sudo apt-get install libnetcdf-dev
+  # Log package versions
+  - dpkg -s libhdf5-dev
+  - dpkg -s libmpich-dev
+  - dpkg -s libproj-dev proj-bin
+  - dpkg -s libgeos-dev
+  - dpkg -s libnetcdf-dev
+  - pip install -U pip
+  - pip install Cython --install-option="--no-cython-compile"
+  - pip install pytest-cov
+  - pip install coveralls
 
 install:
-- pip install -r requirements.txt
-- pip install -r tests/requirements.txt
+  - pip install -r requirements.txt
+  - pip install -r tests/requirements.txt
+  - pip list
 
 script:
-- pytest --cov
+  # Report detailed HDF5 version information, which has potential impact on netCDF4 and pyasdf
+  - python -c 'import h5py; print("h5py MPI:", h5py.get_config().mpi); print("h5py API version:", h5py.version.api_version); print(h5py.version.info)'
+  - pytest -v --cov=seismic --cov-report= tests
 
 after_success: coveralls
 

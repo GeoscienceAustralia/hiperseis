@@ -1,0 +1,26 @@
+#(hiperseispy37) @vdi-n23
+# conda install --file requirements_conda_py37.txt
+
+sphinx>=1.8
+numpy>=1.16.4
+pytest>=4.2.0
+pandas
+pyproj
+h5py
+pyasdf
+obspy==1.1.0
+shapely
+geographiclib
+mpi4py
+psutil
+geopandas
+joblib
+click
+netcdf4==1.4.0
+ujson
+deprecated
+pyyaml
+requests
+Cython  # On NCI, use module load
+tqdm
+

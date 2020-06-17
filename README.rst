@@ -32,32 +32,9 @@ Contacts
 System Requirements
 ==========================
 
-- Linux OS
-- Python 2.7
-- Python 3.5 or higher
-
-
-Setup Guide for Developers
-==========================
-
-1. Install Python environment and dependency packages. See Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
-
-2. Obtain the source code from https://github.com/GeoscienceAustralia/hiperseis
-
--  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
-- ``cd hiperseis``
-- ``git submodule init``
-- ``git submodule update``
-
-   - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
-
-
-If you are using the library without ``pip install``-ing it, then make sure the ``hiperseis`` folder
-is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/hiperseis`` is where
-``hiperseis`` was checked out:
-
-- ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
-
+- Linux OS, including Ubuntu and CentOS
+- Python 3.6 or higher (recommended)
+- Python 2.7 (deprected, no longer supported)
 
 Third Party Library Dependencies
 ================================
@@ -75,6 +52,20 @@ Current third party dependencies (actual requirements may vary by platform or Py
 - MPI, for example `Open MPI <https://www.open-mpi.org/>`_
 - `PROJ <https://proj.org/>`_
 - `GEOS <https://trac.osgeo.org/geos>`_
+
+
+Installation Guide for Developers
+=================================
+
+1. First, obtain the source code from `Github repository <https://github.com/GeoscienceAustralia/hiperseis>`_
+
+-  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
+- ``cd hiperseis``
+- ``git submodule init``
+- ``git submodule update``
+
+
+2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
 
 
 License

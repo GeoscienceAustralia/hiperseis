@@ -1,29 +1,31 @@
 sphinx>=1.8
-numpy==1.16.4
+ordered-set
+numpy>=1.16.4
 pandas
-#pyproj==1.9.6
 pyproj
 h5py
 pyasdf
-obspy==1.1.0
+obspy>=1.2.0
 obspyh5
 shapely
 geographiclib
-#cartopy
+cartopy
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
 mpi4py
 psutil
 #geopandas
-pytest>=4.2.0
+pytest>=4.6.5
 joblib
 click
-netcdf4==1.4.0
+netCDF4==1.5.2
 ujson
 deprecated
 pyyaml
 requests
 Cython  # On NCI, use module load
-#mpi4py # On NCI, use module load
 tqdm
 rf==0.8.0
+sortedcontainers
+scikit-learn
+urllib3

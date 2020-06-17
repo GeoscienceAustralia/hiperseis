@@ -15,8 +15,14 @@ def test_obspy_read_sc3ml(test_dir):
                       format='SC3ML')
     assert len(cat.events) == 1
     event = cat.events[0]
-    assert len(event.picks) == 33
+    assert len(event.picks) == 36
     assert len(event.amplitudes) == 34
     assert len(event.station_magnitudes) == 34
     assert len(event.magnitudes) == 17
     assert len(event.origins) == 3
+# end func
+
+
+if __name__ == '__main__':
+    test_obspy_read_sc3ml(os.path.dirname(__file__))
+# end if

@@ -1,0 +1,35 @@
+{
+  "mantle_properties":
+  {
+    "Vp": 8.0,
+    "Vs": 4.5,
+    "rho": 3.3
+  },
+  "layers":
+  [
+    {"name": "sediment", "Vp": 2.5, "rho":  2.0, "H_range": [0.0, 3.0], "Vs_range": [0.3, 2.0]},
+    {"name": "crust", "Vp": 6.4, "rho":  2.7, "H_range": [20.0, 60.0], "k_range": [1.5, 2.1]}
+  ],
+  "curation_opts":
+  {
+    "freq_min": 0.1
+  },
+  "su_energy_opts":
+  {
+    "_comment": "Options for computing S-wave upward component energy at top of mantle",
+    "sampling_rate": 10.0,
+    "time_window": [-20, 50],
+    "cut_window": [-5, 30],
+    "flux_window": [-20, 20]
+  },
+  "solver":
+  {
+    "_comment": "Solver options",
+    "type": "mcmc",
+    "temp": 0.005,
+    "burnin": 10000,
+    "max_iter": 100000,
+    "collect_samples": 10000,
+    "target_ar": 0.5
+  }
+}

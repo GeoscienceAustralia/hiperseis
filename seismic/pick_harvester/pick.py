@@ -15,6 +15,7 @@ Revision History:
 from mpi4py import MPI
 import glob, os, sys
 
+from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import Stream, Trace, UTCDateTime
 from datetime import datetime
@@ -312,10 +313,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-@click.option('--min-magnitude', default=-1, help='Minimum magnitude of event')
+@click.option('--min-magnitude', default=-1, help='Minimum magnitude of event; all events are analyzed by default')
+@click.option('--max-amplitude', default=1e8, help='Maximum amplitude in waveforms analyzed; default is 1e8. '
+                                                   'This parameter is useful for filtering out waveform snippets '
+                                                   'with spurious spikes')
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
-def process(asdf_source, event_folder, output_path, min_magnitude, restart, save_quality_plots):
+def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude, restart, save_quality_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
@@ -339,6 +343,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
             f.write('%25s\t\t: %s\n' % ('EVENT_FOLDER', event_folder))
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
             f.write('%25s\t\t: %s\n' % ('MIN_MAGNITUDE', min_magnitude))
+            f.write('%25s\t\t: %s\n' % ('MAX_AMPLITUDE', max_amplitude))
             f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
             f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
@@ -470,6 +475,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
                         if(np.isnan(mag) or mag < min_magnitude): continue
 
                         result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st,
+                                           max_amplitude=max_amplitude,
                                            plot_output_folder = plot_output_folder)
                         if(result):
                             picklist, residuallist, snrlist, bandindex, pickerindex = result
@@ -493,6 +499,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
                             result = extract_s(taupyModel, pickerlist_s, event, slon, slat, st, None, da[2],
+                                               max_amplitude=max_amplitude,
                                                plot_output_folder=plot_output_folder)
                             if (result):
                                 picklist, residuallist, snrlist, bandindex, pickerindex = result
@@ -597,16 +604,16 @@ def process(asdf_source, event_folder, output_path, min_magnitude, restart, save
         totalTime = (sw_stop - sw_start).total_seconds()
 
         gc.collect()
-        print '(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
+        print (('(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
               'network %s station %s in %f s. Memory usage: %5.2f MB.' % \
               (rank, (float(totalTraceCount) / float(workload) * 100) if workload > 0 else 100, totalTraceCount, workload,
                traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime,
-               round(psutil.Process().memory_info().rss / 1024. / 1024., 2))
+               round(psutil.Process().memory_info().rss / 1024. / 1024., 2))))
     # end for
     ofp.close()
     ofs.close()
 
-    print 'Processing complete on rank %d'%(rank)
+    print (('Processing complete on rank %d'%(rank)))
 
     del fds
 

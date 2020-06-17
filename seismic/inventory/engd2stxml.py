@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-==================================================
+=======================================================
 Engdahl and ISC STN data conversion to FDSN station XML
-==================================================
+=======================================================
 
 Creates database of stations from .STN files,
 curates the data using heuristic rules, and exports new stations to FDSN
@@ -46,6 +46,7 @@ if PY2:
 else:
     import io as sio  # pylint: disable=ungrouped-imports
     import pickle as pkl
+# end if
 
 print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
 print("Using obspy version {}".format(obspy.__version__))
@@ -71,7 +72,11 @@ else:
 # need to see more details in the table.
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_colwidth', -1)
+try:
+    pd.set_option('display.max_colwidth', None)
+except ValueError:
+    pd.set_option('display.max_colwidth', -1)
+# end try
 pd.set_option('display.width', 240)
 
 # Global constants. Assumption of spherical earth model. This is quite a weak assumption, but
