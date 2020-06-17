@@ -89,4 +89,4 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
     main()
-teleseismic_distanceteleseismic_distanceteleseismic_distanceteleseismic_distanceteleseismic_distanceincident_angleincident_angle
+# end if

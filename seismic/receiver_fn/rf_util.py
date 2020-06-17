@@ -13,6 +13,7 @@ from scipy.signal import hilbert
 import obspy
 import rf
 
+from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 
 # pylint: disable=invalid-name, logging-format-interpolation
@@ -509,41 +510,3 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
     return kept_data
 # end func
-
-
-def zne_order(tr):
-    """Channel ordering sort key function
-
-    :param tr: Trace whose ordinal is to be determined.
-    :type tr: RFTrace
-    :return: Numeric index indicated ZNE sort order of traces in a stream
-    """
-    trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
-    component = tr.stats.channel[-1].upper()
-    if component in trace_ordering:
-        return trace_ordering[component]
-    else:
-        return 3
-# end func
-
-
-def assert_homogenous_stream(stream, funcname):
-    """
-    Verify that the given stream does not contain mixture of stations or channels/components.
-
-    :param stream: Stream containing one or more traces
-    :type stream: obspy.core.stream.Stream or rf.RFStream
-    """
-    # Check station and channel uniqueness. It is not sensible to expect RF similarity for
-    # different stations or channels.
-    if not stream:
-        return
-    # end if
-    expected_station = stream[0].stats.station
-    expected_channel = stream[0].stats.channel
-    assert np.all(np.array([(tr.stats.station == expected_station) for tr in stream])), \
-        'Mixed station data incompatible with function {}'.format(funcname)
-    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in stream])), \
-        'Mixed channel data incompatible with function {}'.format(funcname)
-# end func
-
