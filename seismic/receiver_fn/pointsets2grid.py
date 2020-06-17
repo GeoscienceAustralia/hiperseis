@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Blend multiple datasets on different lon/lat point sets together onto a common grid.
 
