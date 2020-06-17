@@ -13,6 +13,7 @@ from scipy.signal import hilbert
 import obspy
 import rf
 
+from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 
 # pylint: disable=invalid-name, logging-format-interpolation
@@ -30,11 +31,15 @@ def phase_weights(stream):
 
     See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
+    Note: this function should not be applied to streams with mixed components.
+
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
     :type stream: Iterable container of obspy.Traces
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
+    assert_homogenous_stream(stream, phase_weights.__name__)
+
     traces = np.array([tr.data for tr in stream])
     # Hilbert transform to separate complex amplitude from complex phase.
     analytic = hilbert(traces)
@@ -475,6 +480,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
+    assert_homogenous_stream(rf_stream, filter_crosscorr_coeff.__name__)
 
     # Early exit if we don't have enough traces for similarity filtering to be meaningful.
     if len(rf_stream) < 3:
@@ -488,14 +494,6 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
         return data_cc
     # end if
 
-    # Check station and channel uniqueness. It is not sensible to expect RF similarity for
-    # different stations or channels.
-    expected_station = data_cc[0].stats.station
-    expected_channel = data_cc[0].stats.channel
-    assert np.all(np.array([(tr.stats.station == expected_station) for tr in data_cc])), \
-        'Mixed station data passed to similarity filter!'
-    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in data_cc])), \
-        'Mixed channel data passed to similarity filter!'
     # Apply optional moveout
     if apply_moveout:
         data_cc.moveout()
@@ -512,4 +510,3 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
     return kept_data
 # end func
-

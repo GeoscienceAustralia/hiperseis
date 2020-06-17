@@ -38,14 +38,14 @@ def main():
     distances = convert_inclination_to_distance(inclinations)
     final_sample_rate_hz = 10.0
     # stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=0)
-    stream_0 = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+    stream_0, _ = synthesize_rf_dataset(H_0, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
                                     #  amplitudes=[1, 0.5, 0.2], baz=0)
                                      amplitudes=[1, 0.4, 0.3], baz=0)
     stream_0.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_0)), format='h5')
 
     H_1 = 50
     # stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log, baz=90)
-    stream_1 = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
+    stream_1, _ = synthesize_rf_dataset(H_1, V_p, V_s, inclinations, distances, final_sample_rate_hz, log,
                                     #  amplitudes=[1, 0.4, 0.3], baz=90)
                                      amplitudes=[1, 0.5, 0.2], baz=90)
     stream_1.write(os.path.join(output_folder, "synth_rf_data_H={}.h5".format(H_1)), format='h5')
@@ -89,3 +89,4 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
     main()
+# end if
