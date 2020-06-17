@@ -96,7 +96,7 @@ def run_mcmc(waveform_data, config, logger):
     N = solver_opts.get("max_solutions", 3)
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, N=N, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
-        cluster_eps=cluster_eps, collect_samples=collect_samples, logger=logger, verbose=True)
+        cluster_eps=cluster_eps, collect_samples=collect_samples, logger=logger)
 
     # Record number of independent events processed
     soln.num_input_seismograms = len(waveform_data)
