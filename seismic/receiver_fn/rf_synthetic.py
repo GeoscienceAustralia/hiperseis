@@ -9,9 +9,10 @@ from scipy.interpolate import interp1d
 import obspy
 import rf
 
-import seismic.receiver_fn.rf_util as rf_util
+from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name
+
 
 def generate_synth_rf(arrival_times, arrival_amplitudes, fs_hz=100.0, window_sec=(-10, 30), f_cutoff_hz=2.0):
     """Simple generator of synthetic R component receiver function with pulses at given arrival times.
@@ -83,6 +84,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
 
     k = V_p/V_s
     traces = []
+    arrivals = None
     for i, inc_deg in enumerate(inclinations):
         theta_p = np.deg2rad(inc_deg)
         p = np.sin(theta_p)/V_p
@@ -121,7 +123,7 @@ def synthesize_rf_dataset(H, V_p, V_s, inclinations, distances, ds, log=None, in
         header = {'network': 'SY', 'station': 'TST', 'location': 'GA', 'channel': 'HHR', 'sampling_rate': fs,
                   'starttime': now, 'endtime': end, 'onset': onset,
                   'station_latitude': -19.0, 'station_longitude': 137.0,  # arbitrary (approx location of OA deployment)
-                  'slowness': p*rf_util.KM_PER_DEG, 'inclination': inc_deg,
+                  'slowness': p*KM_PER_DEG, 'inclination': inc_deg,
                   'back_azimuth': baz, 'distance': float(distances[i])}
         tr = rf.rfstream.RFTrace(data=synth_signal.copy(), header=header)
         tr = tr.decimate(int(np.round(fs/ds)), no_filter=True)
@@ -148,96 +150,22 @@ def convert_inclination_to_distance(inclinations, model="iasp91", nominal_source
     """
     # Generate function mapping ray parameter to teleseismic distance.
     # The distances are not strictly required for H-k stacking, but rf behaves better when they are there.
-    ts_distance = np.linspace(25, 95, 71)
-    inc = np.zeros_like(ts_distance)
+    teleseismic_distance = np.linspace(25, 95, 71)  # degrees
+    incident_angle = np.zeros_like(teleseismic_distance)
     model = obspy.taup.TauPyModel(model=model)
     source_depth_km = nominal_source_depth_km
-    for i, d in enumerate(ts_distance):
+    # Use ray model to generate discrete graph of relationship between incident angle vs teleseismic distance
+    for i, d in enumerate(teleseismic_distance):
         ray = model.get_ray_paths(source_depth_km, d, phase_list=['P'])
-        inc[i] = ray[0].incident_angle  # pylint: disable=unsupported-assignment-operation
+        incident_angle[i] = ray[0].incident_angle  # pylint: disable=unsupported-assignment-operation
     # end for
 
     # Create interpolator to convert inclination to teleseismic distance
-    interp_dist = interp1d(inc, ts_distance, bounds_error=False,
-                           fill_value=(np.max(ts_distance), np.min(ts_distance)))
+    interp_dist = interp1d(incident_angle, teleseismic_distance, bounds_error=False,
+                           fill_value=(np.max(teleseismic_distance), np.min(teleseismic_distance)))
 
     # Loop over valid range of inclinations and generate synthetic RFs
     distances = interp_dist(inclinations)
 
     return distances
 # end func
-
-
-def synthesize_ideal_seismogram(network, station, units, sourcelatitude, sourcelongitude, sourcedepthmetres=0,
-                                timewindow=(-20, 60), components='ZRT', origintime=None, f_s=None):
-    """
-    Given a receiving station and basic seismic source parameters, generate apure synthetic seismic
-    waveform at the surface at the receiver location, without any instrument response.
-
-    Uses IASP91 model.
-
-    To write resultant stream to HDF5 format, add 'ignore' option:
-        `synth_stream.write('test_synth.h5', 'h5', ignore=('mseed',))`
-
-    :return: Stream containing synthetic waveform.
-    """
-    from obspy.clients.syngine import Client as ClientS
-    from obspy.clients.fdsn import Client as ClientF
-    from obspy.taup import TauPyModel
-    from obspy.geodetics import gps2dist_azimuth
-
-    earth_model = 'iasp91'
-    default_model = earth_model + '_2s'
-
-    if origintime is None:
-        origintime = obspy.UTCDateTime.now()
-    # end if
-
-    if f_s is not None:
-        dt = 1.0/f_s
-    else:
-        dt = None
-    # end if
-
-    client_synth = ClientS()
-    assert timewindow[0] <= 0
-    assert timewindow[1] >= 0
-    starttime = 'P' + '-{}'.format(abs(timewindow[0]))
-    endtime = 'P' + '+{}'.format(timewindow[1])
-    synth_stream = client_synth.get_waveforms(model=default_model, network=network, station=station,
-                                              starttime=starttime, endtime=endtime, components=components,
-                                              units=units, sourcelatitude=sourcelatitude, dt=dt,
-                                              sourcelongitude=sourcelongitude, sourcedepthinmeters=sourcedepthmetres,
-                                              origintime=origintime)
-
-    origintime = obspy.UTCDateTime(origintime)
-
-    client_real = ClientF()
-    station_metadata = client_real.get_stations(network=network, station=station)
-    station_metadata = station_metadata.select(channel='*Z')
-    receiver_lat = station_metadata.networks[0].stations[0].latitude
-    receiver_lon = station_metadata.networks[0].stations[0].longitude
-    dist, baz, _ = gps2dist_azimuth(receiver_lat, receiver_lon, sourcelatitude, sourcelongitude)
-    dist_deg = dist / 1000 / rf_util.KM_PER_DEG
-    event_depth_km = sourcedepthmetres/1000
-    tt_model = TauPyModel(model=earth_model)
-    phase = 'P'
-    arrivals = tt_model.get_travel_times(event_depth_km, dist_deg, (phase,))
-    arrival = arrivals[0]
-    onset = origintime + arrival.time
-    inc = arrival.incident_angle
-    slowness = arrival.ray_param_sec_degree
-    stats = {'distance': dist_deg, 'back_azimuth': baz, 'inclination': inc,
-             'onset': onset, 'slowness': slowness, 'phase': phase, 'tt_model': earth_model}
-    for tr in synth_stream:
-        tr.stats.update(stats)
-    # end for
-
-    return synth_stream
-# end func
-
-
-if __name__ == "__main__":
-    # s = synthesize_ideal_seismogram('AU', 'QIS', 'velocity', 40, 140)
-    pass
-# end if

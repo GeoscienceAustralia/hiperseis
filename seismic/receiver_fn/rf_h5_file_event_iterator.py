@@ -10,7 +10,7 @@ import h5py
 from obspyh5 import dataset2trace
 from rf import RFStream
 
-from seismic.receiver_fn.rf_util import zne_order
+from seismic.stream_processing import zne_order
 
 
 logging.basicConfig()

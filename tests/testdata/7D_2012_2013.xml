@@ -1,0 +1,1945 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<FDSNStationXML schemaVersion="1.0" xmlns="http://www.fdsn.org/xml/station/1">
+  <Source>Geoscience Australia</Source>
+  <Module>ObsPy 1.0.2</Module>
+  <ModuleURI>https://www.obspy.org</ModuleURI>
+  <Created>2017-09-05T16:57:36+00:00</Created>
+  <Network code="7D" endDate="2014-03-26T23:06:20+00:00" startDate="2012-01-01T00:01:36+00:00">
+    <Station code="DG43" endDate="2013-10-14T22:20:56+00:00" startDate="2012-01-01T00:08:14+00:00">
+      <Latitude unit="DEGREES">-29.1386862398</Latitude>
+      <Longitude unit="DEGREES">153.100675465</Longitude>
+      <Elevation unit="METERS">29.7013906391</Elevation>
+      <Site>
+        <Name>DG43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:08:14+00:00</CreationDate>
+      <TerminationDate>2013-10-14T22:20:56+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1386862398</Latitude>
+        <Longitude unit="DEGREES">153.100675465</Longitude>
+        <Elevation unit="METERS">29.7013906391</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1386862398</Latitude>
+        <Longitude unit="DEGREES">153.100675465</Longitude>
+        <Elevation unit="METERS">29.7013906391</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1386862398</Latitude>
+        <Longitude unit="DEGREES">153.100675465</Longitude>
+        <Elevation unit="METERS">29.7013906391</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA44" endDate="2014-03-27T15:09:51+00:00" startDate="2012-01-01T00:06:52+00:00">
+      <Latitude unit="DEGREES">-29.6316536388</Latitude>
+      <Longitude unit="DEGREES">150.013611959</Longitude>
+      <Elevation unit="METERS">254.298754316</Elevation>
+      <Site>
+        <Name>DA44</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:06:52+00:00</CreationDate>
+      <TerminationDate>2014-03-27T15:09:51+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.6316536388</Latitude>
+        <Longitude unit="DEGREES">150.013611959</Longitude>
+        <Elevation unit="METERS">254.298754316</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.6316536388</Latitude>
+        <Longitude unit="DEGREES">150.013611959</Longitude>
+        <Elevation unit="METERS">254.298754316</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.6316536388</Latitude>
+        <Longitude unit="DEGREES">150.013611959</Longitude>
+        <Elevation unit="METERS">254.298754316</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DG41" endDate="2013-10-13T05:21:09+00:00" startDate="2012-01-01T00:04:03+00:00">
+      <Latitude unit="DEGREES">-28.2214723496</Latitude>
+      <Longitude unit="DEGREES">153.11867005</Longitude>
+      <Elevation unit="METERS">897.297480464</Elevation>
+      <Site>
+        <Name>DG41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:04:03+00:00</CreationDate>
+      <TerminationDate>2013-10-13T05:21:09+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2214723496</Latitude>
+        <Longitude unit="DEGREES">153.11867005</Longitude>
+        <Elevation unit="METERS">897.297480464</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2214723496</Latitude>
+        <Longitude unit="DEGREES">153.11867005</Longitude>
+        <Elevation unit="METERS">897.297480464</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2214723496</Latitude>
+        <Longitude unit="DEGREES">153.11867005</Longitude>
+        <Elevation unit="METERS">897.297480464</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA41" endDate="2014-03-19T10:03:58+00:00" startDate="2012-01-01T00:15:48+00:00">
+      <Latitude unit="DEGREES">-27.7643620459</Latitude>
+      <Longitude unit="DEGREES">150.042672176</Longitude>
+      <Elevation unit="METERS">244.203097394</Elevation>
+      <Site>
+        <Name>DA41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:15:48+00:00</CreationDate>
+      <TerminationDate>2014-03-19T10:03:58+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.7643620459</Latitude>
+        <Longitude unit="DEGREES">150.042672176</Longitude>
+        <Elevation unit="METERS">244.203097394</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.7643620459</Latitude>
+        <Longitude unit="DEGREES">150.042672176</Longitude>
+        <Elevation unit="METERS">244.203097394</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.7643620459</Latitude>
+        <Longitude unit="DEGREES">150.042672176</Longitude>
+        <Elevation unit="METERS">244.203097394</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA40" endDate="2014-03-08T12:02:20+00:00" startDate="2012-01-01T00:07:00+00:00">
+      <Latitude unit="DEGREES">-27.297341724</Latitude>
+      <Longitude unit="DEGREES">150.072122636</Longitude>
+      <Elevation unit="METERS">281.151187861</Elevation>
+      <Site>
+        <Name>DA40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:07:00+00:00</CreationDate>
+      <TerminationDate>2014-03-08T12:02:20+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.297341724</Latitude>
+        <Longitude unit="DEGREES">150.072122636</Longitude>
+        <Elevation unit="METERS">281.151187861</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.297341724</Latitude>
+        <Longitude unit="DEGREES">150.072122636</Longitude>
+        <Elevation unit="METERS">281.151187861</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.297341724</Latitude>
+        <Longitude unit="DEGREES">150.072122636</Longitude>
+        <Elevation unit="METERS">281.151187861</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA43" endDate="2013-12-17T00:30:21+00:00" startDate="2012-01-01T00:08:20+00:00">
+      <Latitude unit="DEGREES">-29.1451172903</Latitude>
+      <Longitude unit="DEGREES">150.030000965</Longitude>
+      <Elevation unit="METERS">229.852044265</Elevation>
+      <Site>
+        <Name>DA43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:08:20+00:00</CreationDate>
+      <TerminationDate>2013-12-17T00:30:21+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1451172903</Latitude>
+        <Longitude unit="DEGREES">150.030000965</Longitude>
+        <Elevation unit="METERS">229.852044265</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1451172903</Latitude>
+        <Longitude unit="DEGREES">150.030000965</Longitude>
+        <Elevation unit="METERS">229.852044265</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1451172903</Latitude>
+        <Longitude unit="DEGREES">150.030000965</Longitude>
+        <Elevation unit="METERS">229.852044265</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA42" endDate="2013-09-02T03:47:11+00:00" startDate="2012-01-01T00:15:38+00:00">
+      <Latitude unit="DEGREES">-28.7171024949</Latitude>
+      <Longitude unit="DEGREES">150.021566471</Longitude>
+      <Elevation unit="METERS">203.004043056</Elevation>
+      <Site>
+        <Name>DA42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:15:38+00:00</CreationDate>
+      <TerminationDate>2013-09-02T03:47:11+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.7171024949</Latitude>
+        <Longitude unit="DEGREES">150.021566471</Longitude>
+        <Elevation unit="METERS">203.004043056</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.7171024949</Latitude>
+        <Longitude unit="DEGREES">150.021566471</Longitude>
+        <Elevation unit="METERS">203.004043056</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.7171024949</Latitude>
+        <Longitude unit="DEGREES">150.021566471</Longitude>
+        <Elevation unit="METERS">203.004043056</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DG41A" endDate="2013-10-13T03:11:03+00:00" startDate="2012-01-01T00:13:38+00:00">
+      <Latitude unit="DEGREES">-27.771954853</Latitude>
+      <Longitude unit="DEGREES">153.117028851</Longitude>
+      <Elevation unit="METERS">29.8345168852</Elevation>
+      <Site>
+        <Name>DG41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:13:38+00:00</CreationDate>
+      <TerminationDate>2013-10-13T03:11:03+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.771954853</Latitude>
+        <Longitude unit="DEGREES">153.117028851</Longitude>
+        <Elevation unit="METERS">29.8345168852</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.771954853</Latitude>
+        <Longitude unit="DEGREES">153.117028851</Longitude>
+        <Elevation unit="METERS">29.8345168852</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.771954853</Latitude>
+        <Longitude unit="DEGREES">153.117028851</Longitude>
+        <Elevation unit="METERS">29.8345168852</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DD41A" endDate="2013-10-11T05:21:14+00:00" startDate="2012-01-01T00:07:41+00:00">
+      <Latitude unit="DEGREES">-28.214202652</Latitude>
+      <Longitude unit="DEGREES">151.579777582</Longitude>
+      <Elevation unit="METERS">502.726009413</Elevation>
+      <Site>
+        <Name>DD41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:07:41+00:00</CreationDate>
+      <TerminationDate>2013-10-11T05:21:14+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.214202652</Latitude>
+        <Longitude unit="DEGREES">151.579777582</Longitude>
+        <Elevation unit="METERS">502.726009413</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.214202652</Latitude>
+        <Longitude unit="DEGREES">151.579777582</Longitude>
+        <Elevation unit="METERS">502.726009413</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.214202652</Latitude>
+        <Longitude unit="DEGREES">151.579777582</Longitude>
+        <Elevation unit="METERS">502.726009413</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DG42A" endDate="2013-02-28T05:53:53+00:00" startDate="2012-01-01T00:07:59+00:00">
+      <Latitude unit="DEGREES">-28.6620045104</Latitude>
+      <Longitude unit="DEGREES">153.122609122</Longitude>
+      <Elevation unit="METERS">76.2224836783</Elevation>
+      <Site>
+        <Name>DG42A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:07:59+00:00</CreationDate>
+      <TerminationDate>2013-02-28T05:53:53+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6620045104</Latitude>
+        <Longitude unit="DEGREES">153.122609122</Longitude>
+        <Elevation unit="METERS">76.2224836783</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6620045104</Latitude>
+        <Longitude unit="DEGREES">153.122609122</Longitude>
+        <Elevation unit="METERS">76.2224836783</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6620045104</Latitude>
+        <Longitude unit="DEGREES">153.122609122</Longitude>
+        <Elevation unit="METERS">76.2224836783</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC41A" endDate="2014-03-20T23:58:40+00:00" startDate="2012-01-01T00:10:37+00:00">
+      <Latitude unit="DEGREES">-27.7554934833</Latitude>
+      <Longitude unit="DEGREES">151.05969475</Longitude>
+      <Elevation unit="METERS">430.26352859</Elevation>
+      <Site>
+        <Name>DC41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:10:37+00:00</CreationDate>
+      <TerminationDate>2014-03-20T23:58:40+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.7554934833</Latitude>
+        <Longitude unit="DEGREES">151.05969475</Longitude>
+        <Elevation unit="METERS">430.26352859</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.7554934833</Latitude>
+        <Longitude unit="DEGREES">151.05969475</Longitude>
+        <Elevation unit="METERS">430.26352859</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.7554934833</Latitude>
+        <Longitude unit="DEGREES">151.05969475</Longitude>
+        <Elevation unit="METERS">430.26352859</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DD40" endDate="2013-10-12T02:41:58+00:00" startDate="2012-01-01T00:16:37+00:00">
+      <Latitude unit="DEGREES">-27.3039559509</Latitude>
+      <Longitude unit="DEGREES">151.576129793</Longitude>
+      <Elevation unit="METERS">447.721119052</Elevation>
+      <Site>
+        <Name>DD40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:16:37+00:00</CreationDate>
+      <TerminationDate>2013-10-12T02:41:58+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.3039559509</Latitude>
+        <Longitude unit="DEGREES">151.576129793</Longitude>
+        <Elevation unit="METERS">447.721119052</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.3039559509</Latitude>
+        <Longitude unit="DEGREES">151.576129793</Longitude>
+        <Elevation unit="METERS">447.721119052</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.3039559509</Latitude>
+        <Longitude unit="DEGREES">151.576129793</Longitude>
+        <Elevation unit="METERS">447.721119052</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DD41" endDate="2013-10-12T00:32:40+00:00" startDate="2012-01-01T00:14:25+00:00">
+      <Latitude unit="DEGREES">-27.7674047455</Latitude>
+      <Longitude unit="DEGREES">151.573486376</Longitude>
+      <Elevation unit="METERS">460.833748619</Elevation>
+      <Site>
+        <Name>DD41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:14:25+00:00</CreationDate>
+      <TerminationDate>2013-10-12T00:32:40+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.7674047455</Latitude>
+        <Longitude unit="DEGREES">151.573486376</Longitude>
+        <Elevation unit="METERS">460.833748619</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.7674047455</Latitude>
+        <Longitude unit="DEGREES">151.573486376</Longitude>
+        <Elevation unit="METERS">460.833748619</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.7674047455</Latitude>
+        <Longitude unit="DEGREES">151.573486376</Longitude>
+        <Elevation unit="METERS">460.833748619</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DD42" endDate="2013-10-11T01:21:42+00:00" startDate="2012-01-01T00:12:56+00:00">
+      <Latitude unit="DEGREES">-28.6855374325</Latitude>
+      <Longitude unit="DEGREES">151.579618585</Longitude>
+      <Elevation unit="METERS">577.068895063</Elevation>
+      <Site>
+        <Name>DD42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:12:56+00:00</CreationDate>
+      <TerminationDate>2013-10-11T01:21:42+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6855374325</Latitude>
+        <Longitude unit="DEGREES">151.579618585</Longitude>
+        <Elevation unit="METERS">577.068895063</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6855374325</Latitude>
+        <Longitude unit="DEGREES">151.579618585</Longitude>
+        <Elevation unit="METERS">577.068895063</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6855374325</Latitude>
+        <Longitude unit="DEGREES">151.579618585</Longitude>
+        <Elevation unit="METERS">577.068895063</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DD43" endDate="2013-11-13T21:58:56+00:00" startDate="2013-04-11T04:56:00+00:00">
+      <Latitude unit="DEGREES">-29.141410231</Latitude>
+      <Longitude unit="DEGREES">151.565731158</Longitude>
+      <Elevation unit="METERS">692.009166517</Elevation>
+      <Site>
+        <Name>DD43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2013-04-11T04:56:00+00:00</CreationDate>
+      <TerminationDate>2013-11-13T21:58:56+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.141410231</Latitude>
+        <Longitude unit="DEGREES">151.565731158</Longitude>
+        <Elevation unit="METERS">692.009166517</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.141410231</Latitude>
+        <Longitude unit="DEGREES">151.565731158</Longitude>
+        <Elevation unit="METERS">692.009166517</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.141410231</Latitude>
+        <Longitude unit="DEGREES">151.565731158</Longitude>
+        <Elevation unit="METERS">692.009166517</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DG42" endDate="2013-07-07T00:00:47+00:00" startDate="2013-02-27T05:50:00+00:00">
+      <Latitude unit="DEGREES">-28.6531240321</Latitude>
+      <Longitude unit="DEGREES">153.1097159</Longitude>
+      <Elevation unit="METERS">130.244605854</Elevation>
+      <Site>
+        <Name>DG42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2013-02-27T05:50:00+00:00</CreationDate>
+      <TerminationDate>2013-07-07T00:00:47+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6531240321</Latitude>
+        <Longitude unit="DEGREES">153.1097159</Longitude>
+        <Elevation unit="METERS">130.244605854</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6531240321</Latitude>
+        <Longitude unit="DEGREES">153.1097159</Longitude>
+        <Elevation unit="METERS">130.244605854</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6531240321</Latitude>
+        <Longitude unit="DEGREES">153.1097159</Longitude>
+        <Elevation unit="METERS">130.244605854</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DE41" endDate="2013-10-11T21:52:22+00:00" startDate="2012-01-01T00:05:56+00:00">
+      <Latitude unit="DEGREES">-28.2230072161</Latitude>
+      <Longitude unit="DEGREES">152.073493939</Longitude>
+      <Elevation unit="METERS">470.889516578</Elevation>
+      <Site>
+        <Name>DE41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:05:56+00:00</CreationDate>
+      <TerminationDate>2013-10-11T21:52:22+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2230072161</Latitude>
+        <Longitude unit="DEGREES">152.073493939</Longitude>
+        <Elevation unit="METERS">470.889516578</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2230072161</Latitude>
+        <Longitude unit="DEGREES">152.073493939</Longitude>
+        <Elevation unit="METERS">470.889516578</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2230072161</Latitude>
+        <Longitude unit="DEGREES">152.073493939</Longitude>
+        <Elevation unit="METERS">470.889516578</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DE40" endDate="2013-10-12T03:47:35+00:00" startDate="2012-01-01T00:11:48+00:00">
+      <Latitude unit="DEGREES">-27.3219030458</Latitude>
+      <Longitude unit="DEGREES">152.091052773</Longitude>
+      <Elevation unit="METERS">648.290557519</Elevation>
+      <Site>
+        <Name>DE40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:11:48+00:00</CreationDate>
+      <TerminationDate>2013-10-12T03:47:35+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.3219030458</Latitude>
+        <Longitude unit="DEGREES">152.091052773</Longitude>
+        <Elevation unit="METERS">648.290557519</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.3219030458</Latitude>
+        <Longitude unit="DEGREES">152.091052773</Longitude>
+        <Elevation unit="METERS">648.290557519</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.3219030458</Latitude>
+        <Longitude unit="DEGREES">152.091052773</Longitude>
+        <Elevation unit="METERS">648.290557519</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+
+    </Station>
+    <Station code="DE43" endDate="2013-10-10T23:33:09+00:00" startDate="2012-01-01T00:16:17+00:00">
+      <Latitude unit="DEGREES">-29.1642447885</Latitude>
+      <Longitude unit="DEGREES">152.076911004</Longitude>
+      <Elevation unit="METERS">1033.81229111</Elevation>
+      <Site>
+        <Name>DE43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:16:17+00:00</CreationDate>
+      <TerminationDate>2013-10-10T23:33:09+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1642447885</Latitude>
+        <Longitude unit="DEGREES">152.076911004</Longitude>
+        <Elevation unit="METERS">1033.81229111</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1642447885</Latitude>
+        <Longitude unit="DEGREES">152.076911004</Longitude>
+        <Elevation unit="METERS">1033.81229111</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1642447885</Latitude>
+        <Longitude unit="DEGREES">152.076911004</Longitude>
+        <Elevation unit="METERS">1033.81229111</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <GPSClockCorrectionSeries>
+         <Description>Fei added new Block QA/QC time correction data </Description>
+        <correction date="2012-11-27" time="00:00:00" value="1.0398489" flag="0"/>
+        <correction date="2012-11-28" time="00:00:00" value="0.9408504" flag="0"/>
+        <correction date="2012-11-29" time="09:35:00" value="0.84185196" flag="0"/>
+        <correction date="2012-11-30" time="09:35:00" value="0.74285349" flag="0"/>
+        <correction date="2012-12-01" time="09:35:00" value="0.64385502" flag="0"/>
+      </GPSClockCorrectionSeries>
+    </Station>
+    <Station code="DE42" endDate="2013-07-05T04:53:39+00:00" startDate="2012-01-01T00:09:23+00:00">
+      <Latitude unit="DEGREES">-28.6970899931</Latitude>
+      <Longitude unit="DEGREES">152.089528151</Longitude>
+      <Elevation unit="METERS">965.118131502</Elevation>
+      <Site>
+        <Name>DE42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:09:23+00:00</CreationDate>
+      <TerminationDate>2013-07-05T04:53:39+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6970899931</Latitude>
+        <Longitude unit="DEGREES">152.089528151</Longitude>
+        <Elevation unit="METERS">965.118131502</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6970899931</Latitude>
+        <Longitude unit="DEGREES">152.089528151</Longitude>
+        <Elevation unit="METERS">965.118131502</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6970899931</Latitude>
+        <Longitude unit="DEGREES">152.089528151</Longitude>
+        <Elevation unit="METERS">965.118131502</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DE44" endDate="2013-10-10T21:12:37+00:00" startDate="2012-01-01T00:16:44+00:00">
+      <Latitude unit="DEGREES">-29.6140728269</Latitude>
+      <Longitude unit="DEGREES">152.090100263</Longitude>
+      <Elevation unit="METERS">967.890021765</Elevation>
+      <Site>
+        <Name>DE44</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:16:44+00:00</CreationDate>
+      <TerminationDate>2013-10-10T21:12:37+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.6140728269</Latitude>
+        <Longitude unit="DEGREES">152.090100263</Longitude>
+        <Elevation unit="METERS">967.890021765</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.6140728269</Latitude>
+        <Longitude unit="DEGREES">152.090100263</Longitude>
+        <Elevation unit="METERS">967.890021765</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.6140728269</Latitude>
+        <Longitude unit="DEGREES">152.090100263</Longitude>
+        <Elevation unit="METERS">967.890021765</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DB41A" endDate="2014-03-26T05:19:00+00:00" startDate="2012-11-21T04:04:00+00:00">
+      <Latitude unit="DEGREES">-28.2155980815</Latitude>
+      <Longitude unit="DEGREES">150.532059592</Longitude>
+      <Elevation unit="METERS">245.418594223</Elevation>
+      <Site>
+        <Name>DB41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-11-21T04:04:00+00:00</CreationDate>
+      <TerminationDate>2014-03-26T05:19:00+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2155980815</Latitude>
+        <Longitude unit="DEGREES">150.532059592</Longitude>
+        <Elevation unit="METERS">245.418594223</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2155980815</Latitude>
+        <Longitude unit="DEGREES">150.532059592</Longitude>
+        <Elevation unit="METERS">245.418594223</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2155980815</Latitude>
+        <Longitude unit="DEGREES">150.532059592</Longitude>
+        <Elevation unit="METERS">245.418594223</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ41A" endDate="2014-03-18T22:08:43+00:00" startDate="2012-01-01T00:11:54+00:00">
+      <Latitude unit="DEGREES">-27.8007372168</Latitude>
+      <Longitude unit="DEGREES">149.563361256</Longitude>
+      <Elevation unit="METERS">231.711163224</Elevation>
+      <Site>
+        <Name>CZ41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:11:54+00:00</CreationDate>
+      <TerminationDate>2014-03-18T22:08:43+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.8007372168</Latitude>
+        <Longitude unit="DEGREES">149.563361256</Longitude>
+        <Elevation unit="METERS">231.711163224</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.8007372168</Latitude>
+        <Longitude unit="DEGREES">149.563361256</Longitude>
+        <Elevation unit="METERS">231.711163224</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.8007372168</Latitude>
+        <Longitude unit="DEGREES">149.563361256</Longitude>
+        <Elevation unit="METERS">231.711163224</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DF42" endDate="2013-10-14T02:08:35+00:00" startDate="2012-01-01T00:04:18+00:00">
+      <Latitude unit="DEGREES">-28.7109100697</Latitude>
+      <Longitude unit="DEGREES">152.606815416</Longitude>
+      <Elevation unit="METERS">222.397134572</Elevation>
+      <Site>
+        <Name>DF42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:04:18+00:00</CreationDate>
+      <TerminationDate>2013-10-14T02:08:35+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.7109100697</Latitude>
+        <Longitude unit="DEGREES">152.606815416</Longitude>
+        <Elevation unit="METERS">222.397134572</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.7109100697</Latitude>
+        <Longitude unit="DEGREES">152.606815416</Longitude>
+        <Elevation unit="METERS">222.397134572</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.7109100697</Latitude>
+        <Longitude unit="DEGREES">152.606815416</Longitude>
+        <Elevation unit="METERS">222.397134572</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DF43" endDate="2013-10-14T03:40:15+00:00" startDate="2012-01-01T00:08:39+00:00">
+      <Latitude unit="DEGREES">-29.1450074754</Latitude>
+      <Longitude unit="DEGREES">152.606814126</Longitude>
+      <Elevation unit="METERS">107.076680458</Elevation>
+      <Site>
+        <Name>DF43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:08:39+00:00</CreationDate>
+      <TerminationDate>2013-10-14T03:40:15+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1450074754</Latitude>
+        <Longitude unit="DEGREES">152.606814126</Longitude>
+        <Elevation unit="METERS">107.076680458</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1450074754</Latitude>
+        <Longitude unit="DEGREES">152.606814126</Longitude>
+        <Elevation unit="METERS">107.076680458</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1450074754</Latitude>
+        <Longitude unit="DEGREES">152.606814126</Longitude>
+        <Elevation unit="METERS">107.076680458</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DF40" endDate="2013-10-13T01:01:08+00:00" startDate="2012-01-01T00:01:49+00:00">
+      <Latitude unit="DEGREES">-27.3081890236</Latitude>
+      <Longitude unit="DEGREES">152.61311662</Longitude>
+      <Elevation unit="METERS">138.577027676</Elevation>
+      <Site>
+        <Name>DF40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:01:49+00:00</CreationDate>
+      <TerminationDate>2013-10-13T01:01:08+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.3081890236</Latitude>
+        <Longitude unit="DEGREES">152.61311662</Longitude>
+        <Elevation unit="METERS">138.577027676</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.3081890236</Latitude>
+        <Longitude unit="DEGREES">152.61311662</Longitude>
+        <Elevation unit="METERS">138.577027676</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.3081890236</Latitude>
+        <Longitude unit="DEGREES">152.61311662</Longitude>
+        <Elevation unit="METERS">138.577027676</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DF41" endDate="2013-10-13T23:44:56+00:00" startDate="2012-01-01T00:12:35+00:00">
+      <Latitude unit="DEGREES">-28.2414691824</Latitude>
+      <Longitude unit="DEGREES">152.587571508</Longitude>
+      <Elevation unit="METERS">271.955804929</Elevation>
+      <Site>
+        <Name>DF41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:12:35+00:00</CreationDate>
+      <TerminationDate>2013-10-13T23:44:56+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2414691824</Latitude>
+        <Longitude unit="DEGREES">152.587571508</Longitude>
+        <Elevation unit="METERS">271.955804929</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2414691824</Latitude>
+        <Longitude unit="DEGREES">152.587571508</Longitude>
+        <Elevation unit="METERS">271.955804929</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2414691824</Latitude>
+        <Longitude unit="DEGREES">152.587571508</Longitude>
+        <Elevation unit="METERS">271.955804929</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ43" endDate="2014-03-18T10:20:35+00:00" startDate="2012-01-01T00:01:36+00:00">
+      <Latitude unit="DEGREES">-29.1435489627</Latitude>
+      <Longitude unit="DEGREES">149.517712421</Longitude>
+      <Elevation unit="METERS">180.644312792</Elevation>
+      <Site>
+        <Name>CZ43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:01:36+00:00</CreationDate>
+      <TerminationDate>2014-03-18T10:20:35+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1435489627</Latitude>
+        <Longitude unit="DEGREES">149.517712421</Longitude>
+        <Elevation unit="METERS">180.644312792</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1435489627</Latitude>
+        <Longitude unit="DEGREES">149.517712421</Longitude>
+        <Elevation unit="METERS">180.644312792</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1435489627</Latitude>
+        <Longitude unit="DEGREES">149.517712421</Longitude>
+        <Elevation unit="METERS">180.644312792</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ42" endDate="2013-12-03T18:57:09+00:00" startDate="2012-01-01T00:04:29+00:00">
+      <Latitude unit="DEGREES">-28.7230411655</Latitude>
+      <Longitude unit="DEGREES">149.524193458</Longitude>
+      <Elevation unit="METERS">180.175854214</Elevation>
+      <Site>
+        <Name>CZ42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:04:29+00:00</CreationDate>
+      <TerminationDate>2013-12-03T18:57:09+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.7230411655</Latitude>
+        <Longitude unit="DEGREES">149.524193458</Longitude>
+        <Elevation unit="METERS">180.175854214</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.7230411655</Latitude>
+        <Longitude unit="DEGREES">149.524193458</Longitude>
+        <Elevation unit="METERS">180.175854214</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.7230411655</Latitude>
+        <Longitude unit="DEGREES">149.524193458</Longitude>
+        <Elevation unit="METERS">180.175854214</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ41" endDate="2014-03-24T07:08:21+00:00" startDate="2012-01-01T00:16:28+00:00">
+      <Latitude unit="DEGREES">-28.2175016712</Latitude>
+      <Longitude unit="DEGREES">149.512182679</Longitude>
+      <Elevation unit="METERS">245.206225752</Elevation>
+      <Site>
+        <Name>CZ41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:16:28+00:00</CreationDate>
+      <TerminationDate>2014-03-24T07:08:21+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2175016712</Latitude>
+        <Longitude unit="DEGREES">149.512182679</Longitude>
+        <Elevation unit="METERS">245.206225752</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2175016712</Latitude>
+        <Longitude unit="DEGREES">149.512182679</Longitude>
+        <Elevation unit="METERS">245.206225752</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2175016712</Latitude>
+        <Longitude unit="DEGREES">149.512182679</Longitude>
+        <Elevation unit="METERS">245.206225752</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ40" endDate="2014-03-23T09:02:22+00:00" startDate="2012-01-01T00:13:27+00:00">
+      <Latitude unit="DEGREES">-27.316413149</Latitude>
+      <Longitude unit="DEGREES">149.535829824</Longitude>
+      <Elevation unit="METERS">303.741932613</Elevation>
+      <Site>
+        <Name>CZ40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:13:27+00:00</CreationDate>
+      <TerminationDate>2014-03-23T09:02:22+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.316413149</Latitude>
+        <Longitude unit="DEGREES">149.535829824</Longitude>
+        <Elevation unit="METERS">303.741932613</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.316413149</Latitude>
+        <Longitude unit="DEGREES">149.535829824</Longitude>
+        <Elevation unit="METERS">303.741932613</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.316413149</Latitude>
+        <Longitude unit="DEGREES">149.535829824</Longitude>
+        <Elevation unit="METERS">303.741932613</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ46" endDate="2014-03-22T12:10:56+00:00" startDate="2013-01-01T00:09:13+00:00">
+      <Latitude unit="DEGREES">-30.5485043916</Latitude>
+      <Longitude unit="DEGREES">149.503683224</Longitude>
+      <Elevation unit="METERS">261.379114261</Elevation>
+      <Site>
+        <Name>CZ46</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2013-01-01T00:09:13+00:00</CreationDate>
+      <TerminationDate>2014-03-22T12:10:56+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-30.5485043916</Latitude>
+        <Longitude unit="DEGREES">149.503683224</Longitude>
+        <Elevation unit="METERS">261.379114261</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-30.5485043916</Latitude>
+        <Longitude unit="DEGREES">149.503683224</Longitude>
+        <Elevation unit="METERS">261.379114261</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-30.5485043916</Latitude>
+        <Longitude unit="DEGREES">149.503683224</Longitude>
+        <Elevation unit="METERS">261.379114261</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ45" endDate="2014-02-18T00:22:21+00:00" startDate="2013-01-01T00:00:35+00:00">
+      <Latitude unit="DEGREES">-30.0734731222</Latitude>
+      <Longitude unit="DEGREES">149.512008506</Longitude>
+      <Elevation unit="METERS">192.091216146</Elevation>
+      <Site>
+        <Name>CZ45</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2013-01-01T00:00:35+00:00</CreationDate>
+      <TerminationDate>2014-02-18T00:22:21+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-30.0734731222</Latitude>
+        <Longitude unit="DEGREES">149.512008506</Longitude>
+        <Elevation unit="METERS">192.091216146</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-30.0734731222</Latitude>
+        <Longitude unit="DEGREES">149.512008506</Longitude>
+        <Elevation unit="METERS">192.091216146</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-30.0734731222</Latitude>
+        <Longitude unit="DEGREES">149.512008506</Longitude>
+        <Elevation unit="METERS">192.091216146</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CZ44" endDate="2014-03-19T23:01:30+00:00" startDate="2012-01-01T00:11:35+00:00">
+      <Latitude unit="DEGREES">-29.6387591663</Latitude>
+      <Longitude unit="DEGREES">149.471947566</Longitude>
+      <Elevation unit="METERS">178.474367193</Elevation>
+      <Site>
+        <Name>CZ44</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:11:35+00:00</CreationDate>
+      <TerminationDate>2014-03-19T23:01:30+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.6387591663</Latitude>
+        <Longitude unit="DEGREES">149.471947566</Longitude>
+        <Elevation unit="METERS">178.474367193</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.6387591663</Latitude>
+        <Longitude unit="DEGREES">149.471947566</Longitude>
+        <Elevation unit="METERS">178.474367193</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.6387591663</Latitude>
+        <Longitude unit="DEGREES">149.471947566</Longitude>
+        <Elevation unit="METERS">178.474367193</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DG44" endDate="2013-08-09T01:17:10+00:00" startDate="2012-01-01T00:08:17+00:00">
+      <Latitude unit="DEGREES">-29.6012503284</Latitude>
+      <Longitude unit="DEGREES">153.130485621</Longitude>
+      <Elevation unit="METERS">37.5553452591</Elevation>
+      <Site>
+        <Name>DG44</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:08:17+00:00</CreationDate>
+      <TerminationDate>2013-08-09T01:17:10+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.6012503284</Latitude>
+        <Longitude unit="DEGREES">153.130485621</Longitude>
+        <Elevation unit="METERS">37.5553452591</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.6012503284</Latitude>
+        <Longitude unit="DEGREES">153.130485621</Longitude>
+        <Elevation unit="METERS">37.5553452591</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.6012503284</Latitude>
+        <Longitude unit="DEGREES">153.130485621</Longitude>
+        <Elevation unit="METERS">37.5553452591</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DA41A" endDate="2014-03-26T23:06:20+00:00" startDate="2012-01-01T00:11:56+00:00">
+      <Latitude unit="DEGREES">-28.2342647111</Latitude>
+      <Longitude unit="DEGREES">150.003535141</Longitude>
+      <Elevation unit="METERS">215.775152679</Elevation>
+      <Site>
+        <Name>DA41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:11:56+00:00</CreationDate>
+      <TerminationDate>2014-03-26T23:06:20+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2342647111</Latitude>
+        <Longitude unit="DEGREES">150.003535141</Longitude>
+        <Elevation unit="METERS">215.775152679</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2342647111</Latitude>
+        <Longitude unit="DEGREES">150.003535141</Longitude>
+        <Elevation unit="METERS">215.775152679</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2342647111</Latitude>
+        <Longitude unit="DEGREES">150.003535141</Longitude>
+        <Elevation unit="METERS">215.775152679</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DF41A" endDate="2013-10-12T23:03:58+00:00" startDate="2012-01-01T00:05:15+00:00">
+      <Latitude unit="DEGREES">-27.7736394539</Latitude>
+      <Longitude unit="DEGREES">152.59298112</Longitude>
+      <Elevation unit="METERS">116.892604954</Elevation>
+      <Site>
+        <Name>DF41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:05:15+00:00</CreationDate>
+      <TerminationDate>2013-10-12T23:03:58+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.7736394539</Latitude>
+        <Longitude unit="DEGREES">152.59298112</Longitude>
+        <Elevation unit="METERS">116.892604954</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.7736394539</Latitude>
+        <Longitude unit="DEGREES">152.59298112</Longitude>
+        <Elevation unit="METERS">116.892604954</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.7736394539</Latitude>
+        <Longitude unit="DEGREES">152.59298112</Longitude>
+        <Elevation unit="METERS">116.892604954</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DB42" endDate="2014-03-01T00:01:59+00:00" startDate="2012-01-01T00:05:50+00:00">
+      <Latitude unit="DEGREES">-28.6983836771</Latitude>
+      <Longitude unit="DEGREES">150.575719178</Longitude>
+      <Elevation unit="METERS">242.031219304</Elevation>
+      <Site>
+        <Name>DB42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:05:50+00:00</CreationDate>
+      <TerminationDate>2014-03-01T00:01:59+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6983836771</Latitude>
+        <Longitude unit="DEGREES">150.575719178</Longitude>
+        <Elevation unit="METERS">242.031219304</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6983836771</Latitude>
+        <Longitude unit="DEGREES">150.575719178</Longitude>
+        <Elevation unit="METERS">242.031219304</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6983836771</Latitude>
+        <Longitude unit="DEGREES">150.575719178</Longitude>
+        <Elevation unit="METERS">242.031219304</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DB43" endDate="2014-03-24T00:54:16+00:00" startDate="2012-01-01T00:02:16+00:00">
+      <Latitude unit="DEGREES">-29.1249356099</Latitude>
+      <Longitude unit="DEGREES">150.530937483</Longitude>
+      <Elevation unit="METERS">346.773808236</Elevation>
+      <Site>
+        <Name>DB43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:02:16+00:00</CreationDate>
+      <TerminationDate>2014-03-24T00:54:16+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1249356099</Latitude>
+        <Longitude unit="DEGREES">150.530937483</Longitude>
+        <Elevation unit="METERS">346.773808236</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1249356099</Latitude>
+        <Longitude unit="DEGREES">150.530937483</Longitude>
+        <Elevation unit="METERS">346.773808236</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1249356099</Latitude>
+        <Longitude unit="DEGREES">150.530937483</Longitude>
+        <Elevation unit="METERS">346.773808236</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DB40" endDate="2014-03-21T12:46:37+00:00" startDate="2012-01-01T00:13:34+00:00">
+      <Latitude unit="DEGREES">-27.2986152517</Latitude>
+      <Longitude unit="DEGREES">150.541371703</Longitude>
+      <Elevation unit="METERS">347.940723885</Elevation>
+      <Site>
+        <Name>DB40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:13:34+00:00</CreationDate>
+      <TerminationDate>2014-03-21T12:46:37+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.2986152517</Latitude>
+        <Longitude unit="DEGREES">150.541371703</Longitude>
+        <Elevation unit="METERS">347.940723885</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.2986152517</Latitude>
+        <Longitude unit="DEGREES">150.541371703</Longitude>
+        <Elevation unit="METERS">347.940723885</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.2986152517</Latitude>
+        <Longitude unit="DEGREES">150.541371703</Longitude>
+        <Elevation unit="METERS">347.940723885</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DB41" endDate="2014-03-13T10:39:43+00:00" startDate="2012-01-01T00:10:38+00:00">
+      <Latitude unit="DEGREES">-27.773041985</Latitude>
+      <Longitude unit="DEGREES">150.524948941</Longitude>
+      <Elevation unit="METERS">295.478251724</Elevation>
+      <Site>
+        <Name>DB41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:10:38+00:00</CreationDate>
+      <TerminationDate>2014-03-13T10:39:43+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.773041985</Latitude>
+        <Longitude unit="DEGREES">150.524948941</Longitude>
+        <Elevation unit="METERS">295.478251724</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.773041985</Latitude>
+        <Longitude unit="DEGREES">150.524948941</Longitude>
+        <Elevation unit="METERS">295.478251724</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.773041985</Latitude>
+        <Longitude unit="DEGREES">150.524948941</Longitude>
+        <Elevation unit="METERS">295.478251724</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DE41A" endDate="2013-06-29T11:55:15+00:00" startDate="2012-11-25T21:54:00+00:00">
+      <Latitude unit="DEGREES">-27.7691647619</Latitude>
+      <Longitude unit="DEGREES">152.073194203</Longitude>
+      <Elevation unit="METERS">465.78</Elevation>
+      <Site>
+        <Name>DE41A</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-11-25T21:54:00+00:00</CreationDate>
+      <TerminationDate>2013-06-29T11:55:15+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.7691647619</Latitude>
+        <Longitude unit="DEGREES">152.073194203</Longitude>
+        <Elevation unit="METERS">465.78</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.7691647619</Latitude>
+        <Longitude unit="DEGREES">152.073194203</Longitude>
+        <Elevation unit="METERS">465.78</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.7691647619</Latitude>
+        <Longitude unit="DEGREES">152.073194203</Longitude>
+        <Elevation unit="METERS">465.78</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC44" endDate="2013-11-11T13:43:54+00:00" startDate="2012-01-01T00:10:25+00:00">
+      <Latitude unit="DEGREES">-29.614712714</Latitude>
+      <Longitude unit="DEGREES">151.046613847</Longitude>
+      <Elevation unit="METERS">634.417244231</Elevation>
+      <Site>
+        <Name>DC44</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:10:25+00:00</CreationDate>
+      <TerminationDate>2013-11-11T13:43:54+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.614712714</Latitude>
+        <Longitude unit="DEGREES">151.046613847</Longitude>
+        <Elevation unit="METERS">634.417244231</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.614712714</Latitude>
+        <Longitude unit="DEGREES">151.046613847</Longitude>
+        <Elevation unit="METERS">634.417244231</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.614712714</Latitude>
+        <Longitude unit="DEGREES">151.046613847</Longitude>
+        <Elevation unit="METERS">634.417244231</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC43" endDate="2014-03-24T17:17:49+00:00" startDate="2012-01-01T00:14:29+00:00">
+      <Latitude unit="DEGREES">-29.1620261849</Latitude>
+      <Longitude unit="DEGREES">151.020277941</Longitude>
+      <Elevation unit="METERS">412.449263035</Elevation>
+      <Site>
+        <Name>DC43</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:14:29+00:00</CreationDate>
+      <TerminationDate>2014-03-24T17:17:49+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-29.1620261849</Latitude>
+        <Longitude unit="DEGREES">151.020277941</Longitude>
+        <Elevation unit="METERS">412.449263035</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-29.1620261849</Latitude>
+        <Longitude unit="DEGREES">151.020277941</Longitude>
+        <Elevation unit="METERS">412.449263035</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-29.1620261849</Latitude>
+        <Longitude unit="DEGREES">151.020277941</Longitude>
+        <Elevation unit="METERS">412.449263035</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC42" endDate="2014-03-21T10:53:07+00:00" startDate="2012-01-01T00:14:24+00:00">
+      <Latitude unit="DEGREES">-28.6657791286</Latitude>
+      <Longitude unit="DEGREES">151.065483759</Longitude>
+      <Elevation unit="METERS">290.399015904</Elevation>
+      <Site>
+        <Name>DC42</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:14:24+00:00</CreationDate>
+      <TerminationDate>2014-03-21T10:53:07+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.6657791286</Latitude>
+        <Longitude unit="DEGREES">151.065483759</Longitude>
+        <Elevation unit="METERS">290.399015904</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.6657791286</Latitude>
+        <Longitude unit="DEGREES">151.065483759</Longitude>
+        <Elevation unit="METERS">290.399015904</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.6657791286</Latitude>
+        <Longitude unit="DEGREES">151.065483759</Longitude>
+        <Elevation unit="METERS">290.399015904</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC41" endDate="2014-03-08T23:55:26+00:00" startDate="2012-01-01T00:12:10+00:00">
+      <Latitude unit="DEGREES">-28.2206832749</Latitude>
+      <Longitude unit="DEGREES">151.078749363</Longitude>
+      <Elevation unit="METERS">425.435395971</Elevation>
+      <Site>
+        <Name>DC41</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:12:10+00:00</CreationDate>
+      <TerminationDate>2014-03-08T23:55:26+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-28.2206832749</Latitude>
+        <Longitude unit="DEGREES">151.078749363</Longitude>
+        <Elevation unit="METERS">425.435395971</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-28.2206832749</Latitude>
+        <Longitude unit="DEGREES">151.078749363</Longitude>
+        <Elevation unit="METERS">425.435395971</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-28.2206832749</Latitude>
+        <Longitude unit="DEGREES">151.078749363</Longitude>
+        <Elevation unit="METERS">425.435395971</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="DC40" endDate="2014-03-22T09:27:10+00:00" startDate="2012-01-01T00:07:04+00:00">
+      <Latitude unit="DEGREES">-27.2943755646</Latitude>
+      <Longitude unit="DEGREES">151.085723092</Longitude>
+      <Elevation unit="METERS">346.417835847</Elevation>
+      <Site>
+        <Name>DC40</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2012-01-01T00:07:04+00:00</CreationDate>
+      <TerminationDate>2014-03-22T09:27:10+00:00</TerminationDate>
+      <Channel code="BHZ" locationCode="">
+        <Latitude unit="DEGREES">-27.2943755646</Latitude>
+        <Longitude unit="DEGREES">151.085723092</Longitude>
+        <Elevation unit="METERS">346.417835847</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHE" locationCode="">
+        <Latitude unit="DEGREES">-27.2943755646</Latitude>
+        <Longitude unit="DEGREES">151.085723092</Longitude>
+        <Elevation unit="METERS">346.417835847</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="BHN" locationCode="">
+        <Latitude unit="DEGREES">-27.2943755646</Latitude>
+        <Longitude unit="DEGREES">151.085723092</Longitude>
+        <Elevation unit="METERS">346.417835847</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>50.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+  </Network>
+</FDSNStationXML>

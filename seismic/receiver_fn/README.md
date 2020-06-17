@@ -16,6 +16,10 @@ There are a number of manuals and literature about RF. You can refer to examples
 distributed with [python RF libraries](https://rf.readthedocs.io/en/latest/) or [chapter 4.1 of
 Tom Richter's dissertation](http://www.diss.fu-berlin.de/diss/servlets/MCRFileNodeServlet/FUDISS_derivate_000000014929/dissertation_richter.pdf).
 
+The work in this module utilizes the RF framework developed in the Python [`rf` library
+developed by Tom Eulenfeld](https://doi.org/10.21105/joss.01808).
+
+
 ## Event Trace Extraction
 
 The first step in data preparation is to extract segments of waveforms stored in the H5 waveform
@@ -92,7 +96,9 @@ documentation for additional details:
 8. Coherence of signals in the frequency domain
 9. Grouping by similarity (DBSCAN method)
 
-As one can guess by the diversity of quality metrics computed, this is an area of active research.
+Finally, when saving the traces with quality metrics in the metadata, the Z-component is dropped to
+reduce file size, so only the R- and T-components are saved.  A diversity of
+quality metrics are computed because this is an area of active research.
 
 To use script `rf_quality_filter.py`, the following parameters should be provided:
 * H5 Input file name

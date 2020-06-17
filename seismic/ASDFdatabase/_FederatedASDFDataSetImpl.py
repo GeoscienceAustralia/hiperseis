@@ -94,7 +94,7 @@ class _FederatedASDFDataSetImpl():
         self.asdf_file_names = []
         self.asdf_station_coordinates = []
 
-        if(type(asdf_source)==str):
+        if isinstance(asdf_source, str):
             self.asdf_source = asdf_source
             self.source_sha1 = hashlib.sha1(open(self.asdf_source).read().encode('utf-8')).hexdigest()
             fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
@@ -330,7 +330,7 @@ class _FederatedASDFDataSetImpl():
                     data_segment = station_data.get_item(tag, starttime, endtime)
                     s += data_segment
                     break
-                except Exception as e:                   
+                except Exception as e:
                     if(isinstance(e, ASDFValueError)): # read failed due to the data buffer being too small
                         self.asdf_datasets[ds_id].single_item_read_limit_in_mb *= 2
                         numAttempts += 1
@@ -339,10 +339,10 @@ class _FederatedASDFDataSetImpl():
                                                 "Retrying with expanded data buffer."
                                                 .format(str(starttime), str(endtime), net, sta, str(e)))
                         # end if
-                        if(numAttempts > 2): 
+                        if(numAttempts > 2):
                             self.logger.error("Failed to get data between {} -- {} for {}.{} with error:\n{}"
                                               .format(str(starttime), str(endtime), net, sta, str(e)))
-                            break   
+                            break
                         # end if
                     else:
                         if self.logger:
@@ -351,11 +351,11 @@ class _FederatedASDFDataSetImpl():
                         # end if
                         break
                     # end if
-                # end try                
+                # end try
             # end while
             if (numAttempts>0):
                 self.asdf_datasets[ds_id].single_item_read_limit_in_mb /= 2**numAttempts
-            # end if            
+            # end if
         # end for
 
         # Trim traces
@@ -422,7 +422,8 @@ class _FederatedASDFDataSetImpl():
 
     def cleanup(self):
         for i, ds in enumerate(self.asdf_datasets):
-            if(self.logger): self.logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
+            # if self.logger:
+            #     self.logger.info('Closing ASDF file %s..'%(self.asdf_file_names[i]))
             del ds
         # end for
 

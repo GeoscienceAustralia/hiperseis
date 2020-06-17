@@ -26,7 +26,7 @@ print(sys.path)
 # -- Project information -----------------------------------------------------
 
 project = 'HiPerSeis'
-copyright = '2019, Geoscience Australia'
+copyright = '2019-2020, Geoscience Australia'
 author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov, Babak Hejrani'
 
 # The short X.Y version

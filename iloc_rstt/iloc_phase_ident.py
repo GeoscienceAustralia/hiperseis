@@ -64,7 +64,7 @@ def runprocess(cmd, get_results=False):
             #else: print line
         # end for
     except subprocess.TimeoutExpired:
-        print 'KILLING PROC: %d'%(p.pid)
+        print (('KILLING PROC: %d'%(p.pid)))
         kill(p.pid)
         p.returncode = 1
     # end try
@@ -90,9 +90,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--limit-events', default=-1, help='Number of events to process')
 def process(start_time, end_time, output_path, update_db, limit_events):
     """
-    START_TIME: start time e.g. 1990-04-02T00:00:00
-    END_TIME: end time
-    OUTPUT_PATH: output folder
+    START_TIME: start time e.g. 1990-04-02T00:00:00 \n
+    END_TIME: end time \n
+    OUTPUT_PATH: output folder \n
     """
 
     st = None
@@ -137,23 +137,23 @@ def process(start_time, end_time, output_path, update_db, limit_events):
         
         rc, results = runprocess(cmd, get_results=True)
         if(rc): 
-            print 'Event: %s has encountered errors'%(eventId)
-            print results
+            print (('Event: %s has encountered errors'%(eventId)))
+            print (results)
         else:
             for r in results: 
-                if ('unexpected number' in r): print 'Event: %s has missing stations [%s]'%(eventId, r)
+                if ('unexpected number' in r): print (('Event: %s has missing stations [%s]'%(eventId, r)))
                 elif('converged: 1' in r): 
-                    print 'Event: %s converged [%s]'%(eventId, r)
+                    print (('Event: %s converged [%s]'%(eventId, r)))
                     convergedCount += 1
                     converged = True
-                elif('no phases found' in r): print 'Event: %s no phases found'%(eventId)
+                elif('no phases found' in r): print (('Event: %s no phases found'%(eventId)))
             # end for
-            print results
+            print (results)
         # end if
         i+=1
         f.write('{0:50}{1}\n'.format(eventId, int(converged)))
     # end for
-    print 'rank: %d #events: %d converged: %d'%(rank, len(eventIds), convergedCount)
+    print (('rank: %d #events: %d converged: %d'%(rank, len(eventIds), convergedCount)))
     f.close()
 # end func
 

@@ -138,6 +138,12 @@ def process(input_asdf, output_folder, start_date, end_date, length):
     INPUT_ASDF: Path to input ASDF file\n
     OUTPUT_FOLDER: Output folder \n
 
+    The script has two modes of operations: \n
+    i. parameters --start-date, --end-date and --length (default 1 day) are specified, which results in
+       mseed files, each --length seconds long, being output for the time-range specified \n
+    ii. parameters --start-date and --end-date are not provided, which results in the dumping of all
+        waveforms (of any arbitrary lengths) as they appear in the ASDF file \n
+    \n
     Example usage:
     mpirun -np 2 python asdf2mseed.py ./test.asdf /tmp/output --start-date 2013-01-01T00:00:00 --end-date 2016-01-01T00:00:00
 

@@ -20,7 +20,7 @@ import matplotlib.tri as tri
 # Here are the libraries to deal with RFSTREAM, it uses obspy classes for event and station
 import rf
 
-# from rf_util import KM_PER_DEG
+# from seismic.units_utils import KM_PER_DEG
 
 # pylint: disable=invalid-name
 
