@@ -161,7 +161,7 @@ def example_6():
     logging.info('Trying custom MCMC solver...')
     soln_mcmc = optimize_minimize_mhmcmc_cluster(
         objective_fn_wrapper, bounds, fixed_args, x0=model_initial_poor, T=0.025, burnin=500, maxiter=5000,
-        collect_samples=2000, logger=logging, verbose=True)
+        collect_samples=2000, logger=logging)
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     # Run grid search purely for visualization purposes
@@ -210,7 +210,7 @@ def example_7(net_code, sta_code):
     logging.info('MCMC solver (sedimentary)...')
     soln_mcmc = optimize_minimize_mhmcmc_cluster(
         objective_fn_wrapper, bounds, fixed_args, T=0.025, burnin=1500, maxiter=8000, target_ar=0.5,
-        collect_samples=1000, logger=logging, verbose=True)
+        collect_samples=1000, logger=logging)
     logging.info('Result:\n{}'.format(soln_mcmc))
 
     if soln_mcmc.success and len(soln_mcmc.x) > 0:
