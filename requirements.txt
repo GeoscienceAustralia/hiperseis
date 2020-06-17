@@ -9,7 +9,7 @@ obspy>=1.2.0
 obspyh5
 shapely
 geographiclib
-#cartopy
+cartopy
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
 mpi4py
@@ -28,3 +28,4 @@ tqdm
 rf==0.8.0
 sortedcontainers
 scikit-learn
+urllib3

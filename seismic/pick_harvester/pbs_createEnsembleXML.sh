@@ -5,7 +5,7 @@
 #PBS -P vy72
 #PBS -N create_ensemble
 #PBS -q hugemem
-#PBS -l walltime=4:00:00,mem=3000GB,ncpus=96,jobfs=500GB
+#PBS -l walltime=2:00:00,mem=1000GB,ncpus=48,jobfs=200GB
 #PBS -l storage=scratch/fxz547+gdata/ha3
 #PBS -l wd
 #PBS -j oe
@@ -37,8 +37,8 @@ source /g/data/ha3/Passive/Software/VENV/para_h5py/bin/activate
 CATALOGD="/g/data/ha3/Passive/Events/Unified/"  # a csv file 
 INVENTORY_XML="/g/data/ha3/Passive/SHARED_DATA/Inventory/networks_fdsnstationxml/inventory.xml"  
 ISC_STATION_COORD="/g/data/ha3/Passive/SHARED_DATA/Inventory/station_coords/stations.kml"
-OUTPUT1="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow2"
-OUTPUT2="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow2/step2"
+OUTPUT1="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow2/step1"
+OUTPUT2="/g/data/ha3/GASeisDataArchive/DevSpace/pick_workflow2/step2B"
 
 
 # the cmdline 

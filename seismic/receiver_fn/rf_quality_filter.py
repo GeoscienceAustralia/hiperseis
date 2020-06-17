@@ -13,7 +13,6 @@ import traceback
 from multiprocessing import Process, Manager
 
 import numpy as np
-import pandas as pd
 import click
 import h5py
 
@@ -201,17 +200,17 @@ def get_rf_stream_components(stream):
     return rf_type, primary_stream, transverse_stream, source_stream
 
 
-def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
-    """Top level function for quality filtering, computing of quality metrics and adding to trace metadata.
+def compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps):
+    """Top level function for adding quality metrics to trace metadata.
 
-    :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: multiprocessing.Manager.Queue
     :param station_id: Station ID
     :type station_id: str
     :param station_stream3c: 3-channel stream
     :type station_stream3c: list(rf.RFStream) with 3 components
     :param similarity_eps: Distance threshold used for DBSCAN clustering
     :type similarity_eps: float
+    :return Triplet of RF streams with Z, R or Q, and T components with populated
+        quality metrics. Otherwise return None in case of failure.
     """
 
     logger = logging.getLogger(__name__)
@@ -243,7 +242,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
     if not nonan_streams:
         logger.warning("nonan_streams empty after filtering out nan traces! {}. Skipping station {}"
                        .format(nonan_streams, station_id))
-        return pd.DataFrame()
+        return None
     # end if
 
     # Flatten the traces into a single RFStream for subsequent processing
@@ -259,7 +258,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
     if expected_len <= 1:
         logger.warning("Cannot compute quality metrics on trace length {} <= 1! Skipping station {}"
                        .format(expected_len, station_id))
-        return pd.DataFrame()
+        return None
     # end if
     keep_traces = []
     for tr in rf_streams:
@@ -280,7 +279,7 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
     # end if
 
     # Extract RF type, the primary polarized component and transverse component (ignore source stream)
-    rf_type, p_stream, t_stream, _ = get_rf_stream_components(streams)
+    rf_type, p_stream, t_stream, z_stream = get_rf_stream_components(streams)
     if rf_type is None:
         logger.error("Unrecognized RF type for station {}. File might not be RF file!".format(station_id))
         return None
@@ -389,15 +388,40 @@ def rf_quality_metrics(oqueue, station_id, station_stream3c, similarity_eps):
 
     # TODO: Research techniques for grouping waveforms using singular value decomposition (SVD), possibly of
     # the complex waveform (from Hilbert transform) to determine the primary phase and amplitude components.
-    # High similarity to the strongest eigenvectors indicates waves in the primary group (group 0 in DBSCAN)
+    # High similarity to the strongest eigenvectors might indicate waves in the primary group (group 0 in DBSCAN)
     # without the N^2 computational cost of DBSCAN.
 
-    oqueue.put(p_stream)
-    oqueue.put(t_stream)
+    return (z_stream, p_stream, t_stream)
 # end func
 
 
-# -------------Main---------------------------------
+def rf_quality_metrics_queue(oqueue, station_id, station_stream3c, similarity_eps, drop_z=True):
+    """Produce RF quality metrics in a stream and queue the QC'd components for
+    downstream processing.
+
+    :param oqueue: Output queue where filtered streams are queued
+    :type oqueue: queue or multiprocessing.Manager.Queue
+    :param station_id: Station ID
+    :type station_id: str
+    :param station_stream3c: 3-channel stream
+    :type station_stream3c: list(rf.RFStream) with 3 components
+    :param similarity_eps: Distance threshold used for DBSCAN clustering
+    :type similarity_eps: float
+    """
+    streams_qual = compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps)
+    if streams_qual is not None:
+        z_stream, p_stream, t_stream = streams_qual
+        if drop_z:
+            stream_qual = rf.RFStream([tr for doublet in zip(p_stream, t_stream)
+                                       for tr in doublet])
+        else:
+            stream_qual = rf.RFStream([tr for triplet in zip(z_stream, p_stream, t_stream)
+                                       for tr in triplet])
+        # end if
+        oqueue.put(stream_qual)
+    # end if
+# end func
+
 
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -440,16 +464,16 @@ def main(input_file, output_file, temp_dir=None, parallel=True):
     if parallel:
         logger.info("Parallel processing")
         Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir) \
-            (delayed(rf_quality_metrics)(write_queue, station_id, station_stream3c, similarity_eps)
+            (delayed(rf_quality_metrics_queue)(write_queue, station_id, station_stream3c, similarity_eps)
              for station_id, station_stream3c in IterRfH5StationEvents(input_file))
     else:
         logger.info("Serial processing")
         for station_id, station_stream3c in IterRfH5StationEvents(input_file):
             try:
-                rf_quality_metrics(write_queue, station_id, station_stream3c, similarity_eps)
+                rf_quality_metrics_queue(write_queue, station_id, station_stream3c, similarity_eps)
             except (ValueError, AssertionError) as e:
                 traceback.print_exc()
-                logger.error("Unhandled exception occurred in rf_quality_metrics for station {}. "
+                logger.error("Unhandled exception occurred in rf_quality_metrics_queue for station {}. "
                              "Data will be omitted for this station!\nError:\n{}".format(station_id, str(e)))
             # end try
         # end for

@@ -43,9 +43,9 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
     V_p_inferred = infer_Vp_from_traces(cha_data, log)
     if infer_Vp:
         V_p = V_p_inferred
-        log.info("Inferred V_p = {}".format(V_p))
+        log.debug("Inferred V_p = {}".format(V_p))
     else:
-        log.info("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
+        log.debug("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
     # end if
 
     # Pre-compute grid quantities

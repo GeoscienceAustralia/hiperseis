@@ -8,7 +8,6 @@ import os
 import json
 import logging
 from datetime import datetime
-import copy
 
 import click
 import numpy as np
@@ -33,6 +32,7 @@ LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
 DEFAULT_TEMP = 1.0
 # Default target acceptance rate for MCMC solver.
 DEFAULT_AR = 0.4
+DEFAULT_ROTATION = 'NE->RT'
 
 
 def run_mcmc(waveform_data, config, logger):
@@ -70,7 +70,7 @@ def run_mcmc(waveform_data, config, logger):
     logger.info('Solver options:\n{}'.format(json.dumps(solver_opts, indent=4)))
     flux_window = flux_computer_opts["flux_window"]
     Vp = [layer["Vp"] for layer in layers]
-    rho= [layer["rho"] for layer in layers]
+    rho = [layer["rho"] for layer in layers]
     fixed_args = (flux_comp, mantle_props, Vp, rho, flux_window)
     bounds_min = []
     bounds_max = []
@@ -96,7 +96,7 @@ def run_mcmc(waveform_data, config, logger):
     N = solver_opts.get("max_solutions", 3)
     soln = optimize_minimize_mhmcmc_cluster(
         mcmc_solver_wrapper, bounds, fixed_args, T=temp, N=N, burnin=burnin, maxiter=max_iter, target_ar=target_ar,
-        cluster_eps=cluster_eps, collect_samples=collect_samples, logger=logger, verbose=True)
+        cluster_eps=cluster_eps, collect_samples=collect_samples, logger=logger)
 
     # Record number of independent events processed
     soln.num_input_seismograms = len(waveform_data)
@@ -174,13 +174,15 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 # end func
 
 
-def curate_seismograms(data_all, curation_opts, logger):
+def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
     """
-    Curation function to remove bad data from streams.
+    Curation function to remove bad data from streams. Note that this function
+    will modify the input dataset during curation.
 
     :param data_all: NetworkEventDataset containing seismograms to curate.
     :param curation_opts: Dict containing curation options.
     :param logger: Logger for emitting log messages
+    :param rotate_to_zrt: Whether to automatically rotate to ZRT coords.
     :return: None, curation operates directly on data_all
     """
 
@@ -195,7 +197,11 @@ def curate_seismograms(data_all, curation_opts, logger):
                 (np.max(np.abs(_stream[2].data)) <= max_amplitude))
     # end func
 
-    def rms_ampl_filter(_stream, rms_ampl_bounds):
+    def rms_ampl_filter(_stream, rms_ampl_bounds, rotation_needed):
+        if rotation_needed:
+            _stream = _stream.copy()
+            _stream.rotate('NE->RT')
+        # end if
         _stream.traces.sort(key=zrt_order)
         tr_z = _stream[0]
         tr_r = _stream[1]
@@ -217,7 +223,11 @@ def curate_seismograms(data_all, curation_opts, logger):
         return keep
     # end func
 
-    def rz_corrcoef_filter(_stream, rz_min_xcorr_coeff):
+    def rz_corrcoef_filter(_stream, rz_min_xcorr_coeff, rotation_needed):
+        if rotation_needed:
+            _stream = _stream.copy()
+            _stream.rotate('NE->RT')
+        # end if
         # Correlation coefficient
         tr_z = _stream.select(component='Z')[0].data
         tr_r = _stream.select(component='R')[0].data
@@ -225,7 +235,6 @@ def curate_seismograms(data_all, curation_opts, logger):
         z_cov_r = corr_c[0, 1]
         return z_cov_r >= rz_min_xcorr_coeff
     # end func
-
 
     logger.info("Curating input data...")
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
@@ -240,8 +249,14 @@ def curate_seismograms(data_all, curation_opts, logger):
         data_all.curate(lambda _1, _2, stream: back_azimuth_filter(stream[0].stats.back_azimuth, baz_range))
     # end if
 
+    # Keep track of whether we have already rotated
+    rotated = False
+
     # Rotate to ZRT coordinates
-    data_all.apply(lambda stream: stream.rotate('NE->RT'))
+    if rotate_to_zrt:
+        data_all.apply(lambda stream: stream.rotate('NE->RT'))
+        rotated = True
+    # end if
 
     # Detrend the traces
     data_all.apply(lambda stream: stream.detrend('linear'))
@@ -278,19 +293,24 @@ def curate_seismograms(data_all, curation_opts, logger):
     # Filter by z-component SNR prior to filtering
     if "min_snr" in curation_opts:
         min_snr = curation_opts["min_snr"]
-        data_all.curate(lambda _1, _2, stream: stream[0].stats.snr_prior >= min_snr)
+        data_all.curate(lambda _1, _2, stream:
+                        stream.select(component='Z')[0].stats.snr_prior >= min_snr)
     # end if
 
     # Filter by bounds on RMS channel amplitudes
     rms_ampl_bounds = curation_opts.get("rms_amplitude_bounds")
     if rms_ampl_bounds is not None:
-        data_all.curate(lambda _1, _2, stream: rms_ampl_filter(stream, rms_ampl_bounds))
+        rotation_needed = not rotated
+        data_all.curate(lambda _1, _2, stream:
+                        rms_ampl_filter(stream, rms_ampl_bounds, rotation_needed))
     # end if
 
     # Filter by bounds on correlation coefficients between Z and R traces
     rz_min_xcorr_coeff = curation_opts.get("rz_min_corrcoef")
     if rz_min_xcorr_coeff is not None:
-        data_all.curate(lambda _1, _2, stream: rz_corrcoef_filter(stream, rz_min_xcorr_coeff))
+        rotation_needed = not rotated
+        data_all.curate(lambda _1, _2, stream:
+                        rz_corrcoef_filter(stream, rz_min_xcorr_coeff,  rotation_needed))
     # end if
 
     # Filter streams with incorrect number of traces
@@ -449,7 +469,8 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
             if len(timestamps) > 1:
                 for i, ts in enumerate(timestamps):
                     job_node = h5f[ts]
-                    job_tracking = json.loads(job_node.attrs['job_tracking']) if 'job_tracking' in job_node.attrs else ''
+                    job_tracking = json.loads(job_node.attrs['job_tracking']) \
+                        if 'job_tracking' in job_node.attrs else ''
                     if job_tracking:
                         job_tracking = '(' + ', '.join([': '.join([k, str(v)]) for k, v in job_tracking.items()]) + ')'
                     # end if

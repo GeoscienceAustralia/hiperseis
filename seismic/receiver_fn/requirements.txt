@@ -8,6 +8,7 @@ pyasdf
 shapely
 geographiclib
 cartopy
+pyepsg
 joblib
 fastdtw
 toeplitz # from git+https://github.com/trichter/toeplitz, requires Fortran compiler

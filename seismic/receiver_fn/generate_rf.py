@@ -50,8 +50,6 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     See documentation for function event_waveforms_to_rf for details of
     config dictionary contents.
 
-    :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: queue or multiprocessing.Manager.Queue
     :param ev_id: The event id
     :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
@@ -81,6 +79,25 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     logger.info("Event #{}".format(ev_id))
 
     assert deconv_domain.lower() in ['time', 'freq', 'iter']
+
+    # Apply any custom preprocessing step
+    custom_preproc = config_processing.get("custom_preproc")
+    if custom_preproc is not None:
+        # TODO: Improve security of exec and eval usage here.
+        load_statement = custom_preproc.get("import")
+        if load_statement is not None:
+            exec(load_statement)
+        # end if
+        # "Func" field must be present
+        func = eval(custom_preproc["func"])
+        func_args = custom_preproc.get("args")
+        if func_args is None:
+            func_args = {}
+        # Apply custom preprocessing function
+        stream3c = func(ev_id, stream3c, **func_args)
+        # Functor must return the preprocessed stream
+        assert stream3c is not None
+    # end if
 
     if not curate_stream3c(ev_id, stream3c, logger):
         return None
@@ -250,6 +267,12 @@ def event_waveforms_to_rf(input_file, output_file, config):
 
     "processing":  # RF processing settings
     {
+      "custom_preproc":
+      {
+        "import": 'import custom symbols',  # statement to import required symbols
+        "func": 'preproc functor'  # expression to get handle to custom preprocessing functor
+        "args": {}  # additional kwargs to pass to func
+      }
       "trim_start_time": float # Trace trim start time in sec, relative to onset
       "trim_end_time": float # Trace trim end time in sec, relative to onset
       "rotation_type": str # Choice of ['zrt', 'lqt']. Rotational coordinate system
