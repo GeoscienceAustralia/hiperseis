@@ -7,7 +7,8 @@
 Welcome to HiPerSeis API Documentation
 ======================================
 
-HiPerSeis source code can be found in `Github <https://github.com/GeoscienceAustralia/hiperseis>`_
+**HiPerSeis source code can be found in** `Github <https://github.com/GeoscienceAustralia/hiperseis>`_ : https://github.com/GeoscienceAustralia/hiperseis
+
 
 .. toctree::
    :maxdepth: 2
