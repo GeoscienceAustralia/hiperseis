@@ -51,7 +51,17 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
     ax = plt.axes(projection=map_projection)
     ax.set_xlim(xy_min[0], xy_max[0])
     ax.set_ylim(xy_min[1], xy_max[1])
-    # ax.stock_img()
+    # # Compute map extents in lon/lat for defining range of background image
+    # p0 = data_crs.transform_point(xy_min[0], xy_min[1], map_projection)
+    # p1 = data_crs.transform_point(xy_min[0], xy_max[1], map_projection)
+    # p2 = data_crs.transform_point(xy_max[0], xy_min[1], map_projection)
+    # p3 = data_crs.transform_point(xy_max[0], xy_max[1], map_projection)
+    # map_bounds_lonlat = np.array([p0, p1, p2, p3])
+    # map_bounds_lonlat_min = map_bounds_lonlat.min(axis=0)
+    # map_bounds_lonlat_max = map_bounds_lonlat.max(axis=0)
+    # ax.background_img(resolution='med',
+    #                   extent=[map_bounds_lonlat_min[0], map_bounds_lonlat_max[0],
+    #                           map_bounds_lonlat_min[1], map_bounds_lonlat_max[1]])
     _gridliner = ax.gridlines(draw_labels=True, linestyle=':')
     ax.add_feature(cp.feature.OCEAN.with_scale(resolution))
     ax.add_feature(cp.feature.LAND.with_scale(resolution))
