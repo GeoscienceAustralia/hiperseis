@@ -434,6 +434,13 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
 
 
 def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
+    """Load Monte Carlo Markov Chain solution from HDF5 file.
+
+    :param h5_file: File from which to load solution
+    :param job_timestamp: Timestamp of job whose solution is to be loaded
+    :param logger: Output logging instance
+    :return: (solution, job configuration), job timestamp
+    """
     assert isinstance(job_timestamp, (str, type(None)))
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
 
@@ -570,6 +577,7 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     :param network: Network code of station to analyse
     :param station: Station code to analyse
     :param location: Location code of station to analyse. Can be '' (empty string) if not set.
+    :param logger: Output logging instance
     :return: Pair containing (solution, configuration) containers. Configuration will have additional traceability
         information.
     """
@@ -644,7 +652,8 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 @click.option('--station', type=str, required=True, help='Station code whose data is to be loaded')
 @click.option('--location', type=str, default='', show_default=True, help='Location code for the station')
 @click.option('--output-file', type=click.Path(dir_okay=False),
-              help='Name of the output file in which solutions should be saved')
+              help='Name of the output file in which solutions should be saved. May be an existing file, '
+                   'as multiple solutions may be saved in a single file as they are indexed by job timestamp.')
 def station_job(config_file, waveform_file, network, station, location='', output_file=None):
     """
     CLI dispatch function for single station. See help strings for option documentation.
@@ -656,6 +665,16 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
+    :param waveform_file: HDF5 file containing event waveforms, generated using `extract_event_traces.py` script
+    :type waveform_file: str or pathlib.Path
+    :param network: Network code of job to run
+    :type network: str
+    :param station: Station code of job to run
+    :type station: str
+    :param location: Location code of job to run
+    :type location: str
+    :param output_file: Name of the output file in which solutions should be saved
+    :type output_file: str or pathlib.Path
     :return: Integer status code
     """
     job_timestamp = str(datetime.now())
@@ -689,7 +708,8 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
 @click.option('--output-file', type=click.Path(dir_okay=False), required=True,
-              help='Name of the output file in which solutions should be saved')
+              help='Name of the output file in which solutions should be saved. May be an existing file, '
+                   'as multiple solutions may be saved in a single file as they are indexed by job timestamp.')
 def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
@@ -701,6 +721,10 @@ def mpi_job(config_file, waveform_file, output_file):
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
+    :param waveform_file: HDF5 file containing event waveforms, generated using `extract_event_traces.py` script
+    :type waveform_file: str or pathlib.Path
+    :param output_file: Name of the output file in which solutions should be saved
+    :type output_file: str or pathlib.Path
     :return: Integer status code
     """
 

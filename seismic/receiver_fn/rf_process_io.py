@@ -49,7 +49,7 @@ def async_write(rfstream_queue, outfile_name, max_buffered=100, metadata=''):
             stream = RFStream()
             for rf in buffered_streams:
                 stream.extend(rf)
-            stream.write(outfile_name, 'H5', mode='a')
+            stream.write(outfile_name, format='H5', mode='a')
             logger.info("Flushed {} streams to output file {}".format(len(buffered_streams), outfile_name))
 
             while buffered_streams:
