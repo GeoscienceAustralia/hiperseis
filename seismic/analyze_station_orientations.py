@@ -293,7 +293,8 @@ def main(src_h5_event_file, dest_file=None, save_plots_path=None):
     python seismic/analyze_station_orientations.py --dest-file 7X_ori_estimates.json \
       /g/data/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5
 
-    :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks
+    :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks, typically
+        generated using `extract_event_traces.py`
     :param dest_file: Output file in which to store results in JSON text format
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle

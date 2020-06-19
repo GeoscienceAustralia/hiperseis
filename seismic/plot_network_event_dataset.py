@@ -5,8 +5,6 @@
 
 import os
 import math
-# import logging
-# import warnings
 
 import click
 import numpy as np
@@ -17,7 +15,6 @@ from tqdm.auto import tqdm
 
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.stream_quality_filter import curate_stream3c
-# from seismic.stream_io import get_obspyh5_index
 
 
 def plot_ned_seismograms(ned, output_file, channel_order='ZNE'):
