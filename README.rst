@@ -64,9 +64,9 @@ Installation Guide for Developers
 - ``git submodule init``
 - ``git submodule update``
 
-
 2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
 
+3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to folder `dev/hiperseis` relative to your home directory, then in `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
 
 License
 ===============
