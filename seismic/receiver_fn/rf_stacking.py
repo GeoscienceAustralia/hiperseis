@@ -12,9 +12,12 @@ from seismic.units_utils import KM_PER_DEG
 
 logging.basicConfig()
 
+DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 251))
+DEFAULT_k_RANGE = tuple(np.linspace(1.4, 2.0, 301))
 
-def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
-                     k_range=np.linspace(1.4, 2.0, 301), root_order=1, include_t3=True):
+
+def compute_hk_stack(cha_data, V_p=None, h_range=None,
+                     k_range=None, root_order=1, include_t3=True):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
@@ -46,6 +49,13 @@ def compute_hk_stack(cha_data, V_p=None, h_range=np.linspace(20.0, 70.0, 251),
         log.debug("Inferred V_p = {}".format(V_p))
     else:
         log.debug("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
+    # end if
+
+    if h_range is None:
+        h_range = DEFAULT_H_RANGE
+    # end if
+    if k_range is None:
+        k_range = DEFAULT_k_RANGE
     # end if
 
     # Pre-compute grid quantities
