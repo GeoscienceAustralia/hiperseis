@@ -31,22 +31,22 @@ from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from utils import EventParser, Catalog, CatalogCSV, ProgressTracker, recursive_glob
+from seismic.pick_harvester.utils import EventParser, Catalog, CatalogCSV, ProgressTracker, recursive_glob
 import psutil
 import gc
 
-from quality import compute_quality_measures
+from seismic.pick_harvester.quality import compute_quality_measures
+
 
 def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
-              bp_freqmins = [0.5, 2., 5.],
-              bp_freqmaxs = [5., 10., 10.],
+              bp_freqmins=[0.5, 2., 5.],
+              bp_freqmaxs=[5., 10., 10.],
               margin=None,
               max_amplitude=1e8,
               plot_output_folder=None):
-
     po = event.preferred_origin
-    if(not po): return None
+    if (not po): return None
 
     atimes = []
     try:
@@ -59,7 +59,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     # end try
 
     if (len(atimes) == 0): return None
-    tat = atimes[0].time # theoretical arrival time
+    tat = atimes[0].time  # theoretical arrival time
 
     buffer_start = -10
     buffer_end = 10
@@ -72,11 +72,11 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         return None
     # end try
 
-    if(len(st) == 0 or len(snrst) == 0): return None
+    if (len(st) == 0 or len(snrst) == 0): return None
 
     snrtr = snrst[0]
-    if(type(snrtr.data) == np.ndarray):
-        if(np.max(snrtr.data) > max_amplitude): return None
+    if (type(snrtr.data) == np.ndarray):
+        if (np.max(snrtr.data) > max_amplitude): return None
 
         pickslist = []
         snrlist = []
@@ -121,7 +121,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                             wab = snrtr.slice(pick - 3, pick + 3)
                             wab_filtered = trc.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.15, 1.5, 30)
-                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
+                                                                                     plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
@@ -146,18 +147,19 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     # end if
 
     return None
+
+
 # end func
 
 def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitude,
               stn, ste, ba, win_start=-50, win_end=50, resample_hz=20,
-              bp_freqmins = [0.01, 0.01, 0.5],
-              bp_freqmaxs = [   1,   2., 5.],
+              bp_freqmins=[0.01, 0.01, 0.5],
+              bp_freqmaxs=[1, 2., 5.],
               margin=None,
               max_amplitude=1e8,
               plot_output_folder=None):
-
     po = event.preferred_origin
-    if(not po): return None
+    if (not po): return None
 
     atimes = []
     try:
@@ -170,7 +172,7 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     # end try
 
     if (len(atimes) == 0): return None
-    tat = atimes[0].time # theoretical arrival time
+    tat = atimes[0].time  # theoretical arrival time
 
     buffer_start = -10
     buffer_end = 10
@@ -181,21 +183,21 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         stn.resample(resample_hz)
         stn.detrend('linear')
 
-        if(ste):
+        if (ste):
             ste = ste.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
             ste = ste.copy()
             ste.resample(resample_hz)
             ste.detrend('linear')
         # end if
 
-        if(ste):
-            if(type(stn[0].data) == np.ndarray and type(ste[0].data) == np.ndarray):
+        if (ste):
+            if (type(stn[0].data) == np.ndarray and type(ste[0].data) == np.ndarray):
                 rc, tc = rotate_ne_rt(stn[0].data, ste[0].data, ba)
                 snrtr = Trace(data=tc, header=stn[0].stats)
                 snrtr.detrend('linear')
             # end if
         else:
-            if(type(stn[0].data) == np.ndarray):
+            if (type(stn[0].data) == np.ndarray):
                 snrtr = stn[0]
             # end if
         # end if
@@ -203,15 +205,15 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         return None
     # end try
 
-    if(type(snrtr.data) == np.ndarray):
-        if(np.max(snrtr.data) > max_amplitude): return None
+    if (type(snrtr.data) == np.ndarray):
+        if (np.max(snrtr.data) > max_amplitude): return None
 
         pickslist = []
         snrlist = []
         residuallist = []
         bandindex = -1
         pickerindex = -1
-        taper_percentage = float(buffer_end)/float(win_end)
+        taper_percentage = float(buffer_end) / float(win_end)
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
@@ -249,7 +251,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                             wab = snrtr.slice(pick - 3, pick + 3)
                             wab_filtered = trc.slice(pick - 3, pick + 3)
                             scales = np.logspace(0.5, 4, 30)
-                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales, plotinfo)
+                            cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
+                                                                                     plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
 
                             residuallist.append(residual)
@@ -274,6 +277,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     # end if
 
     return None
+
+
 # end func
 
 def getWorkloadEstimate(fds, originTimestamps):
@@ -291,20 +296,25 @@ def getWorkloadEstimate(fds, originTimestamps):
             eventIndices = (np.where((originTimestamps >= curr.timestamp) & \
                                      (originTimestamps <= (curr + day).timestamp)))[0]
 
-            if(eventIndices.shape[0]>0): totalTraceCount += 1
+            if (eventIndices.shape[0] > 0): totalTraceCount += 1
             curr += step
         # wend
     # end for
     return totalTraceCount
+
+
 # end func
 
 def dropBogusTraces(st, sampling_rate_cutoff=5):
     badTraces = [tr for tr in st if tr.stats.sampling_rate < sampling_rate_cutoff]
 
     for tr in badTraces: st.remove(tr)
+
+
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('asdf-source', required=True,
@@ -331,7 +341,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     rank = comm.Get_rank()
     proc_workload = None
 
-    if(rank == 0):
+    if (rank == 0):
         def outputConfigParameters():
             # output config parameters
             fn = 'pick.%s.cfg' % (datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
@@ -347,6 +357,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
             f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
             f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
+
         # end func
 
         outputConfigParameters()
@@ -356,10 +367,10 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     # Create output-folder for snr-plots
     # ==================================================
     plot_output_folder = None
-    if(save_quality_plots):
+    if (save_quality_plots):
         plot_output_folder = os.path.join(output_path, 'plots')
-        if(rank == 0):
-            if(not os.path.exists(plot_output_folder)):
+        if (rank == 0):
+            if (not os.path.exists(plot_output_folder)):
                 os.mkdir(plot_output_folder)
         # end if
         comm.Barrier()
@@ -375,14 +386,14 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     # ==================================================
     # Create lists of pickers for both p- and s-arrivals
     # ==================================================
-    sigmalist = np.arange(8,3,-1)
+    sigmalist = np.arange(8, 3, -1)
     pickerlist_p = []
     pickerlist_s = []
     for sigma in sigmalist:
         picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=sigma, t_up=1, nr_len=5,
-                                       nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+                                         nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
         picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=sigma, t_up=1, nr_len=5,
-                                       nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+                                         nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
 
         pickerlist_p.append(picker_p)
         pickerlist_s.append(picker_s)
@@ -406,7 +417,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofp = None
     ofs = None
-    if(restart == False):
+    if (restart == False):
         ofp = open(ofnp, 'w+')
         ofs = open(ofns, 'w+')
         ofp.write(header)
@@ -436,7 +447,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
             eventIndices = (np.where((originTimestamps >= curr.timestamp) & \
                                      (originTimestamps <= (curr + day).timestamp)))[0]
 
-            if(eventIndices.shape[0]>0):
+            if (eventIndices.shape[0] > 0):
                 totalTraceCount += 1
                 stations = fds.get_stations(curr, curr + day, network=nc, station=sc)
                 stations_zch = [s for s in stations if 'Z' == s[3][-1].upper()]  # only Z channels
@@ -444,8 +455,10 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                 stations_ech = [s for s in stations if 'E' == s[3][-1].upper() or '2' == s[3][-1]]  # only E channels
 
                 for codes in stations_zch:
-                    if(progTracker.increment()): pass
-                    else: continue
+                    if (progTracker.increment()):
+                        pass
+                    else:
+                        continue
 
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
@@ -455,7 +468,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                     try:
                         st.merge(method=-1)
                     except Exception as e:
-                        print (e)
+                        print(e)
                         continue
                     # end try
 
@@ -468,29 +481,32 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                         po = event.preferred_origin
                         da = gps2dist_azimuth(po.lat, po.lon, slat, slon)
                         mag = None
-                        if(event.preferred_magnitude): mag = event.preferred_magnitude.magnitude_value
-                        elif(len(po.magnitude_list)): mag = po.magnitude_list[0].magnitude_value
-                        if(mag == None): mag = np.NaN
+                        if (event.preferred_magnitude):
+                            mag = event.preferred_magnitude.magnitude_value
+                        elif (len(po.magnitude_list)):
+                            mag = po.magnitude_list[0].magnitude_value
+                        if (mag == None): mag = np.NaN
 
-                        if(np.isnan(mag) or mag < min_magnitude): continue
+                        if (np.isnan(mag) or mag < min_magnitude): continue
 
                         result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st,
                                            max_amplitude=max_amplitude,
-                                           plot_output_folder = plot_output_folder)
-                        if(result):
+                                           plot_output_folder=plot_output_folder)
+                        if (result):
                             picklist, residuallist, snrlist, bandindex, pickerindex = result
 
-                            arcdistance = kilometers2degrees(da[0]/1e3)
+                            arcdistance = kilometers2degrees(da[0] / 1e3)
                             for ip, pick in enumerate(picklist):
                                 line = '%s %f %f %f %f %f ' \
                                        '%s %s %s %f %f %f ' \
                                        '%f %f %f ' \
-                                       '%f %f %f %f %f '\
-                                       '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                    codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                    da[1], da[2], arcdistance,
-                                                    residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
-                                                    bandindex, sigmalist[pickerindex])
+                                       '%f %f %f %f %f ' \
+                                       '%d %d\n' % (
+                                       event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                       da[1], da[2], arcdistance,
+                                       residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
+                                       bandindex, sigmalist[pickerindex])
                                 ofp.write(line)
                             # end for
                             ofp.flush()
@@ -510,11 +526,13 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
                                            '%f %f %f %f %f ' \
-                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                        codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
-                                                        da[1], da[2], arcdistance,
-                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
-                                                        bandindex, sigmalist[pickerindex])
+                                           '%d %d\n' % (
+                                           event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                           codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                           da[1], da[2], arcdistance,
+                                           residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                           snrlist[ip, 3],
+                                           bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
                                 ofs.flush()
@@ -526,25 +544,27 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                     traceCountP += len(st)
                 # end for
 
-                if(len(stations_nch)>0 and len(stations_nch) == len(stations_ech)):
+                if (len(stations_nch) > 0 and len(stations_nch) == len(stations_ech)):
                     for codesn, codese in zip(stations_nch, stations_ech):
-                        if (progTracker.increment()): pass
-                        else: continue
+                        if (progTracker.increment()):
+                            pass
+                        else:
+                            continue
 
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
-                                               curr,
-                                               curr + step,
-                                               trace_count_threshold=200)
+                                                curr,
+                                                curr + step,
+                                                trace_count_threshold=200)
                         ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
-                                               curr,
-                                               curr + step,
-                                               trace_count_threshold=200)
+                                                curr,
+                                                curr + step,
+                                                trace_count_threshold=200)
 
                         try:
                             stn.merge(method=-1)
                             ste.merge(method=-1)
                         except Exception as e:
-                            print (e)
+                            print(e)
                             continue
                         # end try
 
@@ -581,11 +601,13 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                                            '%s %s %s %f %f %f ' \
                                            '%f %f %f ' \
                                            '%f %f %f %f %f ' \
-                                           '%d %d\n' % (event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                                        codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
-                                                        da[1], da[2], arcdistance,
-                                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
-                                                        bandindex, sigmalist[pickerindex])
+                                           '%d %d\n' % (
+                                           event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
+                                           codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
+                                           da[1], da[2], arcdistance,
+                                           residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
+                                           snrlist[ip, 3],
+                                           bandindex, sigmalist[pickerindex])
                                     ofs.write(line)
                                 # end for
                                 ofs.flush()
@@ -604,16 +626,17 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
         totalTime = (sw_stop - sw_start).total_seconds()
 
         gc.collect()
-        print (('(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
-              'network %s station %s in %f s. Memory usage: %5.2f MB.' % \
-              (rank, (float(totalTraceCount) / float(workload) * 100) if workload > 0 else 100, totalTraceCount, workload,
-               traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime,
-               round(psutil.Process().memory_info().rss / 1024. / 1024., 2))))
+        print(('(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
+               'network %s station %s in %f s. Memory usage: %5.2f MB.' % \
+               (rank, (float(totalTraceCount) / float(workload) * 100) if workload > 0 else 100, totalTraceCount,
+                workload,
+                traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime,
+                round(psutil.Process().memory_info().rss / 1024. / 1024., 2))))
     # end for
     ofp.close()
     ofs.close()
 
-    print (('Processing complete on rank %d'%(rank)))
+    print(('Processing complete on rank %d' % (rank)))
 
     del fds
 
@@ -621,9 +644,11 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     comm.Barrier()
 
     # Merge results on proc 0
-    if(rank==0):
+    if (rank == 0):
         merge_results(output_path)
     # end if
+
+
 # end func
 
 def merge_results(output_path):
@@ -646,7 +671,7 @@ def merge_results(output_path):
                 data.add(lines[j])
             # end for
 
-            os.system('rm %s'%(fn))
+            os.system('rm %s' % (fn))
         # end for
 
         for l in data:
@@ -655,6 +680,8 @@ def merge_results(output_path):
 
         ofn.close()
     # end for
+
+
 # end func
 
 if (__name__ == '__main__'):
