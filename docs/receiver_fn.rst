@@ -5,13 +5,19 @@
 .. automodule:: seismic.receiver_fn.bulk_rf_report
 	:members:
 
-.. automodule:: seismic.receiver_fn.extract_event_traces
-	:members:
-
 .. automodule:: seismic.receiver_fn.generate_rf
 	:members:
 
 .. automodule:: seismic.receiver_fn.plot_ccp
+	:members:
+
+.. automodule:: seismic.receiver_fn.plot_ccp_batch
+	:members:
+
+.. automodule:: seismic.receiver_fn.plot_spatial_map
+	:members:
+
+.. automodule:: seismic.receiver_fn.pointsets2grid
 	:members:
 
 .. automodule:: seismic.receiver_fn.rf_3dmigrate
@@ -24,6 +30,9 @@
 	:members:
 
 .. automodule:: seismic.receiver_fn.rf_h5_file_station_iterator
+	:members:
+
+.. automodule:: seismic.receiver_fn.rf_handpick_tools
 	:members:
 
 .. automodule:: seismic.receiver_fn.rf_inversion_export

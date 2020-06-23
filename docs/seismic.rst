@@ -2,6 +2,31 @@
 HiPerSeis Package: Seismic
 ===========================
 
+.. automodule:: seismic.analyze_station_orientations
+	:members:
+
+.. automodule:: seismic.extract_event_traces
+	:members:
+
+.. automodule:: seismic.model_properties
+	:members:
+
+.. automodule:: seismic.network_event_dataset
+	:members:
+
+.. automodule:: seismic.stream_io
+	:members:
+
+.. automodule:: seismic.stream_processing
+	:members:
+
+.. automodule:: seismic.stream_quality_filter
+	:members:
+
+.. automodule:: seismic.units_utils
+	:members:
+
+
 **Earth 3D Grid Model**
 =======================
 

@@ -13,11 +13,14 @@ Welcome to HiPerSeis API Documentation
 .. toctree::
    :maxdepth: 2
 
+   seismic
    traveltime
    inventory
    stationsig_xcorr
    gps_clock_correction
    receiver_fn
+   inversion
+   synthetics
 
 
 Indices and tables
