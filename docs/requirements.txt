@@ -4,7 +4,7 @@ numpy>=1.16.4
 pyproj
 h5py
 obspyh5
-shapely --no-binary=shapely
+#shapely --no-binary=shapely
 geographiclib
 cartopy>=0.18.0
 pytables==3.5.2; sys_platform=="win32"
