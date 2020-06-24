@@ -23,7 +23,8 @@ clean-pyc:
 docs:
 	rm -f docs/seismic.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ seismic
+	sphinx-apidoc -o docs/ seismic legacy seismic/**/sandbox seismic/ml_classifier seismic/inventory/legacy \
+	    seismic/**/example_*.py seismic/ASDFdatabase/ASDF_build*.py seismic/ASDFdatabase/minimus*.py
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	open docs/_build/html/index.html

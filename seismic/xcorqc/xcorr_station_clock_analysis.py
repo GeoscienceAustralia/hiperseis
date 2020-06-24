@@ -28,8 +28,7 @@ from dateutil import rrule
 import click
 from sklearn.cluster import dbscan
 from scipy.interpolate import LSQUnivariateSpline
-from pandas.plotting import register_matplotlib_converters
-register_matplotlib_converters()
+from pandas.plotting import register_matplotlib_converters, deregister_matplotlib_converters
 
 # import obspy
 from netCDF4 import Dataset as NCDataset
@@ -387,7 +386,8 @@ class XcorrClockAnalyzer:
             ax.set_title("Station {} corrections groups with regressions to daily samples".format(stn_code), fontsize=20)
     # end func
 
-#end class
+# end class
+
 
 def station_codes(filename):
     """
@@ -707,6 +707,8 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, pearson_
     """
     PY2 = (sys.version_info[0] == 2)
 
+    register_matplotlib_converters()
+
     pbar = tqdm(total=len(src_files), dynamic_ncols=True)
     found_preexisting = False
     failed_files = []
@@ -765,6 +767,8 @@ def batch_process_xcorr(src_files, dataset, time_window, snr_threshold, pearson_
     if found_preexisting:
         print("Some files were skipped because pre-existing matching png files were up-to-date.\n"
               "Remove png files to force regeneration.")
+
+    deregister_matplotlib_converters()
 
     return failed_files
 

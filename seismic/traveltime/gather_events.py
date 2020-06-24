@@ -1,19 +1,20 @@
 """
 Parse multiple events xml files to gather all seismic events-arrivals
 (Refactored From the original seismic.cluster.cluster.py)
-output CSV files containing the following columns:
-['source_block', 'station_block', 'residual', 'event_number',
-SOURCE_LONGITUDE, SOURCE_LATITUDE, 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
-'observed_tt', 'calculated_locations2degrees', xml_distance, STATION_CODE, 'SNR', 'P_or_S']
 
-How to Run:
-export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
-cd  passive-seismic/tempworks
-# python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/testdata/
-# python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/some_events_xml/
-#  OR
-#<fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/tempworks (master)
-# $ python2 ../seismic/traveltime/gather_events.py  -v DEBUG gather ./events_xmls_test
+output CSV files containing the following columns::
+    ['source_block', 'station_block', 'residual', 'event_number',
+    SOURCE_LONGITUDE, SOURCE_LATITUDE, 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
+    'observed_tt', 'calculated_locations2degrees', xml_distance, STATION_CODE, 'SNR', 'P_or_S']
+
+How to Run::
+    export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
+    cd  passive-seismic/tempworks
+    # python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/testdata/
+    # python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/some_events_xml/
+    #  OR
+    #<fzhang@ubuntu16qos>/Softlab/Githubz/passive-seismic/tempworks (master)
+    # $ python2 ../seismic/traveltime/gather_events.py  -v DEBUG gather ./events_xmls_test
 
 """
 
@@ -29,7 +30,7 @@ from math import asin
 import click
 import ellipcorr
 import pandas as pd
-from inventory.parse_inventory import read_all_stations
+from seismic.inventory.legacy.parse_inventory import read_all_stations
 from obspy import read_events
 from obspy.geodetics import locations2degrees, gps2dist_azimuth
 
@@ -78,7 +79,9 @@ def recursive_glob(dirname, ext='*.xml'):
     """
     Under the dirname recursively find all files with extension ext.
     Return a list of the full-path to the files of interest.
+
     See: https://stackoverflow.com/a/2186565/3321542
+
     :param dirname: a single dir OR a list of dirs.
     :param ext: eg, ".xml"
     :return: a list of path2files
@@ -100,6 +103,7 @@ def recursive_glob(dirname, ext='*.xml'):
 def get_paths_from_csv(csvfile):
     """
     Parse a text/csv file to extract a list of paths, where events xml files are stored, to be gathered.
+
     :param csvfile: csv file
     :return: list_of_paths
     """

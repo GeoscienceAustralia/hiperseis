@@ -32,7 +32,7 @@
 .. automodule:: seismic.receiver_fn.rf_h5_file_station_iterator
 	:members:
 
-.. automodule:: seismic.receiver_fn.rf_handpick_tools
+.. automodule:: seismic.receiver_fn.rf_handpick_tool
 	:members:
 
 .. automodule:: seismic.receiver_fn.rf_inversion_export

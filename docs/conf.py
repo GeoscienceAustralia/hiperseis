@@ -96,7 +96,7 @@ html_theme = 'nature'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
+html_static_path = []
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -184,31 +184,4 @@ epub_title = project
 epub_exclude_files = ['search.html']
 
 
-# -- Extension configuration -------------------------------------------------
-
-
-# Mock modules that need native libraries.
-# sphinx\registry.py", line 315, in load_extension
-#     mod = __import__(extname, None, None, ['setup'])
-# RuntimeError: sys.path must be a list of directory names
-# See: http://read-the-docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules
-#NATIVE_MODULES = [
-MOCK_MODULES = [
-    'ellipcorr',
-    'osgeo',
-    'mpi4py', 'mpi4py.MPI',
-    'rf','rf.imaging','rf.util',
-    'tqdm','tqdm.auto',
-    'mpl_toolkits', 'basemap'
-    # 'obspy',
-    # 'obspy.core',
-    # 'obspy.geodetics',
-    # 'obspy.geodetics.base' ,'obspy.clients.fdsn.client',
-    # 'obspy.core.inventory',
-    # 'obspy.clients.nrl',
-]
-
-import mock
-
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+autodoc_mock_imports = ['matplotlib', 'mpl_toolkits', 'obspy', 'mpi4py', 'pyasdf', 'seaborn', 'geopandas', 'ellipcorr']

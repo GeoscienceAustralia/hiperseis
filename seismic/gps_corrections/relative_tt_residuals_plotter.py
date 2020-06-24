@@ -17,7 +17,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-from pandas.plotting import register_matplotlib_converters
+from pandas.plotting import register_matplotlib_converters, deregister_matplotlib_converters
 import pytz
 import matplotlib
 import matplotlib.dates
@@ -40,8 +40,6 @@ from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init, logging-format-interpolation, logging-not-lazy
-
-register_matplotlib_converters()
 
 logging.basicConfig()
 
@@ -315,6 +313,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
     :param display_options: Display options.
     :type display_options: class DisplayOptions
     """
+    register_matplotlib_converters()
     df_plot = df_plot.assign(relTtResidual=(df_plot['ttResidual'] - df_plot['ttResidualRef']))
 
     # Re-order columns
@@ -334,6 +333,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
 
     _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options,
                                        annotator=lambda: _plot_decorator(display_options))
+    deregister_matplotlib_converters()
 
 
 def _add_event_marker_lines(events):

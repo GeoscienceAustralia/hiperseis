@@ -7,9 +7,11 @@ Description:
     directory.
 
     todo: remove dependence on shell scripts.
+
 References:
 
 CreationDate:   10/01/20
+
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
@@ -18,13 +20,8 @@ Revision History:
 """
 
 from mpi4py import MPI
-import os, sys
-import subprocess32 as subprocess
+import subprocess
 
-from os.path import join, exists
-from collections import defaultdict
-import numpy as np
-from multiprocessing import Pool, TimeoutError
 import click
 import psutil
 
@@ -39,12 +36,12 @@ def kill(proc_pid):
         proc.kill()
     # end for
     process.kill()
-# end func                           
+# end func
 
 def runprocess(cmd, get_results=False):
     results = []
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
+
     try:
         pstdout, pstderr = p.communicate(timeout=6000)
         for line in pstdout.splitlines():
@@ -87,7 +84,7 @@ def main(station_pair, output_dir):
         cmds = ['./01_create_initial_target_phase_rayleigh.sh %s %s'%(item[0], item[1]),
                 './02_fit_initial_target_phase_rayleigh.sh %s %s'%(item[0], item[1]),
                 './03_fit_bessel_rayleigh.sh %s %s'%(item[0], item[1])]
-        
+
         for cmd in cmds:
             rc, r = runprocess(cmd, get_results=True)
             print ('command: %s, return code %d: '%(cmd,rc))

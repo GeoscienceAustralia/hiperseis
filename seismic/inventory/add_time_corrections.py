@@ -20,10 +20,7 @@ from obspy.core.util import AttribDict
 
 def get_csv_correction_data(path_csvfile):
     """
-    Read in the csv data from an input file, get the network_code, station_code, csv_data
-
-    Args:
-        path_csvfile: input csv file in /g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/
+    Read in the csv data from an input file, get the network_code, station_code, csv_data. Format::
         $ head 7D.DE43_clock_correction.csv
         net,sta,date,clock_correction
         7D,DE43,2012-11-27,1.0398489013215846
@@ -32,8 +29,8 @@ def get_csv_correction_data(path_csvfile):
         7D,DE43,2012-11-30,0.7428534941216148
         7D,DE43,2012-12-01,0.6438550250549583
 
-    Returns: (network_code, station_code, csv_data)
-
+    :param path_csvfile: input csv file in /g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/
+    :return: (network_code, station_code, csv_data)
     """
 
     with open(path_csvfile, "r") as csvfid:
@@ -52,16 +49,13 @@ def get_csv_correction_data(path_csvfile):
 
 def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
     """
-    read in the correction CSV data from a file, get the station metadata node from input_xml file, 
+    Read in the correction CSV data from a file, get the station metadata node from input_xml file,
     then add the CSV data into the station xml node to write into out_xml
-    Args:
-        csv_file: input csv file with correction data
-        input_xml: input original stationXML file which contains the metadata for the network and station of csv_file
-        out_xml:  Directory of the output xml file
 
-    Returns:
-        full path of the output xml file
-
+    :param csv_file: input csv file with correction data
+    :param input_xml: input original stationXML file which contains the metadata for the network and station of csv_file
+    :param out_xml:  Directory of the output xml file
+    :return: full path of the output xml file
     """
 
     ns = "https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.0"
@@ -101,12 +95,8 @@ def extract_csvdata(path2xml):
     """
     Read the station xml file and extract the csv data to be parsed by pandas
 
-    Args:
-        path2xml: path_to_stationxml
-
-    Returns:
-        csv_str
-
+    :param path2xml: path_to_stationxml
+    :return: csv_str
     """
     import io
     import pandas as pd

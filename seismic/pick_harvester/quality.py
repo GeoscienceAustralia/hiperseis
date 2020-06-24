@@ -1,9 +1,11 @@
 """
 Description:
     Computes quality measures of picks using various methods
+
 References:
 
 CreationDate:   24/01/19
+
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
@@ -11,31 +13,33 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-import glob, os, sys
+import os
+
 import pywt
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
-from numpy import unravel_index
+# from numpy import unravel_index
 import numpy as np
-import traceback
+# import traceback
 import heapq
+
 
 def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
     """
     Computes quality measures for a given pick based on:
-        1. wavelet transforms
-        2. waveform complexity analysis (similar to Higuchi fractal dimensions)
+
+    1. wavelet transforms
+    2. waveform complexity analysis (similar to Higuchi fractal dimensions)
 
     :param trc: raw obspy trace centred on pick-time
     :param trc_filtered: filtered obspy trace centred on pick-time
     :param scales: scales for computing continuous wavelet transforms
-    :param plotinfo: dictionary containing required plotting information
-                     (eventid, origintime, mag, net, sta, phase, ppsnr,
+    :param plotinfo: dictionary containing required plotting information \
+                     (eventid, origintime, mag, net, sta, phase, ppsnr, \
                       pickid, outputfolder)
-
     :return: 1. cwtsnr: quality measure based on wavelet analysis
              2. dom_freq: dominant frequency of arrival energy
-             3. slope_ratio: quality measure based on waveform
+             3. slope_ratio: quality measure based on waveform \
                              complexity analysis
     """
     # function for a least-squares line fit
@@ -87,7 +91,7 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
         # =======================================
         # Plot and save results
         # =======================================
-        if(plotinfo):
+        if plotinfo:
             ei = plotinfo['eventid']
             ot = str(plotinfo['origintime'])
             mag = plotinfo['mag']

@@ -252,48 +252,48 @@ def event_waveforms_to_rf(input_file, output_file, config):
     Config file consists of 3 sub-dictionaries. One named "filtering" for
     input stream filtering settings, one named "processing" for RF processing
     settings, and one named "system" for options on how the system will run the
-    job. Each of these sub-dicts is described below.
+    job. Each of these sub-dicts is described below::
 
-    "filtering":  # Filtering settings
-    {
-      "resample_rate": float # Resampling rate in Hz
-      "taper_limit": float   # Fraction of signal to taper at end, between 0 and 0.5
-      "filter_band": (float, float) # Filter pass band (Hz). Not required for freq-domain deconvolution.
-      "channel_pattern": # Ordered list of preferred channels, e.g. 'HH*,BH*',
-                         # where channel selection is ambiguous.
-      "baz_range": (float, float) or [(float, float), ...] # Discrete ranges of source back azimuth to use (degrees).
-          # Each value must be between 0 and 360. May be a pair or a list of pairs for multiple ranges.
-    }
+        "filtering":  # Filtering settings
+        {
+          "resample_rate": float # Resampling rate in Hz
+          "taper_limit": float   # Fraction of signal to taper at end, between 0 and 0.5
+          "filter_band": (float, float) # Filter pass band (Hz). Not required for freq-domain deconvolution.
+          "channel_pattern": # Ordered list of preferred channels, e.g. 'HH*,BH*',
+                             # where channel selection is ambiguous.
+          "baz_range": (float, float) or [(float, float), ...] # Discrete ranges of source back azimuth to use (degrees).
+              # Each value must be between 0 and 360. May be a pair or a list of pairs for multiple ranges.
+        }
 
-    "processing":  # RF processing settings
-    {
-      "custom_preproc":
-      {
-        "import": 'import custom symbols',  # statement to import required symbols
-        "func": 'preproc functor'  # expression to get handle to custom preprocessing functor
-        "args": {}  # additional kwargs to pass to func
-      }
-      "trim_start_time": float # Trace trim start time in sec, relative to onset
-      "trim_end_time": float # Trace trim end time in sec, relative to onset
-      "rotation_type": str # Choice of ['zrt', 'lqt']. Rotational coordinate system
-                           # for aligning ZNE trace components with incident wave direction
-      "deconv_domain": str # Choice of ['time', 'freq', 'iter']. Whether to perform deconvolution
-                           # in time or freq domain, or iterative technique
-      "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
-      "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
-      "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
-      "normalize": bool # Whether to normalize RF amplitude
-    }
+        "processing":  # RF processing settings
+        {
+          "custom_preproc":
+          {
+            "import": 'import custom symbols',  # statement to import required symbols
+            "func": 'preproc functor'  # expression to get handle to custom preprocessing functor
+            "args": {}  # additional kwargs to pass to func
+          }
+          "trim_start_time": float # Trace trim start time in sec, relative to onset
+          "trim_end_time": float # Trace trim end time in sec, relative to onset
+          "rotation_type": str # Choice of ['zrt', 'lqt']. Rotational coordinate system
+                               # for aligning ZNE trace components with incident wave direction
+          "deconv_domain": str # Choice of ['time', 'freq', 'iter']. Whether to perform deconvolution
+                               # in time or freq domain, or iterative technique
+          "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
+          "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
+          "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
+          "normalize": bool # Whether to normalize RF amplitude
+        }
 
-    "system":  # job run settings
-    {
-      "parallel": bool # Use parallel execution
-      "memmap": bool # Memmap input file for improved performance in data reading thread.
-                     # Useful when data input is bottleneck, if system memory permits.
-      "temp_dir": str or path # Temporary directory to use for best performance
-      "aggressive_dispatch": bool # Dispatch all worker jobs as aggressively as possible to minimize
-                                  # chance of worker being starved of work. Uses more memory.
-    }
+        "system":  # job run settings
+        {
+          "parallel": bool # Use parallel execution
+          "memmap": bool # Memmap input file for improved performance in data reading thread.
+                         # Useful when data input is bottleneck, if system memory permits.
+          "temp_dir": str or path # Temporary directory to use for best performance
+          "aggressive_dispatch": bool # Dispatch all worker jobs as aggressively as possible to minimize
+                                      # chance of worker being starved of work. Uses more memory.
+        }
 
     :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
     :type input_file: str or pathlib.Path

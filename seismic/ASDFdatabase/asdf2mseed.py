@@ -2,6 +2,7 @@
 """
 Description:
     Small utility for exporting mseed files from an asdf file in parallel.
+
 References:
 
 CreationDate:   06/08/18
@@ -147,7 +148,7 @@ def process(input_asdf, output_folder, start_date, end_date, length):
     Example usage:
     mpirun -np 2 python asdf2mseed.py ./test.asdf /tmp/output --start-date 2013-01-01T00:00:00 --end-date 2016-01-01T00:00:00
 
-    Note: 
+    Note:
     """
 
     try:
@@ -184,7 +185,7 @@ def process(input_asdf, output_folder, start_date, end_date, length):
 
     # broadcast workload to all procs
     proc_stations = comm.bcast(proc_stations, root=0)
-    
+
     print (proc_stations[rank])
     dump_traces(ds, proc_stations[rank], start_date, end_date, length, output_folder)
 

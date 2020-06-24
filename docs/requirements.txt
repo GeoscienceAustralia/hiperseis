@@ -1,25 +1,34 @@
 sphinx>=1.8
-pytest>=4.2.0
-click
-scipy
-sklearn
 ordered-set
-descartes
+numpy>=1.16.4
 pandas
-geopandas
+pyproj
 h5py
 pyasdf
-obspy==1.1.0
+obspy>=1.2.0
 obspyh5
-shapely
+shapely --no-binary=shapely
 geographiclib
-tables==3.5.2
+cartopy>=0.18.0
+pytables==3.5.2; sys_platform=="win32"
+tables==3.5.2; sys_platform!="win32"
+mpi4py
 psutil
+#geopandas
+pytest>=4.6.5
 joblib
-netcdf4
+click
+netCDF4==1.5.2
 ujson
 deprecated
 pyyaml
 requests
-#cartopy install failure rf==0.8.0
-#mpi4py
+Cython  # On NCI, use module load
+tqdm
+rf==0.8.0
+sortedcontainers
+scikit-learn
+urllib3
+pykml
+PyWavelets
+descartes
