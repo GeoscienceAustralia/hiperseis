@@ -14,6 +14,7 @@ omit =
     # Exclude selected scripts which are exclusively for bespoke reporting or report plotting
     seismic/inversion/mcmc/bulk_inversion_report.py
     seismic/receiver_fn/bulk_rf_report.py
+    seismic/plot_*.py
     seismic/*/plot_*.py
     # Exclude examples of usage as these will never be unit tested
     */example_*.py
