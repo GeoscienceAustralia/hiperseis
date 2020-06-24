@@ -186,7 +186,26 @@ epub_exclude_files = ['search.html']
 
 # -- Options for autodoc -------------------------------------------------
 
-autodoc_mock_imports = ['matplotlib', 'mpl_toolkits', 'obspy', 'mpi4py', 'pyasdf', 'seaborn', 'geopandas', 'ellipcorr']
+autodoc_mock_imports = [
+    'matplotlib',
+    'mpl_toolkits',
+    'pyproj',
+    'h5py',
+    'obspy',
+    'obspyh5',
+    'mpi4py',
+    'shapely',
+    'cartopy',
+    'netCDF4',
+    'pyasdf',
+    'seaborn',
+    'geopandas',
+    'ellipcorr',
+    'rf',
+    'scikit-learn',
+    'descartes',
+    'cython'
+]
 
 autodoc_default_options = {
     'members': None,
