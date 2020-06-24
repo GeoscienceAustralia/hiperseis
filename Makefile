@@ -27,7 +27,7 @@ docs:
 	    seismic/**/example_*.py seismic/ASDFdatabase/ASDF_build*.py seismic/ASDFdatabase/minimus*.py
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
-	open docs/_build/html/index.html
+	@echo "Run 'xdg-open docs/_build/html/index.html' to view documentation"
 
 lint:
 	pytest --junit-xml=test_output/flake8/results.xml \
