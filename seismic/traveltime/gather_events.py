@@ -3,11 +3,13 @@ Parse multiple events xml files to gather all seismic events-arrivals
 (Refactored From the original seismic.cluster.cluster.py)
 
 output CSV files containing the following columns::
+
     ['source_block', 'station_block', 'residual', 'event_number',
-    SOURCE_LONGITUDE, SOURCE_LATITUDE, 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
-    'observed_tt', 'calculated_locations2degrees', xml_distance, STATION_CODE, 'SNR', 'P_or_S']
+     SOURCE_LONGITUDE, SOURCE_LATITUDE, 'source_depth', STATION_LONGITUDE, STATION_LATITUDE,
+     'observed_tt', 'calculated_locations2degrees', xml_distance, STATION_CODE, 'SNR', 'P_or_S']
 
 How to Run::
+
     export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
     cd  passive-seismic/tempworks
     # python ../seismic/traveltime/gather_events.py  -v DEBUG gather /g/data/ha3/fxz547/Githubz/passive-seismic/testdata/
