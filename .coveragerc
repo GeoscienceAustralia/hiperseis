@@ -9,15 +9,12 @@ omit =
     */legacy/*
     # Data harvester folder lacking requirements information and not Py3 compliant
     seismic/ml_classifier/data_harvester/*
-    seismic/receiver_fn/c_sippl_reference/*
     # Exclude file that requires seiscomp3, not supported in testing runtime environment:
     seismic/inventory/fdsnxml_convert.py
     # Exclude selected scripts which are exclusively for bespoke reporting or report plotting
     seismic/inversion/mcmc/bulk_inversion_report.py
-    seismic/inversion/mcmc/plot_inversion.py
-    seismic/inversion/wavefield_decomp/plot_network_events.py
     seismic/receiver_fn/bulk_rf_report.py
-    seismic/receiver_fn/plot_*.py
+    seismic/*/plot_*.py
     # Exclude examples of usage as these will never be unit tested
     */example_*.py
 concurrency = multiprocessing
