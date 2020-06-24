@@ -1,18 +1,14 @@
 sphinx>=1.8
 ordered-set
 numpy>=1.16.4
-pandas
 pyproj
 h5py
-pyasdf
-obspy>=1.2.0
 obspyh5
 shapely --no-binary=shapely
 geographiclib
 cartopy>=0.18.0
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
-mpi4py
 psutil
 #geopandas
 pytest>=4.6.5
