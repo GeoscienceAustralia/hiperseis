@@ -38,9 +38,9 @@ to all by adding support to the `synth.synthesize_dataset` function.
 Telewavesim [library][1] and [publication on JOSS][2].
 
 
-[1]: (https://zenodo.org/badge/latestdoi/204565459)
+[1]: https://zenodo.org/badge/latestdoi/204565459
 
-[2]: (https://joss.theoj.org/papers/10.21105/joss.01818)
+[2]: https://joss.theoj.org/papers/10.21105/joss.01818
 
 [3]: https://github.com/GeoscienceAustralia/hiperseis/blob/develop/seismic/synthetics/synth.py
 
