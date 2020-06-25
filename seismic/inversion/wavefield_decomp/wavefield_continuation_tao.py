@@ -45,7 +45,8 @@ class WfContinuationSuFluxComputer:
     Class instance can be loaded with a dataset and then evaluated for arbitrary 1D earth models.
 
     Process:
-    1. Load data from a station event dataset.  Copy of the data is buffered by this
+
+    1. Load data from a station event dataset. Copy of the data is buffered by this
         class in efficient format for energy flux calculation.
     2. Define 1D earth model and mantle half-space material properties (in external code).
     3. Call instance with models and receive energy flux results.

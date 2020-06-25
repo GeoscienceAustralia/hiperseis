@@ -26,7 +26,7 @@ from obspy.taup import TauPyModel
 from obspy.taup.taup_create import TauPCreate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
-from mpl_toolkits import basemap
+from mpl_toolkits.basemap import Basemap
 import rf
 from tqdm import tqdm
 
@@ -493,8 +493,8 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
 
     #create map plot file
     expand_width = 1.0 + width/KM_PER_DEG
-    m = basemap.Basemap(projection='merc', urcrnrlat=ybig + expand_width, urcrnrlon=xbig + expand_width,
-                        llcrnrlon=xsmall - expand_width, llcrnrlat=ysmall - expand_width, resolution='i')
+    m = Basemap(projection='merc', urcrnrlat=ybig + expand_width, urcrnrlon=xbig + expand_width,
+                llcrnrlon=xsmall - expand_width, llcrnrlat=ysmall - expand_width, resolution='i')
     m.drawcoastlines()
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])

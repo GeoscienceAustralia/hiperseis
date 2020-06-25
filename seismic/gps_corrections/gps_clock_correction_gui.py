@@ -619,7 +619,7 @@ class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
         self.ROOT_FRAME_3 = None
         self._quit_app()
 
-#end class
+# end class
 
 
 class SplineDegreeWidget(tk.LabelFrame):  # pragma: no cover
@@ -658,8 +658,7 @@ class SplineDegreeWidget(tk.LabelFrame):  # pragma: no cover
         return self._degree.get()
 
 
-# Non-conditional 'if' used here to create a code block to tag as 'no cover'
-if True:  # pragma: no cover
+if __name__ == '__main__': # pragma: no cover
     tk_root = tk.Tk()
     app = GpsClockCorrectionApp(master=tk_root)
     app.master.title("GPS Clock Correction Workflow")
@@ -668,3 +667,4 @@ if True:  # pragma: no cover
     app.master.rowconfigure(0, weight=1)
     app.mainloop()
     # tk_root.destroy()
+# end if

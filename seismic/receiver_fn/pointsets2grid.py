@@ -6,7 +6,7 @@ Uses weighted Gaussian interpolation method of Kennett, but simplified to
 ignore the individual point weighting.
 
 Multiple datasets with per-dataset settings are passed in using a JSON configuration
-file with layout illustrated by the following example:
+file with layout illustrated by the following example::
 
     {
         "source_files":

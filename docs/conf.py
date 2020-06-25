@@ -50,6 +50,8 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx.ext.coverage',
+    'sphinx.ext.intersphinx'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -77,7 +79,7 @@ language = None
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+pygments_style = 'default'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -96,7 +98,7 @@ html_theme = 'nature'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -112,7 +114,7 @@ html_static_path = ['static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'passive-seismicdoc'
+htmlhelp_basename = 'hiperseisdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -139,7 +141,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'passive-seismic.tex', 'HiPerSeis Documentation',
+    (master_doc, 'hiperseis.tex', 'HiPerSeis Documentation',
      'F. Zhang, A. Medlin, R. Hassan, A. Gorbatov, B. Hejrani', 'manual'),
 ]
 
@@ -149,7 +151,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'passive-seismic', 'HiPerSeis Documentation',
+    (master_doc, 'hiperseis', 'HiPerSeis Documentation',
      [author], 1)
 ]
 
@@ -160,11 +162,10 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'passive-seismic', 'HiPerSeis Documentation',
-     author, 'passive-seismic', 'One line description of project.',
+    (master_doc, 'hiperseis', 'HiPerSeis Documentation',
+     author, 'hiperseis', 'One line description of project.',
      'Miscellaneous'),
 ]
-
 
 # -- Options for Epub output -------------------------------------------------
 
@@ -183,32 +184,48 @@ epub_title = project
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
+# -- Options for autodoc -------------------------------------------------
 
-# -- Extension configuration -------------------------------------------------
-
-
-# Mock modules that need native libraries.
-# sphinx\registry.py", line 315, in load_extension
-#     mod = __import__(extname, None, None, ['setup'])
-# RuntimeError: sys.path must be a list of directory names
-# See: http://read-the-docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules
-#NATIVE_MODULES = [
-MOCK_MODULES = [
+autodoc_mock_imports = [
+    'matplotlib',
+    'mpl_toolkits',
+    'scipy',
+    'pyproj',
+    'h5py',
+    'obspy',
+    'obspyh5',
+    'mpi4py',
+    'shapely',
+    'cartopy',
+    'netCDF4',
+    'pyasdf',
+    'seaborn',
+    'geopandas',
     'ellipcorr',
-    'osgeo',
-    'mpi4py', 'mpi4py.MPI',
-    'rf','rf.imaging','rf.util',
-    'tqdm','tqdm.auto',
-    'mpl_toolkits', 'basemap'
-    # 'obspy',
-    # 'obspy.core',
-    # 'obspy.geodetics',
-    # 'obspy.geodetics.base' ,'obspy.clients.fdsn.client',
-    # 'obspy.core.inventory',
-    # 'obspy.clients.nrl',
+    'rf',
+    'sklearn',
+    'descartes',
+    'cython',
+    'telewavesim',
+    'pyximport',
+    'pandas.compat',
+    'PhasePApy'
 ]
 
-import mock
+autodoc_default_options = {
+    'members': None,
+    'undoc-members': True
+}
 
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+
+# -- Setup for intersphinx -------------------------------------------------
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference', None),
+    'matplotlib': ('https://matplotlib.org', None),
+    'pandas': ('https://pandas.pydata.org/docs', None),
+    'obspy': ('https://docs.obspy.org', None),
+    'h5py': ('https://docs.h5py.org/en/latest/', None)
+}

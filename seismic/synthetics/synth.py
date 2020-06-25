@@ -31,7 +31,7 @@ def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_windo
     elif method == 'syngine':
         backend = backend_syngine.synthesizer()
     else:
-        assert False, 'Not supported'
+        assert False, 'Method {} not supported'.format(method)
     # end if
     synthesizer = backend(**kwargs)
     synth_streams = synthesizer.synthesize(src_latlon, fs, time_window)
@@ -45,7 +45,7 @@ def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_windo
 # end func
 
 
-if __name__ == '__main__':
+def example_usage():
     # Example using propagator matrix method
     crust = LayerProps(6.4, 3.8, 2.7, 38.0)
     mantle = LayerProps(8.2, 6.8, 3.3, np.nan)
@@ -63,5 +63,10 @@ if __name__ == '__main__':
         'station_latlon': (-20, 140)
     }
     synthesize_dataset('syngine', 'test_syng_synth.h5', 'SY', 'AAA', src_latlon, fs, time_window, **generator_args)
+# end func
 
+
+if __name__ == '__main__':
+    print('Running example_usage()')
+    example_usage()
 # end if

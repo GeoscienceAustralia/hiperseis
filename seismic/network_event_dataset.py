@@ -192,6 +192,7 @@ class NetworkEventDataset:
     def by_station(self):
         """
         Iterate over station sub-dictionaries
+
         :return: Iterable over the stations, each element consisting of pair containing
             (station code, event dict).
         """
@@ -201,6 +202,7 @@ class NetworkEventDataset:
     def by_event(self):
         """
         Iterate over event sub-dictionaries
+
         :return: Iterable over the discrete events, each element consisting of pair containing
             (event id, station dict).
         """
