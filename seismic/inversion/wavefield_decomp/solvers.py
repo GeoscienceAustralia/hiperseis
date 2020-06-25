@@ -204,6 +204,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
         and return in solution.
     :param logger: Logger instance for outputting log messages.
     :return: OptimizeResult containing solution(s) and solver data.
+    :rtype: scipy.optimize.OptimizeResult with additional attributes
     """
 
     @call_counter
