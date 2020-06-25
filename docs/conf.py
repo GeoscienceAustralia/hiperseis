@@ -189,6 +189,7 @@ epub_exclude_files = ['search.html']
 autodoc_mock_imports = [
     'matplotlib',
     'mpl_toolkits',
+    'scipy',
     'pyproj',
     'h5py',
     'obspy',
@@ -202,9 +203,13 @@ autodoc_mock_imports = [
     'geopandas',
     'ellipcorr',
     'rf',
-    'scikit-learn',
+    'sklearn',
     'descartes',
-    'cython'
+    'cython',
+    'telewavesim',
+    'pyximport',
+    'pandas.compat',
+    'PhasePApy'
 ]
 
 autodoc_default_options = {
