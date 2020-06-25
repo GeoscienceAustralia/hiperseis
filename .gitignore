@@ -53,7 +53,6 @@ venv/
 ENV/
 .spyderproject
 .ropeproject
-.gitignore
 .idea/
 scripts/xcorqc/run.sh
 tempworks/
@@ -77,13 +76,10 @@ seismic/xcorqc/*refdata.h5
 seismic/gps_corrections/**/*.png
 seismic/xcorqc/**/*.pdf
 seismic/xcorqc/**/*.png
-seismic/gps_corrections/**/*.csv
 seismic/inventory/INVENTORY_*.txt
 seismic/inventory/INVENTORY_*.xml
 seismic/receiver_fn/DATA/*
 seismic/receiver_fn/**/*.png
-seismic/receiver_fn/c_sippl_reference
-seismic/receiver_fn/c_ammon_reference
 seismic/xcorqc/**/*.nc
 seismic/xcorqc/**/*.cfg
 seismic/xcorqc/**/*.pbs

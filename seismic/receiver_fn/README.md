@@ -154,11 +154,6 @@ file per channel per station containing the RF trace amplitude, with moveout, as
 sampling rate of 6.25 Hz.  These `.dat` files are then ready for ingestion into RF inversion Fortran code.
 
 
-## Inversion
-
-Experimental codes for RF inversion to 1D earth model.
-
-
 ## Models folder
 
 This folder contains miscellaneous earth model files used for RF analysis, such as custom 1D velocity models.

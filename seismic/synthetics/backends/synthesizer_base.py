@@ -59,9 +59,13 @@ class Synthesizer(object):
         Function signature for function to compute synthetic dataset of obspy streams.
 
         :param src_latlon: Iterable of source (lat, lon) locations
+        :type src_latlon: iterable of pairs
         :param fs: Sampling rate in Hz
+        :type fs: float
         :param time_window: Pair of time values relative to onset
+        :type time_window: tuple(float, float)
         :return: obspy.Stream containing ZNE velocity seismogram
+        :rtype: obspy.Stream
         """
         pass  # Implement this interface in the derived class
     # end func
@@ -72,13 +76,21 @@ class Synthesizer(object):
         Compute trace stats fields for a source single event.
 
         :param src_lat: Source latitude
+        :type src_lat: float
         :param src_lon: Source longitude
+        :type src_lon: float
         :param eventid_base: Base string for event id
+        :type eventid_base: str
         :param src_depth_m: Source depth in metres
+        :type src_depth_m: float
         :param earth_model: String name of earth model to use for ray tracing
+        :type earth_model: str
         :param phase: Which phase is being modelled
-        :param origin_time: Timestamp of the source event
-        :return: stats dict
+        :type phase: str
+        :param origin_time: Timestamp of the source event. If empty, will be a random offset from now.
+        :type origin_time: obspy.UTCDateTime
+        :return: Stats dictionary
+        :rtype: dict
         """
 
         if origin_time is None:
