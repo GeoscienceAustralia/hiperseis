@@ -36,7 +36,7 @@ def synthesize_dataset(method, output_file, net, sta, src_latlon, fs, time_windo
     elif method == 'syngine':
         backend = backend_syngine.synthesizer()
     else:
-        assert False, 'Not supported'
+        assert False, 'Method {} not supported'.format(method)
     # end if
     synthesizer = backend(**kwargs)
     synth_streams = synthesizer.synthesize(src_latlon, fs, time_window)

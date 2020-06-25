@@ -3,12 +3,12 @@
 Description:
     This script was initially written for inserting new picks into the ISC catalogue.
     We now use a unified csv catalogue (that Babak has prepared) and this script merges existing
-    picks with those picked by our parallel picker and creates self-consistent SC3ML files 
+    picks with those picked by our parallel picker and creates self-consistent SC3ML files
     to be ingested into Seiscomp3.
-    
+
 CreationDate:   20/11/18
 Developer:      rakib.hassan@ga.gov.au
- 
+
 Revision History:
     LastUpdate:     20/11/18   RH
 
@@ -37,12 +37,12 @@ import numpy as np
 import scipy
 from scipy.spatial import cKDTree
 from mpi4py import MPI
-from collections import defaultdict 
+from collections import defaultdict
 from pykml import parser
-import uuid, copy
+import copy
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 
-from utils import recursive_glob, split_list
+from seismic.pick_harvester.utils import recursive_glob, split_list
 import logging
 from tqdm import tqdm
 
@@ -117,7 +117,7 @@ class FDSNInv:
             rst = r * np.sin(theta);
             xout[0] = rst * np.cos(phi)
             xout[1] = rst * np.sin(phi)
-            xout[2] = r * np.cos(theta)            
+            xout[2] = r * np.cos(theta)
         else:
             xout = np.zeros((r.shape[0], 3))
             rst = r * np.sin(theta);
@@ -126,16 +126,16 @@ class FDSNInv:
             xout[:, 2] = r * np.cos(theta)
         # end if
         return xout
-    # end func        
-    
-    def __init__(self, fn, host=None, port=None):        
+    # end func
+
+    def __init__(self, fn, host=None, port=None):
         def tree():
             def the_tree():
                 return defaultdict(the_tree)
             # end func
             return the_tree()
         # end func
-        
+
         if(host and port):
             self.host = host
             self.port = port
@@ -146,7 +146,7 @@ class FDSNInv:
             except Exception as e:
                 print (e)
                 print ('Failed to connect to client. Aborting..')
-            # end try    
+            # end try
             self.inv = self.client.get_stations(level='station')
         else:
             self.fn = fn
@@ -156,10 +156,10 @@ class FDSNInv:
         self.t = tree()
         for n in self.inv.networks:
             for s in n.stations:
-                self.t[n.code][s.code] = [s.longitude, s.latitude, s.elevation]        
+                self.t[n.code][s.code] = [s.longitude, s.latitude, s.elevation]
             # end for
         # end for
-        
+
         self.nsList = []
         self.nsCoordsList = []
         for nk, n in self.t.items():
@@ -169,21 +169,21 @@ class FDSNInv:
             #end for
         # end for
         self.nsList = np.array(self.nsList)
-        self.nsCoordsList = np.array(self.nsCoordsList)   
-        
+        self.nsCoordsList = np.array(self.nsCoordsList)
+
         ncoords = self.nsCoordsList.shape[0]
         self.xyz = self.rtp2xyz(6371e3*np.ones(ncoords),
                                 np.radians(90-self.nsCoordsList[:,1]),
                                 np.radians(self.nsCoordsList[:,0]))
-                                
+
         self.kdtree = cKDTree(self.xyz)
     # end func
-    
+
     def getClosestStation(self, lon, lat, maxdist=1e3):
-        xyz = self.rtp2xyz(6371e3, 
+        xyz = self.rtp2xyz(6371e3,
                            np.radians(90-lat),
                            np.radians(lon))
-        
+
         d, i = self.kdtree.query(xyz, distance_upper_bound=maxdist)
         if(d != np.inf):
             return self.nsList[i], self.nsCoordsList[i]
@@ -191,11 +191,11 @@ class FDSNInv:
             return None
         # end func
     # end func
-# end class    
+# end class
 
 class Catalog():
     def __init__(self, isc_coords_file, fdsn_inventory, our_picks, event_folder, output_path, discard_old_picks=False):
-        
+
         self.event_folder = event_folder
         self.output_path = output_path
         self.comm = MPI.COMM_WORLD
@@ -281,7 +281,7 @@ class Catalog():
                         mag = mi
                         magtype = 'mi'
                     # end if
-                    
+
                     eventid = vals[-1]
                     if(eventid in eid_set):
                         raise RuntimeError('Duplicate event-id found. Aborting..')
@@ -349,7 +349,7 @@ class Catalog():
                 except: lat = 0
                 try: elev = float(items[6])
                 except: elev = 0
-                
+
                 distance = vals[-1]
                 a = Arrival(items[3].strip(), items[0].strip(), items[2].strip(), items[1].strip(),
                             lon, lat, elev,
@@ -357,11 +357,11 @@ class Catalog():
                 e.preferred_origin.arrival_list.append(a)
             # end for
         # end for
-        
+
         self.eventList = eventList
         self.poTimestamps = np.array(poTimestamps)
     # end func
-    
+
     def get_id(self):
         self.counter += 1
         return str(self.counter) + 'r%d'%self.rank
@@ -370,22 +370,22 @@ class Catalog():
     def _load_events(self):
         self._load_events_helper()
         cache = {}
-        notFound = defaultdict(int)     
+        notFound = defaultdict(int)
         oEvents = []
         missingStations = defaultdict(int)
         lines = []
         for e in tqdm(self.eventList, desc='Rank %d'%(self.rank)):
             if(e.preferred_origin and len(e.preferred_origin.arrival_list)):
                 cullList = []
-                for a in e.preferred_origin.arrival_list:                   
+                for a in e.preferred_origin.arrival_list:
                     if(len(a.net)): continue
-                    
+
                     seedid = '%s.%s.%s.%s'%(a.net, a.sta, a.loc, a.cha)
                     newCode = None
                     if(seedid not in cache):
                         sc = a.sta
                         lonlat = self.isc_coords_dict[sc]
-                        if(len(lonlat)==0): 
+                        if(len(lonlat)==0):
                             cullList.append(a)
                             continue
                         # end if
@@ -411,12 +411,12 @@ class Catalog():
                         a.net = newCode
 
                         sc = self.fdsn_inventory.t[a.net][a.sta]
-                        if(type(sc)==defaultdict): 
+                        if(type(sc)==defaultdict):
                             cullList.append(a)
                             continue
                         # end if
-                        da = gps2dist_azimuth(e.preferred_origin.lat, 
-                                              e.preferred_origin.lon, 
+                        da = gps2dist_azimuth(e.preferred_origin.lat,
+                                              e.preferred_origin.lon,
                                               sc[1], sc[0])
                         dist = kilometers2degrees(da[0]/1e3)
 
@@ -428,10 +428,10 @@ class Catalog():
                 # end for
                 for c in cullList: e.preferred_origin.arrival_list.remove(c)
             # end if
-            
-            # Create obspy event object         
+
+            # Create obspy event object
             ci = OCreationInfo(author='GA', creation_time=UTCDateTime(),
-                               agency_id='GA-iteration-1')   
+                               agency_id='GA-iteration-1')
             oid = self.get_id()
             origin = OOrigin(resource_id=OResourceIdentifier(id=oid),
                              time=UTCDateTime(e.preferred_origin.utctime),
@@ -454,7 +454,7 @@ class Catalog():
             event.magnitudes = [magnitude]
             event.preferred_magnitude_id = magnitude.resource_id
             event.preferred_origin_id = origin.resource_id
-            
+
             # Insert old picks
             if(not self.discard_old_picks):
                 for a in e.preferred_origin.arrival_list:
@@ -581,7 +581,7 @@ class Catalog():
                                                              len(self.our_picks.picks[e.public_id]),
                                     used_phase_count=len(e.preferred_origin.arrival_list) * \
                                                      int(self.discard_old_picks) + \
-                                                     len(self.our_picks.picks[e.public_id]))            
+                                                     len(self.our_picks.picks[e.public_id]))
             event.preferred_origin().quality = quality
 
             if(len(self.our_picks.picks[e.public_id])==0 and self.discard_old_picks):
@@ -639,7 +639,7 @@ class OurPicks:
     def __init__(self, fnList, phaseList):
         self.fnList = fnList
         self.picks = defaultdict(list)
-        
+
         for fn, phase in zip(self.fnList, phaseList):
             for iline, line in enumerate(open(fn, 'r')):
                 if(iline == 0): continue
@@ -691,7 +691,7 @@ class OurPicks:
                 net = items[6]
                 sta = items[7]
                 cha = items[8]
-                
+
                 auxData = [snr, quality_measure_cwt, dom_freq, quality_measure_slope,
                            bi, nsigma]
                 self.picks[int(float(items[0]))].append([t, net, sta, cha, phase, residual, auxData, elat, elon, slat, slon,

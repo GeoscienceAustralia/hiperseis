@@ -2,9 +2,11 @@
 """
 Description:
     Cross-correlation functionality
+
 References:
 
 CreationDate:   29/06/17
+
 Developer:      laurence.davies@ga.gov.au
 
 Revision History:
@@ -25,17 +27,15 @@ from collections import defaultdict
 import numpy as np
 import scipy
 
-from obspy.core import Stream, UTCDateTime, Stats
-from obspy import read, Trace
-from obspy.signal.cross_correlation import xcorr
-from obspy.signal.detrend import simple, spline
+from obspy.core import UTCDateTime, Stats
+from obspy import Trace
 from obspy.signal.filter import bandpass, highpass, lowpass
 from obspy.geodetics.base import gps2dist_azimuth
 from scipy import signal
 
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.xcorqc.utils import drop_bogus_traces, get_stream
+from seismic.xcorqc.utils import get_stream
 from netCDF4 import Dataset
 from functools import reduce
 
@@ -92,7 +92,7 @@ def whiten(a, sampling_rate, window_freq=0):
     :param a: trace samples
     :param sampling_rate: sampling rate
     :param window_freq: smoothing window length (Hz)
-    return: spectrally whitened samples
+    :return: spectrally whitened samples
     """
     # frequency step
     npts = a.shape[0]
@@ -503,20 +503,20 @@ def IntervalStackXCorr(refds, tempds,
     :type taper_length: float
     :param taper_length: Taper length as a fraction of window length
     :type buffer_seconds: int
-    :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because
-                           we may not be able to fetch all the data (from start_time to end_time) at
-                           once. The default is set to 10 days and should be a multiple of
+    :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because \
+                           we may not be able to fetch all the data (from start_time to end_time) at \
+                           once. The default is set to 10 days and should be a multiple of \
                            interval_seconds.
     :type interval_seconds: int
-    :param interval_seconds: The interval in seconds, over which cross-correlation windows are
+    :param interval_seconds: The interval in seconds, over which cross-correlation windows are \
                              stacked. Default is 1 day.
     :type window_seconds: int
     :param window_seconds: Length of cross-correlation window in seconds. Default is 1 hr.
     :type window_overlap: float
     :param window_overlap: Window overlap fraction. Default is 0.1.
     :type window_buffer_length: float
-    :param window_buffer_length: Buffer length as a fraction of 'window-seconds' around actual data windows of
-                                 interest. This helps exclude effects of tapering and other edge artefacts from
+    :param window_buffer_length: Buffer length as a fraction of 'window-seconds' around actual data windows of \
+                                 interest. This helps exclude effects of tapering and other edge artefacts from \
                                  data windows before cross-correlation. Default is 0
     :type flo: float
     :param flo: Lower frequency for Butterworth bandpass filter
@@ -527,7 +527,7 @@ def IntervalStackXCorr(refds, tempds,
     :type whitening: bool
     :param whitening: Apply spectral whitening
     :type whitening_window_frequency: float
-    :param whitening_window_frequency: Window frequency (Hz) used to determine length of averaging window
+    :param whitening_window_frequency: Window frequency (Hz) used to determine length of averaging window \
                                        for smoothing spectral amplitude
     :type one_bit_normalize: bool
     :param one_bit_normalize: Apply one-bit normalization to data in each window
@@ -542,11 +542,11 @@ def IntervalStackXCorr(refds, tempds,
     :type outputPath: str
     :param outputPath: Folder to write results to
     :return: 1: 1d np.array with time samples spanning [-window_samples+dt:window_samples-dt]
-             2: A dictionary of 2d np.arrays containing cross-correlation results for each station-pair.
-                Rows in each 2d array represent number of interval_seconds processed and columns
+             2: A dictionary of 2d np.arrays containing cross-correlation results for each station-pair. \
+                Rows in each 2d array represent number of interval_seconds processed and columns \
                 represent stacked samples of length window_seconds.
-             3: A dictionary of 1d np.arrays containing number of windows processed, within each
-                interval_seconds period, for each station-pair. These Window-counts could be helpful
+             3: A dictionary of 1d np.arrays containing number of windows processed, within each \
+                interval_seconds period, for each station-pair. These Window-counts could be helpful \
                 in assessing robustness of results.
     """
     #######################################

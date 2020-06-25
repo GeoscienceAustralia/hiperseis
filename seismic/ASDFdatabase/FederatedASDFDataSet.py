@@ -1,6 +1,7 @@
 """
 Description:
     Wrapper Class for providing fast access to data contained within a set of ASDF files
+
 References:
 
 CreationDate:   12/12/18
@@ -24,7 +25,9 @@ from seismic.ASDFdatabase.utils import rtp2xyz
 class FederatedASDFDataSet():
     def __init__(self, asdf_source, logger=None, single_item_read_limit_in_mb=1024):
         """
-        :param asdf_source: path to a text file containing a list of ASDF files:
+        Initializer for FederatedASDFDataSet.
+
+        :param asdf_source: Path to a text file containing a list of ASDF files. \
                Entries can be commented out with '#'
         :param logger: logger instance
         """

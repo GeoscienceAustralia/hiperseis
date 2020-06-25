@@ -209,7 +209,7 @@ def compute_rf_quality_metrics(station_id, station_stream3c, similarity_eps):
     :type station_stream3c: list(rf.RFStream) with 3 components
     :param similarity_eps: Distance threshold used for DBSCAN clustering
     :type similarity_eps: float
-    :return Triplet of RF streams with Z, R or Q, and T components with populated
+    :return: Triplet of RF streams with Z, R or Q, and T components with populated
         quality metrics. Otherwise return None in case of failure.
     """
 

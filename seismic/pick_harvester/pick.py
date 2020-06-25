@@ -2,6 +2,7 @@
 """
 Description:
     Harvests picks from ASDF data-sets in parallel
+
 References:
 
 CreationDate:   13/09/18
@@ -13,17 +14,15 @@ Revision History:
 """
 
 from mpi4py import MPI
-import glob, os, sys
+import os
 
 from ordered_set import OrderedSet as set
 import numpy as np
-from obspy import Stream, Trace, UTCDateTime
+from obspy import Trace
 from datetime import datetime
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
-import traceback
-from obspy import UTCDateTime
 from obspy.taup import TauPyModel
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
@@ -31,7 +30,7 @@ from PhasePApy.phasepapy.phasepicker import fbpicker
 from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from seismic.pick_harvester.utils import EventParser, Catalog, CatalogCSV, ProgressTracker, recursive_glob
+from seismic.pick_harvester.utils import CatalogCSV, ProgressTracker, recursive_glob
 import psutil
 import gc
 

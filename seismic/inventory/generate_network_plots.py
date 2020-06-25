@@ -2,7 +2,7 @@
 """
 Load inventory file from hdf5 format and export station location plots to graphics files.
 
-Usage:
+Usage::
     python generate_network_plots.py inventory_20190206.h5
 
 where inventory_20190206.h5 here is an example file name.  The output folder for the
@@ -25,14 +25,14 @@ except ImportError:
     print("Run 'pip install tqdm' to see progress bar.")
 # end try
 
+
 @click.command()
-@click.option('--plot-type', type=click.Option(['network', 'station']), default='network',
+@click.option('--plot-type', type=click.Choice(['network', 'station']), default='network',
               help='Whether to plot on map per network or one map per station')
 @click.argument('inventory-h5-file', type=click.Path(exists=True, dir_okay=False), required=True)
 def main(inventory_h5_file, plot_type):
     """Generate map plots of station locations for an inventory of stations.
 
-    Arguments:
     :param inventory_h5_file: Name of input HDF5 file containing a station inventory
     :type inventory_h5_file: str or Path
     :param plot_type: Type of plots to make - per network or per station

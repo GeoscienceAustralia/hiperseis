@@ -6,16 +6,11 @@ This was adapted for the speical use case of distance-to-event QA checks perform
 """
 
 import os
-import glob
 import fnmatch
-import sys
 from collections import defaultdict
-from obspy import UTCDateTime
-import math
 import random as rnd
 
-import numpy as np
-import scipy
+from obspy import UTCDateTime
 from tqdm.auto import tqdm
 
 from seismic.inventory.dataio.event_attrs import Origin, Event, Magnitude, Arrival
@@ -24,10 +19,10 @@ from seismic.inventory.dataio.event_attrs import Origin, Event, Magnitude, Arriv
 def recursive_glob(treeroot, pattern):
     """
     Generate a complete list of files matching pattern under the root of a directory hierarchy.
-    
+
     :param treeroot: Path to the root of the directory tree.
     :type treeroot: str or pathlib.Path
-    :param pattern: File name pattern to match, e.g. "*.csv"
+    :param pattern: File name pattern to match, e.g. "\*.csv"
     :type pattern: str
     :return: List of paths to the files matching the pattern, qualified relative to treeroot
     :rtype: list(str)
@@ -43,21 +38,22 @@ class CatalogCSV:
     """
     Lightweight parser for seismic event catalog.
 
-    Catalog is format as follows:
-    :: #EHB, 2005, 09, 16, 07, 28, 39.001,  126.93300,    4.18700,    2.90000,    28, 4.50, -999.00, -999.00, -999.00,       1, 134.3000, 1
-    :: FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 37.00,  22.180
-    :: WR0 , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 34, 06.00,  25.130
-    :: KUM , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 02.00,  26.220
-    :: MEEK, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 04.00,  31.680
-    :: FORT, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 32.00,  34.780
-    :: STKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 36, 04.00,  38.480
-    :: KSM , BHZ,  ,  ,  ,  ,  , Pn, 2005, 09, 16, 07, 32, 39.00,  16.820
-    :: KAKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 04.00,  17.660
-    :: FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
-    :: ...
+    Catalog is format as follows::
+
+       #EHB, 2005, 09, 16, 07, 28, 39.001,  126.93300,    4.18700,    2.90000,    28, 4.50, -999.00, -999.00, -999.00,       1, 134.3000, 1
+       FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 37.00,  22.180
+       WR0 , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 34, 06.00,  25.130
+       KUM , BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 02.00,  26.220
+       MEEK, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 04.00,  31.680
+       FORT, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 35, 32.00,  34.780
+       STKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 36, 04.00,  38.480
+       KSM , BHZ,  ,  ,  ,  ,  , Pn, 2005, 09, 16, 07, 32, 39.00,  16.820
+       KAKA, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 04.00,  17.660
+       FITZ, BHZ,  ,  ,  ,  ,  , P , 2005, 09, 16, 07, 33, 36.00,  22.180
+       ...
 
     The header row, which starts with '#', indicates the number of phases listed in the subsequent lines of arrival data
-    (28 in this example).   
+    (28 in this example).
     """
 
     def __init__(self, event_folder, sampling_factor=1.0):
@@ -159,7 +155,7 @@ class CatalogCSV:
         event.preferred_magnitude = Magnitude(mag, magtype)
 
         return eventid, event
-            
+
 
     def _parse_arrival(self, line):
         items = line.split(',')

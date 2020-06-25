@@ -3,20 +3,22 @@ Description:
     Implements a Class for reading/storing responses from a number of sources.
     The ResponseFactory class is used for attaching 'bogus' responses to
     station inventories that lack them.
+
 References:
+
 CreationDate:   14/02/19
+
 Developer:      rakib.hassan@ga.gov.au
+
 Revision History:
     LastUpdate:     14/02/19   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-import time
-from os.path import join, exists, basename, isdir, dirname
-from os import remove, mkdir
-from collections import Counter, defaultdict
+from collections import defaultdict
+from io import StringIO
 
-from obspy.core import inventory, read, UTCDateTime
+from obspy.core import UTCDateTime
 from obspy import read_inventory
 
 
@@ -27,15 +29,17 @@ class ResponseFactory:
     Poles and Zeroes supplied by the user and from StationXML files generated from RESP files using the PDCC tool
     (link below). The conversion of RESP files into a corresponding StationXML file, at this stage, must take place
     externally, because ObsPy lacks that functionality.
-    The intended usage of this class during the creation of an ASDF dataset is as follows:
-    1. User creates a number of uniquely named Response objects (see associated tests as well) pertaining to different
-       channels in a given survey.
-    2. User fetches these Response objects from an instance of ResponseFactory as needed, while creating ObsPy Channel
-       objects, during which Response objects can be passed in as an argument.
-    3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response
-       information embedded
-    4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be ingested
-       by SeisComp3) using the fdsnxml2inv tool.
+    The intended usage of this class during the creation of an ASDF dataset is as follows::
+
+      1. User creates a number of uniquely named Response objects (see associated tests as well) pertaining to different
+         channels in a given survey.
+      2. User fetches these Response objects from an instance of ResponseFactory as needed, while creating ObsPy Channel
+         objects, during which Response objects can be passed in as an argument.
+      3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response
+         information embedded
+      4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be ingested
+         by SeisComp3) using the fdsnxml2inv tool.
+
     PDCC tool: https://ds.iris.edu/ds/nodes/dmc/software/downloads/pdcc/
     """
 

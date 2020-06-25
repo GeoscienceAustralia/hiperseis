@@ -1,18 +1,13 @@
 from mpi4py import MPI
 from lxml import etree as ET
-from os.path import join, exists
-import os, glob, fnmatch, sys
+import os, fnmatch
 import re
 from collections import defaultdict
 from obspy import UTCDateTime
-import numpy as np
-import math
 
-from math import radians, cos, sin, asin, sqrt
 import numpy as np
-import scipy
-from scipy.spatial import cKDTree
 from random import shuffle
+
 
 def recursive_glob(treeroot, pattern):
     results = []

@@ -2,9 +2,11 @@
 """
 Description:
     Generates cross-correlations for data from staion-pairs in parallel
+
 References:
 
 CreationDate:   11/07/18
+
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
@@ -150,7 +152,7 @@ def process(data_source1, data_source2, output_path,
     # end if
     if(os.path.exists(netsta_list2)):
         netsta_list2 = ' '.join(open(netsta_list2).readlines()).replace('\n', ' ').strip()
-    # end if        
+    # end if
 
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
