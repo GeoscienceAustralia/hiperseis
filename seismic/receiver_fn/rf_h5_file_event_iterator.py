@@ -22,6 +22,8 @@ class IterRfH5FileEvents(object):
        them to RF generator. This class avoids having to load the whole file up front via obspy which
        is slow and not scalable.
 
+       Yields (station_id, event_id, event_time, stream)
+
        Due to the expected hierarchy structure of the input H5 file, yielded event traces are grouped
        by station ID.
 
@@ -30,6 +32,18 @@ class IterRfH5FileEvents(object):
     """
 
     def __init__(self, h5_filename, memmap=False, channel_pattern=None):
+        """
+        Initializer
+
+        :param h5_filename: Name of file containing event seismograms in HDF5 format, indexed in \
+            seismic.stream_io.EVENTIO_H5INDEX format
+        :type h5_filename: str or pathlib.Path
+        :param memmap: If True, memmap the open file. Can improve tractability of handling very large files.
+        :type memmap: bool
+        :param channel_pattern: [OPTIONAL] Ordered list of preferred channels, e.g. 'HH*,BH*'. Channel mask to use
+            to select channels returned.
+        :type channel_pattern: str
+        """
         self.h5_filename = h5_filename
         self.num_components = 3
         self.memmap_input = memmap

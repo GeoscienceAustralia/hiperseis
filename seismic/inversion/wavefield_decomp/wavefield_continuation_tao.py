@@ -3,15 +3,18 @@
 """Class encapsulating algorithm for 1D inversion using wavefield continuation.
 
     Based on reference:
-    Kai Tao, Tianze Liu, Jieyuan Ning, Fenglin Niu, "Estimating sedimentary and crustal structure
-    using wavefield continuation: theory, techniques and applications", *Geophysical Journal International*,
-    Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
+
+    - Kai Tao, Tianze Liu, Jieyuan Ning, Fenglin Niu, "Estimating sedimentary and crustal structure
+      using wavefield continuation: theory, techniques and applications", *Geophysical Journal International*,
+      Volume 197, Issue 1, April, 2014, Pages 443-457, https://doi.org/10.1093/gji/ggt515
 """
 
+# pylint: disable=invalid-name
+
 import os
+import copy
 import multiprocessing
 os.environ['NUMEXPR_NUM_THREADS'] = str(min(multiprocessing.cpu_count(), 8))
-import copy
 
 import numpy as np
 import numexpr as ne
@@ -46,7 +49,7 @@ class WfContinuationSuFluxComputer:
 
     Process:
 
-    1. Load data from a station event dataset. Copy of the data is buffered by this
+    1. Load data from a station event dataset. Copy of the data is buffered by this \
         class in efficient format for energy flux calculation.
     2. Define 1D earth model and mantle half-space material properties (in external code).
     3. Call instance with models and receive energy flux results.
@@ -192,6 +195,12 @@ class WfContinuationSuFluxComputer:
     # end if
 
     def times(self):
+        """
+        Get array of discrete time values of the time axis
+
+        :return: Array of evenly spaced time values
+        :rtype: numpy.array
+        """
         return self._time_axis
     # end if
 
@@ -199,7 +208,9 @@ class WfContinuationSuFluxComputer:
         """Compute upgoing S-wave energy at top of mantle for set of seismic time series in self._v0.
 
         :param mantle_props: LayerProps representing mantle properties.
+        :type mantle_props: seismic.model_properties.LayerProps
         :param layer_props: List of LayerProps.
+        :type layer_props: list(seismic.model_properties.LayerProps)
         :return: Mean SU energy, SU energy per seismogram, wavefield vector at top of mantle in (Pd, Pu, Sd, Su)
             order for each seismogram.
         :rtype: (float, numpy.array, numpy.array)
@@ -245,7 +256,9 @@ class WfContinuationSuFluxComputer:
         of the bottom layer.
 
         :param layer_props: List of LayerProps through which to propagate the surface seismograms.
-        :return: (Vr, Vz) time series per event at the bottom of the stack of layers.
+        :type layer_props: list(seismic.model_properties.LayerProps)
+        :return: (Vr, Vz) velocity components time series per event at the bottom of the stack of layers.
+        :rtype: numpy.array
         """
         # Propagate from surface to the bottom of the layers provided
         fv_base = WfContinuationSuFluxComputer._propagate_layers(self._fv0, self._w, layer_props, self._p)
@@ -338,7 +351,7 @@ class WfContinuationSuFluxComputer:
         :param w: Frequency domain bins corresponding to fv0
         :type w: numpy.array
         :param layer_props: List of layer properties from top layer downwards
-        :type layer_props: list(LayerProps)
+        :type layer_props: list(seismic.model_properties.LayerProps)
         :param p: Ray parameter per seismogram
         :type p: numpy.array
         :return: Wavefield at top of mantle in frequency domain
@@ -356,13 +369,14 @@ class WfContinuationSuFluxComputer:
     # end func
 
     @staticmethod
-    def _fast_propagate_layer(M, Minv, fz, Q, w_expanded, cplx_H):
+    def _fast_propagate_layer(M, Minv, fz, Q, w_expanded, cplx_H):  # pylint: disable=unused-argument
+        # cplx_H is not unused here, it is used in the evaluation string passed to numexpr.evaluate.
         # Transposition during matmuls here produces more cache-friendly orientation of data.
-        # This function should be target of future optimization.
+        # This function should be target of future optimization, e.g. using Cython.
         fz = np.matmul(fz.transpose((0, 2, 1)), Minv.transpose((0, 2, 1)))
         phase_args = np.matmul(w_expanded.transpose((0, 2, 1)), Q.transpose((0, 2, 1)))
         fz = ne.evaluate('exp(cplx_H*phase_args)*fz')
-        # fz = np.exp(cplx_H*phase_args)*fz
+        # fz = np.exp(cplx_H*phase_args)*fz  # Replaced by use of numexpr.evaluate
         fz = np.matmul(fz, M.transpose((0, 2, 1))).transpose((0, 2, 1))
         return fz
     # end func
@@ -375,7 +389,7 @@ class WfContinuationSuFluxComputer:
         :param mantle_props: Mantle bulk properties
         :type mantle_props: LayerProps
         :param layer_props: Layer bulk properties as a list
-        :type layer_props: list of LayerProps
+        :type layer_props: list(seismic.model_properties.LayerProps)
         :param layer_index: Index of layer to vary.
         :type layer_index: int
         :param H_vals: Set of thickness (H) values to apply to the selected layer.

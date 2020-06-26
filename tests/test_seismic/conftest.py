@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Configuration of pytest
+"""
 
 import os
 import copy

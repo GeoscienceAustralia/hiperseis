@@ -24,6 +24,9 @@ from seismic.stream_io import read_h5_stream
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
 
 
+# pylint: disable=invalid-name
+
+
 default_fig_width_inches = 6.4
 RF_TRIM_WINDOW = (-10.0, 25.0)
 
@@ -111,6 +114,20 @@ def _compute_rf(data, config, log):
 
 
 def plot_aux_data(soln, config, log, scale):
+    """
+    Plot auxiliary data such as energy distribution and receiver functions.
+
+    :param soln: Solution container
+    :type soln: Customized scipy.optimize.OptimizeResult
+    :param config: Solution configuration
+    :type config: dict
+    :param log: Logging instance
+    :type log: logging.Logger
+    :param scale: Overall image scaling factor
+    :type scale: float
+    :return: Matplotlib figure containing the plotted data
+    :rtype: matplotlib.figure.Figure
+    """
     f = plt.figure(constrained_layout=False, figsize=(6.4*scale, 6.4*scale))
     f.suptitle(config["station_id"], y=0.96, fontsize=16)
     gs = f.add_gridspec(2, 1, left=0.1, right=0.9, bottom=0.1, top=0.87, hspace=0.3,
@@ -240,11 +257,14 @@ def plot_aux_data(soln, config, log, scale):
 def main(solution_file, output_file):
     """Plot all the solutions found in a batch run of N-dimensional solver.
 
-    Example usage:
-        python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5
+    Example usage::
+
+        `python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5`
 
     :param solution_file: Input solution filename
+    :type solution_file: str or pathlib.Path
     :param output_file: Output filename
+    :type output_file: str or pathlib.Path
     """
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
@@ -304,5 +324,5 @@ def main(solution_file, output_file):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
 # end if

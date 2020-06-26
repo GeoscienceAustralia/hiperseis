@@ -2,7 +2,8 @@
 """
 Helper functions to convert FDSN station XML files to Seiscomp3 SC3ML format.
 
-Can be used as a standalone tool as well:
+Can be used as a standalone tool as well::
+
     `fdsnxml_convert.py src_path dst_path`
 """
 

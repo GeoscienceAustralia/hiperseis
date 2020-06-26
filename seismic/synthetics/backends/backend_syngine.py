@@ -9,8 +9,15 @@ from obspy.clients.syngine import Client as ClientS
 from seismic.synthetics.backends.synthesizer_base import Synthesizer
 from seismic.stream_processing import zne_order
 
+# pylint: disable=invalid-name
+
 
 def synthesizer():
+    """Getter for backend Synthesizer class
+
+    :return: Class name
+    :rtype: SynthesizerSyngine
+    """
     return SynthesizerSyngine
 # end func
 
@@ -19,7 +26,8 @@ class SynthesizerSyngine(Synthesizer):
     """
     Class to synthesize seismograms using online Syngine service.
 
-    To write resultant stream to HDF5 format, add 'ignore' option:
+    To write resultant stream to HDF5 format, add 'ignore' option::
+
         `synth_stream.write('test_synth.h5', 'h5', ignore=('mseed',))`
 
     """
@@ -30,10 +38,10 @@ class SynthesizerSyngine(Synthesizer):
 
         :param station_latlon: See documentation for :func:`~seismic.synthetics.backends.synthesizer_base.Synthesizer.synthesize`
         :param earth_model: String naming which standard earth model to use.
+        :type earth_model: str
         """
         super().__init__(station_latlon)
         self.earth_model = earth_model
-        pass
     # end func
 
     def synthesize(self, src_latlon, fs, time_window):

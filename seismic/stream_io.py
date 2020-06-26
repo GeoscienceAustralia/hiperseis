@@ -16,6 +16,8 @@ from obspyh5 import dataset2trace, is_obspyh5
 
 from seismic.units_utils import KM_PER_DEG
 
+# pylint: disable=invalid-name
+
 
 logging.basicConfig()
 
@@ -60,6 +62,15 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
 
 
 def get_obspyh5_index(src_file, seeds_only=False):
+    """Scrape the index (only) from an obspyh5 file.
+
+    :param src_file: Name of file to extract index from
+    :type src_file: str or pathlib.Path
+    :param seeds_only: If True, only get the seed IDs of the traces. Otherwise (default), get full index.
+    :type seeds_only: bool
+    :return: Sorted dictionary with index of waveforms in the file
+    :rtype: sortedcontainers.SortedDict
+    """
     # We use SortedSet rather than SortedList for the inner container
     # because it allows set operations that are useful, such as finding
     # event IDs for events which are common across multiple stations.
@@ -91,8 +102,10 @@ def iter_h5_stream(src_file, headonly=False):
     """
     Iterate over hdf5 file containing streams in obspyh5 format.
 
-    :param src_file: str or path to file to read
+    :param src_file: Path to file to read
+    :type src_file: str or pathlib.Path
     :param headonly: Only read trace stats, do not read actual time series data
+    :type headonly: bool
     :yield: obspy.Stream containing traces for a single seismic event.
     """
     assert is_obspyh5(src_file), '{} is not an obspyh5 file'.format(src_file)
@@ -103,9 +116,9 @@ def iter_h5_stream(src_file, headonly=False):
         for seedid, station_grp in root.items():
             logger.info('{}: Group {}'.format(fname, seedid))
             num_events = len(station_grp)
-            for i, (src_event_time, event_grp) in enumerate(station_grp.items()):
+            for i, (_src_event_time, event_grp) in enumerate(station_grp.items()):
                 traces = []
-                for trace_id, channel in event_grp.items():
+                for _trace_id, channel in event_grp.items():
                     traces.append(dataset2trace(channel, headonly=headonly))
                 # end for
                 evid = traces[0].stats.event_id

@@ -100,7 +100,7 @@ def _convolve(x, y, leadin):
 
 
 def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, max_pulses=1000,
-                           tol=1.0e-3, gwidth=2.5, only_positive=False, log=None, **kwargs):
+                           tol=1.0e-3, gwidth=2.5, only_positive=False, log=None):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
     Adapted to Python by Andrew Medlin, Geoscience Australia (2019), from Chuck Ammon's

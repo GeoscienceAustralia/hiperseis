@@ -12,19 +12,20 @@ In future, consider moving this script to the `inventory` module and applying
 corrections to the station inventory xml (to the azimuth tag).
 
 Reference:
-Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al.
-On the rotation of teleseismic seismograms based on the receiver function technique.
-J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
+
+- Wilde-Piórko, M., Grycuk, M., Polkowski, M. et al.
+  On the rotation of teleseismic seismograms based on the receiver function technique.
+  J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
 
 import os
 import json
-import click
 import logging
 import copy
-from joblib import Parallel, delayed
 from collections import defaultdict
 
+from joblib import Parallel, delayed
+import click
 import numpy as np
 from scipy import optimize, interpolate
 from rf import RFStream
@@ -34,6 +35,9 @@ import matplotlib.pyplot as plt
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.inversion.wavefield_decomp.runners import curate_seismograms
 from seismic.receiver_fn.generate_rf import transform_stream_to_rf
+
+# pylint: disable=invalid-name
+
 
 # Take care not to use any curation options that would vary if there were a station orientation error.
 DEFAULT_CURATION_OPTS = {
@@ -63,12 +67,17 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
     Internal processing function for running sequence of candidate angles
     over a single station.
 
-    :param db_evid: Dictionary of event streams (3-channel ZNE) keyed by event ID.
+    :param db_evid: Dictionary of event streams (3-channel ZNE) keyed by event ID. \
         Best obtained using class NetworkEventDataset
+    :type db_evid: sortedcontainers.SortedDict or similar dict-like
     :param angles: Sequence of candidate correction angles to try (degrees)
+    :type angles: Iterable(float)
     :param config_filtering: Waveform filtering options for RF processing
+    :type config_filtering: dict
     :param config_processing: RF processing options
-    :return:
+    :type config_processing: dict
+    :return: Amplitude metric as a function of angle. Same length as angles array.
+    :rtype: list(float)
     """
     ampls = []
     for correction in angles:
@@ -117,15 +126,21 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
 
     :param ned: NetworkEventDataset containing waveforms to analyze. Note: the data in
         this dataset will be modified by this function.
+    :type ned: seismic.network_event_dataset.NetworkEventDataset
     :param curation_opts: Seismogram curation options.
         Safe default to use is `DEFAULT_CURATION_OPTS`.
+    :type curation_opts: dict
     :param config_filtering: Seismogram filtering options for RF computation.
         Safe default to use is `DEFAULT_CONFIG_FILTERING`.
+    :type config_filtering: dict
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
+    :type config_processing: dict
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle
+    :type save_plots_path: str or pathlib.Path
     :return: Dict of estimated orientation error with net.sta code as the key.
+    :rtype: dict
     """
     assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
 
@@ -248,15 +263,21 @@ def process_event_file(src_h5_event_file, curation_opts=None,
     Use event dataset from an HDF5 file to analyze station for orientation errors.
 
     :param src_h5_event_file: HDF5 file to load. Typically one created by `extract_event_traces.py` script
+    :type src_h5_event_file: str or pathlib.Path
     :param curation_opts: Seismogram curation options.
         Safe default to use is `DEFAULT_CURATION_OPTS`.
+    :type curation_opts: dict
     :param config_filtering: Seismogram filtering options for RF computation.
         Safe default to use is `DEFAULT_CONFIG_FILTERING`.
+    :type config_filtering: dict
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
+    :type config_processing: dict
     :param dest_file: File in which to save results in JSON format
+    :type dest_file: str or pathlib.Path
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle
+    :type save_plots_path: str or pathlib.Path
     :return: None
     """
     if curation_opts is None:
@@ -289,15 +310,19 @@ def main(src_h5_event_file, dest_file=None, save_plots_path=None):
     """
     Run station orientation checks.
 
-    Example usage:
-    python seismic/analyze_station_orientations.py --dest-file 7X_ori_estimates.json \
-      /g/data/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5
+    Example usage::
+
+        python seismic/analyze_station_orientations.py --dest-file 7X_ori_estimates.json \
+        /g/data/ha3/am7399/shared/7X_RF_analysis/7X_event_waveforms_for_rf_20090616T034200-20110401T231849_rev2.h5
 
     :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks, typically
         generated using `extract_event_traces.py`
+    :type src_h5_event_file: str or pathlib.Path
     :param dest_file: Output file in which to store results in JSON text format
+    :type dest_file: str or pathlib.Path
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle
+    :type save_plots_path: str or pathlib.Path
     """
     process_event_file(src_h5_event_file, dest_file=dest_file, save_plots_path=save_plots_path)
 # end func

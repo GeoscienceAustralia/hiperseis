@@ -18,6 +18,8 @@ from seismic.receiver_fn.generate_rf import transform_stream_to_rf
 from seismic.stream_processing import correct_back_azimuth
 from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 
+# pylint: disable=invalid-name
+
 
 SYNTH_CURATION_OPTS = {
     "min_snr": 2.0,

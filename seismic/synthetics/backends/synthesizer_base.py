@@ -14,6 +14,8 @@ import geohash as gh
 
 from seismic.units_utils import KM_PER_DEG
 
+# pylint: disable=invalid-name
+
 
 class Synthesizer(object):
     """
@@ -26,6 +28,7 @@ class Synthesizer(object):
 
         :param station_latlon: Either a tuple of (lat, lon) coordinates, or a station
             code in the format 'NET.STA' string.
+        :type station_latlon: tuple(float, float) or str
         """
         if isinstance(station_latlon, str):
             net, sta = station_latlon.split('.')
@@ -41,6 +44,11 @@ class Synthesizer(object):
 
     @property
     def station_latlon(self):
+        """Get (latitude, longitude) location of receiving station
+
+        :return: Location (latitude, longitude) of receiving station
+        :rtype: tuple(float, float)
+        """
         return self._station_latlon
     # end func
 
@@ -67,7 +75,7 @@ class Synthesizer(object):
         :return: obspy.Stream containing ZNE velocity seismogram
         :rtype: obspy.Stream
         """
-        pass  # Implement this interface in the derived class
+        # Implement this interface in the derived class
     # end func
 
     def compute_event_stats(self, src_lat, src_lon, eventid_base, src_depth_m=0,

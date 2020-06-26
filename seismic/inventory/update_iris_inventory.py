@@ -1,18 +1,14 @@
 #!/usr/bin/env python
 """Automatically update IRIS-ALL.xml file from IRIS web portal.
 
-   Outout file is saved as FDSN station xml.
+   Output file is saved as FDSN station xml.
    Script also generates human readable form as IRIS-ALL.txt.
 
    Example usages::
-   ----------------
 
       python update_iris_inventory.py
-
       python update_iris_inventory.py -o outfile.xml
-
       python update_iris_inventory.py --netmask=U* --statmask=K*
-
       python update_iris_inventory.py --netmask=UW,LO --output outfile.xml
 """
 
@@ -129,7 +125,7 @@ def regenerate_human_readable(iris_data, outfile):
     from obspy import read_inventory
 
     if sys.version_info[0] < 3:
-        from cStringIO import StringIO as sio  # pylint: disable=import-error,unresolved-import
+        from cStringIO import StringIO as sio  # pylint: disable=import-error, unresolved-import
     else:
         from io import BytesIO as sio
     # end if

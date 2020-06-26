@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
+"""Helper classes to encapsulate model properties.
+"""
+
+# pylint: disable=invalid-name
 
 
 class LayerProps():
@@ -12,9 +16,13 @@ class LayerProps():
         Constructor for given properties
 
         :param vp: P-wave body wave velocity
+        :type vp: float
         :param vs: S-wave body wave velocity
+        :type vs: float
         :param rho: Bulk material density
+        :type rho: float
         :param thickness: 1D (vertical) thickness of the layer.
+        :type thickness: float
         """
         self._Vp = vp
         self._Vs = vs
@@ -24,21 +32,29 @@ class LayerProps():
 
     @property
     def Vp(self):
+        """Get P-wave body wave velocity
+        """
         return self._Vp
     # end func
 
     @property
     def Vs(self):
+        """Get S-wave body wave velocity
+        """
         return self._Vs
     # end func
 
     @property
     def rho(self):
+        """Get bulk material density
+        """
         return self._rho
     # end func
 
     @property
     def H(self):
+        """Get layer thickness
+        """
         return self._H
     # end func
 

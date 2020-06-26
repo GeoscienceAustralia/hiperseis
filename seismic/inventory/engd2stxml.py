@@ -326,19 +326,19 @@ def latlong_to_cosinedistance(latlong_deg_set1, latlong_deg_set2):
     This function performs an outer product and will produce matrix of size N0 x N1, where
     N0 is the number of rows in latlong_deg_set1 and N1 is the number of rows in latlong_deg_set2.
 
-    Returns np.ndarray containing cosines of angles between each pair of stations from
+    Returns numpy.ndarray containing cosines of angles between each pair of stations from
     the input arguments.
     If input is 1D, convert to 2D for consistency of matrix orientations.
 
     :param latlong_deg_set1: First set of numpy column vector of [latitude, longitude] positions in
         degrees
-    :type latlong_deg_set1: np.array
+    :type latlong_deg_set1: numpy.array
     :param latlong_deg_set2: Second set of numpy column vector of [latitude, longitude] positions in
         degrees
-    :type latlong_deg_set2: np.array
+    :type latlong_deg_set2: numpy.array
     :return: Array containing cosines of angles between each pair of stations from the input
         arguments.
-    :rtype: np.array
+    :rtype: numpy.array
     """
     if len(latlong_deg_set1.shape) == 1:
         latlong_deg_set1 = np.reshape(latlong_deg_set1, (1, -1))

@@ -9,13 +9,16 @@ import json
 
 import numpy as np
 
+# pylint: disable=invalid-name
+
 
 def zne_order(tr):
-    """Channel ordering sort key function
+    """Channel ordering sort key function for ZNE ordering
 
     :param tr: Trace whose ordinal is to be determined.
-    :type tr: obspy.Trace or RFTrace
+    :type tr: obspy.Trace or rf.RFTrace
     :return: Numeric index indicating ZNE sort order of traces in a stream
+    :rtype: int
     """
     trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
     component = tr.stats.channel[-1].upper() if tr.stats.channel else False
@@ -27,11 +30,12 @@ def zne_order(tr):
 
 
 def zrt_order(tr):
-    """Channel ordering sort key function
+    """Channel ordering sort key function for ZRT ordering
 
     :param tr: Trace whose ordinal is to be determined.
-    :type tr: obspy.Trace or RFTrace
+    :type tr: obspy.Trace or rf.RFTrace
     :return: Numeric index indicating ZRT sort order of traces in a stream
+    :rtype: int
     """
     trace_ordering = {'Z': 0, 'R': 1, 'T': 2}
     component = tr.stats.channel[-1].upper() if tr.stats.channel else False
@@ -47,10 +51,14 @@ def sinc_resampling(t, y, t_new):
     Sampling rates do not need to match and time windows do not need
     to overlap. t_new should not have a lower sampling rate than t.
 
-    :param t: numpy.array of times
-    :param y: numpy.array of sample values
-    :param t_new: numpy.array of new times to interpolate onto
-    :return: numpy.array of new interpolated sample values
+    :param t: 1D array of times
+    :type t: numpy.array
+    :param y: 1D array of sample values
+    :type y: numpy.array
+    :param t_new: 1D array of new times to interpolate onto
+    :type t_new: numpy.array
+    :return: 1D array of new interpolated sample values
+    :rtype: numpy.array
     """
     dt = np.mean(np.diff(t))
     Ts, T = np.meshgrid(t_new, t)
@@ -59,26 +67,27 @@ def sinc_resampling(t, y, t_new):
 # end func
 
 
-def back_azimuth_filter(baz, baz_range):
-    """Check if back azimuth `baz` is within range. Inputs must be in the range [0, 360] degrees.
+def back_azimuth_filter(back_azi, back_azi_range):
+    """Check if back azimuth `back_azi` is within range. Inputs must be in the range [0, 360] degrees.
 
-    :param baz: Value to check
-    :type baz: int or float
-    :param baz_range: Pair of angles in degrees.
-    :type baz_range: List or array of 2 floats, min and max back azimuth
-    :return: True if baz is within baz_range, False otherwise.
+    :param back_azi: Value to check
+    :type back_azi: int or float
+    :param back_azi_range: Pair of angles in degrees.
+    :type back_azi_range: List or array of 2 floats, min and max back azimuth
+    :return: True if back_azi is within back_azi_range, False otherwise.
+    :rtype: bool
     """
-    assert not np.any(np.isinf(np.array(baz_range)))
-    assert not np.any(np.isnan(np.array(baz_range)))
-    assert 0 <= baz <= 360
-    assert 0 <= baz_range[0] <= 360
-    assert 0 <= baz_range[1] <= 360
-    baz_range = list(copy.copy(baz_range))
-    while baz_range[0] > baz_range[1]:
-        baz_range[0] -= 360
-    return ((baz_range[0] <= baz <= baz_range[1]) or
-            (baz_range[0] <= baz - 360 <= baz_range[1]) or
-            (baz_range[0] <= baz + 360 <= baz_range[1]))
+    assert not np.any(np.isinf(np.array(back_azi_range)))
+    assert not np.any(np.isnan(np.array(back_azi_range)))
+    assert 0 <= back_azi <= 360
+    assert 0 <= back_azi_range[0] <= 360
+    assert 0 <= back_azi_range[1] <= 360
+    back_azi_range = list(copy.copy(back_azi_range))
+    while back_azi_range[0] > back_azi_range[1]:
+        back_azi_range[0] -= 360
+    return ((back_azi_range[0] <= back_azi <= back_azi_range[1]) or
+            (back_azi_range[0] <= back_azi - 360 <= back_azi_range[1]) or
+            (back_azi_range[0] <= back_azi + 360 <= back_azi_range[1]))
 # end func
 
 
@@ -88,7 +97,9 @@ def swap_ne_channels(_event_id, stream):
 
     :param _event_id: Ignored
     :param stream: Stream whose N and E channels are to be swapped
+    :type stream: obspy.Stream
     :return: Stream with channel swapping applied
+    :rtype: obspy.Stream
     """
     stream_n = stream.select(component='N')
     stream_e = stream.select(component='E')
@@ -105,8 +116,11 @@ def negate_channel(_event_id, stream, channel):
 
     :param _event_id: Ignored
     :param stream: Stream containing channel to flip
+    :type stream: obspy.Stream
     :param channel: Single character string indicating which component to flip
+    :type channel: str
     :return: Stream with channel data negated
+    :rtype: obspy.Stream
     """
     trace_selected = stream.select(component=channel)[0]
     trace_selected.data = -trace_selected.data
@@ -116,18 +130,29 @@ def negate_channel(_event_id, stream, channel):
 
 @functools.singledispatch
 def scalarize(_obj, _stats):
+    """Fallback scalarize function for non-specialized type
+    """
     raise NotImplementedError('Cannot convert generic object to scalar')
 # end func
 
 
 @scalarize.register(numbers.Number)
 def _(val, _stats):
+    """Scalarize function for numeric types
+
+    :rtype: float
+    """
     return float(val)
 # end func
 
 
 @scalarize.register(dict)
 def _(d, stats):
+    """Scalarize function for dict type, *assumed to be a container of obspy Stats*,
+    to azimuth correction scalar.
+
+    :rtype: float
+    """
     net = stats.network
     sta = stats.station
     key = '.'.join([net, sta])
@@ -162,24 +187,26 @@ def correct_back_azimuth(_event_id, stream, baz_correction):
 
     :param _event_id: Ignored
     :param stream: Stream to which correction is applied
+    :type stream: obspy.Stream or rf.RFSTream
     :param baz_correction: Any object with a registered `scalarize` function for
         generating an angle correction for a trace in degrees. E.g. could be a
         numeric value, a dictionary of correction values, or a file produced by
         script `analyze_station_orientations.py`
     :return: Stream with modified back azimuth
+    :rtype: Same as type(stream)
     """
     for tr in stream:
         # Each station may have a custom correction. Expect that all such
         # possible corrections are represented in baz_correction argument.
         stats = tr.stats
         correction = scalarize(baz_correction, stats)
-        baz = stats.back_azimuth
-        baz += correction
-        while baz < 0:
-            baz += 360
-        while baz >= 360:
-            baz -= 360
-        stats.back_azimuth = baz
+        back_azi = stats.back_azimuth
+        back_azi += correction
+        while back_azi < 0:
+            back_azi += 360
+        while back_azi >= 360:
+            back_azi -= 360
+        stats.back_azimuth = back_azi
     # end for
     return stream
 # end func
@@ -190,7 +217,8 @@ def assert_homogenous_stream(stream, funcname):
     Verify that the given stream does not contain mixture of stations or channels/components.
 
     :param stream: Stream containing one or more traces
-    :type stream: obspy.core.stream.Stream or rf.RFStream
+    :type stream: obspy.Stream or rf.RFStream
+    :return: None
     """
     # Check station and channel uniqueness. It is not sensible to expect RF similarity for
     # different stations or channels.
