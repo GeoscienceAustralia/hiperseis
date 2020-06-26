@@ -28,7 +28,7 @@ seismic.inversion.wavefield\_decomp.runners module
    :undoc-members:
    :show-inheritance:
 
-.. click:: runners:main
+.. click:: seismic.inversion.wavefield_decomp.runners:main
    :prog: runners
    :show-nested:
 
