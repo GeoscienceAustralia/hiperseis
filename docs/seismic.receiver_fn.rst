@@ -52,6 +52,9 @@ seismic.receiver\_fn.pointsets2grid module
    :undoc-members:
    :show-inheritance:
 
+.. click:: pointsets2grid:main
+   :prog: pointsets2grid
+
 seismic.receiver\_fn.rf\_3dmigrate module
 -----------------------------------------
 
