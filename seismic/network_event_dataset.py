@@ -18,7 +18,7 @@ from seismic.stream_processing import zne_order, zrt_order
 
 class NetworkEventDataset:
     """Collection of 3-channel ZNE streams with traces aligned to a fixed time window about
-     seismic P-wave arrival events, for a given network.
+     seismic P-wave arrival events, *for a given network*.
 
      Two indexes are provided. One indexes hierarchically by station code and
      event ID, yielding a 3-channel ZNE stream per event, so that you can easily gather all
@@ -32,9 +32,30 @@ class NetworkEventDataset:
      not, an event ID will be invented based on station identifiers and time window.
     """
     def __init__(self, stream_src, network=None, station=None, location='', ordering='ZNE'):
-        """Initialize from data source (file or obspy.Stream). Traces are COPIED into
+        """
+        Initialize from data source (file or obspy.Stream). Traces are COPIED into
         the dataset in order to leave input object intact, since many obspy functions
         mutate traces in-place.
+
+        All streams in the input data source stream_src are expected to belong to the same network.
+        This is checked as the data is ingested. A discrepant network code is an error condition.
+
+        :param stream_src: Source of input streams. May be a file name or an Obspy Stream
+        :type stream_src: str, pathlib.Path or obspy.Stream
+        :param network: Network code of streams to load. If stream_src is an Obspy Stream, the \
+            streams will be filtered to match this network code.
+        :type network: str
+        :param station: Station code of streams to load. If stream_src is an Obspy Stream, the \
+            streams will be filtered to match this station code.
+        :type station: str
+        :param location: [OPTIONAL] Location code of streams to load. Leave as default (empty string) \
+            if location code is empty in the data source.
+        :type location: str
+        :param ordering: Channel ordering to be applied to the data after loading. The channel labelling \
+            must be consistent with the requested ordering - rotation to the coordinate system implied \
+            by the ordering is *NOT* applied.
+        :type ordering: str
+        :raises AssertionError: If discrepant network code is found in input data
         """
         if isinstance(stream_src, obspy.Stream):
             net = network
@@ -99,29 +120,35 @@ class NetworkEventDataset:
     # end func
 
     def __iter__(self):
-        # Flat iterator. Loops over self.db_sta depth first and returns tuple of keys and matching stream.
-        # for sta, ev_db in self.db_sta.items():
-        #     for evid, stream in ev_db.items():
-        #         yield (sta, evid, stream)
-        #     # end for
-        # # end for
+        """
+        Flat iterator. Loops over self.db_sta depth first and returns tuple of keys and matching stream.
+        Equivalent to::
+
+        ```Python
+          for sta, ev_db in self.db_sta.items():
+              for evid, stream in ev_db.items():
+                  yield (sta, evid, stream)
+        ```
+        """
         return ((sta, evid, stream) for sta, ev_db in self.db_sta.items() for evid, stream in ev_db.items())
     # end if
 
     def __len__(self):
-        # Returns number of streams
+        """Returns number of streams"""
         return sum((len(x) for x in self.db_sta.values()))
     # end func
 
     def __repr__(self):
-        # Displays summary string for all streams
+        """Displays summary string for all streams"""
         return '\n'.join((evid + ', ' + str(stream) for _, evid, stream in iter(self)))
     # end func
 
     def num_stations(self):
         """
         Get number of stations in the dataset.
+
         :return: Number of stations
+        :rtype: int
         """
         return len(self.db_sta)
     # end func
@@ -129,7 +156,9 @@ class NetworkEventDataset:
     def station(self, station_code):
         """
         Accessor for events for a given station.
+
         :param station_code: Station to get
+        :type station_code: str
         :return: Event index for station, if station is found
         :rtype: SortedDict
         """
@@ -139,7 +168,9 @@ class NetworkEventDataset:
     def num_events(self):
         """
         Get number of events in the dataset.
+
         :return: Number of events
+        :rtype: int
         """
         return len(self.db_evid)
     # end func
@@ -147,17 +178,24 @@ class NetworkEventDataset:
     def event(self, event_id):
         """
         Accessor for stations for a given event.
+
         :param event_id: ID of event to look up
-        :return: Station index for given event, if event ID is found
-        :rtype: SortedDict
+        :type event_id: str
+        :return: Station index for given event, if event ID is found, otherwise None
+        :rtype: SortedDict or NoneType
         """
         return self.db_evid.get(event_id)
     # end func
 
     def curate(self, curator):
         """
-        Curate the dataset according to a callable curator. Curator call signature takes station code,
-        event id and stream as input, and returns boolean whether to keep Stream or not.
+        Curate the dataset according to a callable curator. Modifies collection in-place to remove
+        streams that do not satisfy the curation criteria of the callable.
+        Curator call signature must be consitent with::
+
+            callable(station_code, event_id, stream) -> bool
+
+        The callable returns a boolean indicating whether to keep the Stream or not.
 
         :param curator: Function or callable delegate to adjudicate whether to keep each given stream.
         :type curator: Callable
@@ -180,9 +218,9 @@ class NetworkEventDataset:
     def apply(self, _callable):
         """Apply a callable across all streams. Use to apply uniform processing steps to the whole dataset.
 
-        :param _callable: Callable object that takes an obspy Stream as input and applies itself to that Stream.
+        :param _callable: Callable object that takes an obspy Stream as input and applies itself to that Stream. \
             Expect that stream may be mutated in-place by the callable.
-        :type _callable: Any callable compatible with the call signature.
+        :type _callable: Any Callable compatible with the call signature.
         :return: None
         """
         for _1, _2, stream in iter(self):
@@ -191,20 +229,22 @@ class NetworkEventDataset:
 
     def by_station(self):
         """
-        Iterate over station sub-dictionaries
+        Iterate over station sub-dictionaries.
 
-        :return: Iterable over the stations, each element consisting of pair containing
+        :return: Iterable over the stations, each element consisting of pair containing \
             (station code, event dict).
+        :rtype: Iterable(tuple)
         """
         return iter(self.db_sta.items())
     # end func
 
     def by_event(self):
         """
-        Iterate over event sub-dictionaries
+        Iterate over event sub-dictionaries.
 
-        :return: Iterable over the discrete events, each element consisting of pair containing
+        :return: Iterable over the discrete events, each element consisting of pair containing \
             (event id, station dict).
+        :rtype: Iterable(tuple)
         """
         return iter(self.db_evid.items())
     # end func
@@ -214,7 +254,9 @@ class NetworkEventDataset:
         Remove a given sequence of (station, event) pairs from the dataset.
 
         :param items: Iterable of (station, event) pairs
+        :type items: Iterable(tuple)
         :param cull: If True, then empty entries in the top level index will be removed.
+        :type cull: boolean
         :return: None
         """
         for station, event_id in items:
@@ -241,44 +283,22 @@ class NetworkEventDataset:
         :param index_format: Format to use for index. Must be 'event' (default) or 'standard' (obspy default)
         :type index_format: str
         :return: True if file was written
+        :rtype: boolean
         """
         assert not os.path.exists(output_h5_filename), 'Output file already exists'
         if index_format not in ['event', 'standard']:
             raise ValueError('Index format %s not supported' % index_format)
         # end if
-        all = obspy.Stream()
+        all_stream = obspy.Stream()
         for sta, evid, stream in iter(self):
-            all += stream
+            all_stream += stream
         # end for
         if index_format == 'event':
-            write_h5_event_stream(output_h5_filename, all, mode='w')
+            write_h5_event_stream(output_h5_filename, all_stream, mode='w')
         elif index_format == 'standard':
-            all.write(output_h5_filename, format='H5', mode='w')
+            all_stream.write(output_h5_filename, format='H5', mode='w')
         # end if
         return os.path.isfile(output_h5_filename)
     # end func
 
 # end class
-
-
-if __name__ == "__main__":
-    # from seismic.stream_quality_filter import curate_stream3c
-    #
-    # src_file = (r"/g/data/ha3/am7399/shared/OA_RF_analysis/" +
-    #             r"OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5")
-    # test_db = NetworkEventDataset(src_file, network='OA', station='BT23', location='0M')
-    # print(len(test_db))
-    # print(test_db)
-    # for sta, _ in test_db.by_station():
-    #     print(sta)
-    # for evid, _ in test_db.by_event():
-    #     print(evid)
-    # test_db.prune((('BT23', 'smi:ISC/evid=615353118'),))
-    # for sta, evid, stream in test_db:
-    #     print(sta, evid)
-    # test_db.curate(lambda *x: curate_stream3c(x[1], x[2]))
-    # test_db.apply(lambda x: x.rotate('NE->RT'))
-    # print(len(test_db))
-    # print(test_db)
-    pass
-# end if

@@ -51,7 +51,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.coverage',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx_click.ext'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -217,6 +218,7 @@ autodoc_default_options = {
     'undoc-members': True
 }
 
+autoclass_content = 'both'
 
 # -- Setup for intersphinx -------------------------------------------------
 
@@ -227,5 +229,6 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org', None),
     'pandas': ('https://pandas.pydata.org/docs', None),
     'obspy': ('https://docs.obspy.org', None),
-    'h5py': ('https://docs.h5py.org/en/latest/', None)
+    'h5py': ('https://docs.h5py.org/en/stable/', None),
+    'requests': ('https://requests.readthedocs.io/en/stable', None)
 }

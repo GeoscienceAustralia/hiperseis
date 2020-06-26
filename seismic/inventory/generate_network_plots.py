@@ -3,6 +3,7 @@
 Load inventory file from hdf5 format and export station location plots to graphics files.
 
 Usage::
+
     python generate_network_plots.py inventory_20190206.h5
 
 where inventory_20190206.h5 here is an example file name.  The output folder for the

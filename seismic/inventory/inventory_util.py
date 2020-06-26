@@ -23,6 +23,7 @@ else:
     basestring = str  # pylint: disable=invalid-name
 # end if
 
+# pylint: disable=invalid-name
 
 NOMINAL_EARTH_RADIUS_KM = 6378.1370  # pylint: disable=invalid-name
 
@@ -36,8 +37,10 @@ Instrument = namedtuple("Instrument", ['sensor', 'response'])
 def load_station_xml(inventory_file):
     """Load a stationxml file
 
-    :param inventory_file: [description]
+    :param inventory_file: Name of stationxml file to load
     :type inventory_file: str or path
+    :return: Station inventory as Obspy Inventory
+    :rtype: obspy.core.inventory.inventory.Inventory
     """
     if PY2:
         import io
@@ -112,13 +115,13 @@ def extract_unique_sensors_responses(inv, req, show_progress=True, blacklisted_n
     response always be present.
 
     :param inv: Seismic station inventory
-    :type inv: obspy.Inventory
+    :type inv: obspy.core.inventory.inventory.Inventory
     :param req: Request object to use for URI query
     :type req: Object conforming to interface of 'requests' library
     :return: Python dict of (obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response)
         indexed by str representing channel code
     :rtype: {str: Instrument(obspy.core.inventory.util.Equipment, obspy.core.inventory.response.Response) }
-        where Instrument is a namedtuple("Instrument", ['sensor', 'response'])
+        where Instrument is a collections.namedtuple("Instrument", ['sensor', 'response'])
     """
     if blacklisted_networks is None:
         blacklisted_networks = []

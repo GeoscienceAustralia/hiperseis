@@ -7,6 +7,8 @@ import os
 import copy
 import stat
 
+# pylint: disable=invalid-name, unresolved-import
+
 try:
     import Tkinter as tk
 except ImportError:

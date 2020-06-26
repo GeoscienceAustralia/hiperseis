@@ -4,9 +4,9 @@ Bulk analysis script for analysing relative traveltime residuals from a pick ens
 for the purpose of identifying time periods of GPS clock error in specific stations.
 
 Example usage, which plots 7X.MA11 and 7X.MA12 residuals relative to all common events on
-AU network:
+AU network::
 
-``relative_tt_residuals_plotter.py --network1=AU --networks2=7X --stations2="MA11,MA12" /c/data_cache/Picks/20190320/ensemble.p.txt``
+    relative_tt_residuals_plotter.py --network1=AU --networks2=7X --stations2="MA11,MA12" /c/data_cache/Picks/20190320/ensemble.p.txt
 
 """
 

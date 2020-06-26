@@ -38,6 +38,7 @@ B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
 Proc. R. Soc. A. 475:20190352, http://dx.doi.org/10.1098/rspa.2019.0352
 
 Requires:
+
 - pyepsg
 - cartopy
 """

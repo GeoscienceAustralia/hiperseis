@@ -37,8 +37,8 @@ class ResponseFactory:
          objects, during which Response objects can be passed in as an argument.
       3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response
          information embedded
-      4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be ingested
-         by SeisComp3) using the fdsnxml2inv tool.
+      4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be
+         ingested by SeisComp3) using the fdsnxml2inv tool.
 
     PDCC tool: https://ds.iris.edu/ds/nodes/dmc/software/downloads/pdcc/
     """

@@ -27,13 +27,13 @@ def save_network_local_plots(df, plot_folder, progressor=None, include_stations_
     Save visual map plot per network, saved to file netcode.png.
 
     :param df: Dataframe of station records to save.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param plot_folder: Name of output folder
     :type plot_folder: str
     :param progressor: Progress bar functor to receive progress updates, defaults to None
-    :param progressor: Callable object receiving incremental update on progress, optional
+    :type progressor: Callable object receiving incremental update on progress, optional
     :param include_stations_list: If True, also export stationtxt file alongside each png file, defaults to True
-    :param include_stations_list: bool, optional
+    :type include_stations_list: bool, optional
     """
     dest_path = os.path.join(plot_folder, "networks")
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)
@@ -72,13 +72,13 @@ def save_station_local_plots(df, plot_folder, progressor=None, include_stations_
     Save visual map plot per station, saved to file netcode.stationcode.png.
 
     :param df: Dataframe of station records to save.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param plot_folder: Name of output folder
     :type plot_folder: str
     :param progressor: Progress bar functor to receive progress updates, defaults to None
-    :param progressor: Callable object receiving incremental update on progress, optional
+    :type progressor: Callable object receiving incremental update on progress, optional
     :param include_stations_list: If True, also export stationtxt file alongside each png file, defaults to True
-    :param include_stations_list: bool, optional
+    :type include_stations_list: bool, optional
     """
     dest_path = os.path.join(plot_folder, "stations")
     pathlib.Path(dest_path).mkdir(parents=True, exist_ok=True)

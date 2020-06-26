@@ -123,8 +123,8 @@ class FederatedASDFDataSet():
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         """
-        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
-        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param starttime: start time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
         :param network: network code (optional)
         :param station: station code (optional)
         :param location: location code (optional)
@@ -148,8 +148,8 @@ class FederatedASDFDataSet():
         :param station: station code
         :param location: location code
         :param channel: channel code
-        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
-        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param starttime: start time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
         :return: The number of streams containing waveform data over the time-range provided
         """
         return self.fds.get_waveform_count(network, station, location, channel,
@@ -164,12 +164,12 @@ class FederatedASDFDataSet():
         :param station: station code
         :param location: location code
         :param channel: channel code
-        :param starttime: start time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
-        :param endtime: end time string in UTCDateTime format; can also be an instance of Obspy UTCDateTime
+        :param starttime: start time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
         :param trace_count_threshold: returns an empty Stream if the number of traces within the time-range provided
                                       exceeds the threshold (default 200). This is particularly useful for filtering
                                       out data from bad stations, e.g. those from the AU.Schools network
-        :return: an Obspy Stream containing waveform data over the time-rage provided
+        :return: an obspy.Stream containing waveform data over the time-rage provided
         """
         s = self.fds.get_waveforms(network, station, location, channel, starttime,
                                    endtime, trace_count_threshold)
@@ -185,8 +185,7 @@ class FederatedASDFDataSet():
         function provides an iterator over the data allocated to a given processor. This functionality underpins
         parallel operations, e.g. picking arrivals.
 
-        :return: tuples containing [net, sta, start_time, end_time]; start- and end-times are instances of Obspy
-                 UTCDateTime
+        :return: tuples containing [net, sta, start_time, end_time]; start- and end-times are instances of obspy.UTCDateTime
         """
         for item in self.fds.local_net_sta_list():
             yield item
@@ -197,10 +196,12 @@ class FederatedASDFDataSet():
 # end class
 
 if __name__ == "__main__":
-    """ 
-    How to Run Example:  
-    python ASDFdatabase/FederatedASDFDataSet.py /Datasets/asdf_file_index.txt 
-    upon success, a db file will be created: /Datasets/f374ca9e7dd8abd2a1d58575e0d55520f30ffc23.db
+    """
+    How to Run Example::
+
+        python ASDFdatabase/FederatedASDFDataSet.py /Datasets/asdf_file_index.txt
+
+    Upon success, a db file will be created: /Datasets/f374ca9e7dd8abd2a1d58575e0d55520f30ffc23.db
     """
     import sys
     from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet

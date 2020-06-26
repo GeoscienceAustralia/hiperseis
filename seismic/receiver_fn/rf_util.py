@@ -34,7 +34,7 @@ def phase_weights(stream):
     Note: this function should not be applied to streams with mixed components.
 
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
-    :type stream: Iterable container of obspy.Traces
+    :type stream: Iterable container of obspy.Trace
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
@@ -64,7 +64,7 @@ def find_rf_group_ids(stream):
     the unique set of group ids that the traces contain.
 
     :param stream: Stream containing traces with rf_group ids associated with them.
-    :type stream: obspy.core.trace.Trace
+    :type stream: obspy.Stream
     :return: Set of rf_group ids found in the traces
     :rtype: set(int)
     """

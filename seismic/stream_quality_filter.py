@@ -27,8 +27,9 @@ def curate_stream3c(ev_id, stream3c, logger=None):
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: obspy.Stream
     :param logger: Logger in which to log messages
-    :type logger: logger.Logger object
+    :type logger: logging.Logger
     :return: True if checks pass, False otherwise
+    :rtype: bool
     """
 
     # Apply essential sanity checks before trying to compute RFs.

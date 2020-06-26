@@ -9,12 +9,13 @@ curates the data using heuristic rules, and exports new stations to FDSN
 station XML format network with non-empty, nominal instrument response data.
 
 Cleanup steps applied:
-* Removes "blacklisted" networks that add little value and cause problems due to station code conflicts.
-* Add default station dates where missing.
-* Make "future" station end dates consistent to max Pandas timestamp.
-* Remove records with illegal station codes.
-* Remove duplicate station records.
-* Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch.
+
+- Removes "blacklisted" networks that add little value and cause problems due to station code conflicts.
+- Add default station dates where missing.
+- Make "future" station end dates consistent to max Pandas timestamp.
+- Remove records with illegal station codes.
+- Remove duplicate station records.
+- Merge overlapping channel dates for given NET.STAT.CHAN to a single epoch.
 """
 
 # pylint: disable=too-many-locals, invalid-name
@@ -47,9 +48,6 @@ else:
     import io as sio  # pylint: disable=ungrouped-imports
     import pickle as pkl
 # end if
-
-print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
-print("Using obspy version {}".format(obspy.__version__))
 
 try:
     import tqdm
@@ -98,16 +96,16 @@ rt_timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
 
 def read_eng(fname):
     """
-    Read Engdahl STN file having the following format of fixed width formatted columns:
+    Read Engdahl STN file having the following format of fixed width formatted columns::
 
-    :: AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
-    :: AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
-    :: AAK   Ala Archa         Kyrgyzstan                         42.6390   74.4940      0.0   2005001  2286324  I
-    :: ABJI                                                       -7.7957  114.2342      0.0   2005001  2286324  I
-    :: APSI                                                       -0.9108  121.6487      0.0   2005001  2286324  I
-    :: AS01  Alice Springs Arra                                  -23.6647  133.9508      0.0   2005001  2286324  I
-    :: 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-    ::          10        20        30        40        50        60        70        80
+       AAI   Ambon             BMG, Indonesia, IA-Ne              -3.6870  128.1945      0.0   2005001  2286324  I
+       AAII                                                       -3.6871  128.1940      0.0   2005001  2286324  I
+       AAK   Ala Archa         Kyrgyzstan                         42.6390   74.4940      0.0   2005001  2286324  I
+       ABJI                                                       -7.7957  114.2342      0.0   2005001  2286324  I
+       APSI                                                       -0.9108  121.6487      0.0   2005001  2286324  I
+       AS01  Alice Springs Arra                                  -23.6647  133.9508      0.0   2005001  2286324  I
+       0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+                10        20        30        40        50        60        70        80
 
     Each Station Code (first column) might NOT be unique, and network codes are missing here, so all records are
     placed under 'GE' network.
@@ -115,7 +113,7 @@ def read_eng(fname):
     :param fname: STN file name to load
     :type fname: str
     :return: Pandas Dataframe containing the loaded data in column order of TABLE_COLUMNS.
-    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :rtype: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     # Intervals of column numbers delineating input fields.
     colspec = ((0, 6), (59, 67), (68, 77), (78, 86))
@@ -151,16 +149,16 @@ def reportUnpickleFail(filename):  # pragma: no cover
 
 def read_isc(fname, use_pickle=False):
     """
-    Read ISC station inventory having such format and convert to Pandas DataFrame:
+    Read ISC station inventory having such format and convert to Pandas DataFrame::
 
-    :: 109C     32.8892 -117.1100     0.0 2006-06-01 04:11:18 2008-01-04 01:26:30
-    :: 109C     32.8882 -117.1050   150.0 2008-01-04 01:26:30
-    ::              FDSN 109C   TA -- BHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
-    ::              FDSN 109C   TA -- LHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
-    ::              FDSN 109C   TA -- BHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
-    ::              FDSN 109C   TA -- LHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
-    :: 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-    ::           10        20        30        40        50        60        70        80
+       109C     32.8892 -117.1100     0.0 2006-06-01 04:11:18 2008-01-04 01:26:30
+       109C     32.8882 -117.1050   150.0 2008-01-04 01:26:30
+                    FDSN 109C   TA -- BHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
+                    FDSN 109C   TA -- LHZ 2004-05-04 23:00:00 2005-03-03 23:59:59
+                    FDSN 109C   TA -- BHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
+                    FDSN 109C   TA -- LHZ 2005-04-11 00:00:00 2006-01-25 22:31:10
+       0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+                 10        20        30        40        50        60        70        80
 
     The lines starting with a station code are HEADER rows, and provide the station coordinates.
     The idented lines starting with FDSN provide distinct station, network and channel data for the
@@ -198,6 +196,7 @@ def read_isc(fname, use_pickle=False):
         num_unique_stations = len(df['StationCode'].unique())
         print("{0}: {1} unique network codes, {2} unique station codes".format(fname, num_unique_networks,
                                                                                num_unique_stations))
+    # end func
 
     if use_pickle:  # pragma: no cover
         pkl_name = fname + ".pkl"
@@ -303,7 +302,7 @@ def remove_illegal_stationNames(df):
 
     :param df: Dataframe containing station records from which illegal station codes should be
         removed (modified in-place)
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     import re
     pattern = re.compile(r"^[a-zA-Z0-9]{1}[\w\-]{1,4}$")
@@ -327,19 +326,19 @@ def latlong_to_cosinedistance(latlong_deg_set1, latlong_deg_set2):
     This function performs an outer product and will produce matrix of size N0 x N1, where
     N0 is the number of rows in latlong_deg_set1 and N1 is the number of rows in latlong_deg_set2.
 
-    Returns np.ndarray containing cosines of angles between each pair of stations from
+    Returns numpy.ndarray containing cosines of angles between each pair of stations from
     the input arguments.
     If input is 1D, convert to 2D for consistency of matrix orientations.
 
     :param latlong_deg_set1: First set of numpy column vector of [latitude, longitude] positions in
         degrees
-    :type latlong_deg_set1: np.ndarray
+    :type latlong_deg_set1: numpy.array
     :param latlong_deg_set2: Second set of numpy column vector of [latitude, longitude] positions in
         degrees
-    :type latlong_deg_set2: np.ndarray
+    :type latlong_deg_set2: numpy.array
     :return: Array containing cosines of angles between each pair of stations from the input
         arguments.
-    :rtype: np.ndarray
+    :rtype: numpy.array
     """
     if len(latlong_deg_set1.shape) == 1:
         latlong_deg_set1 = np.reshape(latlong_deg_set1, (1, -1))
@@ -377,7 +376,7 @@ def compute_neighboring_station_matrix(df):
     of the returned matrix indicate the indices of adjacent, nearby stations.
 
     :param df: Dataframe containing station records.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :return: Sparse binary matrix having non-zero values at indices of neighboring stations.
     :rtype: scipy.sparse.csr_matrix
     """
@@ -407,7 +406,7 @@ def remove_duplicate_stations(df, neighbor_matrix):
         stations.
     :type neighbor_matrix: scipy.sparse.csr_matrix
     :return: Dataframe containing station records with identified duplicates removed.
-    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :rtype: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     assert len(df) == neighbor_matrix.shape[0]
     assert neighbor_matrix.shape[0] == neighbor_matrix.shape[1]
@@ -496,7 +495,7 @@ def populate_default_station_dates(df):
     Replace all missing channel start and end dates with their corresponding station/end dates.
 
     :param df: Dataframe in which to fill in missing station start and end dates.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     # Do it for both station dates AND channel dates, as seiscomp3 will treat empty dates as
     # overlapping other time intervals and discard records.
@@ -523,7 +522,7 @@ def merge_overlapping_channel_epochs(df):
     This function expects the input DataFrame to have a sequential integer index.
 
     :param df: Dataframe of station records in which to merge overlapping channel dates
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     if show_progress:
         pbar = tqdm.tqdm(total=len(df), ascii=True)
@@ -560,9 +559,9 @@ def cleanup_database(df):
     Main cleanup function encompassing the sequential data cleanup steps.
 
     :param df: Dataframe of station records to clean up
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :return: Cleaned up dataframe of station records
-    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :rtype: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     # Returns cleaned up df.
 
@@ -600,7 +599,7 @@ def write_portable_inventory(df, fname):
     Write the final database to re-usable file formats.
 
     :param df: Dataframe containing complete inventory of station records.
-    :type df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param fname: Base filename to export to. Output filename will be appended with
         file format extensions.
     :type fname: str
@@ -622,6 +621,8 @@ def main(iris_xml_file, stations_folder, output_directory, test_mode=False):
     :type iris_xml_file: str or pathlib.Path
     :param stations_folder: Path to folder containing STN files to process
     :type stations_folder: str or pathlib.Path
+    :param output_directory: Directory in which output inventory file(s) are saved
+    :type output_directory: str or pathlib.Path
     """
     if test_mode:
         use_pickle = False
@@ -674,6 +675,9 @@ def main(iris_xml_file, stations_folder, output_directory, test_mode=False):
 
 
 if __name__ == "__main__":
+    print("Using Python version {0}.{1}.{2}".format(*sys.version_info))
+    print("Using obspy version {}".format(obspy.__version__))
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--iris", help="Path to IRIS station xml database file.")
     parser.add_argument("-s", "--stations-path", help="Path to folder containing STN files.")

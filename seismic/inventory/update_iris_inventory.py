@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 """Automatically update IRIS-ALL.xml file from IRIS web portal.
 
-   Outout file is saved as FDSN station xml.
+   Output file is saved as FDSN station xml.
    Script also generates human readable form as IRIS-ALL.txt.
 
-   Example usages:
-   ---------------
+   Example usages::
 
-   `python update_iris_inventory.py`
-
-   `python update_iris_inventory.py -o outfile.xml`
-
-   `python update_iris_inventory.py --netmask=U* --statmask=K*`
-
-   `python update_iris_inventory.py --netmask=UW,LO --output outfile.xml`
+      python update_iris_inventory.py
+      python update_iris_inventory.py -o outfile.xml
+      python update_iris_inventory.py --netmask=U* --statmask=K*
+      python update_iris_inventory.py --netmask=UW,LO --output outfile.xml
 """
 
 import os
@@ -62,7 +58,7 @@ def update_iris_station_xml(req, output_file, options=None):
     :param output_file: Destination file to generate
     :type output_file: str
     :param options: Filtering options for network, station and channel codes, defaults to None
-    :param options: Python dict of key-values pairs matching command line options, optional
+    :type options: Python dict of key-values pairs matching command line options, optional
     """
     iris_url = form_channel_request_url() if options is None else form_channel_request_url(**options)
     # Download latest IRIS station database as FDSN station xml.
@@ -96,7 +92,7 @@ def repair_iris_metadata(iris):
     :param iris: Response to IRIS query request containing response text
     :type iris: requests.models.Response
     :return: The text from the response with known faulty data substituted with fixed data.
-    :rtype: str (Python 3) or unicode (Python 2)
+    :rtype: str
     """
 
     def repair_match(match):
@@ -129,7 +125,7 @@ def regenerate_human_readable(iris_data, outfile):
     from obspy import read_inventory
 
     if sys.version_info[0] < 3:
-        from cStringIO import StringIO as sio  # pylint: disable=import-error,unresolved-import
+        from cStringIO import StringIO as sio  # pylint: disable=import-error, unresolved-import
     else:
         from io import BytesIO as sio
     # end if

@@ -17,6 +17,8 @@ from seismic.receiver_fn.plot_ccp import run
 from seismic.units_utils import KM_PER_DEG
 
 
+# pylint: disable=invalid-name
+
 LEAD_INOUT_DIST_KM = 25.0
 
 
@@ -62,8 +64,8 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     if similarity_filter:
         data_dict = rf_util.rf_to_dict(rf_stream)
         rf_stream = rf.RFStream()
-        for sta, ch_dict in data_dict:
-            for cha, ch_traces in ch_dict.items():
+        for _sta, ch_dict in data_dict:
+            for _cha, ch_traces in ch_dict.items():
                 if len(ch_traces) >= 3:
                     # Use short time window that cuts off by 10 sec, since we're only interested in Ps phase here.
                     filtered_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=(-2, 10),
@@ -240,8 +242,8 @@ def gravity_subplot(hf, metadata, grav_map):
     plt.xticks(np.arange(0.0, xlim[1], tickstep_x), fontsize=12)
     plt.xlim(xlim)
     plt.ylabel('Gravity (mGal)')
-
 # end func
+
 
 @click.command()
 @click.option('--rf-file', type=click.Path(exists=True, dir_okay=False), required=True,

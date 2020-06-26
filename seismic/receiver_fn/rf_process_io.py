@@ -14,10 +14,10 @@ logging.basicConfig()
 
 def async_write(rfstream_queue, outfile_name, max_buffered=100, metadata=''):
     """Monitors asynchronous queue for data, removes from queue to buffer, then
-       flushes buffer intermittently and when queue termination signal is put.
+    flushes buffer intermittently and when queue termination signal is put.
 
-       When None is received on the queue, this is taken as the signal to terminate
-       monitoring the queue.
+    When None is received on the queue, this is taken as the signal to terminate
+    monitoring the queue.
 
     :param rfstream_queue: Queue into which RFStreams are pushed for writing to file.
     :type rfstream_queue: multiprocessing.Manager.Queue

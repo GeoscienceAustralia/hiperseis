@@ -21,7 +21,7 @@ def compute_hk_stack(cha_data, V_p=None, h_range=None,
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
-    :type cha_data: iterable(rf.RFTrace)
+    :type cha_data: Iterable(rf.RFTrace)
     :param V_p: P-wave velocity in crustal layer, defaults to None in which case it is inferred from trace metadata
     :type V_p: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
@@ -123,7 +123,7 @@ def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
     """Given stack components from function `compute_hk_stack`, compute the overall weighted stack.
 
     :param hk_components: H-k stack layers returned from `compute_hk_stack`
-    :type hk_components: np.array
+    :type hk_components: numpy.array
     :param weighting: Weightings for (t1, t2, t3) layers respectively, defaults to (0.5, 0.5, 0.0)
     :type weighting: tuple, optional
     :return: Weighted stack in H-k space
@@ -136,6 +136,16 @@ def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
 
 
 def infer_Vp_from_traces(cha_data, log=None):
+    """
+    Infer the Vp value used in earth model for computing trace stats.
+
+    :param cha_data: Iterable of traces for a given event (e.g. obspy.Stream or rf.RFStream)
+    :type cha_data: Iterable(obspy.Stream) or Iterable(rf.RFStream)
+    :param log: Logging instance to log messages
+    :type log: logging.Logger
+    :return: Vp value
+    :rtype: float
+    """
     # Determine the internal V_p consistent with the trace ray parameters and inclinations.
     V_p_values = []
     for tr in cha_data:
@@ -156,6 +166,23 @@ def infer_Vp_from_traces(cha_data, log=None):
 
 
 def compute_theoretical_phase_times(tr, H, k, V_p, include_t3=True):
+    """
+    Compute arrival times of Ps, PpPs and (PpSs + PsPs) phases relative to primary P-wave arrival time
+    for an assume Moho depth H, velocity ratio *k* = V<sub>p</sub>/V<sub>s</sub>, and p-wave velocity V<sub>p</sub>.
+
+    :param tr: Trace for which to compute the theoretical phase arrival times
+    :type tr: obspy.Trace or rf.RFTrace
+    :param H: Presumed Moho depth (km)
+    :type H: float
+    :param k: Presumed velocity ratio *k* (dimensionless)
+    :type k: float
+    :param V_p: Presumed p-wave velocity (km/sec)
+    :type V_p: float
+    :param include_t3: Flag whether or not to compute t<sub>3</sub> value (i.e. (PpSs + PsPs) arrival time)
+    :type include_t3: bool
+    :return: Triplet of phase arrival times (t1, t2, t3). t3 is None if include_t3 is False.
+    :rtype: tuple(float, float, float)
+    """
     incl_deg = tr.stats.inclination
     incl_rad = np.deg2rad(incl_deg)
     sin_i = np.sin(incl_rad)

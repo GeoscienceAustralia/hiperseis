@@ -44,14 +44,6 @@ seismic.ASDFdatabase.create\_small\_chunks module
    :undoc-members:
    :show-inheritance:
 
-seismic.ASDFdatabase.make\_field\_notesDB module
-------------------------------------------------
-
-.. automodule:: seismic.ASDFdatabase.make_field_notesDB
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 seismic.ASDFdatabase.plot\_data\_quality module
 -----------------------------------------------
 

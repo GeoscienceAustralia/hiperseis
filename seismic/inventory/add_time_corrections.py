@@ -12,15 +12,15 @@ Developer:
 
 import os
 import sys
+
 from obspy import read_inventory
-from obspy import Inventory
-from obspy.core.inventory import Network
 from obspy.core.util import AttribDict
 
 
 def get_csv_correction_data(path_csvfile):
     """
     Read in the csv data from an input file, get the network_code, station_code, csv_data. Format::
+
         $ head 7D.DE43_clock_correction.csv
         net,sta,date,clock_correction
         7D,DE43,2012-11-27,1.0398489013215846

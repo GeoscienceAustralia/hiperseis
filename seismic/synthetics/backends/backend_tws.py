@@ -13,8 +13,15 @@ from seismic.model_properties import LayerProps
 from seismic.units_utils import KM_PER_DEG
 from seismic.stream_processing import zne_order
 
+# pylint: disable=invalid-name
+
 
 def synthesizer():
+    """Getter for backend Synthesizer class
+
+    :return: Class name
+    :rtype: SynthesizerMatrixPropagator
+    """
     return SynthesizerMatrixPropagator
 # end func
 
@@ -31,6 +38,7 @@ class SynthesizerMatrixPropagator(Synthesizer):
 
         :param station_latlon: See documentation for :func:`~seismic.synthetics.backends.synthesizer_base.Synthesizer.synthesize`
         :param layerprops: List of LayerProps. Last layer should be mantle properties.
+        :type layerprops: list(seismic.model_properties.LayerProps)
         """
         super().__init__(station_latlon)
         Vp = [layer.Vp for layer in layerprops]
@@ -43,7 +51,11 @@ class SynthesizerMatrixPropagator(Synthesizer):
 
     @property
     def kappa(self):
-        # Return ratio of Vp/Vs for each layer
+        """Return ratio of Vp/Vs for each layer
+
+        :return: *k* value per layer
+        :rtype: numpy.array
+        """
         return self._kappa
     # end func
 
