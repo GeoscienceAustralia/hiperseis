@@ -23,9 +23,9 @@ def _dataframe_to_station(statcode, station_df, instrument_register=None):
     :param statcode: Station code
     :type statcode: str
     :param station_df: Dataframe containing records for a single station code.
-    :type station_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type station_df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
+    :type instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :return: Station object containing the station information from the dataframe
     :rtype: obspy.core.inventory.station.Station
@@ -76,12 +76,12 @@ def dataframe_to_network(netcode, network_df, instrument_register, progressor=No
     :param netcode: Network code
     :type netcode: str
     :param network_df: Dataframe containing records for a single network code.
-    :type network_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type network_df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param instrument_register: Dictionary of nominal instrument responses indexed by channel code, defaults to None
-    :param instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
+    :type instrument_register: dict of {str, Instrument(obspy.core.inventory.util.Equipment,
         obspy.core.inventory.response.Response)}, optional
     :param progressor: Progress bar functor to receive progress updates, defaults to None
-    :param progressor: Callable object receiving incremental update on progress, optional
+    :type progressor: Callable object receiving incremental update on progress, optional
     :return: Network object containing the network information from the dataframe
     :rtype: obspy.core.inventory.network.Network
     """
@@ -102,7 +102,7 @@ def dataframe_to_fdsn_station_xml(inventory_df, nominal_instruments, filename, s
     """Export dataframe of station metadata to FDSN station xml file
 
     :param inventory_df: Dataframe containing all the station records to export.
-    :type inventory_df: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :type inventory_df: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     :param nominal_instruments: Dictionary mapping from channel code to nominal instrument
         characterization
     :type nominal_instruments: {str: Instrument(obspy.core.inventory.util.Equipment,
@@ -136,10 +136,10 @@ def inventory_to_dataframe(inv_object, show_progress=True):
     :param inv_object: Obspy inventory object to convert to dataframe
     :type inv_object: obspy.core.inventory.inventory.Inventory
     :param show_progress: Whether to use a progress bar, defaults to True
-    :param show_progress: bool, optional
+    :type show_progress: bool, optional
     :return: Pandas Dataframe with sequential integer index and sorted by [NetworkCode, StationCode].
         Only populates entries for non-empty channels.
-    :rtype: pandas.DataFrame conforming to table_format.TABLE_SCHEMA
+    :rtype: pandas.DataFrame conforming to seismic.inventory.table_format.TABLE_SCHEMA
     """
     if show_progress:
         import tqdm

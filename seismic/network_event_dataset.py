@@ -51,9 +51,11 @@ class NetworkEventDataset:
         :param location: [OPTIONAL] Location code of streams to load. Leave as default (empty string) \
             if location code is empty in the data source.
         :type location: str
-        :param ordering: a
+        :param ordering: Channel ordering to be applied to the data after loading. The channel labelling \
+            must be consistent with the requested ordering - rotation to the coordinate system implied \
+            by the ordering is *NOT* applied.
         :type ordering: str
-        :raises: AssertionError: If discrepant network code is found in input data
+        :raises AssertionError: If discrepant network code is found in input data
         """
         if isinstance(stream_src, obspy.Stream):
             net = network

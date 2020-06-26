@@ -5,6 +5,7 @@ Helper functions for making and managing web queries to IRIS web service.
 
 import re
 import sys
+
 if sys.version_info[0] < 3:
     import cStringIO as sio  # pylint: disable=import-error,unresolved-import
 else:
@@ -18,11 +19,11 @@ def form_channel_request_url(netmask="*", statmask="*", chanmask="*"):
     with the given filters applied to network codes, station codes and channel codes.
 
     :param netmask: Pattern of network codes to match, comma separated with wildcards, defaults to "*"
-    :param netmask: str, optional
+    :type netmask: str, optional
     :param statmask: Pattern of station codes to match, comma separated with wildcards, defaults to "*"
-    :param statmask: str, optional
+    :type statmask: str, optional
     :param chanmask: Pattern of channel codes to match, comma separated with wildcards, defaults to "*"
-    :param chanmask: str, optional
+    :type chanmask: str, optional
     :return: Fully formed URL to perform IRIS query and get back FDSN station XML result.
     :rtype: str
     """
@@ -40,11 +41,11 @@ def form_response_request_url(netmask, statmask, chanmask):
     for the given network, station and channel codes.
 
     :param netmask: Pattern of network codes to match, comma separated with wildcards
-    :param netmask: str, optional
+    :type netmask: str, optional
     :param statmask: Pattern of station codes to match, comma separated with wildcards
-    :param statmask: str, optional
+    :type statmask: str, optional
     :param chanmask: Pattern of channel codes to match, comma separated with wildcards
-    :param chanmask: str, optional
+    :type chanmask: str, optional
     :return: Fully formed URL to perform IRIS query and get back FDSN station XML result.
     :rtype: str
     """

@@ -24,6 +24,9 @@ from seismic.stream_processing import zrt_order, back_azimuth_filter
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster, DEFAULT_CLUSTER_EPS
 
 
+# pylint: disable=invalid-name
+
+
 # Custom logging format to add timestamps to each output line.
 LOG_FORMAT = {'fmt': '%(asctime)s %(levelname)-8s %(message)s',
               'datefmt': '%Y-%m-%d %H:%M:%S'}

@@ -12,11 +12,14 @@ import subprocess
 import tempfile
 
 import click
-from seismic.inventory.response import ResponseFactory
 from obspy import read_inventory
+
+from seismic.inventory.response import ResponseFactory
 
 sc3_converter_app = "fdsnxml2inv"
 sc3_converter_options = ("--quiet", "--formatted")
+
+# pylint: disable=invliad-name
 
 
 def toSc3ml(src_path, dst_path, response_fdsnxml=None):
