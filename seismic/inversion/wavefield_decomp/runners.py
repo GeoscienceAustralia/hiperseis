@@ -689,7 +689,14 @@ def run_station(config_file, waveform_file, network, station, location, logger):
 # end func
 
 
-@click.command()
+@click.group()
+def main():
+    """Main dispatch function to click sub-commands.
+    """
+# end func
+
+
+@main.command(name='single-job')
 @click.argument('config_file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
@@ -750,7 +757,7 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
 # end func
 
 
-@click.command()
+@main.command(name='batch-job')
 @click.argument('config_file', type=click.File('r'), required=True)
 @click.option('--waveform-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help='Event waveform source file for seismograms, generated using extract_event_traces.py script')
@@ -843,15 +850,6 @@ def mpi_job(config_file, waveform_file, output_file):
 # end func
 
 
-@click.group()
-def main():
-    """Main dispatch function to click sub-commands.
-    """
-# end func
-
-
 if __name__ == '__main__':
-    main.add_command(mpi_job, name='batch-job')
-    main.add_command(station_job, name='single-job')
     main()
 # end if
