@@ -40,9 +40,12 @@ def run_mcmc(waveform_data, config, logger):
     Top level runner function for MCMC solver on SU flux minimization for given settings.
 
     :param waveform_data: Iterable container of obspy.Stream objects.
+    :type waveform_data: iterable(obspy.Stream)
     :param config: Dict of job settings. See example files for fields and format of settings.
+    :type config: dict
     :param logger: Log message receiver. Optional, pass None for no logging.
     :return: Solution object based on scipy.optimize.OptimizeResult
+    :rtype: scipy.optimize.OptimizeResult
     """
 
     # Create flux computer
@@ -156,11 +159,16 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 
     :param model: Per-layer model values (the vector being solved for) as flat array of
         (H, Vs) value pairs ordered by layer.
+    :type model: list(tuple(float, float))
     :param obj_fn: Callable to WfContinuationSuFluxComputer to compute SU flux.
     :param mantle: Mantle properties stored in class LayerProps instance.
+    :type mantle: seismic.model_properties.LayerProps
     :param Vp: Array of Vp values ordered by layer.
+    :type Vp: numpy.array
     :param rho: Arroy of rho values ordered by layer.
+    :type rho: numpy.array
     :param flux_window: Pair of floats indicating the time window over which to perform SU flux integration
+    :type flux_window: tuple or list of 2 floats
     :return: Integrated SU flux energy at top of mantle
     """
     num_layers = len(model)//2
@@ -179,10 +187,13 @@ def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
     Curation function to remove bad data from streams. Note that this function
     will modify the input dataset during curation.
 
-    :param data_all: NetworkEventDataset containing seismograms to curate.
+    :param data_all: NetworkEventDataset containing seismograms to curate. Data will be modified by this function.
+    :type data_all: seismic.network_event_dataset.NetworkEventDataset
     :param curation_opts: Dict containing curation options.
+    :type curation_opts: dict
     :param logger: Logger for emitting log messages
     :param rotate_to_zrt: Whether to automatically rotate to ZRT coords.
+    :type rotate_to_zrt: bool
     :return: None, curation operates directly on data_all
     """
 
@@ -339,7 +350,9 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
     :param input_file: Name of input file. Saved to job node for traceability
     :param output_file: Name of output file to create
     :param job_timestamp: Job timestamp that will be used to generate the top level job group
+    :type job_timestamp: str
     :param job_tracking: Dict containing job identification information for traceability
+    :type job_tracking: dict
     :param logger: [OPTIONAL] Log message destination
     :return: None
     """
@@ -438,8 +451,10 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
 
     :param h5_file: File from which to load solution
     :param job_timestamp: Timestamp of job whose solution is to be loaded
+    :type job_timestamp: str
     :param logger: Output logging instance
     :return: (solution, job configuration), job timestamp
+    :rtype: (solution, dict), str
     """
     assert isinstance(job_timestamp, (str, type(None)))
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
@@ -658,10 +673,11 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     """
     CLI dispatch function for single station. See help strings for option documentation.
 
-    Example usage:\n
+    Example usage::
+
         python runners.py single-job example_config.json \
---waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
---network OA --station CD23 --location 0M --output-file out_test.h5
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --network OA --station CD23 --location 0M --output-file out_test.h5
 
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
@@ -714,10 +730,11 @@ def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
 
-    Example MPI usage:\n
+    Example MPI usage::
+
         mpiexec -n 8 python runners.py batch-job example_batch.json \
---waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
---output-file test_batch_output.h5
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --output-file test_batch_output.h5
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
