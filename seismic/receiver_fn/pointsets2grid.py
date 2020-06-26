@@ -66,9 +66,10 @@ def main(config_file, output_file):
     Source data coordinates are assumed to be in lon/lat (WGS84).
     First 2 rows of output file contain grid dimensions, followed by CSV data.
 
-    Example usage:
-    python pointsets2grid.py --config-file config_pts2grid_example.json \
-        --output-file test_pts2grid.csv
+    Example usage::
+
+        python pointsets2grid.py --config-file config_pts2grid_example.json \
+            --output-file test_pts2grid.csv
 
     :param config_file: Input filename of the job configuration in JSON format
     :param output_file: Name of output file

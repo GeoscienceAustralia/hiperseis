@@ -28,10 +28,6 @@ seismic.inversion.wavefield\_decomp.runners module
    :undoc-members:
    :show-inheritance:
 
-.. click:: seismic.inversion.wavefield_decomp.runners:main
-   :prog: runners
-   :show-nested:
-
 seismic.inversion.wavefield\_decomp.solvers module
 --------------------------------------------------
 

@@ -189,7 +189,7 @@ def optimize_minimize_mhmcmc_cluster(objective, bounds, args=(), x0=None, T=1, N
 
     :param objective: Objective function to minimize. Takes unpacked args as function call arguments and returns
         a float.
-    :type objective: Callable(*args) -> float
+    :type objective: Callable(\*args) -> float
     :param bounds: Bounds of the parameter space.
     :type bounds: scipy.optimize.Bounds
     :param args: Any additional fixed parameters needed to completely specify the objective function.

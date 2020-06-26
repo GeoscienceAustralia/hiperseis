@@ -1,5 +1,4 @@
 sphinx>=3.1
-sphinx-click
 ordered-set
 numpy>=1.16.4
 pandas>=1.0.1

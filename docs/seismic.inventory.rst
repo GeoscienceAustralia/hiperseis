@@ -52,9 +52,6 @@ seismic.inventory.inventory\_merge module
    :undoc-members:
    :show-inheritance:
 
-.. click:: seismic.inventory.inventory_merge:main
-   :prog: inventory_merge
-
 seismic.inventory.inventory\_split module
 -----------------------------------------
 
