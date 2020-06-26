@@ -4,10 +4,10 @@
 Objective function minimization solvers.
 """
 
-import numpy as np
 import copy
 import time
 
+import numpy as np
 from tqdm.auto import tqdm
 from scipy.optimize import OptimizeResult
 from sortedcontainers import SortedList

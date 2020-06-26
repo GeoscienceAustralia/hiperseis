@@ -17,13 +17,21 @@ def plot_Esu_space(H, k, Esu, title=None, savefile_name=None, show=True, c_range
     Plot SU energy as function of H-k.
 
     :param H: Grid of H coordinates corresponding to Esu point values.
+    :type H: numpy.array
     :param k: Grid of k coordinates corresponding to Esu point values.
+    :type k: numpy.array
     :param Esu: Energy values on H-k grid.
+    :type Esu: numpy.array
     :param title: Plot title [OPTIONAL]
+    :type title: str
     :param savefile_name: Output file in which to save plot [OPTIONAL]
+    :type savefile_name: str
     :param show: If True, display the image and block until it is closed.
+    :type show: bool
     :param c_range: Custom range of Esu to contour (min, max values)
+    :type c_range: tuple(float, float)
     :param decorator: Callback function to customize plot.
+    :type decorator: Callable
     :return: None
     """
     colmap = 'plasma'
