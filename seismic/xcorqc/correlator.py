@@ -139,12 +139,12 @@ def process(data_source1, data_source2, output_path,
             envelope_normalize=False, ensemble_stack=False, restart=False, dry_run=False,
             no_tracking_tag=False):
     """
-    DATA_SOURCE1: Text file containing paths to ASDF files \n
-    DATA_SOURCE2: Text file containing paths to ASDF files \n
-    OUTPUT_PATH: Output folder \n
-    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
-    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
+    :param data_source1: Text file containing paths to ASDF files
+    :param data_source2: Text file containing paths to ASDF files
+    :param output_path: Output folder
+    :param interval_seconds: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day
+    :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. interval_seconds must be a multiple of \
+                    window_seconds; no stacking is performed if they are of the same size.
     """
     read_buffer_size *= interval_seconds
     if(os.path.exists(netsta_list1)):
@@ -479,13 +479,13 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, dry_run, no_tracking_tag):
     """
-    DATA_SOURCE1: Text file containing paths to ASDF files \n
-    DATA_SOURCE2: Text file containing paths to ASDF files \n
-    OUTPUT_PATH: Output folder \n
-    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
-    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS \n
-    WINDOW_OVERLAP: Window overlap fraction; e.g. 0.1 for 10% overlap
+    :param data_source1: Text file containing paths to ASDF files
+    :param data_source2: Text file containing paths to ASDF files
+    :param output_path: Output folder
+    :param interval_seconds: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day
+    :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of \
+                    window_seconds
+    :param window_overlap: Window overlap fraction; e.g. 0.1 for 10% overlap
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
@@ -501,16 +501,17 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
 # end func
 
 if __name__ == '__main__':
-    '''
-    Example call
-    process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
-            nearest_neighbours=5,
-            start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
-            read_buffer_size=1,
-            ds1_dec_factor=1, ds2_dec_factor=1,
-            fmin=0.01, fmax=10.0,
-            clip_to_2std=True,
-            one_bit_normalize=True)
-    '''
+    """
+    Example call::
+
+        process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
+                nearest_neighbours=5,
+                start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
+                read_buffer_size=1,
+                ds1_dec_factor=1, ds2_dec_factor=1,
+                fmin=0.01, fmax=10.0,
+                clip_to_2std=True,
+                one_bit_normalize=True)
+    """
     main()  # pylint: disable=no-value-for-parameter
 # end if

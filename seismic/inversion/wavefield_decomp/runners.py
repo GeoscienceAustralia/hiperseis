@@ -24,7 +24,7 @@ from seismic.stream_processing import zrt_order, back_azimuth_filter
 from seismic.inversion.wavefield_decomp.solvers import optimize_minimize_mhmcmc_cluster, DEFAULT_CLUSTER_EPS
 
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, logging-format-interpolation
 
 
 # Custom logging format to add timestamps to each output line.
@@ -42,10 +42,14 @@ def run_mcmc(waveform_data, config, logger):
     """
     Top level runner function for MCMC solver on SU flux minimization for given settings.
 
-    :param waveform_data: Iterable container of obspy.Stream objects.
+    :param waveform_data: Collection of waveform data to process
+    :type waveform_data: Iterable obspy.Stream objects
     :param config: Dict of job settings. See example files for fields and format of settings.
+    :type config: dict
     :param logger: Log message receiver. Optional, pass None for no logging.
+    :type logger: logging.Logger or NoneType
     :return: Solution object based on scipy.optimize.OptimizeResult
+    :rtype: scipy.optimize.OptimizeResult with additional custom attributes
     """
 
     # Create flux computer
@@ -148,7 +152,6 @@ def run_mcmc(waveform_data, config, logger):
     # end if
 
     return soln
-
 # end func
 
 
@@ -159,11 +162,16 @@ def mcmc_solver_wrapper(model, obj_fn, mantle, Vp, rho, flux_window):
 
     :param model: Per-layer model values (the vector being solved for) as flat array of
         (H, Vs) value pairs ordered by layer.
+    :type mode: numpy.array
     :param obj_fn: Callable to WfContinuationSuFluxComputer to compute SU flux.
     :param mantle: Mantle properties stored in class LayerProps instance.
+    :type mantle: seismic.model_properties.LayerProps
     :param Vp: Array of Vp values ordered by layer.
-    :param rho: Arroy of rho values ordered by layer.
+    :type Vp: numpy.array
+    :param rho: Array of rho values ordered by layer.
+    :type rho: numpy.array
     :param flux_window: Pair of floats indicating the time window over which to perform SU flux integration
+    :type flux_window: (float, float)
     :return: Integrated SU flux energy at top of mantle
     """
     num_layers = len(model)//2
@@ -183,9 +191,13 @@ def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
     will modify the input dataset during curation.
 
     :param data_all: NetworkEventDataset containing seismograms to curate.
+    :type data_all: seismic.network_event_dataset.NetworkEventDataset
     :param curation_opts: Dict containing curation options.
+    :type curation_opts: dict
     :param logger: Logger for emitting log messages
+    :type logger: logging.Logger
     :param rotate_to_zrt: Whether to automatically rotate to ZRT coords.
+    :type rotate_to_zrt: bool
     :return: None, curation operates directly on data_all
     """
 
@@ -336,14 +348,20 @@ def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
 
 def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job_tracking, logger=None):
     """
-    Save solution to HDF5 file.
+    Save solution to HDF5 file. In general soln_configs will be an ensemble of per-station solutions.
 
     :param soln_configs: List of (solution, configuration) pairs to save (one per station).
-    :param input_file: Name of input file. Saved to job node for traceability
+    :type soln_configs: list((solution, dict))
+    :param input_file: Name of input file used for the job. Saved to job node for traceability
+    :type input_file: str
     :param output_file: Name of output file to create
+    :type output_file: str or pathlib.Path
     :param job_timestamp: Job timestamp that will be used to generate the top level job group
+    :type job_timestamp: str
     :param job_tracking: Dict containing job identification information for traceability
+    :type job_tracking: dict or dict-like
     :param logger: [OPTIONAL] Log message destination
+    :type logger: logging.Logger
     :return: None
     """
     assert isinstance(soln_configs, list)
@@ -351,10 +369,17 @@ def save_mcmc_solution(soln_configs, input_file, output_file, job_timestamp, job
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
 
     def write_data_empty(dataset):
+        """
+        Write dataset that might be empty. If empty, return h5py.Empty('f').
+        See also function `read_data_empty`.
+        """
         return h5py.Empty('f') if dataset is None else dataset
     # end func
 
     def write_list_dataset(dest_node, list_of_data):
+        """Write list to a datase node (dict), storing item sequence index so that it can
+        be later restored back to an ordered list. See also function `read_list_dataset`.
+        """
         for idx, ds in enumerate(list_of_data):
             dest_node[str(idx)] = ds
         # end for
@@ -440,9 +465,13 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
     """Load Monte Carlo Markov Chain solution from HDF5 file.
 
     :param h5_file: File from which to load solution
+    :type h5_file: str or pathlib.Path
     :param job_timestamp: Timestamp of job whose solution is to be loaded
+    :type job_timestamp: str or NoneType
     :param logger: Output logging instance
+    :type logger: logging.Logger
     :return: (solution, job configuration), job timestamp
+    :rtype: (solution, dict), str
     """
     assert isinstance(job_timestamp, (str, type(None)))
     # TODO: migrate this to member of a new class for encapsulating an MCMC solution
@@ -450,9 +479,12 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
     def read_data_empty(dataset):
         """
         Read dataset that might be empty. If empty, return None.
+        See also function `write_data_empty`.
 
         :param dataset: The h5py.Dataset node to read.
+        :type dataset: h5py.Dataset
         :return: Dataset value or None
+        :rtype: numpy.array or NoneType
         """
         if not dataset.shape:
             value = None
@@ -463,6 +495,9 @@ def load_mcmc_solution(h5_file, job_timestamp=None, logger=None):
     # end func
 
     def read_list_dataset(source_node):
+        """Read list from a datase node containing ordered collection of items.
+        See also function `write_list_dataset`.
+        """
         list_data = []
         for idx, ds in source_node.items():
             list_data.append((int(idx), ds.value))
@@ -576,13 +611,20 @@ def run_station(config_file, waveform_file, network, station, location, logger):
     The output file is in HDF5 format. The configuration details are added to the output file for traceability.
 
     :param config_file: Config filename specifying job settings
-    :param waveform_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
+    :type config_file: dict
+    :param waveform_file: Event waveform source file for seismograms, generated using `extract_event_traces.py` script
+    :type waveform_file: str or pathlib.Path
     :param network: Network code of station to analyse
+    :type network: str
     :param station: Station code to analyse
+    :type station: str
     :param location: Location code of station to analyse. Can be '' (empty string) if not set.
+    :type location: str
     :param logger: Output logging instance
+    :type logger: logging.Logger
     :return: Pair containing (solution, configuration) containers. Configuration will have additional traceability
         information.
+    :rtype: (solution, dict)
     """
     with open(config_file, 'r') as cf:
         config = json.load(cf)
@@ -661,10 +703,11 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     """
     CLI dispatch function for single station. See help strings for option documentation.
 
-    Example usage:\n
+    Example usage::
+
         python runners.py single-job example_config.json \
---waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
---network OA --station CD23 --location 0M --output-file out_test.h5
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --network OA --station CD23 --location 0M --output-file out_test.h5
 
     :param config_file: JSON file containing job configuration parameters.
     :type config_file: str or pathlib.Path
@@ -679,6 +722,7 @@ def station_job(config_file, waveform_file, network, station, location='', outpu
     :param output_file: Name of the output file in which solutions should be saved
     :type output_file: str or pathlib.Path
     :return: Integer status code
+    :rtype: int
     """
     job_timestamp = str(datetime.now())
 
@@ -717,10 +761,11 @@ def mpi_job(config_file, waveform_file, output_file):
     """
     CLI dispatch function for MPI run over batch of stations. See help strings for option documentation.
 
-    Example MPI usage:\n
+    Example MPI usage::
+
         mpiexec -n 8 python runners.py batch-job example_batch.json \
---waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
---output-file test_batch_output.h5
+        --waveform-file /g/data/ha3/am7399/shared/OA_RF_analysis/OA_event_waveforms_for_rf_20170911T000036-20181128T230620_rev8.h5 \
+        --output-file test_batch_output.h5
 
     :param config_file: JSON file containing batch configuration parameters.
     :type config_file: str or pathlib.Path
@@ -729,12 +774,13 @@ def mpi_job(config_file, waveform_file, output_file):
     :param output_file: Name of the output file in which solutions should be saved
     :type output_file: str or pathlib.Path
     :return: Integer status code
+    :rtype: int
     """
 
     from mpi4py import MPI
 
     comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()  # TODO: Use this to more intelligently split the jobs across available processors
+    # nproc = comm.Get_size()  # TODO: Use this to more intelligently split the jobs across available processors
     rank = comm.Get_rank()
 
     job_timestamp = comm.bcast(str(datetime.now()), root=0)
@@ -799,7 +845,8 @@ def mpi_job(config_file, waveform_file, output_file):
 
 @click.group()
 def main():
-    pass
+    """Main dispatch function to click sub-commands.
+    """
 # end func
 
 

@@ -28,7 +28,7 @@ class SynthesizerSyngine(Synthesizer):
 
     To write resultant stream to HDF5 format, add 'ignore' option::
 
-        `synth_stream.write('test_synth.h5', 'h5', ignore=('mseed',))`
+        synth_stream.write('test_synth.h5', 'h5', ignore=('mseed',))
 
     """
 

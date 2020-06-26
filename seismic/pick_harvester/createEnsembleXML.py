@@ -61,7 +61,7 @@ def setup_logger(name, log_file, level=logging.INFO):
 # end func
 
 class Origin:
-    __slots__ = 'utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list'
+    __slots__ = ['utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list']
 
     def __init__(self, utctime, lat, lon, depthkm):
         self.utctime = utctime
@@ -74,7 +74,7 @@ class Origin:
 # end class
 
 class Event:
-    __slots__ = 'public_id', 'preferred_origin', 'preferred_magnitude', 'origin_list'
+    __slots__ = ['public_id', 'preferred_origin', 'preferred_magnitude', 'origin_list']
 
     def __init__(self):
         self.public_id = None
@@ -85,7 +85,7 @@ class Event:
 # end class
 
 class Magnitude:
-    __slots__ = 'magnitude_value', 'magnitude_type'
+    __slots__ = ['magnitude_value', 'magnitude_type']
 
     def __init__(self, mag, mag_type):
         self.magnitude_value = mag
@@ -94,7 +94,7 @@ class Magnitude:
 # end class
 
 class Arrival:
-    __slots__ = 'net', 'sta', 'loc', 'cha', 'lon', 'lat', 'elev', 'phase', 'utctime', 'distance'
+    __slots__ = ['net', 'sta', 'loc', 'cha', 'lon', 'lat', 'elev', 'phase', 'utctime', 'distance']
 
     def __init__(self, net, sta, loc, cha, lon, lat, elev, phase, utctime, distance):
         self.net = net

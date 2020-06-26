@@ -9,7 +9,8 @@ This code adapted from Christian Sippl's original code.
 Workflow:
     extract_event_traces.py --> generate_rf.py --> rf_quality_filter.py --> plot_ccp.py (this script)
 
-Example usage:
+Example usage::
+
     python seismic/receiver_fn/plot_ccp.py --start-latlon -19.5 133.0 --end-latlon -19.5 140.0 --width 120 \
         --channels T --stacked-scale 0.3 --title "Network OA CCP T-stacking (profile BS24-CF24)" \
         /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-cleaned.h5 \

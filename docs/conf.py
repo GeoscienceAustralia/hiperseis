@@ -51,7 +51,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.coverage',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx_click.ext'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

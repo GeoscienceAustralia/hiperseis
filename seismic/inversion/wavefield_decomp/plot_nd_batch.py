@@ -259,7 +259,7 @@ def main(solution_file, output_file):
 
     Example usage::
 
-        `python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5`
+        python seismic/inversion/wavefield_decomp/plot_nd_batch.py --output-file OA_wfd_out.pdf OA_wfd_out.h5
 
     :param solution_file: Input solution filename
     :type solution_file: str or pathlib.Path
