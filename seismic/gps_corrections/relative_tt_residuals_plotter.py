@@ -256,9 +256,13 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
                 plt_file = os.path.join(subfolder, '_'.join([ref_code, net_code]) + '_' +
                                         ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
-                plt.close()
             else:  # pragma: no cover
                 plt.show()
+            # end if
+            plt.close()
+        else:
+            log.warning("No values to plot for {}".format(ref_code))
+        # end if
     # end plot_dataset
 
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
