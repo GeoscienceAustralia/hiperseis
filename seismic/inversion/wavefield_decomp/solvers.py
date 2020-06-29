@@ -29,10 +29,22 @@ class SolverGlobalMhMcmc:
 
     Rather than returning one global solution, the solver returns the N best ranked local solutions.
     It also returns a probability distribution of each unknown based on Monte Carlo statistics.
-
     """
+
     # TODO: Migrate free functions and classes into this solver class.
     #  But keep free function optimize_minimize_mhmcmc_cluster() for user convenience.
+    # Copied from ticket PV-149 description:
+    #
+    # Two code cleanup tasks to bring code in module seismic/inversion up to best practice and modular design:
+    #
+    #     In solver.py:
+    #     o Migrate relevant free functions into the SolverGlobalMhMCMC class.
+    #     o Improve documentation on classes.
+    #     o Add unit testing for modular classes HistogramIncremental, BoundedRandNStepper and AdaptiveStepsize
+    #     o Factor out separate class for the MCMC solution, derived from scipy.optimize.OptimizationResult
+    #
+    #     In runners.py:
+    #     o Move save_mcmc_solution() free function into member method of new MCMC solution class
     pass
 # end class
 
