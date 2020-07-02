@@ -35,7 +35,7 @@ def split_inventory_by_network(obspy_inv, output_folder, validate=False):
     :param obspy_inv: Obspy Inventory containing the networks to export to file.
     :type obspy_inv: obspy.core.inventory.inventory.Inventory
     :param output_folder: Folder in which to output the per-network XML files. Will be created if doesn't yet exist.
-    :type output_folder: str or Path
+    :type output_folder: str or pathlib.Path
     :param validate: Whether to validate the station data on write, defaults to False
     :type validate: bool, optional
     """

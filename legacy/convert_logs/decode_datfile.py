@@ -133,7 +133,7 @@ def decode_fwv(fp, bytes):
     outcome, block = get_block(fp, bytes)
     if outcome >= 1:
         log.debug("FWV: Firmware Version    :{}".format(block))
-        return outcome, block
+        return outcome, block.decode('utf_8')
     else:
         return outcome, None
 
@@ -255,55 +255,55 @@ def try_recover_file(fp, x1):
         outcome, block = get_block(fp, 1)
         if outcome < 1:
             return outcome
-        if block[0] == 'B':
+        if block == b'B':
             outcome, block = get_block(fp, 2)
             if outcome < 1:
                 return outcome
-            if block[0] == 'S' and block[1] == 'N':
+            if block == b'SN':
                 valid_code = 1
-        elif block[0] == 'U':
+        elif block == b'U':
             outcome, block = get_block(fp, 2)
             if outcome < 1:
                 return outcome
-            if block[0] == 'D' and block[1] == 'F':
+            if block == b'DF':
                 valid_code = 1
-        elif block[0] == 'G':
+        elif block == b'G':
             outcome, block = get_block(fp, 2)
             if outcome < 1:
                 return outcome
-            if block[0] == 'P' and block[1] == 'S':
+            if block == b'PS':
                 valid_code = 1
-        elif block[0] == 'F':
+        elif block == b'F':
             outcome, block = get_block(fp, 2)
             if outcome < 0:
                 return outcome
-            if block[0] == 'W' and block[1] == 'V':
+            if block == b'WV':
                 valid_code = 1
-        elif block[0] == 'S':
+        elif block == b'S':
             outcome, block = get_block(fp, 1)
             if outcome < 1:
                 return -1
-            if block[0] == 'P':
+            if block == b'P':
                 outcome, block = get_block(fp, 1)
                 if outcome < 1:
                     return outcome
-                if block[0] == 'R':
+                if block == b'R':
                     valid_code = 1
-            elif block[0] == 'M':
+            elif block == b'M':
                 outcome, block = get_block(fp, 2)
                 if outcome < 0:
                     return outcome
-                if block[0] == 'S' or block[0] == 'M':
+                if block[:1] == b'S' or block[:1] == b'M':
                     valid_code = 1
-        elif block[0] == 'R':
+        elif block == b'R':
             outcome, block = get_block(fp, 1)
             if outcome < 1:
                 return outcome
-            if block[0] == 'C':
+            if block == b'C':
                 outcome, block = get_block(fp, 1)
                 if outcome < 1:
                     return outcome
-                if block[0] == 'S' or block[0] == 'E':
+                if block == b'S' or block == b'E':
                     valid_code = 1
     fp.seek(-3, 1)
     return (10)
@@ -312,11 +312,11 @@ def try_recover_file(fp, x1):
 def cal_median_value(mylist):
     loclist = sorted(mylist)
     if len(loclist) % 2 == 1:  # odd num of values
-        val_lower = loclist[(len(loclist) + 1) / 2 - 1]
+        val_lower = loclist[(len(loclist) + 1) // 2 - 1]
         val_upper = val_lower
     else:
-        val_lower = loclist[len(loclist) / 2 - 1]
-        val_upper = loclist[len(loclist) / 2]
+        val_lower = loclist[len(loclist) // 2 - 1]
+        val_upper = loclist[len(loclist) // 2]
     return val_lower, val_upper
 
 
@@ -344,15 +344,15 @@ def test_fileformat_start(fp):
     mseedheader = 1
     blk = fp.read(20)
     if len(blk) < 20:
-        log.warning("Failed to read first 20 chars")
+        log.warning("Failed to read first 20 bytes")
         mseedheader = -1
         return mseedheader, recstring
-    recstring = str(blk[0:5])
+    recstring = blk[:5].decode('utf_8')
     if not recstring.isdigit():
         mseedheader = 0
-    if not blk[6] == 'D':
+    if not blk[6] == b'D':
         mseedheader = 0
-    if not blk[7] == ' ':
+    if not blk[7] == b' ':
         mseedheader = 0
     # rewind the file
     fp.seek(0, 0)
@@ -458,7 +458,7 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
     if os.path.isfile(datfile):
         log.info('Converting {datfile} to json/dict'.format(
             datfile=os.path.split(datfile)[1]))
-        datfile = open(datfile, 'r')
+        datfile = open(datfile, 'rb')
 
     gps_update_failed = 0
     bad_str_id = 0
@@ -508,7 +508,7 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
         (ids) = struct.unpack('3s', block[0:3])
         id_str = ids[0]
 
-        if str(id_str) == 'BSN':
+        if id_str == b'BSN':
             recoder_restarted_pos.append(file_postion)
             if not (flagmarker & 0x0001):
                 log.debug("Seedyear was {year}. To change use -y year "
@@ -524,7 +524,7 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
                 gps_update_failed = 0
                 fault = 'RECORDER RESTARTED OR EXCHANGED'
                 log.debug("**** {} *******************".format(fault))
-            outcome, out_d[id_str] = decode_bsn(datfile, 4)
+            outcome, out_d[id_str.decode('utf_8')] = decode_bsn(datfile, 4)
 
             if outcome < 1:
                 decode_message(outcome, 4)
@@ -532,65 +532,65 @@ def decode_anulog(datfile, bad_gps=False, id_str=False, gps_update=False,
             loop_counter = 0
             flagmarker = set_bit(flagmarker, 0)
 
-        elif id_str == 'SPR':
+        elif id_str == b'SPR':
             flagmarker = set_bit(flagmarker, 2)
-            outcome, out_d[id_str] = decode_spr(datfile, 4)
+            outcome, out_d[id_str.decode('utf_8')] = decode_spr(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
 
-        elif id_str == 'SMM':
+        elif id_str == b'SMM':
             flagmarker = set_bit(flagmarker, 3)
-            outcome, out_d[id_str] = decode_smm(datfile, 4)
+            outcome, out_d[id_str.decode('utf_8')] = decode_smm(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
 
-        elif id_str == 'FWV':
+        elif id_str == b'FWV':
             flagmarker = set_bit(flagmarker, 1)
-            outcome, out_d[id_str] = decode_fwv(datfile, 22)
+            outcome, out_d[id_str.decode('utf_8')] = decode_fwv(datfile, 22)
             if outcome < 1:
                 decode_message(outcome, 22)
                 break
             loop_counter = 0
 
-        elif id_str == 'SMS':
+        elif id_str == b'SMS':
             flagmarker = set_bit(flagmarker, 4)
-            outcome, out_d[id_str] = decode_sms(datfile, 4)
+            outcome, out_d[id_str.decode('utf_8')] = decode_sms(datfile, 4)
             if outcome < 1:
                 decode_message(outcome, 4)
                 break
             loop_counter = 0
 
-        elif id_str == 'RCS':
+        elif id_str == b'RCS':
             flagmarker = set_bit(flagmarker, 5)
-            outcome, out_d[id_str] = decode_rcs(datfile, 24)
+            outcome, out_d[id_str.decode('utf_8')] = decode_rcs(datfile, 24)
 
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             loop_counter = 0
 
-        elif id_str == 'RCE':
+        elif id_str == b'RCE':
             flagmarker = set_bit(flagmarker, 6)
-            outcome, out_d[id_str] = decode_rce(datfile, 24)
+            outcome, out_d[id_str.decode('utf_8')] = decode_rce(datfile, 24)
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             loop_counter = 0
 
-        elif id_str == 'UDF':
+        elif id_str == b'UDF':
             flagmarker = set_bit(flagmarker, 7)
-            outcome, out_d[id_str] = decode_udf(datfile, 24)
+            outcome, out_d[id_str.decode('utf_8')] = decode_udf(datfile, 24)
             if outcome < 1:
                 decode_message(outcome, 24)
                 break
             gps_update_failed = gps_update_failed + 1
             loop_counter = 0
 
-        elif id_str == 'GPS':
+        elif id_str == b'GPS':
             flagmarker = set_bit(flagmarker, 8)
             strtime, mylat, mylng, myalt, float_time, clock, battery, temp, \
             good_gps_count, bad_gps_count = \

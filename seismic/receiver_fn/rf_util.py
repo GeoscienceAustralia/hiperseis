@@ -10,13 +10,13 @@ import numpy as np
 from scipy import signal
 from scipy.signal import hilbert
 
+import obspy
 import rf
 
+from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 
 # pylint: disable=invalid-name, logging-format-interpolation
-
-KM_PER_DEG = 111.1949
 
 logging.basicConfig()
 
@@ -31,11 +31,15 @@ def phase_weights(stream):
 
     See https://doi.org/10.1111/j.1365-246X.1997.tb05664.x
 
+    Note: this function should not be applied to streams with mixed components.
+
     :param stream: Stream containing one or more traces from which phase coherence weightings will be generated.
-    :type stream: obspy.core.stream.Stream
+    :type stream: Iterable container of obspy.Trace
     :return: Array of normalized weighting factors with same length as traces in stream.
     :rtype: numpy.array
     """
+    assert_homogenous_stream(stream, phase_weights.__name__)
+
     traces = np.array([tr.data for tr in stream])
     # Hilbert transform to separate complex amplitude from complex phase.
     analytic = hilbert(traces)
@@ -52,6 +56,7 @@ def phase_weights(stream):
     # Return normalized result against max amplitude, so that the most coherent part of the signal
     # has a scaling of 1.
     return tphase/np.max(tphase)
+# end func
 
 
 def find_rf_group_ids(stream):
@@ -59,13 +64,14 @@ def find_rf_group_ids(stream):
     the unique set of group ids that the traces contain.
 
     :param stream: Stream containing traces with rf_group ids associated with them.
-    :type stream: obspy.core.trace.Trace
+    :type stream: obspy.Stream
     :return: Set of rf_group ids found in the traces
     :rtype: set(int)
     """
     # AttributeError may be raised here if rf_group attribute does not exist in the stats.
     group_ids = set((trace.stats.rf_group for trace in stream))
     return group_ids
+# end func
 
 
 def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
@@ -86,6 +92,7 @@ def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
     logger = logging.getLogger(__name__)
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
+        group = root
     elif network and station:
         group = root + '/{}.{}.{}'.format(network.upper(), station.upper(), loc.upper())
     else:
@@ -94,6 +101,7 @@ def read_h5_rf(src_file, network=None, station=None, loc='', root='/waveforms'):
 
     rf_data = rf.read_rf(src_file, format='h5', group=group)
     return rf_data
+# end func
 
 
 def rf_to_dict(rf_data):
@@ -106,6 +114,7 @@ def rf_to_dict(rf_data):
     :rtype: seismic.receiver_fn.rf_network_dict.NetworkRFDict
     """
     return NetworkRFDict(rf_data)
+# end func
 
 
 def signed_nth_root(arr, order):
@@ -123,6 +132,7 @@ def signed_nth_root(arr, order):
         return arr.copy()
     else:
         return np.sign(arr)*np.power(np.abs(arr), 1.0/order)
+# end func
 
 
 def signed_nth_power(arr, order):
@@ -140,6 +150,7 @@ def signed_nth_power(arr, order):
         return arr
     else:
         return np.sign(arr)*np.power(np.abs(arr), order)
+# end func
 
 
 def filter_station_streams(db_station, freq_band=(None, None)):
@@ -165,6 +176,7 @@ def filter_station_streams(db_station, freq_band=(None, None)):
     # end for
 
     return db_station_filt
+# end func
 
 
 def filter_station_to_mean_signal(db_station, min_correlation=1.0):
@@ -203,6 +215,7 @@ def filter_station_to_mean_signal(db_station, min_correlation=1.0):
     # end for
 
     return db_station_filt, corrs
+# end func
 
 
 def compute_extra_rf_stats(stream):
@@ -231,10 +244,11 @@ def compute_extra_rf_stats(stream):
         tr.stats.log10_amp_20pc = log10_amp_20pc
         tr.stats.log10_amp_80pc = log10_amp_80pc
     # end for
+# end func
 
 
 def compute_vertical_snr(src_stream):
-    """Compute the SNR of the Z component (Z before rotation or deconvolution)
+    """Compute the SNR of the Z component (Z before deconvolution)
     including the onset pulse (key 'snr_prior'). Stores results in metadata of input stream traces.
     This SNR is a ratio of max envelopes.
 
@@ -243,10 +257,19 @@ def compute_vertical_snr(src_stream):
     energy in the L component. For simplicity we compute it on Z-component only which is a reasonable
     estimate for teleseismic events.
 
-    :param src_stream: Seismic traces before rotation of raw stream.
-    :type src_stream: rf.RFStream
+    :param src_stream: Seismic traces before RF deconvolution of raw stream.
+    :type src_stream: rf.RFStream or obspy.Stream
     """
     logger = logging.getLogger(__name__)
+
+    if isinstance(src_stream, rf.RFStream):
+        slice2 = lambda s, w: s.slice2(*w, reftime='onset')
+    elif isinstance(src_stream, obspy.Stream):
+        slice2 = lambda s, w: s.slice(w[0] if w[0] is None else s[0].stats.onset - w[0],
+                                      w[1] if w[1] is None else s[0].stats.onset + w[1])
+    else:
+        assert False, "NYI"
+    # end if
 
     def _set_nan_snr(stream):
         md_dict = {'snr_prior': np.nan}
@@ -260,7 +283,7 @@ def compute_vertical_snr(src_stream):
     # Compute max envelope amplitude from onset onwards relative to max envelope before onset.
     PRIOR_PICK_SIGNAL_WINDOW = (-5.0, 25.0)
     PRIOR_NOISE_SIGNAL_WINDOW = (None, -5.0)
-    pick_signal = src_stream.copy().slice2(*PRIOR_PICK_SIGNAL_WINDOW, reftime='onset')
+    pick_signal = slice2(src_stream.copy(), PRIOR_PICK_SIGNAL_WINDOW)
     pick_signal = pick_signal.taper(0.5, max_length=0.5)
     pick_signal = np.array([tr.data for tr in pick_signal])
     if len(pick_signal.shape) == 1:
@@ -272,7 +295,7 @@ def compute_vertical_snr(src_stream):
     # end if
     pick_signal = np.absolute(signal.hilbert(pick_signal, axis=1))
 
-    noise = src_stream.copy().slice2(*PRIOR_NOISE_SIGNAL_WINDOW, reftime='onset')
+    noise = slice2(src_stream.copy(), PRIOR_NOISE_SIGNAL_WINDOW)
     # Taper the slices so that the result is not overly affected by the phase of the signal at the ends.
     noise = noise.taper(0.5, max_length=0.5)
     noise = np.array([tr.data for tr in noise])
@@ -295,6 +318,7 @@ def compute_vertical_snr(src_stream):
             tr.stats.update(md_dict)
         # end for
     # end if
+# end func
 
 
 def compute_rf_snr(rf_stream):
@@ -345,6 +369,7 @@ def compute_rf_snr(rf_stream):
             tr.stats.update(md_dict)
         # end for
     # end if
+# end func
 
 
 def choose_rf_source_channel(rf_type, db_station):
@@ -358,24 +383,37 @@ def choose_rf_source_channel(rf_type, db_station):
     :rtype: str
     """
     if rf_type[0:3].upper() == 'ZRT':
-        prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR']
+        prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR', '**R']
+        fallback = 'R'
     elif rf_type[0:3].upper() == 'LQT':
-        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ']
+        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ', '**Q']
+        fallback = 'Q'
     else:
         prospective_channels = []
+        fallback = None
     # end if
     best_channel = None
     for c in prospective_channels:
         if c in db_station:
             best_channel = c
             break
+        # end if
     # end for
+    if best_channel is None:
+        for c in db_station.keys():
+            if c[-1] == fallback:
+                best_channel = c
+                break
+            # end if
+        # end for
+    # end if
     return best_channel
+# end func
 
 
 def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
     """Add RF quality label for a collection of RFs based on simple amplitude criteria computed by
-    quality filter script.
+    quality filter script.  Adds quality label in-place.
 
     :param rf_type: The RF rotation type, should be either 'ZRT' or 'LQT'
     :type rf_type: str
@@ -418,9 +456,10 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
             # end if
         # end for
     # end if
+# end func
 
 
-def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15):
+def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, min_fraction=0.15, apply_moveout=False):
     """For each trace in the stream, compute its correlation coefficient with the other traces.
     Return only traces matching cross correlation coefficient criteria based on C.Sippl (2016)
     [see http://dx.doi.org/10.1016/j.tecto.2016.03.031]
@@ -435,14 +474,30 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     :param min_fraction: Minimum fraction of coefficients above threshold_cc, defaults to 0.15.
         Denoted tau in Sippl, who used value 0.15.
     :type min_fraction: float, optional
+    :param apply_moveout: Whether to apply moveout correction to Ps phase prior to computing
+        correlation coefficients.
+    :type apply_moveout: bool
     :return: Filtered stream of RF traces
     :rtype: rf.RFStream
     """
-    # TODO: Check expected condition that intput data represents only **a single component of a single station**
+    assert_homogenous_stream(rf_stream, filter_crosscorr_coeff.__name__)
+
+    # Early exit if we don't have enough traces for similarity filtering to be meaningful.
+    if len(rf_stream) < 3:
+        return rf_stream
+    # end if
 
     # Trim good RFs to time range so that subsequent cross-correlation computations relate to the
     # relevant period around and after onset.
     data_cc = rf_stream.copy().trim2(*time_window, reftime='onset')
+    if not data_cc:
+        return data_cc
+    # end if
+
+    # Apply optional moveout
+    if apply_moveout:
+        data_cc.moveout()
+    # end if
     # Gather all RFs into a single array for efficient computation of correlation coefficients
     # between all traces
     data_array = np.array([tr.data for tr in data_cc])
@@ -454,19 +509,4 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     keep_trace_mask = (fraction_above_threshold >= min_fraction)
     kept_data = rf.RFStream([tr for i, tr in enumerate(rf_stream) if keep_trace_mask[i]])
     return kept_data
-
-
-def zne_order(tr):
-    """Channel ordering sort key function
-
-    :param tr: Trace whose ordinal is to be determined.
-    :type tr: RFTrace
-    :return: Numeric index indicated ZNE sort order of traces in a stream
-    """
-    trace_ordering = {'Z': 0, 'N': 1, 'E': 2}
-    component = tr.stats.channel[-1].upper()
-    if component in trace_ordering:
-        return trace_ordering[component]
-    else:
-        return 3
 # end func

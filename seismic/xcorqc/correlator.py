@@ -2,9 +2,11 @@
 """
 Description:
     Generates cross-correlations for data from staion-pairs in parallel
+
 References:
 
 CreationDate:   11/07/18
+
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
@@ -17,16 +19,17 @@ import glob
 from collections import defaultdict
 from math import sqrt
 
+from ordered_set import OrderedSet as set
 import numpy as np
 from scipy.spatial import cKDTree
+import random
 import click
-
+import re
 from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from obspy import UTCDateTime, read_inventory, Inventory
 from obspy.geodetics.base import gps2dist_azimuth
 
-from seismic.ASDFdatabase.seisds import SeisDB
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
 
@@ -133,18 +136,23 @@ def process(data_source1, data_source2, output_path,
             one_bit_normalize=False, read_buffer_size=10,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, restart=False, no_tracking_tag=False):
+            envelope_normalize=False, ensemble_stack=False, restart=False, dry_run=False,
+            no_tracking_tag=False):
     """
-    DATA_SOURCE1: Text file containing paths to ASDF files \n
-    DATA_SOURCE2: Text file containing paths to ASDF files \n
-    OUTPUT_PATH: Output folder \n
-    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
-    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
+    :param data_source1: Text file containing paths to ASDF files
+    :param data_source2: Text file containing paths to ASDF files
+    :param output_path: Output folder
+    :param interval_seconds: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day
+    :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. interval_seconds must be a multiple of \
+                    window_seconds; no stacking is performed if they are of the same size.
     """
     read_buffer_size *= interval_seconds
-    netsta_list1 = str(netsta_list1)
-    netsta_list2 = str(netsta_list2)
+    if(os.path.exists(netsta_list1)):
+        netsta_list1 = ' '.join(open(netsta_list1).readlines()).replace('\n', ' ').strip()
+    # end if
+    if(os.path.exists(netsta_list2)):
+        netsta_list2 = ' '.join(open(netsta_list2).readlines()).replace('\n', ' ').strip()
+    # end if
 
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
@@ -238,7 +246,22 @@ def process(data_source1, data_source2, output_path,
             pairs = cull_pairs(pairs, pairs_to_compute)
         # end if
 
+        # print out station-pairs for dry runs
+        if(dry_run):
+            print('Computing %d station-pairs: '%(len(pairs)))
+            for pair in pairs:
+                print('.'.join(pair))
+            # end for
+        # end if
+
+        random.Random(nproc).shuffle(pairs) # using nproc as seed so that shuffle produces the same
+                                            # ordering when jobs are restarted.
         proc_stations = split_list(pairs, npartitions=nproc)
+    # end if
+
+    if(dry_run):
+        # nothing more to do for dry runs
+        return
     # end if
 
     # broadcast workload to all procs
@@ -274,12 +297,40 @@ def process(data_source1, data_source2, output_path,
         netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
         netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
 
+        def evaluate_channels(cha1, cha2):
+            result = []
+            for netsta, cha, ds in zip((netsta1, netsta2), (cha1, cha2), (ds1, ds2)):
+                if('*' not in cha1):
+                    result.append(cha)
+                else:
+                    cha = cha.replace('*', '.*')  # hack to capture simple regex comparisons
+
+                    net, sta = netsta.split('.')
+                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
+                    for item in stations:
+                        if(re.match(cha, item[3])):
+                            result.append(item[3])
+                            break
+                        # end if
+                    # end if
+                # end if
+            # end for
+
+            return result
+        # end func
+
         corr_chans = []
-        if   (corr_chan == 'z'): corr_chans = [ds1_zchan, ds2_zchan]
-        elif (corr_chan == 'n'): corr_chans = [ds1_nchan, ds2_nchan]
-        elif (corr_chan == 'e'): corr_chans = [ds1_echan, ds2_echan]
+        if   (corr_chan == 'z'): corr_chans = evaluate_channels(ds1_zchan, ds2_zchan)
+        elif (corr_chan == 'n'): corr_chans = evaluate_channels(ds1_nchan, ds2_nchan)
+        elif (corr_chan == 'e'): corr_chans = evaluate_channels(ds1_echan, ds2_echan)
         elif (corr_chan == 't'): corr_chans = ['00T', '00T']
         else: raise ValueError('Invalid corr-chan')
+
+        if(len(corr_chans)<2):
+            print(('Either required channels are not found for station %s or %s, '
+                   'or no overlapping data exists..')%(netsta1, netsta2))
+            continue
+        # end if
 
         baz_netsta1 = None
         baz_netsta2 = None
@@ -332,15 +383,17 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--taper-length', default=0.05, help="Taper length as a fraction of window length; default 0.05")
 @click.option('--nearest-neighbours', default=-1, help="Number of nearest neighbouring stations in data-source-2"
                                                        " to correlate against a given station in data-source-1. If"
-                                                       " set to -1, correlations for a cross-product of all stations"
+                                                       " set to -1, correlations for a cartesian product of all stations"
                                                        " in both data-sets are produced -- note, this is computationally"
                                                        " expensive.")
 @click.option('--fmin', default=None, help="Lowest frequency for bandpass filter; default is None")
 @click.option('--fmax', default=None, help="Highest frequency for bandpass filter; default is None")
 @click.option('--station-names1', default='*', type=str,
-              help="Station name(s) (space-delimited) to process in data-source-1; default is '*', which processes all available stations.")
+              help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
+                   "process in data-source-1; default is '*', which processes all available stations.")
 @click.option('--station-names2', default='*', type=str,
-              help="Station name(s) (space-delimited) to process in data-source-2; default is '*', which processes all available stations.")
+              help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
+                   "process in data-source-2; default is '*', which processes all available stations.")
 @click.option('--pairs-to-compute', default=None, type=click.Path('r'),
               help="Text file containing station pairs (NET.STA.NET.STA) for which cross-correlations are to be computed."
                    "Note that this parameter is intended as a way to restrict the number of computations to only the "
@@ -367,7 +420,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "to a certain cut-off value. Note, this parameter has no effect if instrument"
                    "response correction is not performed.")
 @click.option('--clip-to-2std', is_flag=True,
-              help="Clip data in each window to +/- 2 standard deviations")
+              help="Clip data in each window to +/- 2 standard deviations. Note that the default time-domain normalization "
+                   "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
 @click.option('--whitening-window-frequency', type=float, default=0,
@@ -376,15 +430,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "implies no smoothing of weights. Note that this parameter has no effect unless whitening is activated with "
                    "'--whitening'")
 @click.option('--one-bit-normalize', is_flag=True,
-              help="Apply one-bit normalization to data in each window")
+              help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
+                   "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--read-buffer-size', default=10,
               type=int,
               help="Data read buffer size; default is 10 x 'interval_seconds'. This parameter allows fetching data in bulk,"
                    " which can improve efficiency, but has no effect on the results produced")
 @click.option('--ds1-zchan', default='BHZ',
               type=str,
-              help="Name of z-channel for data-source-1. This parameter and the ones following are only required when "
-                   "channel names are ambiguous, e.g. ['HHZ', u'HYZ', u'HNZ', u'MFZ']")
+              help="Name of z-channel for data-source-1. This parameter and the five following are required to "
+                   "specify channel names for the stations being cross-correlated. Simple wildcards, e.g. '*Z', are "
+                   "also supported -- this is particularly useful when cross-correlating pairs of short-period and "
+                   "broadband channels")
 @click.option('--ds1-nchan', default='BHN',
               type=str,
               help="Name of n-channel for data-source-1")
@@ -412,21 +469,23 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                      "single CC function, aimed at producing empirical Greens "
                                                      "functions for surface wave tomography.")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
+@click.option('--dry-run', default=False, is_flag=True, help='Dry run for printing out station-pairs and '
+                                                             'additional stats.')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
          window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
          station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
          water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, restart, no_tracking_tag):
+         ensemble_stack, restart, dry_run, no_tracking_tag):
     """
-    DATA_SOURCE1: Path to ASDF file \n
-    DATA_SOURCE2: Path to ASDF file \n
-    OUTPUT_PATH: Output folder \n
-    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day \n
-    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of
-                    WINDOW_SECONDS; no stacking is performed if they are of the same size.
-    WINDOW_OVERLAP: Window overlap fraction
+    :param data_source1: Text file containing paths to ASDF files
+    :param data_source2: Text file containing paths to ASDF files
+    :param output_path: Output folder
+    :param interval_seconds: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day
+    :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of \
+                    window_seconds
+    :param window_overlap: Window overlap fraction; e.g. 0.1 for 10% overlap
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
@@ -438,20 +497,21 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
             water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, restart, no_tracking_tag)
+            ensemble_stack, restart, dry_run, no_tracking_tag)
 # end func
 
 if __name__ == '__main__':
-    '''
-    Example call
-    process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
-            nearest_neighbours=5,
-            start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
-            read_buffer_size=1,
-            ds1_dec_factor=1, ds2_dec_factor=1,
-            fmin=0.01, fmax=10.0,
-            clip_to_2std=True,
-            one_bit_normalize=True)
-    '''
+    """
+    Example call::
+
+        process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
+                nearest_neighbours=5,
+                start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
+                read_buffer_size=1,
+                ds1_dec_factor=1, ds2_dec_factor=1,
+                fmin=0.01, fmax=10.0,
+                clip_to_2std=True,
+                one_bit_normalize=True)
+    """
     main()  # pylint: disable=no-value-for-parameter
 # end if

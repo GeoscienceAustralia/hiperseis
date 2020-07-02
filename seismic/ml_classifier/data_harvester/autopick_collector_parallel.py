@@ -1,11 +1,8 @@
 #Parallelised autopick harvester. We have like a million picks so this is the only way to go about it
 import sys
-sys.path.append('/g/data1a/ha3/rakib/seismic/pst/passive-seismic')
-from ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from autopicks import pickLoaderRand
 
-
-
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.ml_classifier.data_harvester.autopicks import pickLoaderRand
 
 
 from obspy.clients.fdsn.client import Client
@@ -19,7 +16,7 @@ pl=pickLoaderRand(fds,ic)
 import multiprocessing as mp
 
 nproc=mp.cpu_count()
-print nproc
+print(nproc)
 def lockInit(l):
     global lock
     lock=l

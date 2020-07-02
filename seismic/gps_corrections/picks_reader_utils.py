@@ -47,9 +47,12 @@ def read_picks_ensemble(csv_file):
 
     :param csv_file: Input file containing picks ensemble
     :type csv_file: str or path
+    :return: Pandas dataframe containing picks data
+    :rtype: pandas.DataFrame
     """
     df_raw_picks = pd.read_csv(csv_file, r'\s+', header=0, dtype=PICKS_TABLE_SCHEMA)
     return df_raw_picks
+# end func
 
 
 def get_network_stations(df, netcode):
@@ -64,6 +67,7 @@ def get_network_stations(df, netcode):
     :rtype: list(str)
     """
     return sorted(df[df['net'] == netcode]['sta'].unique().tolist())
+# end func
 
 
 def get_network_location_mean(df, netcode):
@@ -94,6 +98,7 @@ def get_network_location_mean(df, netcode):
         return (mean_lat, mean_lon)
     else:
         return (np.nan, np.nan)
+# end func
 
 
 def get_network_date_range(df, netcode):
@@ -115,6 +120,7 @@ def get_network_date_range(df, netcode):
         return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
     else:
         return (None, None)
+# end func
 
 
 def get_station_date_range(df, netcode, statcode):
@@ -140,6 +146,7 @@ def get_station_date_range(df, netcode, statcode):
         return (obspy.UTCDateTime(min_date), obspy.UTCDateTime(max_date))
     else:
         return (None, None)
+# end func
 
 
 def compute_matching_network_mask(df, net_dict):
@@ -165,6 +172,7 @@ def compute_matching_network_mask(df, net_dict):
     for n, s in zip(net_dict['net'], net_dict['sta']):
         mask = (mask | ((_df['net'] == n) & (_df['sta'] == s)))
     return mask
+# end func
 
 
 def get_overlapping_date_range(df, network_1, network_2):
@@ -217,6 +225,7 @@ def get_overlapping_date_range(df, network_1, network_2):
                 obspy.UTCDateTime(df_masked['originTimestamp'].max()))
 
     return (None, None)
+# end func
 
 
 def generate_large_events_catalog(df_picks, min_magnitude=8.0, min_record_count=400, label_historical_events=True):
@@ -266,3 +275,4 @@ def generate_large_events_catalog(df_picks, min_magnitude=8.0, min_record_count=
         significant_events.loc['2016-08-24', 'name'] = '2016 Myanmar earthquake'
 
     return significant_events
+# end func

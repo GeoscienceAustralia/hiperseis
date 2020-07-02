@@ -105,14 +105,14 @@ def main(argv):
     catalogue=[]
     our_xml=Inventory(networks=[],source='EHB')
 
-    for i in xrange(ehb.shape[0]):
+    for i in range(ehb.shape[0]):
                  filed=False
                  xml=False
                  stn_found=isc[isc[:,0]==ehb[i,0],:]
                  min_dist=10e10
                  if stn_found.shape[0]>0:
                        if stn_found.shape[0]>1:
-                           for j in xrange(stn_found.shape[0]):
+                           for j in range(stn_found.shape[0]):
                               dist=locations2degrees(np.float(stn_found[j,2]),np.float(stn_found[j,3]),np.float(ehb[i,1]),np.float(ehb[i,2]))
                               if dist < min_dist:
                                  min_dist=dist
@@ -137,7 +137,7 @@ def main(argv):
 #                        print "----------",len(xstn_found)
 #                        print xstn_found[0][0].latitude
                          min_dist=min_dist+0.1
-                         for j in xrange(len(xstn_found)):
+                         for j in range(len(xstn_found)):
                              dist=locations2degrees(xstn_found[j][0].latitude,xstn_found[j][0].longitude,np.float(ehb[i,1]),np.float(ehb[i,2]))
                              if min_dist > dist:
                                  min_dist=dist
@@ -164,7 +164,7 @@ def main(argv):
 
                         stn_found=isc[(isc[:,0]==record[0]) & (isc[:,1]==record[1]),:]
 
-                        for k in xrange(stn_found.shape[0]):
+                        for k in range(stn_found.shape[0]):
                                     net=Network(code=stn_found[k,1],stations=[],description=' ')
                                     if len(stn_found[k,7]) < 5:
                                            stn_found[k,7]='2599-12-31 23:59:59'
@@ -175,11 +175,11 @@ def main(argv):
 
     stn_found=np.unique(np.array(catalogue),axis=0)
     if len(stn_found[stn_found==''])>0 or len(stn_found[stn_found==' '])>0:
-              print "Some elements are empty, check the list"
+              print ("Some elements are empty, check the list")
 
     # we composed our inventory. However some stations from ISC list can be left behind. We check if some stations in ISC are forgotten
     lost=[]
-    for j in xrange(isc.shape[0]):
+    for j in range(isc.shape[0]):
               # is there any common station name?
               common_st=stn_found[isc[j,0]==stn_found[:,0]]
               if common_st.shape[0]>0:
@@ -201,7 +201,7 @@ def main(argv):
               
 
 
-    for k in xrange(stn_found.shape[0]):
+    for k in range(stn_found.shape[0]):
 
               net=Network(code=stn_found[k,1],stations=[],description=' ')
               if len(stn_found[k,7]) < 5:

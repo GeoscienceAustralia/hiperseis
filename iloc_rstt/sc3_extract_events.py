@@ -84,9 +84,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=False))
 def process(data_path, scratch_path, output_file_stem):
     """
-    DATA_PATH: input-folder
-    SCRATCH_PATH: scratch-folder
-    OUTPUT_FILE_STEM: output file stem
+    DATA_PATH: input-folder which contains output from iloc_phase_ident.py \n
+    SCRATCH_PATH: scratch-folder \n
+    OUTPUT_FILE_STEM: output file stem \n
     """
 
     comm = MPI.COMM_WORLD
@@ -108,7 +108,7 @@ def process(data_path, scratch_path, output_file_stem):
         
         s = set(eventIds)
         assert len(s) == len(eventIds), 'Duplicate event-ids found'
-        print 'Processing %d events..'%(len(eventIds)) 
+        print (('Processing %d events..'%(len(eventIds))))
         
         shuffle(eventIds)
         eventIds = split_list(eventIds, nproc)
@@ -146,7 +146,7 @@ def process(data_path, scratch_path, output_file_stem):
                 (eid, ofn)]
         rc, _ = runprocess(cmd, get_results=False)
         if(rc!=0):
-            print 'Error exporting event: %s'%(eid)
+            print (('Error exporting event: %s'%(eid)))
         else:
             notFound = defaultdict(int)
             cat = read_events(ofn, format='SC3ML')
@@ -189,7 +189,7 @@ def process(data_path, scratch_path, output_file_stem):
                     pick_attribs = defaultdict(lambda:-999.)
                     pick = a.pick_id.get_referred_object()
                     for c in pick.comments:
-                        if ('text' in c.keys()):
+                        if ('text' in list(c.keys())):
                             for item in c['text'].split(','):
                                 k,v = item.split('=')
                                 pick_attribs[k.strip()] = float(v)
@@ -250,7 +250,7 @@ def process(data_path, scratch_path, output_file_stem):
                 allprocfile.write(lineout + '\n')
             # end for
 
-            if (len(notFound)): print 'Rank: %d'%(rank), notFound
+            if (len(notFound)): print (('Rank: %d'%(rank), notFound))
         # end if
         if (os.path.exists(ofn)): os.remove(ofn)
         #break

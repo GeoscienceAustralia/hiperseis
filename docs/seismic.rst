@@ -1,55 +1,103 @@
-=================
-HiPerSeis Package: Seismic
-=================
+seismic package
+===============
 
-**Earth 3D Grid Model**
-=======================
+Subpackages
+-----------
 
-.. automodule:: seismic.traveltime.cluster_grid
-	:members:
+.. toctree::
+   :maxdepth: 4
+
+   seismic.ASDFdatabase
+   seismic.amb_noise
+   seismic.gps_corrections
+   seismic.inventory
+   seismic.inversion
+   seismic.pick_harvester
+   seismic.receiver_fn
+   seismic.synthetics
+   seismic.traveltime
+   seismic.xcorqc
+
+Submodules
+----------
+
+seismic.analyze\_station\_orientations module
+---------------------------------------------
+
+.. automodule:: seismic.analyze_station_orientations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.extract\_event\_traces module
+-------------------------------------
+
+.. automodule:: seismic.extract_event_traces
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.model\_properties module
+--------------------------------
+
+.. automodule:: seismic.model_properties
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.network\_event\_dataset module
+--------------------------------------
+
+.. automodule:: seismic.network_event_dataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.plot\_network\_event\_dataset module
+--------------------------------------------
+
+.. automodule:: seismic.plot_network_event_dataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.stream\_io module
+-------------------------
+
+.. automodule:: seismic.stream_io
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.stream\_processing module
+---------------------------------
+
+.. automodule:: seismic.stream_processing
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.stream\_quality\_filter module
+--------------------------------------
+
+.. automodule:: seismic.stream_quality_filter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+seismic.units\_utils module
+---------------------------
+
+.. automodule:: seismic.units_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
-**Sorting and Clustering of Seismic Rays**
-==========================================
+Module contents
+---------------
 
-.. automodule:: seismic.traveltime.sort_rays
-	:members:
-
-
-**Station Inventory**
-=====================
-
-.. automodule:: seismic.inventory.engd2stxml
-	:members:
-
-.. automodule:: seismic.inventory.fdsnxml_convert
-	:members:
-
-.. automodule:: seismic.inventory.iris_query
-	:members:
-
-.. automodule:: seismic.inventory.pdconvert
-	:members:
-
-.. automodule:: seismic.inventory.table_format
-	:members:
-
-.. automodule:: seismic.inventory.update_iris_inventory
-	:members:
-
-
-**Station Signal Cross-Correlation**
-====================================
-
-.. automodule:: seismic.xcorqc.correlator
-	:members:
-
-.. automodule:: seismic.xcorqc.xcorr_station_clock_analysis
-	:members:
-
-
-**GPS Clock Correction**
-========================
-
-.. automodule:: seismic.gps_corrections.relative_tt_residuals_plotter
-	:members:
+.. automodule:: seismic
+   :members:
+   :undoc-members:
+   :show-inheritance:

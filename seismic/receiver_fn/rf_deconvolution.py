@@ -100,7 +100,7 @@ def _convolve(x, y, leadin):
 
 
 def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, max_pulses=1000,
-                           tol=1.0e-3, gwidth=2.5, only_positive=False, log=None, **kwargs):
+                           tol=1.0e-3, gwidth=2.5, only_positive=False, log=None):
     """
     Iterative deconvolution of source and response signal to generate seismic receiver function.
     Adapted to Python by Andrew Medlin, Geoscience Australia (2019), from Chuck Ammon's
@@ -138,6 +138,7 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
     assert len(denominator) <= MAXPTS  # Sanity check input size
     assert len(numerator) <= MAXPTS
     MAX_PULSES = 1000  # Maximum number of pulses to synthesize in p
+    MIN_POWER = 1.0e-8
 
     amps = []
     shifts = []
@@ -192,6 +193,13 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
 
     # compute the residual (initial error is 1.0)
     resid, sumsq_ip1 = _get_residual(f_hat, f_hat_predicted)
+
+    # Early exit for case when data is all close to zero
+    if power < MIN_POWER:
+        rf_trace = p
+        fit = 100.0
+        return rf_trace, pulses, f_hat, f_hat_predicted, fit
+    # end if
 
     sumsq_i = 1.0
     sumsq_ip1 = sumsq_ip1 / power

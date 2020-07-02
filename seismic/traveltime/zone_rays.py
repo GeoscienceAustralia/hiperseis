@@ -50,7 +50,7 @@ def cli(verbosity):
               metavar="str 'upperlat, bottomlat, leftlon, rightlon'")
 @click.option('-p', '--parameter_file', type=str, default='',
               metavar="inversion_parameter_file")
-@click.argument('matched_file', click.File(mode='r'),
+@click.argument('matched_file', type=click.File(mode='r'),
                 metavar='cluster_matched_or_sorted_file')
 @click.option('-r', '--region_file', type=click.File('w'),
               default='region.csv',

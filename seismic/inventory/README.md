@@ -11,24 +11,15 @@ The purpose of this package is to provide tools and workflow for
 ## Requirements
 
 The Python library requirements for using the tools and workflow of this package
-are listed in `requirements_common.txt` for all platforms, plus additional platform
-specific requirements listed in `requirements_linux.txt` for Linux and
-`requirements_win32.txt` for Windows. The package is written for Python version 2.7
+are listed in `requirements.txt`. The package is written for Python version 2.7
 or >=3.5. To install the library requirements, run
 
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_common.txt`
+&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements.txt`
 
-followed by platform-specific requirements:
+Scripts that convert inventory files to sc3ml format also require Seiscomp3 to be installed on the
+host system and to be visible in the PATH. The installation of Seiscomp3 generally requires admin
+privileges and configuration by a knowledgable user.
 
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_linux.txt`  (for Linux)
-
-OR
-
-&nbsp;&nbsp;&nbsp;&nbsp;`pip install -r requirements_win32.txt`  (for Windows)
-
-Scripts that convert to sc3ml format also require Seiscomp3 to be installed on the host
-system and to be visible in the PATH. The installation of Seiscomp3 requires
-admin privileges and configuration by a knowledgable user.
 
 ### Performance note
 
@@ -142,7 +133,7 @@ to force a regeneration of the `.pkl` file.
 ## Future development roadmap <a name="future"></a>
 
 Agenda for future development:
-* Factor our the STN file readers into a separate module so that any reader can be
+* Factor out the STN file readers into a separate module so that any reader can be
   substituted, as long as it generates Pandas DataFrame output, to support arbitrary
   input file formats.
 * Performance improvements reading files in function `engd2stxml.read_isc()`. E.g. change
@@ -157,111 +148,6 @@ Python:
 ```
 Python 3.6.7 (default, Dec  5 2018, 15:02:05)
 [GCC 4.8.5 20150623 (Red Hat 4.8.5-36)]
-```
-
-Obspy (standard release):
-```
-'1.1.0'
-```
-
-Obspy (custom):
-```
-'1.1.1rc1.post0+552.g8478dae0aa.obspy.master'
-```
-
-Python libraries (via `pip freeze`):
-```
-arrow==0.13.0
-astroid==2.1.0
-backcall==0.1.0
-basemap==1.2.0
-bleach==3.1.0
-certifi==2018.11.29
-chardet==3.0.4
-ciso8601==2.1.1
-Click==7.0
-cycler==0.10.0
-dask==1.1.0
-decorator==4.3.2
-defusedxml==0.5.0
-dill==0.2.9
-entrypoints==0.3
-future==0.17.1
-graphviz==0.10.1
-h5py==2.9.0
-idna==2.8
-ipykernel==5.1.0
-ipython==7.2.0
-ipython-genutils==0.2.0
-ipywidgets==7.4.2
-isort==4.3.4
-jedi==0.13.2
-Jinja2==2.10
-jsonschema==2.6.0
-jupyter==1.0.0
-jupyter-client==5.2.4
-jupyter-console==6.0.0
-jupyter-core==4.4.0
-kiwisolver==1.0.1
-lazy-object-proxy==1.3.1
-line-profiler==2.1.2
-llvmlite==0.27.0
-lxml==4.3.0
-MarkupSafe==1.1.0
-matplotlib==3.0.2
-mccabe==0.6.1
-mistune==0.8.4
-nbconvert==5.4.0
-nbformat==4.4.0
-notebook==5.7.4
-numba==0.42.0
-numexpr==2.6.9
-numpy==1.16.1
--e git+https://github.com/obspy/obspy.git@8478dae0aac6d647171ab3092c48384ac666d5be#egg=obspy
-pandas==0.24.1
-pandoc==1.0.2
-pandocfilters==1.4.2
-parso==0.3.2
-pexpect==4.6.0
-pickleshare==0.7.5
-ply==3.11
-proj==0.1.0
-prometheus-client==0.5.0
-prompt-toolkit==2.0.8
-ptyprocess==0.6.0
-Pygments==2.3.1
-pyimgur==0.6.0
-pylint==2.2.2
-pyparsing==2.3.1
-pyproj==1.9.6
-pyshp==2.0.1
-python-dateutil==2.7.5
-pytz==2018.9
-pyzmq==17.1.2
-qtconsole==4.4.3
-requests==2.21.0
-rope==0.11.0
-Rtree==0.8.3
-scikit-learn==0.20.2
-scipy==1.2.0
-seaborn==0.9.0
-Send2Trash==1.5.0
-six==1.12.0
-SQLAlchemy==1.2.17
-tables==3.4.4
-terminado==0.8.1
-testpath==0.4.2
-tornado==5.1.1
-tqdm==4.30.0
-traitlets==4.3.2
-typed-ast==1.2.0
-urllib3==1.24.1
-versioneer==0.18
-wcwidth==0.1.7
-webencodings==0.5.1
-widgetsnbextension==3.4.2
-wrapt==1.11.1
-xlrd==1.2.0
 ```
 
 Seiscomp3 fdsnxml2inv converter:

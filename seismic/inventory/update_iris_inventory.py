@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 """Automatically update IRIS-ALL.xml file from IRIS web portal.
 
-   Outout file is saved as FDSN station xml.
+   Output file is saved as FDSN station xml.
    Script also generates human readable form as IRIS-ALL.txt.
 
-   Example usages:
-   ---------------
+   Example usages::
 
-   `python update_iris_inventory.py`
-
-   `python update_iris_inventory.py -o outfile.xml`
-
-   `python update_iris_inventory.py --netmask=U* --statmask=K*`
-
-   `python update_iris_inventory.py --netmask=UW,LO --output outfile.xml`
+      python update_iris_inventory.py
+      python update_iris_inventory.py -o outfile.xml
+      python update_iris_inventory.py --netmask=U* --statmask=K*
+      python update_iris_inventory.py --netmask=UW,LO --output outfile.xml
 """
 
 import os
@@ -49,6 +45,7 @@ def cleanup(tmp_filename):
         os.remove(tmp_filename)
     except OSError:
         print("WARNING: Failed to remove temporary file " + tmp_filename)
+# end func
 
 
 def update_iris_station_xml(req, output_file, options=None):
@@ -61,7 +58,7 @@ def update_iris_station_xml(req, output_file, options=None):
     :param output_file: Destination file to generate
     :type output_file: str
     :param options: Filtering options for network, station and channel codes, defaults to None
-    :param options: Python dict of key-values pairs matching command line options, optional
+    :type options: Python dict of key-values pairs matching command line options, optional
     """
     iris_url = form_channel_request_url() if options is None else form_channel_request_url(**options)
     # Download latest IRIS station database as FDSN station xml.
@@ -72,6 +69,7 @@ def update_iris_station_xml(req, output_file, options=None):
     except req.exceptions.RequestException:
         print("FAILED to retrieve URL content at " + iris_url)
         return
+    # end try
 
     # Repair errors with IRIS data
     print("Correcting known data errors...")
@@ -85,6 +83,7 @@ def update_iris_station_xml(req, output_file, options=None):
     # Create human-readable text form of the IRIS station inventory (Pandas stringified table)
     output_txt = os.path.splitext(output_file)[0] + ".txt"
     regenerate_human_readable(iris_fixed, output_txt)
+# end func
 
 
 def repair_iris_metadata(iris):
@@ -93,7 +92,7 @@ def repair_iris_metadata(iris):
     :param iris: Response to IRIS query request containing response text
     :type iris: requests.models.Response
     :return: The text from the response with known faulty data substituted with fixed data.
-    :rtype: str (Python 3) or unicode (Python 2)
+    :rtype: str
     """
 
     def repair_match(match):
@@ -107,6 +106,7 @@ def repair_iris_metadata(iris):
     iris_text_fixed = matcher.sub(repair_match, iris.text)
 
     return iris_text_fixed
+# end func
 
 
 def regenerate_human_readable(iris_data, outfile):
@@ -125,9 +125,10 @@ def regenerate_human_readable(iris_data, outfile):
     from obspy import read_inventory
 
     if sys.version_info[0] < 3:
-        from cStringIO import StringIO as sio  # pylint: disable=import-error
+        from cStringIO import StringIO as sio  # pylint: disable=import-error, unresolved-import
     else:
         from io import BytesIO as sio
+    # end if
 
     iris_str = iris_data.encode('utf-8')
     print("  Ingesting query response into obspy...")
@@ -140,6 +141,7 @@ def regenerate_human_readable(iris_data, outfile):
         with open(dumpfile, 'w') as f:
             f.write(iris_str.decode('utf-8'))
         raise
+    # end try
 
     print("  Converting to dataframe...")
     inv_df = inventory_to_dataframe(station_inv)
@@ -149,7 +151,7 @@ def regenerate_human_readable(iris_data, outfile):
         inv_str = str(inv_df)
         with open(outfile, "w") as f:
             f.write(inv_str)
-
+# end func
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -169,3 +171,4 @@ if __name__ == "__main__":
         update_iris_station_xml(requests, output_filename, filter_args)
     else:
         update_iris_station_xml(requests, output_filename)
+    # end if

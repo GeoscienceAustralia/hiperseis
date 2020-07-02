@@ -24,12 +24,17 @@ try:
 except ImportError:
     show_progress = False
     print("Run 'pip install tqdm' to see progress bar.")
+# end try
 
 # Pandas table display options to reduce aggressiveness of truncation. Due to size of data sometimes we
 # need to see more details in the table.
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_colwidth', -1)
+try:
+    pd.set_option('display.max_colwidth', None)
+except ValueError:
+    pd.set_option('display.max_colwidth', -1)
+# end try
 pd.set_option('display.width', 240)
 
 # Timestamp to be added to output file names, so that each run generates unique log files.
@@ -44,10 +49,11 @@ def prune_iris_duplicates(db_other, db_iris):
     """Prune the records out of db_other which duplicate records that exist in db_iris.
 
     Filtering concepts:
-    Station codes and channel codes are reliable, but network codes and station/channel dates are not.
-    Station lat/lon locations are approximately reliable. Therefore the merge method here matches records
-    with matching station code, channel code and approximate location. For each match, we examine station dates,
-    and discard any records of db_other that overlap with db_iris.
+
+    - Station codes and channel codes are reliable, but network codes and station/channel dates are not.
+    - Station lat/lon locations are approximately reliable. Therefore the merge method here matches records
+      with matching station code, channel code and approximate location. For each match, we examine station dates,
+      and discard any records of db_other that overlap with db_iris.
 
     db_iris is not changed by this function.
 
@@ -103,12 +109,16 @@ def mean_lat_long(network):
 
     :param network: Network on which to compute mean lat/long
     :type network: obspy.core.inventory.network.Network
+    :return: Mean of all station locations in the network
+    :rtype: tuple(float, float)
     """
     lats, longs = zip(*[(s.latitude, s.longitude) for s in network.stations])
     return np.mean(np.array(lats)), np.mean(np.array(longs))
 
 
 def get_matching_net(search_space, item_to_find):
+    """Find matching network instance
+    """
     find_contents = item_to_find.get_contents()
     for candidate in search_space:
         if candidate.get_contents() == find_contents:
@@ -127,6 +137,8 @@ def inventory_merge(iris_inv, custom_inv, output_file, test_mode=False):
     :type custom_inv: str or Path to file
     :param output_file: File name of output file which will contain merged IRIS and custom inventory.
     :type output_file: str or Path to file
+    :return: The merged inventory
+    :rtype: obspy.core.inventory.inventory.Inventory
     """
     # Load IRIS inventory
     print("Loading {}...".format(iris_inv))

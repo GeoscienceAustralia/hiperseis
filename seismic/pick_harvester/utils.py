@@ -1,18 +1,13 @@
 from mpi4py import MPI
 from lxml import etree as ET
-from os.path import join, exists
-import os, glob, fnmatch, sys
+import os, fnmatch
 import re
 from collections import defaultdict
 from obspy import UTCDateTime
-import numpy as np
-import math
 
-from math import radians, cos, sin, asin, sqrt
 import numpy as np
-import scipy
-from scipy.spatial import cKDTree
 from random import shuffle
+
 
 def recursive_glob(treeroot, pattern):
     results = []
@@ -24,7 +19,7 @@ def recursive_glob(treeroot, pattern):
 
 def split_list(lst, npartitions):
     k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 class Origin:
@@ -215,7 +210,7 @@ class Catalog():
         # broadcast workload to all procs
         self.proc_workload = self.comm.bcast(self.proc_workload, root=0)
 
-        print 'Rank %d: processing %d files' % (self.rank, len(self.proc_workload[self.rank]))
+        print (('Rank %d: processing %d files' % (self.rank, len(self.proc_workload[self.rank]))))
 
         self._load_events()
     # end func
@@ -250,7 +245,7 @@ class Catalog():
         self.allEventList = allEventList
 
         if (self.rank == 0):
-            print 'Collected %d event origins' % (len(self.allEventList))
+            print ('Collected %d event origins' % (len(self.allEventList)))
 
             hasPM = 0
             hasMultipleMags = 0
@@ -260,8 +255,8 @@ class Catalog():
                 if (len(o.magnitude_list)): hasMultipleMags += 1
             # end for
 
-            print '%d preferred origins have a preferred magnitude' % (hasPM)
-            print '%d preferred origins have at least one magnitude' % (hasMultipleMags)
+            print ('%d preferred origins have a preferred magnitude' % (hasPM))
+            print ('%d preferred origins have at least one magnitude' % (hasMultipleMags))
         # end if
     # end func
 
@@ -294,12 +289,12 @@ class CatalogCSV:
 
         if(self.rank==0):
             for ifn, fn in enumerate(self.csv_files):
-                print 'Reading %s' % (fn)
+                print ('Reading %s' % (fn))
 
                 for line in open(fn, 'r'):
                     if(line[0]=='#'):
                         items = line.split(',')
-                        vals = map(float, items[1:])
+                        vals = list(map(float, items[1:]))
 
                         year = int(vals[0])
                         month = int(vals[1])

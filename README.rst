@@ -32,32 +32,41 @@ Contacts
 System Requirements
 ==========================
 
-- Linux OS
-- Python 2.7
-- Python 3.5 or higher
+- Linux OS, including Ubuntu and CentOS
+- Python 3.6 or higher (recommended)
+- Python 2.7 (deprected, no longer supported)
+
+Third Party Library Dependencies
+================================
+
+Certain modules require specific third party (non-Python) libraries to be installed
+on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
+installed and to be visible in the PATH. In most cases, Python libraries that depend on third party
+libraries will indicate their dependencies either during attempted installation, or when used at
+runtime. Note that the following list includes indirect dependencies, i.e. dependencies that come
+from Python libraries used by HiPerSeis.
+
+Current third party dependencies (actual requirements may vary by platform or Python distribution):
+
+- `HDF5 <http://hdfgroup.org/>`_
+- MPI, for example `Open MPI <https://www.open-mpi.org/>`_
+- `PROJ <https://proj.org/>`_
+- `GEOS <https://trac.osgeo.org/geos>`_
 
 
-Setup Guide for Developers
-==========================
+Installation Guide for Developers
+=================================
 
-1. Install Python environment and dependency packages. See Wiki Pages: https://github.com/GeoscienceAustralia/hiperseis/wiki
-
-2. Obtain the source code from https://github.com/GeoscienceAustralia/hiperseis
+1. First, obtain the source code from `Github repository <https://github.com/GeoscienceAustralia/hiperseis>`_
 
 -  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
 - ``cd hiperseis``
 - ``git submodule init``
 - ``git submodule update``
 
-   - ``pip install -v --user -e .`` (into user's own home ~/.local/lib/python2.7/site-packages/)
+2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
 
-
-If you are using the library without ``pip install``-ing it, then make sure the ``hiperseis`` folder
-is in your ``PYTHONPATH`` environment variable.  E.g. in bash shell, if ``~/dev/hiperseis`` is where
-``hiperseis`` was checked out:
-
-- ``export PYTHONPATH=~/dev/hiperseis:$PYTHONPATH``
-
+3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to folder `dev/hiperseis` relative to your home directory, then in `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
 
 License
 ===============

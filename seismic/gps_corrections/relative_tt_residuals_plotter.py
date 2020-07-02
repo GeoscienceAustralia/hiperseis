@@ -4,9 +4,9 @@ Bulk analysis script for analysing relative traveltime residuals from a pick ens
 for the purpose of identifying time periods of GPS clock error in specific stations.
 
 Example usage, which plots 7X.MA11 and 7X.MA12 residuals relative to all common events on
-AU network:
+AU network::
 
-``relative_tt_residuals_plotter.py --network1=AU --networks2=7X --stations2="MA11,MA12" /c/data_cache/Picks/20190320/ensemble.p.txt``
+    relative_tt_residuals_plotter.py --network1=AU --networks2=7X --stations2="MA11,MA12" /c/data_cache/Picks/20190320/ensemble.p.txt
 
 """
 
@@ -17,7 +17,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-from pandas.plotting import register_matplotlib_converters
+from pandas.plotting import register_matplotlib_converters, deregister_matplotlib_converters
 import pytz
 import matplotlib
 import matplotlib.dates
@@ -40,8 +40,6 @@ from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init, logging-format-interpolation, logging-not-lazy
-
-register_matplotlib_converters()
 
 logging.basicConfig()
 
@@ -229,7 +227,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
             sc = plt.scatter(times, vals, c=qual, alpha=0.5, cmap='gnuplot_r', s=np.maximum(50 * mag, 10),
                              edgecolors=None, linewidths=0)
             time_formatter = matplotlib.dates.DateFormatter("%Y-%m-%d")
-            plt.axes().xaxis.set_major_formatter(time_formatter)
+            plt.gca().xaxis.set_major_formatter(time_formatter)
             cb = plt.colorbar(sc, drawedges=False)
             cb.set_label('Signal to noise ratio', fontsize=12)
             plt.grid(color='#808080', linestyle=':', alpha=0.7)
@@ -258,9 +256,13 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
                 plt_file = os.path.join(subfolder, '_'.join([ref_code, net_code]) + '_' +
                                         ylabel.replace(" ", "").replace(".*", "") + ".png")
                 plt.savefig(plt_file, dpi=150)
-                plt.close()
             else:  # pragma: no cover
                 plt.show()
+            # end if
+            plt.close()
+        else:
+            log.warning("No values to plot for {}".format(ref_code))
+        # end if
     # end plot_dataset
 
     df_times = pandas_timestamp_to_plottable_datetime(df['originTimestamp'])
@@ -315,6 +317,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
     :param display_options: Display options.
     :type display_options: class DisplayOptions
     """
+    register_matplotlib_converters()
     df_plot = df_plot.assign(relTtResidual=(df_plot['ttResidual'] - df_plot['ttResidualRef']))
 
     # Re-order columns
@@ -334,6 +337,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
 
     _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options,
                                        annotator=lambda: _plot_decorator(display_options))
+    deregister_matplotlib_converters()
 
 
 def _add_event_marker_lines(events):
@@ -662,7 +666,7 @@ def _get_known_temporary_deployments():
 @click.option('--interactive', is_flag=True, default=False, show_default=True,
               help='If True, plots will be displayed as popup windows instead of saving to file. '
                    'Use this option to interact with the data.')
-def main(picks_file, network1, networks2, stations1=None, stations2=None, 
+def main(picks_file, network1, networks2, stations1=None, stations2=None,
          min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
          min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,

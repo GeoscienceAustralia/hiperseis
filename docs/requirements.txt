@@ -1,23 +1,24 @@
-sphinx>=1.8
-pytest>=4.2.0
-click
-scipy
-pandas
-geopandas
-h5py
-pyasdf
-obspy==1.1.0
-obspyh5
-shapely
+sphinx>=3.1
+ordered-set
+numpy>=1.16.4
+pandas>=1.0.1
 geographiclib
 pytables==3.5.2; sys_platform=="win32"
 tables==3.5.2; sys_platform!="win32"
 psutil
+#geopandas
+pytest>=4.6.5
 joblib
-netcdf4
+click
 ujson
 deprecated
 pyyaml
 requests
-#cartopy install failure rf==0.8.0
-#mpi4py
+tqdm
+sortedcontainers
+urllib3
+pykml
+PyWavelets
+future
+python-dateutil
+python-geohash
