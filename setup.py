@@ -3,7 +3,7 @@ from setuptools.command.test import test as TestCommand
 from numpy.distutils.core import Extension, setup
 
 python_version = sys.version_info
-__version__ = "0.0.1"
+__version__ = "1.0.0"  # FZ-2020-07-02 tag this as version 1.0.0 after EFTF-1 completed and EFTF-X began.
 
 
 class PyTest(TestCommand, object):
