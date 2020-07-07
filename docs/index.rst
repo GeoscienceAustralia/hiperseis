@@ -6,8 +6,12 @@
 **Welcome to HiPerSeis API Documentation**
 ==========================================
 
+**HiPerSeis source code can be found in** `Github <https://github.com/GeoscienceAustralia/hiperseis>`_ : https://github.com/GeoscienceAustralia/hiperseis
+
+--------
+
 ============================
-*API Reference*
+*API Reference by Topics*
 ============================
 
 .. toctree::
@@ -24,21 +28,18 @@
    Traveltime Tomography <seismic.traveltime>
    Station Signal Cross-Correlation <seismic.xcorqc>
 
-**HiPerSeis source code can be found in** `Github <https://github.com/GeoscienceAustralia/hiperseis>`_ : https://github.com/GeoscienceAustralia/hiperseis
+================================
+*Seismic Package Full Hierarchy*
+================================
 
+.. toctree::
+   :maxdepth: 5
 
---------
-
-
-*Full Package Hierarchy*
-========================
-
-.. include:: modules.rst
-
+   seismic
 
 --------
 
-
+====================
 *Indices and tables*
 ====================
 
