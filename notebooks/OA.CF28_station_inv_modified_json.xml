@@ -1,0 +1,215 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<FDSNStationXML xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.0" xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0">
+  <Source>Geoscience Australia</Source>
+  <Module>ObsPy 1.0.2</Module>
+  <ModuleURI>https://www.obspy.org</ModuleURI>
+  <Created>2019-02-02T18:42:45.000000Z</Created>
+  <Network code="OA" endDate="2018-11-28T23:06:20.000000Z" startDate="2017-09-11T00:00:36.000000Z">
+    <Station code="CF28" endDate="2018-06-09T06:06:39.000000Z" startDate="2017-11-06T02:02:50.000000Z">
+        <GeoscienceAustralia:metadata_ga>
+{
+    "network_code":"OA",
+    "station_code":"CF28",
+
+    "orient_correction": {
+        "start_dt": "2017-11-07T09:07:34.930000Z",
+        "end_dt":   "2018-08-23T03:52:29.528000Z",
+        "azimuth_correction": -5.0
+    },
+
+  "gps_clock_corrections": [
+    {
+      "date": "2018-01-04",
+      "seconds": -1.3375814425470127
+    },
+    {
+      "date": "2018-01-05",
+      "seconds": -1.110449564656099
+    },
+    {
+      "date": "2018-01-06",
+      "seconds": -0.9032476255118933
+    }
+  ]
+
+}
+</GeoscienceAustralia:metadata_ga>
+      <Latitude unit="DEGREES">-21.500164</Latitude>
+      <Longitude unit="DEGREES">139.498779</Longitude>
+      <Elevation unit="METERS">381.7</Elevation>
+      <Site>
+        <Name>CF28</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2017-11-06T02:02:50.000000Z</CreationDate>
+      <TerminationDate>2018-06-09T06:06:39.000000Z</TerminationDate>
+      <Channel code="HHZ" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate unit="SAMPLES/S">200.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHE" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">200.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHN" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">200.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CF28" endDate="2018-08-12T05:41:01.000000Z" startDate="2018-06-09T06:21:41.000000Z">
+       <GeoscienceAustralia:metadata_ga>
+{
+    "network_code":"OA",
+    "station_code":"CF28",
+
+    "orient_correction": {
+        "start_dt": "2017-11-07T09:07:34.930000Z",
+        "end_dt":   "2018-08-23T03:52:29.528000Z",
+        "azimuth_correction": -5.0
+    },
+
+  "gps_clock_corrections": [
+    {
+      "date": "2018-08-12",
+      "seconds": -0.38272156676887814
+    },
+    {
+      "date": "2018-08-13",
+      "seconds": -0.38602834753320375
+    },
+    {
+      "date": "2018-08-14",
+      "seconds": -0.3893351282975293
+    }
+  ]
+
+}
+  </GeoscienceAustralia:metadata_ga>
+      <Latitude unit="DEGREES">-21.500164</Latitude>
+      <Longitude unit="DEGREES">139.498779</Longitude>
+      <Elevation unit="METERS">381.7</Elevation>
+      <Site>
+        <Name>CF28</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2018-06-09T06:21:41.000000Z</CreationDate>
+      <TerminationDate>2018-08-12T05:41:01.000000Z</TerminationDate>
+      <Channel code="HHZ" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHE" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHN" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+    <Station code="CF28" endDate="2018-08-24T10:02:20.000000Z" startDate="2018-08-12T05:45:10.000000Z">
+       <GeoscienceAustralia:metadata_ga>
+{
+    "network_code":"OA",
+    "station_code":"CF28",
+
+    "orient_correction": {
+        "start_dt": "2017-11-07T09:07:34.930000Z",
+        "end_dt":   "2018-08-23T03:52:29.528000Z",
+        "azimuth_correction": -5.0
+    },
+  "gps_clock_corrections": [
+    {
+      "date": "2018-06-10",
+      "seconds": -0.17439437861636772
+    },
+    {
+      "date": "2018-06-11",
+      "seconds": -0.17770115938069328
+    },
+    {
+      "date": "2018-06-12",
+      "seconds": -0.18100794014501886
+    }
+  ]
+
+}
+  </GeoscienceAustralia:metadata_ga>
+      <Latitude unit="DEGREES">-21.500164</Latitude>
+      <Longitude unit="DEGREES">139.498779</Longitude>
+      <Elevation unit="METERS">381.7</Elevation>
+      <Site>
+        <Name>CF28</Name>
+      </Site>
+      <Vault>Transportable Array</Vault>
+      <CreationDate>2018-08-12T05:45:10.000000Z</CreationDate>
+      <TerminationDate>2018-08-24T10:02:20.000000Z</TerminationDate>
+      <Channel code="HHZ" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">90.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHE" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">90.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+      <Channel code="HHN" locationCode="0M">
+        <Latitude unit="DEGREES">-21.500164</Latitude>
+        <Longitude unit="DEGREES">139.498779</Longitude>
+        <Elevation unit="METERS">381.7</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate unit="SAMPLES/S">125.0</SampleRate>
+        <ClockDrift unit="SECONDS/SAMPLE">0.0</ClockDrift>
+      </Channel>
+    </Station>
+  </Network>
+</FDSNStationXML>
