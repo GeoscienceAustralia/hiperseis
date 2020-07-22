@@ -3,6 +3,13 @@ HiPerSeis: High Performance Software Package for Seismology Data/Metadata Proces
 
 |Build Status| |Coverage Status| |Documentation Status|
 
+How to Cite
+===========
+
+If you use this software in a scientific publication, we'd very much appreciate if you could cite the following papers:
+
+-  Hassan, R., Hejrani, B., Medlin, A., Gorbatov, A. and Zhang, F., 2020. High-performance seismological tools (HiPerSeis). In: Czarnota, K., Roach, I., Abbott, S., Haynes, M., Kositcin, N., Ray, A. and Slatter, E. (eds.) Exploring for the Future: Extended Abstracts, Geoscience Australia, Canberra, 1–4. https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/135095
+   
 
 Overview
 ========
