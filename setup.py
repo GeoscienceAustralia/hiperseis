@@ -103,7 +103,8 @@ setup(
         # 'basemap == 1.1.0',
         'netCDF4 >= 1.3.0',
         'chardet == 3.0.4',
-        'lxml >= 3.3.5'
+        'lxml >= 3.3.5',
+        'pyepsg>=0.4.0'
     ],
     extras_require={
         'dev': [
