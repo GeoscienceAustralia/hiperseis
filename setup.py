@@ -5,7 +5,6 @@ from numpy.distutils.core import Extension, setup
 python_version = sys.version_info
 __version__ = "1.0.0"  # FZ-2020-07-02 tag this as version 1.0.0 after EFTF-1 completed and EFTF-X began.
 
-
 class PyTest(TestCommand, object):
     user_options = [('pytest-args=', 'a', "Arguments to pass to pytest")]
 
@@ -80,31 +79,53 @@ setup(
     # numpy preinstall required due to obspy
     # mpi4py  preinstall required due to h5py
     setup_requires=[
-        'numpy >= 1.9.2',
+        'numpy>=1.19.1',
         'mpi4py==3.0.0',
         'decorator>=4.1.0',
         'setuptools>=36.2.1'
     ],
     install_requires=[
-        'Click >= 6.0',
-        'numpy >= 1.9.2',
-        'Cython >= 0.22.1',
-        'mpi4py == 3.0.0',
-        'scipy >= 0.15.1',
-        'PyYAML >= 3.11',
-        'matplotlib >= 1.4.3',  # nci version with python=3.4
+        'Click>=6.0',
+        'numpy>=1.9.2',
+        'Cython>=0.22.1',
+        'mpi4py==3.0.0',
+        'scipy>=0.15.1',
+        'PyYAML>=3.11',
+        'matplotlib>=1.4.3',  # nci version with python=3.4
         'joblib',
-        'obspy >= 1.1.0',  # 1.0.3 does not have sc3ml read functionality
-        'h5py >= 2.6.0',
+        'obspy>=1.1.0',  # 1.0.3 does not have sc3ml read functionality
+        'h5py>=2.6.0',
         'pyasdf',
         'pyqtgraph',
         'pandas',
-        # 'phasepapy == 1.1.1',
-        # 'basemap == 1.1.0',
-        'netCDF4 >= 1.3.0',
-        'chardet == 3.0.4',
-        'lxml >= 3.3.5',
-        'pyepsg>=0.4.0'
+        'netCDF4>=1.3.0',
+        'chardet==3.0.4',
+        'lxml>=3.3.5',
+        'pyepsg>=0.4.0',
+        'ordered-set',
+        'pyproj',
+        'obspyh5',
+        'shapely',
+        'geographiclib',
+        'cartopy',
+        # PEP 508 Environment markers not working? Mayeb due to using np.distutils setup?
+        # "pytables==3.5.2; sys_platform == 'win32'",
+        # "tables==3.5.2; sys_platform != 'win32'",
+        'pytables>=3.5.2' if sys.platform == 'win32' else 'tables>=3.5.2',
+        'psutil',
+        'ujson',
+        'deprecated',
+        'pyyaml',
+        'requests',
+        'tqdm',
+        'rf==0.8.0',
+        'sortedcontainers',
+        'scikit-learn',
+        'urllib3',
+        'pykml',
+        'PyWavelets',
+        'descartes',
+        'numexpr'
     ],
     extras_require={
         'dev': [
@@ -112,16 +133,16 @@ setup(
             'ghp-import',
             'sphinxcontrib-programoutput',
             'pytest-cov',
-            'coverage == 4.4.1',
-            'codecov == 2.0.9',
+            'coverage==4.4.1',
+            'codecov==2.0.9',
             'tox',
-            'pytest >= 3.1.0',
-            'pytest-lazy-fixture >= 0.4.0',
-            'pytest-flake8 >= 0.8.1',
-            'pytest-mock >= 1.6.0',
-            'pytest-cov == 2.5.1',
-            'pytest-regtest >= 0.15.1',
-            'flake8-docstrings >= 1.1.0',
+            'pytest>=3.1.0',
+            'pytest-lazy-fixture>=0.4.0',
+            'pytest-flake8>=0.8.1',
+            'pytest-mock>=1.6.0',
+            'pytest-cov==2.5.1',
+            'pytest-regtest>=0.15.1',
+            'flake8-docstrings>=1.1.0',
         ]
     },
     license="GNU GENERAL PUBLIC LICENSE v3",
