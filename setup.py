@@ -87,7 +87,7 @@ setup(
     # numpy preinstall required due to obspy
     # mpi4py  preinstall required due to h5py
     setup_requires=[
-        'numpy>=1.19.1',
+        'numpy',
         'mpi4py==3.0.0',
         'decorator>=4.1.0',
         'setuptools>=36.2.1'
