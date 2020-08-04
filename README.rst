@@ -41,7 +41,7 @@ System Requirements
 
 - Linux OS, including Ubuntu and CentOS
 - Python 3.6 or higher (recommended)
-- Python 2.7 (deprected, no longer supported)
+- Python 2.7 (deprecated, no longer supported)
 
 Third Party Library Dependencies
 ================================
@@ -73,7 +73,7 @@ Installation Guide for Developers
 
 2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
 
-3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to folder `dev/hiperseis` relative to your home directory, then in `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
+3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to the folder `dev/hiperseis` relative to your home directory, then in a `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
 
 License
 ===============
