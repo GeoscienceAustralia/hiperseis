@@ -22,14 +22,13 @@ Overview
 
 
 
-Contacts
-==========
+Current Contacts
+================
 
 - Fei Zhang: fei.zhang@ga.gov.au
 
-- Rakib Hassan: rakib.hassan@ga.gov.au
+- Bren Moushall: Brenainn.Moushall@ga.gov.au 
 
-- Andrew Medlin: andrew.medlin@ga.gov.au
 
 - Alexei Gorbatov: alexei.gorbatov@ga.gov.au
 
