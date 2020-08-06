@@ -177,11 +177,18 @@ def main(config_file, output_file):
     s_agg = np.zeros_like(numer)
     for filedict in src_files.values():
         w = filedict["weighting"]
-        d = filedict["z_interp"]
-        denom_agg += w*np.isfinite(d)
-        z_agg += w*d
-        s_agg += w*filedict["z_uncertainty"]
+        zm = filedict["z_interp"]
+        sm = filedict["z_uncertainty"]
+        denom_agg += w*np.isfinite(zm)
+        # Mask out NaNs as 0s before aggregating, otherwise they accumulate
+        zm = np.where(np.isnan(zm), 0, zm)
+        sm = np.where(np.isnan(sm), 0, sm)
+        z_agg += w*zm
+        s_agg += w*sm
     # end for
+    # Convert 0 depth and uncertainty values back to NaN
+    z_agg = np.where(z_agg == 0, np.nan, z_agg)
+    s_agg = np.where(s_agg == 0, np.nan, s_agg)
     z_agg = z_agg/denom_agg  # element-wise division
     s_agg = s_agg/denom_agg  # element-wise division
     np.seterr(**prior_settings)
