@@ -1,0 +1,40 @@
+cartopy
+chardet==3.0.4
+Click>=6.0
+Cython>=0.22.1 # `module load` on NCI
+deprecated
+descartes
+geographiclib
+h5py>=2.6.0
+joblib
+lxml>=3.3.5
+matplotlib>=1.4.3,<=3.2.2  # nci version with python=3.4, 3.2.2+ not compatbile with basemap
+mpi4py==3.0.0
+netCDF4>=1.3.0
+numexpr
+numpy>=1.9.2
+obspy>=1.1.0  # 1.0.3 does not have sc3ml read functionality
+obspyh5
+ordered-set
+pandas
+psutil
+pyasdf
+pyepsg>=0.4.0
+pykml
+pyproj
+pyqtgraph
+pytables==3.5.2; sys_platform=='win32'
+PyWavelets
+pyyaml
+PyYAML>=3.11
+requests
+rf==0.8.0
+scikit-learn
+scipy>=0.15.1
+shapely --no-binary=shapely
+sortedcontainers
+tables==3.5.2; sys_platform!='win32'
+tqdm
+ujson
+urllib3
+xlrd
