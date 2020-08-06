@@ -110,6 +110,9 @@ def main(config_file, output_file):
         xy_max = xy_map.max(axis=0)
         bb_min = np.minimum(bb_min, xy_min)
         bb_max = np.maximum(bb_max, xy_max)
+        # Add sample weights to filedict if provided
+        if filedict.get('enable_sample_weighting', False):
+            filedict['sample_weights'] = pt_dataset[:, 3]
     # end for
 
     # Generate regular grid in projected coordinate system covering the area of interest.
@@ -137,19 +140,29 @@ def main(config_file, output_file):
         dist_sq_matrix = -dist_matrix.power(2)/sig_sq  # Note the sign negation
         # Keep z in column vector format.
         z = proj_data[:, 2][:, np.newaxis]
+        zw = filedict.get('sample_weights')
         # Compute interpolation of z onto target grid
         # TRICKY point: We compute the exponential terms as exp(x) - 1 rather than exp(x),
         # so that we can remain in sparse matrix format until the matrix multiplication.
         # After that, we will compensate for the missing +1 term in the sum.
         dist_weighting_m1 = dist_sq_matrix.expm1()
         mask = (dist_matrix != 0)
-        denom = dist_weighting_m1.sum(axis=1) + mask.sum(axis=1)
-        numer = (dist_weighting_m1 + mask)*z
+        if zw is not None:
+            zw = zw[:, np.newaxis]
+            denom = (dist_weighting_m1 + mask) * zw
+            numer = (dist_weighting_m1 + mask) * (z * zw)
+        else:
+            denom = dist_weighting_m1.sum(axis=1) + mask.sum(axis=1)
+            numer = (dist_weighting_m1 + mask) * z
+
         # Where data doesn't exist, this arithmetic generates NaN, which is what we want
         prior_settings = np.seterr(divide='ignore', invalid='ignore')
         z_interp = numer/denom
         # Compute pointwise variance
-        numer = (dist_weighting_m1 + mask)*np.square(z)
+        if zw is not None:
+            numer = (dist_weighting_m1 + mask)*(np.square(z) * zw)
+        else:
+            numer = (dist_weighting_m1 + mask)*np.square(z)
         S = np.sqrt(numer/denom - np.square(z_interp))
         np.seterr(**prior_settings)
         # Store result
