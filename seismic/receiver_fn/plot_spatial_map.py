@@ -10,8 +10,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy as cp
 
+from seismic.receiver_fn.legacy.plot_map import gmtColormap
 
-def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=None):
+def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=None, 
+                     cpt_colormap=None):
     """
     Make spatial plot of point dataset with filled contours overlaid on map.
 
@@ -20,6 +22,7 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
     :param projection_code: EPSG projection code, e.g. 3577 for Australia
     :param title: Title string for top of plot
     :param feature_label: Label for the color bar of the plotted feature
+    :param cpt_colormap: A CPT file to use as the matplotlib colormap
     :return:
     """
     with open(point_dataset, 'r') as f:
@@ -37,7 +40,10 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
 
     map_projection = cp.crs.epsg(projection_code)
     resolution = '50m'
-    cmap = 'magma_r'
+    if cpt_colormap is not None:
+        _, cmap = gmtColormap(cpt_colormap)
+    else:
+        cmap = 'magma_r'
 
     # Figure out bounds in map coordinates
     xy_map = map_projection.transform_points(data_crs, x.flatten(), y.flatten())[:, :2]
@@ -82,14 +88,16 @@ def plot_spatial_map(point_dataset, projection_code, title=None, feature_label=N
 @click.command()
 @click.option('--projection-code', type=int, required=True,
               help='EPSG projection code, e.g. 3577 for Australia')
+@click.option('--cpt-colormap', type=click.Path(dir_okay=False, exists=True))
 @click.argument('point-dataset', type=click.Path(dir_okay=False, exists=True),
                 required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False, exists=False),
                 required=False)
-def main(point_dataset, projection_code, output_file=None):
+def main(point_dataset, projection_code, cpt_colormap=None, output_file=None):
     _f = plot_spatial_map(point_dataset, projection_code,
                           title='Moho depth from blended data',
-                          feature_label='Moho depth (km)')
+                          feature_label='Moho depth (km)',
+                          cpt_colormap=cpt_colormap)
     if output_file is not None:
         _, ext = os.path.splitext(output_file)
         assert ext and ext.lower() in ['.png', '.pdf'], 'Provide output file extension to specify output format!'
