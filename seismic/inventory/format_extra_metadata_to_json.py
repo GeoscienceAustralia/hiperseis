@@ -57,7 +57,7 @@ def main(input_csv, output_json ):
 
     pdf = pd.DataFrame(pd.read_csv(input_csv, sep=",", header=0, index_col=False))
     pdf.to_json(output_json, orient="records", date_format="epoch", double_precision=10,
-                     force_ascii=True, date_unit="ms", default_handler=None)
+                     force_ascii=True, date_unit="ms", default_handler=None, indent=4)
     # Section to define functions or class
 
     return
