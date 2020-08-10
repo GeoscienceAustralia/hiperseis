@@ -59,9 +59,16 @@ class StationMetadataExtra:  # CapWords naming convention.
         """
         pdf = pd.DataFrame(pd.read_csv(csvfile, sep=",", header=0, index_col=False))
 
+        # select the network and sta
+        pdf2 = pdf.loc[(pdf['net'] == self.net) & (pdf['sta'] == self.sta)]
+
+        # drop two columns inplace pdf2 itself will be changed, otherwise will return a new df
+        pdf2.drop(['net', 'sta'], axis=1, inplace=True)
+        print("The shapes = ", pdf.shape, pdf2.shape)
+
         # to json object
-        gps_corr = pdf.to_json(orient="records", date_format="epoch", double_precision=10,
-                               force_ascii=True, date_unit="ms", default_handler=None, indent=4)
+        gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
+                                force_ascii=True, date_unit="ms", default_handler=None, indent=4)
 
         # add the json object as string to the self.mdata
         self.mdata.update({"GPS_CORRECTION": json.loads(gps_corr)})
