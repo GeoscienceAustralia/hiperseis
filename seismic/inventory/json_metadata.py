@@ -51,9 +51,16 @@ def read_my_metajson(metajson_file):
 
 
 if __name__ == "__main__":
-    # json_file = "/Datasets/Orientation_Correction_json/7X_ori_error_estimates.json"
-    # json_file = "OA_ori_error_estimates.json" #"7X_ori_error_estimates.json"
+    json_file = "/Datasets/Orientation_Correction_json/7X_ori_error_estimates.json"
+    #json_file = "OA_ori_error_estimates.json" #"7X_ori_error_estimates.json"
     # read_orientation_correction(json_file)
 
     my_meta_json = "extra_station_metadata.json"
-    read_my_metajson(my_meta_json)
+    mdata = read_my_metajson(my_meta_json)
+
+    print (mdata)
+
+    print(json.dumps(mdata, indent=2))
+
+    with open("mynew_mdata.json", "w") as f:
+        json.dump(mdata, f, indent=2)
