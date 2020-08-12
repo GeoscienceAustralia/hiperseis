@@ -188,26 +188,26 @@ def main(config_file, output_file):
         kwargs = {'max_dist': max_dist}
         dist_matrix = cdist(grid_map, xy_map, metric=DIST_METRIC, **kwargs)
         dist_sq_matrix = (dist_matrix/sigma)**2
-        dist_weighting_m1 = np.exp(-dist_sq_matrix)
+        dist_weighting = np.exp(-dist_sq_matrix)
         # We return nan instead of 0 from distance functions if beyond max distance, because 
         # theoretically a sample exactly on the grid point will have a dist of 0, and the weighting
         # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
         # have a weight of 0, rather than NaN which will propagate.
-        dist_weighting_m1[np.isnan(dist_weighting_m1)] = 0
+        dist_weighting[np.isnan(dist_weighting)] = 0
         z = pt_data[:, 2][:, np.newaxis]
         zw = filedict.get('sample_weights')
         w = filedict["weighting"]
         if zw is not None:
             zw = zw[:, np.newaxis]
-            denom = ((dist_weighting_m1) * zw.T * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting_m1) * (z * zw).T * w).sum(axis=1)[:, np.newaxis]
+            denom = ((dist_weighting) * zw.T * w).sum(axis=1)[:, np.newaxis]
+            z_numer = ((dist_weighting) * (z * zw).T * w).sum(axis=1)[:, np.newaxis]
         else:
-            denom = (dist_weighting_m1 * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting_m1) * z.T * w).sum(axis=1)[:, np.newaxis]
+            denom = (dist_weighting * w).sum(axis=1)[:, np.newaxis]
+            z_numer = ((dist_weighting) * z.T * w).sum(axis=1)[:, np.newaxis]
         if zw is not None:
-            s_numer = ((dist_weighting_m1)*(np.square(z) * zw).T * w).sum(axis=1)[:, np.newaxis]
+            s_numer = ((dist_weighting)*(np.square(z) * zw).T * w).sum(axis=1)[:, np.newaxis]
         else:
-            s_numer = ((dist_weighting_m1)*np.square(z).T * w).sum(axis=1)[:, np.newaxis]
+            s_numer = ((dist_weighting)*np.square(z).T * w).sum(axis=1)[:, np.newaxis]
         denom_agg += denom
         z_agg += z_numer
         s_agg += s_numer
