@@ -50,6 +50,11 @@ ellipcorr = Extension(
     sources=['ellip-corr/ellip/ellipcorr.f']
 )
 
+kennett_dist = Extension(
+    name='kennett_dist',
+    sources=['kennett-dist/kennett_dist.f']
+)
+
 setup(
     name='Passive-Seismic',
     version=__version__,
@@ -83,7 +88,7 @@ setup(
             'cluster = seismic.cluster.cluster:cli',
         ]
     },
-    ext_modules=[ellipcorr],
+    ext_modules=[ellipcorr, kennett_dist],
     # numpy preinstall required due to obspy
     # mpi4py  preinstall required due to h5py
     setup_requires=[
