@@ -91,7 +91,7 @@ class StationMetadataExtra:  # CapWords naming convention.
         """
         # read in
 
-        ns = "https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.1"
+        ns = "https://github.com/GeoscienceAustralia/hiperseis"
 
         # path2_myxml = "/home/feizhang/Githubz/hiperseis/tests/testdata/7D_2012_2013.xml"
         my_inv = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
@@ -107,9 +107,9 @@ class StationMetadataExtra:  # CapWords naming convention.
         my_tag.value = self.make_json_string()
 
         selected_inv.networks[0].stations[0].extra = AttribDict()
-        selected_inv.networks[0].stations[0].extra.GA_META = my_tag
+        selected_inv.networks[0].stations[0].extra.GAMetadata = my_tag
 
-        new_stationxml = '%s.%s_station_inv_modified.xml' % (self.net, self.sta)
+        new_stationxml = '%s.%s_station_inv_modified3.xml' % (self.net, self.sta)
 
         if out_dir is not None and os.path.isdir(out_dir):
             new_stationxml_with_json = os.path.join(out_dir, new_stationxml)
@@ -143,4 +143,6 @@ if __name__ == "__main__":
     with open("./extra_mdata.dev.json", "w") as f:
         json.dump(obj.mdata, f, indent=2)
 
-    obj.add_extra_metata_to_stationxml("/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml")
+    #obj.add_extra_metata_to_stationxml("/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml")
+    #obj.add_extra_metata_to_stationxml("./OA.CF28_new.xml")
+    obj.add_extra_metata_to_stationxml("/g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml")
