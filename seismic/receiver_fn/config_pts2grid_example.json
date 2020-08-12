@@ -4,15 +4,17 @@
         "sandbox/PV-227/ccp_line_data_sample1.csv":
         {
             "weighting": 1.0,
-            "scale_length_km": 25.0
+            "scale_length_degrees": 0.2,
+            "sample_weighting_enabled": false
         },
         "sandbox/PV-227/ccp_line_data_sample2.csv":
         {
             "weighting": 0.5,
-            "scale_length_km": 20.0,
-            "scale_length_cutoff": 4
+            "scale_length_degrees": 0.2,
+            "scale_length_cutoff": 4,
+            "sample_weighting_enabled": false
         }
     },
-    "proj_crs_code": 3577,
-    "output_spacing_km": 10.0
+    "bounds": [130.0, -17.0, 140.0, -20.0],
+    "output_spacing_degrees": 10.0
 }
