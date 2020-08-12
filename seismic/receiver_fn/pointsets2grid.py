@@ -2,9 +2,6 @@
 """
 Blend multiple datasets on different lon/lat point sets together onto a common grid.
 
-Uses weighted Gaussian interpolation method of Kennett, but simplified to
-ignore the individual point weighting.
-
 Multiple datasets with per-dataset settings are passed in using a JSON configuration
 file with layout illustrated by the following example::
 
@@ -14,24 +11,34 @@ file with layout illustrated by the following example::
             "file1":
             {
                 "weighting": 2.5,
-                "scale_length_km": 10.0,
-                "scale_length_cutoff": 3.5
+                "scale_length_degrees": 10.0,
+                "scale_length_cutoff": 3.5,
+                "enable_sample_weighting": False
             },
             "file2":
             {
                 "weighting": 0.5,
-                "scale_length_km": 20.0
+                "scale_length_degrees": 20.0,
+                "enable_sample_weighting": True
             },
             "file3":
             {
                 "weighting": 1.0,
-                "scale_length_km": 10.0,
+                "scale_length_degrees": 10.0,
                 "scale_length_cutoff": 3
             }
         },
-        "proj_crs_code": 3577,
-        "output_spacing_km": 10.0
+        "bounds: [131.0, -36.0, 146.0, -27.0]",
+        "output_spacing_degrees": 10.0
     }
+
+Sample weighting can be switched on or off per dataset. It's on by 
+default, and requires the dataset to have a fourth column containg
+sample weights.
+
+Bounds are optional. If provided, the interpolation grid will be limited
+to this extent. If not provided, the interpolation grid is bounded by
+the maximum extent of the aggregate datasets.
 
 Reference:
 B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
@@ -48,19 +55,17 @@ import math
 
 import click
 import numpy as np
-from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
 import cartopy as cp
 
 try:
     import kennett_dist
-    DIST_METRIC=_kennett_dist
+    K_DIST = True
 except ImportError:
-    DIST_METRIC=_haversine
+    print("Kennett distance function not found. Using haversine.")
+    K_DIST = False
 
-DEFAULT_CRS_CODE = 3395  # WGS84 World Mercator projection
 DEFAULT_CUTOFF = 3.6  # dimensionless factor applied to scale length
-
 
 def _kennett_dist(s, r, **kwargs):
     """
@@ -73,7 +78,7 @@ def _kennett_dist(s, r, **kwargs):
     # Distance in degrees
     delta, _, _ = kennett_dist.ydiz(clats, clons, clatr, clonr)
     if delta > max_dist:
-        return 0.
+        return np.nan
     else:
         return delta
 
@@ -98,10 +103,11 @@ def _haversine(s, r, **kwargs):
     delta_degrees = c * 180.0/math.pi
 
     if delta_degrees > max_dist:
-        return 0.
+        return np.nan
     else:
         return delta_degrees
 
+DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
 @click.command()
 @click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -155,7 +161,7 @@ def main(config_file, output_file):
             bb_min = np.minimum(bb_min, xy_min)
             bb_max = np.maximum(bb_max, xy_max)
         # Add sample weights to filedict if provided
-        if filedict.get('enable_sample_weighting', False):
+        if filedict.get('enable_sample_weighting', True):
             filedict['sample_weights'] = pt_dataset[:, 3]
     
     span = bb_max - bb_min
@@ -168,18 +174,26 @@ def main(config_file, output_file):
     denom_agg = np.zeros(grid_map.shape[0], dtype=float)[:, np.newaxis]
     z_agg = np.zeros_like(denom_agg)
     s_agg = np.zeros_like(denom_agg)
+    print("Distance matrix calculation may take several minutes for large datasets")
     for _fname, filedict in src_files.items():
+        print(f"Processing '{_fname}'")
         sigma = filedict["scale_length_degrees"]
         sig_sq = np.square(sigma)
         cutoff = filedict.get("scale_length_cutoff", DEFAULT_CUTOFF)
         max_dist = cutoff*sigma
         pt_data = filedict["pt_data"]
         xy_map = pt_data[:, :2]
+        print(f"{xy_map.shape[0]} samples")
+        print(f"Calculating distance matrix...")
         kwargs = {'max_dist': max_dist}
         dist_matrix = cdist(grid_map, xy_map, metric=DIST_METRIC, **kwargs)
         dist_sq_matrix = (dist_matrix/sigma)**2
         dist_weighting_m1 = np.exp(-dist_sq_matrix)
-        dist_weighting_m1 = np.where(dist_weighting_m1 == 1, 0, dist_weighting_m1)
+        # We return nan instead of 0 from distance functions if beyond max distance, because 
+        # theoretically a sample exactly on the grid point will have a dist of 0, and the weighting
+        # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
+        # have a weight of 0, rather than NaN which will propagate.
+        dist_weighting_m1[np.isnan(dist_weighting_m1)] = 0
         z = pt_data[:, 2][:, np.newaxis]
         zw = filedict.get('sample_weights')
         w = filedict["weighting"]
@@ -212,6 +226,7 @@ def main(config_file, output_file):
         np.savetxt(f, [n_x, n_y], fmt='%d')
         np.savetxt(f, data_agg_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
                    header='Lon,Lat,Depth,Stddev')
+    print(f"Complete, results saved to '{output_file}'")
         # To load this data back in:
         # >>> with open('test_pts2grid.csv', 'r') as f:
         # ...   nx = int(f.readline())
