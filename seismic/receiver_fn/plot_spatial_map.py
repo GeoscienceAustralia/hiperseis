@@ -2,7 +2,7 @@
 """
 Use cartopy to plot moho grid and gradient onto a map.
 """
-
+import json
 import os
 
 import click
@@ -70,8 +70,8 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
         xy_min = xy_map.min(axis=0)
         xy_max = xy_map.max(axis=0)
         span = xy_max - xy_min
-        xy_min -= 0.2*span
-        xy_max += 0.2*span
+        xy_min -= 0.1*span
+        xy_max += 0.1*span
 
     fig = plt.figure(figsize=(14,12))
 
@@ -103,7 +103,7 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
     if feature_label is not None:
         cb.set_label(feature_label)
     
-    grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy')
+    grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy', units='xy')
     # Hack: shrink gradient ax so it's the same size as contour ax (contour ax shrinks due to 
     # appending colorbar ax)
     grad_div = make_axes_locatable(grad_ax)
@@ -112,10 +112,41 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
     if title is not None:
         cont_ax.set_title(title)
 
-    fig.tight_layout(pad=3.0)
-
     return fig
 
+
+def from_config(config_file):
+    """
+    Create plots from config as part of moho workflow.
+    """
+    print("Plotting Moho grid and gradient map")
+    with open(config_file, mode='r') as f:
+        job_config = json.load(f)
+
+    plotting = job_config.get('plotting')
+    if plotting is not None:
+        if plotting.get('output_cartopy_plot', False):
+            cp = plotting.get('cartopy_parameters', {})
+            scale = cp.get('scale')
+            fmt = cp.get('format', 'png')
+            show = cp.get('show', False)
+            title = cp.get('title', 'Moho depth from blended data')
+            cb_label = cp.get('cb_label', 'Moho depth (km)')
+            outdir = job_config.get('output_dir', os.getcwd())
+            grid_data = os.path.join(outdir, 'moho_grid.csv')
+            gradient_data = os.path.join(outdir, 'moho_gradient.csv')
+            fig = plot_spatial_map(grid_data, gradient_data, scale=scale, 
+                                   title=title, feature_label=cb_label)
+            if show:
+                print("Showing plot, close display window to continue")
+                plt.show()
+            outfile = os.path.join(outdir, f'moho_plot.{fmt}')
+            fig.savefig(outfile, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"Complete! Plot saved to {outfile}")
+    else:
+        return
+                
 
 @click.command()
 @click.option('--projection-code', type=int, required=False,
@@ -141,7 +172,8 @@ def main(grid_data, grad_data, projection_code=None, bounds=None, scale=None,
 
     if output_file is not None:
         _, ext = os.path.splitext(output_file)
-        assert ext and ext.lower() in ['.png', '.pdf'], 'Provide output file extension to specify output format!'
+        assert ext and ext.lower() in ['.png', '.pdf'], \
+            'Provide output file extension to specify output format!'
         plt.savefig(output_file, dpi=300)
         print('Saved plot in file', output_file)
 
@@ -228,7 +260,3 @@ def _gmt_colormap(filename):
 
 if __name__ == '__main__':
     main()
-# end if
-
-
-

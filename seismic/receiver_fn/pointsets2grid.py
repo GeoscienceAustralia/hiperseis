@@ -119,9 +119,7 @@ def _haversine(s, r, **kwargs):
 DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
 
-@click.command()
-@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True)
-def main(config_file):
+def make_grid(config_file):
     """
     Run multi point dataset weighted averaging over Gaussian interpolation functions
     to produce aggregate dataset.
@@ -137,13 +135,15 @@ def main(config_file):
     :param output_file: Name of output file
     :return: None
     """
+    print("Generating Moho grid from point data")
     # Load config
     with open(config_file, mode='r') as f:
         job_config = json.load(f)
-    methods = job_config['methods']
-    if not methods:
-        print("No methods provided, exiting")
-        return
+
+    try:
+        methods = job_config['methods']
+    except KeyError as e:
+        raise Exception("No methods provided") from e
 
     bounds = job_config.get('bounds')
     if bounds is None:
@@ -256,6 +256,13 @@ def main(config_file):
                    header='Lon,Lat,U,V')
 
     print(f"Complete, results saved to '{grid_output_file}' and '{gradient_output_file}'")
+
+
+@click.command()
+@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True)
+def main(config_file):
+    make_grid(config_file)
+
 
 if __name__ == '__main__':
     main()
