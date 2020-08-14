@@ -1,0 +1,26 @@
+{
+    "methods":
+    {
+        "CCP_1":
+        {
+            "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
+            "weighting": 1.0,
+            "scale_length_degrees": 0.2,
+            "enable_sample_weighting": false
+        },
+        "CCP_2":
+        {
+            "csv_file": "sandbox/PV-227/ccp_line_data_sample2.csv",
+            "weighting": 0.5,
+            "scale_length_degrees": 0.2,
+            "scale_length_cutoff": 3.6,
+            "enable_sample_weighting": false
+        }
+    },
+    "output_spacing_degrees": 0.25,
+    "bounds": [130.0, -20.0, 140.0, -17.0],
+    "output_dir": "./ccp_moho_output",
+    "plot_cartopy": true,
+    "gmt_output": true,
+    "gis_output": true
+}
