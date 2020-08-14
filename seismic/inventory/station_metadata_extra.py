@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 """
-Json Class Model for GA Extra Metadata
+Class Model for GA Extra Metadata
 
 References:
     https://gajira.atlassian.net/browse/PV-324
@@ -60,7 +60,7 @@ class StationMetadataExtra:  # CapWords naming convention.
         pdf = pd.DataFrame(pd.read_csv(csvfile, sep=",", header=0, index_col=False))
 
         # select the network and sta
-        pdf2 = pdf.loc[(pdf['net'] == self.net) & (pdf['sta'] == self.sta)]
+        pdf2 = pdf.loc[(pdf['net'] == self.net) & (pdf['sta'] == self.sta)].copy()
 
         # drop two columns inplace pdf2 itself will be changed, otherwise will return a new df
         pdf2.drop(['net', 'sta'], axis=1, inplace=True)
@@ -143,6 +143,6 @@ if __name__ == "__main__":
     with open("./extra_mdata.dev.json", "w") as f:
         json.dump(obj.mdata, f, indent=2)
 
-    #obj.add_extra_metata_to_stationxml("/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml")
+    obj.add_extra_metata_to_stationxml("/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml")
     #obj.add_extra_metata_to_stationxml("./OA.CF28_new.xml")
-    obj.add_extra_metata_to_stationxml("/g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml")
+    #obj.add_extra_metata_to_stationxml("/g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml")

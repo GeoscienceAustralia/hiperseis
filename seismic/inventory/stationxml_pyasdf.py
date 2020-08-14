@@ -22,8 +22,9 @@ if __name__ == "__main__":
     print("pyasdf.__version__", pyasdf.__version__, pyasdf.__file__)
     print("obspy.__version__", obspy.__version__, obspy.__file__)
 
-    input_file_2_asdf = "./OA.CF28_input2_pyasdf.xml"  # input xml file with extra metadata in it already
-    output_from_asdf =  "./OA.CF28_out_pyasdf.xml"
+    # input xml file with extra metadata in it already
+    input_file_2_asdf = "./OA.CF28_input2_pyasdf.xml"
+    output_from_asdf = "./OA.CF28_out_pyasdf.xml"
     # Read directly.
     inv_original = obspy.read_inventory(input_file_2_asdf)
 
