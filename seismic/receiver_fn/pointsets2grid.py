@@ -46,6 +46,8 @@ The gridded data will be placed in the output directory as
 'moho_grid.csv'. If output directory is not provided, the current 
 working directory will be used.
 
+The gridded gradient will be in output directory as 'moho_gradient.csv'.
+
 Reference:
 B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
 Proc. R. Soc. A. 475:20190352, http://dx.doi.org/10.1098/rspa.2019.0352
@@ -230,8 +232,8 @@ def main(config_file):
     np.seterr(**prior_settings)
     
     # Calculate gradient
-    Z_2d = Z.reshape((n_x, n_y))
-    u, v = np.gradient(Z_2d)
+    Z_2d = Z.reshape((n_y, n_x))
+    v, u = np.gradient(Z_2d)
     gradient = np.array((u.flatten(), v.flatten())).T
 
     # Collect data and write to file
