@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Use cartopy to plot point dataset onto map.
+Use cartopy to plot moho grid and gradient onto a map.
 """
 
 import os
@@ -10,13 +10,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy as cp
 import numpy as np
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
 
+
 COLORMAP = "./moho_kennett.cpt"
 
-def plot_spatial_map(point_dataset, projection_code=None, gradient=False, title=None, 
-                     feature_label=None, bounds=None, scale=None):
+
+def plot_spatial_map(grid_data, gradient_data, projection_code=None, 
+                     title=None, feature_label=None, bounds=None, scale=None):
     """
     Make spatial plot of point dataset with filled contours overlaid on map.
 
@@ -29,15 +32,19 @@ def plot_spatial_map(point_dataset, projection_code=None, gradient=False, title=
     :param scale: 2 element tuple of (vmin, vmax) for limiting colormap scale
     :return:
     """
-    with open(point_dataset, 'r') as f:
+    with open(grid_data, 'r') as f:
         nx = int(f.readline())
         ny = int(f.readline())
-        ds = np.loadtxt(f, delimiter=',')
-    # end with
-    # For each column in ds, reshape((ny, nx))
-    x = ds[:, 0].reshape((ny, nx))
-    y = ds[:, 1].reshape((ny, nx))
-    z = ds[:, 2].reshape((ny, nx))
+        grid_ds = np.loadtxt(f, delimiter=',')
+    with open(gradient_data, 'r') as f:
+        grad_ds = np.loadtxt(f, delimiter=',', skiprows=2)
+
+    # For each column in data, reshape((ny, nx))
+    x = grid_ds[:, 0].reshape((ny, nx))
+    y = grid_ds[:, 1].reshape((ny, nx))
+    z = grid_ds[:, 2].reshape((ny, nx))
+    u = grad_ds[:, 2].reshape((ny, nx))
+    v = grad_ds[:, 3].reshape((ny, nx))
 
     # Source data is defined in lon/lat coordinates.
     data_crs = cp.crs.PlateCarree()
@@ -66,16 +73,19 @@ def plot_spatial_map(point_dataset, projection_code=None, gradient=False, title=
         xy_min -= 0.2*span
         xy_max += 0.2*span
 
-    
-    fig = plt.figure(figsize=(16,9))
-    ax = plt.axes(projection=map_projection)
-    ax.set_xlim(xy_min[0], xy_max[0])
-    ax.set_ylim(xy_min[1], xy_max[1])
-    _gridliner = ax.gridlines(draw_labels=True, linestyle=':')
-    ax.add_feature(cp.feature.OCEAN.with_scale(resolution))
-    ax.add_feature(cp.feature.LAND.with_scale(resolution))
-    ax.add_feature(cp.feature.STATES.with_scale(resolution), linewidth=0.7,
-                   edgecolor="#808080a0", antialiased=True)
+    fig = plt.figure(figsize=(14,12))
+
+    cont_ax = plt.subplot(2, 1, 1, projection=map_projection)
+    grad_ax = plt.subplot(2, 1, 2, projection=map_projection)
+
+    for ax in [cont_ax, grad_ax]:
+        ax.set_xlim(xy_min[0], xy_max[0])
+        ax.set_ylim(xy_min[1], xy_max[1])
+        ax.gridlines(draw_labels=True, linestyle=':')
+        ax.add_feature(cp.feature.OCEAN.with_scale(resolution))
+        ax.add_feature(cp.feature.LAND.with_scale(resolution))
+        ax.add_feature(cp.feature.STATES.with_scale(resolution), linewidth=0.7,
+                       edgecolor="#808080a0", antialiased=True)
 
     if scale:
         norm = Normalize(scale[0], scale[1])
@@ -84,53 +94,60 @@ def plot_spatial_map(point_dataset, projection_code=None, gradient=False, title=
         norm = None
         sm = None
 
-    if gradient:
-        u, v = np.gradient(z)
-        ax.quiver(x, y, v, u, transform=data_crs, zorder=3, angles='xy')
-    else:
-        _contr = ax.contourf(x, y, z, levels=20, transform=data_crs, cmap=cmap, norm=norm,
-                             alpha=0.8, zorder=2)
-        sm = sm if sm is not None else _contr
-        _cb = plt.colorbar(sm, pad=0.1, shrink=0.6, fraction=0.05)
-        _cb.ax.invert_yaxis()
-        if feature_label is not None:
-            _cb.set_label(feature_label)
+    contr = cont_ax.contourf(x, y, z, levels=20, transform=data_crs, cmap=cmap, norm=norm,
+                              alpha=0.8, zorder=2)
+    sm = sm if sm is not None else contr
+    cont_div = make_axes_locatable(cont_ax)
+    cax = cont_div.append_axes('bottom', size='5%', pad='7%', axes_class=plt.Axes)
+    cb = plt.colorbar(sm, cax=cax, orientation="horizontal")
+    if feature_label is not None:
+        cb.set_label(feature_label)
+    
+    grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy')
+    # Hack: shrink gradient ax so it's the same size as contour ax (contour ax shrinks due to 
+    # appending colorbar ax)
+    grad_div = make_axes_locatable(grad_ax)
+    grad_div.append_axes('bottom', size='5%', pad='7%', axes_class=plt.Axes).set_visible(False)
+
     if title is not None:
-        plt.title(title)
+        cont_ax.set_title(title)
+
+    fig.tight_layout(pad=3.0)
+
     return fig
-# end func
 
 
 @click.command()
-@click.option('--gradient', is_flag=True)
 @click.option('--projection-code', type=int, required=False,
               help='EPSG projection code to reproject map to, e.g. 3577 for Australia')
 @click.option('--bounds', nargs=4, type=float, required=False,
               help='Bounding box for limiting map extents, of format xmin, ymin, xmax, ymax')
 @click.option('--scale', nargs=2, type=float, required=False,
               help='vmin, vmax for colormap scaling')
-@click.argument('point-dataset', type=click.Path(dir_okay=False, exists=True),
+@click.argument('grid-data', type=click.Path(dir_okay=False, exists=True),
+                required=True)
+@click.argument('grad-data', type=click.Path(dir_okay=False, exists=True),
                 required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False, exists=False),
                 required=False)
-def main(point_dataset, gradient, projection_code=None, bounds=None, scale=None,
+def main(grid_data, grad_data, projection_code=None, bounds=None, scale=None,
          output_file=None):
-    _f = plot_spatial_map(point_dataset, 
-                          projection_code=projection_code,
-                          gradient=gradient,
-                          title='Moho depth from blended data',
-                          feature_label='Moho depth (km)',
-                          bounds=bounds,
-                          scale=scale)
+    plot_spatial_map(grid_data, grad_data,
+                     projection_code=projection_code,
+                     title='Moho depth from blended data',
+                     feature_label='Moho depth (km)',
+                     bounds=bounds,
+                     scale=scale)
+
     if output_file is not None:
         _, ext = os.path.splitext(output_file)
         assert ext and ext.lower() in ['.png', '.pdf'], 'Provide output file extension to specify output format!'
         plt.savefig(output_file, dpi=300)
         print('Saved plot in file', output_file)
-    # end if
+
     plt.show()
     plt.close()
-# end func
+
 
 def _gmt_colormap(filename):
       """ Borrowed from AndrewStraw, scipy-cookbook
