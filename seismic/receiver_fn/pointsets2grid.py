@@ -224,21 +224,36 @@ def main(config_file):
     prior_settings = np.seterr(divide='ignore', invalid='ignore')
     # Convert weights < 0.02 to NaN (from B.K's code)
     denom_agg = np.where(denom_agg < 0.02, np.nan, denom_agg)
+    # Get depth Z and std S for each grid cell
     Z = z_agg/denom_agg
     S = s_agg/denom_agg
     np.seterr(**prior_settings)
     
+    # Calculate gradient
+    Z_2d = Z.reshape((n_x, n_y))
+    u, v = np.gradient(Z_2d)
+    gradient = np.array((u.flatten(), v.flatten())).T
+
     # Collect data and write to file
-    data_agg_gridded = np.hstack((grid_map, Z, S))
     output_dir = job_config.get('output_dir', os.getcwd())
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-    output_file = os.path.join(output_dir, 'moho_grid.csv')
-    with open(output_file, mode='w') as f:
+
+    depth_gridded = np.hstack((grid_map, Z, S))
+    grid_output_file = os.path.join(output_dir, 'moho_grid.csv')
+    with open(grid_output_file, mode='w') as f:
         np.savetxt(f, [n_x, n_y], fmt='%d')
-        np.savetxt(f, data_agg_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
+        np.savetxt(f, depth_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
                    header='Lon,Lat,Depth,Stddev')
-    print(f"Complete, results saved to '{output_file}'")
+
+    gradient_gridded = np.hstack((grid_map, gradient))
+    gradient_output_file = os.path.join(output_dir, 'moho_gradient.csv')
+    with open(gradient_output_file, mode='w') as f:
+        np.savetxt(f, [n_x, n_y], fmt='%d')
+        np.savetxt(f, gradient_gridded, fmt=['%.6f', '%.6f', '%.6f', '%.6f'], delimiter=',',
+                   header='Lon,Lat,U,V')
+
+    print(f"Complete, results saved to '{grid_output_file}' and '{gradient_output_file}'")
 
 if __name__ == '__main__':
     main()
