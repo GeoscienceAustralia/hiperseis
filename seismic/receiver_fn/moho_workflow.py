@@ -28,8 +28,7 @@ def main(config_file):
         if plotting.get('output_gis_data', False):
             write_gis_data.write_depth_grid(config_file)
             write_gis_data.write_gradient_grid(config_file)
-
-
+            write_gis_data.write_sample_locations(config_file)
 
 
 if __name__ == '__main__':
