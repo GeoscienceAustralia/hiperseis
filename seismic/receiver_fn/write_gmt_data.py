@@ -74,25 +74,34 @@ def from_config(config_file):
     methods = config['methods']
     for method_params in methods:
         method = method_params['name']
-        data = np.loadtxt(method_params['csv_file'], delimiter=',')
-        # Remove depth column
-        data = np.delete(data, 2, 1)
-        weight = method_params['weighting']
-        if method_params['enable_sample_weighting']:
-            data[:, 2] *= weight
-        # If sample weights not used, the weight column is the dataset weight
-        else:
-            try:
-                data[:, 2].fill(weight)
-            except IndexError:
-                # Make weights column if it doesn't exist
-                data = np.append(data, np.zeros_like(data[:, 1][:, np.newaxis]), axis=1)
-                data[:, 2].fill(weight)
+        data = format_locations(method_params)
         outfile = os.path.join(gmt_outdir, f'{method}_loc.txt')
         with open(outfile, 'w') as fw:
             np.savetxt(fw, data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
     print(f"Complete! Data files saved to '{gmt_outdir}'")
- 
+
+
+def format_locations(method_params):
+    """
+    Formats sample data to LON LAT TOTAL_WEIGHT.
+    TODO: should be refactored - used here and by write_gis_data.py.
+    """
+    data = np.loadtxt(method_params['csv_file'], delimiter=',')
+    # Remove depth column
+    data = np.delete(data, 2, 1)
+    weight = method_params['weighting']
+    if method_params['enable_sample_weighting']:
+        data[:, 2] *= weight
+    # If sample weights not used, the weight column is the dataset weight
+    else:
+        try:
+            data[:, 2].fill(weight)
+        except IndexError:
+            # Make weights column if it doesn't exist
+            data = np.append(data, np.zeros_like(data[:, 1][:, np.newaxis]), axis=1)
+            data[:, 2].fill(weight)
+    return data
+
 
 @click.command()
 @click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)

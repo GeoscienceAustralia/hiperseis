@@ -10,6 +10,8 @@ import rasterio
 import shapefile
 import numpy as np
 
+from seismic.receiver_fn.write_gmt_data import format_locations
+
 
 def _profile(data, nx, ny, bands=1, bounds=None):
     """
@@ -97,21 +99,45 @@ def write_gradient_grid(config_file):
 
 
 def write_sample_locations(config_file):
-    methods = config_file['methods']
-    for method_params in methods:
-
+    print("Writing location shapefile")
+    with open(config_file, 'r') as fr:
+        config = json.load(fr)
     
+    outdir = config.get('output_dir', os.getcwd())
+    gis_outdir = os.path.join(outdir, 'gis_data')
+    if not os.path.exists(gis_outdir):
+        os.mkdir(gis_outdir)
+    outfile = os.path.join(gis_outdir, 'locations')
+
+    w = shapefile.Writer(outfile, shapeType=1)
+    w.field('NAME', 'C')
+    w.field('WEIGHT', 'N', decimal=2)
+
+    methods = config['methods']
+    for method_params in methods:
+        method = method_params['name']
+        data = format_locations(method_params)
+        for d in data:
+            w.point(d[0], d[1])
+            w.record(NAME=method, WEIGHT=d[2])
+
+    w.close()
+    print(f"Complete! Location shapefile written to '{outfile}'")
+        
    
 
 @click.command()
 @click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--depth', is_flag=True)
 @click.option('--gradient', is_flag=True)
-def main(config_file, depth, gradient):
+@click.option('--locations', is_flag=True)
+def main(config_file, depth, gradient, locations):
     if depth:
         write_depth_grid(config_file)
     if gradient:
         write_gradient_grid(config_file)
+    if locations:
+        write_sample_locations(config_file)
 
 if __name__ == '__main__':
     main()
