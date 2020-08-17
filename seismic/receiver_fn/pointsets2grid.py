@@ -9,23 +9,23 @@ configuration file, illustrated by the following example:
 
     {
         "methods":
-        {
-            "CCP_1":
+        [
             {
+                "name": "CCP1",
                 "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
                 "weighting": 1.0,
                 "scale_length_degrees": 0.2,
                 "enable_sample_weighting": false
             },
-            "CCP_2":
             {
+                "name": "CCP2",
                 "csv_file": "sandbox/PV-227/ccp_line_data_sample2.csv",
                 "weighting": 0.5,
                 "scale_length_degrees": 0.2,
                 "scale_length_cutoff": 3.6,
                 "enable_sample_weighting": false
             }
-        },
+        ],
         "output_spacing_degrees": 0.25,
         "bounds": [130.0, -20.0, 140.0, -17.0],
         "output_dir": "./ccp_moho_output",
@@ -154,9 +154,10 @@ def make_grid(config_file):
         bb_min = np.array((l, b))
         bb_max = np.array((r, t))
 
-    for method, params in methods.items():
-        pt_dataset = np.loadtxt(params['csv_file'], delimiter=',')
-        params['pt_data'] = pt_dataset
+    for method_params in methods:
+        method = method_params['name']
+        pt_dataset = np.loadtxt(method_params['csv_file'], delimiter=',')
+        method_params['pt_data'] = pt_dataset
         # If bounds not provided, find extent of datasets
         if bounds is None:
             xy_map = pt_dataset[:, :2]
@@ -165,14 +166,13 @@ def make_grid(config_file):
             bb_min = np.minimum(bb_min, xy_min)
             bb_max = np.maximum(bb_max, xy_max)
         # Add sample weights to filedict if provided
-        if params['enable_sample_weighting']:
+        if method_params['enable_sample_weighting']:
             try:
-                params['sample_weights'] = pt_dataset[:, 3]
+                method_params['sample_weights'] = (pt_dataset[:, 3][:, np.newaxis]).T
             except IndexError as e:
                 raise Exception(
                     f"Sample weights enabled for '{method}' but could not be found in "
                       "csv file. Ensure fourth column exists and contains sample weights.") from e
-                       
     
     span = bb_max - bb_min
     spacing = job_config["output_spacing_degrees"]
@@ -185,13 +185,14 @@ def make_grid(config_file):
     z_agg = np.zeros_like(denom_agg)
     s_agg = np.zeros_like(denom_agg)
     print("Distance matrix calculation may take several minutes for large datasets")
-    for method, params in methods.items():
+    for method_params in methods:
+        method = method_params['name']
         print(f"Processing '{method}'")
-        sigma = params["scale_length_degrees"]
+        sigma = method_params["scale_length_degrees"]
         sig_sq = np.square(sigma)
-        cutoff = params.get("scale_length_cutoff", DEFAULT_CUTOFF)
+        cutoff = method_params.get("scale_length_cutoff", DEFAULT_CUTOFF)
         max_dist = cutoff*sigma
-        pt_data = params["pt_data"]
+        pt_data = method_params["pt_data"]
         xy_map = pt_data[:, :2]
         print(f"{xy_map.shape[0]} samples")
         print(f"Calculating distance matrix...")
@@ -204,20 +205,14 @@ def make_grid(config_file):
         # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
         # have a weight of 0, rather than NaN which will propagate.
         dist_weighting[np.isnan(dist_weighting)] = 0
-        z = pt_data[:, 2][:, np.newaxis]
-        zw = params.get('sample_weights')
-        w = params["weighting"]
-        if zw is not None:
-            zw = zw[:, np.newaxis]
-            denom = ((dist_weighting) * zw.T * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting) * (z * zw).T * w).sum(axis=1)[:, np.newaxis]
-        else:
-            denom = (dist_weighting * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting) * z.T * w).sum(axis=1)[:, np.newaxis]
-        if zw is not None:
-            s_numer = ((dist_weighting)*(np.square(z) * zw).T * w).sum(axis=1)[:, np.newaxis]
-        else:
-            s_numer = ((dist_weighting)*np.square(z).T * w).sum(axis=1)[:, np.newaxis]
+        z = (pt_data[:, 2][:, np.newaxis]).T
+        zw = method_params.get('sample_weights') if method_params.get('sample_weights') is not None \
+                else np.ones_like(z)
+        w = method_params["weighting"]
+        zw = zw * w
+        denom = ((dist_weighting) * zw).sum(axis=1)[:, np.newaxis]
+        z_numer = ((dist_weighting) * (z * zw)).sum(axis=1)[:, np.newaxis]
+        s_numer = ((dist_weighting)*(np.square(z) * zw)).sum(axis=1)[:, np.newaxis]
         denom_agg += denom
         z_agg += z_numer
         s_agg += s_numer
