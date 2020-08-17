@@ -40,6 +40,9 @@ def _profile(data, nx, ny, bands=1, bounds=None):
 
 
 def write_depth_grid(config_file):
+    """
+    Writes the interpolated depth grid as a geotiff.
+    """
     print("Writing depth grid geotiff")
     with open(config_file, 'r') as fr:
         config = json.load(fr)
@@ -70,6 +73,10 @@ def write_depth_grid(config_file):
 
 
 def write_gradient_grid(config_file):
+    """
+    Writes the gradient grid as a two band raster, first band is U
+    components and second band is V components.
+    """
     print("Writing gradient grid geotiff")
     with open(config_file, 'r') as fr:
         config = json.load(fr)
@@ -129,7 +136,6 @@ def write_sample_locations(config_file):
     print(f"Complete! Location shapefiles written to '{gis_outdir}'")
         
    
-
 @click.command()
 @click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--depth', is_flag=True)

@@ -13,8 +13,6 @@ from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_dat
 @click.command()
 @click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
 def main(config_file):
-    """
-    """
     with open(config_file, 'r') as f:
         config = json.load(f)
 
