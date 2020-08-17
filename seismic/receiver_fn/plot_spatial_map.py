@@ -123,29 +123,25 @@ def from_config(config_file):
     with open(config_file, mode='r') as f:
         job_config = json.load(f)
 
-    plotting = job_config.get('plotting')
-    if plotting is not None:
-        if plotting.get('output_cartopy_plot', False):
-            cp = plotting.get('cartopy_parameters', {})
-            scale = cp.get('scale')
-            fmt = cp.get('format', 'png')
-            show = cp.get('show', False)
-            title = cp.get('title', 'Moho depth from blended data')
-            cb_label = cp.get('cb_label', 'Moho depth (km)')
-            outdir = job_config.get('output_dir', os.getcwd())
-            grid_data = os.path.join(outdir, 'moho_grid.csv')
-            gradient_data = os.path.join(outdir, 'moho_gradient.csv')
-            fig = plot_spatial_map(grid_data, gradient_data, scale=scale, 
-                                   title=title, feature_label=cb_label)
-            if show:
-                print("Showing plot, close display window to continue")
-                plt.show()
-            outfile = os.path.join(outdir, f'moho_plot.{fmt}')
-            fig.savefig(outfile, dpi=300, bbox_inches='tight')
-            plt.close()
-            print(f"Complete! Plot saved to {outfile}")
-    else:
-        return
+    plotting = job_config['plotting']
+    cp = plotting.get('cartopy_parameters', {})
+    scale = cp.get('scale')
+    fmt = cp.get('format', 'png')
+    show = cp.get('show', False)
+    title = cp.get('title', 'Moho depth from blended data')
+    cb_label = cp.get('cb_label', 'Moho depth (km)')
+    outdir = job_config.get('output_dir', os.getcwd())
+    grid_data = os.path.join(outdir, 'moho_grid.csv')
+    gradient_data = os.path.join(outdir, 'moho_gradient.csv')
+    fig = plot_spatial_map(grid_data, gradient_data, scale=scale, 
+                           title=title, feature_label=cb_label)
+    if show:
+        print("Showing plot, close display window to continue")
+        plt.show()
+    outfile = os.path.join(outdir, f'moho_plot.{fmt}')
+    fig.savefig(outfile, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Complete! Plot saved to '{outfile}'")
                 
 
 @click.command()
