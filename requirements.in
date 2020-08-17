@@ -23,10 +23,12 @@ pyepsg>=0.4.0
 pykml
 pyproj
 pyqtgraph
+pyshp
 pytables==3.5.2; sys_platform=='win32'
 PyWavelets
 pyyaml
 PyYAML>=3.11
+rasterio
 requests
 rf==0.8.0
 scikit-learn

@@ -7,7 +7,7 @@ import os
 import json
 
 import click
-from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, generate_gmt_data)
+from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
 
 
 @click.command()
@@ -24,7 +24,11 @@ def main(config_file):
         if plotting.get('output_cartopy_plot', False):
             plot_spatial_map.from_config(config_file)
         if plotting.get('output_gmt_data', False):
-            generate_gmt_data.from_config(config_file)
+            write_gmt_data.from_config(config_file)
+        if plotting.get('output_gis_data', False):
+            write_gis_data.write_depth_grid(config_file)
+            write_gis_data.write_gradient_grid(config_file)
+
 
 
 
