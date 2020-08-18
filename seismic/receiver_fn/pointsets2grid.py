@@ -1,44 +1,52 @@
 #!/usr/bin/env python
 """
-Blend multiple datasets on different lon/lat point sets together onto a common grid.
+Blend data from multiple methods together onto a common grid.
 
-Multiple datasets with per-dataset settings are passed in using a JSON configuration
-file with layout illustrated by the following example::
+Multiple methods with per-method settings are passed in using a JSON 
+configuration file, illustrated by the following example:
+
+.. code-block:: JSON
 
     {
-        "source_files":
-        {
-            "file1":
+        "methods":
+        [
             {
-                "weighting": 2.5,
-                "scale_length_degrees": 10.0,
-                "scale_length_cutoff": 3.5,
-                "enable_sample_weighting": False
-            },
-            "file2":
-            {
-                "weighting": 0.5,
-                "scale_length_degrees": 20.0,
-                "enable_sample_weighting": True
-            },
-            "file3":
-            {
+                "name": "CCP1",
+                "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
                 "weighting": 1.0,
-                "scale_length_degrees": 10.0,
-                "scale_length_cutoff": 3
+                "scale_length_degrees": 0.2,
+                "enable_sample_weighting": false
+            },
+            {
+                "name": "CCP2",
+                "csv_file": "sandbox/PV-227/ccp_line_data_sample2.csv",
+                "weighting": 0.5,
+                "scale_length_degrees": 0.2,
+                "scale_length_cutoff": 3.6,
+                "enable_sample_weighting": false
             }
-        },
-        "bounds: [131.0, -36.0, 146.0, -27.0]",
-        "output_spacing_degrees": 10.0
+        ],
+        "output_spacing_degrees": 0.25,
+        "bounds": [130.0, -20.0, 140.0, -17.0],
+        "output_dir": "./ccp_moho_output",
     }
 
-Sample weighting can be switched on or off per dataset. It's on by 
-default, and requires the dataset to have a fourth column containg
+The CSV data is of format:
+    LON LAT DEPTH [SAMPLE_WEIGHT]
+
+Sample weighting can be switched on or off per method.
+If enabled, requires the data file to have a fourth column containg
 sample weights.
 
 Bounds are optional. If provided, the interpolation grid will be limited
 to this extent. If not provided, the interpolation grid is bounded by
 the maximum extent of the aggregate datasets.
+
+The gridded data will be placed in the output directory as 
+'moho_grid.csv'. If output directory is not provided, the current 
+working directory will be used.
+
+The gridded gradient will be in output directory as 'moho_gradient.csv'.
 
 Reference:
 B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
@@ -107,12 +115,11 @@ def _haversine(s, r, **kwargs):
     else:
         return delta_degrees
 
+
 DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
-@click.command()
-@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True)
-@click.option('--output-file', type=click.Path(dir_okay=False), required=True)
-def main(config_file, output_file):
+
+def make_grid(config_file):
     """
     Run multi point dataset weighted averaging over Gaussian interpolation functions
     to produce aggregate dataset.
@@ -128,20 +135,17 @@ def main(config_file, output_file):
     :param output_file: Name of output file
     :return: None
     """
-    # Explicitly ensure output file extension is .csv
-    outfile_base, ext = os.path.splitext(output_file)
-    if ext.lower() != '.csv':
-        output_file = outfile_base + '.csv'
-
+    print("Generating Moho grid from point data")
     # Load config
     with open(config_file, mode='r') as f:
         job_config = json.load(f)
-    src_files = job_config['source_files']
-    bounds = job_config.get('bounds')
-    if not src_files:
-        print("No source files provided, exiting")
-        return
 
+    try:
+        methods = job_config['methods']
+    except KeyError as e:
+        raise Exception("No methods provided") from e
+
+    bounds = job_config.get('bounds')
     if bounds is None:
         bb_min = np.array([np.inf, np.inf])
         bb_max = np.array([-np.inf, -np.inf])
@@ -150,9 +154,10 @@ def main(config_file, output_file):
         bb_min = np.array((l, b))
         bb_max = np.array((r, t))
 
-    for fname, filedict in src_files.items():
-        pt_dataset = np.loadtxt(fname, delimiter=',')
-        filedict['pt_data'] = pt_dataset
+    for method_params in methods:
+        method = method_params['name']
+        pt_dataset = np.loadtxt(method_params['csv_file'], delimiter=',')
+        method_params['pt_data'] = pt_dataset
         # If bounds not provided, find extent of datasets
         if bounds is None:
             xy_map = pt_dataset[:, :2]
@@ -161,8 +166,13 @@ def main(config_file, output_file):
             bb_min = np.minimum(bb_min, xy_min)
             bb_max = np.maximum(bb_max, xy_max)
         # Add sample weights to filedict if provided
-        if filedict.get('enable_sample_weighting', True):
-            filedict['sample_weights'] = pt_dataset[:, 3]
+        if method_params['enable_sample_weighting']:
+            try:
+                method_params['sample_weights'] = (pt_dataset[:, 3][:, np.newaxis]).T
+            except IndexError as e:
+                raise Exception(
+                    f"Sample weights enabled for '{method}' but could not be found in "
+                      "csv file. Ensure fourth column exists and contains sample weights.") from e
     
     span = bb_max - bb_min
     spacing = job_config["output_spacing_degrees"]
@@ -175,13 +185,14 @@ def main(config_file, output_file):
     z_agg = np.zeros_like(denom_agg)
     s_agg = np.zeros_like(denom_agg)
     print("Distance matrix calculation may take several minutes for large datasets")
-    for _fname, filedict in src_files.items():
-        print(f"Processing '{_fname}'")
-        sigma = filedict["scale_length_degrees"]
+    for method_params in methods:
+        method = method_params['name']
+        print(f"Processing '{method}'")
+        sigma = method_params["scale_length_degrees"]
         sig_sq = np.square(sigma)
-        cutoff = filedict.get("scale_length_cutoff", DEFAULT_CUTOFF)
+        cutoff = method_params.get("scale_length_cutoff", DEFAULT_CUTOFF)
         max_dist = cutoff*sigma
-        pt_data = filedict["pt_data"]
+        pt_data = method_params["pt_data"]
         xy_map = pt_data[:, :2]
         print(f"{xy_map.shape[0]} samples")
         print(f"Calculating distance matrix...")
@@ -194,20 +205,14 @@ def main(config_file, output_file):
         # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
         # have a weight of 0, rather than NaN which will propagate.
         dist_weighting[np.isnan(dist_weighting)] = 0
-        z = pt_data[:, 2][:, np.newaxis]
-        zw = filedict.get('sample_weights')
-        w = filedict["weighting"]
-        if zw is not None:
-            zw = zw[:, np.newaxis]
-            denom = ((dist_weighting) * zw.T * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting) * (z * zw).T * w).sum(axis=1)[:, np.newaxis]
-        else:
-            denom = (dist_weighting * w).sum(axis=1)[:, np.newaxis]
-            z_numer = ((dist_weighting) * z.T * w).sum(axis=1)[:, np.newaxis]
-        if zw is not None:
-            s_numer = ((dist_weighting)*(np.square(z) * zw).T * w).sum(axis=1)[:, np.newaxis]
-        else:
-            s_numer = ((dist_weighting)*np.square(z).T * w).sum(axis=1)[:, np.newaxis]
+        z = (pt_data[:, 2][:, np.newaxis]).T
+        zw = method_params.get('sample_weights') if method_params.get('sample_weights') is not None \
+                else np.ones_like(z)
+        w = method_params["weighting"]
+        zw = zw * w
+        denom = ((dist_weighting) * zw).sum(axis=1)[:, np.newaxis]
+        z_numer = ((dist_weighting) * (z * zw)).sum(axis=1)[:, np.newaxis]
+        s_numer = ((dist_weighting)*(np.square(z) * zw)).sum(axis=1)[:, np.newaxis]
         denom_agg += denom
         z_agg += z_numer
         s_agg += s_numer
@@ -216,32 +221,43 @@ def main(config_file, output_file):
     prior_settings = np.seterr(divide='ignore', invalid='ignore')
     # Convert weights < 0.02 to NaN (from B.K's code)
     denom_agg = np.where(denom_agg < 0.02, np.nan, denom_agg)
+    # Get depth Z and std S for each grid cell
     Z = z_agg/denom_agg
     S = s_agg/denom_agg
     np.seterr(**prior_settings)
     
+    # Calculate gradient
+    Z_2d = Z.reshape((n_y, n_x))
+    v, u = np.gradient(Z_2d)
+    gradient = np.array((u.flatten(), v.flatten())).T
+
     # Collect data and write to file
-    data_agg_gridded = np.hstack((grid_map, Z, S))
-    with open(output_file, mode='w') as f:
+    output_dir = job_config.get('output_dir', os.getcwd())
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    depth_gridded = np.hstack((grid_map, Z, S))
+    grid_output_file = os.path.join(output_dir, 'moho_grid.csv')
+    with open(grid_output_file, mode='w') as f:
         np.savetxt(f, [n_x, n_y], fmt='%d')
-        np.savetxt(f, data_agg_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
+        np.savetxt(f, depth_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
                    header='Lon,Lat,Depth,Stddev')
-    print(f"Complete, results saved to '{output_file}'")
-        # To load this data back in:
-        # >>> with open('test_pts2grid.csv', 'r') as f:
-        # ...   nx = int(f.readline())
-        # ...   ny = int(f.readline())
-        # ...   ds = np.loadtxt(f, delimiter=',')
-        # >>> # For each column in ds, reshape((ny, nx))
-    # end with
 
-    # See https://scitools.org.uk/cartopy/docs/latest/tutorials/understanding_transform.html
-    # for how to use projection and transform settings with matplotlib.
-    # Since this script outputs in lon/lat, it is in CRS WGS84 which is default for cartopy.crs.Geodetic()
+    gradient_gridded = np.hstack((grid_map, gradient))
+    gradient_output_file = os.path.join(output_dir, 'moho_gradient.csv')
+    with open(gradient_output_file, mode='w') as f:
+        np.savetxt(f, [n_x, n_y], fmt='%d')
+        np.savetxt(f, gradient_gridded, fmt=['%.6f', '%.6f', '%.6f', '%.6f'], delimiter=',',
+                   header='Lon,Lat,U,V')
 
-# end func
+    print(f"Complete, results saved to '{grid_output_file}' and '{gradient_output_file}'")
+
+
+@click.command()
+@click.option('--config-file', type=click.Path(exists=True, dir_okay=False), required=True)
+def main(config_file):
+    make_grid(config_file)
 
 
 if __name__ == '__main__':
     main()
-# end if
