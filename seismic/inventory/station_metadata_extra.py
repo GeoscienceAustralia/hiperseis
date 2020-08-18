@@ -36,11 +36,20 @@ class StationMetadataExtra:  # CapWords naming convention.
         self.start = start_datetime
         self.end = end_datetime
 
-        # A dictionary, skeleton JSON model
+        # A dictionary, skeleton JSON model, for a given network.station
         self.mdata = {
             "network": self.net,
             "station": self.sta,
+
+            # GPS clock corrrections
             "GPS_CORRECTION": [],
+
+            # Orientation correction "azimuth_correction" applicable for datetime interval (start_dt, end_dt)
+            "ORIENT_CORRECTION": {
+                # "start_dt": "2017-11-07T09:07:34.930000Z",
+                # "end_dt": "2018-08-23T03:52:29.528000Z",
+                # "azimuth_correction": -5.0
+            },
         }
 
     def make_json_string(self):
@@ -91,10 +100,13 @@ class StationMetadataExtra:  # CapWords naming convention.
 
     def add_orientation_correction(self, input_json_file):
         """
-        add json element for orientation_correction from input data file infile
-        :param infile: an input file of certain format, containing the required orientation_correction
+        add json element for orientation_correction from input_json_file
+        :param input_json_file: an input file of certain format, containing the required orientation_correction
         :return: json_sub_node, which was added into self.mdata
         """
+
+        # update the "ORIENT_CORRECTION":
+        #self.mdata.update({"ORIENT_CORRECTION":: json.loads(orient_corr)})
         return True
 
 
