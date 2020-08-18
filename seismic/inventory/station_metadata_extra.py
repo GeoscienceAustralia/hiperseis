@@ -1,17 +1,9 @@
 #! /usr/bin/env python
 """
-Class Model for GA Extra Metadata
-
-References:
-    https://gajira.atlassian.net/browse/PV-324
-    https://gajira.atlassian.net/browse/PV-312
+Class Model for GA Extra Metadata to be included into station inventory XML files
 
 CreationDate:   07/08/2020
 Developer:      fei.zhang@ga.gov.au
-
-Revision History:
-    LastUpdate:     07/08/2020   FZ
-    LastUpdate:
 
 """
 import os
@@ -23,8 +15,6 @@ import obspy
 from obspy.core.util import AttribDict
 from obspy.core import UTCDateTime
 
-from seismic.inventory import add_time_corrections
-
 
 class StationMetadataExtra:  # CapWords naming convention.
     """
@@ -33,7 +23,9 @@ class StationMetadataExtra:  # CapWords naming convention.
 
     def __init__(self, network_code, station_code, start_datetime=None, end_datetime=None):
         """
-         A class to encapsulate extra metadata items which not defined in FDSN stationXML https://www.fdsn.org/xml/station/
+         A class to encapsulate extra metadata items which are not defined in the standard of FDSN
+         https://www.fdsn.org/xml/station/
+
         :param network_code:
         :param station_code:
         :param start_datetime:
@@ -44,9 +36,12 @@ class StationMetadataExtra:  # CapWords naming convention.
         self.start = start_datetime
         self.end = end_datetime
 
-        self.mdata = {"network": self.net,
-                      "station": self.sta
-                      }  # initially dict for net.sta
+        # A dictionary, skeleton JSON model
+        self.mdata = {
+            "network": self.net,
+            "station": self.sta,
+            "GPS_CORRECTION": [],
+        }
 
     def make_json_string(self):
         """
@@ -56,40 +51,8 @@ class StationMetadataExtra:  # CapWords naming convention.
         json_str = self.mdata
         return json.dumps(json_str, indent=2)
 
-    def add_gps_corrections(self, csvfile):
-        """
-        read from the csvfile, make a gps correction list for this net sta
-        :param csvfile:
-        :return: json_sub_node, mwhich was added into self.mdata
-        """
-        pdf = pd.DataFrame(pd.read_csv(csvfile, sep=",", header=0, index_col=False))
 
-        # select the network and sta
-        pdf2 = pdf.loc[(pdf['net'] == self.net) & (pdf['sta'] == self.sta)].copy()
-
-        # drop two columns inplace pdf2 itself will be changed, otherwise will return a new df
-        pdf2.drop(['net', 'sta'], axis=1, inplace=True)
-        print("The shapes = ", pdf.shape, pdf2.shape)
-
-        # to json object
-        gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
-                                force_ascii=True, date_unit="ms", default_handler=None, indent=4)
-
-        # add the json object as string to the self.mdata
-        self.mdata.update({"GPS_CORRECTION": json.loads(gps_corr)})
-
-        return gps_corr
-
-    def add_orientation_correction(self, infile):
-        """
-        add json element for orientation_correction from input data file infile
-        :param infile: an input file of certain format, containing the required orientation_correction
-        :return: json_sub_node, which was added into self.mdata
-        """
-        return True
-
-
-    def get_metadata_from_csv(self, csv_data):  # ,net, sta, start_dt, end_dt):
+    def add_gps_correction_from_csv(self, csv_data):  # ,net, sta, start_dt, end_dt):
         """
         Select the csv rows according  net, sta, start_dt, end_dt
 
@@ -113,9 +76,10 @@ class StationMetadataExtra:  # CapWords naming convention.
         pdf2.drop(['net', 'sta', 'utcdate'], axis=1, inplace=True)
         print("The shapes = ", pdf.shape, pdf2.shape)
 
-        # to json object
-        gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
-                                force_ascii=True, date_unit="ms", default_handler=None, indent=2)
+        # to json object, ignore default variables
+        # gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
+        #                         force_ascii=True, date_unit="ms", default_handler=None, indent=2)
+        gps_corr = pdf2.to_json(orient="records", indent=2)
 
         # add the json object as string to the self.mdata
         self.mdata.update({"GPS_CORRECTION": json.loads(gps_corr)})
@@ -124,13 +88,23 @@ class StationMetadataExtra:  # CapWords naming convention.
         # return pdf2.to_csv(index=False)
         return pdf2
 
-    def metadata2json(self, metadta_json_file):
+
+    def add_orientation_correction(self, input_json_file):
+        """
+        add json element for orientation_correction from input data file infile
+        :param infile: an input file of certain format, containing the required orientation_correction
+        :return: json_sub_node, which was added into self.mdata
+        """
+        return True
+
+
+    def write_metadata2json(self, metadta_json_file):
         """
         write out the current metatdaya object into a file
         :param metadta_json_file:
         :return:
         """
-        with open( metadta_json_file, "w") as f:
+        with open(metadta_json_file, "w") as f:
             json.dump(self.mdata, f, indent=2)
 
         return metadta_json_file
@@ -143,9 +117,39 @@ class StationMetadataExtra:  # CapWords naming convention.
 
         return True
 
+
+def get_csv_correction_data(path_csvfile):
+    """
+    Read in the csv data from an input file, get the network_code, station_code, csv_data. Format::
+
+        $ head 7D.DE43_clock_correction.csv
+        net,sta,date,clock_correction
+        7D,DE43,2012-11-27,1.0398489013215846
+        7D,DE43,2012-11-28,0.9408504322549281
+        7D,DE43,2012-11-29,0.8418519631882714
+        7D,DE43,2012-11-30,0.7428534941216148
+        7D,DE43,2012-12-01,0.6438550250549583
+
+    :param path_csvfile: input csv file in /g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/
+    :return: (network_code, station_code, csv_data)
+    """
+
+    with open(path_csvfile, "r") as csvfid:
+        all_csv = csvfid.read()
+
+    line2 = all_csv.split('\n')[1]
+    # print(line2)
+
+    my_items = line2.split(",")
+
+    network_code = my_items[0].strip()  # network_code = "7D"
+    station_code = my_items[1].strip()  # station_code = "DE43"
+
+    return (network_code, station_code, all_csv)
+
 # ======================================================================================================================
 # Example How to Run:
-# python station_metadata_extra.py OA.CF28_clock_correction.csv /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml /tmp
+# python station_metadata_extra.py OA.CF28_clock_correction.csv /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml ~/tmpdir
 # =====================================================================================================================
 if __name__ == "__main__":
 
@@ -176,7 +180,7 @@ if __name__ == "__main__":
         out_dir = None
 
     # get the metadata and it's associated network.station
-    (net, sta, csv_data) = add_time_corrections.get_csv_correction_data(in_csv_file)
+    (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
 
     _inv = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
     selected_inv = _inv.select(network=net, station=sta)
@@ -185,7 +189,7 @@ if __name__ == "__main__":
     station_list = selected_inv.networks[0].stations
     if station_list is None or len(station_list) == 0:  # no further process for this dummy case
         print("(network station) %s.%s NOT present in the XML file %s" % (net, sta, in_station_xml_file))
-        sys.exits(1)
+        sys.exits(2)
 
     # redefine the selected_inv
     for a_station in station_list:  # loop over all Stations
@@ -196,10 +200,12 @@ if __name__ == "__main__":
         ajson = StationMetadataExtra(net, sta, start_datetime=start_dt, end_datetime=end_dt)
 
         # generate/format extra metadata from inputs
-        mpdf = ajson.get_metadata_from_csv(csv_data)
-        # updated the ajson object with more metadata, such as orientation corr
+        mpdf = ajson.add_gps_correction_from_csv(csv_data)
 
-        ajson.metadata2json(os.path.join(out_dir,"%s.%s_%s_extra_metadata.json"%(net,sta,str(start_dt))))
+        # updated the ajson object with more metadata, such as orientation corr
+        ajson.add_orientation_correction("input_json_file")
+
+        ajson.write_metadata2json(os.path.join(out_dir, "%s.%s_%s_extra_metadata.json" % (net, sta, str(start_dt))))
 
         # Now, ready to write the ajson obj into new xml file
         mformat = "JSON"
