@@ -3,30 +3,30 @@
     [
         {
             "name": "ccp_1",
-            "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
-            "weighting": 1.0,
-            "scale_length_degrees": 0.2
+            "data": "sandbox/PV-227/ccp_line_data_sample1.csv",
+            "weight": 1.0,
+            "scale_length": 0.2
         },
         {
             "name": "ccp_2",
-            "csv_file": "sandbox/PV-227/ccp_line_data_sample2.csv",
-            "weighting": 0.5,
-            "scale_length_degrees": 0.2
+            "data": "sandbox/PV-227/ccp_line_data_sample2.csv",
+            "weight": 1.0,
+            "scale_length": 0.5
         }
     ],
     "plotting":
     {
-        "output_cartopy_plot": true,
-        "cartopy_parameters":
+        "output_plot": true,
+        "plot_parameters":
         {
             "scale": [10.0, 60.0],
             "format": "png",
             "show": true
         },
-        "output_gmt_data": true,
-        "output_gis_data": true
+        "output_gmt": true,
+        "output_gis": true
     },
     "bounds": [130.0, -20.0, 140.0, -17.0],
-    "output_spacing_degrees": 0.25,
-    "output_dir":  "./output"
+    "grid_interval": 0.25,
+    "output_directory":  "./output"
 }

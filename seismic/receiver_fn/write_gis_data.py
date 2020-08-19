@@ -11,7 +11,7 @@ import shapefile
 import numpy as np
 
 from seismic.receiver_fn.write_gmt_data import format_locations
-
+from seismic.receiver_fn.moho_config import ConfigConstants as cc
 
 # Plate Carree CRS
 CRS = rasterio.crs.CRS.from_proj4(
@@ -47,17 +47,17 @@ def write_depth_grid(config_file):
     with open(config_file, 'r') as fr:
         config = json.load(fr)
     
-    outdir = config.get('output_dir', os.getcwd())
-    grid_data = os.path.join(outdir, 'moho_grid.csv')
+    outdir = config.get(cc.OUTPUT_DIR, os.getcwd())
+    grid_data = os.path.join(outdir, cc.MOHO_GRID)
     with open(grid_data, 'r') as fr:
         nx = int(fr.readline())
         ny = int(fr.readline())
         grid_ds = np.loadtxt(fr, delimiter=',')
 
-    bounds = config.get('bounds')
+    bounds = config.get(cc.BOUNDS)
     gtiff_profile = _profile(grid_ds, nx, ny, bands=1, bounds=bounds)
 
-    gis_outdir = os.path.join(outdir, 'gis_data')
+    gis_outdir = os.path.join(outdir, cc.GIS_DIR)
     if not os.path.exists(gis_outdir):
         os.mkdir(gis_outdir)
 
@@ -65,7 +65,7 @@ def write_depth_grid(config_file):
         # GDAL origin is top-left, so we need to flip the data so first element is top-left cell
         data = np.flipud(grid_ds[:, 2].reshape((ny, nx)))
         gtiff_profile.update(count=1, dtype=data.dtype)
-        outfile = os.path.join(gis_outdir, 'moho_grid.tif')
+        outfile = os.path.join(gis_outdir, cc.MOHO_GRID_GIS)
         with rasterio.open(outfile, 'w', **gtiff_profile) as dst:
             dst.write(data, 1)
 
@@ -81,17 +81,17 @@ def write_gradient_grid(config_file):
     with open(config_file, 'r') as fr:
         config = json.load(fr)
     
-    outdir = config.get('output_dir', os.getcwd())
-    grad_data = os.path.join(outdir, 'moho_gradient.csv')
+    outdir = config.get(cc.OUTPUT_DIR, os.getcwd())
+    grad_data = os.path.join(outdir, cc.MOHO_GRAD)
     with open(grad_data, 'r') as fr:
         nx = int(fr.readline())
         ny = int(fr.readline())
         grad_ds = np.loadtxt(fr, delimiter=',')
 
-    bounds = config.get('bounds')
+    bounds = config.get(cc.BOUNDS)
     gtiff_profile = _profile(grad_ds, nx, ny, bands=2, bounds=bounds)
 
-    gis_outdir = os.path.join(outdir, 'gis_data')
+    gis_outdir = os.path.join(outdir, cc.GIS_DIR)
     if not os.path.exists(gis_outdir):
         os.mkdir(gis_outdir)
 
@@ -100,7 +100,7 @@ def write_gradient_grid(config_file):
         u_data = np.flipud(grad_ds[:,2].reshape((ny, nx)))
         v_data = np.flipud(grad_ds[:,3].reshape((ny, nx)))
         gtiff_profile.update(count=2, dtype=u_data.dtype)
-        outfile = os.path.join(gis_outdir, 'moho_gradient.tif')
+        outfile = os.path.join(gis_outdir, cc.MOHO_GRAD_GIS)
         with rasterio.open(outfile, 'w', **gtiff_profile) as dst:
             dst.write(u_data, 1)
             dst.write(v_data, 2)
@@ -113,15 +113,15 @@ def write_sample_locations(config_file):
     with open(config_file, 'r') as fr:
         config = json.load(fr)
     
-    outdir = config.get('output_dir', os.getcwd())
-    gis_outdir = os.path.join(outdir, 'gis_data')
+    outdir = config.get(cc.OUTPUT_DIR, os.getcwd())
+    gis_outdir = os.path.join(outdir, cc.GIS_DIR)
     if not os.path.exists(gis_outdir):
         os.mkdir(gis_outdir)
 
-    methods = config['methods']
+    methods = config[cc.METHODS]
     for method_params in methods:
-        method = method_params['name']
-        outfile = os.path.join(gis_outdir, f'{method}_locations')
+        method = method_params[cc.NAME]
+        outfile = os.path.join(gis_outdir, f'{method}' + cc.LOCATIONS_GIS)
         w = shapefile.Writer(outfile, shapeType=1)
         w.field('WEIGHT', 'N', decimal=2)
         data = format_locations(method_params)

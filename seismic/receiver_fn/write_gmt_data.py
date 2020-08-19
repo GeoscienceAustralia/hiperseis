@@ -8,6 +8,7 @@ import json
 import click
 import numpy as np
 
+from seismic.receiver_fn.moho_config import ConfigConstants as cc
 
 def from_config(config_file):
     """
@@ -40,23 +41,24 @@ def from_config(config_file):
     with open(config_file, 'r') as f:
         config = json.load(f)
 
-    outdir = config.get('output_dir', os.getcwd())
-    gmt_outdir = os.path.join(outdir, 'gmt_data')
+    outdir = config.get(cc.OUTPUT_DIR, os.getcwd())
+
+    gmt_outdir = os.path.join(outdir, cc.GMT_DIR)
     if not os.path.exists(gmt_outdir):
         os.mkdir(gmt_outdir)
 
     # Convert moho depth grid to GMT digestible format
-    grid_data = os.path.join(outdir, 'moho_grid.csv')
+    grid_data = os.path.join(outdir, cc.MOHO_GRID)
     with open(grid_data, 'r') as fr:
         grid_ds = np.loadtxt(fr, delimiter=',', skiprows=3)
     # Remove std dev column
     grid_ds = np.delete(grid_ds, -1, 1)
-    grid_data_gmt = os.path.join(gmt_outdir, 'moho_grid.txt')
+    grid_data_gmt = os.path.join(gmt_outdir, cc.MOHO_GRID_GMT)
     with open(grid_data_gmt, 'w') as fw:
         np.savetxt(fw, grid_ds, fmt=['%.6f', '%.6f', '%.2f'], delimiter=' ')
 
     # Do the same for gradient grid
-    grad_data = os.path.join(outdir, 'moho_gradient.csv')
+    grad_data = os.path.join(outdir, cc.MOHO_GRAD)
     with open(grad_data, 'r') as fr:
         grad_ds = np.loadtxt(fr, delimiter=',', skiprows=3)
     # Convert to polar coordinates
@@ -65,17 +67,17 @@ def from_config(config_file):
     t *= 180.0/np.pi
     grad_ds[:, 2] = t
     grad_ds[:, 3] = r
-    grad_data_gmt = os.path.join(gmt_outdir, 'moho_gradient.txt')
+    grad_data_gmt = os.path.join(gmt_outdir, cc.MOHO_GRAD_GMT)
     with open(grad_data_gmt, 'w') as fw:
         np.savetxt(fw, grad_ds, fmt=['%.6f', '%.6f', '%.6f', '%.6f'], delimiter=' ')
 
     # Output network/method locations and sample weight * dataset weight
     # Total relative weighting can be used as symbol size on maps
-    methods = config['methods']
+    methods = config[cc.METHODS]
     for method_params in methods:
-        method = method_params['name']
+        method = method_params[cc.NAME]
         data = format_locations(method_params)
-        outfile = os.path.join(gmt_outdir, f'{method}_loc.txt')
+        outfile = os.path.join(gmt_outdir, f'{method}' + cc.LOCATIONS_GMT)
         with open(outfile, 'w') as fw:
             np.savetxt(fw, data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
     print(f"Complete! Data files saved to '{gmt_outdir}'")
@@ -87,11 +89,11 @@ def format_locations(method_params):
     TODO: should be refactored - used here and by write_gis_data.py.
     """
     col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
-    data = np.genfromtxt(method_params['csv_file'], delimiter=',', dtype=None, encoding=None,
+    data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None, encoding=None,
                          names=col_names)
     # Remove depth column
-    weight = method_params['weighting']
-    total_weight = weight * data['weight']
+    method_weight = method_params[cc.WEIGHT]
+    total_weight = method_weight * data['weight']
     data = np.array((data['lon'], data['lat'], total_weight)).T
     return data
 
