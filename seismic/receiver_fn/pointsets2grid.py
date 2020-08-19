@@ -32,7 +32,7 @@ configuration file, illustrated by the following example:
     }
 
 The CSV data is of format:
-    LON LAT DEPTH [SAMPLE_WEIGHT]
+    STA LON LAT DEPTH [SAMPLE_WEIGHT]
 
 Sample weighting can be switched on or off per method.
 If enabled, requires the data file to have a fourth column containg
@@ -156,8 +156,12 @@ def make_grid(config_file):
 
     for method_params in methods:
         method = method_params['name']
-        pt_dataset = np.loadtxt(method_params['csv_file'], delimiter=',')
+        col_names = ['sta', 'lon', 'lat', 'depth', 'sw']
+        data = np.genfromtxt(method_params['csv_file'], delimiter=',', dtype=None,
+                             names=col_names, encoding=None)
+        pt_dataset = np.array((data['lon'], data['lat'], data['depth'])).T
         method_params['pt_data'] = pt_dataset
+        method_params['sample_weights'] = data['sw']
         # If bounds not provided, find extent of datasets
         if bounds is None:
             xy_map = pt_dataset[:, :2]
@@ -165,14 +169,6 @@ def make_grid(config_file):
             xy_max = xy_map.max(axis=0)
             bb_min = np.minimum(bb_min, xy_min)
             bb_max = np.maximum(bb_max, xy_max)
-        # Add sample weights to filedict if provided
-        if method_params['enable_sample_weighting']:
-            try:
-                method_params['sample_weights'] = (pt_dataset[:, 3][:, np.newaxis]).T
-            except IndexError as e:
-                raise Exception(
-                    f"Sample weights enabled for '{method}' but could not be found in "
-                      "csv file. Ensure fourth column exists and contains sample weights.") from e
     
     span = bb_max - bb_min
     spacing = job_config["output_spacing_degrees"]
@@ -206,8 +202,7 @@ def make_grid(config_file):
         # have a weight of 0, rather than NaN which will propagate.
         dist_weighting[np.isnan(dist_weighting)] = 0
         z = (pt_data[:, 2][:, np.newaxis]).T
-        zw = method_params.get('sample_weights') if method_params.get('sample_weights') is not None \
-                else np.ones_like(z)
+        zw = method_params["sample_weights"]
         w = method_params["weighting"]
         zw = zw * w
         denom = ((dist_weighting) * zw).sum(axis=1)[:, np.newaxis]

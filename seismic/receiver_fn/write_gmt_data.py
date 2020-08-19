@@ -86,20 +86,13 @@ def format_locations(method_params):
     Formats sample data to LON LAT TOTAL_WEIGHT.
     TODO: should be refactored - used here and by write_gis_data.py.
     """
-    data = np.loadtxt(method_params['csv_file'], delimiter=',')
+    col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
+    data = np.genfromtxt(method_params['csv_file'], delimiter=',', dtype=None, encoding=None,
+                         names=col_names)
     # Remove depth column
-    data = np.delete(data, 2, 1)
     weight = method_params['weighting']
-    if method_params['enable_sample_weighting']:
-        data[:, 2] *= weight
-    # If sample weights not used, the weight column is the dataset weight
-    else:
-        try:
-            data[:, 2].fill(weight)
-        except IndexError:
-            # Make weights column if it doesn't exist
-            data = np.append(data, np.zeros_like(data[:, 1][:, np.newaxis]), axis=1)
-            data[:, 2].fill(weight)
+    total_weight = weight * data['weight']
+    data = np.array((data['lon'], data['lat'], total_weight)).T
     return data
 
 

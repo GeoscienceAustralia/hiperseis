@@ -97,12 +97,6 @@ def validate(config):
         _check_type(scale_len, [float, int],
                 f"scale length for method '{name}' must be of type float or int")
 
-        enable_sw = _try_lookup(params, 'enable_sample_weighting',
-                f"method '{name}' requires sample weighting to be enabled or disabled as field "
-                "'enable_sample_weighting'")
-        _check_type(enable_sw, [bool], f"enable sample weighting for method '{name}' must be of "
-                "type bool")
-
     plt = config.get('plotting')
     if plt is not None:
         _check_type(plt, [dict], "'plotting' parameters must be stored in dict")
