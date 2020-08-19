@@ -32,12 +32,12 @@ def main(infile, fds_file, sheet_names):
     Output format is csv file containing point data in the form of lon/lat
     coordinates and depth measurement.
     For example:
-        # Lon,Lat,Depth
-        133.035951,-19.473353,37.9
-        133.006100,-20.003900,45.9
-        132.997000,-20.486800,40.8
-        132.991205,-20.997177,47.3
-        132.989100,-21.506900,30.0
+        # Sta,Lon,Lat,Depth
+        I8,133.035951,-19.473353,37.9
+        H8,133.006100,-20.003900,45.9
+        G8,132.997000,-20.486800,40.8
+        F8,132.991205,-20.997177,47.3
+        D8,132.989100,-21.506900,30.0
         ...
 
     Output file name is inferred from input Excel file name with extension changed to '.csv'

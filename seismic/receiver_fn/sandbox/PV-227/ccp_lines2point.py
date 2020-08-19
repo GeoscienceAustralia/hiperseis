@@ -32,16 +32,16 @@ def main(infile, fds_file):
     python ccp_lines2point.py --fds-file /g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt \
         ccp_line_data_sample.xlsx
 
-    Output format is csv file containing point data in the form of lon/lat
-    coordinates and depth measurement.
+    Output format is csv file containing point data in the form of sta, 
+    lon/lat coordinates and depth measurement.
     For example:
 
-        # Lon,Lat,Depth
-        134.909765,-17.572545,47.9
-        135.017670,-17.570829,47.3
-        135.134567,-17.568970,48.9
-        135.395337,-17.564823,52.1
-        135.494250,-17.563250,52.1
+        # Sta,Lon,Lat,Depth
+        I8,134.909765,-17.572545,47.9
+        H8,135.017670,-17.570829,47.3
+        G8,135.134567,-17.568970,48.9
+        F8,135.395337,-17.564823,52.1
+        D8,135.494250,-17.563250,52.1
         ...
 
     Output file name is inferred from input Excel file name with extension changed to '.csv'
@@ -83,18 +83,20 @@ def main(infile, fds_file):
             continue
         dist = dist_col[valid].values - LEAD_INOUT_DIST_KM
         depth = df.iloc[:, 3*i + 2][valid].values
+        stations = df.iloc[:, 3*i].values
+        stations = [s.strip().split('.')[0] for s in stations]
         lonlat = start + np.outer(dist, dirn)/KM_PER_DEG
         # Difficult to correct for differences in station elevation because
         # FDS does not include it in station coords. Ignore for now.
-        vol_data = np.hstack((lonlat, depth[:, np.newaxis]))
+        vol_data = np.hstack((stations, lonlat, depth[:, np.newaxis]))
         vol_data_dict[line] = vol_data
     # end for
 
     filebase = os.path.splitext(infile)[0]
     outfile = filebase + '.csv'
     all_data = np.vstack(tuple(v for v in vol_data_dict.values()))
-    np.savetxt(outfile, all_data, fmt=['%.6f', '%.6f', '%.1f'], delimiter=',',
-               header='Lon,Lat,Depth')
+    np.savetxt(outfile, all_data, fmt=['%s', '%.6f', '%.6f', '%.1f'], delimiter=',',
+               header='Sta,Lon,Lat,Depth')
 # end func
 
 
