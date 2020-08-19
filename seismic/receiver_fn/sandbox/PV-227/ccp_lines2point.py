@@ -106,7 +106,9 @@ def main(infile, fds_file, raise_errors=False):
                 dist = dist_col[valid].values - LEAD_INOUT_DIST_KM
                 depth = df.iloc[:, 3*i + 2][valid].values
                 stations = df.iloc[:, 3*i][valid].values
-                stations = np.array(['.'.join([network, s.strip().split('.')[0]]) for s in stations])
+                for sc in SPECIAL_CHARS:
+                    stations = [s.split(sc)[0] for s in stations]
+                stations = np.array(['.'.join([network, s]) for s in stations])
                 lonlat = start + np.outer(dist, dirn)/KM_PER_DEG
                 vol_data = np.hstack((stations[:, np.newaxis], lonlat, depth[:,np.newaxis]))
                 vol_data_list.append(vol_data)
