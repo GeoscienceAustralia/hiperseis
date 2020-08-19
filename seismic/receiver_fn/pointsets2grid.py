@@ -15,7 +15,6 @@ configuration file, illustrated by the following example:
                 "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
                 "weighting": 1.0,
                 "scale_length_degrees": 0.2,
-                "enable_sample_weighting": false
             },
             {
                 "name": "CCP2",
@@ -23,7 +22,6 @@ configuration file, illustrated by the following example:
                 "weighting": 0.5,
                 "scale_length_degrees": 0.2,
                 "scale_length_cutoff": 3.6,
-                "enable_sample_weighting": false
             }
         ],
         "output_spacing_degrees": 0.25,
@@ -32,11 +30,7 @@ configuration file, illustrated by the following example:
     }
 
 The CSV data is of format:
-    STA LON LAT DEPTH [SAMPLE_WEIGHT]
-
-Sample weighting can be switched on or off per method.
-If enabled, requires the data file to have a fourth column containg
-sample weights.
+    STA LON LAT DEPTH SAMPLE_WEIGHT
 
 Bounds are optional. If provided, the interpolation grid will be limited
 to this extent. If not provided, the interpolation grid is bounded by
