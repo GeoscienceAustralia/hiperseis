@@ -31,16 +31,15 @@ def main(config_file):
     pointsets2grid.make_grid(config_file)
 
     # Plotting
-    plotting = config.get(cc.PLOTTING)
-    if plotting is not None:
-        if plotting.get(cc.PLOT_FLAG, False):
-            plot_spatial_map.from_config(config_file)
-        if plotting.get(cc.GMT_FLAG, False):
-            write_gmt_data.from_config(config_file)
-        if plotting.get(cc.GIS_FLAG, False):
-            write_gis_data.write_depth_grid(config_file)
-            write_gis_data.write_gradient_grid(config_file)
-            write_gis_data.write_sample_locations(config_file)
+    plotting = config.get(cc.PLOTTING, {})
+    if plotting.get(cc.PLOT_FLAG, False):
+        plot_spatial_map.from_config(config_file)
+    if plotting.get(cc.GMT_FLAG, False):
+        write_gmt_data.from_config(config_file)
+    if plotting.get(cc.GIS_FLAG, False):
+        write_gis_data.write_depth_grid(config_file)
+        write_gis_data.write_gradient_grid(config_file)
+        write_gis_data.write_sample_locations(config_file)
 
 
 if __name__ == '__main__':
