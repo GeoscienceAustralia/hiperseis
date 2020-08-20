@@ -9,7 +9,7 @@ import logging
 
 import click
 from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
-from seismic.receiver_fn.moho_config import ConfigConstants as cc, validate
+from seismic.receiver_fn.moho_config import ConfigConstants as cc, validate, CORR_FUNC_MAP
 
         
 @click.command()
@@ -20,7 +20,17 @@ def main(config_file):
 
     validate(config)
 
+    # Data prep/correction
+    data_prep = config.get(cc.DATA_PREP)
+    if data_prep is not None:
+        for params in data_prep:
+            CORR_FUNC_MAP[params[cc.CORR_FUNC]](
+                    params[cc.DATA_TO_PREP], params[cc.CORR_DATA], params[cc.CORR_OUT])
+
+    # Moho interpolation 
     pointsets2grid.make_grid(config_file)
+
+    # Plotting
     plotting = config.get(cc.PLOTTING)
     if plotting is not None:
         if plotting.get(cc.PLOT_FLAG, False):

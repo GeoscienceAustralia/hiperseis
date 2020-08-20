@@ -9,8 +9,6 @@ import logging
 
 import numpy as np
 
-from seismic.receiver_fn.moho_config import ConfigConstants as cc
-
 
 def correct(ccp_data, corr_data, outfile=None):
     """
@@ -36,6 +34,7 @@ def correct(ccp_data, corr_data, outfile=None):
         If not provided, the corrected data is saved to the working 
         directory as '{ccp_data}_corrected.csv'.
     """
+    print(f"Correcting {ccp_data} by {corr_data}")
     def _load(fname):
         return np.genfromtxt(fname, delimiter=',', dtype=None, encoding=None,
                              names=['sta', 'lon', 'lat', 'depth', 'weight'])
@@ -57,7 +56,7 @@ def correct(ccp_data, corr_data, outfile=None):
     if outfile is None:
         outfile = os.path.join(os.getcwd(), os.path.splitext(os.path.basename(ccp_data))[0])
         outfile += '_corrected.csv'
-    
+
     with open(outfile, 'w') as fw:
         np.savetxt(fw, ccp, fmt=['%s', '%s', '%s', '%s', '%s'], delimiter=',',
                    header='Sta,Lon,Lat,Depth,Weight')
