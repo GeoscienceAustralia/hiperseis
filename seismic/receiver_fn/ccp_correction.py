@@ -50,7 +50,8 @@ def correct(ccp_data, corr_data, outfile=None):
         if np.isnan(ccp_med) or np.isnan(corr_med):
             print(f"Not enough data to compute correction for {sta}")
             continue
-        corr_value = ccp_med - corr_med
+        corr_value = corr_med - ccp_med
+
         ccp['depth'][ccp['sta'] == sta] += corr_value
 
     if outfile is None:
