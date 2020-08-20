@@ -5,6 +5,7 @@ import json
 import click
 import os
 from collections import defaultdict
+import logging
 
 import numpy as np
 
@@ -42,23 +43,16 @@ def correct(ccp_data, corr_data, outfile=None):
     ccp = _load(ccp_data)
     corr = _load(corr_data)
 
-    def _extract(data):
-        d = defaultdict(list)
-        for sample in data:
-            d[sample['sta']].append(sample['depth'])
-        return d
+    all_sta = set(ccp['sta'])
 
-    ccp_dict = _extract(ccp)
-    corr_dict = _extract(corr)
-
-    for k, v in ccp_dict.items():
-        ccp_med = np.median(np.array(v))
-        corr_med = np.median(np.array(corr_dict[k]))
+    for sta in all_sta:
+        ccp_med = np.median(ccp['depth'][ccp['sta'] == sta])
+        corr_med = np.median(corr['depth'][corr['sta'] == sta])
         if np.isnan(ccp_med) or np.isnan(corr_med):
-            print(f"Not enough data to compute correction for {k}")
+            print(f"Not enough data to compute correction for {sta}")
             continue
         corr_value = ccp_med - corr_med
-        ccp['depth'][ccp['sta'] == k] += corr_value
+        ccp['depth'][ccp['sta'] == sta] += corr_value
 
     if outfile is None:
         outfile = os.path.join(os.getcwd(), os.path.splitext(os.path.basename(ccp_data))[0])
