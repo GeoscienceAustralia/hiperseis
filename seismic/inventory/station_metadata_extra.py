@@ -60,7 +60,6 @@ class StationMetadataExtra:  # CapWords naming convention.
         json_str = self.mdata
         return json.dumps(json_str, indent=2)
 
-
     def add_gps_correction_from_csv(self, csv_data):  # ,net, sta, start_dt, end_dt):
         """
         Select the csv rows according  net, sta, start_dt, end_dt
@@ -97,7 +96,6 @@ class StationMetadataExtra:  # CapWords naming convention.
         # return pdf2.to_csv(index=False)
         return pdf2
 
-
     def add_orientation_correction(self, jason_data_list):
         """
         add orientation_correction from a list of json corrections (dictionar)
@@ -116,15 +114,15 @@ class StationMetadataExtra:  # CapWords naming convention.
         """
 
         for orcorr in jason_data_list:
-            if (orcorr.get("network") == self.net and orcorr.get("station") ==self.sta):
+            if (orcorr.get("network") == self.net and orcorr.get("station") == self.sta):
                 # update the "ORIENT_CORRECTION":
                 print(orcorr, type(orcorr))
                 self.mdata.update({"ORIENT_CORRECTION": orcorr})
                 return orcorr
             else:
-                # no matching network.station, No orientation correction was added
-                return None
+                pass # not matching network.station, continue loop search for the net.sta
 
+        return None
 
     def write_metadata2json(self, metadta_json_file):
         """
@@ -132,7 +130,6 @@ class StationMetadataExtra:  # CapWords naming convention.
         :param metadta_json_file:
         :return:
         """
-
         with open(metadta_json_file, "w") as f:
             json.dump(self.mdata, f, indent=2)
 
@@ -176,6 +173,7 @@ def get_csv_correction_data(path_csvfile):
 
     return (network_code, station_code, all_csv)
 
+
 def get_orientation_corr(input_json_file):
     """
     read inpu json file to get the orientation correction metadata, rehash if necessary
@@ -217,27 +215,30 @@ def get_orientation_corr(input_json_file):
         orient_corr_list.append(dicorr)
 
     return (net_sta_list, orient_corr_list)
+
+
 # ======================================================================================================================
 # Example How to Run:
+# (hiperseis) fzhang@zubuntu1804 ~/Githubz/hiperseis
 # python seismic/inventory/station_metadata_extra.py /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml
 #   /Datasets/corrections/OA.CF28_clock_correction.csv /Datasets/Orientation_Correction_json/OA_ori_error_estimates.json ~/tmpdir/
-# python station_metadata_extra.py OA.CF28_clock_correction.csv /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml ~/tmpdir
+
 # =====================================================================================================================
 if __name__ == "__main__":
 
-    USAGE = "python %s gps_clock_corr_csv station_inventory_xml [out_dir]" % sys.argv[0]
+    USAGE = "python %s station_inventory_xml gps_clock_corr_csv ori_error_estimates_json_file [out_dir]" % sys.argv[0]
 
     GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"
-
-    # extra metadata info file(s) to be read and formatted into JSON
-    in_csv_file = "./OA.CF28_clock_correction.csv"
 
     # Original station inventory XML file to be modified
     # /g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml
     in_station_xml_file = "/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml"
 
+    # extra metadata info file(s) to be read and formatted into JSON
+    in_csv_file = "./OA.CF28_clock_correction.csv"
+
     # output dir for modified station inventory xml files
-    out_dir = "/tmp/"
+    out_dir = "~/tmpdir"
 
     if len(sys.argv) < 3:
         print(USAGE)
@@ -245,7 +246,7 @@ if __name__ == "__main__":
     else:
         in_station_xml_file = sys.argv[1]
         in_csv_file = sys.argv[2]
-        in_json_file =sys.argv[3]
+        in_json_file = sys.argv[3]
 
     if len(sys.argv) >= 5:
         out_dir = sys.argv[4]
@@ -255,11 +256,11 @@ if __name__ == "__main__":
     # get the metadata and it's associated network.station
     (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
 
-    (network_station_pairs, oricorr_json_data)  = get_orientation_corr(in_json_file)
+    (network_station_pairs, oricorr_json_data) = get_orientation_corr(in_json_file)
 
-    network_station_pairs.append( (net,sta) )
+    network_station_pairs.append((net, sta))
 
-    print (network_station_pairs)
+    print(network_station_pairs)
 
     # read in the initial station XML
     inv_obj = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
@@ -268,8 +269,8 @@ if __name__ == "__main__":
         selected_inv = inv_obj.select(network=net, station=sta)
 
         # selected_inv may be 0,1, 2, multiple stations, each have a start_date end_date
-        if selected_inv is None or len(selected_inv.networks)<1:
-            pass  # the loop
+        if selected_inv is None or len(selected_inv.networks) < 1:
+            pass  # nothing to do, check here
         else:
             station_list = selected_inv.networks[0].stations
             if station_list is None or len(station_list) == 0:  # no further process for this dummy case
@@ -290,7 +291,8 @@ if __name__ == "__main__":
                 # updated the ajson object with more metadata, such as orientation corr
                 ajson.add_orientation_correction(oricorr_json_data)
 
-                ajson.write_metadata2json(os.path.join(out_dir, "%s.%s_%s_extra_metadata.json" % (net, sta, str(start_dt))))
+                ajson.write_metadata2json(
+                    os.path.join(out_dir, "%s.%s_%s_extra_metadata.json" % (net, sta, str(start_dt))))
 
                 # Now, ready to write the ajson obj into new xml file
                 mformat = "JSON"
