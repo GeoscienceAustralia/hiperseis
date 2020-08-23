@@ -194,8 +194,8 @@ if __name__ == "__main__":
     # get the metadata and it's associated network.station
     (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
 
-    _inv = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
-    selected_inv = _inv.select(network=net, station=sta)
+    inv_obj = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
+    selected_inv = inv_obj.select(network=net, station=sta)
 
     # selected_inv may be 0,1, 2, multiple stations, each have a start_date end_date
     station_list = selected_inv.networks[0].stations
