@@ -115,12 +115,12 @@ def read_my_metajson(metajson_file):
 if __name__ == "__main__":
     json_file = sys.argv[1] # "/Datasets/Orientation_Correction_json/AQT_ori_error_estimates.json" # OA, OA2, 7X_, AQT_
     # json_file = "OA_ori_error_estimates.json" #"7X_ori_error_estimates.json"
-    ori=reformat_orientation_corrections(json_file)
+    or_corrections=reformat_orientation_corrections(json_file)  # a dictionary
 
-    print(json.dumps(ori, indent=2))
+    print(json.dumps(or_corrections, indent=2))
 
     with open("reformatted_orient_corr.json", "w") as f:
-        json.dump(ori, f, indent=2)
+        json.dump(or_corrections, f, indent=2)
 
 
     # my_meta_json = "extra_station_metadata.json"

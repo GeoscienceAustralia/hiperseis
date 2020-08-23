@@ -98,16 +98,32 @@ class StationMetadataExtra:  # CapWords naming convention.
         return pdf2
 
 
-    def add_orientation_correction(self, input_json_file):
+    def add_orientation_correction(self, jason_data_list):
         """
-        add json element for orientation_correction from input_json_file
-        :param input_json_file: an input file of certain format, containing the required orientation_correction
+        add orientation_correction from a list of json corrections (dictionar)
+        :param jason_data_list, a list of dictinaries like
+        [
+        {
+            "network_code":"OA",
+            "station_code":"BS24",
+            "start_dt": "2017-11-07T09:07:34.930000Z",
+            "end_dt":   "2018-08-23T03:52:29.528000Z",
+            "azimuth_correction": -5.0
+        },
+        ...
+        ]
         :return: json_sub_node, which was added into self.mdata
         """
 
-        # update the "ORIENT_CORRECTION":
-        #self.mdata.update({"ORIENT_CORRECTION":: json.loads(orient_corr)})
-        return True
+        for orcorr in jason_data_list:
+            if (orcorr.get("network") == self.net and orcorr.get("station") ==self.sta):
+                # update the "ORIENT_CORRECTION":
+                print(orcorr, type(orcorr))
+                self.mdata.update({"ORIENT_CORRECTION": orcorr})
+                return orcorr
+            else:
+                # no matching network.station, No orientation correction was added
+                return None
 
 
     def write_metadata2json(self, metadta_json_file):
@@ -116,6 +132,7 @@ class StationMetadataExtra:  # CapWords naming convention.
         :param metadta_json_file:
         :return:
         """
+
         with open(metadta_json_file, "w") as f:
             json.dump(self.mdata, f, indent=2)
 
@@ -159,8 +176,51 @@ def get_csv_correction_data(path_csvfile):
 
     return (network_code, station_code, all_csv)
 
+def get_orientation_corr(input_json_file):
+    """
+    read inpu json file to get the orientation correction metadata, rehash if necessary
+    :param input_json_file: a json file by AndrewMedlin original program
+    :return:
+    """
+    with open(input_json_file) as f:
+        medata = json.load(f)
+
+    # print(type(medata))
+
+    # print(medata.keys())  # dict_keys(['7X.MA01', '7X.MA11', '7X.MA12', '...)]
+
+    net_sta_list = []
+    orient_corr_list = []
+    for netsta in medata.keys():
+        # netsta = '7X.MA01'
+        network, station = netsta.split('.')
+
+        net_sta_list.append((network, station))
+
+        # print(medata[netsta])
+
+        try:
+            az_corr = medata[netsta]['azimuth_correction']
+        except KeyError:
+            print("KeyError Warning: No Correction data for ", netsta)
+
+        az_corr = medata[netsta].get('azimuth_correction')
+        start = medata[netsta]['date_range'][0]
+        end = medata[netsta]['date_range'][1]
+        # ['2009-09-10T02:57:07.160000Z', '2010-06-05T05:35:00.623400Z'] <class 'list'>
+        # print(data[netsta]['azimuth_correction'], type(data[netsta]['azimuth_correction'])) # 38.0 <class 'float'>
+
+        # print(start, end, az_corr)
+        # Make a dictionary:
+        dicorr = {"network": network, "station": station, "start_dt": start, "end_dt": end,
+                  "azimuth_correction": az_corr}
+        orient_corr_list.append(dicorr)
+
+    return (net_sta_list, orient_corr_list)
 # ======================================================================================================================
 # Example How to Run:
+# python seismic/inventory/station_metadata_extra.py /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml
+#   /Datasets/corrections/OA.CF28_clock_correction.csv /Datasets/Orientation_Correction_json/OA_ori_error_estimates.json ~/tmpdir/
 # python station_metadata_extra.py OA.CF28_clock_correction.csv /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml ~/tmpdir
 # =====================================================================================================================
 if __name__ == "__main__":
@@ -183,59 +243,72 @@ if __name__ == "__main__":
         print(USAGE)
         sys.exit(1)
     else:
-        in_csv_file = sys.argv[1]
-        in_station_xml_file = sys.argv[2]
+        in_station_xml_file = sys.argv[1]
+        in_csv_file = sys.argv[2]
+        in_json_file =sys.argv[3]
 
-    if len(sys.argv) >= 4:
-        out_dir = sys.argv[3]
+    if len(sys.argv) >= 5:
+        out_dir = sys.argv[4]
     else:
         out_dir = None
 
     # get the metadata and it's associated network.station
     (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
 
+    (network_station_pairs, oricorr_json_data)  = get_orientation_corr(in_json_file)
+
+    network_station_pairs.append( (net,sta) )
+
+    print (network_station_pairs)
+
+    # read in the initial station XML
     inv_obj = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
-    selected_inv = inv_obj.select(network=net, station=sta)
 
-    # selected_inv may be 0,1, 2, multiple stations, each have a start_date end_date
-    station_list = selected_inv.networks[0].stations
-    if station_list is None or len(station_list) == 0:  # no further process for this dummy case
-        print("(network station) %s.%s NOT present in the XML file %s" % (net, sta, in_station_xml_file))
-        sys.exits(2)
+    for (net, sta) in network_station_pairs:
+        selected_inv = inv_obj.select(network=net, station=sta)
 
-    # redefine the selected_inv
-    for a_station in station_list:  # loop over all Stations
-        # get station star end date and split csv_data
-        start_dt = a_station.start_date
-        end_dt = a_station.end_date
+        # selected_inv may be 0,1, 2, multiple stations, each have a start_date end_date
+        if selected_inv is None or len(selected_inv.networks)<1:
+            pass  # the loop
+        else:
+            station_list = selected_inv.networks[0].stations
+            if station_list is None or len(station_list) == 0:  # no further process for this dummy case
+                print("(network station) %s.%s NOT present in the XML file %s" % (net, sta, in_station_xml_file))
+                sys.exits(2)
 
-        ajson = StationMetadataExtra(net, sta, start_datetime=start_dt, end_datetime=end_dt)
+            # redefine the selected_inv
+            for a_station in station_list:  # loop over all Stations
+                # get station star end date and split csv_data
+                start_dt = a_station.start_date
+                end_dt = a_station.end_date
 
-        # generate/format extra metadata from inputs
-        mpdf = ajson.add_gps_correction_from_csv(csv_data)
+                ajson = StationMetadataExtra(net, sta, start_datetime=start_dt, end_datetime=end_dt)
 
-        # updated the ajson object with more metadata, such as orientation corr
-        ajson.add_orientation_correction("input_json_file")
+                # generate/format extra metadata from inputs
+                mpdf = ajson.add_gps_correction_from_csv(csv_data)
 
-        ajson.write_metadata2json(os.path.join(out_dir, "%s.%s_%s_extra_metadata.json" % (net, sta, str(start_dt))))
+                # updated the ajson object with more metadata, such as orientation corr
+                ajson.add_orientation_correction(oricorr_json_data)
 
-        # Now, ready to write the ajson obj into new xml file
-        mformat = "JSON"
+                ajson.write_metadata2json(os.path.join(out_dir, "%s.%s_%s_extra_metadata.json" % (net, sta, str(start_dt))))
 
-        my_tag = AttribDict()
-        my_tag.namespace = GA_NameSpace
+                # Now, ready to write the ajson obj into new xml file
+                mformat = "JSON"
 
-        my_tag.value = ajson.make_json_string()  # store all the extra metadata into a json string.
+                my_tag = AttribDict()
+                my_tag.namespace = GA_NameSpace
 
-        a_station.extra = AttribDict()
-        a_station.extra.GAMetadata = my_tag
+                my_tag.value = ajson.make_json_string()  # store all the extra metadata into a json string.
 
-    # prepare to write out a modified xml file
+                a_station.extra = AttribDict()
+                a_station.extra.GAMetadata = my_tag
 
-    stationxml_with_extra = '%s.%s_station_metadata_%s.xml' % (net, sta, mformat)
+            # prepare to write out a modified xml file
 
-    if out_dir is not None and os.path.isdir(out_dir):
-        stationxml_with_extra = os.path.join(out_dir, stationxml_with_extra)
+            stationxml_with_extra = '%s.%s_station_metadata_%s.xml' % (net, sta, mformat)
 
-    selected_inv.write(stationxml_with_extra, format='STATIONXML',
-                       nsmap={'GeoscienceAustralia': GA_NameSpace})
+            if out_dir is not None and os.path.isdir(out_dir):
+                stationxml_with_extra = os.path.join(out_dir, stationxml_with_extra)
+
+            selected_inv.write(stationxml_with_extra, format='STATIONXML',
+                               nsmap={'GeoscienceAustralia': GA_NameSpace})
