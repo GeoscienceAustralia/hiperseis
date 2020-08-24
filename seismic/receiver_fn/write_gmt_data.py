@@ -76,17 +76,16 @@ def from_config(config_file):
     methods = config[cc.METHODS]
     for method_params in methods:
         method = method_params[cc.NAME]
-        data = format_locations(method_params)
+        data = _format_locations(method_params)
         outfile = os.path.join(gmt_outdir, f'{method}' + cc.LOCATIONS_GMT)
         with open(outfile, 'w') as fw:
             np.savetxt(fw, data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
     print(f"Complete! Data files saved to '{gmt_outdir}'")
 
 
-def format_locations(method_params):
+def _format_locations(method_params):
     """
     Formats sample data to LON LAT TOTAL_WEIGHT.
-    TODO: should be refactored - used here and by write_gis_data.py.
     """
     col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
     data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None, encoding=None,

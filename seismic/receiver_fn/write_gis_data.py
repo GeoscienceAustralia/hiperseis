@@ -10,7 +10,6 @@ import rasterio
 import shapefile
 import numpy as np
 
-from seismic.receiver_fn.write_gmt_data import format_locations
 from seismic.receiver_fn.moho_config import ConfigConstants as cc
 
 # Plate Carree CRS
@@ -124,16 +123,33 @@ def write_sample_locations(config_file):
         outfile = os.path.join(gis_outdir, f'{method}' + cc.LOCATIONS_GIS)
         w = shapefile.Writer(outfile, shapeType=1)
         w.field('WEIGHT', 'N', decimal=2)
-        data = format_locations(method_params)
+        w.field('DEPTH', 'N', decimal=2)
+        w.field('STA', 'C')
+        data = _format_locations(method_params)
         for d in data:
-            w.point(d[0], d[1])
-            w.record(WEIGHT=d[2])
+            w.point(float(d[0]), float(d[1]))
+            w.record(WEIGHT=d[2], DEPTH=d[3], STA=d[4])
         w.close()
         # Write .prj file
         with open(f'{outfile}.prj', 'w') as prj:
             prj.write(CRS.wkt)
             
     print(f"Complete! Location shapefiles written to '{gis_outdir}'")
+
+
+def _format_locations(method_params):
+    """
+    Formats sample data to LON LAT TOTAL_WEIGHT DEPTH STA.
+    """
+    col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
+    data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None, encoding=None,
+                         names=col_names)
+    # Remove depth column
+    method_weight = method_params[cc.WEIGHT]
+    total_weight = method_weight * data['weight']
+    data = np.array((data['lon'], data['lat'], total_weight, data['depth'], data['sta'])).T
+    return data
+
         
    
 @click.command()
