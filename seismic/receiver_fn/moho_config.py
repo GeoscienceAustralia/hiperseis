@@ -187,6 +187,10 @@ def validate(config):
             raise ValueError(f"{_cc.BOUNDS} must have exactly 4 elements (west, south, east, north)")
         for b in bounds:
             _check_type(b, [float, int], "bounds values must be of type int or float")
+        if bounds[0] >= bounds[2]:
+            raise ValueError(f"Left bound ({bounds[0]}) must be less than right bound ({bounds[2]})")
+        if bounds[1] >= bounds[3]:
+            raise ValueError(f"Bottom bound ({bounds[1]}) must be less than top bound ({bounds[3]})")
     else:
         print("No bounds provided, bounds will be derived from extent of data")
 
