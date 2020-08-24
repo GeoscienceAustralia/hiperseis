@@ -11,10 +11,8 @@ import click
 from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
 from seismic.receiver_fn.moho_config import ConfigConstants as cc, validate, CORR_FUNC_MAP
 
-        
-@click.command()
-@click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
-def main(config_file):
+
+def run_workflow(config_file):
     with open(config_file, 'r') as f:
         config = json.load(f)
 
@@ -40,6 +38,12 @@ def main(config_file):
         write_gis_data.write_depth_grid(config_file)
         write_gis_data.write_gradient_grid(config_file)
         write_gis_data.write_sample_locations(config_file)
+
+    
+@click.command()
+@click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
+def main(config_file):
+    run_workflow(config_file)
 
 
 if __name__ == '__main__':
