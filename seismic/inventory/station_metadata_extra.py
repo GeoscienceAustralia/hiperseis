@@ -60,7 +60,7 @@ class StationMetadataExtra:  # CapWords naming convention.
         json_str = self.mdata
         return json.dumps(json_str, indent=2)
 
-    def add_gps_correction_from_csv(self, csv_data):  # ,net, sta, start_dt, end_dt):
+    def add_gps_correction_from_csv(self, csv_data=None):  # ,net, sta, start_dt, end_dt):
         """
         Select the csv rows according  net, sta, start_dt, end_dt
 
@@ -71,6 +71,9 @@ class StationMetadataExtra:  # CapWords naming convention.
 
         Returns: a subset of csv in pandas df, selected according to (net, sta, start_dt, end_dt)
         """
+        if csv_data is None:
+            return None  # No correction metadata to be added
+
         pdf = pd.read_csv(io.StringIO(csv_data))
         # pdf.insert(4,"utcdate", UTCDateTime(0))
         # print(pdf.head())
@@ -82,7 +85,7 @@ class StationMetadataExtra:  # CapWords naming convention.
 
         # drop columns inplace pdf2 itself will be changed, otherwise will return a new df
         pdf2.drop(['net', 'sta', 'utcdate'], axis=1, inplace=True)
-        print("The shapes = ", pdf.shape, pdf2.shape)
+        print(self.net, self.sta, " shapes = ", pdf.shape, pdf2.shape)
 
         # to json object, ignore default variables
         # gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
@@ -98,7 +101,7 @@ class StationMetadataExtra:  # CapWords naming convention.
 
     def add_orientation_correction(self, jason_data_list):
         """
-        add orientation_correction from a list of json corrections (dictionar)
+        add orientation_correction from a list of json corrections (dictionary)
         The self.mdata is updated if orientatoin correction found
 
         :param jason_data_list, a list of dictinaries like
@@ -261,15 +264,22 @@ if __name__ == "__main__":
     else:
         out_dir = None
 
+    network_station_pairs=[]
+
     # get the metadata and it's associated network.station
-    (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
+    if os.path.exists(in_csv_file):
+        (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
+        network_station_pairs.append((net, sta))
+    else:
+        csv_data = None 
 
-    (network_station_pairs, oricorr_json_data) = get_orientation_corr(in_json_file)
+    if os.path.exists(in_json_file):
+        (net_sta, oricorr_json_data) = get_orientation_corr(in_json_file)
+        network_station_pairs = network_station_pairs + net_sta
+    else:
+        oricorr_json_data = []  # None is not iterable
+
     print(network_station_pairs, len(network_station_pairs))
-
-    if (net,sta) not in network_station_pairs:
-        network_station_pairs.append((net, sta)) 
-        print(network_station_pairs, len(network_station_pairs))
 
     # read in the initial station XML
     inv_obj = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
