@@ -28,7 +28,7 @@ def add_weights(data_file, sample_weights=None):
         elif isinstance(sample_weights, dict):
             sta_weight = sample_weights.items()
 
-        for s, w in sample_weights.items():
+        for s, w in sta_weight:
             weights[np.where(data['Sta'] == s)] = w
     else:
         print("'sample_weights' not recognised. Must be a file of format 'STATION WEIGHT' or a "
