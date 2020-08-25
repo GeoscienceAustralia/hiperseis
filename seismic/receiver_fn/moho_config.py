@@ -23,6 +23,8 @@ class ConfigConstants:
     PP_SCALE = 'scale'
     PP_FMT = 'format'
     PP_SHOW = 'show'
+    PP_TITLE = 'title'
+    PP_CB_LABEL = 'cb_label'
     GMT_FLAG = 'output_gmt'
     GIS_FLAG = 'output_gis'
     DATA_PREP = 'data_preperation'
@@ -35,18 +37,17 @@ class ConfigConstants:
     CCP_CORR = 'ccp_correction'
 
     # Output filenames
-    MOHO_GRID = 'moho_grid.csv'
-    MOHO_GRAD = 'moho_gradient.csv'
-    MOHO_PLOT = 'moho_plot'
+    MOHO_GRID = 'grid.csv'
+    MOHO_GRAD = 'gradient.csv'
+    MOHO_PLOT = 'plot'
     GMT_DIR = 'gmt_data'
-    MOHO_GRID_GMT = 'moho_grid.txt'
-    MOHO_GRAD_GMT = 'moho_gradient.txt'
+    MOHO_GRID_GMT = 'grid.txt'
+    MOHO_GRAD_GMT = 'gradient.txt'
     LOCATIONS_GMT = '_locations.txt'
     GIS_DIR = 'gis_data'
-    MOHO_GRID_GIS = 'moho_grid.tif'
-    MOHO_GRAD_GIS = 'moho_gradient.tif'
+    MOHO_GRID_GIS = 'grid.tif'
+    MOHO_GRAD_GIS = 'gradient.tif'
     LOCATIONS_GIS = '_locations'
-
     
 
 _cc = ConfigConstants
@@ -71,7 +72,7 @@ METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
                            _cc.GMT_FLAG, _cc.GIS_FLAG]
 
-CP_PARAM_SUPPORTED_KEYS = [_cc.PP_SCALE, _cc.PP_FMT, _cc.PP_SHOW]
+CP_PARAM_SUPPORTED_KEYS = [_cc.PP_SCALE, _cc.PP_FMT, _cc.PP_SHOW, _cc.PP_TITLE, _cc.PP_CB_LABEL]
 
 def _try_lookup(d, f, msg):
     try:
