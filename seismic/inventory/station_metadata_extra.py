@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 """
-Class Model for GA Extra Metadata to be included into station inventory XML files
+Class Model for GA Extra Metadata, which will be included into station inventory XML file as EXTRA tagged elements
 
 CreationDate:   07/08/2020
 Developer:      fei.zhang@ga.gov.au
@@ -99,28 +99,35 @@ class StationMetadataExtra:  # CapWords naming convention.
     def add_orientation_correction(self, jason_data_list):
         """
         add orientation_correction from a list of json corrections (dictionar)
+        The self.mdata is updated if orientatoin correction found
+
         :param jason_data_list, a list of dictinaries like
         [
         {
-            "network_code":"OA",
-            "station_code":"BS24",
+            "network":"OA",
+            "station":"BS24",
             "start_dt": "2017-11-07T09:07:34.930000Z",
             "end_dt":   "2018-08-23T03:52:29.528000Z",
             "azimuth_correction": -5.0
         },
         ...
         ]
-        :return: json_sub_node, which was added into self.mdata
+        :return: Adict with key net.sta deleted. 
         """
 
-        for orcorr in jason_data_list:
-            if (orcorr.get("network") == self.net and orcorr.get("station") == self.sta):
+        for orcorr in jason_data_list: # search the right net.sta
+            if (orcorr.get("network") == self.net and orcorr.get("station") == self.sta):  # get wouldn't have KeyError, return None if no key found
+                #print(orcorr, type(orcorr))
+
+                orcorr2=orcorr.copy() # make a copy to avoid alter the original dict obj. or copy()
+                orcorr2.pop("network")
+                orcorr2.pop("station") 
+
                 # update the "ORIENT_CORRECTION":
-                print(orcorr, type(orcorr))
-                self.mdata.update({"ORIENT_CORRECTION": orcorr})
-                return orcorr
+                self.mdata.update({"ORIENT_CORRECTION": orcorr2})
+                return orcorr2
             else:
-                pass # not matching network.station, continue loop search for the net.sta
+                pass # not matching network.station, continue the loop search for the net.sta
 
         return None
 
@@ -200,7 +207,7 @@ def get_orientation_corr(input_json_file):
         try:
             az_corr = medata[netsta]['azimuth_correction']
         except KeyError:
-            print("KeyError Warning: No Correction data for ", netsta)
+            print("KeyError Warning: No 'azimuth_correction' data for ", netsta)
 
         az_corr = medata[netsta].get('azimuth_correction')
         start = medata[netsta]['date_range'][0]
@@ -222,7 +229,8 @@ def get_orientation_corr(input_json_file):
 # (hiperseis) fzhang@zubuntu1804 ~/Githubz/hiperseis
 # python seismic/inventory/station_metadata_extra.py /Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml
 #   /Datasets/corrections/OA.CF28_clock_correction.csv /Datasets/Orientation_Correction_json/OA_ori_error_estimates.json ~/tmpdir/
-
+# 
+# python seismic/inventory/station_metadata_extra.py tests/testdata/7X_2009_2011_ASDF.xml /g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata/GPSClockCorr/7X.MA43_clock_correction.csv  /g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata/OrientationCorr/7X_ori_error_estimates.json  ~/tmpdir/
 # =====================================================================================================================
 if __name__ == "__main__":
 
@@ -240,7 +248,7 @@ if __name__ == "__main__":
     # output dir for modified station inventory xml files
     out_dir = "~/tmpdir"
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(USAGE)
         sys.exit(1)
     else:
@@ -257,10 +265,11 @@ if __name__ == "__main__":
     (net, sta, csv_data) = get_csv_correction_data(in_csv_file)
 
     (network_station_pairs, oricorr_json_data) = get_orientation_corr(in_json_file)
+    print(network_station_pairs, len(network_station_pairs))
 
-    network_station_pairs.append((net, sta))
-
-    print(network_station_pairs)
+    if (net,sta) not in network_station_pairs:
+        network_station_pairs.append((net, sta)) 
+        print(network_station_pairs, len(network_station_pairs))
 
     # read in the initial station XML
     inv_obj = obspy.read_inventory(in_station_xml_file, format='STATIONXML')
@@ -269,8 +278,8 @@ if __name__ == "__main__":
         selected_inv = inv_obj.select(network=net, station=sta)
 
         # selected_inv may be 0,1, 2, multiple stations, each have a start_date end_date
-        if selected_inv is None or len(selected_inv.networks) < 1:
-            pass  # nothing to do, check here
+        if selected_inv is None or len(selected_inv.networks) == 0:
+            pass  # nothing to do, no network 
         else:
             station_list = selected_inv.networks[0].stations
             if station_list is None or len(station_list) == 0:  # no further process for this dummy case
