@@ -18,9 +18,10 @@ from seismic.receiver_fn.sandbox.conversion_helper import NETWORK_CODE_MAPPINGS,
 @click.command()
 @click.option('--fds-file', type=click.Path(dir_okay=False, exists=True), required=True,
               help='Input file for FederatedASDFDataSet containing station coordinates')
+@click.option('--k', is_flag=True)
 @click.argument('infile', type=click.Path(dir_okay=False, exists=True), required=True)
 @click.argument('sheet-names', type=str, nargs=-1)
-def main(infile, fds_file, sheet_names):
+def main(infile, fds_file, sheet_names, k):
     """
     Process Excel spreadsheet into point dataset based on station codes.
 
@@ -83,14 +84,17 @@ def main(infile, fds_file, sheet_names):
                 for sc in SPECIAL_CHARS:
                     station = station.split(sc)[0]
                 station = '.'.join([network, station])
-                h_val = float(row[1].value)
-                if np.isnan(h_val):
+                if k:
+                    val = float(row[2].value)
+                else:
+                    val = float(row[1].value)
+                if np.isnan(val):
                     print(f"Invalid depth value for {station}, skipping")
                     continue
                 coords = sta_coords[station]
                 if not coords:
                     print(f"Couldn't find coordinates for {station}, skipping")
-                pt_data = [station] + coords + [h_val]
+                pt_data = [station] + coords + [val]
                 pts.append(pt_data)
 
     all_data = np.array(pts)
@@ -98,8 +102,10 @@ def main(infile, fds_file, sheet_names):
     filebase = os.path.splitext(infile)[0]
     outfile = filebase + '.csv'
     print('Saving point data to file "{}"'.format(outfile))
+    header = 'Sta,Lon,Lat,'
+    header = header + 'K' if k else header + 'Depth'
     np.savetxt(outfile, all_data, fmt=['%s', '%s', '%s', '%s'], delimiter=',',
-               header='Sta,Lon,Lat,Depth')
+               header=header)
 # end func
 
 
