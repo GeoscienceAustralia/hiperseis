@@ -21,7 +21,9 @@
         {
             "scale": [10.0, 60.0],
             "format": "png",
-            "show": true
+            "show": true,
+            "title": "Moho depth from blended data",
+            "cb_label": "Moho depth (km)"
         },
         "output_gmt": true,
         "output_gis": true
