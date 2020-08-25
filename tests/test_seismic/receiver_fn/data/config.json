@@ -1,0 +1,32 @@
+{
+    "methods":
+    [
+        {
+            "name": "ccp_1",
+            "data": "ccp1.csv",
+            "weight": 1.0,
+            "scale_length": 0.2
+        },
+        {
+            "name": "ccp_2",
+            "data": "ccp2.csv",
+            "weight": 1.0,
+            "scale_length": 0.5
+        }
+    ],
+    "plotting":
+    {
+        "output_plot": true,
+        "plot_parameters":
+        {
+            "scale": [10.0, 60.0],
+            "format": "png",
+            "show": false
+        },
+        "output_gmt": true,
+        "output_gis": true
+    },
+    "bounds": [134.0, -19.0, 138.0, -17.0],
+    "grid_interval": 0.25,
+    "output_directory":  "./output"
+}
