@@ -4,11 +4,17 @@ import pytest
 import numpy as np
 
 from seismic.receiver_fn.ccp_correction import correct
+from tests.conftest import TESTS
 
 
-def test_ccp_correction(tmpdir):
-    ccp_data = 'data/ccp_test.csv'
-    corr_data= 'data/hk_test.csv'
+@pytest.fixture()
+def data_dir():
+    return os.path.join(TESTS, 'test_seismic', 'receiver_fn', 'data')
+
+
+def test_ccp_correction(tmpdir, data_dir):
+    ccp_data = os.path.join(data_dir, 'ccp_test.csv')
+    corr_data = os.path.join(data_dir, 'hk_test.csv')
     outfile = os.path.join(tmpdir, 'test.csv')
     correct(ccp_data, corr_data, outfile)
     test_result = np.genfromtxt(outfile, delimiter=',', dtype=None, encoding=None,

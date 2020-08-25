@@ -93,6 +93,30 @@ def _haversine(s, r, **kwargs):
 DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
 
+def _grid(bb_min, bb_max, spacing):
+    if bb_min[0] >= bb_max[0]:
+        raise ValueError(f"Bounds xmin {bb_min[0]} must be less than bounds xmax {bb_max[1]}")
+    if bb_min[1] >= bb_max[1]:
+        raise ValueError(f"Bounds ymin {bb_min[1]} must be less than bounds ymax {bb_max[1]}")
+    span = bb_max - bb_min
+    n_x = int(np.ceil(span[0]/spacing)) + 1
+    n_y = int(np.ceil(span[1]/spacing)) + 1
+    x_grid, y_grid = np.meshgrid(np.linspace(bb_min[0], bb_max[0], n_x),
+                                 np.linspace(bb_min[1], bb_max[1], n_y))
+    return n_x, x_grid, n_y, y_grid
+
+
+def _bounds(xy_mins, xy_maxs, bounds=None):
+    if bounds is not None:
+        l, b, r, t = bounds
+        bb_min = np.array((l, b))
+        bb_max = np.array((r, t))
+    else:
+        bb_min = np.min(xy_mins, axis=0)
+        bb_max = np.max(xy_maxs, axis=0)
+    return bb_min, bb_max
+
+
 def make_grid(config_file):
     """
     Run multi point dataset weighted averaging over Gaussian interpolation functions
@@ -119,15 +143,8 @@ def make_grid(config_file):
     except KeyError as e:
         raise Exception("No methods provided") from e
 
-    bounds = job_config.get(cc.BOUNDS)
-    if bounds is None:
-        bb_min = np.array([np.inf, np.inf])
-        bb_max = np.array([-np.inf, -np.inf])
-    else:
-        l, b, r, t = bounds
-        bb_min = np.array((l, b))
-        bb_max = np.array((r, t))
-
+    xy_mins = []
+    xy_maxs = []
     for method_params in methods:
         method = method_params[cc.NAME]
         col_names = ['sta', 'lon', 'lat', 'depth', 'sw']
@@ -136,20 +153,12 @@ def make_grid(config_file):
         pt_dataset = np.array((data['lon'], data['lat'], data['depth'])).T
         method_params['pt_data'] = pt_dataset
         method_params['sample_weights'] = data['sw']
-        # If bounds not provided, find extent of datasets
-        if bounds is None:
-            xy_map = pt_dataset[:, :2]
-            xy_min = xy_map.min(axis=0)
-            xy_max = xy_map.max(axis=0)
-            bb_min = np.minimum(bb_min, xy_min)
-            bb_max = np.maximum(bb_max, xy_max)
-    
-    span = bb_max - bb_min
-    spacing = job_config[cc.GRID_INTERVAL]
-    n_x = int(np.ceil(span[0]/spacing)) + 1
-    n_y = int(np.ceil(span[1]/spacing)) + 1
-    x_grid, y_grid = np.meshgrid(np.linspace(bb_min[0], bb_max[0], n_x),
-                                 np.linspace(bb_min[1], bb_max[1], n_y))
+        xy_map = pt_dataset[:, :2]
+        xy_mins.append(xy_map.min(axis=0))
+        xy_maxs.append(xy_map.max(axis=0))
+
+    bb_min, bb_max = _bounds(xy_mins, xy_maxs, job_config.get(cc.BOUNDS))
+    n_x, x_grid, n_y, y_grid = _grid(bb_min, bb_max, job_config[cc.GRID_INTERVAL])
     grid_map = np.hstack((x_grid.flatten()[:, np.newaxis], y_grid.flatten()[:, np.newaxis]))
     denom_agg = np.zeros(grid_map.shape[0], dtype=float)[:, np.newaxis]
     z_agg = np.zeros_like(denom_agg)
