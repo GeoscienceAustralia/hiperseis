@@ -7,7 +7,7 @@ cache: pip
 
 python:
  #deprecated - '2.7'
-  - '3.5'
+ #deprecated - '3.5'
   - '3.6'
   - '3.7'
 
