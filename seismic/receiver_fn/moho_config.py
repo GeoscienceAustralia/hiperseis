@@ -309,17 +309,25 @@ class MethodDataset:
                 # Only have access to the Net.Sta code so we pick the first channel for this
                 # station and take that location.
                 lats, lons = [], []
+                cache = {}
                 try:
                     inv = read_inventory(method_params[_cc.INV_FILE])
                 except IOError as e:
                     raise Exception("Inventory file doesn't exist") from e
                 for net, sta in zip(self.net, self.sta):
-                    for c in inv.get_contents()['channels']:
-                        if c.startswith('.'.join((net,sta))):
-                            coords = inv.get_coordinates(c)
-                            lats.append(float(coords['latitude']))
-                            lons.append(float(coords['longitude']))
-                            break
+                    coords = cache.get('.'.join(net, sta))
+                    if coords is None:
+                        for c in inv.get_contents()['channels']:
+                            if c.startswith('.'.join((net,sta))):
+                                coords = inv.get_coordinates(c)
+                                lats.append(float(coords['latitude']))
+                                lons.append(float(coords['longitude']))
+                                cache['.'.join(net,sta)] = float(coords['latitude']), 
+                                    float(coords['longitude'])
+                                break
+                    else:
+                        lats.append(coords[0])
+                        lons.append(coords[1])
 
                 self.lat = np.array(lats)
                 self.lon = np.array(lons)
@@ -335,10 +343,3 @@ if __name__ == '__main__':
     import sys
     import json
     with open(sys.argv[1], 'r') as f:
-        config = json.load(f)
-    md = MethodDataset(config['methods'][0])
-    print(md.epoch_time)
-    print(md.lat)
-    print(md.lon)
-    print(md.val)
-    print(md.sw)
