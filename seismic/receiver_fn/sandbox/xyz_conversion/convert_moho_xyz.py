@@ -35,10 +35,10 @@ def main(inpath):
     for f in files:
         df = pd.read_csv(f, names=['Sta', 'Lat', 'Lon', 'Depth', 'Weight'],
                          delim_whitespace=True, skiprows=1)
-        df = df.drop('Sta', axis=1).reindex(columns=['Lon', 'Lat', 'Depth', 'Weight'])
+        df = df.reindex(columns=['Sta', 'Lon', 'Lat', 'Depth', 'Weight'])
         outname = os.path.splitext(os.path.basename(f))[0] + '_converted.csv'
         with open(outname, 'w') as outfile:
-            outfile.write('# Lon,Lat,Depth,Weight\n')
+            outfile.write('# Sta,Lon,Lat,Depth,Weight\n')
             df.to_csv(outfile, header=False, index=False)
 
 

@@ -3,50 +3,22 @@
 Blend data from multiple methods together onto a common grid.
 
 Multiple methods with per-method settings are passed in using a JSON 
-configuration file, illustrated by the following example:
+configuration file.
 
-.. code-block:: JSON
-
-    {
-        "methods":
-        [
-            {
-                "name": "CCP1",
-                "csv_file": "sandbox/PV-227/ccp_line_data_sample1.csv",
-                "weighting": 1.0,
-                "scale_length_degrees": 0.2,
-                "enable_sample_weighting": false
-            },
-            {
-                "name": "CCP2",
-                "csv_file": "sandbox/PV-227/ccp_line_data_sample2.csv",
-                "weighting": 0.5,
-                "scale_length_degrees": 0.2,
-                "scale_length_cutoff": 3.6,
-                "enable_sample_weighting": false
-            }
-        ],
-        "output_spacing_degrees": 0.25,
-        "bounds": [130.0, -20.0, 140.0, -17.0],
-        "output_dir": "./ccp_moho_output",
-    }
-
-The CSV data is of format:
-    LON LAT DEPTH [SAMPLE_WEIGHT]
-
-Sample weighting can be switched on or off per method.
-If enabled, requires the data file to have a fourth column containg
-sample weights.
+See `config_moho_workflow_example.json` and the wiki page at
+https://github.com/GeoscienceAustralia/hiperseis/wiki/Blending-and-Plotting-Point-Datasets
+for an explanation of the config.
 
 Bounds are optional. If provided, the interpolation grid will be limited
 to this extent. If not provided, the interpolation grid is bounded by
 the maximum extent of the aggregate datasets.
 
-The gridded data will be placed in the output directory as 
-'moho_grid.csv'. If output directory is not provided, the current 
-working directory will be used.
+The gridded data will be written to output directory as 'moho_grid.csv'.
+If output directory is not provided, the current working directory will 
+be used.
 
-The gridded gradient will be in output directory as 'moho_gradient.csv'.
+The gridded gradient will be written to output directory as 
+'moho_gradient.csv'.
 
 Reference:
 B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
@@ -65,6 +37,8 @@ import click
 import numpy as np
 from scipy.spatial.distance import cdist
 import cartopy as cp
+
+from seismic.receiver_fn.moho_config import ConfigConstants as cc
 
 try:
     import kennett_dist
@@ -119,6 +93,30 @@ def _haversine(s, r, **kwargs):
 DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
 
+def _grid(bb_min, bb_max, spacing):
+    if bb_min[0] >= bb_max[0]:
+        raise ValueError(f"Bounds xmin {bb_min[0]} must be less than bounds xmax {bb_max[1]}")
+    if bb_min[1] >= bb_max[1]:
+        raise ValueError(f"Bounds ymin {bb_min[1]} must be less than bounds ymax {bb_max[1]}")
+    span = bb_max - bb_min
+    n_x = int(np.ceil(span[0]/spacing)) + 1
+    n_y = int(np.ceil(span[1]/spacing)) + 1
+    x_grid, y_grid = np.meshgrid(np.linspace(bb_min[0], bb_max[0], n_x),
+                                 np.linspace(bb_min[1], bb_max[1], n_y))
+    return n_x, x_grid, n_y, y_grid
+
+
+def _bounds(xy_mins, xy_maxs, bounds=None):
+    if bounds is not None:
+        l, b, r, t = bounds
+        bb_min = np.array((l, b))
+        bb_max = np.array((r, t))
+    else:
+        bb_min = np.min(xy_mins, axis=0)
+        bb_max = np.max(xy_maxs, axis=0)
+    return bb_min, bb_max
+
+
 def make_grid(config_file):
     """
     Run multi point dataset weighted averaging over Gaussian interpolation functions
@@ -141,56 +139,37 @@ def make_grid(config_file):
         job_config = json.load(f)
 
     try:
-        methods = job_config['methods']
+        methods = job_config[cc.METHODS]
     except KeyError as e:
         raise Exception("No methods provided") from e
 
-    bounds = job_config.get('bounds')
-    if bounds is None:
-        bb_min = np.array([np.inf, np.inf])
-        bb_max = np.array([-np.inf, -np.inf])
-    else:
-        l, b, r, t = bounds
-        bb_min = np.array((l, b))
-        bb_max = np.array((r, t))
-
+    xy_mins = []
+    xy_maxs = []
     for method_params in methods:
-        method = method_params['name']
-        pt_dataset = np.loadtxt(method_params['csv_file'], delimiter=',')
+        method = method_params[cc.NAME]
+        col_names = ['sta', 'lon', 'lat', 'depth', 'sw']
+        data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None,
+                             names=col_names, encoding=None)
+        pt_dataset = np.array((data['lon'], data['lat'], data['depth'])).T
         method_params['pt_data'] = pt_dataset
-        # If bounds not provided, find extent of datasets
-        if bounds is None:
-            xy_map = pt_dataset[:, :2]
-            xy_min = xy_map.min(axis=0)
-            xy_max = xy_map.max(axis=0)
-            bb_min = np.minimum(bb_min, xy_min)
-            bb_max = np.maximum(bb_max, xy_max)
-        # Add sample weights to filedict if provided
-        if method_params['enable_sample_weighting']:
-            try:
-                method_params['sample_weights'] = (pt_dataset[:, 3][:, np.newaxis]).T
-            except IndexError as e:
-                raise Exception(
-                    f"Sample weights enabled for '{method}' but could not be found in "
-                      "csv file. Ensure fourth column exists and contains sample weights.") from e
-    
-    span = bb_max - bb_min
-    spacing = job_config["output_spacing_degrees"]
-    n_x = int(np.ceil(span[0]/spacing)) + 1
-    n_y = int(np.ceil(span[1]/spacing)) + 1
-    x_grid, y_grid = np.meshgrid(np.linspace(bb_min[0], bb_max[0], n_x),
-                                 np.linspace(bb_min[1], bb_max[1], n_y))
+        method_params['sample_weights'] = data['sw']
+        xy_map = pt_dataset[:, :2]
+        xy_mins.append(xy_map.min(axis=0))
+        xy_maxs.append(xy_map.max(axis=0))
+
+    bb_min, bb_max = _bounds(xy_mins, xy_maxs, job_config.get(cc.BOUNDS))
+    n_x, x_grid, n_y, y_grid = _grid(bb_min, bb_max, job_config[cc.GRID_INTERVAL])
     grid_map = np.hstack((x_grid.flatten()[:, np.newaxis], y_grid.flatten()[:, np.newaxis]))
     denom_agg = np.zeros(grid_map.shape[0], dtype=float)[:, np.newaxis]
     z_agg = np.zeros_like(denom_agg)
     s_agg = np.zeros_like(denom_agg)
     print("Distance matrix calculation may take several minutes for large datasets")
     for method_params in methods:
-        method = method_params['name']
+        method = method_params[cc.NAME]
         print(f"Processing '{method}'")
-        sigma = method_params["scale_length_degrees"]
+        sigma = method_params[cc.SCALE_LENGTH]
         sig_sq = np.square(sigma)
-        cutoff = method_params.get("scale_length_cutoff", DEFAULT_CUTOFF)
+        cutoff = DEFAULT_CUTOFF
         max_dist = cutoff*sigma
         pt_data = method_params["pt_data"]
         xy_map = pt_data[:, :2]
@@ -206,9 +185,8 @@ def make_grid(config_file):
         # have a weight of 0, rather than NaN which will propagate.
         dist_weighting[np.isnan(dist_weighting)] = 0
         z = (pt_data[:, 2][:, np.newaxis]).T
-        zw = method_params.get('sample_weights') if method_params.get('sample_weights') is not None \
-                else np.ones_like(z)
-        w = method_params["weighting"]
+        zw = method_params["sample_weights"]
+        w = method_params[cc.WEIGHT]
         zw = zw * w
         denom = ((dist_weighting) * zw).sum(axis=1)[:, np.newaxis]
         z_numer = ((dist_weighting) * (z * zw)).sum(axis=1)[:, np.newaxis]
@@ -232,19 +210,19 @@ def make_grid(config_file):
     gradient = np.array((u.flatten(), v.flatten())).T
 
     # Collect data and write to file
-    output_dir = job_config.get('output_dir', os.getcwd())
+    output_dir = job_config.get(cc.OUTPUT_DIR, os.getcwd())
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     depth_gridded = np.hstack((grid_map, Z, S))
-    grid_output_file = os.path.join(output_dir, 'moho_grid.csv')
+    grid_output_file = os.path.join(output_dir, cc.MOHO_GRID)
     with open(grid_output_file, mode='w') as f:
         np.savetxt(f, [n_x, n_y], fmt='%d')
         np.savetxt(f, depth_gridded, fmt=['%.6f', '%.6f', '%.2f', '%.2f'], delimiter=',',
                    header='Lon,Lat,Depth,Stddev')
 
     gradient_gridded = np.hstack((grid_map, gradient))
-    gradient_output_file = os.path.join(output_dir, 'moho_gradient.csv')
+    gradient_output_file = os.path.join(output_dir, cc.MOHO_GRAD)
     with open(gradient_output_file, mode='w') as f:
         np.savetxt(f, [n_x, n_y], fmt='%d')
         np.savetxt(f, gradient_gridded, fmt=['%.6f', '%.6f', '%.6f', '%.6f'], delimiter=',',

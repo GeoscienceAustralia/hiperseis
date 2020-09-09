@@ -3,13 +3,13 @@
     [
         {
             "name": "ccp_1",
-            "data": "sandbox/PV-227/ccp_line_data_sample1.csv",
+            "data": "ccp1.csv",
             "weight": 1.0,
             "scale_length": 0.2
         },
         {
             "name": "ccp_2",
-            "data": "sandbox/PV-227/ccp_line_data_sample2.csv",
+            "data": "ccp2.csv",
             "weight": 1.0,
             "scale_length": 0.5
         }
@@ -21,14 +21,12 @@
         {
             "scale": [10.0, 60.0],
             "format": "png",
-            "show": true,
-            "title": "Moho depth from blended data",
-            "cb_label": "Moho depth (km)"
+            "show": false
         },
         "output_gmt": true,
         "output_gis": true
     },
-    "bounds": [130.0, -20.0, 140.0, -17.0],
+    "bounds": [134.0, -19.0, 138.0, -17.0],
     "grid_interval": 0.25,
     "output_directory":  "./output"
 }
