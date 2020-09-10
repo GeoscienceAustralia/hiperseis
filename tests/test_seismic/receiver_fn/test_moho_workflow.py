@@ -28,10 +28,11 @@ def test_moho_workflow(tmpdir, data_dir, config):
 
     test1_out = os.path.join(tmpdir, 'test1')
     config[cc.OUTPUT_DIR] = os.path.join(test1_out)
+    # config[cc.OUTPUT_DIR] = '/home/bren/hs_new'
     for params in config[cc.METHODS]:
-        if params[cc.NAME] == 'ccp_1':
+        if params[cc.NAME] == 'ccp1':
             params[cc.DATA] = ccp_1
-        if params[cc.NAME] == 'ccp_2':
+        if params[cc.NAME] == 'ccp2':
             params[cc.DATA] = ccp_2
 
     test_conf1 = os.path.join(tmpdir, 'conf1.json') 
@@ -41,15 +42,14 @@ def test_moho_workflow(tmpdir, data_dir, config):
     mw.run_workflow(test_conf1)
     
     expected_output = os.path.join(data_dir, 'expected_output')
-    expected_grid = os.path.join(expected_output, 'moho_grid.csv')
+    expected_grid = os.path.join(expected_output, 'grid.csv')
     with open(expected_grid, 'r') as f:
         expected_grid = np.loadtxt(f, delimiter=',', skiprows=2)
-    expected_grad = os.path.join(expected_output, 'moho_gradient.csv')
-    with open(expected_grad, 'r') as f:
-        expected_grad = np.loadtxt(f, delimiter=',', skiprows=2)
+    expected_gradient = os.path.join(expected_output, 'gradient.csv')
+    with open(expected_gradient, 'r') as f:
+        expected_gradient = np.loadtxt(f, delimiter=',', skiprows=2)
 
     test1_grid = os.path.join(test1_out, cc.MOHO_GRID)
-    test1_grad = os.path.join(test1_out, cc.MOHO_GRAD)
 
     with open(test1_grid, 'r') as f:
         nx = int(f.readline())
@@ -61,15 +61,17 @@ def test_moho_workflow(tmpdir, data_dir, config):
     # np.testing.assert_equal(moho_grid, expected_grid)
     np.testing.assert_allclose(moho_grid, expected_grid, rtol=1e-2)
 
+    test1_grad = os.path.join(test1_out, cc.MOHO_GRAD)
+
     with open(test1_grad, 'r') as f:
         nx = int(f.readline())
         ny = int(f.readline())
-        moho_grad = np.loadtxt(f, delimiter=',')
+        moho_gradient = np.loadtxt(f, delimiter=',')
 
     assert ny == 9
     assert nx == 17
     # np.testing.assert_equal(moho_grad, expected_grad)
-    np.testing.assert_allclose(moho_grid, expected_grid, rtol=1e-2)
+    np.testing.assert_allclose(moho_gradient, expected_gradient, rtol=1e-2)
 
     # Test other outputs exist
     assert os.path.exists(os.path.join(test1_out, cc.MOHO_PLOT + '.png'))

@@ -73,7 +73,7 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
 DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT]
 
 METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
-                         _cc.SCALE_LENGTH]
+                         _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
                            _cc.GMT_FLAG, _cc.GIS_FLAG]
@@ -222,7 +222,6 @@ class MethodDataset:
 
     def __init__(self, method_params):
         # Scan for header
-        self.name = method_params[_cc.NAME]
         with open(method_params[_cc.DATA], 'r') as f:
             start_line = 0
             start_found = False
@@ -230,10 +229,10 @@ class MethodDataset:
                 start_line += 1
                 line = f.readline()
                 if line.startswith('#'):
-                    if line.strip('#').strip() in MethodDataset.start_names:
+                    if line.strip('# \n') in MethodDataset.start_names:
                         start_found = True
                 if line == '' and not start_found:
-                    raise Exception(f"No 'START' flag found in {self.name} data file")
+                    raise Exception(f"No 'START' flag found in {method_params[_cc.NAME]} data file")
 
             # Check if next line after start flag contains epoch time
             line = f.readline()
@@ -253,7 +252,6 @@ class MethodDataset:
             usecols = []
             for i, x in enumerate(header_parts):
                 x = x.strip('# \n')
-                print(x)
                 if x in MethodDataset.net_names:
                     net_col = i
                     col_names.append('net')
@@ -290,6 +288,15 @@ class MethodDataset:
             data = np.genfromtxt(method_params[_cc.DATA], delimiter=',', dtype=None,
                     names=col_names, usecols=usecols, encoding=None, skip_header=data_start)
 
+            self.val = data['val']
+
+            if 'sw' in col_names:
+                self.sw = data['sw']
+            else:
+                self.sw = np.ones_like(self.val)
+
+            self.total_weight = self.sw * method_params[_cc.WEIGHT]
+
             if 'net' in col_names:
                 self.net = data['net']
             else:
@@ -305,7 +312,6 @@ class MethodDataset:
                 self.lon = data['lon']
             # Derive locations from inventory file
             else:   
-                # Assumes coordinates are same for Location ID and H, N, Z on all stations.
                 # Only have access to the Net.Sta code so we pick the first channel for this
                 # station and take that location.
                 lats, lons = [], []
@@ -322,8 +328,8 @@ class MethodDataset:
                                 coords = inv.get_coordinates(c)
                                 lats.append(float(coords['latitude']))
                                 lons.append(float(coords['longitude']))
-                                cache['.'.join(net,sta)] = float(coords['latitude']), 
-                                    float(coords['longitude'])
+                                cache['.'.join(net,sta)] = (float(coords['latitude']), 
+                                    float(coords['longitude']))
                                 break
                     else:
                         lats.append(coords[0])
@@ -331,15 +337,3 @@ class MethodDataset:
 
                 self.lat = np.array(lats)
                 self.lon = np.array(lons)
-
-            self.val = data['val']
-
-            if 'sw' in col_names:
-                self.sw = data['sw']
-            else:
-                self.sw = np.ones_like(self.val)
-
-if __name__ == '__main__':
-    import sys
-    import json
-    with open(sys.argv[1], 'r') as f:
