@@ -35,7 +35,9 @@ class ConfigConstants:
     GIS_FLAG = 'output_gis'
     DATA_PREP = 'data_preperation'
     DATA_TO_PREP = 'data'
+    DATA_VAL = 'data_val'
     CORR_DATA = 'correction_data'
+    CORR_VAL  = 'correction_val'
     CORR_FUNC = 'correction_func'
     CORR_OUT = 'output_file'
 
@@ -70,7 +72,8 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
                             _cc.NAME, _cc.DATA, _cc.WEIGHT,
                             _cc.SCALE_LENGTH, _cc.DATA_PREP]
 
-DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT]
+DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
+                            _cc.DATA_VAL, _cc.CORR_VAL]
 
 METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
                          _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
@@ -79,6 +82,7 @@ PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS,
                            _cc.GMT_FLAG, _cc.GIS_FLAG]
 
 CP_PARAM_SUPPORTED_KEYS = [_cc.PP_SCALE, _cc.PP_FMT, _cc.PP_SHOW, _cc.PP_TITLE, _cc.PP_CB_LABEL]
+
 
 def _try_lookup(d, f, msg):
     try:
@@ -232,7 +236,7 @@ class MethodDataset:
                     if line.strip('# \n') in MethodDataset.start_names:
                         start_found = True
                 if line == '' and not start_found:
-                    raise Exception(f"No 'START' flag found in {method_params[_cc.NAME]} data file")
+                    raise Exception(f"No 'START' flag found in data file {method_params[_cc.DATA]}")
 
             # Check if next line after start flag contains epoch time
             line = f.readline()
@@ -268,11 +272,11 @@ class MethodDataset:
                     lon_col = i
                     col_names.append('lon')
                     usecols.append(lon_col)
-                elif x == method_params[_cc.VAL_NAME]:
+                elif x == method_params.get(_cc.VAL_NAME):
                     val_col = i
                     col_names.append('val')
                     usecols.append(val_col)
-                elif x == method_params[_cc.SW_NAME]:
+                elif x == method_params.get(_cc.SW_NAME):
                     sw_col = i
                     col_names.append('sw')
                     usecols.append(sw_col)
@@ -295,7 +299,8 @@ class MethodDataset:
             else:
                 self.sw = np.ones_like(self.val)
 
-            self.total_weight = self.sw * method_params[_cc.WEIGHT]
+            dw_weight = method_params.get(_cc.WEIGHT, 1.0)
+            self.total_weight = self.sw * dw_weight
 
             if 'net' in col_names:
                 self.net = data['net']
