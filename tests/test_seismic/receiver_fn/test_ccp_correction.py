@@ -24,5 +24,4 @@ def test_ccp_correction(tmpdir, data_dir):
                                 names=['sta', 'lon', 'lat', 'depth', 'weight'])
     assert test_result.shape == (7,)
     expected_depths = np.array([2, 7, 12, 30, 30, 35, 50])
-    print(test_result)
     np.testing.assert_equal(test_result['depth'], expected_depths)
