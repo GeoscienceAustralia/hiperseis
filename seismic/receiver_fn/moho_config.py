@@ -233,7 +233,7 @@ class MethodDataset:
                 start_line += 1
                 line = f.readline()
                 if line.startswith('#'):
-                    if line.strip('# \n') in MethodDataset.start_names:
+                    if line.strip('#, \n') in MethodDataset.start_names:
                         start_found = True
                 if line == '' and not start_found:
                     raise Exception(f"No 'START' flag found in data file {method_params[_cc.DATA]}")
@@ -242,7 +242,7 @@ class MethodDataset:
             line = f.readline()
             line_parts = line.split(' ')
             if line_parts[1] in MethodDataset.time_names:
-                self.epoch_time = int(line_parts[2].strip())
+                self.epoch_time = int(line_parts[2].strip('#, \n'))
                 header_line = f.readline()
                 data_start = start_line + 2
             else:
@@ -255,7 +255,7 @@ class MethodDataset:
             col_names = []
             usecols = []
             for i, x in enumerate(header_parts):
-                x = x.strip('# \n')
+                x = x.strip('#, \n')
                 if x in MethodDataset.net_names:
                     net_col = i
                     col_names.append('net')
