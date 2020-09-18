@@ -85,6 +85,7 @@ if __name__ == "__main__":
 
     if len(sys.argv)<2:
         print("Usage: %s path2_newfile.xml"% sys.argv[0])
+        print("Example:  python new_inventory.py new_station.xml")
         sys.exit(1)
     else:
         newfile_xml = sys.argv[1]
