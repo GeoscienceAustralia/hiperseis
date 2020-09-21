@@ -187,7 +187,7 @@ def get_csv_correction_data(path_csvfile):
 def get_orientation_corr(input_json_file):
     """
     read inpu json file to get the orientation correction metadata, rehash if necessary
-    :param input_json_file: a json file by AndrewMedlin original program
+    :param input_json_file: a json file by Andrew Medlin original program
     :return:
     """
     with open(input_json_file) as f:
