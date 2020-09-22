@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.1">
-  <Source>Geoscience Australia EFTF AusArray</Source>
+<FDSNStationXML xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis" xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.1">
+  <Source>Geoscience Australia EFTF AusArray PST</Source>
   <Module>ObsPy 1.2.1</Module>
   <ModuleURI>https://www.obspy.org</ModuleURI>
-  <Created>2020-09-21T09:43:37.337767Z</Created>
+  <Created>2020-09-22T02:00:55.866105Z</Created>
   <Network code="OA" startDate="2017-09-11T00:00:36.000000Z" endDate="2018-11-28T23:06:20.000000Z">
     <Station code="BS24" startDate="2017-09-27T05:16:47.000000Z" endDate="2018-07-04T04:38:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS24",
   "GPS_CORRECTION": [],
@@ -67,7 +67,7 @@
       </Channel>
     </Station>
     <Station code="BS25" endDate="2018-06-27T11:44:37.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS25",
   "GPS_CORRECTION": [],
@@ -128,7 +128,7 @@
       </Channel>
     </Station>
     <Station code="BS26" startDate="2017-09-27T00:49:10.000000Z" endDate="2018-01-12T04:02:13.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS26",
   "GPS_CORRECTION": [],
@@ -189,7 +189,7 @@
       </Channel>
     </Station>
     <Station code="BS27" startDate="2017-09-26T00:42:49.000000Z" endDate="2018-07-03T03:04:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS27",
   "GPS_CORRECTION": [],
@@ -250,7 +250,7 @@
       </Channel>
     </Station>
     <Station code="BS28" startDate="2017-09-26T02:02:42.000000Z" endDate="2018-07-03T02:37:29.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS28",
   "GPS_CORRECTION": [],
@@ -311,7 +311,7 @@
       </Channel>
     </Station>
     <Station code="BT23" startDate="2017-09-28T04:11:41.000000Z" endDate="2018-07-04T03:40:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT23",
   "GPS_CORRECTION": [],
@@ -372,7 +372,7 @@
       </Channel>
     </Station>
     <Station code="BT24" startDate="2017-09-27T06:14:32.000000Z" endDate="2018-06-26T22:36:58.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT24",
   "GPS_CORRECTION": [],
@@ -433,7 +433,7 @@
       </Channel>
     </Station>
     <Station code="BT25" startDate="2017-09-27T02:45:22.000000Z" endDate="2018-05-19T11:23:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT25",
   "GPS_CORRECTION": [],
@@ -494,7 +494,7 @@
       </Channel>
     </Station>
     <Station code="BT26" startDate="2017-09-26T23:41:45.000000Z" endDate="2017-10-27T00:19:21.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT26",
   "GPS_CORRECTION": [],
@@ -555,7 +555,7 @@
       </Channel>
     </Station>
     <Station code="BT27" startDate="2017-09-25T23:24:09.000000Z" endDate="2018-06-30T15:52:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT27",
   "GPS_CORRECTION": [],
@@ -616,7 +616,7 @@
       </Channel>
     </Station>
     <Station code="BT28" startDate="2017-10-04T11:28:39.000000Z" endDate="2018-07-03T02:08:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT28",
   "GPS_CORRECTION": [],
@@ -677,7 +677,7 @@
       </Channel>
     </Station>
     <Station code="BU22" startDate="2017-09-28T23:56:41.000000Z" endDate="2018-07-04T01:42:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU22",
   "GPS_CORRECTION": [],
@@ -738,7 +738,7 @@
       </Channel>
     </Station>
     <Station code="BU23" startDate="2017-09-28T22:44:17.000000Z" endDate="2018-07-04T03:12:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU23",
   "GPS_CORRECTION": [],
@@ -799,7 +799,7 @@
       </Channel>
     </Station>
     <Station code="BU24" startDate="2017-09-28T05:11:40.000000Z" endDate="2018-07-03T23:16:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU24",
   "GPS_CORRECTION": [],
@@ -860,7 +860,7 @@
       </Channel>
     </Station>
     <Station code="BU25" startDate="2017-09-25T22:35:23.000000Z" endDate="2018-06-19T05:05:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU25",
   "GPS_CORRECTION": [],
@@ -921,7 +921,7 @@
       </Channel>
     </Station>
     <Station code="BU26" startDate="2017-09-26T22:31:06.000000Z" endDate="2018-07-02T04:13:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU26",
   "GPS_CORRECTION": [],
@@ -982,7 +982,7 @@
       </Channel>
     </Station>
     <Station code="BU27" startDate="2017-09-24T04:50:07.000000Z" endDate="2018-07-03T05:22:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU27",
   "GPS_CORRECTION": [],
@@ -1043,7 +1043,7 @@
       </Channel>
     </Station>
     <Station code="BU28" startDate="2017-09-25T06:32:02.000000Z" endDate="2018-07-03T00:37:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU28",
   "GPS_CORRECTION": [],
@@ -1104,7 +1104,7 @@
       </Channel>
     </Station>
     <Station code="BV21" startDate="2017-09-29T02:39:11.000000Z" endDate="2018-07-04T01:03:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV21",
   "GPS_CORRECTION": [],
@@ -1165,7 +1165,7 @@
       </Channel>
     </Station>
     <Station code="BV22" startDate="2017-09-29T01:26:42.000000Z" endDate="2018-07-04T00:26:00.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV22",
   "GPS_CORRECTION": [],
@@ -1226,7 +1226,7 @@
       </Channel>
     </Station>
     <Station code="BV23" startDate="2017-09-28T02:23:02.000000Z" endDate="2018-06-05T08:30:56.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV23",
   "GPS_CORRECTION": [],
@@ -1287,7 +1287,7 @@
       </Channel>
     </Station>
     <Station code="BV24" startDate="2017-09-26T02:52:55.000000Z" endDate="2018-06-19T01:36:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV24",
   "GPS_CORRECTION": [],
@@ -1348,7 +1348,7 @@
       </Channel>
     </Station>
     <Station code="BV26" startDate="2017-09-24T07:06:54.000000Z" endDate="2018-07-02T03:46:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV26",
   "GPS_CORRECTION": [],
@@ -1409,7 +1409,7 @@
       </Channel>
     </Station>
     <Station code="BV27" startDate="2017-09-24T05:46:41.000000Z" endDate="2018-07-02T20:42:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV27",
   "GPS_CORRECTION": [],
@@ -1470,7 +1470,7 @@
       </Channel>
     </Station>
     <Station code="BV28" startDate="2017-09-26T05:01:45.000000Z" endDate="2018-07-03T00:11:31.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV28",
   "GPS_CORRECTION": [],
@@ -1531,7 +1531,7 @@
       </Channel>
     </Station>
     <Station code="BW20" startDate="2017-09-30T02:51:47.000000Z" endDate="2018-07-05T01:18:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW20",
   "GPS_CORRECTION": [],
@@ -1592,7 +1592,7 @@
       </Channel>
     </Station>
     <Station code="BW21" startDate="2017-09-29T04:14:09.000000Z" endDate="2018-07-05T00:46:20.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW21",
   "GPS_CORRECTION": [],
@@ -1653,7 +1653,7 @@
       </Channel>
     </Station>
     <Station code="BW22" startDate="2017-09-28T00:32:58.000000Z" endDate="2018-02-19T06:39:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW22",
   "GPS_CORRECTION": [],
@@ -1714,7 +1714,7 @@
       </Channel>
     </Station>
     <Station code="BW23" startDate="2017-09-27T23:02:50.000000Z" endDate="2018-07-04T23:33:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW23",
   "GPS_CORRECTION": [],
@@ -1775,7 +1775,7 @@
       </Channel>
     </Station>
     <Station code="BW24" startDate="2017-09-27T21:54:11.000000Z" endDate="2017-11-06T15:01:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW24",
   "GPS_CORRECTION": [],
@@ -1836,7 +1836,7 @@
       </Channel>
     </Station>
     <Station code="BW25" startDate="2017-09-23T23:07:46.000000Z" endDate="2018-07-02T02:51:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW25",
   "GPS_CORRECTION": [],
@@ -1897,7 +1897,7 @@
       </Channel>
     </Station>
     <Station code="BW26" startDate="2017-09-24T01:49:11.000000Z" endDate="2018-07-01T12:21:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW26",
   "GPS_CORRECTION": [],
@@ -1958,7 +1958,7 @@
       </Channel>
     </Station>
     <Station code="BW27" startDate="2017-09-25T03:52:35.000000Z" endDate="2018-06-30T21:27:02.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW27",
   "GPS_CORRECTION": [],
@@ -2019,7 +2019,7 @@
       </Channel>
     </Station>
     <Station code="BW28" startDate="2017-09-24T23:46:39.000000Z" endDate="2018-07-02T23:43:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW28",
   "GPS_CORRECTION": [],
@@ -2080,7 +2080,7 @@
       </Channel>
     </Station>
     <Station code="BX20" startDate="2017-09-30T03:57:51.000000Z" endDate="2017-12-14T07:00:30.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX20",
   "GPS_CORRECTION": [],
@@ -2141,7 +2141,7 @@
       </Channel>
     </Station>
     <Station code="BX21" startDate="2017-09-30T22:36:41.000000Z" endDate="2018-07-01T02:56:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX21",
   "GPS_CORRECTION": [],
@@ -2202,7 +2202,7 @@
       </Channel>
     </Station>
     <Station code="BX22" startDate="2017-09-21T04:36:15.000000Z" endDate="2018-07-05T04:01:21.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX22",
   "GPS_CORRECTION": [],
@@ -2263,7 +2263,7 @@
       </Channel>
     </Station>
     <Station code="BX23" startDate="2017-09-20T04:10:11.000000Z" endDate="2018-07-05T04:36:13.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX23",
   "GPS_CORRECTION": [],
@@ -2324,7 +2324,7 @@
       </Channel>
     </Station>
     <Station code="BX24" startDate="2017-09-20T06:14:16.000000Z" endDate="2018-06-15T21:45:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX24",
   "GPS_CORRECTION": [],
@@ -2385,7 +2385,7 @@
       </Channel>
     </Station>
     <Station code="BX25" startDate="2017-09-23T21:59:11.000000Z" endDate="2018-07-02T02:27:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX25",
   "GPS_CORRECTION": [],
@@ -2446,7 +2446,7 @@
       </Channel>
     </Station>
     <Station code="BX26" startDate="2017-09-24T00:22:50.000000Z" endDate="2018-07-02T01:20:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX26",
   "GPS_CORRECTION": [],
@@ -2507,7 +2507,7 @@
       </Channel>
     </Station>
     <Station code="BX27" startDate="2017-09-25T02:37:38.000000Z" endDate="2018-07-02T00:50:35.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX27",
   "GPS_CORRECTION": [],
@@ -2568,7 +2568,7 @@
       </Channel>
     </Station>
     <Station code="BX28" startDate="2017-09-25T01:21:30.000000Z" endDate="2018-07-02T00:23:07.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX28",
   "GPS_CORRECTION": [],
@@ -2629,7 +2629,7 @@
       </Channel>
     </Station>
     <Station code="BY20" startDate="2017-09-30T00:20:21.000000Z" endDate="2018-06-15T00:26:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY20",
   "GPS_CORRECTION": [],
@@ -2690,7 +2690,7 @@
       </Channel>
     </Station>
     <Station code="BY21" startDate="2017-10-01T00:21:41.000000Z" endDate="2018-02-27T10:30:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY21",
   "GPS_CORRECTION": [],
@@ -2751,10 +2751,583 @@
       </Channel>
     </Station>
     <Station code="BY22" startDate="2017-10-01T13:58:58.000000Z" endDate="2018-06-15T02:33:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY22",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-01-03",
+      "clock_correction": -0.291356643
+    },
+    {
+      "date": "2018-01-04",
+      "clock_correction": -0.2911247714
+    },
+    {
+      "date": "2018-01-05",
+      "clock_correction": -0.2908928999
+    },
+    {
+      "date": "2018-01-06",
+      "clock_correction": -0.2906610284
+    },
+    {
+      "date": "2018-01-07",
+      "clock_correction": -0.2904291568
+    },
+    {
+      "date": "2018-01-08",
+      "clock_correction": -0.2901972853
+    },
+    {
+      "date": "2018-01-09",
+      "clock_correction": -0.2899654138
+    },
+    {
+      "date": "2018-01-10",
+      "clock_correction": -0.2897335422
+    },
+    {
+      "date": "2018-01-11",
+      "clock_correction": -0.2895016707
+    },
+    {
+      "date": "2018-01-12",
+      "clock_correction": -0.2892697992
+    },
+    {
+      "date": "2018-01-13",
+      "clock_correction": -0.2890379276
+    },
+    {
+      "date": "2018-01-14",
+      "clock_correction": -0.2888060561
+    },
+    {
+      "date": "2018-01-15",
+      "clock_correction": -0.2885741846
+    },
+    {
+      "date": "2018-01-16",
+      "clock_correction": -0.2883423131
+    },
+    {
+      "date": "2018-01-17",
+      "clock_correction": -0.2881104415
+    },
+    {
+      "date": "2018-01-18",
+      "clock_correction": -0.28787857
+    },
+    {
+      "date": "2018-01-19",
+      "clock_correction": -0.2876466985
+    },
+    {
+      "date": "2018-01-20",
+      "clock_correction": -0.2874148269
+    },
+    {
+      "date": "2018-01-21",
+      "clock_correction": -0.2871829554
+    },
+    {
+      "date": "2018-01-22",
+      "clock_correction": -0.2869510839
+    },
+    {
+      "date": "2018-01-23",
+      "clock_correction": -0.2867192123
+    },
+    {
+      "date": "2018-01-24",
+      "clock_correction": -0.2864873408
+    },
+    {
+      "date": "2018-01-25",
+      "clock_correction": -0.2862554693
+    },
+    {
+      "date": "2018-01-26",
+      "clock_correction": -0.2860235977
+    },
+    {
+      "date": "2018-01-27",
+      "clock_correction": -0.2857917262
+    },
+    {
+      "date": "2018-01-28",
+      "clock_correction": -0.2855598547
+    },
+    {
+      "date": "2018-01-29",
+      "clock_correction": -0.2853279832
+    },
+    {
+      "date": "2018-01-30",
+      "clock_correction": -0.2850961116
+    },
+    {
+      "date": "2018-01-31",
+      "clock_correction": -0.2848642401
+    },
+    {
+      "date": "2018-02-01",
+      "clock_correction": -0.2846323686
+    },
+    {
+      "date": "2018-02-02",
+      "clock_correction": -0.284400497
+    },
+    {
+      "date": "2018-02-03",
+      "clock_correction": -0.2841686255
+    },
+    {
+      "date": "2018-02-04",
+      "clock_correction": -0.283936754
+    },
+    {
+      "date": "2018-02-05",
+      "clock_correction": -0.2837048824
+    },
+    {
+      "date": "2018-02-06",
+      "clock_correction": -0.2834730109
+    },
+    {
+      "date": "2018-02-07",
+      "clock_correction": -0.2832411394
+    },
+    {
+      "date": "2018-02-08",
+      "clock_correction": -0.2830092678
+    },
+    {
+      "date": "2018-02-09",
+      "clock_correction": -0.2827773963
+    },
+    {
+      "date": "2018-02-10",
+      "clock_correction": -0.2825455248
+    },
+    {
+      "date": "2018-02-11",
+      "clock_correction": -0.2823136533
+    },
+    {
+      "date": "2018-02-12",
+      "clock_correction": -0.2820817817
+    },
+    {
+      "date": "2018-02-13",
+      "clock_correction": -0.2818499102
+    },
+    {
+      "date": "2018-02-21",
+      "clock_correction": -2.8496563571
+    },
+    {
+      "date": "2018-02-22",
+      "clock_correction": -2.7491597977
+    },
+    {
+      "date": "2018-02-23",
+      "clock_correction": -2.6486632382
+    },
+    {
+      "date": "2018-02-24",
+      "clock_correction": -2.5481666787
+    },
+    {
+      "date": "2018-02-25",
+      "clock_correction": -2.4476701192
+    },
+    {
+      "date": "2018-02-26",
+      "clock_correction": -2.3471735597
+    },
+    {
+      "date": "2018-02-27",
+      "clock_correction": -2.2466770002
+    },
+    {
+      "date": "2018-02-28",
+      "clock_correction": -2.1461804407
+    },
+    {
+      "date": "2018-03-01",
+      "clock_correction": -2.0456838812
+    },
+    {
+      "date": "2018-03-02",
+      "clock_correction": -1.9451873218
+    },
+    {
+      "date": "2018-03-03",
+      "clock_correction": -1.8446907623
+    },
+    {
+      "date": "2018-03-04",
+      "clock_correction": -1.7441942028
+    },
+    {
+      "date": "2018-03-05",
+      "clock_correction": -1.6436976433
+    },
+    {
+      "date": "2018-03-06",
+      "clock_correction": -1.5432010838
+    },
+    {
+      "date": "2018-03-07",
+      "clock_correction": -1.4427045243
+    },
+    {
+      "date": "2018-03-08",
+      "clock_correction": -1.3422079648
+    },
+    {
+      "date": "2018-03-09",
+      "clock_correction": -1.2417114053
+    },
+    {
+      "date": "2018-03-10",
+      "clock_correction": -1.1412148459
+    },
+    {
+      "date": "2018-03-11",
+      "clock_correction": -1.0407182864
+    },
+    {
+      "date": "2018-03-12",
+      "clock_correction": -0.9402217269
+    },
+    {
+      "date": "2018-03-13",
+      "clock_correction": -0.8397251674
+    },
+    {
+      "date": "2018-03-14",
+      "clock_correction": -0.7392286079
+    },
+    {
+      "date": "2018-03-15",
+      "clock_correction": -0.6387320484
+    },
+    {
+      "date": "2018-03-16",
+      "clock_correction": -0.5382354889
+    },
+    {
+      "date": "2018-03-17",
+      "clock_correction": -0.4377389294
+    },
+    {
+      "date": "2018-03-18",
+      "clock_correction": -0.33724237
+    },
+    {
+      "date": "2018-03-19",
+      "clock_correction": -0.2367458105
+    },
+    {
+      "date": "2018-03-20",
+      "clock_correction": -0.136249251
+    },
+    {
+      "date": "2018-03-21",
+      "clock_correction": -0.0357526915
+    },
+    {
+      "date": "2018-03-22",
+      "clock_correction": 0.064743868
+    },
+    {
+      "date": "2018-03-23",
+      "clock_correction": 0.1652404275
+    },
+    {
+      "date": "2018-03-24",
+      "clock_correction": 0.265736987
+    },
+    {
+      "date": "2018-03-25",
+      "clock_correction": 0.3662335464
+    },
+    {
+      "date": "2018-03-26",
+      "clock_correction": 0.4667301059
+    },
+    {
+      "date": "2018-03-27",
+      "clock_correction": 0.5672266654
+    },
+    {
+      "date": "2018-03-28",
+      "clock_correction": 0.6677232249
+    },
+    {
+      "date": "2018-03-29",
+      "clock_correction": 0.7682197844
+    },
+    {
+      "date": "2018-04-13",
+      "clock_correction": 0.1596696374
+    },
+    {
+      "date": "2018-04-14",
+      "clock_correction": 0.1601308223
+    },
+    {
+      "date": "2018-04-15",
+      "clock_correction": 0.1605920073
+    },
+    {
+      "date": "2018-04-16",
+      "clock_correction": 0.1610531922
+    },
+    {
+      "date": "2018-04-17",
+      "clock_correction": 0.1615143771
+    },
+    {
+      "date": "2018-04-18",
+      "clock_correction": 0.161975562
+    },
+    {
+      "date": "2018-04-19",
+      "clock_correction": 0.1624367469
+    },
+    {
+      "date": "2018-04-20",
+      "clock_correction": 0.1628979319
+    },
+    {
+      "date": "2018-04-21",
+      "clock_correction": 0.1633591168
+    },
+    {
+      "date": "2018-04-22",
+      "clock_correction": 0.1638203017
+    },
+    {
+      "date": "2018-04-23",
+      "clock_correction": 0.1642814866
+    },
+    {
+      "date": "2018-04-24",
+      "clock_correction": 0.1647426715
+    },
+    {
+      "date": "2018-04-25",
+      "clock_correction": 0.1652038564
+    },
+    {
+      "date": "2018-04-26",
+      "clock_correction": 0.1656650414
+    },
+    {
+      "date": "2018-04-27",
+      "clock_correction": 0.1661262263
+    },
+    {
+      "date": "2018-04-28",
+      "clock_correction": 0.1665874112
+    },
+    {
+      "date": "2018-04-29",
+      "clock_correction": 0.1670485961
+    },
+    {
+      "date": "2018-04-30",
+      "clock_correction": 0.167509781
+    },
+    {
+      "date": "2018-05-01",
+      "clock_correction": 0.167970966
+    },
+    {
+      "date": "2018-05-02",
+      "clock_correction": 0.1684321509
+    },
+    {
+      "date": "2018-05-03",
+      "clock_correction": 0.1688933358
+    },
+    {
+      "date": "2018-05-04",
+      "clock_correction": 0.1693545207
+    },
+    {
+      "date": "2018-05-05",
+      "clock_correction": 0.1698157056
+    },
+    {
+      "date": "2018-05-06",
+      "clock_correction": 0.1702768906
+    },
+    {
+      "date": "2018-05-07",
+      "clock_correction": 0.1707380755
+    },
+    {
+      "date": "2018-05-08",
+      "clock_correction": 0.1711992604
+    },
+    {
+      "date": "2018-05-09",
+      "clock_correction": 0.1716604453
+    },
+    {
+      "date": "2018-05-10",
+      "clock_correction": 0.1721216302
+    },
+    {
+      "date": "2018-05-11",
+      "clock_correction": 0.1725828152
+    },
+    {
+      "date": "2018-05-12",
+      "clock_correction": 0.1730440001
+    },
+    {
+      "date": "2018-05-13",
+      "clock_correction": 0.173505185
+    },
+    {
+      "date": "2018-05-14",
+      "clock_correction": 0.1739663699
+    },
+    {
+      "date": "2018-05-15",
+      "clock_correction": 0.1744275548
+    },
+    {
+      "date": "2018-05-16",
+      "clock_correction": 0.1748887397
+    },
+    {
+      "date": "2018-05-17",
+      "clock_correction": 0.1753499247
+    },
+    {
+      "date": "2018-05-18",
+      "clock_correction": 0.1758111096
+    },
+    {
+      "date": "2018-05-19",
+      "clock_correction": 0.1762722945
+    },
+    {
+      "date": "2018-05-20",
+      "clock_correction": 0.1767334794
+    },
+    {
+      "date": "2018-05-21",
+      "clock_correction": 0.1771946643
+    },
+    {
+      "date": "2018-05-22",
+      "clock_correction": 0.1776558493
+    },
+    {
+      "date": "2018-05-23",
+      "clock_correction": 0.1781170342
+    },
+    {
+      "date": "2018-05-24",
+      "clock_correction": 0.1785782191
+    },
+    {
+      "date": "2018-05-25",
+      "clock_correction": 0.179039404
+    },
+    {
+      "date": "2018-05-26",
+      "clock_correction": 0.1795005889
+    },
+    {
+      "date": "2018-05-27",
+      "clock_correction": 0.1799617739
+    },
+    {
+      "date": "2018-05-28",
+      "clock_correction": 0.1804229588
+    },
+    {
+      "date": "2018-05-29",
+      "clock_correction": 0.1808841437
+    },
+    {
+      "date": "2018-05-30",
+      "clock_correction": 0.1813453286
+    },
+    {
+      "date": "2018-05-31",
+      "clock_correction": 0.1818065135
+    },
+    {
+      "date": "2018-06-01",
+      "clock_correction": 0.1822676985
+    },
+    {
+      "date": "2018-06-02",
+      "clock_correction": 0.1827288834
+    },
+    {
+      "date": "2018-06-03",
+      "clock_correction": 0.1831900683
+    },
+    {
+      "date": "2018-06-04",
+      "clock_correction": 0.1836512532
+    },
+    {
+      "date": "2018-06-05",
+      "clock_correction": 0.1841124381
+    },
+    {
+      "date": "2018-06-06",
+      "clock_correction": 0.184573623
+    },
+    {
+      "date": "2018-06-07",
+      "clock_correction": 0.185034808
+    },
+    {
+      "date": "2018-06-08",
+      "clock_correction": 0.1854959929
+    },
+    {
+      "date": "2018-06-09",
+      "clock_correction": 0.1859571778
+    },
+    {
+      "date": "2018-06-10",
+      "clock_correction": 0.1864183627
+    },
+    {
+      "date": "2018-06-11",
+      "clock_correction": 0.1868795476
+    },
+    {
+      "date": "2018-06-12",
+      "clock_correction": 0.1873407326
+    },
+    {
+      "date": "2018-06-13",
+      "clock_correction": 0.1878019175
+    },
+    {
+      "date": "2018-06-14",
+      "clock_correction": 0.1882631024
+    },
+    {
+      "date": "2018-06-15",
+      "clock_correction": 0.1887242873
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-10-06T08:08:23.450000Z",
     "end_dt": "2018-11-24T15:52:48.805000Z",
@@ -2812,7 +3385,7 @@
       </Channel>
     </Station>
     <Station code="BY23" startDate="2017-09-20T03:02:15.000000Z" endDate="2018-06-15T03:05:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY23",
   "GPS_CORRECTION": [],
@@ -2873,7 +3446,7 @@
       </Channel>
     </Station>
     <Station code="BY24" startDate="2017-09-20T05:07:04.000000Z" endDate="2018-06-14T04:32:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY24",
   "GPS_CORRECTION": [],
@@ -2934,7 +3507,7 @@
       </Channel>
     </Station>
     <Station code="BY25" startDate="2017-09-22T22:54:18.000000Z" endDate="2018-07-01T05:32:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY25",
   "GPS_CORRECTION": [],
@@ -2995,7 +3568,7 @@
       </Channel>
     </Station>
     <Station code="BY26" startDate="2017-09-22T23:41:40.000000Z" endDate="2018-07-01T22:47:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY26",
   "GPS_CORRECTION": [],
@@ -3056,7 +3629,7 @@
       </Channel>
     </Station>
     <Station code="BY27" startDate="2017-09-21T23:06:40.000000Z" endDate="2018-07-01T23:21:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY27",
   "GPS_CORRECTION": [],
@@ -3117,7 +3690,7 @@
       </Channel>
     </Station>
     <Station code="BY28" startDate="2017-09-22T00:22:08.000000Z" endDate="2018-07-01T23:57:00.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY28",
   "GPS_CORRECTION": [],
@@ -3178,7 +3751,7 @@
       </Channel>
     </Station>
     <Station code="BZ20" startDate="2017-09-29T23:25:37.000000Z" endDate="2018-06-14T23:59:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ20",
   "GPS_CORRECTION": [],
@@ -3239,7 +3812,7 @@
       </Channel>
     </Station>
     <Station code="BZ21" startDate="2017-10-01T01:49:10.000000Z" endDate="2018-06-14T23:23:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ21",
   "GPS_CORRECTION": [],
@@ -3300,7 +3873,7 @@
       </Channel>
     </Station>
     <Station code="BZ22" startDate="2017-09-21T01:54:23.000000Z" endDate="2018-03-18T18:22:11.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ22",
   "GPS_CORRECTION": [],
@@ -3361,7 +3934,7 @@
       </Channel>
     </Station>
     <Station code="BZ23" startDate="2017-09-20T23:22:01.000000Z" endDate="2018-06-14T22:16:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ23",
   "GPS_CORRECTION": [],
@@ -3422,7 +3995,7 @@
       </Channel>
     </Station>
     <Station code="BZ24" startDate="2017-09-21T06:22:35.000000Z" endDate="2018-03-14T12:54:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ24",
   "GPS_CORRECTION": [],
@@ -3483,7 +4056,7 @@
       </Channel>
     </Station>
     <Station code="BZ25" startDate="2017-09-21T07:16:41.000000Z" endDate="2018-06-15T04:38:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ25",
   "GPS_CORRECTION": [],
@@ -3544,7 +4117,7 @@
       </Channel>
     </Station>
     <Station code="BZ26" startDate="2017-09-23T00:50:27.000000Z" endDate="2018-07-01T04:59:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ26",
   "GPS_CORRECTION": [],
@@ -3605,7 +4178,7 @@
       </Channel>
     </Station>
     <Station code="BZ27" startDate="2017-09-22T02:51:40.000000Z" endDate="2018-07-01T04:27:47.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ27",
   "GPS_CORRECTION": [],
@@ -3666,7 +4239,7 @@
       </Channel>
     </Station>
     <Station code="BZ28" startDate="2017-09-22T01:36:55.000000Z" endDate="2018-06-15T06:59:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ28",
   "GPS_CORRECTION": [],
@@ -3727,7 +4300,7 @@
       </Channel>
     </Station>
     <Station code="CA20" startDate="2017-10-04T00:15:04.000000Z" endDate="2018-06-07T22:21:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA20",
   "GPS_CORRECTION": [],
@@ -3788,7 +4361,7 @@
       </Channel>
     </Station>
     <Station code="CA21" startDate="2017-10-01T03:29:11.000000Z" endDate="2018-06-07T22:56:31.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA21",
   "GPS_CORRECTION": [],
@@ -3849,7 +4422,7 @@
       </Channel>
     </Station>
     <Station code="CA22" startDate="2017-09-21T00:43:14.000000Z" endDate="2018-06-13T03:31:58.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA22",
   "GPS_CORRECTION": [],
@@ -3910,7 +4483,7 @@
       </Channel>
     </Station>
     <Station code="CA23" startDate="2017-09-19T03:41:04.000000Z" endDate="2018-06-13T03:58:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA23",
   "GPS_CORRECTION": [],
@@ -3971,7 +4544,7 @@
       </Channel>
     </Station>
     <Station code="CA24" startDate="2017-09-19T22:35:20.000000Z" endDate="2017-12-09T04:34:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA24",
   "GPS_CORRECTION": [],
@@ -4032,7 +4605,7 @@
       </Channel>
     </Station>
     <Station code="CA25" startDate="2017-09-19T21:44:11.000000Z" endDate="2018-06-12T23:29:35.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA25",
   "GPS_CORRECTION": [],
@@ -4093,7 +4666,7 @@
       </Channel>
     </Station>
     <Station code="CA26" startDate="2017-09-17T06:33:33.000000Z" endDate="2018-06-15T05:21:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA26",
   "GPS_CORRECTION": [],
@@ -4154,7 +4727,7 @@
       </Channel>
     </Station>
     <Station code="CA27" startDate="2017-09-17T02:09:12.000000Z" endDate="2018-06-15T05:56:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA27",
   "GPS_CORRECTION": [],
@@ -4215,7 +4788,7 @@
       </Channel>
     </Station>
     <Station code="CA28" startDate="2017-09-17T00:54:07.000000Z" endDate="2018-06-15T06:31:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA28",
   "GPS_CORRECTION": [],
@@ -4276,7 +4849,7 @@
       </Channel>
     </Station>
     <Station code="CB20" startDate="2017-10-04T01:40:13.000000Z" endDate="2018-06-07T21:52:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB20",
   "GPS_CORRECTION": [],
@@ -4337,7 +4910,7 @@
       </Channel>
     </Station>
     <Station code="CB21" startDate="2017-10-04T02:56:40.000000Z" endDate="2018-02-28T08:41:13.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB21",
   "GPS_CORRECTION": [],
@@ -4398,7 +4971,7 @@
       </Channel>
     </Station>
     <Station code="CB22" startDate="2017-09-19T01:38:37.000000Z" endDate="2018-06-13T02:57:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB22",
   "GPS_CORRECTION": [],
@@ -4459,7 +5032,7 @@
       </Channel>
     </Station>
     <Station code="CB23" startDate="2017-09-19T00:44:14.000000Z" endDate="2018-06-13T04:26:49.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB23",
   "GPS_CORRECTION": [],
@@ -4520,7 +5093,7 @@
       </Channel>
     </Station>
     <Station code="CB24" startDate="2017-09-18T23:14:44.000000Z" endDate="2018-06-13T04:52:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB24",
   "GPS_CORRECTION": [],
@@ -4581,7 +5154,7 @@
       </Channel>
     </Station>
     <Station code="CB25" startDate="2017-09-18T05:22:01.000000Z" endDate="2018-06-13T00:20:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB25",
   "GPS_CORRECTION": [],
@@ -4642,7 +5215,7 @@
       </Channel>
     </Station>
     <Station code="CB26" startDate="2017-09-17T04:46:45.000000Z" endDate="2018-06-12T22:53:01.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB26",
   "GPS_CORRECTION": [],
@@ -4703,7 +5276,7 @@
       </Channel>
     </Station>
     <Station code="CB27" startDate="2017-09-16T22:39:22.000000Z" endDate="2018-06-11T01:08:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB27",
   "GPS_CORRECTION": [],
@@ -4764,7 +5337,7 @@
       </Channel>
     </Station>
     <Station code="CB28" startDate="2017-09-16T23:39:02.000000Z" endDate="2018-06-11T01:38:31.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB28",
   "GPS_CORRECTION": [],
@@ -4825,7 +5398,7 @@
       </Channel>
     </Station>
     <Station code="CC20" startDate="2017-10-05T21:47:28.000000Z" endDate="2018-06-08T02:39:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC20",
   "GPS_CORRECTION": [],
@@ -4886,7 +5459,7 @@
       </Channel>
     </Station>
     <Station code="CC21" startDate="2017-10-05T22:54:25.000000Z" endDate="2018-06-07T07:50:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC21",
   "GPS_CORRECTION": [],
@@ -4947,7 +5520,7 @@
       </Channel>
     </Station>
     <Station code="CC22" startDate="2017-09-18T00:26:52.000000Z" endDate="2018-04-28T20:00:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC22",
   "GPS_CORRECTION": [],
@@ -5008,7 +5581,7 @@
       </Channel>
     </Station>
     <Station code="CC23" startDate="2017-09-17T23:04:11.000000Z" endDate="2018-06-12T06:46:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC23",
   "GPS_CORRECTION": [],
@@ -5069,7 +5642,7 @@
       </Channel>
     </Station>
     <Station code="CC24" startDate="2017-09-17T22:03:33.000000Z" endDate="2018-06-12T04:46:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC24",
   "GPS_CORRECTION": [],
@@ -5130,7 +5703,7 @@
       </Channel>
     </Station>
     <Station code="CC25" startDate="2017-09-15T10:02:22.000000Z" endDate="2018-03-16T07:08:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC25",
   "GPS_CORRECTION": [],
@@ -5191,7 +5764,7 @@
       </Channel>
     </Station>
     <Station code="CC26" startDate="2017-09-16T03:36:45.000000Z" endDate="2018-06-12T22:20:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC26",
   "GPS_CORRECTION": [],
@@ -5252,7 +5825,7 @@
       </Channel>
     </Station>
     <Station code="CC27" startDate="2017-09-16T02:17:35.000000Z" endDate="2018-06-11T00:43:06.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC27",
   "GPS_CORRECTION": [],
@@ -5313,7 +5886,7 @@
       </Channel>
     </Station>
     <Station code="CC28" startDate="2017-09-13T23:59:14.000000Z" endDate="2018-06-11T02:07:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC28",
   "GPS_CORRECTION": [],
@@ -5374,7 +5947,7 @@
       </Channel>
     </Station>
     <Station code="CD21" startDate="2017-10-06T00:39:17.000000Z" endDate="2018-06-04T20:25:33.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD21",
   "GPS_CORRECTION": [],
@@ -5435,7 +6008,7 @@
       </Channel>
     </Station>
     <Station code="CD22" startDate="2017-11-04T01:32:48.000000Z" endDate="2018-03-14T14:50:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD22",
   "GPS_CORRECTION": [],
@@ -5496,7 +6069,7 @@
       </Channel>
     </Station>
     <Station code="CD23" endDate="2018-06-08T22:17:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD23",
   "GPS_CORRECTION": [],
@@ -5557,7 +6130,7 @@
       </Channel>
     </Station>
     <Station code="CD24" startDate="2017-11-04T22:56:02.000000Z" endDate="2018-06-08T22:56:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD24",
   "GPS_CORRECTION": [],
@@ -5618,7 +6191,7 @@
       </Channel>
     </Station>
     <Station code="CD25" startDate="2017-11-03T23:39:40.000000Z" endDate="2018-06-05T04:21:00.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD25",
   "GPS_CORRECTION": [],
@@ -5679,7 +6252,7 @@
       </Channel>
     </Station>
     <Station code="CD26" startDate="2017-11-03T23:11:55.000000Z" endDate="2018-06-12T21:46:37.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD26",
   "GPS_CORRECTION": [],
@@ -5740,7 +6313,7 @@
       </Channel>
     </Station>
     <Station code="CD27" startDate="2017-11-06T03:30:32.000000Z" endDate="2018-06-11T00:08:58.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD27",
   "GPS_CORRECTION": [],
@@ -5801,7 +6374,7 @@
       </Channel>
     </Station>
     <Station code="CD28" startDate="2017-11-06T03:02:15.000000Z" endDate="2018-06-11T02:39:00.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD28",
   "GPS_CORRECTION": [],
@@ -5862,10 +6435,215 @@
       </Channel>
     </Station>
     <Station code="CE22" startDate="2017-11-04T03:16:35.000000Z" endDate="2018-06-06T01:02:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE22",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-04-15",
+      "clock_correction": -0.0620789257
+    },
+    {
+      "date": "2018-04-16",
+      "clock_correction": 0.0310892492
+    },
+    {
+      "date": "2018-04-17",
+      "clock_correction": 0.1242574242
+    },
+    {
+      "date": "2018-04-18",
+      "clock_correction": 0.2174255991
+    },
+    {
+      "date": "2018-04-19",
+      "clock_correction": 0.310593774
+    },
+    {
+      "date": "2018-04-20",
+      "clock_correction": 0.4037619489
+    },
+    {
+      "date": "2018-04-21",
+      "clock_correction": 0.4969301239
+    },
+    {
+      "date": "2018-04-22",
+      "clock_correction": 0.5900982988
+    },
+    {
+      "date": "2018-04-23",
+      "clock_correction": 0.6832664737
+    },
+    {
+      "date": "2018-04-24",
+      "clock_correction": 0.7764346487
+    },
+    {
+      "date": "2018-04-25",
+      "clock_correction": 0.8696028236
+    },
+    {
+      "date": "2018-04-26",
+      "clock_correction": 0.9627709985
+    },
+    {
+      "date": "2018-04-27",
+      "clock_correction": 1.0559391734
+    },
+    {
+      "date": "2018-04-28",
+      "clock_correction": 1.1491073484
+    },
+    {
+      "date": "2018-04-29",
+      "clock_correction": 1.2422755233
+    },
+    {
+      "date": "2018-04-30",
+      "clock_correction": 1.3354436982
+    },
+    {
+      "date": "2018-05-01",
+      "clock_correction": 1.4286118731
+    },
+    {
+      "date": "2018-05-02",
+      "clock_correction": 1.5217800481
+    },
+    {
+      "date": "2018-05-03",
+      "clock_correction": 1.614948223
+    },
+    {
+      "date": "2018-05-04",
+      "clock_correction": 1.7081163979
+    },
+    {
+      "date": "2018-05-05",
+      "clock_correction": 1.8012845729
+    },
+    {
+      "date": "2018-05-06",
+      "clock_correction": 1.8944527478
+    },
+    {
+      "date": "2018-05-07",
+      "clock_correction": 1.9876209227
+    },
+    {
+      "date": "2018-05-08",
+      "clock_correction": 2.0807890976
+    },
+    {
+      "date": "2018-05-09",
+      "clock_correction": 2.1739572726
+    },
+    {
+      "date": "2018-05-10",
+      "clock_correction": 2.2671254475
+    },
+    {
+      "date": "2018-05-11",
+      "clock_correction": 2.3602936224
+    },
+    {
+      "date": "2018-05-12",
+      "clock_correction": 2.4534617974
+    },
+    {
+      "date": "2018-05-13",
+      "clock_correction": 2.5466299723
+    },
+    {
+      "date": "2018-05-14",
+      "clock_correction": 2.6397981472
+    },
+    {
+      "date": "2018-05-15",
+      "clock_correction": 2.7329663221
+    },
+    {
+      "date": "2018-05-16",
+      "clock_correction": 2.8261344971
+    },
+    {
+      "date": "2018-05-17",
+      "clock_correction": 2.919302672
+    },
+    {
+      "date": "2018-05-18",
+      "clock_correction": 3.0124708469
+    },
+    {
+      "date": "2018-05-19",
+      "clock_correction": 3.1056390218
+    },
+    {
+      "date": "2018-05-20",
+      "clock_correction": 3.1988071968
+    },
+    {
+      "date": "2018-05-21",
+      "clock_correction": 3.2919753717
+    },
+    {
+      "date": "2018-05-22",
+      "clock_correction": 3.3851435466
+    },
+    {
+      "date": "2018-05-23",
+      "clock_correction": 3.4783117216
+    },
+    {
+      "date": "2018-05-24",
+      "clock_correction": 3.5714798965
+    },
+    {
+      "date": "2018-05-25",
+      "clock_correction": 3.6646480714
+    },
+    {
+      "date": "2018-05-26",
+      "clock_correction": 3.7578162463
+    },
+    {
+      "date": "2018-05-27",
+      "clock_correction": 3.8509844213
+    },
+    {
+      "date": "2018-05-28",
+      "clock_correction": 3.9441525962
+    },
+    {
+      "date": "2018-05-29",
+      "clock_correction": 4.0373207711
+    },
+    {
+      "date": "2018-05-30",
+      "clock_correction": 4.130488946
+    },
+    {
+      "date": "2018-05-31",
+      "clock_correction": 4.223657121
+    },
+    {
+      "date": "2018-06-01",
+      "clock_correction": 4.3168252959
+    },
+    {
+      "date": "2018-06-02",
+      "clock_correction": 4.4099934708
+    },
+    {
+      "date": "2018-06-03",
+      "clock_correction": 4.5031616458
+    },
+    {
+      "date": "2018-06-04",
+      "clock_correction": 4.5963298207
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-11-04T09:07:51.205000Z",
     "end_dt": "2018-11-15T23:23:38.632000Z",
@@ -5923,7 +6701,7 @@
       </Channel>
     </Station>
     <Station code="CE23" startDate="2017-11-04T03:42:16.000000Z" endDate="2018-06-06T00:26:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE23",
   "GPS_CORRECTION": [],
@@ -5984,7 +6762,7 @@
       </Channel>
     </Station>
     <Station code="CE24" startDate="2017-11-04T04:20:52.000000Z" endDate="2018-05-14T06:53:29.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE24",
   "GPS_CORRECTION": [],
@@ -6045,7 +6823,7 @@
       </Channel>
     </Station>
     <Station code="CE25" startDate="2017-11-04T04:42:06.000000Z" endDate="2018-06-09T00:11:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE25",
   "GPS_CORRECTION": [],
@@ -6106,7 +6884,7 @@
       </Channel>
     </Station>
     <Station code="CE26" startDate="2017-11-04T23:14:30.000000Z" endDate="2018-06-09T00:43:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE26",
   "GPS_CORRECTION": [],
@@ -6167,7 +6945,7 @@
       </Channel>
     </Station>
     <Station code="CE27" startDate="2017-11-06T03:56:58.000000Z" endDate="2018-06-09T04:59:48.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE27",
   "GPS_CORRECTION": [],
@@ -6228,7 +7006,7 @@
       </Channel>
     </Station>
     <Station code="CE28" startDate="2017-11-06T02:31:42.000000Z" endDate="2018-06-09T05:29:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE28",
   "GPS_CORRECTION": [
@@ -6914,7 +7692,7 @@
       </Channel>
     </Station>
     <Station code="CF22" startDate="2017-11-05T21:29:34.000000Z" endDate="2018-06-06T04:51:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF22",
   "GPS_CORRECTION": [],
@@ -6975,7 +7753,7 @@
       </Channel>
     </Station>
     <Station code="CF23" startDate="2017-11-05T01:16:49.000000Z" endDate="2018-06-06T04:16:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF23",
   "GPS_CORRECTION": [],
@@ -7036,7 +7814,7 @@
       </Channel>
     </Station>
     <Station code="CF24" startDate="2017-11-05T00:29:46.000000Z" endDate="2018-06-05T23:06:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF24",
   "GPS_CORRECTION": [],
@@ -7097,7 +7875,7 @@
       </Channel>
     </Station>
     <Station code="CF25" startDate="2017-11-04T23:51:19.000000Z" endDate="2018-06-05T22:20:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF25",
   "GPS_CORRECTION": [],
@@ -7158,7 +7936,7 @@
       </Channel>
     </Station>
     <Station code="CF27" startDate="2017-11-06T01:40:39.000000Z" endDate="2018-06-09T06:41:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF27",
   "GPS_CORRECTION": [],
@@ -7219,10 +7997,635 @@
       </Channel>
     </Station>
     <Station code="CF28" startDate="2017-11-06T02:02:50.000000Z" endDate="2018-06-09T06:06:39.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF28",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-01-04",
+      "clock_correction": -1.3375814425
+    },
+    {
+      "date": "2018-01-05",
+      "clock_correction": -1.1104495647
+    },
+    {
+      "date": "2018-01-06",
+      "clock_correction": -0.9032476255
+    },
+    {
+      "date": "2018-01-07",
+      "clock_correction": -0.715187057
+    },
+    {
+      "date": "2018-01-08",
+      "clock_correction": -0.5454903733
+    },
+    {
+      "date": "2018-01-09",
+      "clock_correction": -0.393391171
+    },
+    {
+      "date": "2018-01-10",
+      "clock_correction": -0.258134129
+    },
+    {
+      "date": "2018-01-11",
+      "clock_correction": -0.1389750085
+    },
+    {
+      "date": "2018-01-12",
+      "clock_correction": -0.035180653
+    },
+    {
+      "date": "2018-01-13",
+      "clock_correction": 0.0539710115
+    },
+    {
+      "date": "2018-01-14",
+      "clock_correction": 0.1291909768
+    },
+    {
+      "date": "2018-01-15",
+      "clock_correction": 0.1911791523
+    },
+    {
+      "date": "2018-01-16",
+      "clock_correction": 0.240624365
+    },
+    {
+      "date": "2018-01-17",
+      "clock_correction": 0.2782043599
+    },
+    {
+      "date": "2018-01-18",
+      "clock_correction": 0.3045857992
+    },
+    {
+      "date": "2018-01-19",
+      "clock_correction": 0.320424263
+    },
+    {
+      "date": "2018-01-20",
+      "clock_correction": 0.3263642491
+    },
+    {
+      "date": "2018-01-21",
+      "clock_correction": 0.3230391729
+    },
+    {
+      "date": "2018-01-22",
+      "clock_correction": 0.3110713674
+    },
+    {
+      "date": "2018-01-23",
+      "clock_correction": 0.2910720833
+    },
+    {
+      "date": "2018-01-24",
+      "clock_correction": 0.263641489
+    },
+    {
+      "date": "2018-01-25",
+      "clock_correction": 0.2293686706
+    },
+    {
+      "date": "2018-01-26",
+      "clock_correction": 0.1888316318
+    },
+    {
+      "date": "2018-01-27",
+      "clock_correction": 0.142597294
+    },
+    {
+      "date": "2018-01-28",
+      "clock_correction": 0.0912214961
+    },
+    {
+      "date": "2018-01-29",
+      "clock_correction": 0.0352489949
+    },
+    {
+      "date": "2018-01-30",
+      "clock_correction": -0.0247865352
+    },
+    {
+      "date": "2018-01-31",
+      "clock_correction": -0.0883625023
+    },
+    {
+      "date": "2018-02-01",
+      "clock_correction": -0.1549673967
+    },
+    {
+      "date": "2018-02-02",
+      "clock_correction": -0.2241007909
+    },
+    {
+      "date": "2018-02-03",
+      "clock_correction": -0.2952733401
+    },
+    {
+      "date": "2018-02-04",
+      "clock_correction": -0.3680067815
+    },
+    {
+      "date": "2018-02-05",
+      "clock_correction": -0.4418339348
+    },
+    {
+      "date": "2018-02-06",
+      "clock_correction": -0.5162987021
+    },
+    {
+      "date": "2018-02-07",
+      "clock_correction": -0.5909560676
+    },
+    {
+      "date": "2018-02-08",
+      "clock_correction": -0.665372098
+    },
+    {
+      "date": "2018-02-09",
+      "clock_correction": -0.7391239424
+    },
+    {
+      "date": "2018-02-10",
+      "clock_correction": -0.8117998321
+    },
+    {
+      "date": "2018-02-11",
+      "clock_correction": -0.8829990808
+    },
+    {
+      "date": "2018-02-12",
+      "clock_correction": -0.9523320845
+    },
+    {
+      "date": "2018-02-13",
+      "clock_correction": -1.0194203217
+    },
+    {
+      "date": "2018-02-14",
+      "clock_correction": -1.083896353
+    },
+    {
+      "date": "2018-02-15",
+      "clock_correction": -1.1454038214
+    },
+    {
+      "date": "2018-02-16",
+      "clock_correction": -1.2035974524
+    },
+    {
+      "date": "2018-02-17",
+      "clock_correction": -1.2581430536
+    },
+    {
+      "date": "2018-02-18",
+      "clock_correction": -1.3087175152
+    },
+    {
+      "date": "2018-02-19",
+      "clock_correction": -1.3550088095
+    },
+    {
+      "date": "2018-02-20",
+      "clock_correction": -1.3967159912
+    },
+    {
+      "date": "2018-02-21",
+      "clock_correction": -1.4335491974
+    },
+    {
+      "date": "2018-02-22",
+      "clock_correction": -1.4652296476
+    },
+    {
+      "date": "2018-02-23",
+      "clock_correction": -1.4914896435
+    },
+    {
+      "date": "2018-02-24",
+      "clock_correction": -1.5120725691
+    },
+    {
+      "date": "2018-02-25",
+      "clock_correction": -1.5267328909
+    },
+    {
+      "date": "2018-02-26",
+      "clock_correction": -1.5352361577
+    },
+    {
+      "date": "2018-02-27",
+      "clock_correction": -1.5373590005
+    },
+    {
+      "date": "2018-02-28",
+      "clock_correction": -1.5328891328
+    },
+    {
+      "date": "2018-03-01",
+      "clock_correction": -1.5216253503
+    },
+    {
+      "date": "2018-03-02",
+      "clock_correction": -1.5033775312
+    },
+    {
+      "date": "2018-03-03",
+      "clock_correction": -1.4779666358
+    },
+    {
+      "date": "2018-03-04",
+      "clock_correction": -1.4452247071
+    },
+    {
+      "date": "2018-03-05",
+      "clock_correction": -1.4049948701
+    },
+    {
+      "date": "2018-03-06",
+      "clock_correction": -1.3571313323
+    },
+    {
+      "date": "2018-03-07",
+      "clock_correction": -1.3014993834
+    },
+    {
+      "date": "2018-03-08",
+      "clock_correction": -1.2379753956
+    },
+    {
+      "date": "2018-03-09",
+      "clock_correction": -1.1664468235
+    },
+    {
+      "date": "2018-03-10",
+      "clock_correction": -1.0868122037
+    },
+    {
+      "date": "2018-03-11",
+      "clock_correction": -0.9989811554
+    },
+    {
+      "date": "2018-03-12",
+      "clock_correction": -0.9028743802
+    },
+    {
+      "date": "2018-03-13",
+      "clock_correction": -0.7984236619
+    },
+    {
+      "date": "2018-03-14",
+      "clock_correction": -0.6855718665
+    },
+    {
+      "date": "2018-03-15",
+      "clock_correction": -0.5642729427
+    },
+    {
+      "date": "2018-03-16",
+      "clock_correction": -0.4344919213
+    },
+    {
+      "date": "2018-03-17",
+      "clock_correction": -0.2962049153
+    },
+    {
+      "date": "2018-03-18",
+      "clock_correction": -0.1493991204
+    },
+    {
+      "date": "2018-03-19",
+      "clock_correction": 0.0059271856
+    },
+    {
+      "date": "2018-03-20",
+      "clock_correction": 0.1697646425
+    },
+    {
+      "date": "2018-03-21",
+      "clock_correction": 0.3420928078
+    },
+    {
+      "date": "2018-03-22",
+      "clock_correction": 0.5228801566
+    },
+    {
+      "date": "2018-03-23",
+      "clock_correction": 0.7120841202
+    },
+    {
+      "date": "2018-03-24",
+      "clock_correction": 0.9096540073
+    },
+    {
+      "date": "2018-03-25",
+      "clock_correction": 1.1155398451
+    },
+    {
+      "date": "2018-03-26",
+      "clock_correction": 1.3296953007
+    },
+    {
+      "date": "2018-03-27",
+      "clock_correction": 1.5520777194
+    },
+    {
+      "date": "2018-03-28",
+      "clock_correction": 1.782648125
+    },
+    {
+      "date": "2018-03-29",
+      "clock_correction": 2.0213712196
+    },
+    {
+      "date": "2018-03-30",
+      "clock_correction": 2.2682153833
+    },
+    {
+      "date": "2018-03-31",
+      "clock_correction": 2.5231526749
+    },
+    {
+      "date": "2018-04-01",
+      "clock_correction": 2.7861588314
+    },
+    {
+      "date": "2018-04-02",
+      "clock_correction": 3.0572132679
+    },
+    {
+      "date": "2018-04-03",
+      "clock_correction": 3.3362990781
+    },
+    {
+      "date": "2018-04-04",
+      "clock_correction": 3.6234030338
+    },
+    {
+      "date": "2018-04-05",
+      "clock_correction": 3.9185155853
+    },
+    {
+      "date": "2018-04-06",
+      "clock_correction": 4.221630861
+    },
+    {
+      "date": "2018-04-07",
+      "clock_correction": 4.5327466678
+    },
+    {
+      "date": "2018-04-08",
+      "clock_correction": 4.8518644908
+    },
+    {
+      "date": "2018-04-09",
+      "clock_correction": 5.1789894934
+    },
+    {
+      "date": "2018-04-10",
+      "clock_correction": 5.5141305175
+    },
+    {
+      "date": "2018-04-11",
+      "clock_correction": 5.857300083
+    },
+    {
+      "date": "2018-04-12",
+      "clock_correction": 6.2085143883
+    },
+    {
+      "date": "2018-04-13",
+      "clock_correction": 6.5677933102
+    },
+    {
+      "date": "2018-04-14",
+      "clock_correction": 6.9351604035
+    },
+    {
+      "date": "2018-04-15",
+      "clock_correction": 7.3106429018
+    },
+    {
+      "date": "2018-04-16",
+      "clock_correction": 7.6942717164
+    },
+    {
+      "date": "2018-04-17",
+      "clock_correction": 8.0860814375
+    },
+    {
+      "date": "2018-04-18",
+      "clock_correction": 8.4861103332
+    },
+    {
+      "date": "2018-04-19",
+      "clock_correction": 8.8944003501
+    },
+    {
+      "date": "2018-04-20",
+      "clock_correction": 9.310997113
+    },
+    {
+      "date": "2018-04-21",
+      "clock_correction": 9.7359499252
+    },
+    {
+      "date": "2018-04-22",
+      "clock_correction": 10.1693117681
+    },
+    {
+      "date": "2018-04-23",
+      "clock_correction": 10.6111393016
+    },
+    {
+      "date": "2018-04-24",
+      "clock_correction": 11.0614928636
+    },
+    {
+      "date": "2018-04-25",
+      "clock_correction": 11.5204364708
+    },
+    {
+      "date": "2018-04-26",
+      "clock_correction": 11.9880378177
+    },
+    {
+      "date": "2018-04-27",
+      "clock_correction": 12.4643682775
+    },
+    {
+      "date": "2018-04-28",
+      "clock_correction": 12.9495029015
+    },
+    {
+      "date": "2018-04-29",
+      "clock_correction": 13.4435204193
+    },
+    {
+      "date": "2018-04-30",
+      "clock_correction": 13.946503239
+    },
+    {
+      "date": "2018-05-01",
+      "clock_correction": 14.4585374469
+    },
+    {
+      "date": "2018-05-02",
+      "clock_correction": 14.9797128075
+    },
+    {
+      "date": "2018-05-03",
+      "clock_correction": 15.5101227637
+    },
+    {
+      "date": "2018-05-04",
+      "clock_correction": 16.0498644368
+    },
+    {
+      "date": "2018-05-05",
+      "clock_correction": 16.5990386264
+    },
+    {
+      "date": "2018-05-06",
+      "clock_correction": 17.1577498102
+    },
+    {
+      "date": "2018-05-07",
+      "clock_correction": 17.7261061445
+    },
+    {
+      "date": "2018-05-08",
+      "clock_correction": 18.3042194637
+    },
+    {
+      "date": "2018-05-09",
+      "clock_correction": 18.8922052805
+    },
+    {
+      "date": "2018-05-10",
+      "clock_correction": 19.4901827861
+    },
+    {
+      "date": "2018-05-11",
+      "clock_correction": 20.09827485
+    },
+    {
+      "date": "2018-05-12",
+      "clock_correction": 20.7166080197
+    },
+    {
+      "date": "2018-05-13",
+      "clock_correction": 21.3453125213
+    },
+    {
+      "date": "2018-05-14",
+      "clock_correction": 21.9845222592
+    },
+    {
+      "date": "2018-05-15",
+      "clock_correction": 22.634374816
+    },
+    {
+      "date": "2018-05-16",
+      "clock_correction": 23.2950114527
+    },
+    {
+      "date": "2018-05-17",
+      "clock_correction": 23.9665771086
+    },
+    {
+      "date": "2018-05-18",
+      "clock_correction": 24.6492204012
+    },
+    {
+      "date": "2018-05-19",
+      "clock_correction": 25.3430936264
+    },
+    {
+      "date": "2018-05-20",
+      "clock_correction": 26.0483527585
+    },
+    {
+      "date": "2018-05-21",
+      "clock_correction": 26.7651574499
+    },
+    {
+      "date": "2018-05-22",
+      "clock_correction": 27.4936710315
+    },
+    {
+      "date": "2018-05-23",
+      "clock_correction": 28.2340605124
+    },
+    {
+      "date": "2018-05-24",
+      "clock_correction": 28.9864965801
+    },
+    {
+      "date": "2018-05-25",
+      "clock_correction": 29.7511536004
+    },
+    {
+      "date": "2018-05-26",
+      "clock_correction": 30.5282096172
+    },
+    {
+      "date": "2018-05-27",
+      "clock_correction": 31.3178463531
+    },
+    {
+      "date": "2018-05-28",
+      "clock_correction": 32.1202492087
+    },
+    {
+      "date": "2018-05-29",
+      "clock_correction": 32.935607263
+    },
+    {
+      "date": "2018-05-30",
+      "clock_correction": 33.7641132733
+    },
+    {
+      "date": "2018-05-31",
+      "clock_correction": 34.6059636753
+    },
+    {
+      "date": "2018-06-01",
+      "clock_correction": 35.4613585829
+    },
+    {
+      "date": "2018-06-02",
+      "clock_correction": 36.3305017883
+    },
+    {
+      "date": "2018-06-03",
+      "clock_correction": 37.2136007622
+    },
+    {
+      "date": "2018-06-04",
+      "clock_correction": 38.1108666534
+    },
+    {
+      "date": "2018-06-05",
+      "clock_correction": 39.0225142891
+    },
+    {
+      "date": "2018-06-06",
+      "clock_correction": 39.9487621747
+    },
+    {
+      "date": "2018-06-07",
+      "clock_correction": 40.8898324942
+    },
+    {
+      "date": "2018-06-08",
+      "clock_correction": 41.8459511096
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-11-07T09:07:34.930000Z",
     "end_dt": "2018-08-23T03:52:29.528000Z",
@@ -7280,7 +8683,7 @@
       </Channel>
     </Station>
     <Station code="CG21" startDate="2017-11-05T22:37:22.000000Z" endDate="2018-06-07T05:03:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG21",
   "GPS_CORRECTION": [],
@@ -7341,7 +8744,7 @@
       </Channel>
     </Station>
     <Station code="CG22" startDate="2017-11-08T23:17:38.000000Z" endDate="2018-06-06T21:31:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG22",
   "GPS_CORRECTION": [],
@@ -7402,7 +8805,7 @@
       </Channel>
     </Station>
     <Station code="CG23" startDate="2017-11-05T23:39:18.000000Z" endDate="2018-06-06T03:29:49.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG23",
   "GPS_CORRECTION": [],
@@ -7463,7 +8866,7 @@
       </Channel>
     </Station>
     <Station code="CH21" startDate="2017-11-05T03:25:47.000000Z" endDate="2018-06-07T04:20:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH21",
   "GPS_CORRECTION": [],
@@ -7524,7 +8927,7 @@
       </Channel>
     </Station>
     <Station code="CH22" startDate="2017-11-05T06:46:09.000000Z" endDate="2018-06-06T15:05:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH22",
   "GPS_CORRECTION": [],
@@ -7585,7 +8988,7 @@
       </Channel>
     </Station>
     <Station code="CH23" startDate="2017-11-05T06:20:59.000000Z" endDate="2018-06-06T23:12:55.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH23",
   "GPS_CORRECTION": [],
@@ -7646,7 +9049,7 @@
       </Channel>
     </Station>
     <Station code="CI21" startDate="2017-11-05T03:55:40.000000Z" endDate="2018-06-06T09:51:07.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI21",
   "GPS_CORRECTION": [],
@@ -7707,7 +9110,7 @@
       </Channel>
     </Station>
     <Station code="CI22" startDate="2017-11-05T05:16:01.000000Z" endDate="2018-03-12T03:57:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI22",
   "GPS_CORRECTION": [],
@@ -7768,7 +9171,7 @@
       </Channel>
     </Station>
     <Station code="CI23" startDate="2017-11-05T05:41:48.000000Z" endDate="2018-06-06T23:54:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI23",
   "GPS_CORRECTION": [],
@@ -7829,7 +9232,7 @@
       </Channel>
     </Station>
     <Station code="CJ27" startDate="2017-10-10T02:12:23.000000Z" endDate="2018-06-03T03:33:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CJ27",
   "GPS_CORRECTION": [],
@@ -7890,7 +9293,7 @@
       </Channel>
     </Station>
     <Station code="BS24" startDate="2018-07-04T04:43:46.000000Z" endDate="2018-08-18T01:36:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS24",
   "GPS_CORRECTION": [],
@@ -7951,7 +9354,7 @@
       </Channel>
     </Station>
     <Station code="BS25" startDate="2018-07-04T05:15:07.000000Z" endDate="2018-08-18T01:59:06.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS25",
   "GPS_CORRECTION": [],
@@ -8012,7 +9415,7 @@
       </Channel>
     </Station>
     <Station code="BS27" startDate="2018-07-03T03:12:17.000000Z" endDate="2018-08-18T06:37:37.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS27",
   "GPS_CORRECTION": [],
@@ -8073,7 +9476,7 @@
       </Channel>
     </Station>
     <Station code="BS28" startDate="2018-07-03T02:42:54.000000Z" endDate="2018-08-18T06:15:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BS28",
   "GPS_CORRECTION": [],
@@ -8134,7 +9537,7 @@
       </Channel>
     </Station>
     <Station code="BT23" startDate="2018-07-04T03:47:25.000000Z" endDate="2018-08-17T23:08:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT23",
   "GPS_CORRECTION": [],
@@ -8195,7 +9598,7 @@
       </Channel>
     </Station>
     <Station code="BT24" startDate="2018-07-04T04:24:10.000000Z" endDate="2018-08-18T01:15:35.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT24",
   "GPS_CORRECTION": [],
@@ -8256,7 +9659,7 @@
       </Channel>
     </Station>
     <Station code="BT26" startDate="2018-07-03T04:26:41.000000Z" endDate="2018-08-18T02:44:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT26",
   "GPS_CORRECTION": [],
@@ -8317,7 +9720,7 @@
       </Channel>
     </Station>
     <Station code="BT27" startDate="2018-07-03T05:04:10.000000Z" endDate="2018-08-18T07:00:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT27",
   "GPS_CORRECTION": [],
@@ -8378,7 +9781,7 @@
       </Channel>
     </Station>
     <Station code="BT28" startDate="2018-07-03T02:17:58.000000Z" endDate="2018-08-18T05:57:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT28",
   "GPS_CORRECTION": [],
@@ -8439,7 +9842,7 @@
       </Channel>
     </Station>
     <Station code="BU22" startDate="2018-07-04T01:46:56.000000Z" endDate="2018-08-17T22:43:18.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU22",
   "GPS_CORRECTION": [],
@@ -8500,7 +9903,7 @@
       </Channel>
     </Station>
     <Station code="BU23" startDate="2018-07-04T03:17:28.000000Z" endDate="2018-08-17T22:21:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU23",
   "GPS_CORRECTION": [],
@@ -8561,7 +9964,7 @@
       </Channel>
     </Station>
     <Station code="BU24" startDate="2018-07-03T23:21:02.000000Z" endDate="2018-08-17T23:41:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU24",
   "GPS_CORRECTION": [],
@@ -8622,7 +10025,7 @@
       </Channel>
     </Station>
     <Station code="BU25" startDate="2018-06-19T05:11:23.000000Z" endDate="2018-08-18T03:14:46.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU25",
   "GPS_CORRECTION": [],
@@ -8683,7 +10086,7 @@
       </Channel>
     </Station>
     <Station code="BU26" startDate="2018-07-02T13:01:40.000000Z" endDate="2018-08-18T03:33:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU26",
   "GPS_CORRECTION": [],
@@ -8744,7 +10147,7 @@
       </Channel>
     </Station>
     <Station code="BU27" startDate="2018-07-03T05:30:14.000000Z" endDate="2018-08-18T07:23:55.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU27",
   "GPS_CORRECTION": [],
@@ -8805,7 +10208,7 @@
       </Channel>
     </Station>
     <Station code="BU28" startDate="2018-07-03T00:44:13.000000Z" endDate="2018-08-18T05:35:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU28",
   "GPS_CORRECTION": [],
@@ -8866,7 +10269,7 @@
       </Channel>
     </Station>
     <Station code="BV21" startDate="2018-07-04T01:09:50.000000Z" endDate="2018-08-16T05:01:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV21",
   "GPS_CORRECTION": [],
@@ -8927,7 +10330,7 @@
       </Channel>
     </Station>
     <Station code="BV22" startDate="2018-07-04T00:39:10.000000Z" endDate="2018-08-16T05:23:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV22",
   "GPS_CORRECTION": [],
@@ -8988,7 +10391,7 @@
       </Channel>
     </Station>
     <Station code="BV23" startDate="2018-07-04T00:02:42.000000Z" endDate="2018-08-17T22:02:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV23",
   "GPS_CORRECTION": [],
@@ -9049,7 +10452,7 @@
       </Channel>
     </Station>
     <Station code="BV24" startDate="2018-06-19T01:51:50.000000Z" endDate="2018-08-18T00:04:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV24",
   "GPS_CORRECTION": [],
@@ -9110,7 +10513,7 @@
       </Channel>
     </Station>
     <Station code="BV26" startDate="2018-07-02T03:52:45.000000Z" endDate="2018-08-18T04:30:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV26",
   "GPS_CORRECTION": [],
@@ -9171,7 +10574,7 @@
       </Channel>
     </Station>
     <Station code="BV27" startDate="2018-07-02T22:49:11.000000Z" endDate="2018-08-18T04:51:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV27",
   "GPS_CORRECTION": [],
@@ -9232,7 +10635,7 @@
       </Channel>
     </Station>
     <Station code="BV28" startDate="2018-07-03T00:16:55.000000Z" endDate="2018-08-18T05:14:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV28",
   "GPS_CORRECTION": [],
@@ -9293,7 +10696,7 @@
       </Channel>
     </Station>
     <Station code="BW20" startDate="2018-07-05T01:24:01.000000Z" endDate="2018-08-16T04:36:28.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW20",
   "GPS_CORRECTION": [],
@@ -9354,7 +10757,7 @@
       </Channel>
     </Station>
     <Station code="BW21" startDate="2018-07-05T01:02:12.000000Z" endDate="2018-08-16T06:10:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW21",
   "GPS_CORRECTION": [],
@@ -9415,7 +10818,7 @@
       </Channel>
     </Station>
     <Station code="BW22" startDate="2018-07-05T00:24:11.000000Z" endDate="2018-08-16T05:49:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW22",
   "GPS_CORRECTION": [],
@@ -9476,7 +10879,7 @@
       </Channel>
     </Station>
     <Station code="BW23" startDate="2018-07-04T23:41:25.000000Z" endDate="2018-08-17T21:40:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW23",
   "GPS_CORRECTION": [],
@@ -9537,7 +10940,7 @@
       </Channel>
     </Station>
     <Station code="BW24" startDate="2018-06-15T22:26:47.000000Z" endDate="2018-08-17T03:00:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW24",
   "GPS_CORRECTION": [],
@@ -9598,7 +11001,7 @@
       </Channel>
     </Station>
     <Station code="BW25" startDate="2018-07-02T02:55:37.000000Z" endDate="2018-08-17T01:31:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW25",
   "GPS_CORRECTION": [],
@@ -9659,7 +11062,7 @@
       </Channel>
     </Station>
     <Station code="BW26" startDate="2018-07-02T03:27:38.000000Z" endDate="2018-08-17T01:10:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW26",
   "GPS_CORRECTION": [],
@@ -9720,7 +11123,7 @@
       </Channel>
     </Station>
     <Station code="BW27" startDate="2018-07-02T23:28:01.000000Z" endDate="2018-08-17T00:02:16.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW27",
   "GPS_CORRECTION": [],
@@ -9781,7 +11184,7 @@
       </Channel>
     </Station>
     <Station code="BW28" startDate="2018-07-02T23:48:55.000000Z" endDate="2018-08-16T23:39:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW28",
   "GPS_CORRECTION": [],
@@ -9842,7 +11245,7 @@
       </Channel>
     </Station>
     <Station code="BX22" startDate="2018-07-05T04:08:54.000000Z" endDate="2018-08-16T07:01:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX22",
   "GPS_CORRECTION": [],
@@ -9903,7 +11306,7 @@
       </Channel>
     </Station>
     <Station code="BX23" startDate="2018-07-05T04:47:35.000000Z" endDate="2018-08-17T21:21:49.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX23",
   "GPS_CORRECTION": [],
@@ -9964,7 +11367,7 @@
       </Channel>
     </Station>
     <Station code="BX24" startDate="2018-06-15T21:54:57.000000Z" endDate="2018-08-17T03:24:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX24",
   "GPS_CORRECTION": [],
@@ -10025,7 +11428,7 @@
       </Channel>
     </Station>
     <Station code="BX25" startDate="2018-07-02T02:33:36.000000Z" endDate="2018-08-17T01:49:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX25",
   "GPS_CORRECTION": [],
@@ -10086,7 +11489,7 @@
       </Channel>
     </Station>
     <Station code="BX26" startDate="2018-07-02T01:34:11.000000Z" endDate="2018-08-17T00:47:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX26",
   "GPS_CORRECTION": [],
@@ -10147,7 +11550,7 @@
       </Channel>
     </Station>
     <Station code="BX27" startDate="2018-07-02T00:56:49.000000Z" endDate="2018-08-17T00:24:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX27",
   "GPS_CORRECTION": [],
@@ -10208,7 +11611,7 @@
       </Channel>
     </Station>
     <Station code="BY20" startDate="2018-06-15T00:33:06.000000Z" endDate="2018-08-16T03:52:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY20",
   "GPS_CORRECTION": [],
@@ -10269,7 +11672,7 @@
       </Channel>
     </Station>
     <Station code="BY21" startDate="2018-06-15T01:12:07.000000Z" endDate="2018-08-16T03:28:52.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY21",
   "GPS_CORRECTION": [],
@@ -10330,10 +11733,259 @@
       </Channel>
     </Station>
     <Station code="BY22" startDate="2018-06-15T02:38:25.000000Z" endDate="2018-08-16T01:36:33.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY22",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-06-16",
+      "clock_correction": 0.1891854722
+    },
+    {
+      "date": "2018-06-17",
+      "clock_correction": 0.1896466572
+    },
+    {
+      "date": "2018-06-18",
+      "clock_correction": 0.1901078421
+    },
+    {
+      "date": "2018-06-19",
+      "clock_correction": 0.190569027
+    },
+    {
+      "date": "2018-06-20",
+      "clock_correction": 0.1910302119
+    },
+    {
+      "date": "2018-06-21",
+      "clock_correction": 0.1914913968
+    },
+    {
+      "date": "2018-06-22",
+      "clock_correction": 0.1919525818
+    },
+    {
+      "date": "2018-06-23",
+      "clock_correction": 0.1924137667
+    },
+    {
+      "date": "2018-06-24",
+      "clock_correction": 0.1928749516
+    },
+    {
+      "date": "2018-06-25",
+      "clock_correction": 0.1933361365
+    },
+    {
+      "date": "2018-06-26",
+      "clock_correction": 0.1937973214
+    },
+    {
+      "date": "2018-06-27",
+      "clock_correction": 0.1942585063
+    },
+    {
+      "date": "2018-06-28",
+      "clock_correction": 0.1947196913
+    },
+    {
+      "date": "2018-06-29",
+      "clock_correction": 0.1951808762
+    },
+    {
+      "date": "2018-06-30",
+      "clock_correction": 0.1956420611
+    },
+    {
+      "date": "2018-07-01",
+      "clock_correction": 0.196103246
+    },
+    {
+      "date": "2018-07-02",
+      "clock_correction": 0.1965644309
+    },
+    {
+      "date": "2018-07-03",
+      "clock_correction": 0.1970256159
+    },
+    {
+      "date": "2018-07-04",
+      "clock_correction": 0.1974868008
+    },
+    {
+      "date": "2018-07-05",
+      "clock_correction": 0.1979479857
+    },
+    {
+      "date": "2018-07-06",
+      "clock_correction": 0.1984091706
+    },
+    {
+      "date": "2018-07-07",
+      "clock_correction": 0.1988703555
+    },
+    {
+      "date": "2018-07-08",
+      "clock_correction": 0.1993315405
+    },
+    {
+      "date": "2018-07-09",
+      "clock_correction": 0.1997927254
+    },
+    {
+      "date": "2018-07-10",
+      "clock_correction": 0.2002539103
+    },
+    {
+      "date": "2018-07-11",
+      "clock_correction": 0.2007150952
+    },
+    {
+      "date": "2018-07-12",
+      "clock_correction": 0.2011762801
+    },
+    {
+      "date": "2018-07-13",
+      "clock_correction": 0.2016374651
+    },
+    {
+      "date": "2018-07-14",
+      "clock_correction": 0.20209865
+    },
+    {
+      "date": "2018-07-15",
+      "clock_correction": 0.2025598349
+    },
+    {
+      "date": "2018-07-16",
+      "clock_correction": 0.2030210198
+    },
+    {
+      "date": "2018-07-17",
+      "clock_correction": 0.2034822047
+    },
+    {
+      "date": "2018-07-18",
+      "clock_correction": 0.2039433896
+    },
+    {
+      "date": "2018-07-19",
+      "clock_correction": 0.2044045746
+    },
+    {
+      "date": "2018-07-20",
+      "clock_correction": 0.2048657595
+    },
+    {
+      "date": "2018-07-21",
+      "clock_correction": 0.2053269444
+    },
+    {
+      "date": "2018-07-22",
+      "clock_correction": 0.2057881293
+    },
+    {
+      "date": "2018-07-23",
+      "clock_correction": 0.2062493142
+    },
+    {
+      "date": "2018-07-24",
+      "clock_correction": 0.2067104992
+    },
+    {
+      "date": "2018-07-25",
+      "clock_correction": 0.2071716841
+    },
+    {
+      "date": "2018-07-26",
+      "clock_correction": 0.207632869
+    },
+    {
+      "date": "2018-07-27",
+      "clock_correction": 0.2080940539
+    },
+    {
+      "date": "2018-07-28",
+      "clock_correction": 0.2085552388
+    },
+    {
+      "date": "2018-07-29",
+      "clock_correction": 0.2090164238
+    },
+    {
+      "date": "2018-07-30",
+      "clock_correction": 0.2094776087
+    },
+    {
+      "date": "2018-07-31",
+      "clock_correction": 0.2099387936
+    },
+    {
+      "date": "2018-08-01",
+      "clock_correction": 0.2103999785
+    },
+    {
+      "date": "2018-08-02",
+      "clock_correction": 0.2108611634
+    },
+    {
+      "date": "2018-08-03",
+      "clock_correction": 0.2113223484
+    },
+    {
+      "date": "2018-08-04",
+      "clock_correction": 0.2117835333
+    },
+    {
+      "date": "2018-08-05",
+      "clock_correction": 0.2122447182
+    },
+    {
+      "date": "2018-08-06",
+      "clock_correction": 6.2707110121
+    },
+    {
+      "date": "2018-08-07",
+      "clock_correction": 6.514096173
+    },
+    {
+      "date": "2018-08-08",
+      "clock_correction": 6.7574813339
+    },
+    {
+      "date": "2018-08-09",
+      "clock_correction": 7.0008664948
+    },
+    {
+      "date": "2018-08-10",
+      "clock_correction": 7.2442516557
+    },
+    {
+      "date": "2018-08-11",
+      "clock_correction": 7.4876368166
+    },
+    {
+      "date": "2018-08-12",
+      "clock_correction": 7.7310219775
+    },
+    {
+      "date": "2018-08-13",
+      "clock_correction": 7.9744071384
+    },
+    {
+      "date": "2018-08-14",
+      "clock_correction": 8.2177922994
+    },
+    {
+      "date": "2018-08-15",
+      "clock_correction": 8.4611774603
+    },
+    {
+      "date": "2018-08-16",
+      "clock_correction": -0.330137978
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-10-06T08:08:23.450000Z",
     "end_dt": "2018-11-24T15:52:48.805000Z",
@@ -10391,7 +12043,7 @@
       </Channel>
     </Station>
     <Station code="BY23" startDate="2018-06-15T03:10:50.000000Z" endDate="2018-08-16T08:25:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY23",
   "GPS_CORRECTION": [],
@@ -10452,7 +12104,7 @@
       </Channel>
     </Station>
     <Station code="BY24" startDate="2018-06-14T04:48:46.000000Z" endDate="2018-08-15T22:04:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY24",
   "GPS_CORRECTION": [],
@@ -10513,7 +12165,7 @@
       </Channel>
     </Station>
     <Station code="BY25" startDate="2018-07-01T05:38:34.000000Z" endDate="2018-08-16T21:51:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY25",
   "GPS_CORRECTION": [],
@@ -10574,7 +12226,7 @@
       </Channel>
     </Station>
     <Station code="BY26" startDate="2018-07-01T22:55:22.000000Z" endDate="2018-08-16T22:12:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY26",
   "GPS_CORRECTION": [],
@@ -10635,7 +12287,7 @@
       </Channel>
     </Station>
     <Station code="BY27" startDate="2018-07-02T01:45:46.000000Z" endDate="2018-08-16T22:34:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY27",
   "GPS_CORRECTION": [],
@@ -10696,7 +12348,7 @@
       </Channel>
     </Station>
     <Station code="BY28" startDate="2018-07-02T00:02:45.000000Z" endDate="2018-08-16T22:57:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY28",
   "GPS_CORRECTION": [],
@@ -10757,7 +12409,7 @@
       </Channel>
     </Station>
     <Station code="BZ20" startDate="2018-06-15T00:05:40.000000Z" endDate="2018-08-16T00:28:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ20",
   "GPS_CORRECTION": [],
@@ -10818,7 +12470,7 @@
       </Channel>
     </Station>
     <Station code="BZ21" startDate="2018-06-14T23:34:57.000000Z" endDate="2018-08-16T00:50:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ21",
   "GPS_CORRECTION": [],
@@ -10879,7 +12531,7 @@
       </Channel>
     </Station>
     <Station code="BZ22" startDate="2018-06-14T23:05:42.000000Z" endDate="2018-08-16T01:11:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ22",
   "GPS_CORRECTION": [],
@@ -10940,7 +12592,7 @@
       </Channel>
     </Station>
     <Station code="BZ23" startDate="2018-06-14T22:21:08.000000Z" endDate="2018-08-16T08:04:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ23",
   "GPS_CORRECTION": [],
@@ -11001,7 +12653,7 @@
       </Channel>
     </Station>
     <Station code="BZ24" startDate="2018-06-14T04:09:10.000000Z" endDate="2018-08-15T22:25:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ24",
   "GPS_CORRECTION": [],
@@ -11062,7 +12714,7 @@
       </Channel>
     </Station>
     <Station code="BZ26" startDate="2018-07-01T05:05:36.000000Z" endDate="2018-08-15T04:07:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ26",
   "GPS_CORRECTION": [],
@@ -11123,7 +12775,7 @@
       </Channel>
     </Station>
     <Station code="BZ27" startDate="2018-07-01T04:43:49.000000Z" endDate="2018-08-15T03:42:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ27",
   "GPS_CORRECTION": [],
@@ -11184,7 +12836,7 @@
       </Channel>
     </Station>
     <Station code="CA21" startDate="2018-06-07T23:03:09.000000Z" endDate="2018-08-15T23:49:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA21",
   "GPS_CORRECTION": [],
@@ -11245,7 +12897,7 @@
       </Channel>
     </Station>
     <Station code="CA22" startDate="2018-06-13T03:36:26.000000Z" endDate="2018-08-15T23:29:29.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA22",
   "GPS_CORRECTION": [],
@@ -11306,7 +12958,7 @@
       </Channel>
     </Station>
     <Station code="CA23" startDate="2018-06-13T04:03:08.000000Z" endDate="2018-08-15T23:06:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA23",
   "GPS_CORRECTION": [],
@@ -11367,7 +13019,7 @@
       </Channel>
     </Station>
     <Station code="CA24" startDate="2018-06-20T03:46:41.000000Z" endDate="2018-08-15T22:46:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA24",
   "GPS_CORRECTION": [],
@@ -11428,7 +13080,7 @@
       </Channel>
     </Station>
     <Station code="CA25" startDate="2018-06-14T02:58:24.000000Z" endDate="2018-08-15T01:12:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA25",
   "GPS_CORRECTION": [],
@@ -11489,7 +13141,7 @@
       </Channel>
     </Station>
     <Station code="CA26" startDate="2018-06-15T05:26:13.000000Z" endDate="2018-08-15T02:14:06.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA26",
   "GPS_CORRECTION": [],
@@ -11550,7 +13202,7 @@
       </Channel>
     </Station>
     <Station code="CA27" startDate="2018-06-15T06:02:05.000000Z" endDate="2018-08-15T02:40:39.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA27",
   "GPS_CORRECTION": [],
@@ -11611,7 +13263,7 @@
       </Channel>
     </Station>
     <Station code="CA28" startDate="2018-06-15T06:36:35.000000Z" endDate="2018-08-15T03:00:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA28",
   "GPS_CORRECTION": [],
@@ -11672,7 +13324,7 @@
       </Channel>
     </Station>
     <Station code="CB20" startDate="2018-06-07T22:00:10.000000Z" endDate="2018-08-14T23:15:35.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB20",
   "GPS_CORRECTION": [],
@@ -11733,7 +13385,7 @@
       </Channel>
     </Station>
     <Station code="CB21" startDate="2018-06-07T23:44:10.000000Z" endDate="2018-08-14T23:39:04.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB21",
   "GPS_CORRECTION": [],
@@ -11794,7 +13446,7 @@
       </Channel>
     </Station>
     <Station code="CB22" startDate="2018-06-13T03:06:17.000000Z" endDate="2018-08-15T00:06:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB22",
   "GPS_CORRECTION": [],
@@ -11855,7 +13507,7 @@
       </Channel>
     </Station>
     <Station code="CB23" startDate="2018-06-13T04:31:15.000000Z" endDate="2018-08-15T00:22:24.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB23",
   "GPS_CORRECTION": [],
@@ -11916,7 +13568,7 @@
       </Channel>
     </Station>
     <Station code="CB24" startDate="2018-06-13T04:56:08.000000Z" endDate="2018-08-15T00:44:22.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB24",
   "GPS_CORRECTION": [],
@@ -11977,7 +13629,7 @@
       </Channel>
     </Station>
     <Station code="CB25" startDate="2018-06-13T00:26:37.000000Z" endDate="2018-08-14T02:07:28.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB25",
   "GPS_CORRECTION": [],
@@ -12038,7 +13690,7 @@
       </Channel>
     </Station>
     <Station code="CB26" startDate="2018-06-12T22:59:19.000000Z" endDate="2018-08-14T01:43:55.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB26",
   "GPS_CORRECTION": [],
@@ -12099,7 +13751,7 @@
       </Channel>
     </Station>
     <Station code="CB27" startDate="2018-06-11T01:17:10.000000Z" endDate="2018-08-12T03:38:07.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB27",
   "GPS_CORRECTION": [],
@@ -12160,7 +13812,7 @@
       </Channel>
     </Station>
     <Station code="CC20" startDate="2018-06-08T02:45:01.000000Z" endDate="2018-08-14T22:57:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC20",
   "GPS_CORRECTION": [],
@@ -12221,7 +13873,7 @@
       </Channel>
     </Station>
     <Station code="CC21" startDate="2018-06-08T03:41:40.000000Z" endDate="2018-08-14T22:33:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC21",
   "GPS_CORRECTION": [],
@@ -12282,7 +13934,7 @@
       </Channel>
     </Station>
     <Station code="CC22" startDate="2018-06-13T02:43:53.000000Z" endDate="2018-08-14T22:01:01.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC22",
   "GPS_CORRECTION": [],
@@ -12343,7 +13995,7 @@
       </Channel>
     </Station>
     <Station code="CC24" startDate="2018-06-12T05:07:56.000000Z" endDate="2018-08-14T21:17:51.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC24",
   "GPS_CORRECTION": [],
@@ -12404,7 +14056,7 @@
       </Channel>
     </Station>
     <Station code="CC25" startDate="2018-06-12T02:56:43.000000Z" endDate="2018-08-14T02:35:02.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC25",
   "GPS_CORRECTION": [],
@@ -12465,7 +14117,7 @@
       </Channel>
     </Station>
     <Station code="CC26" startDate="2018-06-12T22:27:34.000000Z" endDate="2018-08-14T01:25:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC26",
   "GPS_CORRECTION": [],
@@ -12526,7 +14178,7 @@
       </Channel>
     </Station>
     <Station code="CC27" startDate="2018-06-11T00:48:15.000000Z" endDate="2018-08-12T03:16:58.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC27",
   "GPS_CORRECTION": [],
@@ -12587,7 +14239,7 @@
       </Channel>
     </Station>
     <Station code="CC28" startDate="2018-06-11T02:13:12.000000Z" endDate="2018-08-12T04:31:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC28",
   "GPS_CORRECTION": [],
@@ -12648,7 +14300,7 @@
       </Channel>
     </Station>
     <Station code="CD23" startDate="2018-06-08T22:24:19.000000Z" endDate="2018-08-13T21:39:56.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD23",
   "GPS_CORRECTION": [],
@@ -12709,7 +14361,7 @@
       </Channel>
     </Station>
     <Station code="CD24" startDate="2018-06-08T23:10:35.000000Z" endDate="2018-08-13T22:05:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD24",
   "GPS_CORRECTION": [],
@@ -12770,7 +14422,7 @@
       </Channel>
     </Station>
     <Station code="CD25" startDate="2018-06-08T23:45:31.000000Z" endDate="2018-08-14T03:01:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD25",
   "GPS_CORRECTION": [],
@@ -12831,7 +14483,7 @@
       </Channel>
     </Station>
     <Station code="CD26" startDate="2018-06-12T21:53:36.000000Z" endDate="2018-08-14T01:04:55.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD26",
   "GPS_CORRECTION": [],
@@ -12892,7 +14544,7 @@
       </Channel>
     </Station>
     <Station code="CD27" startDate="2018-06-11T00:14:16.000000Z" endDate="2018-08-12T02:53:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD27",
   "GPS_CORRECTION": [],
@@ -12953,7 +14605,7 @@
       </Channel>
     </Station>
     <Station code="CD28" startDate="2018-06-11T02:44:16.000000Z" endDate="2018-08-12T04:55:16.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD28",
   "GPS_CORRECTION": [],
@@ -13014,7 +14666,7 @@
       </Channel>
     </Station>
     <Station code="CE22" startDate="2018-06-06T01:17:01.000000Z" endDate="2018-08-12T22:55:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE22",
   "GPS_CORRECTION": [],
@@ -13075,7 +14727,7 @@
       </Channel>
     </Station>
     <Station code="CE24" startDate="2018-06-06T00:02:38.000000Z" endDate="2018-08-13T22:35:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE24",
   "GPS_CORRECTION": [],
@@ -13136,7 +14788,7 @@
       </Channel>
     </Station>
     <Station code="CE25" startDate="2018-06-09T00:15:55.000000Z" endDate="2018-08-13T23:03:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE25",
   "GPS_CORRECTION": [],
@@ -13197,7 +14849,7 @@
       </Channel>
     </Station>
     <Station code="CE26" startDate="2018-06-09T00:49:25.000000Z" endDate="2018-08-13T23:25:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE26",
   "GPS_CORRECTION": [],
@@ -13258,7 +14910,7 @@
       </Channel>
     </Station>
     <Station code="CE27" startDate="2018-06-09T05:06:05.000000Z" endDate="2018-08-12T02:34:06.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE27",
   "GPS_CORRECTION": [],
@@ -13319,7 +14971,7 @@
       </Channel>
     </Station>
     <Station code="CE28" startDate="2018-06-09T05:44:10.000000Z" endDate="2018-08-12T05:16:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE28",
   "GPS_CORRECTION": [
@@ -13589,7 +15241,7 @@
       </Channel>
     </Station>
     <Station code="CF22" startDate="2018-06-06T04:57:24.000000Z" endDate="2018-08-12T22:35:28.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF22",
   "GPS_CORRECTION": [],
@@ -13650,7 +15302,7 @@
       </Channel>
     </Station>
     <Station code="CF24" startDate="2018-06-05T23:14:44.000000Z" endDate="2018-08-12T21:32:49.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF24",
   "GPS_CORRECTION": [],
@@ -13711,7 +15363,7 @@
       </Channel>
     </Station>
     <Station code="CF25" startDate="2018-06-05T22:28:04.000000Z" endDate="2018-08-12T21:08:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF25",
   "GPS_CORRECTION": [],
@@ -13772,7 +15424,7 @@
       </Channel>
     </Station>
     <Station code="CF27" startDate="2018-06-09T06:54:06.000000Z" endDate="2018-08-12T06:03:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF27",
   "GPS_CORRECTION": [],
@@ -13833,10 +15485,267 @@
       </Channel>
     </Station>
     <Station code="CF28" startDate="2018-06-09T06:21:41.000000Z" endDate="2018-08-12T05:41:01.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF28",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-06-10",
+      "clock_correction": -0.1743943786
+    },
+    {
+      "date": "2018-06-11",
+      "clock_correction": -0.1777011594
+    },
+    {
+      "date": "2018-06-12",
+      "clock_correction": -0.1810079401
+    },
+    {
+      "date": "2018-06-13",
+      "clock_correction": -0.1843147209
+    },
+    {
+      "date": "2018-06-14",
+      "clock_correction": -0.1876215017
+    },
+    {
+      "date": "2018-06-15",
+      "clock_correction": -0.1909282824
+    },
+    {
+      "date": "2018-06-16",
+      "clock_correction": -0.1942350632
+    },
+    {
+      "date": "2018-06-17",
+      "clock_correction": -0.197541844
+    },
+    {
+      "date": "2018-06-18",
+      "clock_correction": -0.2008486247
+    },
+    {
+      "date": "2018-06-19",
+      "clock_correction": -0.2041554055
+    },
+    {
+      "date": "2018-06-20",
+      "clock_correction": -0.2074621863
+    },
+    {
+      "date": "2018-06-21",
+      "clock_correction": -0.210768967
+    },
+    {
+      "date": "2018-06-22",
+      "clock_correction": -0.2140757478
+    },
+    {
+      "date": "2018-06-23",
+      "clock_correction": -0.2173825286
+    },
+    {
+      "date": "2018-06-24",
+      "clock_correction": -0.2206893093
+    },
+    {
+      "date": "2018-06-25",
+      "clock_correction": -0.2239960901
+    },
+    {
+      "date": "2018-06-26",
+      "clock_correction": -0.2273028708
+    },
+    {
+      "date": "2018-06-27",
+      "clock_correction": -0.2306096516
+    },
+    {
+      "date": "2018-06-28",
+      "clock_correction": -0.2339164324
+    },
+    {
+      "date": "2018-06-29",
+      "clock_correction": -0.2372232131
+    },
+    {
+      "date": "2018-06-30",
+      "clock_correction": -0.2405299939
+    },
+    {
+      "date": "2018-07-01",
+      "clock_correction": -0.2438367747
+    },
+    {
+      "date": "2018-07-02",
+      "clock_correction": -0.2471435554
+    },
+    {
+      "date": "2018-07-03",
+      "clock_correction": -0.2504503362
+    },
+    {
+      "date": "2018-07-04",
+      "clock_correction": -0.253757117
+    },
+    {
+      "date": "2018-07-05",
+      "clock_correction": -0.2570638977
+    },
+    {
+      "date": "2018-07-06",
+      "clock_correction": -0.2603706785
+    },
+    {
+      "date": "2018-07-07",
+      "clock_correction": -0.2636774593
+    },
+    {
+      "date": "2018-07-08",
+      "clock_correction": -0.26698424
+    },
+    {
+      "date": "2018-07-09",
+      "clock_correction": -0.2702910208
+    },
+    {
+      "date": "2018-07-10",
+      "clock_correction": -0.2735978015
+    },
+    {
+      "date": "2018-07-11",
+      "clock_correction": -0.2769045823
+    },
+    {
+      "date": "2018-07-12",
+      "clock_correction": -0.2802113631
+    },
+    {
+      "date": "2018-07-13",
+      "clock_correction": -0.2835181438
+    },
+    {
+      "date": "2018-07-14",
+      "clock_correction": -0.2868249246
+    },
+    {
+      "date": "2018-07-15",
+      "clock_correction": -0.2901317054
+    },
+    {
+      "date": "2018-07-16",
+      "clock_correction": -0.2934384861
+    },
+    {
+      "date": "2018-07-17",
+      "clock_correction": -0.2967452669
+    },
+    {
+      "date": "2018-07-18",
+      "clock_correction": -0.3000520477
+    },
+    {
+      "date": "2018-07-19",
+      "clock_correction": -0.3033588284
+    },
+    {
+      "date": "2018-07-20",
+      "clock_correction": -0.3066656092
+    },
+    {
+      "date": "2018-07-21",
+      "clock_correction": -0.30997239
+    },
+    {
+      "date": "2018-07-22",
+      "clock_correction": -0.3132791707
+    },
+    {
+      "date": "2018-07-23",
+      "clock_correction": -0.3165859515
+    },
+    {
+      "date": "2018-07-24",
+      "clock_correction": -0.3198927322
+    },
+    {
+      "date": "2018-07-25",
+      "clock_correction": -0.323199513
+    },
+    {
+      "date": "2018-07-26",
+      "clock_correction": -0.3265062938
+    },
+    {
+      "date": "2018-07-27",
+      "clock_correction": -0.3298130745
+    },
+    {
+      "date": "2018-07-28",
+      "clock_correction": -0.3331198553
+    },
+    {
+      "date": "2018-07-29",
+      "clock_correction": -0.3364266361
+    },
+    {
+      "date": "2018-07-30",
+      "clock_correction": -0.3397334168
+    },
+    {
+      "date": "2018-07-31",
+      "clock_correction": -0.3430401976
+    },
+    {
+      "date": "2018-08-01",
+      "clock_correction": -0.3463469784
+    },
+    {
+      "date": "2018-08-02",
+      "clock_correction": -0.3496537591
+    },
+    {
+      "date": "2018-08-03",
+      "clock_correction": -0.3529605399
+    },
+    {
+      "date": "2018-08-04",
+      "clock_correction": -0.3562673207
+    },
+    {
+      "date": "2018-08-05",
+      "clock_correction": -0.3595741014
+    },
+    {
+      "date": "2018-08-06",
+      "clock_correction": -0.3628808822
+    },
+    {
+      "date": "2018-08-07",
+      "clock_correction": -0.3661876629
+    },
+    {
+      "date": "2018-08-08",
+      "clock_correction": -0.3694944437
+    },
+    {
+      "date": "2018-08-09",
+      "clock_correction": -0.3728012245
+    },
+    {
+      "date": "2018-08-10",
+      "clock_correction": -0.3761080052
+    },
+    {
+      "date": "2018-08-11",
+      "clock_correction": -0.379414786
+    },
+    {
+      "date": "2018-08-12",
+      "clock_correction": -0.3827215668
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-11-07T09:07:34.930000Z",
     "end_dt": "2018-08-23T03:52:29.528000Z",
@@ -13894,7 +15803,7 @@
       </Channel>
     </Station>
     <Station code="CG21" startDate="2018-06-07T05:10:17.000000Z" endDate="2018-08-13T03:25:48.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG21",
   "GPS_CORRECTION": [],
@@ -13955,7 +15864,7 @@
       </Channel>
     </Station>
     <Station code="CG22" startDate="2018-06-06T21:54:11.000000Z" endDate="2018-08-13T00:32:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG22",
   "GPS_CORRECTION": [],
@@ -14016,7 +15925,7 @@
       </Channel>
     </Station>
     <Station code="CG23" startDate="2018-06-06T03:46:41.000000Z" endDate="2018-08-12T22:09:37.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG23",
   "GPS_CORRECTION": [],
@@ -14077,7 +15986,7 @@
       </Channel>
     </Station>
     <Station code="CH21" startDate="2018-06-07T04:34:24.000000Z" endDate="2018-08-13T03:03:16.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH21",
   "GPS_CORRECTION": [],
@@ -14138,7 +16047,7 @@
       </Channel>
     </Station>
     <Station code="CH22" startDate="2018-06-06T22:44:11.000000Z" endDate="2018-08-13T01:02:18.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH22",
   "GPS_CORRECTION": [],
@@ -14199,7 +16108,7 @@
       </Channel>
     </Station>
     <Station code="CH23" startDate="2018-06-06T23:18:43.000000Z" endDate="2018-08-13T01:29:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH23",
   "GPS_CORRECTION": [],
@@ -14260,7 +16169,7 @@
       </Channel>
     </Station>
     <Station code="CI22" startDate="2018-06-07T01:01:40.000000Z" endDate="2018-08-13T02:21:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI22",
   "GPS_CORRECTION": [],
@@ -14321,7 +16230,7 @@
       </Channel>
     </Station>
     <Station code="CI23" startDate="2018-06-07T00:12:05.000000Z" endDate="2018-08-13T01:53:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI23",
   "GPS_CORRECTION": [],
@@ -14382,7 +16291,7 @@
       </Channel>
     </Station>
     <Station code="CJ27" startDate="2018-06-03T03:54:37.000000Z" endDate="2018-08-12T00:48:48.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CJ27",
   "GPS_CORRECTION": [],
@@ -14443,7 +16352,7 @@
       </Channel>
     </Station>
     <Station code="BT23" startDate="2018-08-17T23:17:39.000000Z" endDate="2018-11-26T21:23:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BT23",
   "GPS_CORRECTION": [],
@@ -14504,7 +16413,7 @@
       </Channel>
     </Station>
     <Station code="BU22" startDate="2018-08-17T22:49:58.000000Z" endDate="2018-11-26T22:10:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU22",
   "GPS_CORRECTION": [],
@@ -14565,7 +16474,7 @@
       </Channel>
     </Station>
     <Station code="BU23" startDate="2018-08-17T22:27:53.000000Z" endDate="2018-11-26T20:41:57.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU23",
   "GPS_CORRECTION": [],
@@ -14626,7 +16535,7 @@
       </Channel>
     </Station>
     <Station code="BU24" startDate="2018-08-17T23:49:18.000000Z" endDate="2018-11-26T00:10:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU24",
   "GPS_CORRECTION": [],
@@ -14687,7 +16596,7 @@
       </Channel>
     </Station>
     <Station code="BU25" startDate="2018-08-18T03:23:19.000000Z" endDate="2018-11-27T20:24:02.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU25",
   "GPS_CORRECTION": [],
@@ -14748,7 +16657,7 @@
       </Channel>
     </Station>
     <Station code="BU26" startDate="2018-08-18T03:42:53.000000Z" endDate="2018-11-27T21:04:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU26",
   "GPS_CORRECTION": [],
@@ -14809,7 +16718,7 @@
       </Channel>
     </Station>
     <Station code="BU27" startDate="2018-08-18T07:32:12.000000Z" endDate="2018-11-27T21:43:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BU27",
   "GPS_CORRECTION": [],
@@ -14870,7 +16779,7 @@
       </Channel>
     </Station>
     <Station code="BV21" startDate="2018-08-16T05:08:16.000000Z" endDate="2018-11-26T22:54:06.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV21",
   "GPS_CORRECTION": [],
@@ -14931,7 +16840,7 @@
       </Channel>
     </Station>
     <Station code="BV22" startDate="2018-08-16T05:29:49.000000Z" endDate="2018-11-27T00:56:11.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV22",
   "GPS_CORRECTION": [],
@@ -14992,7 +16901,7 @@
       </Channel>
     </Station>
     <Station code="BV23" endDate="2018-11-26T20:03:21.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV23",
   "GPS_CORRECTION": [],
@@ -15053,7 +16962,7 @@
       </Channel>
     </Station>
     <Station code="BV24" startDate="2018-08-18T00:12:25.000000Z" endDate="2018-11-25T23:36:02.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV24",
   "GPS_CORRECTION": [],
@@ -15114,7 +17023,7 @@
       </Channel>
     </Station>
     <Station code="BV26" startDate="2018-08-18T04:39:16.000000Z" endDate="2018-11-28T00:03:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV26",
   "GPS_CORRECTION": [],
@@ -15175,7 +17084,7 @@
       </Channel>
     </Station>
     <Station code="BV27" endDate="2018-11-27T22:20:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BV27",
   "GPS_CORRECTION": [],
@@ -15236,7 +17145,7 @@
       </Channel>
     </Station>
     <Station code="BW20" startDate="2018-08-16T04:42:37.000000Z" endDate="2018-11-26T23:35:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW20",
   "GPS_CORRECTION": [],
@@ -15297,7 +17206,7 @@
       </Channel>
     </Station>
     <Station code="BW21" startDate="2018-08-16T06:19:31.000000Z" endDate="2018-11-27T00:05:51.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW21",
   "GPS_CORRECTION": [],
@@ -15358,7 +17267,7 @@
       </Channel>
     </Station>
     <Station code="BW22" startDate="2018-08-16T05:55:49.000000Z" endDate="2018-11-25T21:42:17.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW22",
   "GPS_CORRECTION": [],
@@ -15419,7 +17328,7 @@
       </Channel>
     </Station>
     <Station code="BW23" startDate="2018-08-17T21:47:19.000000Z" endDate="2018-11-25T22:22:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW23",
   "GPS_CORRECTION": [],
@@ -15480,7 +17389,7 @@
       </Channel>
     </Station>
     <Station code="BW24" startDate="2018-08-17T03:06:35.000000Z" endDate="2018-11-25T22:57:49.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW24",
   "GPS_CORRECTION": [],
@@ -15541,7 +17450,7 @@
       </Channel>
     </Station>
     <Station code="BW25" startDate="2018-08-17T01:37:36.000000Z" endDate="2018-11-28T01:11:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW25",
   "GPS_CORRECTION": [],
@@ -15602,7 +17511,7 @@
       </Channel>
     </Station>
     <Station code="BW26" startDate="2018-08-17T01:13:54.000000Z" endDate="2018-11-28T00:36:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW26",
   "GPS_CORRECTION": [],
@@ -15663,7 +17572,7 @@
       </Channel>
     </Station>
     <Station code="BW27" startDate="2018-08-17T00:07:30.000000Z" endDate="2018-11-27T23:00:29.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BW27",
   "GPS_CORRECTION": [],
@@ -15724,7 +17633,7 @@
       </Channel>
     </Station>
     <Station code="BX21" startDate="2018-08-16T07:01:41.000000Z" endDate="2018-11-25T01:31:56.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX21",
   "GPS_CORRECTION": [],
@@ -15785,7 +17694,7 @@
       </Channel>
     </Station>
     <Station code="BX22" startDate="2018-08-16T07:09:38.000000Z" endDate="2018-11-25T21:13:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX22",
   "GPS_CORRECTION": [],
@@ -15846,7 +17755,7 @@
       </Channel>
     </Station>
     <Station code="BX23" startDate="2018-08-17T21:25:32.000000Z" endDate="2018-11-25T20:40:51.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX23",
   "GPS_CORRECTION": [],
@@ -15907,7 +17816,7 @@
       </Channel>
     </Station>
     <Station code="BX24" startDate="2018-08-17T03:33:03.000000Z" endDate="2018-11-25T20:08:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX24",
   "GPS_CORRECTION": [],
@@ -15968,7 +17877,7 @@
       </Channel>
     </Station>
     <Station code="BX25" startDate="2018-08-17T01:58:48.000000Z" endDate="2018-11-23T20:44:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX25",
   "GPS_CORRECTION": [],
@@ -16029,7 +17938,7 @@
       </Channel>
     </Station>
     <Station code="BX26" startDate="2018-08-17T00:56:50.000000Z" endDate="2018-11-23T21:38:22.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX26",
   "GPS_CORRECTION": [],
@@ -16090,7 +17999,7 @@
       </Channel>
     </Station>
     <Station code="BX27" startDate="2018-08-17T00:33:40.000000Z" endDate="2018-11-23T22:10:50.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX27",
   "GPS_CORRECTION": [],
@@ -16151,7 +18060,7 @@
       </Channel>
     </Station>
     <Station code="BX28" startDate="2018-07-02T00:38:15.000000Z" endDate="2018-11-23T22:49:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BX28",
   "GPS_CORRECTION": [],
@@ -16212,7 +18121,7 @@
       </Channel>
     </Station>
     <Station code="BY20" startDate="2018-08-16T03:59:53.000000Z" endDate="2018-11-25T00:11:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY20",
   "GPS_CORRECTION": [],
@@ -16273,7 +18182,7 @@
       </Channel>
     </Station>
     <Station code="BY21" startDate="2018-08-16T03:33:31.000000Z" endDate="2018-11-24T22:02:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY21",
   "GPS_CORRECTION": [],
@@ -16334,10 +18243,399 @@
       </Channel>
     </Station>
     <Station code="BY22" startDate="2018-08-16T01:43:15.000000Z" endDate="2018-11-24T21:13:47.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY22",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-08-17",
+      "clock_correction": -0.3267145151
+    },
+    {
+      "date": "2018-08-18",
+      "clock_correction": -0.3232910522
+    },
+    {
+      "date": "2018-08-19",
+      "clock_correction": -0.3198675894
+    },
+    {
+      "date": "2018-08-20",
+      "clock_correction": -0.3164441265
+    },
+    {
+      "date": "2018-08-21",
+      "clock_correction": -0.3130206637
+    },
+    {
+      "date": "2018-08-22",
+      "clock_correction": -0.3095972008
+    },
+    {
+      "date": "2018-08-23",
+      "clock_correction": -0.3061737379
+    },
+    {
+      "date": "2018-08-24",
+      "clock_correction": -0.3027502751
+    },
+    {
+      "date": "2018-08-25",
+      "clock_correction": -0.2993268122
+    },
+    {
+      "date": "2018-08-26",
+      "clock_correction": -0.2959033493
+    },
+    {
+      "date": "2018-08-27",
+      "clock_correction": -0.2924798865
+    },
+    {
+      "date": "2018-08-28",
+      "clock_correction": -0.2890564236
+    },
+    {
+      "date": "2018-08-29",
+      "clock_correction": -0.2856329608
+    },
+    {
+      "date": "2018-08-30",
+      "clock_correction": -0.2822094979
+    },
+    {
+      "date": "2018-08-31",
+      "clock_correction": -0.278786035
+    },
+    {
+      "date": "2018-09-01",
+      "clock_correction": -0.2753625722
+    },
+    {
+      "date": "2018-09-02",
+      "clock_correction": -0.2719391093
+    },
+    {
+      "date": "2018-09-03",
+      "clock_correction": -0.2685156465
+    },
+    {
+      "date": "2018-09-04",
+      "clock_correction": -0.2650921836
+    },
+    {
+      "date": "2018-09-05",
+      "clock_correction": -0.2616687207
+    },
+    {
+      "date": "2018-09-06",
+      "clock_correction": -0.2582452579
+    },
+    {
+      "date": "2018-09-07",
+      "clock_correction": -0.254821795
+    },
+    {
+      "date": "2018-09-08",
+      "clock_correction": -0.2513983322
+    },
+    {
+      "date": "2018-09-09",
+      "clock_correction": -0.2479748693
+    },
+    {
+      "date": "2018-09-10",
+      "clock_correction": -0.2445514064
+    },
+    {
+      "date": "2018-09-11",
+      "clock_correction": -0.2411279436
+    },
+    {
+      "date": "2018-09-12",
+      "clock_correction": -0.2377044807
+    },
+    {
+      "date": "2018-09-13",
+      "clock_correction": -0.2342810179
+    },
+    {
+      "date": "2018-09-14",
+      "clock_correction": -0.230857555
+    },
+    {
+      "date": "2018-09-15",
+      "clock_correction": -0.2274340921
+    },
+    {
+      "date": "2018-09-16",
+      "clock_correction": -0.2240106293
+    },
+    {
+      "date": "2018-09-17",
+      "clock_correction": -0.2205871664
+    },
+    {
+      "date": "2018-09-18",
+      "clock_correction": -0.2171637035
+    },
+    {
+      "date": "2018-09-19",
+      "clock_correction": -0.2137402407
+    },
+    {
+      "date": "2018-09-20",
+      "clock_correction": -0.2103167778
+    },
+    {
+      "date": "2018-09-21",
+      "clock_correction": -0.206893315
+    },
+    {
+      "date": "2018-09-22",
+      "clock_correction": -0.2034698521
+    },
+    {
+      "date": "2018-09-23",
+      "clock_correction": -0.2000463892
+    },
+    {
+      "date": "2018-09-24",
+      "clock_correction": -0.1966229264
+    },
+    {
+      "date": "2018-09-25",
+      "clock_correction": -0.1931994635
+    },
+    {
+      "date": "2018-09-26",
+      "clock_correction": -0.1897760007
+    },
+    {
+      "date": "2018-09-27",
+      "clock_correction": -0.1863525378
+    },
+    {
+      "date": "2018-09-28",
+      "clock_correction": -0.1829290749
+    },
+    {
+      "date": "2018-09-29",
+      "clock_correction": -0.1795056121
+    },
+    {
+      "date": "2018-09-30",
+      "clock_correction": -0.1760821492
+    },
+    {
+      "date": "2018-10-01",
+      "clock_correction": -0.1726586864
+    },
+    {
+      "date": "2018-10-02",
+      "clock_correction": -0.1692352235
+    },
+    {
+      "date": "2018-10-03",
+      "clock_correction": -0.1658117606
+    },
+    {
+      "date": "2018-10-04",
+      "clock_correction": -0.1623882978
+    },
+    {
+      "date": "2018-10-05",
+      "clock_correction": -0.1589648349
+    },
+    {
+      "date": "2018-10-06",
+      "clock_correction": -0.155541372
+    },
+    {
+      "date": "2018-10-07",
+      "clock_correction": -0.1521179092
+    },
+    {
+      "date": "2018-10-08",
+      "clock_correction": -0.1486944463
+    },
+    {
+      "date": "2018-10-09",
+      "clock_correction": -0.1452709835
+    },
+    {
+      "date": "2018-10-10",
+      "clock_correction": -0.1418475206
+    },
+    {
+      "date": "2018-10-11",
+      "clock_correction": -0.1384240577
+    },
+    {
+      "date": "2018-10-12",
+      "clock_correction": -0.1350005949
+    },
+    {
+      "date": "2018-10-13",
+      "clock_correction": -0.131577132
+    },
+    {
+      "date": "2018-10-14",
+      "clock_correction": -0.1281536692
+    },
+    {
+      "date": "2018-10-15",
+      "clock_correction": -0.1247302063
+    },
+    {
+      "date": "2018-10-16",
+      "clock_correction": -0.1213067434
+    },
+    {
+      "date": "2018-10-17",
+      "clock_correction": -0.1178832806
+    },
+    {
+      "date": "2018-10-18",
+      "clock_correction": -0.1144598177
+    },
+    {
+      "date": "2018-10-19",
+      "clock_correction": -0.1110363549
+    },
+    {
+      "date": "2018-10-20",
+      "clock_correction": -0.107612892
+    },
+    {
+      "date": "2018-10-21",
+      "clock_correction": -0.1041894291
+    },
+    {
+      "date": "2018-10-22",
+      "clock_correction": -0.1007659663
+    },
+    {
+      "date": "2018-10-23",
+      "clock_correction": -0.0973425034
+    },
+    {
+      "date": "2018-10-24",
+      "clock_correction": -0.0939190406
+    },
+    {
+      "date": "2018-10-25",
+      "clock_correction": -0.0904955777
+    },
+    {
+      "date": "2018-10-26",
+      "clock_correction": -0.0870721148
+    },
+    {
+      "date": "2018-10-27",
+      "clock_correction": -0.083648652
+    },
+    {
+      "date": "2018-10-28",
+      "clock_correction": -0.0802251891
+    },
+    {
+      "date": "2018-10-29",
+      "clock_correction": -0.0768017262
+    },
+    {
+      "date": "2018-10-30",
+      "clock_correction": -0.0733782634
+    },
+    {
+      "date": "2018-10-31",
+      "clock_correction": -0.0699548005
+    },
+    {
+      "date": "2018-11-01",
+      "clock_correction": -0.0665313377
+    },
+    {
+      "date": "2018-11-02",
+      "clock_correction": -0.0631078748
+    },
+    {
+      "date": "2018-11-03",
+      "clock_correction": -0.0596844119
+    },
+    {
+      "date": "2018-11-04",
+      "clock_correction": -0.0562609491
+    },
+    {
+      "date": "2018-11-05",
+      "clock_correction": -0.0528374862
+    },
+    {
+      "date": "2018-11-06",
+      "clock_correction": -0.0494140234
+    },
+    {
+      "date": "2018-11-07",
+      "clock_correction": -0.0459905605
+    },
+    {
+      "date": "2018-11-08",
+      "clock_correction": -0.0425670976
+    },
+    {
+      "date": "2018-11-09",
+      "clock_correction": -0.0391436348
+    },
+    {
+      "date": "2018-11-10",
+      "clock_correction": -0.0357201719
+    },
+    {
+      "date": "2018-11-11",
+      "clock_correction": -0.0322967091
+    },
+    {
+      "date": "2018-11-12",
+      "clock_correction": -0.0288732462
+    },
+    {
+      "date": "2018-11-13",
+      "clock_correction": -0.0254497833
+    },
+    {
+      "date": "2018-11-14",
+      "clock_correction": -0.0220263205
+    },
+    {
+      "date": "2018-11-15",
+      "clock_correction": -0.0186028576
+    },
+    {
+      "date": "2018-11-16",
+      "clock_correction": -0.0151793948
+    },
+    {
+      "date": "2018-11-17",
+      "clock_correction": -0.0117559319
+    },
+    {
+      "date": "2018-11-18",
+      "clock_correction": -0.008332469
+    },
+    {
+      "date": "2018-11-19",
+      "clock_correction": -0.0049090062
+    },
+    {
+      "date": "2018-11-20",
+      "clock_correction": -0.0014855433
+    },
+    {
+      "date": "2018-11-21",
+      "clock_correction": 0.0019379196
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-10-06T08:08:23.450000Z",
     "end_dt": "2018-11-24T15:52:48.805000Z",
@@ -16395,7 +18693,7 @@
       </Channel>
     </Station>
     <Station code="BY23" startDate="2018-08-16T08:34:02.000000Z" endDate="2018-11-24T20:29:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY23",
   "GPS_CORRECTION": [],
@@ -16456,7 +18754,7 @@
       </Channel>
     </Station>
     <Station code="BY24" startDate="2018-08-15T22:13:21.000000Z" endDate="2018-11-22T01:01:16.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY24",
   "GPS_CORRECTION": [],
@@ -16517,7 +18815,7 @@
       </Channel>
     </Station>
     <Station code="BY25" startDate="2018-08-16T21:57:44.000000Z" endDate="2018-11-23T20:06:22.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY25",
   "GPS_CORRECTION": [],
@@ -16578,7 +18876,7 @@
       </Channel>
     </Station>
     <Station code="BY26" startDate="2018-08-16T22:18:54.000000Z" endDate="2018-11-24T00:42:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY26",
   "GPS_CORRECTION": [],
@@ -16639,7 +18937,7 @@
       </Channel>
     </Station>
     <Station code="BY27" startDate="2018-08-16T22:43:26.000000Z" endDate="2018-11-24T00:06:20.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY27",
   "GPS_CORRECTION": [],
@@ -16700,7 +18998,7 @@
       </Channel>
     </Station>
     <Station code="BY28" startDate="2018-08-16T23:06:34.000000Z" endDate="2018-09-30T23:07:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BY28",
   "GPS_CORRECTION": [],
@@ -16761,7 +19059,7 @@
       </Channel>
     </Station>
     <Station code="BZ20" startDate="2018-08-16T00:37:19.000000Z" endDate="2018-11-24T23:30:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ20",
   "GPS_CORRECTION": [],
@@ -16822,7 +19120,7 @@
       </Channel>
     </Station>
     <Station code="BZ21" startDate="2018-08-16T00:58:41.000000Z" endDate="2018-11-24T22:50:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ21",
   "GPS_CORRECTION": [],
@@ -16883,7 +19181,7 @@
       </Channel>
     </Station>
     <Station code="BZ22" startDate="2018-08-16T01:16:47.000000Z" endDate="2018-11-21T22:42:01.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ22",
   "GPS_CORRECTION": [],
@@ -16944,7 +19242,7 @@
       </Channel>
     </Station>
     <Station code="BZ23" startDate="2018-08-16T08:13:46.000000Z" endDate="2018-11-21T23:48:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ23",
   "GPS_CORRECTION": [],
@@ -17005,7 +19303,7 @@
       </Channel>
     </Station>
     <Station code="BZ24" startDate="2018-08-15T22:32:15.000000Z" endDate="2018-11-22T00:20:30.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ24",
   "GPS_CORRECTION": [],
@@ -17066,7 +19364,7 @@
       </Channel>
     </Station>
     <Station code="BZ25" startDate="2018-06-15T04:56:12.000000Z" endDate="2018-11-22T20:27:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ25",
   "GPS_CORRECTION": [],
@@ -17127,7 +19425,7 @@
       </Channel>
     </Station>
     <Station code="BZ26" startDate="2018-08-15T04:17:24.000000Z" endDate="2018-11-23T00:53:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ26",
   "GPS_CORRECTION": [],
@@ -17188,7 +19486,7 @@
       </Channel>
     </Station>
     <Station code="BZ27" startDate="2018-08-15T03:48:58.000000Z" endDate="2018-11-23T00:10:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ27",
   "GPS_CORRECTION": [],
@@ -17249,7 +19547,7 @@
       </Channel>
     </Station>
     <Station code="BZ28" startDate="2018-06-15T07:24:11.000000Z" endDate="2018-11-22T23:43:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "BZ28",
   "GPS_CORRECTION": [],
@@ -17310,7 +19608,7 @@
       </Channel>
     </Station>
     <Station code="CA20" startDate="2018-06-07T22:39:32.000000Z" endDate="2018-11-17T22:27:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA20",
   "GPS_CORRECTION": [],
@@ -17371,7 +19669,7 @@
       </Channel>
     </Station>
     <Station code="CA21" startDate="2018-08-15T23:59:25.000000Z" endDate="2018-11-17T23:07:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA21",
   "GPS_CORRECTION": [],
@@ -17432,7 +19730,7 @@
       </Channel>
     </Station>
     <Station code="CA22" startDate="2018-08-15T23:36:45.000000Z" endDate="2018-11-21T21:59:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA22",
   "GPS_CORRECTION": [],
@@ -17493,7 +19791,7 @@
       </Channel>
     </Station>
     <Station code="CA23" startDate="2018-08-15T23:14:23.000000Z" endDate="2018-11-21T21:23:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA23",
   "GPS_CORRECTION": [],
@@ -17554,7 +19852,7 @@
       </Channel>
     </Station>
     <Station code="CA24" startDate="2018-08-15T22:50:13.000000Z" endDate="2018-11-21T20:44:03.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA24",
   "GPS_CORRECTION": [],
@@ -17615,7 +19913,7 @@
       </Channel>
     </Station>
     <Station code="CA25" startDate="2018-08-15T01:20:46.000000Z" endDate="2018-11-22T21:07:39.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA25",
   "GPS_CORRECTION": [],
@@ -17676,7 +19974,7 @@
       </Channel>
     </Station>
     <Station code="CA26" endDate="2018-11-22T21:52:19.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA26",
   "GPS_CORRECTION": [],
@@ -17737,7 +20035,7 @@
       </Channel>
     </Station>
     <Station code="CA27" startDate="2018-08-15T02:45:31.000000Z" endDate="2018-11-22T22:34:47.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA27",
   "GPS_CORRECTION": [],
@@ -17798,7 +20096,7 @@
       </Channel>
     </Station>
     <Station code="CA28" startDate="2018-08-15T03:08:51.000000Z" endDate="2018-11-22T23:09:12.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CA28",
   "GPS_CORRECTION": [],
@@ -17859,7 +20157,7 @@
       </Channel>
     </Station>
     <Station code="CB20" startDate="2018-08-14T23:23:22.000000Z" endDate="2018-11-17T21:40:05.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB20",
   "GPS_CORRECTION": [],
@@ -17920,7 +20218,7 @@
       </Channel>
     </Station>
     <Station code="CB21" startDate="2018-08-14T23:41:42.000000Z" endDate="2018-11-19T23:08:54.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB21",
   "GPS_CORRECTION": [],
@@ -17981,7 +20279,7 @@
       </Channel>
     </Station>
     <Station code="CB22" startDate="2018-08-15T00:16:28.000000Z" endDate="2018-11-19T22:09:48.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB22",
   "GPS_CORRECTION": [],
@@ -18042,7 +20340,7 @@
       </Channel>
     </Station>
     <Station code="CB23" startDate="2018-08-15T00:32:25.000000Z" endDate="2018-11-19T21:31:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB23",
   "GPS_CORRECTION": [],
@@ -18103,7 +20401,7 @@
       </Channel>
     </Station>
     <Station code="CB24" startDate="2018-08-15T00:54:01.000000Z" endDate="2018-11-21T20:11:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB24",
   "GPS_CORRECTION": [],
@@ -18164,7 +20462,7 @@
       </Channel>
     </Station>
     <Station code="CB25" startDate="2018-08-14T02:17:29.000000Z" endDate="2018-11-21T00:03:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB25",
   "GPS_CORRECTION": [],
@@ -18225,7 +20523,7 @@
       </Channel>
     </Station>
     <Station code="CB26" startDate="2018-08-14T01:52:33.000000Z" endDate="2018-11-20T23:22:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB26",
   "GPS_CORRECTION": [],
@@ -18286,7 +20584,7 @@
       </Channel>
     </Station>
     <Station code="CB27" startDate="2018-08-12T03:46:18.000000Z" endDate="2018-11-20T22:31:22.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB27",
   "GPS_CORRECTION": [],
@@ -18347,7 +20645,7 @@
       </Channel>
     </Station>
     <Station code="CB28" startDate="2018-06-11T01:43:00.000000Z" endDate="2018-06-19T01:35:35.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CB28",
   "GPS_CORRECTION": [],
@@ -18408,7 +20706,7 @@
       </Channel>
     </Station>
     <Station code="CC20" startDate="2018-08-14T23:04:40.000000Z" endDate="2018-11-17T20:53:41.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC20",
   "GPS_CORRECTION": [],
@@ -18469,7 +20767,7 @@
       </Channel>
     </Station>
     <Station code="CC21" startDate="2018-08-14T22:39:01.000000Z" endDate="2018-11-19T23:42:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC21",
   "GPS_CORRECTION": [],
@@ -18530,7 +20828,7 @@
       </Channel>
     </Station>
     <Station code="CC22" startDate="2018-08-14T22:14:29.000000Z" endDate="2018-11-20T00:18:59.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC22",
   "GPS_CORRECTION": [],
@@ -18591,7 +20889,7 @@
       </Channel>
     </Station>
     <Station code="CC23" startDate="2018-06-12T07:07:07.000000Z" endDate="2018-11-19T20:45:45.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC23",
   "GPS_CORRECTION": [],
@@ -18652,7 +20950,7 @@
       </Channel>
     </Station>
     <Station code="CC24" startDate="2018-08-14T21:26:38.000000Z" endDate="2018-11-19T20:02:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC24",
   "GPS_CORRECTION": [],
@@ -18713,7 +21011,7 @@
       </Channel>
     </Station>
     <Station code="CC25" startDate="2018-08-14T02:43:32.000000Z" endDate="2018-11-20T03:51:32.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC25",
   "GPS_CORRECTION": [],
@@ -18774,7 +21072,7 @@
       </Channel>
     </Station>
     <Station code="CC26" startDate="2018-08-14T01:33:32.000000Z" endDate="2018-11-20T20:10:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC26",
   "GPS_CORRECTION": [],
@@ -18835,7 +21133,7 @@
       </Channel>
     </Station>
     <Station code="CC27" startDate="2018-08-12T03:22:33.000000Z" endDate="2018-11-20T20:44:55.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC27",
   "GPS_CORRECTION": [],
@@ -18896,7 +21194,7 @@
       </Channel>
     </Station>
     <Station code="CC28" startDate="2018-08-12T04:40:01.000000Z" endDate="2018-11-20T21:23:15.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CC28",
   "GPS_CORRECTION": [],
@@ -18957,7 +21255,7 @@
       </Channel>
     </Station>
     <Station code="CD21" startDate="2018-06-08T04:36:47.000000Z" endDate="2018-11-18T00:15:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD21",
   "GPS_CORRECTION": [],
@@ -19018,7 +21316,7 @@
       </Channel>
     </Station>
     <Station code="CD22" startDate="2018-06-08T21:59:10.000000Z" endDate="2018-11-20T01:26:18.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD22",
   "GPS_CORRECTION": [],
@@ -19079,7 +21377,7 @@
       </Channel>
     </Station>
     <Station code="CD23" startDate="2018-08-13T21:48:24.000000Z" endDate="2018-11-20T02:23:16.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD23",
   "GPS_CORRECTION": [],
@@ -19140,7 +21438,7 @@
       </Channel>
     </Station>
     <Station code="CD24" startDate="2018-08-13T22:11:53.000000Z" endDate="2018-11-20T02:56:42.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD24",
   "GPS_CORRECTION": [],
@@ -19201,7 +21499,7 @@
       </Channel>
     </Station>
     <Station code="CD25" startDate="2018-08-14T03:08:28.000000Z" endDate="2018-11-19T01:03:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD25",
   "GPS_CORRECTION": [],
@@ -19262,7 +21560,7 @@
       </Channel>
     </Station>
     <Station code="CD26" startDate="2018-08-14T01:12:50.000000Z" endDate="2018-11-19T00:20:25.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD26",
   "GPS_CORRECTION": [],
@@ -19323,7 +21621,7 @@
       </Channel>
     </Station>
     <Station code="CD27" startDate="2018-08-12T03:01:07.000000Z" endDate="2018-11-14T22:10:44.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD27",
   "GPS_CORRECTION": [],
@@ -19384,7 +21682,7 @@
       </Channel>
     </Station>
     <Station code="CD28" startDate="2018-08-12T05:01:17.000000Z" endDate="2018-11-14T23:01:27.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CD28",
   "GPS_CORRECTION": [],
@@ -19445,7 +21743,7 @@
       </Channel>
     </Station>
     <Station code="CE22" startDate="2018-08-12T23:02:10.000000Z" endDate="2018-11-18T20:23:20.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE22",
   "GPS_CORRECTION": [],
@@ -19506,7 +21804,7 @@
       </Channel>
     </Station>
     <Station code="CE23" startDate="2018-06-06T00:41:08.000000Z" endDate="2018-11-18T21:12:33.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE23",
   "GPS_CORRECTION": [],
@@ -19567,7 +21865,7 @@
       </Channel>
     </Station>
     <Station code="CE24" startDate="2018-08-13T22:43:33.000000Z" endDate="2018-11-18T21:56:09.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE24",
   "GPS_CORRECTION": [],
@@ -19628,7 +21926,7 @@
       </Channel>
     </Station>
     <Station code="CE25" startDate="2018-08-13T23:11:44.000000Z" endDate="2018-11-18T22:43:53.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE25",
   "GPS_CORRECTION": [],
@@ -19689,7 +21987,7 @@
       </Channel>
     </Station>
     <Station code="CE26" startDate="2018-08-13T23:34:34.000000Z" endDate="2018-11-18T23:36:39.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE26",
   "GPS_CORRECTION": [],
@@ -19750,7 +22048,7 @@
       </Channel>
     </Station>
     <Station code="CE27" startDate="2018-08-12T02:40:41.000000Z" endDate="2018-11-14T21:28:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE27",
   "GPS_CORRECTION": [],
@@ -19811,7 +22109,7 @@
       </Channel>
     </Station>
     <Station code="CE28" startDate="2018-08-12T05:23:59.000000Z" endDate="2018-11-14T23:53:07.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CE28",
   "GPS_CORRECTION": [],
@@ -19872,7 +22170,7 @@
       </Channel>
     </Station>
     <Station code="CF22" startDate="2018-08-12T22:42:20.000000Z" endDate="2018-11-16T00:50:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF22",
   "GPS_CORRECTION": [],
@@ -19933,7 +22231,7 @@
       </Channel>
     </Station>
     <Station code="CF23" startDate="2018-06-06T04:35:19.000000Z" endDate="2018-11-15T22:05:23.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF23",
   "GPS_CORRECTION": [],
@@ -19994,7 +22292,7 @@
       </Channel>
     </Station>
     <Station code="CF24" startDate="2018-08-12T21:41:41.000000Z" endDate="2018-11-15T21:00:33.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF24",
   "GPS_CORRECTION": [],
@@ -20055,7 +22353,7 @@
       </Channel>
     </Station>
     <Station code="CF25" startDate="2018-08-12T21:15:49.000000Z" endDate="2018-11-15T20:20:39.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF25",
   "GPS_CORRECTION": [],
@@ -20116,7 +22414,7 @@
       </Channel>
     </Station>
     <Station code="CF27" startDate="2018-08-12T06:09:31.000000Z" endDate="2018-11-15T01:38:36.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF27",
   "GPS_CORRECTION": [],
@@ -20177,10 +22475,59 @@
       </Channel>
     </Station>
     <Station code="CF28" startDate="2018-08-12T05:45:10.000000Z" endDate="2018-08-24T10:02:20.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CF28",
-  "GPS_CORRECTION": [],
+  "GPS_CORRECTION": [
+    {
+      "date": "2018-08-13",
+      "clock_correction": -0.3860283475
+    },
+    {
+      "date": "2018-08-14",
+      "clock_correction": -0.3893351283
+    },
+    {
+      "date": "2018-08-15",
+      "clock_correction": -0.3926419091
+    },
+    {
+      "date": "2018-08-16",
+      "clock_correction": -0.3959486898
+    },
+    {
+      "date": "2018-08-17",
+      "clock_correction": -0.3992554706
+    },
+    {
+      "date": "2018-08-18",
+      "clock_correction": -0.4025622514
+    },
+    {
+      "date": "2018-08-19",
+      "clock_correction": -0.4058690321
+    },
+    {
+      "date": "2018-08-20",
+      "clock_correction": -0.4091758129
+    },
+    {
+      "date": "2018-08-21",
+      "clock_correction": -0.4124825936
+    },
+    {
+      "date": "2018-08-22",
+      "clock_correction": -0.4157893744
+    },
+    {
+      "date": "2018-08-23",
+      "clock_correction": -0.4190961552
+    },
+    {
+      "date": "2018-08-24",
+      "clock_correction": -0.4224029359
+    }
+  ],
   "ORIENT_CORRECTION": {
     "start_dt": "2017-11-07T09:07:34.930000Z",
     "end_dt": "2018-08-23T03:52:29.528000Z",
@@ -20238,7 +22585,7 @@
       </Channel>
     </Station>
     <Station code="CG21" startDate="2018-08-13T03:34:27.000000Z" endDate="2018-11-16T20:09:08.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG21",
   "GPS_CORRECTION": [],
@@ -20299,7 +22646,7 @@
       </Channel>
     </Station>
     <Station code="CG22" startDate="2018-08-13T00:40:14.000000Z" endDate="2018-11-15T23:56:13.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG22",
   "GPS_CORRECTION": [],
@@ -20360,7 +22707,7 @@
       </Channel>
     </Station>
     <Station code="CG23" startDate="2018-08-12T22:14:40.000000Z" endDate="2018-11-15T22:52:43.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CG23",
   "GPS_CORRECTION": [],
@@ -20421,7 +22768,7 @@
       </Channel>
     </Station>
     <Station code="CH21" startDate="2018-08-13T03:11:03.000000Z" endDate="2018-11-16T21:01:26.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH21",
   "GPS_CORRECTION": [],
@@ -20482,7 +22829,7 @@
       </Channel>
     </Station>
     <Station code="CH22" startDate="2018-08-13T01:11:15.000000Z" endDate="2018-11-17T01:12:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH22",
   "GPS_CORRECTION": [],
@@ -20543,7 +22890,7 @@
       </Channel>
     </Station>
     <Station code="CH23" startDate="2018-08-13T01:38:55.000000Z" endDate="2018-11-17T00:18:38.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CH23",
   "GPS_CORRECTION": [],
@@ -20604,7 +22951,7 @@
       </Channel>
     </Station>
     <Station code="CI21" startDate="2018-06-07T01:45:48.000000Z" endDate="2018-11-16T21:57:14.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI21",
   "GPS_CORRECTION": [],
@@ -20665,7 +23012,7 @@
       </Channel>
     </Station>
     <Station code="CI22" endDate="2018-11-16T22:34:10.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI22",
   "GPS_CORRECTION": [],
@@ -20726,7 +23073,7 @@
       </Channel>
     </Station>
     <Station code="CI23" startDate="2018-08-13T02:02:56.000000Z" endDate="2018-11-16T23:31:34.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CI23",
   "GPS_CORRECTION": [],
@@ -20787,7 +23134,7 @@
       </Channel>
     </Station>
     <Station code="CJ27" startDate="2018-08-12T00:57:59.000000Z" endDate="2018-11-12T00:36:40.000000Z">
-      <GeoscienceAustralia:GAMetadata xmlns:GeoscienceAustralia="https://github.com/GeoscienceAustralia/hiperseis">{
+      <GeoscienceAustralia:GAMetadata>{
   "network": "OA",
   "station": "CJ27",
   "GPS_CORRECTION": [],
