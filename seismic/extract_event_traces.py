@@ -281,7 +281,8 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
 
     start_time = UTC(start_time)
     end_time = UTC(end_time)
-    event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
+    if not os.path.exists(event_catalog_file):
+        event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
     event_trace_datafile = timestamp_filename(event_trace_datafile, start_time, end_time)
     assert not os.path.exists(event_trace_datafile), \
         "Output file {} already exists, please remove!".format(event_trace_datafile)
