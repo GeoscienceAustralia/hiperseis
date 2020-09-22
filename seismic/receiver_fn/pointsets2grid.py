@@ -38,7 +38,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import cartopy as cp
 
-from seismic.receiver_fn.moho_config import ConfigConstants as cc
+from seismic.receiver_fn.moho_config import ConfigConstants as cc, MethodDataset
 
 try:
     import kennett_dist
@@ -146,13 +146,10 @@ def make_grid(config_file):
     xy_mins = []
     xy_maxs = []
     for method_params in methods:
-        method = method_params[cc.NAME]
-        col_names = ['sta', 'lon', 'lat', 'depth', 'sw']
-        data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None,
-                             names=col_names, encoding=None)
-        pt_dataset = np.array((data['lon'], data['lat'], data['depth'])).T
+        data = MethodDataset(method_params)
+        pt_dataset = np.array((data.lon, data.lat, data.val)).T
         method_params['pt_data'] = pt_dataset
-        method_params['sample_weights'] = data['sw']
+        method_params['sample_weights'] = data.sw
         xy_map = pt_dataset[:, :2]
         xy_mins.append(xy_map.min(axis=0))
         xy_maxs.append(xy_map.max(axis=0))

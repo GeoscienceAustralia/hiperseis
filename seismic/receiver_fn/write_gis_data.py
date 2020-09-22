@@ -10,7 +10,7 @@ import rasterio
 import shapefile
 import numpy as np
 
-from seismic.receiver_fn.moho_config import ConfigConstants as cc
+from seismic.receiver_fn.moho_config import ConfigConstants as cc, MethodDataset
 
 # Plate Carree CRS
 CRS = rasterio.crs.CRS.from_proj4(
@@ -119,39 +119,35 @@ def write_sample_locations(config_file):
 
     methods = config[cc.METHODS]
     for method_params in methods:
+        data = MethodDataset(method_params)
         method = method_params[cc.NAME]
         outfile = os.path.join(gis_outdir, f'{method}' + cc.LOCATIONS_GIS)
         w = shapefile.Writer(outfile, shapeType=1)
         w.field('WEIGHT', 'N', decimal=2)
         w.field('DEPTH', 'N', decimal=2)
         w.field('STA', 'C')
-        data = _format_locations(method_params)
-        for d in data:
+        if data.net is None:
+            net = np.chararray(data.val.shape, 3)
+            net.fill('N/A')
+        else:
+            net = data.net
+        if data.sta is None:
+            sta = np.chararray(data.val.shape, 3)
+            sta.fill('N/A')
+        else:
+            sta = data.sta
+        formatted_data = np.array((data.lon, data.lat, data.total_weight, data.val, net, sta)).T
+        for d in formatted_data:
             w.point(float(d[0]), float(d[1]))
-            w.record(WEIGHT=d[2], DEPTH=d[3], STA=d[4])
+            w.record(WEIGHT=d[2], DEPTH=d[3], STA='.'.join((str(d[4]), str(d[5]))))
         w.close()
         # Write .prj file
         with open(f'{outfile}.prj', 'w') as prj:
             prj.write(CRS.wkt)
             
     print(f"Complete! Location shapefiles written to '{gis_outdir}'")
+ 
 
-
-def _format_locations(method_params):
-    """
-    Formats sample data to LON LAT TOTAL_WEIGHT DEPTH STA.
-    """
-    col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
-    data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None, encoding=None,
-                         names=col_names)
-    # Remove depth column
-    method_weight = method_params[cc.WEIGHT]
-    total_weight = method_weight * data['weight']
-    data = np.array((data['lon'], data['lat'], total_weight, data['depth'], data['sta'])).T
-    return data
-
-        
-   
 @click.command()
 @click.argument('config-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--depth', is_flag=True)

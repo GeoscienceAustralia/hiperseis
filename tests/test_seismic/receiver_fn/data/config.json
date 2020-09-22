@@ -2,14 +2,18 @@
     "methods":
     [
         {
-            "name": "ccp_1",
+            "name": "ccp1",
             "data": "ccp1.csv",
+            "val_name": "Depth",
+            "sw_name": "Weight",
             "weight": 1.0,
             "scale_length": 0.2
         },
         {
-            "name": "ccp_2",
+            "name": "ccp2",
             "data": "ccp2.csv",
+            "val_name": "Depth",
+            "sw_name": "Weight",
             "weight": 1.0,
             "scale_length": 0.5
         }

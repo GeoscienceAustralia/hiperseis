@@ -8,7 +8,7 @@ import json
 import click
 import numpy as np
 
-from seismic.receiver_fn.moho_config import ConfigConstants as cc
+from seismic.receiver_fn.moho_config import ConfigConstants as cc, MethodDataset
 
 def from_config(config_file):
     """
@@ -76,25 +76,12 @@ def from_config(config_file):
     methods = config[cc.METHODS]
     for method_params in methods:
         method = method_params[cc.NAME]
-        data = _format_locations(method_params)
+        data = MethodDataset(method_params)
+        formatted_data = np.array((data.lon, data.lat, data.total_weight)).T
         outfile = os.path.join(gmt_outdir, f'{method}' + cc.LOCATIONS_GMT)
         with open(outfile, 'w') as fw:
-            np.savetxt(fw, data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
+            np.savetxt(fw, formatted_data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
     print(f"Complete! Data files saved to '{gmt_outdir}'")
-
-
-def _format_locations(method_params):
-    """
-    Formats sample data to LON LAT TOTAL_WEIGHT.
-    """
-    col_names = ['sta', 'lon', 'lat', 'depth', 'weight']
-    data = np.genfromtxt(method_params[cc.DATA], delimiter=',', dtype=None, encoding=None,
-                         names=col_names)
-    # Remove depth column
-    method_weight = method_params[cc.WEIGHT]
-    total_weight = method_weight * data['weight']
-    data = np.array((data['lon'], data['lat'], total_weight)).T
-    return data
 
 
 @click.command()
