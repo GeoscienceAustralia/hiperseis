@@ -6,6 +6,7 @@ a JSON config file.
 import os
 import json
 import logging
+import tempfile
 
 import click
 from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
@@ -18,6 +19,21 @@ def run_workflow(config_file):
         config = json.load(f)
 
     validate(config)
+
+    # Filter out disabled methods
+    methods = config[cc.METHODS]
+    disabled_methods = [param[cc.NAME] for param in methods if param.get(cc.DISABLE, False)]
+    if disabled_methods:
+        print(f"Disabled methods: {disabled_methods}")
+        methods = [param for param in methods if not param.get(cc.DISABLE, False)]
+        # Raise an error if all methods are disabled
+        if not methods:
+            raise ValueError("All methods have been disabled - there is no data to process!")
+        config[cc.METHODS] = methods
+        # Save the modified config in a temp file so changes are applied through the workflow
+        _, config_file = tempfile.mkstemp()
+        with open(config_file, 'w') as f:
+            json.dump(config, f)
 
     # Data prep/correction
     data_prep = config.get(cc.DATA_PREP)
@@ -41,6 +57,10 @@ def run_workflow(config_file):
         write_gis_data.write_depth_grid(config_file)
         write_gis_data.write_gradient_grid(config_file)
         write_gis_data.write_sample_locations(config_file)
+
+    # If methods were disabled, remove the temporary config file
+    if disabled_methods:
+        os.remove(config_file)
 
     
 @click.command()

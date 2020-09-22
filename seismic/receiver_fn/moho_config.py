@@ -22,6 +22,7 @@ class ConfigConstants:
     WEIGHT = 'weight'
     VAL_NAME = 'val_name'
     SW_NAME = 'sw_name'
+    DISABLE = 'disable'
     INV_FILE = 'inventory_file'
     SCALE_LENGTH = 'scale_length'
     PLOT_FLAG = 'output_plot'
@@ -75,7 +76,7 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
 DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
                             _cc.DATA_VAL, _cc.CORR_VAL]
 
-METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
+METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE,
                          _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
@@ -155,6 +156,10 @@ def validate(config):
                 f"{_cc.SCALE_LENGTH} field")
         _check_type(scale_len, [float, int],
                 f"scale length for method {name} must be of type float or int")
+
+        disable_flag = params.get(_cc.DISABLE)
+        if disable_flag is not None:
+            _check_type(disable_flag, [bool], f"{_cc.DISABLE} flag must be of type bool")
 
     plt = config.get(_cc.PLOTTING)
     if plt is not None:
