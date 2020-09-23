@@ -247,14 +247,19 @@ class MethodDataset:
             line = f.readline()
             line_parts = line.split(' ')
             if line_parts[1] in MethodDataset.time_names:
-                self.epoch_time = int(line_parts[2].strip('#, \n'))
+                time = line_parts[2].strip('#, \n')
+                # Need to pass epoch as int to datetime64, find better way to differentiate ISO/epoch
+                # If time contains 'T', treat as ISO
+                if 'T' in time:
+                    self.datetime = np.datetime64(time, 's')
+                else:
+                    self.datetime = np.datetime64(int(time), 's')
                 header_line = f.readline()
                 data_start = start_line + 2
             else:
-                self.epoch_time = None
+                self.datetime = None
                 header_line = line
                 data_start = start_line + 1
-
             header_parts = header_line.split(',')
             net_col, sta_col, lat_col, lon_col, val_col, sw_col = -1, -1, -1, -1, -1, -1
             col_names = []
