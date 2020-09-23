@@ -302,6 +302,9 @@ class MethodDataset:
             data = np.genfromtxt(method_params[_cc.DATA], delimiter=',', dtype=None,
                     names=col_names, usecols=usecols, encoding=None, skip_header=data_start)
 
+            # Filter out NaN values
+            data = data[~np.isnan(data['val'])]
+
             self.val = data['val']
 
             if 'sw' in col_names:
@@ -336,14 +339,14 @@ class MethodDataset:
                 except IOError as e:
                     raise Exception("Inventory file doesn't exist") from e
                 for net, sta in zip(self.net, self.sta):
-                    coords = cache.get('.'.join(net, sta))
+                    coords = cache.get('.'.join((net, sta)))
                     if coords is None:
                         for c in inv.get_contents()['channels']:
                             if c.startswith('.'.join((net,sta))):
                                 coords = inv.get_coordinates(c)
                                 lats.append(float(coords['latitude']))
                                 lons.append(float(coords['longitude']))
-                                cache['.'.join(net,sta)] = (float(coords['latitude']), 
+                                cache['.'.join((net,sta))] = (float(coords['latitude']), 
                                     float(coords['longitude']))
                                 break
                     else:
