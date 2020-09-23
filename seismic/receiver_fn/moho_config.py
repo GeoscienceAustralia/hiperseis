@@ -4,6 +4,9 @@ the Moho workflow config.
 """
 import os
 
+import numpy as np
+from obspy import read_inventory
+
 import seismic.receiver_fn.ccp_correction
 
 
@@ -17,6 +20,9 @@ class ConfigConstants:
     NAME = 'name'
     DATA = 'data'
     WEIGHT = 'weight'
+    VAL_NAME = 'val_name'
+    SW_NAME = 'sw_name'
+    INV_FILE = 'inventory_file'
     SCALE_LENGTH = 'scale_length'
     PLOT_FLAG = 'output_plot'
     PLOT_PARAMS = 'plot_parameters'
@@ -29,7 +35,9 @@ class ConfigConstants:
     GIS_FLAG = 'output_gis'
     DATA_PREP = 'data_preperation'
     DATA_TO_PREP = 'data'
+    DATA_VAL = 'data_val'
     CORR_DATA = 'correction_data'
+    CORR_VAL  = 'correction_val'
     CORR_FUNC = 'correction_func'
     CORR_OUT = 'output_file'
 
@@ -64,15 +72,17 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
                             _cc.NAME, _cc.DATA, _cc.WEIGHT,
                             _cc.SCALE_LENGTH, _cc.DATA_PREP]
 
-DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT]
+DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
+                            _cc.DATA_VAL, _cc.CORR_VAL]
 
 METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
-                         _cc.SCALE_LENGTH]
+                         _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
                            _cc.GMT_FLAG, _cc.GIS_FLAG]
 
 CP_PARAM_SUPPORTED_KEYS = [_cc.PP_SCALE, _cc.PP_FMT, _cc.PP_SHOW, _cc.PP_TITLE, _cc.PP_CB_LABEL]
+
 
 def _try_lookup(d, f, msg):
     try:
@@ -205,3 +215,135 @@ def validate(config):
     else:
         print("No output directory provided, current working directory will be used")
 
+
+class MethodDataset:
+    start_names = ['Start', 'START', 'start']
+    time_names = ['Time', 'TIME', 'time']
+    net_names = ['net', 'Net', 'NET', 'network', 'Network', 'NETWORK']
+    sta_names = ['sta', 'Sta', 'STA', 'station', 'Station', 'STATION']
+    lat_names = ['lat', 'Lat', 'LAT', 'latitude', 'Latitude', 'LATITUDE']
+    lon_names = ['lon', 'Lon', 'LON', 'longitude', 'Longitude', 'LONGITUDE']
+
+    def __init__(self, method_params):
+        # Scan for header
+        with open(method_params[_cc.DATA], 'r') as f:
+            start_line = 0
+            start_found = False
+            while not start_found:
+                start_line += 1
+                line = f.readline()
+                if line.startswith('#'):
+                    if line.strip('#, \n') in MethodDataset.start_names:
+                        start_found = True
+                if line == '' and not start_found:
+                    raise Exception(f"No 'START' flag found in data file {method_params[_cc.DATA]}")
+
+            # Check if next line after start flag contains epoch time
+            line = f.readline()
+            line_parts = line.split(' ')
+            if line_parts[1] in MethodDataset.time_names:
+                time = line_parts[2].strip('#, \n')
+                # Need to pass epoch as int to datetime64, find better way to differentiate ISO/epoch
+                # If time contains 'T', treat as ISO
+                if 'T' in time:
+                    self.datetime = np.datetime64(time, 's')
+                else:
+                    self.datetime = np.datetime64(int(time), 's')
+                header_line = f.readline()
+                data_start = start_line + 2
+            else:
+                self.datetime = None
+                header_line = line
+                data_start = start_line + 1
+            header_parts = header_line.split(',')
+            net_col, sta_col, lat_col, lon_col, val_col, sw_col = -1, -1, -1, -1, -1, -1
+            col_names = []
+            usecols = []
+            for i, x in enumerate(header_parts):
+                x = x.strip('#, \n')
+                if x in MethodDataset.net_names:
+                    net_col = i
+                    col_names.append('net')
+                    usecols.append(net_col)
+                elif x in MethodDataset.sta_names:
+                    sta_col = i
+                    col_names.append('sta')
+                    usecols.append(sta_col)
+                elif x in MethodDataset.lat_names:
+                    lat_col = i
+                    col_names.append('lat')
+                    usecols.append(lat_col)
+                elif x in MethodDataset.lon_names:
+                    lon_col = i
+                    col_names.append('lon')
+                    usecols.append(lon_col)
+                elif x == method_params.get(_cc.VAL_NAME):
+                    val_col = i
+                    col_names.append('val')
+                    usecols.append(val_col)
+                elif x == method_params.get(_cc.SW_NAME):
+                    sw_col = i
+                    col_names.append('sw')
+                    usecols.append(sw_col)
+
+            if val_col == -1:
+                raise Exception(f"No value column named '{_cc.VAL_NAME}' found in data file")
+
+            if (lat_col == -1 or lon_col == -1) and (sta_col == -1 or net_col == -1):
+                raise Exception(f"Neither lat/lon columns or net/sta columns were provided. "
+                        "Either lat/lon needs to specified for each sample or net/sta and an "
+                        "inventory file")
+            
+            data = np.genfromtxt(method_params[_cc.DATA], delimiter=',', dtype=None,
+                    names=col_names, usecols=usecols, encoding=None, skip_header=data_start)
+
+            self.val = data['val']
+
+            if 'sw' in col_names:
+                self.sw = data['sw']
+            else:
+                self.sw = np.ones_like(self.val)
+
+            dw_weight = method_params.get(_cc.WEIGHT, 1.0)
+            self.total_weight = self.sw * dw_weight
+
+            if 'net' in col_names:
+                self.net = data['net']
+            else:
+                self.net = None
+
+            if 'sta' in col_names:
+                self.sta = data['sta']
+            else:
+                self.sta = None
+
+            if 'lat' in col_names and 'lon' in col_names:
+                self.lat = data['lat']
+                self.lon = data['lon']
+            # Derive locations from inventory file
+            else:   
+                # Only have access to the Net.Sta code so we pick the first channel for this
+                # station and take that location.
+                lats, lons = [], []
+                cache = {}
+                try:
+                    inv = read_inventory(method_params[_cc.INV_FILE])
+                except IOError as e:
+                    raise Exception("Inventory file doesn't exist") from e
+                for net, sta in zip(self.net, self.sta):
+                    coords = cache.get('.'.join(net, sta))
+                    if coords is None:
+                        for c in inv.get_contents()['channels']:
+                            if c.startswith('.'.join((net,sta))):
+                                coords = inv.get_coordinates(c)
+                                lats.append(float(coords['latitude']))
+                                lons.append(float(coords['longitude']))
+                                cache['.'.join(net,sta)] = (float(coords['latitude']), 
+                                    float(coords['longitude']))
+                                break
+                    else:
+                        lats.append(coords[0])
+                        lons.append(coords[1])
+
+                self.lat = np.array(lats)
+                self.lon = np.array(lons)

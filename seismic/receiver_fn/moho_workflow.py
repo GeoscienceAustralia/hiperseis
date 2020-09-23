@@ -9,7 +9,8 @@ import logging
 
 import click
 from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
-from seismic.receiver_fn.moho_config import ConfigConstants as cc, validate, CORR_FUNC_MAP
+from seismic.receiver_fn.moho_config import (
+    ConfigConstants as cc, validate, CORR_FUNC_MAP, MethodDataset)
 
 
 def run_workflow(config_file):
@@ -21,9 +22,11 @@ def run_workflow(config_file):
     # Data prep/correction
     data_prep = config.get(cc.DATA_PREP)
     if data_prep is not None:
+        # Correct d1 by d2
         for params in data_prep:
-            CORR_FUNC_MAP[params[cc.CORR_FUNC]](
-                    params[cc.DATA_TO_PREP], params[cc.CORR_DATA], params[cc.CORR_OUT])
+            d1 = MethodDataset({cc.DATA: params[cc.DATA_TO_PREP], cc.VAL_NAME: params[cc.DATA_VAL]})
+            d2 = MethodDataset({cc.DATA: params[cc.CORR_DATA], cc.VAL_NAME: params[cc.CORR_VAL]})
+            CORR_FUNC_MAP[params[cc.CORR_FUNC]](d1, d2, params[cc.CORR_OUT])
 
     # Moho interpolation 
     pointsets2grid.make_grid(config_file)
