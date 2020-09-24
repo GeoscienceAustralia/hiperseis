@@ -21,19 +21,8 @@ def run_workflow(config_file):
     validate(config)
 
     # Filter out disabled methods
-    methods = config[cc.METHODS]
-    disabled_methods = [param[cc.NAME] for param in methods if param.get(cc.DISABLE, False)]
-    if disabled_methods:
-        print(f"Disabled methods: {disabled_methods}")
-        methods = [param for param in methods if not param.get(cc.DISABLE, False)]
-        # Raise an error if all methods are disabled
-        if not methods:
-            raise ValueError("All methods have been disabled - there is no data to process!")
-        config[cc.METHODS] = methods
-        # Save the modified config in a temp file so changes are applied through the workflow
-        _, config_file = tempfile.mkstemp()
-        with open(config_file, 'w') as f:
-            json.dump(config, f)
+    new_cfg_file, disabled_methods = filter_methods(config)
+    config_file = new_cfg_file if disabled_methods else config_file
 
     # Data prep/correction
     data_prep = config.get(cc.DATA_PREP)
@@ -43,6 +32,21 @@ def run_workflow(config_file):
             d1 = MethodDataset({cc.DATA: params[cc.DATA_TO_PREP], cc.VAL_NAME: params[cc.DATA_VAL]})
             d2 = MethodDataset({cc.DATA: params[cc.CORR_DATA], cc.VAL_NAME: params[cc.CORR_VAL]})
             CORR_FUNC_MAP[params[cc.CORR_FUNC]](d1, d2, params[cc.CORR_OUT])
+
+    # Sample selection
+    methods = config[cc.METHODS]
+    for param in methods:
+        if param.get(cc.PRIORITY) is None:
+            param[cc.PRIORITY] = 0
+    # Sort and then select samples based on priotity
+    prioritised_params = sorted(methods, key=lambda x: x[cc.PRIORITY], reverse=True)
+    for i, p1 in enumerate(prioritised_params):
+        for j, p2 in enumerate(prioritised_params):
+            if i == j:
+                continue
+            else:
+                p1.compare_dataset(p2)
+
 
     # Moho interpolation 
     pointsets2grid.make_grid(config_file)
@@ -61,6 +65,25 @@ def run_workflow(config_file):
     # If methods were disabled, remove the temporary config file
     if disabled_methods:
         os.remove(config_file)
+
+
+def filter_methods(config):
+    methods = config[cc.METHODS]
+    disabled_methods = [param[cc.NAME] for param in methods if param.get(cc.DISABLE, False)]
+    if disabled_methods:
+        print(f"Disabled methods: {disabled_methods}")
+        methods = [param for param in methods if not param.get(cc.DISABLE, False)]
+        # Raise an error if all methods are disabled
+        if not methods:
+            raise ValueError("All methods have been disabled - there is no data to process!")
+        config[cc.METHODS] = methods
+        # Save the modified config in a temp file so changes are applied through the workflow
+        _, config_file = tempfile.mkstemp()
+        with open(config_file, 'w') as f:
+            json.dump(config, f)
+        return config_file, disabled_methods
+    else:
+        return None, disabled_methods
 
     
 @click.command()

@@ -19,6 +19,7 @@ class ConfigConstants:
     OUTPUT_DIR = 'output_directory'
     NAME = 'name'
     DATA = 'data'
+    PRIORITY = 'priority'
     WEIGHT = 'weight'
     VAL_NAME = 'val_name'
     SW_NAME = 'sw_name'
@@ -76,7 +77,7 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
 DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
                             _cc.DATA_VAL, _cc.CORR_VAL]
 
-METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE,
+METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE, _cc.PRIORITY,
                          _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
@@ -312,8 +313,8 @@ class MethodDataset:
             else:
                 self.sw = np.ones_like(self.val)
 
-            dw_weight = method_params.get(_cc.WEIGHT, 1.0)
-            self.total_weight = self.sw * dw_weight
+            self.dataset_weight = method_params.get(_cc.WEIGHT, 1.0)
+            self.total_weight = self.sw * self.dataset_weight
 
             if 'net' in col_names:
                 self.net = data['net']
@@ -355,3 +356,48 @@ class MethodDataset:
 
                 self.lat = np.array(lats)
                 self.lon = np.array(lons)
+
+    def remove(self, indices):
+        if not indices:
+            return
+        else:
+            self.val = np.delete(self.val, indices)
+            self.sw = np.delete(self.sw, indices)
+            self.total_weight = self.sw * self.dataset_weight
+            self.net = np.delete(self.net, indices) if self.net is not None else None
+            self.sta = np.delete(self.sta, indices) if self.sta is not None else None
+            self.lat = np.delete(self.lat, indices)
+            self.lon = np.delete(self.lon, indices)
+
+    def compare_dataset(self, other, preferences):
+        def _dist(lat_a, lon_a, lat_b, lon_b):
+            """
+            Spherical distance. Requires 'kennett_dist' f2py module.
+            Copyright B.L.N Kennett 1978, R.S.E.S A.N.U
+            """
+            # Distance in degrees
+            delta, _, _ = kennett_dist.ydiz(lat_a, lon_a, lat_b, lon_b)
+            return delta
+
+        type_prefs = preferences.get('type')
+        to_remove_a = []
+        to_remove_b = []
+        for index_a, (lat_a, lon_a) in enumerate(zip(self.data['lat'], self.data['lon'])):
+            for index_b, (lat_b, lon_b) in enumerate(zip(other.data['lat'], other.data['lon'])):
+                if _dist(lat_a, lon_a, lat_b, lon_b) <= 0.018:
+                    if type_prefs.get(self.type, 0) > type_prefs.get(other.type, 0):
+                        # Prefer point A
+                        print(f"Debug: {self.type} being preferred over {other.type} for point "
+                              f"{lat_a}, {lon_a}")
+                        to_remove_b.append(index_b)
+                    elif type_prefs.get(self.type, 0) == type_prefs.get(other.type, 0):
+                        # Do nothing
+                        continue
+                    else:
+                        # Prefer point B
+                        print(f"Debug: {other.type} being preferred over {self.type} for point "
+                              f"{lat_a}, {lon_a}")
+                        to_remove_a.append(index_a)
+
+        self.remove(to_remove_a)
+        other.remove(to_remove_b)
