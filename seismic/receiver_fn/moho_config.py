@@ -3,6 +3,7 @@ This module contains functions and constants to assist with parsing
 the Moho workflow config.
 """
 import os
+import json
 
 import numpy as np
 from obspy import read_inventory
@@ -222,6 +223,86 @@ def validate(config):
         print("No output directory provided, current working directory will be used")
 
 
+class WorkflowParameters:
+    def __init__(self, config_file):
+        self.config_file = config_file
+        with open(self.config_file) as f:
+            config = json.load(f)
+
+        validate(config)
+
+        self.output_dir = config.get(_cc.OUTPUT_DIR, os.getcwd())
+
+        self.bounds = config.get(_cc.BOUNDS)
+        self.grid_interval = config[_cc.GRID_INTERVAL]
+        self.grid_data = os.path.join(self.output_dir, _cc.MOHO_GRID)
+        self.grad_data = os.path.join(self.output_dir, _cc.MOHO_GRAD)
+
+        plotting = config.get(_cc.PLOTTING)
+        if plotting is not None:
+            self.plot_spatial_map = plotting.get(_cc.PLOT_FLAG, False)
+            plot_params = plotting.get(_cc.PLOT_PARAMS)
+            if plot_params is not None:
+                self.plot_scale = plot_params.get(_cc.PP_SCALE)
+                self.plot_fmt = plot_params.get(_cc.PP_FMT, 'png')
+                self.plot_show = plot_params.get(_cc.PP_SHOW, False)
+                self.plot_title = plot_params.get(_cc.PP_TITLE, 'Moho depth from blended data')
+                self.plot_label = plot_params.get(_cc.PP_CB_LABEL, 'Moho depth (km)')
+            self.plot_file = os.path.join(self.output_dir, _cc.MOHO_PLOT + f'.{self.plot_fmt}')
+
+            self.gmt_write = plotting.get(_cc.GMT_FLAG, False)
+            self.gmt_dir = os.path.join(self.output_dir, _cc.GMT_DIR)
+            self.gmt_grid_file = os.path.join(self.gmt_dir, _cc.MOHO_GRID_GMT)
+            self.gmt_grad_file = os.path.join(self.gmt_dir, _cc.MOHO_GRAD_GMT)
+            self.gmt_loc_file = os.path.join(self.gmt_dir, '{}' + _cc.LOCATIONS_GMT)
+
+            self.gis_write = plotting.get(_cc.GIS_FLAG, False)
+            self.gis_dir = os.path.join(self.output_dir, _cc.GIS_DIR)
+            self.gis_grid_file = os.path.join(self.gis_dir, _cc.MOHO_GRID_GIS)
+            self.gis_grad_file = os.path.join(self.gis_dir, _cc.MOHO_GRAD_GIS)
+            self.gis_loc_file = os.path.join(self.gis_dir, '{}' + _cc.LOCATIONS_GIS)
+
+        # Correction/data prep
+        data_prep = config.get(_cc.DATA_PREP)
+        if data_prep is not None:
+            # Correct d1 by d2
+            for params in data_prep:
+                d1 = MethodDataset({cc.DATA: params[cc.DATA_TO_PREP], cc.VAL_NAME: params[cc.DATA_VAL]})
+                d2 = MethodDataset({cc.DATA: params[cc.CORR_DATA], cc.VAL_NAME: params[cc.CORR_VAL]})
+                CORR_FUNC_MAP[params[cc.CORR_FUNC]](d1, d2, params[cc.CORR_OUT])
+    
+        # Filter out disabled methods
+        methods = WorkflowParameters.filter_methods(config[_cc.METHODS])
+
+        self.method_datasets = [MethodDataset(params) for params in methods]
+
+    #def sample_select(self):
+    #    # Sample selection
+    #    methods = config[cc.METHODS]
+    #    for param in methods:
+    #        if param.get(cc.PRIORITY) is None:
+    #            param[cc.PRIORITY] = 0
+    #    # Sort and then select samples based on priotity
+    #    prioritised_params = sorted(methods, key=lambda x: x[cc.PRIORITY], reverse=True)
+    #    for i, p1 in enumerate(prioritised_params):
+    #        for j, p2 in enumerate(prioritised_params):
+    #            if i == j:
+    #                continue
+    #            else:
+    #                p1.compare_dataset(p2)
+
+    @staticmethod
+    def filter_methods(methods):
+        disabled_methods = [param[_cc.NAME] for param in methods if param.get(_cc.DISABLE, False)]
+        if disabled_methods:
+            print(f"Disabled methods: {disabled_methods}")
+            methods = [param for param in methods if not param.get(_cc.DISABLE, False)]
+            # Raise an error if all methods are disabled
+            if not methods:
+                raise ValueError("All methods have been disabled - there is no data to process!")
+        return methods
+
+
 class MethodDataset:
     start_names = ['Start', 'START', 'start']
     time_names = ['Time', 'TIME', 'time']
@@ -231,6 +312,10 @@ class MethodDataset:
     lon_names = ['lon', 'Lon', 'LON', 'longitude', 'Longitude', 'LONGITUDE']
 
     def __init__(self, method_params):
+        self.name = method_params.get(_cc.NAME, 'undefined')
+        self.scale_length = method_params.get(_cc.SCALE_LENGTH, None)
+
+        # Parse data file
         # Scan for header
         with open(method_params[_cc.DATA], 'r') as f:
             start_line = 0
