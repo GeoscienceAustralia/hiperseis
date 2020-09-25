@@ -38,60 +38,9 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import cartopy as cp
 
-from seismic.receiver_fn.moho_config import ConfigConstants as cc, MethodDataset
+from seismic.receiver_fn.moho_config import DIST_METRIC 
 
-try:
-    import kennett_dist
-    K_DIST = True
-except ImportError:
-    print("Kennett distance function not found. Using haversine.")
-    K_DIST = False
-
-DEFAULT_CUTOFF = 3.6  # dimensionless factor applied to scale length
-
-def _kennett_dist(s, r, **kwargs):
-    """
-    Spherical distance. Requires 'kennett_dist' f2py module.
-    Copyright B.L.N Kennett 1978, R.S.E.S A.N.U
-    """
-    clons, clats = s
-    clonr, clatr = r
-    max_dist = kwargs.get('max_dist', np.inf)
-    # Distance in degrees
-    delta, _, _ = kennett_dist.ydiz(clats, clons, clatr, clonr)
-    if delta > max_dist:
-        return np.nan
-    else:
-        return delta
-
-
-def _haversine(s, r, **kwargs):
-    """
-    Haversine distance.
-    """
-    lon1, lat1 = s
-    lon2, lat2 = r
-    max_dist = kwargs.get('max_dist', np.inf)
-    R = 6372.8
-
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    lat1 = math.radians(lat1)
-    lat2 = math.radians(lat2)
-
-    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
-    c = 2 * math.asin(math.sqrt(a))
-
-    delta_degrees = c * 180.0/math.pi
-
-    if delta_degrees > max_dist:
-        return np.nan
-    else:
-        return delta_degrees
-
-
-DIST_METRIC = _kennett_dist if K_DIST else _haversine
-
+DEFAULT_CUTOFF = 3.6
 
 def _grid(bb_min, bb_max, spacing):
     if bb_min[0] >= bb_max[0]:

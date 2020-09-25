@@ -11,6 +11,57 @@ from obspy import read_inventory
 import seismic.receiver_fn.ccp_correction
 
 
+try:
+    import kennett_dist
+    K_DIST = True
+except ImportError:
+    print("Kennett distance function not found. Using haversine.")
+    K_DIST = False
+
+def _kennett_dist(s, r, **kwargs):
+    """
+    Spherical distance. Requires 'kennett_dist' f2py module.
+    Copyright B.L.N Kennett 1978, R.S.E.S A.N.U
+    """
+    clons, clats = s
+    clonr, clatr = r
+    max_dist = kwargs.get('max_dist', np.inf)
+    # Distance in degrees
+    delta, _, _ = kennett_dist.ydiz(clats, clons, clatr, clonr)
+    if delta > max_dist:
+        return np.nan
+    else:
+        return delta
+
+
+def _haversine(s, r, **kwargs):
+    """
+    Haversine distance.
+    """
+    lon1, lat1 = s
+    lon2, lat2 = r
+    max_dist = kwargs.get('max_dist', np.inf)
+    R = 6372.8
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+
+    delta_degrees = c * 180.0/math.pi
+
+    if delta_degrees > max_dist:
+        return np.nan
+    else:
+        return delta_degrees
+
+
+DIST_METRIC = _kennett_dist if K_DIST else _haversine
+
+
 class ConfigConstants:
     # Field names
     METHODS = 'methods'
@@ -275,21 +326,71 @@ class WorkflowParameters:
         methods = WorkflowParameters.filter_methods(config[_cc.METHODS])
 
         self.method_datasets = [MethodDataset(params) for params in methods]
+        self.prioritise_samples()
 
-    #def sample_select(self):
-    #    # Sample selection
-    #    methods = config[cc.METHODS]
-    #    for param in methods:
-    #        if param.get(cc.PRIORITY) is None:
-    #            param[cc.PRIORITY] = 0
-    #    # Sort and then select samples based on priotity
-    #    prioritised_params = sorted(methods, key=lambda x: x[cc.PRIORITY], reverse=True)
-    #    for i, p1 in enumerate(prioritised_params):
-    #        for j, p2 in enumerate(prioritised_params):
-    #            if i == j:
-    #                continue
-    #            else:
-    #                p1.compare_dataset(p2)
+    def prioritise_samples(self):
+        """
+        Sorts datasets by priority parameter, compares them from highest 
+        to lowest. E.g. A.priority = 2, B.priority = 1, C.priority = 0 
+        then comparison will be A vs [B, C], B vs C.
+
+        The idea is that points in A close to those in B and C will
+        supercede them (points in B and C will be removed) and again
+        for points in B close to those in C.
+        """
+        pri_sorted = sorted(self.method_datasets, key=lambda x: x.priority, reverse=True)
+        for i, p1 in enumerate(pri_sorted):
+            for j, p2 in enumerate(pri_sorted):
+                if -1 in [p1.priority, p2.priority]:
+                    # Non-prioritised data, skip
+                    continue
+                if p1.priority > p2.priority:
+                    if all(x is not None for x in [p1.net, p1.sta, p2.net, p2.sta]): 
+                        # If network and station data is available, compare points by 
+                        # station origin and distance
+                        WorkflowParameters.prioritise_by_station(p1, p2)
+                    else:
+                        # Otherwise compare only by distance
+                        WorkflowParameters.prioritise_by_location(p1, p2)
+    
+    @staticmethod
+    def prioritise_by_station(m1, m2):
+        """
+        Prioritises samples by looking at points that share stations 
+        between the two datasets. If two points in the datasets 
+        share a station and are within 2km of each other, then 
+        the higher priority dataset (m1) is prioritised (m2 point is
+        removed).
+        """
+        to_remove = []
+        for net, sta in set(zip(m1.net, m1.sta)):
+            m1_station = np.where(np.logical_and(m1.net == net, m1.sta == sta))
+            m2_station = np.where(np.logical_and(m2.net == net, m2.sta == sta))
+            for lat_1, lon_1 in zip(m1.lat[m1_station], m1.lon[m1_station]):
+                for i, (lat_2, lon_2) in enumerate(zip(m2.lat[m2_station], m2.lon[m2_station])):
+                    dist = DIST_METRIC((lon_1, lat_1), (lon_2, lat_2))
+                    if dist <= 0.018:
+                        to_remove.append(m2_station[0][i])
+        print(f'{len(to_remove)} samples from {m1.name} are being '
+              f'prioritised over samples from {m2.name}')
+        m2.remove(to_remove)
+
+    @staticmethod
+    def prioritise_by_location(m1, m2):
+        """
+        Prioritises samples. If two points in the datasets are
+        within 2km of each other, then the higher priority dataset
+        (m1) is prioritised (m2 point is removed).
+        """
+        to_remove = []
+        for lat_1, lon_1 in zip(m1.lat, m1.lon):
+            for i, (lat_2, lon_2) in enumerate(zip(m2.lat, m2.lon)):
+                dist = DIST_METRIC((lon_1, lat_1), (lon_2, lat_2))
+                if dist <= 0.018:
+                    to_remove.append(i)
+        print(f'{len(to_remove)} samples from {m1.name} are being '
+              f'prioritised over samples from {m2.name}')
+        m2.remove(to_remove)
 
     @staticmethod
     def filter_methods(methods):
@@ -314,6 +415,7 @@ class MethodDataset:
     def __init__(self, method_params):
         self.name = method_params.get(_cc.NAME, 'undefined')
         self.scale_length = method_params.get(_cc.SCALE_LENGTH, None)
+        self.priority = method_params.get(_cc.PRIORITY, -1)
 
         # Parse data file
         # Scan for header
@@ -454,35 +556,3 @@ class MethodDataset:
             self.lat = np.delete(self.lat, indices)
             self.lon = np.delete(self.lon, indices)
 
-    def compare_dataset(self, other, preferences):
-        def _dist(lat_a, lon_a, lat_b, lon_b):
-            """
-            Spherical distance. Requires 'kennett_dist' f2py module.
-            Copyright B.L.N Kennett 1978, R.S.E.S A.N.U
-            """
-            # Distance in degrees
-            delta, _, _ = kennett_dist.ydiz(lat_a, lon_a, lat_b, lon_b)
-            return delta
-
-        type_prefs = preferences.get('type')
-        to_remove_a = []
-        to_remove_b = []
-        for index_a, (lat_a, lon_a) in enumerate(zip(self.data['lat'], self.data['lon'])):
-            for index_b, (lat_b, lon_b) in enumerate(zip(other.data['lat'], other.data['lon'])):
-                if _dist(lat_a, lon_a, lat_b, lon_b) <= 0.018:
-                    if type_prefs.get(self.type, 0) > type_prefs.get(other.type, 0):
-                        # Prefer point A
-                        print(f"Debug: {self.type} being preferred over {other.type} for point "
-                              f"{lat_a}, {lon_a}")
-                        to_remove_b.append(index_b)
-                    elif type_prefs.get(self.type, 0) == type_prefs.get(other.type, 0):
-                        # Do nothing
-                        continue
-                    else:
-                        # Prefer point B
-                        print(f"Debug: {other.type} being preferred over {self.type} for point "
-                              f"{lat_a}, {lon_a}")
-                        to_remove_a.append(index_a)
-
-        self.remove(to_remove_a)
-        other.remove(to_remove_b)
