@@ -85,11 +85,11 @@ class InvXML_Modifier:
             # The source should be the id whoever create the file.
             source="Geoscience Australia EFTF AusArray")
 
-        for a_net in big_inv.networks:
+        for a_net in self.inv_obj.networks:
             # Re-write each network of the big inventory into the new object inv2
             # inv2.networks = []
             inv2.networks.append(a_net)
-            print("The network %s has %s stations."(a_net.code, len(a_net.stations)))
+            print("The network %s has %s stations."%(a_net.code, len(a_net.stations)))
 
         inv2.write(new_version_xml, format="stationxml", validate=True)  # every Station got equipment
 
@@ -122,11 +122,11 @@ class InvXML_Modifier:
         # in_station_xml_file = "/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml"
 
         # extra metadata info file(s) to be read and formatted into JSON
-        in_csv_file = os.path.join(METADB_DIR, "OA_All_GPSClock_Correction.csv")
+        in_csv_file = os.path.join(METADB_DIR, "All_GPSClock_Correction.csv")
         # "/Datasets/GPS_ClockCorr/OA.CE28_clock_correction.csv" # "./OA.CF28_clock_correction.csv"
 
         # "/Datasets/Orientation_Correction_json/OA_ori_error_estimates.json"
-        in_json_file = os.path.join(METADB_DIR, "OrientationCorr", "OA_ori_error_estimates.json")
+        in_json_file = os.path.join(METADB_DIR, "OrientationCorr", "7X_ori_error_estimates.json")
 
         in_equip_csv = os.path.join(METADB_DIR, "Equipments/FieldSiteVisitLive.csv")
 
@@ -283,7 +283,9 @@ if __name__ == "__main__":
 
     METADB_DIR = "/Datasets/Station_Extra_Metadata" #/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"
 
-    ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "OA_stations_2017-2018.xml")
+    # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "OA_stations_2017-2018.xml")
+    # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7D_2012_2013.xml")
+    ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7X_2009_2011_ASDF.xml")
     # "/Datasets/InventoryXml/OA_stations_2017-2018.xml"
 
     # output
@@ -293,6 +295,10 @@ if __name__ == "__main__":
         os.mkdir(OUTPUT_DIR)
 
     my_obj = InvXML_Modifier(ORIG_INVENTORY_FILE, OUTPUT_DIR)
-    my_obj.check_invenory()
 
-    # my_obj.modify_invenory()
+    my_obj.check_invenory()
+    my_obj.split_inventory()
+    my_obj.write_new_version_inventory()
+    
+    # provide the right input data
+    my_obj.modify_invenory(gps_clock_corr_csv=None, orient_corr_json=None,equipment_csv=None)
