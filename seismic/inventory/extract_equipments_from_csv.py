@@ -16,7 +16,7 @@ import json
 
 class EquipmentExtractor:
 
-    def __init__(self, csvfile="../../../tests/testdata/FieldSiteVisitLive.csv"):
+    def __init__(self, csvfile="../../tests/testdata/FieldSiteVisitLive.csv"):
         self.csvfile = csvfile
         # where is the input CSV file
 
@@ -88,9 +88,10 @@ class EquipmentExtractor:
         json_str = _equip.to_json(orient="records")
         return json.loads(json_str)
 
-
+# =======================
+# A quick test run
 if __name__ == '__main__':
-    my_equip_obj = EquipmentExtractor()
+    my_equip_obj = EquipmentExtractor() #provide the original csv files from field work company
 
     pdf_equip = my_equip_obj.get_equipment_from_csv()
 
@@ -100,10 +101,11 @@ if __name__ == '__main__':
     station_codes=["BS24", "BS25", "BS26","BS27",  "BS28", "BT23", "BT24", "BT25", "BT26","BT27", "BT28"]
 
     for stacode in station_codes:
+        # print("Digitizer: ", type(my_equip_obj.get_digitizer("OA", stacode)))  # list
 
         if len(my_equip_obj.get_sensors("OA", stacode))>0:
             print("Sensor: ",  my_equip_obj.get_sensors("OA", stacode)[0].get('Description'))
         else:
-            print("WARN: No sensors for (%s,%s)" % ("OA", stacode))
+            print("%s %s No sensors" % ("OA", stacode))
 
-        print("Digitizer: ", type(my_equip_obj.get_digitizer("OA", stacode)))
+
