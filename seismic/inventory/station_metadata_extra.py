@@ -86,7 +86,8 @@ class StationMetadataExtra:  # CapWords naming convention.
         # drop columns inplace pdf2 itself will be changed, otherwise will return a new df
         pdf2.drop(['net', 'sta', 'utcdate'], axis=1, inplace=True)
         #print(self.net, self.sta, " shapes = ", pdf.shape, pdf2.shape)
-        print(self.net, self.sta, " GPS corrections = ", pdf2.shape[0])
+        if pdf2.shape[0] > 0 : # which has gps corrections
+            print(self.net, self.sta, " GPS corrections = ", pdf2.shape[0])
 
         # to json object, ignore default variables
         # gps_corr = pdf2.to_json(orient="records", date_format="epoch", double_precision=10,
