@@ -107,6 +107,8 @@ class InvXML_Modifier:
 
         """
 
+        GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"
+
         # Construct a new inventory object of networks.
         # This will use new obspy version and new attributes:
         inv2 = Inventory(
@@ -115,28 +117,13 @@ class InvXML_Modifier:
             # The source should be the id whoever create the file.
             source="Geoscience Australia EFTF AusArray PST")
 
-        GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"
-
-        # Original station inventory XML file to be modified, examples
-        # /g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml
-        # in_station_xml_file = "/Datasets/StationXML_with_time_corrections2/OA.CF28_station_inv_modified.xml"
-
-        # extra metadata info file(s) to be read and formatted into JSON
-        in_csv_file = os.path.join(METADB_DIR, "All_GPSClock_Correction.csv")
-        # "/Datasets/GPS_ClockCorr/OA.CE28_clock_correction.csv" # "./OA.CF28_clock_correction.csv"
-
-        # "/Datasets/Orientation_Correction_json/OA_ori_error_estimates.json"
-        in_json_file = os.path.join(METADB_DIR, "OrientationCorr", "7X_ori_error_estimates.json")
-
-        in_equip_csv = os.path.join(METADB_DIR, "Equipments/FieldSiteVisitLive.csv")
 
         # output dir for modified station inventory xml files
         out_dir = self.output_dir  # "/home/fzhang/tmpdir"
 
-        net, sta, csv_data = get_csv_correction_data(in_csv_file)
-        net_sta, oricorr_json_data = get_orientation_corr(in_json_file)
-
-        my_equip_obj = EquipmentExtractor(csvfile=in_equip_csv)
+        net, sta, csv_data = get_csv_correction_data(gps_clock_corr_csv)
+        net_sta, oricorr_json_data = get_orientation_corr(orient_corr_json)
+        my_equip_obj = EquipmentExtractor(csvfile=equipment_csv)
 
         big_inv = self.inv_obj
 
@@ -269,9 +256,11 @@ class InvXML_Modifier:
         for net in big_inv.networks:
             print("The Network Code", net.code)
             number_of_stations = len(net.stations)
-            print("The total number of stations/nodes =", number_of_stations)
+            print("The total number of stations-nodes =", number_of_stations)
 
-            for i in range(number_of_stations):
+        # identify None start or end Date
+        for i in range(number_of_stations):
+            if net.stations[i].start_date is None or net.stations[i].end_date is None:
                 print(net.stations[i].code, net.stations[i].start_date, net.stations[i].end_date)
 
         return "True-False"
@@ -282,11 +271,21 @@ if __name__ == "__main__":
     print("The Obspy Version is ", obspy.__version__)
 
     METADB_DIR = "/Datasets/Station_Extra_Metadata" #/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"
+    METADB_DIR = "/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"
 
-    # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "OA_stations_2017-2018.xml")
     # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7D_2012_2013.xml")
-    ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7X_2009_2011_ASDF.xml")
+    # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7X_2009_2011_ASDF.xml")
     # "/Datasets/InventoryXml/OA_stations_2017-2018.xml"
+    ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "OA_stations_2017-2018.xml")
+
+    # extra metadata info file(s) to be read and formatted into JSON
+    # "/Datasets/GPS_ClockCorr/OA.CE28_clock_correction.csv" # "./OA.CF28_clock_correction.csv"
+    in_csv_file = os.path.join(METADB_DIR, "All_GPSClock_Correction.csv")
+
+    # "/Datasets/Orientation_Correction_json/OA_ori_error_estimates.json"
+    in_json_file = os.path.join(METADB_DIR, "OrientationCorr", "OA_ori_error_estimates.json")
+
+    in_equip_csv = os.path.join(METADB_DIR, "Equipments/FieldSiteVisitLive.csv")
 
     # output
     OUTPUT_DIR = os.path.join(METADB_DIR, "Output_Dir")  # "/Datasets/InventoryXml/OA_stations_2017-2018"
@@ -301,4 +300,4 @@ if __name__ == "__main__":
     my_obj.write_new_version_inventory()
     
     # provide the right input data
-    my_obj.modify_invenory(gps_clock_corr_csv=None, orient_corr_json=None,equipment_csv=None)
+    my_obj.modify_invenory(gps_clock_corr_csv=in_csv_file, orient_corr_json=in_json_file,equipment_csv=in_equip_csv)
