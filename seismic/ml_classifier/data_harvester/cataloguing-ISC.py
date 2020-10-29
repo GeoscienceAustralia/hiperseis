@@ -2,6 +2,7 @@
 #picks from analysts. Produces a set of files which could be used to train a
 #machine-learning algorithm to recognise P and S waves from seismic traces.
 
+#requires python >= 2.7
 
 #this one does teleseismic (>10 degrees) S-wave picks from the ISC catalogue
 import sys
@@ -26,12 +27,13 @@ from obspy.geodetics.base import gps2dist_azimuth as distaz
 irisclient=Client("IRIS")
 #load ISC pick catalogue CSV
 
-saveDir="/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset/"
+saveDir="/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/smallset-2/"
 
 Sctr=0
 wfctr=0
-with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
+with open('/g/data/ha3/Passive/Events/MergeCatalogs/ISC.csv') as ISCpicks, open(saveDir+'picklog.csv','w') as picklog:
     pickrdr=csv.reader(ISCpicks,delimiter=',')
+    pickwtr=csv.writer(picklog,delimiter=',')
     event=""
     for pick in pickrdr:
         st=pick[0].strip()
@@ -44,7 +46,7 @@ with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
         dist=float(pick[-1].strip())
         #get all S picks
         if ph=='S' and dist > 10:
-            print ph
+            print(ph)
             Sctr+=1
             ch=pick[1].strip()
 
@@ -119,6 +121,7 @@ with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
                     succ=True
             if succ:
                 wfctr+=1
+                pickwtr.writerow(pick)
                         
             
 
