@@ -24,7 +24,7 @@ pykml
 pyproj
 pyqtgraph
 pyshp
-pytables==3.5.2; sys_platform=='win32'
+pytables>=3.5.2; sys_platform=='win32'
 PyWavelets
 pyyaml
 PyYAML>=3.11
@@ -35,7 +35,7 @@ scikit-learn
 scipy>=0.15.1
 shapely --no-binary=shapely
 sortedcontainers
-tables==3.5.2; sys_platform!='win32'
+tables>=3.5.2; sys_platform!='win32'
 tqdm
 ujson
 urllib3
