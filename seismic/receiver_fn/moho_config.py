@@ -3,11 +3,63 @@ This module contains functions and constants to assist with parsing
 the Moho workflow config.
 """
 import os
+import json
 
 import numpy as np
 from obspy import read_inventory
 
 import seismic.receiver_fn.ccp_correction
+
+
+try:
+    import kennett_dist
+    K_DIST = True
+except ImportError:
+    print("Kennett distance function not found. Using haversine.")
+    K_DIST = False
+
+def _kennett_dist(s, r, **kwargs):
+    """
+    Spherical distance. Requires 'kennett_dist' f2py module.
+    Copyright B.L.N Kennett 1978, R.S.E.S A.N.U
+    """
+    clons, clats = s
+    clonr, clatr = r
+    max_dist = kwargs.get('max_dist', np.inf)
+    # Distance in degrees
+    delta, _, _ = kennett_dist.ydiz(clats, clons, clatr, clonr)
+    if delta > max_dist:
+        return np.nan
+    else:
+        return delta
+
+
+def _haversine(s, r, **kwargs):
+    """
+    Haversine distance.
+    """
+    lon1, lat1 = s
+    lon2, lat2 = r
+    max_dist = kwargs.get('max_dist', np.inf)
+    R = 6372.8
+
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+
+    delta_degrees = c * 180.0/math.pi
+
+    if delta_degrees > max_dist:
+        return np.nan
+    else:
+        return delta_degrees
+
+
+DIST_METRIC = _kennett_dist if K_DIST else _haversine
 
 
 class ConfigConstants:
@@ -19,9 +71,11 @@ class ConfigConstants:
     OUTPUT_DIR = 'output_directory'
     NAME = 'name'
     DATA = 'data'
+    PRIORITY = 'priority'
     WEIGHT = 'weight'
     VAL_NAME = 'val_name'
     SW_NAME = 'sw_name'
+    DISABLE = 'disable'
     INV_FILE = 'inventory_file'
     SCALE_LENGTH = 'scale_length'
     PLOT_FLAG = 'output_plot'
@@ -75,7 +129,7 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
 DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
                             _cc.DATA_VAL, _cc.CORR_VAL]
 
-METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT,
+METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE, _cc.PRIORITY,
                          _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
@@ -156,6 +210,10 @@ def validate(config):
         _check_type(scale_len, [float, int],
                 f"scale length for method {name} must be of type float or int")
 
+        disable_flag = params.get(_cc.DISABLE)
+        if disable_flag is not None:
+            _check_type(disable_flag, [bool], f"{_cc.DISABLE} flag must be of type bool")
+
     plt = config.get(_cc.PLOTTING)
     if plt is not None:
         _check_type(plt, [dict], "plotting parameters must be stored in dict")
@@ -216,6 +274,136 @@ def validate(config):
         print("No output directory provided, current working directory will be used")
 
 
+class WorkflowParameters:
+    def __init__(self, config_file):
+        self.config_file = config_file
+        with open(self.config_file) as f:
+            config = json.load(f)
+
+        validate(config)
+
+        self.output_dir = config.get(_cc.OUTPUT_DIR, os.getcwd())
+
+        self.bounds = config.get(_cc.BOUNDS)
+        self.grid_interval = config[_cc.GRID_INTERVAL]
+        self.grid_data = os.path.join(self.output_dir, _cc.MOHO_GRID)
+        self.grad_data = os.path.join(self.output_dir, _cc.MOHO_GRAD)
+
+        plotting = config.get(_cc.PLOTTING)
+        if plotting is not None:
+            self.plot_spatial_map = plotting.get(_cc.PLOT_FLAG, False)
+            plot_params = plotting.get(_cc.PLOT_PARAMS)
+            if plot_params is not None:
+                self.plot_scale = plot_params.get(_cc.PP_SCALE)
+                self.plot_fmt = plot_params.get(_cc.PP_FMT, 'png')
+                self.plot_show = plot_params.get(_cc.PP_SHOW, False)
+                self.plot_title = plot_params.get(_cc.PP_TITLE, 'Moho depth from blended data')
+                self.plot_label = plot_params.get(_cc.PP_CB_LABEL, 'Moho depth (km)')
+            self.plot_file = os.path.join(self.output_dir, _cc.MOHO_PLOT + f'.{self.plot_fmt}')
+
+            self.gmt_write = plotting.get(_cc.GMT_FLAG, False)
+            self.gmt_dir = os.path.join(self.output_dir, _cc.GMT_DIR)
+            self.gmt_grid_file = os.path.join(self.gmt_dir, _cc.MOHO_GRID_GMT)
+            self.gmt_grad_file = os.path.join(self.gmt_dir, _cc.MOHO_GRAD_GMT)
+            self.gmt_loc_file = os.path.join(self.gmt_dir, '{}' + _cc.LOCATIONS_GMT)
+
+            self.gis_write = plotting.get(_cc.GIS_FLAG, False)
+            self.gis_dir = os.path.join(self.output_dir, _cc.GIS_DIR)
+            self.gis_grid_file = os.path.join(self.gis_dir, _cc.MOHO_GRID_GIS)
+            self.gis_grad_file = os.path.join(self.gis_dir, _cc.MOHO_GRAD_GIS)
+            self.gis_loc_file = os.path.join(self.gis_dir, '{}' + _cc.LOCATIONS_GIS)
+
+        # Correction/data prep
+        data_prep = config.get(_cc.DATA_PREP)
+        if data_prep is not None:
+            # Correct d1 by d2
+            for params in data_prep:
+                d1 = MethodDataset({cc.DATA: params[cc.DATA_TO_PREP], cc.VAL_NAME: params[cc.DATA_VAL]})
+                d2 = MethodDataset({cc.DATA: params[cc.CORR_DATA], cc.VAL_NAME: params[cc.CORR_VAL]})
+                CORR_FUNC_MAP[params[cc.CORR_FUNC]](d1, d2, params[cc.CORR_OUT])
+    
+        # Filter out disabled methods
+        methods = WorkflowParameters.filter_methods(config[_cc.METHODS])
+
+        self.method_datasets = [MethodDataset(params) for params in methods]
+        self.prioritise_samples()
+
+    def prioritise_samples(self):
+        """
+        Sorts datasets by priority parameter, compares them from highest 
+        to lowest. E.g. A.priority = 2, B.priority = 1, C.priority = 0 
+        then comparison will be A vs [B, C], B vs C.
+
+        The idea is that points in A close to those in B and C will
+        supercede them (points in B and C will be removed) and again
+        for points in B close to those in C.
+        """
+        pri_sorted = sorted(self.method_datasets, key=lambda x: x.priority, reverse=True)
+        for i, p1 in enumerate(pri_sorted):
+            for j, p2 in enumerate(pri_sorted):
+                if -1 in [p1.priority, p2.priority]:
+                    # Non-prioritised data, skip
+                    continue
+                if p1.priority > p2.priority:
+                    if all(x is not None for x in [p1.net, p1.sta, p2.net, p2.sta]): 
+                        # If network and station data is available, compare points by 
+                        # station origin and distance
+                        WorkflowParameters.prioritise_by_station(p1, p2)
+                    else:
+                        # Otherwise compare only by distance
+                        WorkflowParameters.prioritise_by_location(p1, p2)
+    
+    @staticmethod
+    def prioritise_by_station(m1, m2):
+        """
+        Prioritises samples by looking at points that share stations 
+        between the two datasets. If two points in the datasets 
+        share a station and are within 2km of each other, then 
+        the higher priority dataset (m1) is prioritised (m2 point is
+        removed).
+        """
+        to_remove = []
+        for net, sta in set(zip(m1.net, m1.sta)):
+            m1_station = np.where(np.logical_and(m1.net == net, m1.sta == sta))
+            m2_station = np.where(np.logical_and(m2.net == net, m2.sta == sta))
+            for lat_1, lon_1 in zip(m1.lat[m1_station], m1.lon[m1_station]):
+                for i, (lat_2, lon_2) in enumerate(zip(m2.lat[m2_station], m2.lon[m2_station])):
+                    dist = DIST_METRIC((lon_1, lat_1), (lon_2, lat_2))
+                    if dist <= 0.018:
+                        to_remove.append(m2_station[0][i])
+        print(f'{len(to_remove)} samples from {m1.name} are being '
+              f'prioritised over samples from {m2.name}')
+        m2.remove(to_remove)
+
+    @staticmethod
+    def prioritise_by_location(m1, m2):
+        """
+        Prioritises samples. If two points in the datasets are
+        within 2km of each other, then the higher priority dataset
+        (m1) is prioritised (m2 point is removed).
+        """
+        to_remove = []
+        for lat_1, lon_1 in zip(m1.lat, m1.lon):
+            for i, (lat_2, lon_2) in enumerate(zip(m2.lat, m2.lon)):
+                dist = DIST_METRIC((lon_1, lat_1), (lon_2, lat_2))
+                if dist <= 0.018:
+                    to_remove.append(i)
+        print(f'{len(to_remove)} samples from {m1.name} are being '
+              f'prioritised over samples from {m2.name}')
+        m2.remove(to_remove)
+
+    @staticmethod
+    def filter_methods(methods):
+        disabled_methods = [param[_cc.NAME] for param in methods if param.get(_cc.DISABLE, False)]
+        if disabled_methods:
+            print(f"Disabled methods: {disabled_methods}")
+            methods = [param for param in methods if not param.get(_cc.DISABLE, False)]
+            # Raise an error if all methods are disabled
+            if not methods:
+                raise ValueError("All methods have been disabled - there is no data to process!")
+        return methods
+
+
 class MethodDataset:
     start_names = ['Start', 'START', 'start']
     time_names = ['Time', 'TIME', 'time']
@@ -225,6 +413,11 @@ class MethodDataset:
     lon_names = ['lon', 'Lon', 'LON', 'longitude', 'Longitude', 'LONGITUDE']
 
     def __init__(self, method_params):
+        self.name = method_params.get(_cc.NAME, 'undefined')
+        self.scale_length = method_params.get(_cc.SCALE_LENGTH, None)
+        self.priority = method_params.get(_cc.PRIORITY, -1)
+
+        # Parse data file
         # Scan for header
         with open(method_params[_cc.DATA], 'r') as f:
             start_line = 0
@@ -297,6 +490,9 @@ class MethodDataset:
             data = np.genfromtxt(method_params[_cc.DATA], delimiter=',', dtype=None,
                     names=col_names, usecols=usecols, encoding=None, skip_header=data_start)
 
+            # Filter out NaN values
+            data = data[~np.isnan(data['val'])]
+
             self.val = data['val']
 
             if 'sw' in col_names:
@@ -304,8 +500,8 @@ class MethodDataset:
             else:
                 self.sw = np.ones_like(self.val)
 
-            dw_weight = method_params.get(_cc.WEIGHT, 1.0)
-            self.total_weight = self.sw * dw_weight
+            self.dataset_weight = method_params.get(_cc.WEIGHT, 1.0)
+            self.total_weight = self.sw * self.dataset_weight
 
             if 'net' in col_names:
                 self.net = data['net']
@@ -331,14 +527,14 @@ class MethodDataset:
                 except IOError as e:
                     raise Exception("Inventory file doesn't exist") from e
                 for net, sta in zip(self.net, self.sta):
-                    coords = cache.get('.'.join(net, sta))
+                    coords = cache.get('.'.join((net, sta)))
                     if coords is None:
                         for c in inv.get_contents()['channels']:
                             if c.startswith('.'.join((net,sta))):
                                 coords = inv.get_coordinates(c)
                                 lats.append(float(coords['latitude']))
                                 lons.append(float(coords['longitude']))
-                                cache['.'.join(net,sta)] = (float(coords['latitude']), 
+                                cache['.'.join((net,sta))] = (float(coords['latitude']), 
                                     float(coords['longitude']))
                                 break
                     else:
@@ -347,3 +543,16 @@ class MethodDataset:
 
                 self.lat = np.array(lats)
                 self.lon = np.array(lons)
+
+    def remove(self, indices):
+        if not indices:
+            return
+        else:
+            self.val = np.delete(self.val, indices)
+            self.sw = np.delete(self.sw, indices)
+            self.total_weight = self.sw * self.dataset_weight
+            self.net = np.delete(self.net, indices) if self.net is not None else None
+            self.sta = np.delete(self.sta, indices) if self.sta is not None else None
+            self.lat = np.delete(self.lat, indices)
+            self.lon = np.delete(self.lon, indices)
+
