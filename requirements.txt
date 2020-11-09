@@ -6,65 +6,71 @@
 #
 --no-binary shapely
 
-certifi==2020.6.20        # via requests
+affine==2.3.0             # via rasterio
+attrs==20.3.0             # via rasterio
+cached-property==1.5.2    # via h5py
+cartopy==0.18.0           # via -r requirements.in, rf
+certifi==2020.11.8        # via pyproj, requests
 cftime==1.2.1             # via netcdf4
 chardet==3.0.4            # via -r requirements.in, requests
-click==7.1.2              # via -r requirements.in
-colorama==0.4.3           # via pyasdf
+click-plugins==1.1.1      # via rasterio
+click==7.1.2              # via -r requirements.in, click-plugins, cligj, rasterio
+cligj==0.7.0              # via rasterio
+colorama==0.4.4           # via pyasdf
 cycler==0.10.0            # via matplotlib
 cython==0.29.21           # via -r requirements.in
 decorator==4.4.2          # via networkx, obspy, rf
 deprecated==1.2.10        # via -r requirements.in
 descartes==1.1.0          # via -r requirements.in
-dill==0.3.2               # via pyasdf
+dill==0.3.3               # via pyasdf
 future==0.18.2            # via obspy
 geographiclib==1.50       # via -r requirements.in, rf
-h5py==2.10.0              # via -r requirements.in, obspyh5, pyasdf
+h5py==3.1.0               # via -r requirements.in, obspyh5, pyasdf
 idna==2.10                # via requests
 isodate==0.6.0            # via rdflib
-joblib==0.16.0            # via -r requirements.in, scikit-learn
-kiwisolver==1.2.0         # via matplotlib
-lxml==4.5.2               # via -r requirements.in, obspy, prov, pykml
+joblib==0.17.0            # via -r requirements.in, scikit-learn
+kiwisolver==1.3.1         # via matplotlib
+lxml==4.6.1               # via -r requirements.in, obspy, prov, pykml
 matplotlib==3.2.2         # via -r requirements.in, descartes, obspy, rf
-mock==4.0.2               # via tables
 mpi4py==3.0.0             # via -r requirements.in
 netcdf4==1.5.4            # via -r requirements.in
-networkx==2.4             # via prov
+networkx==2.5             # via prov
 numexpr==2.7.1            # via -r requirements.in, tables
-numpy==1.19.1             # via -r requirements.in, cartopy, cftime, h5py, matplotlib, netcdf4, numexpr, obspy, obspyh5, pandas, pyasdf, pyqtgraph, pywavelets, rf, scikit-learn, scipy, tables
-cartopy==0.18.0           # via -r requirements.in, rf
+numpy==1.19.4             # via -r requirements.in, cartopy, cftime, h5py, matplotlib, netcdf4, numexpr, obspy, obspyh5, pandas, pyasdf, pyqtgraph, pywavelets, rasterio, rf, scikit-learn, scipy, snuggs, tables
 obspy==1.2.2              # via -r requirements.in, obspyh5, pyasdf, rf
 obspyh5==0.5.0            # via -r requirements.in
 ordered-set==4.0.2        # via -r requirements.in
-pandas==1.1.0             # via -r requirements.in
-prov==1.5.3               # via pyasdf
-psutil==5.7.2             # via -r requirements.in
-pyasdf==0.7.3             # via -r requirements.in
+pandas==1.1.4             # via -r requirements.in
+prov==2.0.0               # via pyasdf
+psutil==5.7.3             # via -r requirements.in
+pyasdf==0.7.4             # via -r requirements.in
 pyepsg==0.4.0             # via -r requirements.in
 pykml==0.2.0              # via -r requirements.in
-pyparsing==2.4.7          # via matplotlib, rdflib
-pyproj==2.6.1.post1       # via -r requirements.in
+pyparsing==2.4.7          # via matplotlib, rdflib, snuggs
+pyproj==3.0.0.post1       # via -r requirements.in
 pyqtgraph==0.11.0         # via -r requirements.in
-pyshp==2.1.0              # via cartopy
+pyshp==2.1.2              # via -r requirements.in, cartopy
 python-dateutil==2.8.1    # via matplotlib, pandas, prov
-pytz==2020.1              # via pandas
+pytz==2020.4              # via pandas
 pywavelets==1.1.1         # via -r requirements.in
 pyyaml==5.3.1             # via -r requirements.in
+rasterio==1.1.8           # via -r requirements.in
 rdflib==5.0.0             # via prov
 requests==2.24.0          # via -r requirements.in, obspy, pyepsg
 rf==0.8.0                 # via -r requirements.in
-scikit-learn==0.23.1      # via -r requirements.in
-scipy==1.5.2              # via -r requirements.in, obspy, rf, scikit-learn
-shapely==1.7.0            # via -r requirements.in, cartopy, rf
-six==1.15.0               # via cartopy, cycler, h5py, prov, python-dateutil, rdflib, tables
-sortedcontainers==2.2.2   # via -r requirements.in
-sqlalchemy==1.3.18        # via obspy
-tables==3.5.2 ; sys_platform != "win32"  # via -r requirements.in
+scikit-learn==0.23.2      # via -r requirements.in
+scipy==1.5.4              # via -r requirements.in, obspy, rf, scikit-learn
+shapely==1.7.1            # via -r requirements.in, cartopy, rf
+six==1.15.0               # via cartopy, cycler, python-dateutil, rdflib
+snuggs==1.4.7             # via rasterio
+sortedcontainers==2.3.0   # via -r requirements.in
+sqlalchemy==1.3.20        # via obspy
+tables==3.6.1 ; sys_platform != "win32"  # via -r requirements.in
 threadpoolctl==2.1.0      # via scikit-learn
 toeplitz==0.3.1           # via rf
-tqdm==4.48.1              # via -r requirements.in, rf
-ujson==3.1.0              # via -r requirements.in
-urllib3==1.25.10          # via -r requirements.in, requests
+tqdm==4.51.0              # via -r requirements.in, rf
+ujson==4.0.1              # via -r requirements.in
+urllib3==1.25.11          # via -r requirements.in, requests
 wrapt==1.12.1             # via deprecated
 xlrd==1.2.0               # via -r requirements.in
 

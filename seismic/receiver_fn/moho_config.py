@@ -4,6 +4,7 @@ the Moho workflow config.
 """
 import os
 import json
+import math
 
 import numpy as np
 from obspy import read_inventory

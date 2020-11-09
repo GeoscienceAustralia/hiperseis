@@ -3,19 +3,16 @@
 Compute moho estimate and generate maps from converted data and 
 a JSON config file.
 """
-import os
-import json
-import logging
-import tempfile
 
 import click
+
 from seismic.receiver_fn import (pointsets2grid, plot_spatial_map, write_gis_data, write_gmt_data)
 from seismic.receiver_fn.moho_config import WorkflowParameters
-    
+
 
 def run_workflow(config_file):
     params = WorkflowParameters(config_file)
-    
+
     # Moho interpolation 
     pointsets2grid.make_grid(params)
 

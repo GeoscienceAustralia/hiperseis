@@ -30,15 +30,11 @@ Requires:
 - cartopy
 """
 import os
-import json
-import math
 
-import click
 import numpy as np
 from scipy.spatial.distance import cdist
-import cartopy as cp
 
-from seismic.receiver_fn.moho_config import DIST_METRIC 
+from seismic.receiver_fn.moho_config import DIST_METRIC
 
 DEFAULT_CUTOFF = 3.6
 

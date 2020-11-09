@@ -2,24 +2,20 @@
 """
 Use cartopy to plot moho grid and gradient onto a map.
 """
-import json
 import os
 
-import click
-import numpy as np
-import matplotlib.pyplot as plt
 import cartopy as cp
+import click
+import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
-from matplotlib.colors import Normalize, LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
-
-from seismic.receiver_fn.moho_config import ConfigConstants as cc
+from matplotlib.colors import Normalize, LinearSegmentedColormap
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 COLORMAP = "./moho_kennett.cpt"
 
 
-def plot_spatial_map(grid_data, gradient_data, projection_code=None, 
+def plot_spatial_map(grid_data, gradient_data, projection_code=None,
                      title=None, feature_label=None, bounds=None, scale=None):
     """
     Make spatial plot of point dataset with filled contours overlaid on map.
@@ -71,10 +67,10 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
         xy_min = xy_map.min(axis=0)
         xy_max = xy_map.max(axis=0)
         span = xy_max - xy_min
-        xy_min -= 0.1*span
-        xy_max += 0.1*span
+        xy_min -= 0.1 * span
+        xy_max += 0.1 * span
 
-    fig = plt.figure(figsize=(14,12))
+    fig = plt.figure(figsize=(14, 12))
 
     cont_ax = plt.subplot(2, 1, 1, projection=map_projection)
     grad_ax = plt.subplot(2, 1, 2, projection=map_projection)
@@ -96,14 +92,14 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
         sm = None
 
     contr = cont_ax.contourf(x, y, z, levels=20, transform=data_crs, cmap=cmap, norm=norm,
-                              alpha=0.8, zorder=2)
+                             alpha=0.8, zorder=2)
     sm = sm if sm is not None else contr
     cont_div = make_axes_locatable(cont_ax)
     cax = cont_div.append_axes('bottom', size='5%', pad='7%', axes_class=plt.Axes)
     cb = plt.colorbar(sm, cax=cax, orientation="horizontal")
     if feature_label is not None:
         cb.set_label(feature_label)
-    
+
     grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy', units='xy')
     # Hack: shrink gradient ax so it's the same size as contour ax (contour ax shrinks due to 
     # appending colorbar ax)
@@ -122,14 +118,14 @@ def from_params(params):
     """
     print("Plotting Moho grid and gradient map")
     fig = plot_spatial_map(params.grid_data, params.grad_data, scale=params.plot_scale,
-            title=params.plot_title, feature_label=params.plot_label)
+                           title=params.plot_title, feature_label=params.plot_label)
     if params.plot_show:
         print("Showing plot, close display window to continue")
         plt.show()
     fig.savefig(params.plot_file, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Complete! Plot saved to '{params.plot_file}'")
-                
+
 
 @click.command()
 @click.option('--projection-code', type=int, required=False,
@@ -165,81 +161,85 @@ def main(grid_data, grad_data, projection_code=None, bounds=None, scale=None,
 
 
 def _gmt_colormap(filename):
-      """ Borrowed from AndrewStraw, scipy-cookbook
-          this subroutine converts GMT cpt file to matplotlib palette """
+    """ Borrowed from AndrewStraw, scipy-cookbook
+        this subroutine converts GMT cpt file to matplotlib palette """
 
-      import colorsys
+    import colorsys
 
-      try:
-          f = open(filename)
-      except:
-          print("file ",filename, "not found")
-          return None
+    try:
+        f = open(filename)
+    except:
+        print("file ", filename, "not found")
+        return None
 
-      lines = f.readlines()
-      f.close()
+    lines = f.readlines()
+    f.close()
 
-      x = []
-      r = []
-      g = []
-      b = []
-      colorModel = "RGB"
-      for l in lines:
-          ls = l.split()
-          if l[0] == "#":
-             if ls[-1] == "HSV":
-                 colorModel = "HSV"
-                 continue
-             else:
-                 continue
-          if ls[0] == "B" or ls[0] == "F" or ls[0] == "N":
-             pass
-          else:
-              x.append(float(ls[0]))
-              r.append(float(ls[1]))
-              g.append(float(ls[2]))
-              b.append(float(ls[3]))
-              xtemp = float(ls[4])
-              rtemp = float(ls[5])
-              gtemp = float(ls[6])
-              btemp = float(ls[7])
+    x = []
+    r = []
+    g = []
+    b = []
+    colorModel = "RGB"
+    for l in lines:
+        ls = l.split()
+        if l[0] == "#":
+            if ls[-1] == "HSV":
+                colorModel = "HSV"
+                continue
+            else:
+                continue
+        if ls[0] == "B" or ls[0] == "F" or ls[0] == "N":
+            pass
+        else:
+            x.append(float(ls[0]))
+            r.append(float(ls[1]))
+            g.append(float(ls[2]))
+            b.append(float(ls[3]))
+            xtemp = float(ls[4])
+            rtemp = float(ls[5])
+            gtemp = float(ls[6])
+            btemp = float(ls[7])
 
-      x.append(xtemp)
-      r.append(rtemp)
-      g.append(gtemp)
-      b.append(btemp)
+    x.append(xtemp)
+    r.append(rtemp)
+    g.append(gtemp)
+    b.append(btemp)
 
-      nTable = len(r)
-      x = np.array( x )
-      r = np.array( r )
-      g = np.array( g )
-      b = np.array( b )
+    nTable = len(r)
+    x = np.array(x)
+    r = np.array(r)
+    g = np.array(g)
+    b = np.array(b)
 
-      if colorModel == "HSV":
-         for i in range(r.shape[0]):
-             rr,gg,bb = colorsys.hsv_to_rgb(r[i]/360.,g[i],b[i])
-             r[i] = rr ; g[i] = gg ; b[i] = bb
-      if colorModel == "HSV":
-         for i in range(r.shape[0]):
-             rr,gg,bb = colorsys.hsv_to_rgb(r[i]/360.,g[i],b[i])
-             r[i] = rr ; g[i] = gg ; b[i] = bb
-      if colorModel == "RGB":
-          r = r/255.
-          g = g/255.
-          b = b/255.
+    if colorModel == "HSV":
+        for i in range(r.shape[0]):
+            rr, gg, bb = colorsys.hsv_to_rgb(r[i] / 360., g[i], b[i])
+            r[i] = rr;
+            g[i] = gg;
+            b[i] = bb
+    if colorModel == "HSV":
+        for i in range(r.shape[0]):
+            rr, gg, bb = colorsys.hsv_to_rgb(r[i] / 360., g[i], b[i])
+            r[i] = rr;
+            g[i] = gg;
+            b[i] = bb
+    if colorModel == "RGB":
+        r = r / 255.
+        g = g / 255.
+        b = b / 255.
 
-     
-      xNorm = (x - x[0])/(x[-1] - x[0])
+    xNorm = (x - x[0]) / (x[-1] - x[0])
 
-      red = []
-      blue = []
-      green = []
-      for i in range(len(x)):
-          red.append([xNorm[i],r[i],r[i]])
-          green.append([xNorm[i],g[i],g[i]])
-          blue.append([xNorm[i],b[i],b[i]])
-      colorDict = {"red":red, "green":green, "blue":blue}
-      return (x,LinearSegmentedColormap('my_colormap',colorDict,255))
+    red = []
+    blue = []
+    green = []
+    for i in range(len(x)):
+        red.append([xNorm[i], r[i], r[i]])
+        green.append([xNorm[i], g[i], g[i]])
+        blue.append([xNorm[i], b[i], b[i]])
+    colorDict = {"red": red, "green": green, "blue": blue}
+    return (x, LinearSegmentedColormap('my_colormap', colorDict, 255))
+
 
 if __name__ == '__main__':
     main()
