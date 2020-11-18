@@ -73,6 +73,7 @@ def make_grid(params):
     xy_mins = []
     xy_maxs = []
     for data in params.method_datasets:
+        print(f"Building grid for '{data.name}'")
         pt_data = np.array((data.lon, data.lat, data.val)).T
         xy_map = pt_data[:, :2]
         xy_mins.append(xy_map.min(axis=0))
