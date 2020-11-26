@@ -435,7 +435,12 @@ class MethodDataset:
             # Check if next line after start flag contains epoch time
             line = f.readline()
             line_parts = line.split(' ')
-            if line_parts[1] in MethodDataset.time_names:
+            # It's the header without any spaces
+            if len(line_parts) == 1:
+                self.datetime = None
+                header_line = line
+                data_start = start_line + 1
+            elif line_parts[1] in MethodDataset.time_names:
                 time = line_parts[2].strip('#, \n')
                 # Need to pass epoch as int to datetime64, find better way to differentiate ISO/epoch
                 # If time contains 'T', treat as ISO
@@ -545,6 +550,13 @@ class MethodDataset:
                 self.lat = np.array(lats)
                 self.lon = np.array(lons)
 
+                if self.lat.size == 0 or self.lon.size == 0:
+                    raise ValueError(
+                        f"Could't find any location metadata in inventory file for dataset "
+                        f"{self.name}. Make sure you are using the correct inventory file and that "
+                        f"the network and station codes in the CSV file are as they appear in the "
+                        f"inventory. Exiting as we can't continue without location data.")
+            
     def remove(self, indices):
         if not indices:
             return
