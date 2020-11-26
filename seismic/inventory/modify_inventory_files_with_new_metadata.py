@@ -14,9 +14,12 @@ import sys
 import obspy
 from obspy.core.inventory import Inventory
 from obspy.core.util import AttribDict
+from obspy.core import UTCDateTime
 
 from seismic.inventory.extract_equipments_from_csv import EquipmentExtractor
 from seismic.inventory.station_metadata_extra import StationMetadataExtra, get_csv_correction_data, get_orientation_corr
+
+GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"  # global name space for XML
 
 class InvXML_Modifier:
     def __init__(self, input_inv_xml, output_dir_path):
@@ -103,11 +106,9 @@ class InvXML_Modifier:
         - add extra metadata: Orientation correction
         Args:
 
-        Returns:
+        Returns: the final station_xml file modified with new metadata: inv2_xml_file
 
         """
-
-        GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"
 
         # Construct a new inventory object of networks.
         # This will use new obspy version and new attributes:
@@ -144,8 +145,9 @@ class InvXML_Modifier:
                     sensor_sernumb = _sensors[0].get("SerNumber")
                 else:
                     print("%s %s  No sensors !" % (a_net.code, a_sta.code))
-                    sensor_desc = "NA Sensor for (%s,%s)" % (a_net.code, a_sta.code)
-                    sensor_sernumb = "NA"
+                    # sensor_desc = "NA Sensor for (%s,%s)" % (a_net.code, a_sta.code)
+                    sensor_desc = "Nanometrics Trillium Compact 120s"
+                    sensor_sernumb = "N/A"
 
                 _digitizers = my_equip_obj.get_digitizer(a_net.code, a_sta.code)
                 if len(_digitizers) > 0:
@@ -153,8 +155,9 @@ class InvXML_Modifier:
                     dig_sernumb = _digitizers[0].get("SerNumber")
                 else:
                     print("%s %s  No digitizers !" % (a_net.code, a_sta.code))
-                    dig_desc = "NA Digitizer for (%s,%s)" % (a_net.code, a_sta.code)
-                    dig_sernumb = "NA"
+                    #dig_desc = "NA Digitizer for (%s,%s)" % (a_net.code, a_sta.code)
+                    dig_desc = "Guralp Minimus"
+                    dig_sernumb = "N/A"
 
                 # modify station metadata
                 my_sensor = obspy.core.inventory.util.Equipment(type="Sensor", description=sensor_desc,
@@ -219,12 +222,37 @@ class InvXML_Modifier:
             inv2.write(inv2_xml_file, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
                        validate=True)  # every Station got equipment
 
+            # Add responses:
+            resp_obj = read_response()
+            self.add_response_into_stationxml(inv2, resp_obj)
+
             # and the original write out again to check what has been modified?
             post_orig =  os.path.join(out_dir, a_net.code + "_stations_post_orig.xml")
             big_inv.write(post_orig, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
                           validate=True)  # also has the Sensors etc
 
-            return
+            return inv2_xml_file
+
+    def add_response_into_stationxml(self, invent_obj, resp_obj, out_xml_file="station_inventory_with_responses.xml"):
+        """
+        write the resp_obj into each channel of the invent_obj
+        Args:
+            invent_obj: station_xml inventory object
+            resp_obj: response Object
+
+        Returns: update_invent_obj
+        """
+
+        for anet in invent_obj.networks:
+            for astation in anet.stations:
+                for acha in astation.channels:
+                    acha.response=resp_obj
+
+        invent_obj.write(out_xml_file, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
+                       validate=True)
+
+        return out_xml_file
+
 
     def check_invenory(self):
         """
@@ -232,8 +260,6 @@ class InvXML_Modifier:
         :return:
         """
         big_inv = obspy.read_inventory(self.input_xml)  # read in fresh
-
-        os.path.basename(self.input_xml)
 
         filename_new_xml = "check_new_" + os.path.basename(self.input_xml)
 
@@ -264,6 +290,32 @@ class InvXML_Modifier:
                 print(net.stations[i].code, net.stations[i].start_date, net.stations[i].end_date)
 
         return "True-False"
+
+
+def read_response(resp_file ="/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata/Equipments/RESP.COMPACT120S.MINIMUS.txt" ):
+    """
+    read_response from a standard txt file that obspy can understand
+    Args:
+        resp_file: path2 the response.txt file
+
+    Returns: Response Obj
+
+    """
+
+    inv_obj = obspy.read_inventory(resp_file, format='RESP')
+
+    # write out to check:
+    # print (type(inv_obj))
+    # inv_obj.write("test_resp.xml", format="stationxml")
+
+    # get the Response object
+    # https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.Inventory.get_response.html
+    datetime = UTCDateTime("2015-01-01T00:00:00")
+    resp_obj = inv_obj.get_response("XX.XX..BHZ", datetime)
+
+    print("The returned object type: ", type(resp_obj), resp_obj)
+
+    return resp_obj
 
 ############################ Quick CLI testings
 if __name__ == "__main__":
