@@ -120,7 +120,7 @@ def make_grid(params):
     denom_agg = np.where(denom_agg < 0.02, np.nan, denom_agg)
     # Get depth Z and std S for each grid cell
     Z = z_agg/denom_agg
-    S = s_agg/denom_agg
+    S = np.sqrt(s_agg/denom_agg - np.square(Z))
     np.seterr(**prior_settings)
     
     # Calculate gradient
