@@ -34,5 +34,5 @@
     },
     "bounds": [130.0, -20.0, 140.0, -17.0],
     "grid_interval": 0.25,
-    "output_directory":  "./old_output"
+    "output_directory":  "./example_output"
 }
