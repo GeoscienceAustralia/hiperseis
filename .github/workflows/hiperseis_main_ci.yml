@@ -1,0 +1,52 @@
+# This workflow is setup by Fei Zhang to use Github Actions 202-09-14
+
+name: hiperseis_main_ci
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        git submodule update --init --recursive
+        sudo apt-get install libhdf5-dev
+        sudo apt-get install libmpich-dev
+        sudo apt-get install libproj-dev proj-bin
+        sudo apt-get install libgeos-dev
+        sudo apt-get install libnetcdf-dev
+
+        python -m pip install --upgrade pip
+
+        pip install numpy
+        pip install Cython --install-option="--no-cython-compile"
+        pip install flake8 pytest
+        pip install pytest-cov
+        pip install coveralls
+        pip install pip-tools
+        pip-compile --upgrade
+
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r tests/requirements.txt
+        pip list
+#     - name: Lint with flake8
+#       run: |
+#         # stop the build if there are Python syntax errors or undefined names
+#         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+#         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Running pytest
+      run: |
+        python -m pytest ./tests
+

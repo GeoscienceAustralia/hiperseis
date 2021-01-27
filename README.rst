@@ -3,6 +3,13 @@ HiPerSeis: High Performance Software Package for Seismology Data/Metadata Proces
 
 |Build Status| |Coverage Status| |Documentation Status|
 
+How to Cite
+===========
+
+If you use this software in a scientific publication, we'd very much appreciate if you could cite the following papers:
+
+-  Hassan, R., Hejrani, B., Medlin, A., Gorbatov, A. and Zhang, F., 2020. High-performance seismological tools (HiPerSeis). In: Czarnota, K., Roach, I., Abbott, S., Haynes, M., Kositcin, N., Ray, A. and Slatter, E. (eds.) Exploring for the Future: Extended Abstracts, Geoscience Australia, Canberra, 1–4. https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/135095
+   
 
 Overview
 ========
@@ -15,14 +22,13 @@ Overview
 
 
 
-Contacts
-==========
+Current Contacts
+================
 
 - Fei Zhang: fei.zhang@ga.gov.au
 
-- Rakib Hassan: rakib.hassan@ga.gov.au
+- Bren Moushall: Brenainn.Moushall@ga.gov.au 
 
-- Andrew Medlin: andrew.medlin@ga.gov.au
 
 - Alexei Gorbatov: alexei.gorbatov@ga.gov.au
 
@@ -34,7 +40,7 @@ System Requirements
 
 - Linux OS, including Ubuntu and CentOS
 - Python 3.6 or higher (recommended)
-- Python 2.7 (deprected, no longer supported)
+- Python 2.7 (deprecated, no longer supported)
 
 Third Party Library Dependencies
 ================================
@@ -66,7 +72,7 @@ Installation Guide for Developers
 
 2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
 
-3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to folder `dev/hiperseis` relative to your home directory, then in `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
+3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to the folder `dev/hiperseis` relative to your home directory, then in a `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
 
 License
 ===============

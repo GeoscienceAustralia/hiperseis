@@ -12,8 +12,11 @@ Developer:
 
 import os
 import sys
+import io
+import pandas as pd
 
 from obspy import read_inventory
+from obspy.core import UTCDateTime
 from obspy.core.util import AttribDict
 
 
@@ -47,7 +50,37 @@ def get_csv_correction_data(path_csvfile):
     return (network_code, station_code, all_csv)
 
 
-def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
+def get_metadata_by_date_range(csv_data, net, sta, start_dt, end_dt):
+    """
+    Select the csv rows according  net, sta, start_dt, end_dt
+
+    Args:
+        csv_data: a string of CSV
+        start_dt: obspy.core.utcdatetime.UTCDateTime
+        end_dt:  obspy.core.utcdatetime.UTCDateTime
+
+    Returns: a subset of csv in pandas df, selected according to (net, sta, start_dt, end_dt)
+    """
+    pdf = pd.read_csv(io.StringIO(csv_data))
+    # pdf.insert(4,"utcdate", UTCDateTime(0))
+    # print(pdf.head())
+    pdf["utcdate"] = pdf.apply(lambda row: UTCDateTime(row.date), axis=1)
+
+    _crit = (pdf['net'] == net) & (pdf['sta'] == sta) & (
+        pdf['utcdate'] > start_dt) & (pdf['utcdate'] < end_dt)
+    pdf2 = pdf.loc[_crit].copy()  # use copy() to fix "SettingWithCopyWarning"
+
+    # drop the columns inplace pdf2 itself will be changed, otherwise will return a new df
+    pdf2.drop(['utcdate'], axis=1, inplace=True)
+    print("The shapes = ", pdf.shape, pdf2.shape)
+
+    # print(pdf2.head())
+
+    # return pdf2.to_csv(index=False)
+    return pdf2
+
+
+def add_gpscorrection_into_stationxml(csv_file, input_xml, out_dir=None, mformat="CSV"):
     """
     Read in the correction CSV data from a file, get the station metadata node from input_xml file,
     then add the CSV data into the station xml node to write into out_xml
@@ -58,7 +91,7 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
     :return: full path of the output xml file
     """
 
-    ns = "https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.0"
+    GA_NameSpace = "https://github.com/GeoscienceAustralia/hiperseis"
 
     (net, sta, csv_data) = get_csv_correction_data(csv_file)
 
@@ -71,24 +104,46 @@ def add_gpscorrection_into_stationxml(csv_file, input_xml, out_xml=None):
 
     # print(selected_inv)
 
-    my_tag = AttribDict()
-    my_tag.namespace = ns
-    my_tag.value = csv_data
+    station_list = selected_inv.networks[0].stations
 
-    selected_inv.networks[0].stations[0].extra = AttribDict()
-    selected_inv.networks[0].stations[0].extra.gpsclockcorrection = my_tag
+    # redefine the selected_inv
+    for a_station in station_list:  # loop over all Stations
 
-    stationxml_with_csv = '%s.%s_station_inv_modified.xml' % (net, sta)
+        # get station star end date and split csv_data
+        start_dt = a_station.start_date
+        end_dt = a_station.end_date
+        mpdf = get_metadata_by_date_range(
+            csv_data, net, sta, start_dt, end_dt)
 
-    if out_xml is not None and os.path.isdir(out_xml):
-        stationxml_with_csv = os.path.join(out_xml, stationxml_with_csv)
+        #print("Station %s= %s %s" %(a_station, start_dt,end_dt))
 
-    selected_inv.write(stationxml_with_csv, format='STATIONXML',
-                       nsmap={'GeoscienceAustralia': 'https://github.com/GeoscienceAustralia/hiperseis/xmlns/1.0'})
+        my_tag = AttribDict()
+        my_tag.namespace = GA_NameSpace
+        if mformat == "CSV":
+            my_tag.value = mpdf.to_csv(index=False)
+        elif mformat == "JSON":
+            my_tag.value = mpdf.to_json(orient="records", date_format="epoch",
+                                        force_ascii=True, date_unit="ms", default_handler=None, indent=2)
+        else:
+            print("The format %s is not supported" % mformat)
+
+        a_station.extra = AttribDict()
+        a_station.extra.GAMetadata = my_tag
+
+    # prepare to write out a modified xml file
+
+    mod_stationxml_with_extra = '%s.%s_station_metadata_%s.xml' % (net, sta,mformat)
+
+    if out_dir is not None and os.path.isdir(out_dir):
+        mod_stationxml_with_extra = os.path.join(
+            out_dir, mod_stationxml_with_extra)
+
+    selected_inv.write(mod_stationxml_with_extra, format='STATIONXML',
+                       nsmap={'GeoscienceAustralia': GA_NameSpace})
 
     # my_inv.write('modified_inventory.xml', format='STATIONXML')
 
-    return stationxml_with_csv
+    return mod_stationxml_with_extra
 
 
 def extract_csvdata(path2xml):
@@ -98,20 +153,21 @@ def extract_csvdata(path2xml):
     :param path2xml: path_to_stationxml
     :return: csv_str
     """
-    import io
-    import pandas as pd
 
+    mcount = 0
     new_inv = read_inventory(path2xml, format='STATIONXML')
 
-    csv_str = new_inv.networks[0].stations[0].extra.gpsclockcorrection.value
-    # print(csv_str)
-    # print(type(csv_str))
+    for i in range(len(new_inv.networks[0].stations)):
+        csv_str = new_inv.networks[0].stations[i].extra.GAMetadata.value
+        # print(csv_str)
+        # print(type(csv_str))
 
-    df_clock_correction = pd.read_csv(io.StringIO(csv_str))
+        pdf = pd.read_csv(io.StringIO(csv_str))
 
-    print(df_clock_correction.head())
+        print(pdf.shape)
+        mcount = mcount + pdf.shape[0]
 
-    return csv_str
+    return mcount
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -119,10 +175,11 @@ def extract_csvdata(path2xml):
 # Example How to run:
 # python add_time_corrections.py  /g/data/ha3/Passive/SHARED_DATA/GPS_Clock/corrections/7D.CZ40_clock_correction.csv
 #                                ../../tests/testdata/7D_2012_2013.xml      ~/tmpdir/
+# python add_time_corrections.py ./OA.CF28_clock_correction.csv /g/data/ha3/Passive/_AusArray/OA/ASDF_cleaned/OA_stations_2017-2018.xml
 # ----------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    USAGE = "python %s csv_file inventory_file [out_dir]" % sys.argv[0]
+    USAGE = "python %s gps_clock_corr_csv sta_inventory_xml [out_dir]" % sys.argv[0]
 
     if len(sys.argv) < 3:
         print(USAGE)
@@ -136,7 +193,12 @@ if __name__ == "__main__":
     else:
         out_dir = None
 
-    output_xml = add_gpscorrection_into_stationxml(time_correction_csvfile, my_inventory, out_xml=out_dir)
+    output_xml = add_gpscorrection_into_stationxml(
+        time_correction_csvfile, my_inventory, out_dir=out_dir)
+        #time_correction_csvfile, my_inventory, out_dir=out_dir, mformat="JSON")
 
-    # Optional test to extract the CSV data and make a pandas dataframe object for future use.
-    # csvstr = extract_csvdata(output_xml)
+    print("A new inventory file is created:", output_xml)
+
+    # Optional test to extract the extra meta_data and make a pandas dataframe for future use.
+    # mcount = extract_csvdata(output_xml)
+    # print("Number of CSV rows", mcount)

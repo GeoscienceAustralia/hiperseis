@@ -27,12 +27,12 @@ print(sys.path)
 
 project = 'HiPerSeis'
 copyright = '2019-2020, Geoscience Australia'
-author = 'Fei Zhang, Rakib Hassan, Andrew Medlin, Alexei Gorbatov, Babak Hejrani'
+author = 'F. Zhang, A. Medlin, R. Hassan, A. Gorbatov, B. Hejrani'
 
 # The short X.Y version
-version = '0.1'
+version = "1.0"
 # The full version, including alpha/beta/rc tags
-release = 'Alpha'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -163,7 +163,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'hiperseis', 'HiPerSeis Documentation',
-     author, 'hiperseis', 'One line description of project.',
+     author, 'hiperseis', 'Passive Seismic Data Processing, Analysis and Modelling.',
      'Miscellaneous'),
 ]
 

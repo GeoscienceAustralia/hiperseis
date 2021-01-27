@@ -7,7 +7,7 @@ cache: pip
 
 python:
  #deprecated - '2.7'
-  - '3.5'
+ #deprecated - '3.5'
   - '3.6'
   - '3.7'
 
@@ -27,6 +27,8 @@ before_install:
   - pip install Cython --install-option="--no-cython-compile"
   - pip install pytest-cov
   - pip install coveralls
+  - pip install pip-tools
+  - pip-compile --upgrade
 
 install:
   - pip install -r requirements.txt

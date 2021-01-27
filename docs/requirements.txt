@@ -22,3 +22,5 @@ PyWavelets
 future
 python-dateutil
 python-geohash
+cython
+pyproj

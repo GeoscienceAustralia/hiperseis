@@ -93,11 +93,3 @@ seismic.units\_utils module
    :undoc-members:
    :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: seismic
-   :members:
-   :undoc-members:
-   :show-inheritance:
