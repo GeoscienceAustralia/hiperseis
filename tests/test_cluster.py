@@ -35,7 +35,7 @@ from legacy.cluster.cluster import (process_event,
                                      FREQUENCY,
                                      _in_region)
 
-from seismic.inventory.parse_inventory import read_all_stations, read_stations
+from seismic.inventory.legacy.parse_inventory import read_all_stations, read_stations
 from seismic.traveltime.mpiops import rank
 
 TESTS = os.path.dirname(__file__)

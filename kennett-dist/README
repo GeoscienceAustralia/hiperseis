@@ -4,3 +4,19 @@ code. It's used in seismic/receiver_fn/pointsets2grid.py.
 Reference:
 B. L. N. Kennett 2019, "Areal parameter estimates from multiple datasets",
 Proc. R. Soc. A. 475:20190352, http://dx.doi.org/10.1098/rspa.2019.0352
+
+
+
+
+kennett-dist needs to be compiled, same as with ellipcorr.
+
+Running "pip install -e . " in the hiperseis directory will take care of ALL this
+
+Alternatively, you can compile it manually by going to hiperseis/kennett_dist 
+
+and 
+
+python -m numpy.f2py -c -m kennet_dist kennett_dist.f 
+
+and moving the resulting '.so' file to the root hiperseis directory.
+
