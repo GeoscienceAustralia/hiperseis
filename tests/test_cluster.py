@@ -1,4 +1,9 @@
 """
+This is a legacy test for the legacy.cluster.cluster.py, which depends on ellipcorr.
+
+Most of the legacy.cluster.cluster.py has been replaced by simpler scripts:
+See https://github.com/GeoscienceAustralia/hiperseis/tree/develop/seismic/traveltime
+
 export ELLIPCORR=/g/data1a/ha3/fxz547/Githubz/passive-seismic/ellip-corr/
 pytest -v tests/test_cluster.py   # this is partially working. issue with mpirun version options.
 
@@ -22,6 +27,8 @@ from obspy import read_events
 from obspy.core.event import Catalog
 from obspy.geodetics import locations2degrees
 from pytest import approx
+
+# if legacy.cluster.cluster is unable to be imported, then skip this test file.
 pytest.importorskip('legacy.cluster.cluster', 'Maybe ellipcorr is not set up')
 from legacy.cluster.cluster import (process_event,
                                      process_many_events,
