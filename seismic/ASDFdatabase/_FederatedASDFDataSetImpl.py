@@ -307,10 +307,14 @@ class _FederatedASDFDataSetImpl():
                 "and et>=%f and st<=%f" \
                  % (starttime.timestamp, endtime.timestamp)
 
+        print(query)
+
         rows = self.conn.execute(query).fetchall()
         s = Stream()
 
-        if(len(rows) > trace_count_threshold): return s
+        if(len(rows) > trace_count_threshold):
+            print("Trace Count exceeds threshold", len(rows))
+            return s
 
         for row in rows:
             ds_id, net, sta, loc, cha, st, et, tag = row
@@ -435,8 +439,13 @@ if __name__=="__main__":
     fn = os.path.join('/tmp', 'test.log')
     logger = setup_logger('main', fn)
 
-    fds = _FederatedASDFDataSetImpl('/g/data/ha3/rakib/tmp/a.txt', logger)
-    #s = fds.get_waveforms('AU', 'QIS', '*', 'BHZ',
-    #                      '2010-06-01T00:00:00', '2010-06-01T00:06:00',
-    #                      'raw_recording', automerge=False)
-    #print s
+    # fds = _FederatedASDFDataSetImpl('/g/data/ha3/rakib/tmp/a.txt', logger)
+    fds = _FederatedASDFDataSetImpl("/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt", logger)
+    s = fds.get_waveforms('AU', 'QIS', '', 'BHZ', '2015-06-01T00:00:00', '2015-06-02T00:06:00')  # cannot use wildcard *
+    print(s)
+    # select * from wdb where net='AU' and sta='QIS' and loc='' and cha='BHZ' and et>=1433116800.000000 and st<=1433203560.000000
+    # 2 Trace(s) in Stream:
+    # AU.QIS..BHZ | 2015-05-31T23:59:59.994500Z - 2015-06-01T23:59:59.994500Z | 40.0 Hz, 3456001 samples
+    # AU.QIS..BHZ | 2015-06-01T23:59:55.769500Z - 2015-06-02T00:05:59.994500Z | 40.0 Hz, 14570 samples
+
+    print(s)
