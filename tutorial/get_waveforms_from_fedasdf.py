@@ -45,12 +45,46 @@ if __name__ == "__main__":
         index_txt = sys.argv[1]  # production data = "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"
 
     # search criteria for the waveform data (cannot use wildcard *, sql statement)
+    # A good example, which will get waveform data
     netcode = 'AU'
     stacode = 'QIS'
     location = ''
     channel = 'BHZ'
     start_dt = '2015-06-01T00:00:00'
     end_dt = '2015-06-02T00:06:00'
+
+# ********** network and station ************* AU SDAN,
+    # Number of rows found in table netsta: 0
+    # Contents of the data set for station AU.SDAN:
+    #     - Has no StationXML file
+    #     - 1 Waveform Tag(s):
+    #         raw_recording
+# inconsistent ASDF vs FedASDF
+# have waveform data in "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2018-2019.h5" , but cannot found in fedasdf.
+    netcode = 'AU'
+    stacode = 'SDAN'
+    location = '00'
+    channel = 'BHZ'
+    start_dt = '2018-01-01T04:00:00'
+    end_dt = '2019-12-17T23:59:59'
+
+# ********** network and station ************* AU STKA
+    # Number of rows found 35
+    # Contents of the data set for station AU.STKA:
+    #     - Has a StationXML file
+    #     - 1 Waveform Tag(s):
+    #         raw_recording
+# consistent with the ASDF direct access
+#Found database: /g/data/ha3/Passive/SHARED_DATA/Index/778837537aa72d892df7b0ba22320f537c1d8f6a.db
+# 1 Trace(s) in Stream:
+# AU.STKA..BHE | 2018-01-01T00:00:00.000000Z - 2018-01-01T23:59:59.975000Z | 40.0 Hz, 3456000 samples
+    netcode = 'AU'
+    stacode = 'STKA'
+    location = ''
+    channel = 'BHE'
+    start_dt = '2018-01-01T00:00:00'
+    end_dt = '2018-01-01T23:59:59.999'
+
 
     fds = FederatedASDFDataSet(index_txt)
     stream = fds.get_waveforms(netcode, stacode, location, channel, start_dt, end_dt)
@@ -67,5 +101,6 @@ if __name__ == "__main__":
     # AU.QIS..BHZ | 2015-06-01T23:59:55.769500Z - 2015-06-02T00:05:59.994500Z | 40.0 Hz, 14570 samples
 
     if (stream.count() > 0):
+        # stream.plot()
         atrace = stream[0]
         atrace.plot()  # the first Trace
