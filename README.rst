@@ -27,7 +27,7 @@ Current Contacts
 
 - Fei Zhang: fei.zhang@ga.gov.au
 
-- Bren Moushall: Brenainn.Moushall@ga.gov.au 
+-Rakib Hassan: rakib.hassan@ga.gov.au 
 
 
 - Alexei Gorbatov: alexei.gorbatov@ga.gov.au
