@@ -21,6 +21,7 @@ from obspy import UTCDateTime, read_events, read_inventory
 from obspy.taup.taup_geo import calc_dist
 from obspy.clients.iris import Client as IrisClient
 from obspy.clients.fdsn import Client
+from obspy.taup import utils
 from obspy.taup import TauPyModel
 from obspy.signal.trigger import trigger_onset, z_detect, classic_sta_lta, recursive_sta_lta, ar_pick
 from obspy.signal.rotate import rotate_ne_rt
@@ -374,6 +375,8 @@ class Catalog():
         oEvents = []
         missingStations = defaultdict(int)
         lines = []
+        taupyModel = TauPyModel(model='iasp91')
+        phase_set = set(utils.get_phase_names('ttp') + utils.get_phase_names('tts'))
         for e in tqdm(self.eventList, desc='Rank %d'%(self.rank)):
             if(e.preferred_origin and len(e.preferred_origin.arrival_list)):
                 cullList = []
@@ -458,7 +461,8 @@ class Catalog():
             # Insert old picks
             if(not self.discard_old_picks):
                 for a in e.preferred_origin.arrival_list:
-                    if(type(self.fdsn_inventory.t[a.net][a.sta]) == defaultdict):
+                    station_coords = self.fdsn_inventory.t[a.net][a.sta]
+                    if(type(station_coords) == defaultdict):
                         missingStations[a.net+'.'+a.sta] += 1
                         continue
                     # end if
@@ -481,6 +485,19 @@ class Catalog():
 
                     event.picks.append(oldPick)
                     event.preferred_origin().arrivals.append(oldArr)
+                    
+                    residual_tt = -999.
+                    if(oldPick.phase_hint in phase_set):
+                        atimes = taupyModel.get_travel_times_geo(e.preferred_origin.depthkm, e.preferred_origin.lat,
+                                                                 e.preferred_origin.lon, station_coords[1],
+                                                                 station_coords[0],
+                                                                 phase_list=(oldPick.phase_hint,))
+                        
+                        if(len(atimes)):
+                            actual_arrival = a.utctime - e.preferred_origin.utctime
+                            residual_tt = actual_arrival - atimes[0].time
+                        # end if
+                    # end if
 
                     # polulate list for text output
                     line = [str(e.public_id), '{:<25s}',
@@ -499,7 +516,7 @@ class Catalog():
                             -999, '{:f}',
                             -999, '{:f}',
                             a.distance, '{:f}',
-                            -999, '{:f}',
+                            residual_tt, '{:f}',
                             -999, '{:f}',
                             -999, '{:f}',
                             -999, '{:f}',
