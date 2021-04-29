@@ -57,9 +57,10 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
         cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
         ps = np.fabs(cwt) ** 2
         ps = pywt.threshold(ps, np.std(ps), mode='soft', substitute=1)
-
-        psbefore   = ps[:, :ps.shape[1] / 2]
-        psafter    = ps[:, ps.shape[1] / 2:]
+        
+        # power spectrums before and after the putative arrival
+        psbefore   = ps[:, :ps.shape[1] // 2]
+        psafter    = ps[:, ps.shape[1] // 2:]
 
         #idx_max_before = unravel_index(psbefore.argmax(), psbefore.shape)
         #idx_max_after  = unravel_index(psafter.argmax(), psafter.shape)
@@ -79,7 +80,7 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
         times = trc.times() - trc.times().max() / 2
         times_filtered = trc_filtered.times() - trc_filtered.times().max() / 2
 
-        mid = len(trc.times()) / 2
+        mid = len(trc.times()) // 2
         timesa = times[mid:]
         timesb = times[:mid]
         ab = np.cumsum(np.fabs(trc.data))
@@ -147,7 +148,7 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
             plt.close()
         # end if
     except:
-        pass
+        print('Error encountered while computing quality measures..')
         #traceback.print_exc()
     # end try
 

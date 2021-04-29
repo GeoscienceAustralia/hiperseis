@@ -307,7 +307,7 @@ class _FederatedASDFDataSetImpl():
                 "and et>=%f and st<=%f" \
                  % (starttime.timestamp, endtime.timestamp)
 
-        print(query)
+        #print(query)
 
         rows = self.conn.execute(query).fetchall()
         s = Stream()
