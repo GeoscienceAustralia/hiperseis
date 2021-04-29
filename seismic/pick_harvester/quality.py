@@ -57,7 +57,8 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
         cwt, freqs = pywt.cwt(trc, scales, 'gaus8', trc.stats.delta)
         ps = np.fabs(cwt) ** 2
         ps = pywt.threshold(ps, np.std(ps), mode='soft', substitute=1)
-
+        
+        # power spectrums before and after the putative arrival
         psbefore   = ps[:, :ps.shape[1] // 2]
         psafter    = ps[:, ps.shape[1] // 2:]
 
