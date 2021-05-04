@@ -758,7 +758,9 @@ def IntervalStackXCorr(refds, tempds,
             nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
             ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
             iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
-            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',), chunksizes=(1, spooledXcorr.ncols))
+            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',), 
+                                         chunksizes=(1, spooledXcorr.ncols), 
+                                         zlib=True)
 
             # Populate variables
             interval[:] = np.arange(spooledXcorr.nrows)
