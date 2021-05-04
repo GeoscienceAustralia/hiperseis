@@ -346,16 +346,16 @@ def process(data_source1, data_source2, output_path,
             # end try
         # end if
 
-        x, xCorrResDict, wcResDict = IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
-                                                        endTime, netsta1, netsta2, netsta1inv, netsta2inv,
-                                                        instrument_response_output, water_level,
-                                                        corr_chans[0], corr_chans[1],
-                                                        baz_netsta1, baz_netsta2,
-                                                        resample_rate, taper_length, read_buffer_size, interval_seconds,
-                                                        window_seconds, window_overlap, window_buffer_length,
-                                                        fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
-                                                        one_bit_normalize, envelope_normalize, ensemble_stack,
-                                                        output_path, 2, time_tag)
+        IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
+                           endTime, netsta1, netsta2, netsta1inv, netsta2inv,
+                           instrument_response_output, water_level,
+                           corr_chans[0], corr_chans[1],
+                           baz_netsta1, baz_netsta2,
+                           resample_rate, taper_length, read_buffer_size, interval_seconds,
+                           window_seconds, window_overlap, window_buffer_length,
+                           fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
+                           one_bit_normalize, envelope_normalize, ensemble_stack,
+                           output_path, 2, time_tag)
     # end for
 # end func
 
