@@ -15,8 +15,7 @@ Revision History:
     LastUpdate:     11/08/17   RH       Implement ASDF-based cross-correlation workflow
     LastUpdate:     11/07/18   RH       Implemented parallel cross-correlator
     LastUpdate:     19/07/18   RH       Implemented cross-correlation approaches described in Habel et al. 2018
-
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+    LastUpdate:     05/05/21   RH       Implemented spooling for computed x-correlations
 """
 
 import os
@@ -94,6 +93,15 @@ def whiten(a, sampling_rate, window_freq=0):
     :param window_freq: smoothing window length (Hz)
     :return: spectrally whitened samples
     """
+
+    def movmean(x, wlen):
+        s = numpy.r_[x[wlen - 1:0:-1], x, x[-2:-wlen - 1:-1]]
+        w = np.ones(wlen) / float(wlen)
+        y = numpy.convolve(s, w, mode='valid')
+
+        return y[wlen // 2:-(wlen // 2)]
+    # end func
+
     # frequency step
     npts = a.shape[0]
     deltaf = sampling_rate / npts
@@ -105,7 +113,8 @@ def whiten(a, sampling_rate, window_freq=0):
 
     if halfwindow > 0:
         # moving average
-        weight = np.convolve(np.abs(ffta), np.ones(halfwindow * 2 + 1) / (halfwindow * 2 + 1), mode='same')
+        #weight = np.convolve(np.abs(ffta), np.ones(halfwindow * 2 + 1) / (halfwindow * 2 + 1), mode='same')
+        weight = movmean(np.abs(ffta), halfwindow * 2 + 1)
     else:
         weight = np.abs(ffta)
 

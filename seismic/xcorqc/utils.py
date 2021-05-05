@@ -200,6 +200,12 @@ class ProgressTracker:
 # end class
 
 class SpooledXcorrResults:
+    """
+    Spooled storage for cross-correlations. Stacked cross-correlations computed were previously
+    gathered in memory, before being written to netCDF4 files at the end. Because we now need to
+    output all cross-correlations, unstacked, the memory requirements have jumped by a factor of
+    ~26. We now write the CCs to a spooled storage as they are being computed.
+    """
     def __init__(self, ncols, dtype=np.float32, max_size_mb=2048, prefix=''):
         self._prefix = prefix
         self._ncols = ncols
