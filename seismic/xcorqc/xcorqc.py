@@ -15,8 +15,7 @@ Revision History:
     LastUpdate:     11/08/17   RH       Implement ASDF-based cross-correlation workflow
     LastUpdate:     11/07/18   RH       Implemented parallel cross-correlator
     LastUpdate:     19/07/18   RH       Implemented cross-correlation approaches described in Habel et al. 2018
-
-    LastUpdate:     dd/mm/yyyy  Who     Optional description
+    LastUpdate:     05/05/21   RH       Implemented spooling for computed x-correlations
 """
 
 import os
@@ -38,7 +37,7 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.utils import get_stream
 from netCDF4 import Dataset
 from functools import reduce
-
+from seismic.xcorqc.utils import SpooledXcorrResults 
 logging.basicConfig()
 
 
@@ -94,6 +93,15 @@ def whiten(a, sampling_rate, window_freq=0):
     :param window_freq: smoothing window length (Hz)
     :return: spectrally whitened samples
     """
+
+    def movmean(x, wlen):
+        s = numpy.r_[x[wlen - 1:0:-1], x, x[-2:-wlen - 1:-1]]
+        w = np.ones(wlen) / float(wlen)
+        y = numpy.convolve(s, w, mode='valid')
+
+        return y[wlen // 2:-(wlen // 2)]
+    # end func
+
     # frequency step
     npts = a.shape[0]
     deltaf = sampling_rate / npts
@@ -105,7 +113,8 @@ def whiten(a, sampling_rate, window_freq=0):
 
     if halfwindow > 0:
         # moving average
-        weight = np.convolve(np.abs(ffta), np.ones(halfwindow * 2 + 1) / (halfwindow * 2 + 1), mode='same')
+        #weight = np.convolve(np.abs(ffta), np.ones(halfwindow * 2 + 1) / (halfwindow * 2 + 1), mode='same')
+        weight = movmean(np.abs(ffta), halfwindow * 2 + 1)
     else:
         weight = np.abs(ffta)
 
@@ -146,7 +155,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     interval_samples_1 = interval_seconds * sr1
     interval_samples_2 = interval_seconds * sr2
     # sr = 0
-    resll = []
+    resultCache = []
 
     # set day-aligned start-indices
     maxStartTime = max(tr1.stats.starttime, tr2.stats.starttime)
@@ -191,7 +200,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         windowCount = 0
         wtr1s = int(itr1s)
         wtr2s = int(itr2s)
-        resl = []
+        intervalXcorrList = []
 
         while wtr1s < itr1e and wtr2s < itr2e:
             wtr1e = int(min(itr1e, wtr1s + window_samples_1))
@@ -365,7 +374,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
 
                 if not np.isnan(rf).any():
-                    resl.append(rf)
+                    intervalXcorrList.append(rf)
                     windowCount += 1
                 # end if
             # end if
@@ -389,7 +398,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
         # Append an array of zeros if no windows were processed for the current interval
         if windowCount == 0:
-            resl.append(np.zeros(fftlen))
+            intervalXcorrList.append(np.zeros(fftlen))
             if verbose > 1:
                 if logger:
                     logger.info('\tWarning: No windows processed due to gaps in data in current interval')
@@ -399,9 +408,9 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         windowsPerInterval.append(windowCount)
 
         if windowCount > 0:
-            mean = reduce((lambda tx, ty: tx + ty), resl) / float(windowCount)
+            mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) / float(windowCount)
         else:
-            mean = reduce((lambda tx, ty: tx + ty), resl)
+            mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) 
         # end if
 
         if envelope_normalize:
@@ -422,11 +431,11 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             # end if
         # end if
 
-        resll.append(mean[:xcorlen])
+        resultCache.append(mean[:xcorlen])
     # end while (iteration over intervals)
 
-    if len(resll):
-        return np.array(resll), np.array(windowsPerInterval), \
+    if len(resultCache):
+        return np.array(resultCache).real, np.array(windowsPerInterval), \
                np.array(intervalStartSeconds, dtype='i8'), \
                np.array(intervalEndSeconds, dtype='i8'), \
                sr
@@ -575,11 +584,11 @@ def IntervalStackXCorr(refds, tempds,
 
     cTime = startTime
 
-    xcorrResultsDict = defaultdict(list)  # Results dictionary indexed by station-pair string
-    windowCountResultsDict = defaultdict(list)  # Window-count dictionary indexed by station-pair string
-    intervalStartTimesDict = defaultdict(list)
-    intervalEndTimesDict = defaultdict(list)
+    windowCounts = []
+    intervalStartTimes = []
+    intervalEndTimes = []
     sr = 0
+    spooledXcorr = None
     while cTime < endTime:
         cStep = buffer_seconds
 
@@ -669,91 +678,42 @@ def IntervalStackXCorr(refds, tempds,
             continue
         # end if
 
-        xcorrResultsDict[stationPair].append(xcl)
-        windowCountResultsDict[stationPair].append(winsPerInterval)
-
-        intervalStartTimesDict[stationPair].append(intervalStartSeconds)
-        intervalEndTimesDict[stationPair].append(intervalEndSeconds)
+        if(spooledXcorr is None):
+            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair)
+        # end if
+        
+        # write xcorr results to spooled buffer
+        for irow in np.arange(xcl.shape[0]):
+            spooledXcorr.write_row(np.array(xcl[irow, :]))
+        # end for
+        windowCounts.append(winsPerInterval)
+        intervalStartTimes.append(intervalStartSeconds)
+        intervalEndTimes.append(intervalEndSeconds)
 
         cTime += cStep
     # wend (loop over time range)
 
     x = None
-    # skippedCount = 0
-    # Concatenate results
-    for k in list(xcorrResultsDict.keys()):
-        combinedXcorrResults = None
-        combinedWindowCountResults = None
-        combinedIntervalStartTimes = None
-        combinedIntervalEndTimes = None
-        for i in np.arange(len(xcorrResultsDict[k])):
-            if i == 0:
-                combinedXcorrResults = xcorrResultsDict[k][0]
-                combinedWindowCountResults = windowCountResultsDict[k][0]
-                combinedIntervalStartTimes = intervalStartTimesDict[k][0]
-                combinedIntervalEndTimes = intervalEndTimesDict[k][0]
+    flattenedWindowCounts = None
+    flattenedIntervalStartTimes = None
+    flattenedIntervalEndTimes = None
+    if(spooledXcorr and spooledXcorr.nrows):
+        dt = 1./sr
+        x = np.linspace(-window_seconds + dt, window_seconds - dt, spooledXcorr.ncols)
+                        
 
-                # Generate time samples (only needs to be done once)
-                if x is None:
-                    dt = 1./sr
-                    x = np.linspace(-window_seconds + dt, window_seconds - dt,
-                                    xcorrResultsDict[k][0].shape[1])
-                # end if
+        flattenedWindowCounts = np.concatenate(windowCounts).ravel()
+        flattenedIntervalStartTimes = np.concatenate(intervalStartTimes).ravel()
+        flattenedIntervalEndTimes = np.concatenate(intervalEndTimes).ravel()
 
-                if ensemble_stack:
-                    if combinedXcorrResults.shape[0] > 1:
-                        combinedXcorrResults = np.expand_dims(np.sum(combinedXcorrResults,
-                                                                     axis=0), axis=0)
-                    # end if
-                # end if
-            else:
-                if combinedXcorrResults.shape[1] == xcorrResultsDict[k][i].shape[1]:
-                    if ensemble_stack:
-                        if xcorrResultsDict[k][i].shape[0] > 1:
-                            combinedXcorrResults += np.expand_dims(np.sum(xcorrResultsDict[k][i],
-                                                                          axis=0), axis=0)
-                        else:
-                            combinedXcorrResults += xcorrResultsDict[k][i]
-                        # end if
-                    else:
-                        combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                               xcorrResultsDict[k][i]))
-                    # end if
-                else:
-                    if ensemble_stack:
-                        pass
-                    else:
-                        combinedXcorrResults = np.concatenate((combinedXcorrResults,
-                                                               np.zeros((xcorrResultsDict[k][i].shape[0],
-                                                                         combinedXcorrResults.shape[1]))))
-                    # end if
-                    logger.warning("\t\tVariable sample rates detected. Current station-pair: %s" % k)
-                # end if
-                combinedWindowCountResults = np.concatenate((combinedWindowCountResults,
-                                                             windowCountResultsDict[k][i]))
-                combinedIntervalStartTimes = np.concatenate((combinedIntervalStartTimes,
-                                                             intervalStartTimesDict[k][i]))
-                combinedIntervalEndTimes = np.concatenate((combinedIntervalEndTimes,
-                                                           intervalEndTimesDict[k][i]))
-            # end if
-        # end for
-
-        # Replace lists with combined results
-        xcorrResultsDict[k] = combinedXcorrResults
-        windowCountResultsDict[k] = combinedWindowCountResults
-        intervalStartTimesDict[k] = combinedIntervalStartTimes
-        intervalEndTimesDict[k] = combinedIntervalEndTimes
-    # end for
-
-    # Save Results
-    for i, k in enumerate(list(xcorrResultsDict.keys())):
-        fn = os.path.join(outputPath, '%s.nc' % (k if not tracking_tag else '.'.join([k, tracking_tag])))
+        # Save Results
+        fn = os.path.join(outputPath, '%s.nc' % (stationPair if not tracking_tag else '.'.join([stationPair, tracking_tag])))
 
         root_grp = Dataset(fn, 'w', format='NETCDF4')
-        root_grp.description = 'Cross-correlation results for station-pair: %s' % k
+        root_grp.description = 'Cross-correlation results for station-pair: %s' % stationPair
 
         # Dimensions
-        root_grp.createDimension('lag', xcorrResultsDict[k].shape[1])
+        root_grp.createDimension('lag', spooledXcorr.ncols)
         root_grp.createDimension('nchar', 10)
 
         lag = root_grp.createVariable('lag', 'f4', ('lag',))
@@ -783,32 +743,43 @@ def IntervalStackXCorr(refds, tempds,
             iet = root_grp.createVariable('IntervalEndTime', 'i8')
             xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
 
-            totalIntervalCount = int(np.sum(windowCountResultsDict[k] > 0))
-            totalWindowCount = int(np.sum(windowCountResultsDict[k]))
+            totalIntervalCount = int(np.sum(flattenedWindowCounts > 0))
+            totalWindowCount = int(np.sum(flattenedWindowCounts))
             nsw[:] = totalWindowCount
-            avgnsw[:] = np.mean(windowCountResultsDict[k][windowCountResultsDict[k]>0])
-            ist[:] = int(np.min(intervalStartTimesDict[k]))
-            iet[:] = int(np.max(intervalEndTimesDict[k]))
+            avgnsw[:] = np.mean(flattenedWindowCounts[flattenedWindowCounts>0])
+            ist[:] = int(np.min(flattenedIntervalStartTimes))
+            iet[:] = int(np.max(flattenedIntervalEndTimes))
+            
+            es = np.array(spooledXcorr.read_row(0))
+            for irow in np.arange(1, spooledXcorr.nrows):
+                es += spooledXcorr.read_row(irow)
+            # end for
+
             if totalIntervalCount > 0:
-                xc[:] = xcorrResultsDict[k].real / float(totalIntervalCount)
+                xc[:] = es / float(totalIntervalCount)
             else:
-                xc[:] = xcorrResultsDict[k].real
+                xc[:] = es
             # end if
         else:
-            root_grp.createDimension('interval', xcorrResultsDict[k].shape[0])
+            root_grp.createDimension('interval', spooledXcorr.nrows)
             # Variables
             interval = root_grp.createVariable('interval', 'f4', ('interval',))
             nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
             ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
             iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
-            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',))
+            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',), 
+                                         chunksizes=(1, spooledXcorr.ncols), 
+                                         zlib=True)
 
             # Populate variables
-            interval[:] = np.arange(xcorrResultsDict[k].shape[0])
-            nsw[:] = windowCountResultsDict[k]
-            ist[:] = intervalStartTimesDict[k]
-            iet[:] = intervalEndTimesDict[k]
-            xc[:, :] = xcorrResultsDict[k].real
+            interval[:] = np.arange(spooledXcorr.nrows)
+            nsw[:] = flattenedWindowCounts
+            ist[:] = flattenedIntervalStartTimes
+            iet[:] = flattenedIntervalEndTimes
+
+            for irow in np.arange(spooledXcorr.nrows):
+                xc[irow, :] = spooledXcorr.read_row(irow)
+            # end for
         # end if
 
         lag[:] = x
@@ -845,7 +816,5 @@ def IntervalStackXCorr(refds, tempds,
         # end for
 
         root_grp.close()
-    # end for
-
-    return x, xcorrResultsDict, windowCountResultsDict
+    # end if
 # end func

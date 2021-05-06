@@ -5,6 +5,7 @@ from scipy.spatial import cKDTree
 from collections import defaultdict
 from obspy import UTCDateTime, read_inventory, Inventory, Stream
 from obspy.geodetics.base import gps2dist_azimuth
+from tempfile import SpooledTemporaryFile
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -197,3 +198,59 @@ class ProgressTracker:
         # end if
     # end func
 # end class
+
+class SpooledXcorrResults:
+    """
+    Spooled storage for cross-correlations. Stacked cross-correlations computed were previously
+    gathered in memory, before being written to netCDF4 files at the end. Because we now need to
+    output all cross-correlations, unstacked, the memory requirements have jumped by a factor of
+    ~26. We now write the CCs to a spooled storage as they are being computed.
+    """
+    def __init__(self, ncols, dtype=np.float32, max_size_mb=2048, prefix=''):
+        self._prefix = prefix
+        self._ncols = ncols
+        self._nrows = 0
+        self._dtype = dtype
+        self._max_size_mb = max_size_mb
+
+        self._file = SpooledTemporaryFile(prefix = self._prefix, mode = 'w+b', max_size = max_size_mb * 1024**2)
+    # end func
+    
+    @property
+    def ncols(self):
+        return self._ncols
+    # end func
+    
+    @property
+    def nrows(self):
+        return self._nrows
+    # end func
+
+    def write_row(self, row_array):
+        assert(row_array.dtype == self._dtype) 
+        assert(len(row_array.shape) == 1)
+        assert(row_array.shape[0] == self._ncols)
+
+        self._file.write(row_array.data)
+        
+        self._nrows += 1
+    # end func
+
+    def read_row(self, row_idx):
+        if(row_idx < self._nrows):
+            seek_loc = row_idx * self._ncols * np.dtype(self._dtype).itemsize
+            self._file.seek(seek_loc)
+
+            nbytes = self._ncols * np.dtype(self._dtype).itemsize
+            row = np.frombuffer(self._file.read(nbytes), dtype=self._dtype)
+        
+            return row
+        else:
+            return None
+    # end func
+
+    def __del__(self):
+        self._file.close()
+    # end func
+# end class
+
