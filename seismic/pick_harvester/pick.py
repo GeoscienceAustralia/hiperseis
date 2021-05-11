@@ -35,7 +35,7 @@ import psutil
 import gc
 
 from seismic.pick_harvester.quality import compute_quality_measures
-
+from seismic.ml_classifier.model import *
 
 def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
@@ -150,6 +150,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
 
 # end func
 
+model = shakenet(pretrained_weights='/g/data/ha3/rakib/seismic/pst/hiperseis/seismic/ml_classifier/shakenet-model.hdf5')
 def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitude,
               stn, ste, ba, win_start=-50, win_end=50, resample_hz=20,
               bp_freqmins=[0.01, 0.01, 0.5],
@@ -173,8 +174,8 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     if (len(atimes) == 0): return None
     tat = atimes[0].time  # theoretical arrival time
 
-    buffer_start = -10
-    buffer_end = 10
+    buffer_start = -30
+    buffer_end = 50
     snrtr = None
     try:
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
@@ -252,7 +253,28 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                             scales = np.logspace(0.5, 4, 30)
                             cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
                                                                                      plotinfo)
-                            snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
+                            
+                            prediction = -1
+                            try:
+                                ml_input = snrtr.slice(pick - 20, pick + 40).copy()
+                                if(type(ml_input.data) == np.ndarray):
+                                    ml_input.resample(100)
+                                    ml_input_data = np.expand_dims(ml_input.data[0:6002], axis=0)
+                                    if(ml_input_data.shape == (1, 6002)):
+                                        ml_output = model.predict(np.expand_dims(ml_input.data[0:6002], axis=0), batch_size=1)
+                                        prediction = ml_output[0, 0]
+                                    else:
+                                        prediction = -3
+                                    # end if
+                                else:
+                                    prediction = -2
+                                # end if
+                            except Exception as e:
+                                print(e)
+                            # end try
+
+                            #snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
+                            snrlist.append([snr[ipick], cwtsnr, prediction, slope_ratio])
 
                             residuallist.append(residual)
                             bandindex = i
