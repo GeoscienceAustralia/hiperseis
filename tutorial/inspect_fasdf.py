@@ -90,4 +90,8 @@ if __name__ == "__main__":
     print(df.head(5))
 
     path2_asdffile = "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2018-2019.h5"
+    print ("Begin to inspect the ASDF file", path2_asdffile)
+
     check_h5file(path2_asdffile)
+
+    print ("End of inspecting the ASDF file", path2_asdffile)
