@@ -51,12 +51,12 @@ def select_netsta_rows(net, sta):
     if (a_pdf.size >0):
         print(a_pdf.size, "rows found for ", net,sta)
     else:
-        print("!!! WARNING !!!: NO record found for ",net,sta)
+        print("!!! WARNING !!!: NO sqlite-db record found for ",net,sta)
 
     return a_pdf
 
 
-def check_h5file(asdffile):
+def check_h5file(ds):
     """
     Check a particular asdf file listed in the index.txt of the federated ASDF database
     :return:
@@ -64,7 +64,7 @@ def check_h5file(asdffile):
     # asdffile = "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2018-2019.h5"  # very large
     # asdffile = "/g/data/ha3/GASeisDataArchive/DevSpace/2020.h5"
 
-    ds = pyasdf.ASDFDataSet(asdffile, mode="r")
+    # ds = pyasdf.ASDFDataSet(asdffile, mode="r")
 
     ##  This may take a few hours to complete run in VDI
     # ds.validate()  # PyASDF provide an validation function
@@ -75,6 +75,49 @@ def check_h5file(asdffile):
         print("********** network and station *************", net, sta)
         select_netsta_rows(net, sta)
         print(ds.waveforms[net_station])
+
+
+def retrieve_data_from_asdf(ds, netcode,stacode):
+    """ Retrieve data from ASDF ds
+
+    ['AU.ARMA'] has a station xml, has waveforms
+    ['AU.AXCOZ'] has NO stationXML, has waveforms
+    """
+
+    netsta="%s.%s"%(netcode,stacode)
+    sta1= ds.waveforms[netsta]
+
+
+    print (len(sta1.list()))
+    print(sta1.list()[0])
+    print(sta1.list()[-1])
+
+    keystr=sta1.list()[0]
+#astream = sta1['AU.ARMA..BHN__2020-01-06T08:42:51__2020-01-06T08:43:15__raw_recording']
+    astream = sta1[keystr]
+
+    astream.plot() 
+
+
+
+    #sta1.StationXML   
+
+    try:
+        xmlfile = netsta+"_station.xml"
+
+        sta1.StationXML.write(xmlfile, format="STATIONXML")
+        
+    except (AttributeError):
+        print ("No stationXML file in the asdf")
+        xmlfile = None
+    else:
+        pass
+
+    
+    return xmlfile
+
+
+
 
 
 # =============================================
@@ -89,9 +132,27 @@ if __name__ == "__main__":
     df = select_netsta_rows(netcode, stacode)
     print(df.head(5))
 
+
+#  inspect the H5 files listed in /g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt
     path2_asdffile = "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2018-2019.h5"
+    #path2_asdffile = "/g/data/ha3/Passive/STRIPED_DATA/TEMP/OA_AUSARRAY1_rev1.h5"
+    #path2_asdffile = "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2009-2011.h5"
+
+    #path2_asdffile = "/g/data1a/ha3/Passive/STRIPED_DATA/TEMP/AQT_2015-2018.h5"
+
+    ds = pyasdf.ASDFDataSet(path2_asdffile, mode="r")
+
     print ("Begin to inspect the ASDF file", path2_asdffile)
 
-    check_h5file(path2_asdffile)
+    #check_h5file(ds)
 
     print ("End of inspecting the ASDF file", path2_asdffile)
+
+
+# For 2018-2019.h5
+
+    netcode = "AU"
+    #stacode = "AXCOZ"   # has no stationXML
+    stacode = "ARMA"     # has stationXML
+
+    retrieve_data_from_asdf(ds, netcode,stacode)
