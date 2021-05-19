@@ -7,7 +7,7 @@
 #PBS -q normal 
 #PBS -P vy72
 #PBS -N pbs_job
-#PBS -l walltime=30:10:00,mem=50GB,ncpus=2,jobfs=160GB
+#PBS -l walltime=40:10:00,mem=50GB,ncpus=2,jobfs=160GB
 #PBS -l storage=scratch/fxz547+gdata/ha3
 #PBS -l wd
 #PBS -j oe
@@ -27,7 +27,7 @@ source $HIPERSEIS_HOME/gadi_env.sh
 # Run the cmdline
 
 cd $HIPERSEIS_HOME/tutorial
-python3 inspect_fasdf.py
+python3 inspect_fasdf.py > inspect_fasdf_results.log
 
 ###################################################################
 

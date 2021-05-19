@@ -10,7 +10,10 @@ Developer:      fei.zhang@ga.gov.au
 import os
 import pandas as pd
 import pyasdf
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+
 import sqlite3
+
 
 
 def get_netsta_pdf(dburl="/g/data/ha3/Passive/SHARED_DATA/Index/778837537aa72d892df7b0ba22320f537c1d8f6a.db"):
@@ -66,9 +69,6 @@ def check_h5file(ds):
 
     # ds = pyasdf.ASDFDataSet(asdffile, mode="r")
 
-    ##  This may take a few hours to complete run in VDI
-    # ds.validate()  # PyASDF provide an validation function
-
     ###  This takes a few hours to complete run in VDI
     for net_station in ds.waveforms.list():
         net, sta = net_station.split(".")
@@ -118,8 +118,6 @@ def retrieve_data_from_asdf(ds, netcode,stacode):
 
 
 
-
-
 # =============================================
 # Section for quick test of this script
 # ---------------------------------------------
@@ -139,20 +137,34 @@ if __name__ == "__main__":
     #path2_asdffile = "/g/data/ha3/Passive/STRIPED_DATA/GA_PERM/2009-2011.h5"
 
     #path2_asdffile = "/g/data1a/ha3/Passive/STRIPED_DATA/TEMP/AQT_2015-2018.h5"
+    index_txt = "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt"
 
-    ds = pyasdf.ASDFDataSet(path2_asdffile, mode="r")
+    from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSetImpl
+    fds = _FederatedASDFDataSetImpl(index_txt)
 
-    print ("Begin to inspect the ASDF file", path2_asdffile)
+    print (fds.asdf_file_names)
 
-    #check_h5file(ds)
+    for path2_asdffile in fds.asdf_file_names:
 
-    print ("End of inspecting the ASDF file", path2_asdffile)
+        ds = pyasdf.ASDFDataSet(path2_asdffile, mode="r")
+        
+        print("----------------------------------------")
+
+        print ("Begin to validate the ASDF file", path2_asdffile)
+        #  This may take a few hours to complete run in VDI
+
+        ds.validate()  # PyASDF provide an validation function
+
+        print ("Begin to inspect the ASDF file", path2_asdffile)
+
+        check_h5file(ds)
+
+        print ("End of validating and inspecting the ASDF file", path2_asdffile)
 
 
-# For 2018-2019.h5
+# Only For 2018-2019.h5
+    # netcode = "AU"
+    # #stacode = "AXCOZ"   # has no stationXML
+    # stacode = "ARMA"     # has stationXML
 
-    netcode = "AU"
-    #stacode = "AXCOZ"   # has no stationXML
-    stacode = "ARMA"     # has stationXML
-
-    retrieve_data_from_asdf(ds, netcode,stacode)
+    # retrieve_data_from_asdf(ds, netcode,stacode)
