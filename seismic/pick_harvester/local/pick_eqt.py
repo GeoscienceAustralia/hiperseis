@@ -33,6 +33,7 @@ from obspy.signal.filter import bandpass, highpass, lowpass
 from seismic.pick_harvester.utils import CatalogCSV, ProgressTracker, recursive_glob, split_list
 from seismic.xcorqc.utils import get_stream
 from seismic.xcorqc.xcorqc import taper
+import pywt
 
 import matplotlib.pyplot as plt
 
@@ -86,7 +87,7 @@ def stationsToProcess(fds, netsta_list):
     return netsta_list_result
 # end func
 
-def processData(ztrc, ntrc, etrc, model, picking_args, window_seconds=60, buffer_seconds=10, overlap=0.5):
+def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_seconds=60, buffer_seconds=10, overlap=0.5):
     assert(ztrc.stats.sampling_rate == ntrc.stats.sampling_rate == etrc.stats.sampling_rate)
 
     sr = ztrc.stats.sampling_rate
@@ -102,15 +103,16 @@ def processData(ztrc, ntrc, etrc, model, picking_args, window_seconds=60, buffer
     stime = max_st
     etime = min_et
     ctime = stime
-    step = window_seconds + buffer_seconds - (window_seconds + buffer_seconds) * overlap
+    step = window_seconds - int(window_seconds * overlap)
     wcount = 0
     while(ctime < etime):
 
         zdata = ndata = edata = None
-        sidx_start = int(wcount * step * sr)
-        sidx_end   = sidx_start + int((window_seconds + buffer_seconds) * sr)
+        sidx_start = int((wcount * step - buffer_seconds/2.) * sr)
+        sidx_end   = int(sidx_start + (window_seconds + buffer_seconds/2.) * sr)
 
-        if((sidx_end < ztrc.data.shape[0]) and \
+        if((sidx_start>=0) and
+           (sidx_end < ztrc.data.shape[0]) and \
            (sidx_end < ntrc.data.shape[0]) and \
            (sidx_end < etrc.data.shape[0])):
 
@@ -122,31 +124,72 @@ def processData(ztrc, ntrc, etrc, model, picking_args, window_seconds=60, buffer
                type(ndata)==np.ndarray and \
                type(edata)==np.ndarray):
 
-                for i, data in enumerate([edata, ndata, zdata]):
-                    data = signal.detrend(data)
-                    data -= np.mean(data)
-                    taper(data, int(buffer_seconds * sr / 2))
-                    data = bandpass(data, 1.0, 45, sr, corners=2, zerophase=True)
+                if(np.sum(zdata)!=0 and
+                   np.sum(ndata)!=0 and
+                   np.sum(edata)!=0): # traces cannot be all zeros
 
-                    if(sr != 100):
-                        data = signal.resample(data, (window_seconds + buffer_seconds) * 100)
+                    for i, data in enumerate([edata, ndata, zdata]):
+                        data = signal.detrend(data)
+                        data -= np.mean(data)
+                        taper(data, int(buffer_seconds * sr / 2.))
+                        data = bandpass(data, 1.0, 45, sr, corners=2, zerophase=True)
+
+                        if(sr != 100):
+                            data = signal.resample(data, (window_seconds + buffer_seconds) * 100)
+                        # end if
+
+                        ml_input[0, :, i] = data[int(buffer_seconds/2.*100) : int(buffer_seconds/2.*100)+6000]
+                    # end for
+
+                    eprob, pprob, sprob = model(ml_input)
+                    matches, pick_errors, sprob = _picker(picking_args,
+                                                          np.squeeze(eprob),
+                                                          np.squeeze(pprob),
+                                                          np.squeeze(sprob))
+                    if(len(matches)):
+                        fig, axes = plt.subplots(3,1)
+
+                        for k, v in matches.items():
+                            if(v[3]): axes[0].axvline(v[3], c='blue', alpha=0.75)
+                            if(v[6]): axes[0].axvline(v[6], c='red', alpha=0.75)
+                        # end for
+                        axes[0].plot(ml_input[0, :, 0], c='k', lw=0.3)
+                        axes[0].set_xlim(0, 6000)
+                        axes[0].grid()
+
+                        axes[1].plot(np.squeeze(eprob), '--', c='g', label='Event')
+                        axes[1].plot(np.squeeze(pprob), '--', c='blue', label='P')
+                        axes[1].plot(np.squeeze(sprob), '--', c='red', label='S')
+                        axes[1].set_xlim(0, 6000)
+                        axes[1].grid()
+                        axes[1].set_xlabel('Samples')
+                        axes[1].set_ylabel('Probability')
+                        axes[1].legend()
+
+                        f, t, ps = signal.stft(ml_input[0, :, 2], fs=100, nperseg=80)
+                        ps = np.abs(ps)
+                        ps[ps<np.std(ps)/2.] = 1
+                        axes[2].pcolormesh(t, f, ps, cmap='jet', rasterized=True)
+                        axes[2].set_ylabel('Frequency [Hz]')
+                        axes[2].set_xlabel('Time [s]')
+
+                        plt.suptitle('%s : %s - %s' %(ztrc.stats.station, ctime.strftime('%Y-%m-%dT%H:%M:%S'),
+                                                 (ctime+window_seconds).strftime('%Y-%m-%dT%H:%M:%S')),
+                                     y=1.0)
+
+                        plt.tight_layout()
+                        plt.savefig('%s/%s.%d.png'%(output_path, ztrc.stats.station, wcount), dpi=300)
+                        plt.close(fig)
+                        print((ctime, ztrc.stats.station, matches))
+
+                        #exit(0)
                     # end if
-
-                    ml_input[0, :, i] = data[int(buffer_seconds/2*100) : int(buffer_seconds/2*100)+6000]
-                    #plt.plot(ml_input[:, i], lw=0.5, alpha=0.2)
-                # end for
-
-                #plt.savefig('/g/data/ha3/rakib/seismic/pst/tests/plots/%d.pdf'%(wcount))
-                #plt.close()
-
-                eprob, pprob, sprob = model(ml_input)
-                matches, pick_errors, sprob = _picker(picking_args,
-                                                      np.squeeze(eprob),
-                                                      np.squeeze(pprob),
-                                                      np.squeeze(sprob))
-                print((ctime, matches))
+                # end if
             # end if
         # end if
+
+        print('%s - %s' % (ctime.strftime('%Y-%m-%dT%H:%M:%S.%f'),
+                           ((ctime + window_seconds).strftime('%Y-%m-%dT%H:%M:%S.%f'))))
 
         ctime += step
         wcount += 1
@@ -316,7 +359,7 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, logger=logger)
 
             if(len(ste)): # we have data in all three streams
-                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args)
+                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args, output_path)
             # end if
 
             cTime += step
