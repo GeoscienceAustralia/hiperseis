@@ -254,9 +254,9 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
                   metrics = [f1])
     # define picking parameters
     picking_args = {
-        "detection_threshold": 0.8,
-        "P_threshold": 0.8,
-        "S_threshold": 0.6,
+        "detection_threshold": 0.5,
+        "P_threshold": 0.5,
+        "S_threshold": 0.5,
     }
 
     if (rank == 0):
