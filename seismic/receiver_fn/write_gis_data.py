@@ -8,10 +8,19 @@ import numpy as np
 import rasterio
 import shapefile
 
-# Plate Carree CRS
-CRS = rasterio.crs.CRS.from_proj4(
-    "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 "
-    "+datum=WGS84 +units=m +no_defs")
+CRS = rasterio.crs.CRS.from_wkt(\
+"""
+                    GEOGCS["WGS 84",
+                    DATUM["WGS_1984",
+                    SPHEROID["WGS 84",6378137,298.257223563,
+                    AUTHORITY["EPSG","7030"]],
+                    AUTHORITY["EPSG","6326"]],
+                    PRIMEM["Greenwich",0,
+                    AUTHORITY["EPSG","8901"]],
+                    UNIT["degree",0.01745329251994328,
+                    AUTHORITY["EPSG","9122"]],
+                    AUTHORITY["EPSG","4326"]]
+""")
 
 
 def _profile(data, nx, ny, bands=1, bounds=None):
@@ -110,9 +119,9 @@ def write_sample_locations(methods, outfile):
             sta.fill('N/A')
         else:
             sta = data.sta
-        formatted_data = np.array((data.lon, data.lat, data.total_weight, data.val, net, sta)).T
+        formatted_data = np.array((data.lat, data.lon, data.total_weight, data.val, net, sta)).T
         for d in formatted_data:
-            w.point(float(d[0]), float(d[1]))
+            w.point(float(d[1]), float(d[0]))
             w.record(WEIGHT=d[2], DEPTH=d[3], STA='.'.join((str(d[4]), str(d[5]))))
         w.close()
         # Write .prj file
