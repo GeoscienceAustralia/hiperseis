@@ -137,7 +137,7 @@ def process(data_source1, data_source2, output_path,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, restart=False, dry_run=False,
-            no_tracking_tag=False):
+            no_tracking_tag=False, scratch_folder=None):
     """
     :param data_source1: Text file containing paths to ASDF files
     :param data_source2: Text file containing paths to ASDF files
@@ -210,6 +210,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
             f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%25s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
+            f.write('%25s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
 
             f.close()
         # end func
@@ -355,7 +356,7 @@ def process(data_source1, data_source2, output_path,
                            window_seconds, window_overlap, window_buffer_length,
                            fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
                            one_bit_normalize, envelope_normalize, ensemble_stack,
-                           output_path, 2, time_tag)
+                           output_path, 2, time_tag, scratch_folder)
     # end for
 # end func
 
@@ -472,12 +473,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--dry-run', default=False, is_flag=True, help='Dry run for printing out station-pairs and '
                                                              'additional stats.')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
+@click.option('--scratch-folder', default=None, help='Scratch folder for large jobs; default is to use the standard temp folder')
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
          window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
          station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
          water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, restart, dry_run, no_tracking_tag):
+         ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
     :param data_source1: Text file containing paths to ASDF files
     :param data_source2: Text file containing paths to ASDF files
@@ -497,7 +499,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
             station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
             water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, restart, dry_run, no_tracking_tag)
+            ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder)
 # end func
 
 if __name__ == '__main__':
