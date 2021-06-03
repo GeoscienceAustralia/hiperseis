@@ -206,14 +206,14 @@ class SpooledXcorrResults:
     output all cross-correlations, unstacked, the memory requirements have jumped by a factor of
     ~26. We now write the CCs to a spooled storage as they are being computed.
     """
-    def __init__(self, ncols, dtype=np.float32, max_size_mb=2048, prefix=''):
+    def __init__(self, ncols, dtype=np.float32, max_size_mb=2048, prefix='', dir=None):
         self._prefix = prefix
         self._ncols = ncols
         self._nrows = 0
         self._dtype = dtype
         self._max_size_mb = max_size_mb
 
-        self._file = SpooledTemporaryFile(prefix = self._prefix, mode = 'w+b', max_size = max_size_mb * 1024**2)
+        self._file = SpooledTemporaryFile(prefix = self._prefix, mode = 'w+b', max_size = max_size_mb * 1024**2, dir=dir)
     # end func
     
     @property

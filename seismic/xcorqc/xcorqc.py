@@ -679,13 +679,7 @@ def IntervalStackXCorr(refds, tempds,
         # end if
 
         if(spooledXcorr is None):
-            prefix = None
-            if(scratch_folder):
-                prefix = os.path.join(scratch_folder, stationPair)
-            else:
-                prefix = stationPair
-            # end if
-            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=prefix)
+            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair, dir=scratch_folder)
         # end if
         
         # write xcorr results to spooled buffer
