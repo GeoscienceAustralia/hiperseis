@@ -8,20 +8,7 @@ import numpy as np
 import rasterio
 import shapefile
 
-CRS = rasterio.crs.CRS.from_wkt(\
-"""
-                    GEOGCS["WGS 84",
-                    DATUM["WGS_1984",
-                    SPHEROID["WGS 84",6378137,298.257223563,
-                    AUTHORITY["EPSG","7030"]],
-                    AUTHORITY["EPSG","6326"]],
-                    PRIMEM["Greenwich",0,
-                    AUTHORITY["EPSG","8901"]],
-                    UNIT["degree",0.01745329251994328,
-                    AUTHORITY["EPSG","9122"]],
-                    AUTHORITY["EPSG","4326"]]
-""")
-
+CRS = rasterio.crs.CRS.from_epsg(4326)
 
 def _profile(data, nx, ny, bands=1, bounds=None):
     """
@@ -119,13 +106,18 @@ def write_sample_locations(methods, outfile):
             sta.fill('N/A')
         else:
             sta = data.sta
-        formatted_data = np.array((data.lat, data.lon, data.total_weight, data.val, net, sta)).T
+        formatted_data = np.array((data.lon, data.lat, data.total_weight, data.val, net, sta)).T
         for d in formatted_data:
-            w.point(float(d[1]), float(d[0]))
+            w.point(float(d[0]), float(d[1]))
             w.record(WEIGHT=d[2], DEPTH=d[3], STA='.'.join((str(d[4]), str(d[5]))))
         w.close()
         # Write .prj file
         with open(f'{outfile.format(data.name)}.prj', 'w') as prj:
-            prj.write(CRS.wkt)
+            epsg = 'GEOGCS["WGS 84",'
+            epsg += 'DATUM["WGS_1984",'
+            epsg += 'SPHEROID["WGS 84",6378137,298.257223563]]'
+            epsg += ',PRIMEM["Greenwich",0],'
+            epsg += 'UNIT["degree",0.0174532925199433]]'
+            prj.write(epsg)
 
     print(f"Complete! Location shapefiles written to '{outfile.format('method_name')}'")
