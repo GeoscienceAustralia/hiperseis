@@ -73,6 +73,7 @@ def make_grid(params):
     xy_mins = []
     xy_maxs = []
     for data in params.method_datasets:
+        if(len(data.sta)==0): continue
         print(f"Building grid for '{data.name}'")
         pt_data = np.array((data.lon, data.lat, data.val)).T
         xy_map = pt_data[:, :2]
@@ -87,6 +88,7 @@ def make_grid(params):
     s_agg = np.zeros_like(denom_agg)
     print("Distance matrix calculation may take several minutes for large datasets")
     for data in params.method_datasets:
+        if(len(data.sta)==0): continue
         print(f"Processing '{data.name}'")
         sigma = data.scale_length 
         sig_sq = np.square(sigma)
