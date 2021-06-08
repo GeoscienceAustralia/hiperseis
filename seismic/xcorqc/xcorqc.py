@@ -463,7 +463,7 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
-                       outputPath='/tmp', verbose=1, tracking_tag=''):
+                       outputPath='/tmp', verbose=1, tracking_tag='', scratch_folder=None):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
     waveforms from all possible station-pairs from the two data sets. To allow efficient, random
@@ -679,7 +679,7 @@ def IntervalStackXCorr(refds, tempds,
         # end if
 
         if(spooledXcorr is None):
-            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair)
+            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair, dir=scratch_folder)
         # end if
         
         # write xcorr results to spooled buffer
