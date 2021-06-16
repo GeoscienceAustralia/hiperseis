@@ -33,10 +33,7 @@ if sys.version_info[0] < 3:
 else:
     import pathlib  # pylint: disable=import-error
 
-from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble,
-                                                        get_network_stations,
-                                                        compute_matching_network_mask,
-                                                        generate_large_events_catalog)
+from picks_reader_utils import (read_picks_ensemble, get_network_stations, compute_matching_network_mask, generate_large_events_catalog)
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init, logging-format-interpolation, logging-not-lazy
@@ -318,11 +315,13 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
     :type display_options: class DisplayOptions
     """
     register_matplotlib_converters()
+    if df_plot is None:
+        return
     df_plot = df_plot.assign(relTtResidual=(df_plot['ttResidual'] - df_plot['ttResidualRef']))
 
     # Re-order columns
     df_plot = df_plot[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
-                       'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat',
+                       'net', 'sta', 'cha', 'pickTimestamp', 'stationLon', 'stationLat',
                        'distance', 'snr', 'ttResidual', 'ttResidualRef', 'relTtResidual',
                        'qualityMeasureCWT', 'qualityMeasureSlope', 'nSigma']]
 
@@ -704,7 +703,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     df_raw_picks = read_picks_ensemble(picks_file)
     # Remove unused columns
     df_raw_picks = df_raw_picks[['#eventID', 'originTimestamp', 'mag', 'originLon', 'originLat', 'originDepthKm',
-                                 'net', 'sta', 'cha', 'pickTimestamp', 'phase', 'stationLon', 'stationLat', 'az',
+                                 'net', 'sta', 'cha', 'pickTimestamp', 'stationLon', 'stationLat', 'az',
                                  'baz', 'distance', 'ttResidual', 'snr', 'qualityMeasureCWT', 'qualityMeasureSlope',
                                  'nSigma']]
     log.debug("Number of raw picks: {}".format(len(df_raw_picks)))
