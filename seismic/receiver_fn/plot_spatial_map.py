@@ -13,7 +13,8 @@ from matplotlib.colors import Normalize, LinearSegmentedColormap
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from adjustText import adjust_text
 
-COLORMAP = "./moho_kennett.cpt"
+#COLORMAP = "./moho_kennett.cpt"
+COLORMAP = ""
 
 
 def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code=None,
@@ -56,7 +57,7 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code
     if os.path.exists(COLORMAP):
         _, cmap = _gmt_colormap(COLORMAP)
     else:
-        cmap = 'magma_r'
+        cmap = 'RdYlBu'
 
     # Figure out bounds in map coordinates
     if bounds:
@@ -93,7 +94,7 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code
         sm = None
 
     contr = cont_ax.contourf(x, y, z, levels=20, transform=data_crs, cmap=cmap, norm=norm,
-                             alpha=0.8, zorder=2)
+                             alpha=1.0, zorder=2)
     sm = sm if sm is not None else contr
     cont_div = make_axes_locatable(cont_ax)
     cax = cont_div.append_axes('bottom', size='5%', pad='7%', axes_class=plt.Axes)
@@ -113,7 +114,7 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code
     pt_data = np.array(pt_data)
     pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
 
-    cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05)
+    cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
     texts = []
     for i in np.arange(len(pt_data)):
         texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))

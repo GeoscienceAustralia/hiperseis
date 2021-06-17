@@ -69,7 +69,7 @@ class ConfigConstants:
     PLOTTING = 'plotting'
     BOUNDS = 'bounds'
     GRID_INTERVAL = 'grid_interval'
-    INTERP_FUNCTION= 'interp_function'
+    INTERPOLATION= 'interpolation'
     WEIGHT_CUTOFF = 'weight_cutoff'
     OUTPUT_DIR = 'output_directory'
     NAME = 'name'
@@ -125,7 +125,7 @@ CORR_FUNC_MAP = {_cc.CCP_CORR: seismic.receiver_fn.ccp_correction.correct}
 # Config validation #
 
 TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS, 
-                            _cc.GRID_INTERVAL, _cc.OUTPUT_DIR, _cc.INTERP_FUNCTION, _cc.WEIGHT_CUTOFF,
+                            _cc.GRID_INTERVAL, _cc.OUTPUT_DIR, _cc.INTERPOLATION, _cc.WEIGHT_CUTOFF,
                             _cc.NAME, _cc.DATA, _cc.WEIGHT,
                             _cc.SCALE_LENGTH, _cc.DATA_PREP]
 
@@ -276,19 +276,20 @@ def validate(config):
     else:
         print("No output directory provided, current working directory will be used")
 
-    interp_function = config.get(_cc.INTERP_FUNCTION)
-    if interp_function is not None:
-        _check_type(interp_function, [str], f"{_cc.INTERP_FUNCTION} must be of type str")
-        if(interp_function not in ['gaussian', 'exponential']):
-            print("{_cc.INTERP_FUNCTION} must be either 'exponential' or 'gaussian'")
+    interpolation = config.get(_cc.INTERPOLATION)
+    if interpolation is not None:
+        _check_type(interpolation, [str], f"{_cc.INTERPOLATION} must be of type str")
+        if(interpolation not in ['bk_gaussian', 'bk_exponential', 'clough_tocher']):
+            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or clough_tocher")
     else:
-        print(f"\n*** Parameter {_cc.INTERP_FUNCTION} not found; the default value 'exponential' will be used ***\n")
+        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; the default value 'clough_tocher' will be used ***\n")
 
     weight_cutoff = config.get(_cc.WEIGHT_CUTOFF)
     if weight_cutoff is not None:
-        _check_type(weight_cutoff, [float], f"{_cc.INTERP_FUNCTION} must be of type float")
+        _check_type(weight_cutoff, [float], f"{_cc.INTERPOLATION} must be of type float")
     else:
-        print(f"\n*** Parameter {_cc.WEIGHT_CUTOFF} not found; the default value 0 will be used ***\n")
+        if(interpolation != 'clough_tocher' and interpolation is not None):
+            print(f"\n*** Parameter {_cc.WEIGHT_CUTOFF} not found; the default value 0 will be used ***\n")
 # end func
 
 class WorkflowParameters:
@@ -305,7 +306,7 @@ class WorkflowParameters:
         self.grid_interval = config[_cc.GRID_INTERVAL]
         self.grid_data = os.path.join(self.output_dir, _cc.MOHO_GRID)
         self.grad_data = os.path.join(self.output_dir, _cc.MOHO_GRAD)
-        self.interp_function = config.get(_cc.INTERP_FUNCTION, 'exponential')
+        self.interpolation = config.get(_cc.INTERPOLATION, 'clough_tocher')
         self.weight_cutoff = config.get(_cc.WEIGHT_CUTOFF, 0)
 
         plotting = config.get(_cc.PLOTTING)

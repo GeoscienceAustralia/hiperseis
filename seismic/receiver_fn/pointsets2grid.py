@@ -88,52 +88,70 @@ def make_grid(params):
     z_agg = np.zeros_like(denom_agg)
     s_agg = np.zeros_like(denom_agg)
     print("Distance matrix calculation may take several minutes for large datasets")
+    all_pt_data = []
     for data in params.method_datasets:
         if(len(data.sta)==0): continue
         print(f"Processing '{data.name}'")
-        sigma = data.scale_length 
-        sig_sq = np.square(sigma)
-        cutoff = DEFAULT_CUTOFF
-        max_dist = cutoff*sigma
-        pt_data = np.array((data.lon, data.lat, data.val)).T
-        xy_map = pt_data[:, :2]
-        print(f"{xy_map.shape[0]} samples")
-        print(f"Calculating distance matrix...")
-        kwargs = {'max_dist': max_dist}
-        dist_matrix = cdist(grid_map, xy_map, metric=DIST_METRIC, **kwargs)
-        dist_weighting = None
-        if(params.interp_function == 'gaussian'):
-            dist_weighting = np.exp(-np.power(dist_matrix/sigma, 2.))
+
+        if(params.interpolation == 'clough_tocher'):
+            for i in np.arange(len(data.lon)): all_pt_data.append([data.lon[i], data.lat[i], data.val[i]])
         else:
-            dist_weighting = np.exp(-dist_matrix/sigma)
+            sigma = data.scale_length
+            sig_sq = np.square(sigma)
+            cutoff = DEFAULT_CUTOFF
+            max_dist = cutoff*sigma
+            pt_data = np.array((data.lon, data.lat, data.val)).T
+            xy_map = pt_data[:, :2]
+            print(f"{xy_map.shape[0]} samples")
+            print(f"Calculating distance matrix...")
+            kwargs = {'max_dist': max_dist}
+            dist_matrix = cdist(grid_map, xy_map, metric=DIST_METRIC, **kwargs)
+            dist_weighting = None
+            if(params.interpolation == 'gaussian'):
+                dist_weighting = np.exp(-np.power(dist_matrix/sigma, 2.))
+            else:
+                dist_weighting = np.exp(-dist_matrix/sigma)
+            # end if
+
+            # We return nan instead of 0 from distance functions if beyond max distance, because
+            # theoretically a sample exactly on the grid point will have a dist of 0, and the weighting
+            # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
+            # have a weight of 0, rather than NaN which will propagate.
+            dist_weighting[np.isnan(dist_weighting)] = 0
+            z = (pt_data[:, 2][:, np.newaxis])
+            zw = data.total_weight[:, np.newaxis]
+
+            denom = np.matmul(dist_weighting, zw)
+            denom_agg += denom
+
+            z_numer = np.matmul(dist_weighting, (z * zw))
+            s_numer = np.matmul(dist_weighting, (z*z * zw))
+            z_agg += z_numer
+            s_agg += s_numer
         # end if
-
-        # We return nan instead of 0 from distance functions if beyond max distance, because
-        # theoretically a sample exactly on the grid point will have a dist of 0, and the weighting
-        # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
-        # have a weight of 0, rather than NaN which will propagate.
-        dist_weighting[np.isnan(dist_weighting)] = 0
-        z = (pt_data[:, 2][:, np.newaxis])
-        zw = data.total_weight[:, np.newaxis]
-
-        denom = np.matmul(dist_weighting, zw)
-        denom_agg += denom
-
-        z_numer = np.matmul(dist_weighting, (z * zw))
-        s_numer = np.matmul(dist_weighting, (z*z * zw))
-        z_agg += z_numer
-        s_agg += s_numer
     # end for
 
-    # Generate NaN where data doesn't exist
-    prior_settings = np.seterr(divide='ignore', invalid='ignore')
-    # Convert weights < 0.02 to NaN (from B.K's code)
-    denom_agg = np.where(denom_agg < params.weight_cutoff, np.nan, denom_agg)
-    # Get depth Z and std S for each grid cell
-    Z = z_agg/denom_agg
-    S = np.sqrt(s_agg/denom_agg - np.square(Z))
-    np.seterr(**prior_settings)
-    
+    Z = S = None
+    u = v = None
+    if(params.interpolation == 'clough_tocher'):
+        all_pt_data = np.array(all_pt_data)
+
+        from scipy.interpolate import LinearNDInterpolator
+        interpolator = LinearNDInterpolator(all_pt_data[:,:2], all_pt_data[:,2])
+
+        Z = interpolator(x_grid.flatten(), y_grid.flatten())[:, np.newaxis]
+        S = np.zeros(Z.shape)
+    else:
+        # Generate NaN where data doesn't exist
+        prior_settings = np.seterr(divide='ignore', invalid='ignore')
+        # Convert weights < 0.02 to NaN (from B.K's code)
+        denom_agg = np.where(denom_agg < params.weight_cutoff, np.nan, denom_agg)
+        # Get depth Z and std S for each grid cell
+        Z = z_agg/denom_agg
+        S = np.sqrt(s_agg/denom_agg - np.square(Z))
+        np.seterr(**prior_settings)
+    # end if
+
     # Calculate gradient
     Z_2d = Z.reshape((n_y, n_x))
     v, u = np.gradient(Z_2d)
