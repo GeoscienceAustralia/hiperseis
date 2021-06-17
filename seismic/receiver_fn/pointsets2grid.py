@@ -35,6 +35,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 from seismic.receiver_fn.moho_config import DIST_METRIC
+from collections import defaultdict
 
 DEFAULT_CUTOFF = 3.6
 
@@ -100,26 +101,34 @@ def make_grid(params):
         print(f"Calculating distance matrix...")
         kwargs = {'max_dist': max_dist}
         dist_matrix = cdist(grid_map, xy_map, metric=DIST_METRIC, **kwargs)
-        dist_sq_matrix = (dist_matrix/sigma)**2
-        dist_weighting = np.exp(-dist_sq_matrix)
-        # We return nan instead of 0 from distance functions if beyond max distance, because 
+        dist_weighting = None
+        if(params.interp_function == 'gaussian'):
+            dist_weighting = np.exp(-np.power(dist_matrix/sigma, 2.))
+        else:
+            dist_weighting = np.exp(-dist_matrix/sigma)
+        # end if
+
+        # We return nan instead of 0 from distance functions if beyond max distance, because
         # theoretically a sample exactly on the grid point will have a dist of 0, and the weighting
         # will be exp(0) == 1. After calculating exp, set NaNs to 0 so samples beyond max distance
         # have a weight of 0, rather than NaN which will propagate.
         dist_weighting[np.isnan(dist_weighting)] = 0
-        z = (pt_data[:, 2][:, np.newaxis]).T
-        zw = data.total_weight
-        denom = ((dist_weighting) * zw).sum(axis=1)[:, np.newaxis]
-        z_numer = ((dist_weighting) * (z * zw)).sum(axis=1)[:, np.newaxis]
-        s_numer = ((dist_weighting)*(np.square(z) * zw)).sum(axis=1)[:, np.newaxis]
+        z = (pt_data[:, 2][:, np.newaxis])
+        zw = data.total_weight[:, np.newaxis]
+
+        denom = np.matmul(dist_weighting, zw)
         denom_agg += denom
+
+        z_numer = np.matmul(dist_weighting, (z * zw))
+        s_numer = np.matmul(dist_weighting, (z*z * zw))
         z_agg += z_numer
         s_agg += s_numer
-    
+    # end for
+
     # Generate NaN where data doesn't exist
     prior_settings = np.seterr(divide='ignore', invalid='ignore')
     # Convert weights < 0.02 to NaN (from B.K's code)
-    denom_agg = np.where(denom_agg < 0.02, np.nan, denom_agg)
+    denom_agg = np.where(denom_agg < params.weight_cutoff, np.nan, denom_agg)
     # Get depth Z and std S for each grid cell
     Z = z_agg/denom_agg
     S = np.sqrt(s_agg/denom_agg - np.square(Z))
