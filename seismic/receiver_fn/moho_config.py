@@ -280,9 +280,10 @@ def validate(config):
     if interpolation is not None:
         _check_type(interpolation, [str], f"{_cc.INTERPOLATION} must be of type str")
         if(interpolation not in ['bk_gaussian', 'bk_exponential', 'delaunay']):
-            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or delaunay")
+            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or 'delaunay'")
     else:
-        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; the default value 'delaunay' will be used ***\n")
+        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; can be either 'bk_exponential', 'bk_gaussian' or "
+              f"'delaunay'. The default value 'delaunay' will be used ***\n")
 
     weight_cutoff = config.get(_cc.WEIGHT_CUTOFF)
     if weight_cutoff is not None:
