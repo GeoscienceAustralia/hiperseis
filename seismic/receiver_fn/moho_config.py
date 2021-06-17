@@ -279,16 +279,16 @@ def validate(config):
     interpolation = config.get(_cc.INTERPOLATION)
     if interpolation is not None:
         _check_type(interpolation, [str], f"{_cc.INTERPOLATION} must be of type str")
-        if(interpolation not in ['bk_gaussian', 'bk_exponential', 'clough_tocher']):
-            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or clough_tocher")
+        if(interpolation not in ['bk_gaussian', 'bk_exponential', 'delaunay']):
+            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or delaunay")
     else:
-        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; the default value 'clough_tocher' will be used ***\n")
+        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; the default value 'delaunay' will be used ***\n")
 
     weight_cutoff = config.get(_cc.WEIGHT_CUTOFF)
     if weight_cutoff is not None:
         _check_type(weight_cutoff, [float], f"{_cc.INTERPOLATION} must be of type float")
     else:
-        if(interpolation != 'clough_tocher' and interpolation is not None):
+        if(interpolation != 'delaunay' and interpolation is not None):
             print(f"\n*** Parameter {_cc.WEIGHT_CUTOFF} not found; the default value 0 will be used ***\n")
 # end func
 
@@ -306,7 +306,7 @@ class WorkflowParameters:
         self.grid_interval = config[_cc.GRID_INTERVAL]
         self.grid_data = os.path.join(self.output_dir, _cc.MOHO_GRID)
         self.grad_data = os.path.join(self.output_dir, _cc.MOHO_GRAD)
-        self.interpolation = config.get(_cc.INTERPOLATION, 'clough_tocher')
+        self.interpolation = config.get(_cc.INTERPOLATION, 'delaunay')
         self.weight_cutoff = config.get(_cc.WEIGHT_CUTOFF, 0)
 
         plotting = config.get(_cc.PLOTTING)

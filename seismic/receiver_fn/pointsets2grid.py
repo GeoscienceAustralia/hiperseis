@@ -93,7 +93,7 @@ def make_grid(params):
         if(len(data.sta)==0): continue
         print(f"Processing '{data.name}'")
 
-        if(params.interpolation == 'clough_tocher'):
+        if(params.interpolation == 'delaunay'):
             for i in np.arange(len(data.lon)): all_pt_data.append([data.lon[i], data.lat[i], data.val[i]])
         else:
             sigma = data.scale_length
@@ -133,7 +133,7 @@ def make_grid(params):
 
     Z = S = None
     u = v = None
-    if(params.interpolation == 'clough_tocher'):
+    if(params.interpolation == 'delaunay'):
         all_pt_data = np.array(all_pt_data)
 
         from scipy.interpolate import LinearNDInterpolator
