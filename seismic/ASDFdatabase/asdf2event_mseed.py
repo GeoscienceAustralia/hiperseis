@@ -78,7 +78,7 @@ def dump_traces(fds, events_xml, sn_list, start_date, end_date, min_dist, max_di
                         for tr in subst: st.append(tr)
                     # end for
 
-                    fname = '%s.%s.%.4d.%.2d.%.2d.%.2d.%.2d.%.2d.mseed'%(item[0], item[1], \
+                    fname = '%s.%s.%s.%.4d.%.2d.%.2d.%.2d.%.2d.%.2d.mseed'%(item[0], item[1], item[2], \
                                                                          po.time.year,po.time.month,po.time.day, \
 		                                                                 po.time.hour,po.time.minute,po.time.second)
                     st.write(os.path.join(output_folder, fname), format='MSEED')
