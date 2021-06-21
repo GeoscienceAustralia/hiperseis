@@ -126,7 +126,6 @@ def process(asdf_source, input_events, network_name, output_folder, start_date, 
     ASDF_SOURCE: Text file containing a list of paths to ASDF files\n
     INPUT_EVENTS: Path to events catalogue in FDSNStationXML format\n
     NETWORK_NAME: Name of network to process \n
-
     OUTPUT_FOLDER: Output folder \n
     """
 
