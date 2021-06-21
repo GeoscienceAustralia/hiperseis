@@ -89,3 +89,4 @@ seismic/xcorqc/**/*.pbs
 **/junk.*
 **/LOG_CODE_DUPES_*.txt
 **/LOG_LOCATION_DUPES_*.txt
+/seismic/gps_corrections/p_combined.txt
