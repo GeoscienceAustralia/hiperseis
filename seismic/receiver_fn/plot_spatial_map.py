@@ -57,7 +57,7 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code
     if os.path.exists(COLORMAP):
         _, cmap = _gmt_colormap(COLORMAP)
     else:
-        cmap = 'RdYlBu'
+        cmap = 'RdYlBu_r'
 
     # Figure out bounds in map coordinates
     if bounds:

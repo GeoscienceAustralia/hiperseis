@@ -287,7 +287,7 @@ def validate(config):
 
     weight_cutoff = config.get(_cc.WEIGHT_CUTOFF)
     if weight_cutoff is not None:
-        _check_type(weight_cutoff, [float], f"{_cc.INTERPOLATION} must be of type float")
+        _check_type(weight_cutoff, [int, float], f"{_cc.WEIGHT_CUTOFF} must be of type float")
     else:
         if(interpolation != 'delaunay' and interpolation is not None):
             print(f"\n*** Parameter {_cc.WEIGHT_CUTOFF} not found; the default value 0 will be used ***\n")
