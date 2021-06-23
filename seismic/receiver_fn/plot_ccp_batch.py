@@ -98,6 +98,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             if not transect.strip():
                 continue
 
+            print('\nProcessing %s..\n'%(transect.strip()))
             sta_start, sta_end = transect.split(',')
             sta_start = sta_start.strip()
             sta_end = sta_end.strip()

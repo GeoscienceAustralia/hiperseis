@@ -496,7 +496,12 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
     expand_width = 1.0 + width/KM_PER_DEG
     m = Basemap(projection='merc', urcrnrlat=ybig + expand_width, urcrnrlon=xbig + expand_width,
                 llcrnrlon=xsmall - expand_width, llcrnrlat=ysmall - expand_width, resolution='i')
-    m.drawcoastlines()
+    try:
+        m.drawcoastlines()
+    except:
+        pass
+    # end try
+
     x1, y1 = m(startpoint[1], startpoint[0])
     x2, y2 = m(endpoint[1], endpoint[0])
     m.plot([x1, x2], [y1, y2], 'r--')
