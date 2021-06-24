@@ -369,7 +369,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
             ax = fig.gca()
             fig.text(-0.32, -0.32, "\n".join(rf_stream[0].stats.processing), fontsize=6, transform=ax.transAxes)
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+            pdf.savefig(dpi=300, orientation='portrait')
             plt.close()
 
             num_traces = len(rf_stream)
@@ -383,7 +383,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Customize layout to pack to top of page while preserving RF plots aspect ratios
             _rf_layout_A4(fig)
             # Save to new page in file
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+            pdf.savefig(dpi=300, orientation='portrait')
             plt.close()
 
             # Plot RF stack of transverse component
@@ -395,7 +395,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios
                 _rf_layout_A4(fig)
                 # Save to new page in file
-                pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+                pdf.savefig(dpi=300, orientation='portrait')
                 plt.close()
             # end if
 
@@ -412,7 +412,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
             # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
-            pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+            pdf.savefig(dpi=300, orientation='landscape')
             plt.close()
 
             if hk_hpf_freq is not None:
@@ -429,7 +429,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                                           channel_data[0].stats.station_longitude)
                 # end if
                 fig.set_size_inches(*paper_landscape)
-                pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+                pdf.savefig(dpi=300, orientation='landscape')
                 plt.close()
             # end if
 
