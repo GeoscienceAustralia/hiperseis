@@ -94,7 +94,7 @@ def _rf_layout_A4(fig):
 
 
 def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0), filter_options=None,
-                         labelling=DEFAULT_HK_SOLN_LABEL):
+                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70)):
     """Helper function to produce H-k stacking figure."""
 
     if filter_options is not None:
@@ -123,7 +123,8 @@ def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0)
     if filter_options is not None:
         title += ' (filtered)'
     # end if
-    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=title, num=num)
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=title, num=num,
+                                      depth_colour_range=depth_colour_range)
 
     # Stamp weightings onto plot
     xl = plt.xlim()
@@ -238,7 +239,10 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
               help='Folder containing event masks to use to filter traces. Such masks are generated '
                    'using rf_handpick_tool')
 @click.option('--apply-amplitude-filter', is_flag=True, default=False, show_default=True,
-              help='Apply RF amplitude filtering to the RFs.')
+              help='Apply RF amplitude filtering to the RFs. The default filtering logic includes: '
+                   'Signal SNR >= 2.0 '
+                   'RMS amplitude of signal < 0.2 '
+                   'Maximum amplitude of signal < 1.0')
 @click.option('--apply-similarity-filter', is_flag=True, default=False, show_default=True,
               help='Apply RF similarity filtering to the RFs.')
 @click.option('--hk-weights', type=(float, float, float), default=DEFAULT_HK_WEIGHTS, show_default=True,
@@ -247,6 +251,9 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
               show_default=True, help='Method of labeling automatically selected solutions on H-k stack plots. '
               'global: find and label global maximum, local: find and label up to 3 local maxima after '
               'clustering, none: do not label any solutions on H-k stack plot.')
+@click.option('--depth-colour-range', type=(float, float), default=(20, 70), show_default=True,
+              help='The range of depth values from which to choose the maximum hk_stack value for plotting '
+                   'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use to generate secondary H-k stacking plot.')
 @click.option('--hk-vp', type=float, default=DEFAULT_Vp, show_default=True,
@@ -257,7 +264,7 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
                    'will be for the filtered H-k plot rather than the original.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
          apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
-         hk_hpf_freq=None, hk_vp=DEFAULT_Vp, save_hk_solution=False):
+         depth_colour_range=(20, 70), hk_hpf_freq=None, hk_vp=DEFAULT_Vp, save_hk_solution=False):
     # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
@@ -362,7 +369,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
             ax = fig.gca()
             fig.text(-0.32, -0.32, "\n".join(rf_stream[0].stats.processing), fontsize=6, transform=ax.transAxes)
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+            pdf.savefig(dpi=300, orientation='portrait')
             plt.close()
 
             num_traces = len(rf_stream)
@@ -376,7 +383,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Customize layout to pack to top of page while preserving RF plots aspect ratios
             _rf_layout_A4(fig)
             # Save to new page in file
-            pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+            pdf.savefig(dpi=300, orientation='portrait')
             plt.close()
 
             # Plot RF stack of transverse component
@@ -388,13 +395,15 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios
                 _rf_layout_A4(fig)
                 # Save to new page in file
-                pdf.savefig(dpi=300, papertype='a4', orientation='portrait')
+                pdf.savefig(dpi=300, orientation='portrait')
                 plt.close()
             # end if
 
             # Plot H-k stack using primary RF component
             fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
-                                               labelling=hk_solution_labels, V_p=hk_vp)
+                                               labelling=hk_solution_labels,
+                                               depth_colour_range=depth_colour_range,
+                                               V_p=hk_vp)
             if save_hk_solution and hk_hpf_freq is None:
                 hk_soln[st] = maxima
                 station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
@@ -403,13 +412,14 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
             # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
-            pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+            pdf.savefig(dpi=300, orientation='landscape')
             plt.close()
 
             if hk_hpf_freq is not None:
                 # Repeat H-k stack with high pass filtering
                 fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
                                                    labelling=hk_solution_labels,
+                                                   depth_colour_range=depth_colour_range,
                                                    V_p=hk_vp,
                                                    filter_options={'type': 'highpass', 'freq': hk_hpf_freq,
                                                                    'corners': 1, 'zerophase': True})
@@ -419,7 +429,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                                           channel_data[0].stats.station_longitude)
                 # end if
                 fig.set_size_inches(*paper_landscape)
-                pdf.savefig(dpi=300, papertype='a4', orientation='landscape')
+                pdf.savefig(dpi=300, orientation='landscape')
                 plt.close()
             # end if
 

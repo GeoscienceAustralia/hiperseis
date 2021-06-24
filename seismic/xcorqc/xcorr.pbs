@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -P vy72
+#PBS -N xcorr.288
+#PBS -q normal
+#PBS -l walltime=24:00:00,mem=1152GB,ncpus=288,jobfs=160GB
+#PBS -l storage=scratch/rxh562+gdata/ha3
+#PBS -l wd
+#PBS -j oe
+#PBS -M email@ga.gov.au
+#PBS -m bae
+
+module purge
+module load pbs
+module load python3-as-python
+module load openmpi/2.1.6-mt
+module load hdf5/1.10.5p
+
+export PATH=$HOME/.local/bin:$PATH
+export PYTHONPATH=/g/data/ha3/rakib/seismic/pst/hiperseis/:$PYTHONPATH
+export LC_ALL=en_AU.UTF-8
+export LANG=en_AU.UTF-8
+
+mpirun -np 288 python /g/data/ha3/rakib/seismic/pst/hiperseis/seismic/xcorqc/correlator.py /g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt /g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt /g/data/ha3/rakib/xcorTest/tests/output/ 3960 3600 0.1 --window-buffer-length 0.05 --nearest-neighbours -1 --start-time 1970-01-01T00:00:00 --end-time 2021-01-01T00:00:00 --read-buffer-size 240 --resample-rate 4 --fmin .002 --fmax 2 --station-names1 "*"  --station-names2 "*" --whitening --whitening-window-frequency 0.02 --ds1-zchan '*Z' --ds2-zchan '*Z' --corr-chan z --pairs-to-compute pairs_to_compute.txt --no-tracking-tag --scratch-folder $PBS_JOBFS --restart
+
+

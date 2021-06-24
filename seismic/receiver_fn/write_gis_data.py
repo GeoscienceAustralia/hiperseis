@@ -8,11 +8,7 @@ import numpy as np
 import rasterio
 import shapefile
 
-# Plate Carree CRS
-CRS = rasterio.crs.CRS.from_proj4(
-    "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 "
-    "+datum=WGS84 +units=m +no_defs")
-
+CRS = rasterio.crs.CRS.from_epsg(4326)
 
 def _profile(data, nx, ny, bands=1, bounds=None):
     """
@@ -117,6 +113,11 @@ def write_sample_locations(methods, outfile):
         w.close()
         # Write .prj file
         with open(f'{outfile.format(data.name)}.prj', 'w') as prj:
-            prj.write(CRS.wkt)
+            epsg = 'GEOGCS["WGS 84",'
+            epsg += 'DATUM["WGS_1984",'
+            epsg += 'SPHEROID["WGS 84",6378137,298.257223563]]'
+            epsg += ',PRIMEM["Greenwich",0],'
+            epsg += 'UNIT["degree",0.0174532925199433]]'
+            prj.write(epsg)
 
     print(f"Complete! Location shapefiles written to '{outfile.format('method_name')}'")

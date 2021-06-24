@@ -11,11 +11,13 @@ import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
+from adjustText import adjust_text
 
-COLORMAP = "./moho_kennett.cpt"
+#COLORMAP = "./moho_kennett.cpt"
+COLORMAP = ""
 
 
-def plot_spatial_map(grid_data, gradient_data, projection_code=None,
+def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code=None,
                      title=None, feature_label=None, bounds=None, scale=None):
     """
     Make spatial plot of point dataset with filled contours overlaid on map.
@@ -55,7 +57,7 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
     if os.path.exists(COLORMAP):
         _, cmap = _gmt_colormap(COLORMAP)
     else:
-        cmap = 'magma_r'
+        cmap = 'RdYlBu_r'
 
     # Figure out bounds in map coordinates
     if bounds:
@@ -92,13 +94,33 @@ def plot_spatial_map(grid_data, gradient_data, projection_code=None,
         sm = None
 
     contr = cont_ax.contourf(x, y, z, levels=20, transform=data_crs, cmap=cmap, norm=norm,
-                             alpha=0.8, zorder=2)
+                             alpha=1.0, zorder=2)
     sm = sm if sm is not None else contr
     cont_div = make_axes_locatable(cont_ax)
     cax = cont_div.append_axes('bottom', size='5%', pad='7%', axes_class=plt.Axes)
     cb = plt.colorbar(sm, cax=cax, orientation="horizontal")
     if feature_label is not None:
         cb.set_label(feature_label)
+
+    # add station and value labels
+    sta_list = []
+    pt_data = []
+    for data in methods_datasets:
+        for i in np.arange(len(data.sta)):
+            sta_list.append(data.sta[i])
+            pt_data.append([data.lon[i], data.lat[i], data.val[i]])
+        # end for
+    # end for
+    pt_data = np.array(pt_data)
+    pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
+
+    cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
+    texts = []
+    for i in np.arange(len(pt_data)):
+        texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))
+        texts.append(cont_ax.text(pxy[i, 0] - .05, pxy[i, 1] - .05, pt_data[i, 2], fontdict={'size': .0001}))
+    # end for
+    #adjust_text(texts, lim=5)
 
     grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy', units='xy')
     # Hack: shrink gradient ax so it's the same size as contour ax (contour ax shrinks due to 
@@ -117,12 +139,12 @@ def from_params(params):
     Create plots from WorkflowParameters as part of moho workflow.
     """
     print("Plotting Moho grid and gradient map")
-    fig = plot_spatial_map(params.grid_data, params.grad_data, scale=params.plot_scale,
+    fig = plot_spatial_map(params.grid_data, params.grad_data, params.method_datasets, scale=params.plot_scale,
                            title=params.plot_title, feature_label=params.plot_label)
     if params.plot_show:
         print("Showing plot, close display window to continue")
         plt.show()
-    fig.savefig(params.plot_file, dpi=300, bbox_inches='tight')
+    fig.savefig(params.plot_file, dpi=1200, bbox_inches='tight')
     plt.close()
     print(f"Complete! Plot saved to '{params.plot_file}'")
 

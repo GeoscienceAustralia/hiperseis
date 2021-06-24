@@ -64,8 +64,8 @@ def from_params(params):
     # Output network/method locations and sample weight * dataset weight
     # Total relative weighting can be used as symbol size on maps
     for data in params.method_datasets:
-        formatted_data = np.array((data.lon, data.lat, data.total_weight)).T
+        formatted_data = np.array((data.lon, data.lat, data.total_weight, data.val)).T
         outfile = params.gmt_loc_file.format(data.name)
         with open(outfile, 'w') as fw:
-            np.savetxt(fw, formatted_data, fmt=['%.6f', '%.6f', '%.2f'], delimiter= ' ')
+            np.savetxt(fw, formatted_data, fmt=['%.6f', '%.6f', '%.2f', '%.6f'], delimiter= ' ', header='lon lat weight depth')
     print(f"Complete! Data files saved to '{params.gmt_dir}'")

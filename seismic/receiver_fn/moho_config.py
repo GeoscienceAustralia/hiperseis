@@ -69,6 +69,8 @@ class ConfigConstants:
     PLOTTING = 'plotting'
     BOUNDS = 'bounds'
     GRID_INTERVAL = 'grid_interval'
+    INTERPOLATION= 'interpolation'
+    WEIGHT_CUTOFF = 'weight_cutoff'
     OUTPUT_DIR = 'output_directory'
     NAME = 'name'
     DATA = 'data'
@@ -123,7 +125,7 @@ CORR_FUNC_MAP = {_cc.CCP_CORR: seismic.receiver_fn.ccp_correction.correct}
 # Config validation #
 
 TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS, 
-                            _cc.GRID_INTERVAL, _cc.OUTPUT_DIR, 
+                            _cc.GRID_INTERVAL, _cc.OUTPUT_DIR, _cc.INTERPOLATION, _cc.WEIGHT_CUTOFF,
                             _cc.NAME, _cc.DATA, _cc.WEIGHT,
                             _cc.SCALE_LENGTH, _cc.DATA_PREP]
 
@@ -274,6 +276,22 @@ def validate(config):
     else:
         print("No output directory provided, current working directory will be used")
 
+    interpolation = config.get(_cc.INTERPOLATION)
+    if interpolation is not None:
+        _check_type(interpolation, [str], f"{_cc.INTERPOLATION} must be of type str")
+        if(interpolation not in ['bk_gaussian', 'bk_exponential', 'delaunay']):
+            print("{_cc.INTERPOLATION} must be either 'bk_exponential', 'bk_gaussian' or 'delaunay'")
+    else:
+        print(f"\n*** Parameter {_cc.INTERPOLATION} not found; can be either 'bk_exponential', 'bk_gaussian' or "
+              f"'delaunay'. The default value 'delaunay' will be used ***\n")
+
+    weight_cutoff = config.get(_cc.WEIGHT_CUTOFF)
+    if weight_cutoff is not None:
+        _check_type(weight_cutoff, [int, float], f"{_cc.WEIGHT_CUTOFF} must be of type float")
+    else:
+        if(interpolation != 'delaunay' and interpolation is not None):
+            print(f"\n*** Parameter {_cc.WEIGHT_CUTOFF} not found; the default value 0 will be used ***\n")
+# end func
 
 class WorkflowParameters:
     def __init__(self, config_file):
@@ -289,6 +307,8 @@ class WorkflowParameters:
         self.grid_interval = config[_cc.GRID_INTERVAL]
         self.grid_data = os.path.join(self.output_dir, _cc.MOHO_GRID)
         self.grad_data = os.path.join(self.output_dir, _cc.MOHO_GRAD)
+        self.interpolation = config.get(_cc.INTERPOLATION, 'delaunay')
+        self.weight_cutoff = config.get(_cc.WEIGHT_CUTOFF, 0)
 
         plotting = config.get(_cc.PLOTTING)
         if plotting is not None:

@@ -98,6 +98,7 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
             if not transect.strip():
                 continue
 
+            print('\nProcessing %s..\n'%(transect.strip()))
             sta_start, sta_end = transect.split(',')
             sta_start = sta_start.strip()
             sta_end = sta_end.strip()
@@ -249,7 +250,8 @@ def gravity_subplot(hf, metadata, grav_map):
 @click.option('--rf-file', type=click.Path(exists=True, dir_okay=False), required=True,
               help='HDF5 file containing receiver functions')
 @click.option('--waveform-database', type=click.Path(exists=True, dir_okay=False), required=True,
-              help='Location of waveform source database used to generate FederatedASDFDataSet. '
+              help='Location of ASDF-source, a text file containing paths to a list of ASDF files that the '
+                   'FederatedASDFDataSet infrastructure uses to source all waveform and associated metadata.'
                    'Provides station location metadata. e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt".')
 @click.option('--stack-scale', type=float, default=0.4, show_default=True,
               help='Max value to represent on color scale of CCP plot')
