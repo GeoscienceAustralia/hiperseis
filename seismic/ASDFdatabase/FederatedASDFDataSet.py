@@ -177,7 +177,7 @@ class FederatedASDFDataSet():
 
     # end func
 
-    def local_net_sta_list(self):
+    def local_net_sta_list(self, network_list=[], station_list=[]):
         """
         This function provides an iterator over the entire data volume contained in all the ASDF files listed in the
         text file during instantiation. When FederatedASDFDataSet is instantiated in an MPI-parallel environment,
@@ -187,7 +187,7 @@ class FederatedASDFDataSet():
 
         :return: tuples containing [net, sta, start_time, end_time]; start- and end-times are instances of obspy.UTCDateTime
         """
-        for item in self.fds.local_net_sta_list():
+        for item in self.fds.local_net_sta_list(network_list=network_list, station_list=station_list):
             yield item
         # end for
     # end func

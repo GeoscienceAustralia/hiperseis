@@ -371,7 +371,7 @@ class _FederatedASDFDataSetImpl():
         return s
     # end func
 
-    def local_net_sta_list(self):
+    def local_net_sta_list(self, network_list=[], station_list=[]):
         workload = None
         if(self.rank==0):
             workload = []
@@ -380,9 +380,18 @@ class _FederatedASDFDataSetImpl():
             # end for
 
             nets = self.conn.execute('select distinct net from wdb').fetchall()
+            if(len(network_list)): # filter networks
+                nets = [net for net in nets if net[0] in network_list]
+            # end if
+
             for net in nets:
                 net = net[0]
                 stas = self.conn.execute("select distinct sta from wdb where net='%s'"%(net)).fetchall()
+
+                if (len(station_list)):  # filter stations
+                    stas = [sta for sta in stas if sta[0] in station_list]
+                # end if
+
                 for sta in stas:
                     sta = sta[0]
 

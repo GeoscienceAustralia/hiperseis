@@ -82,7 +82,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         residuallist = []
         bandindex = -1
         pickerindex = -1
-        taper_percentage = float(buffer_end) / float(win_end)
+        taper_percentage = float(buffer_end) / float(win_end + buffer_end - (win_start + buffer_start))
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
@@ -117,8 +117,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                                             'outputfolder': plot_output_folder}
                             # end if
 
-                            wab = snrtr.slice(pick - 3, pick + 3)
-                            wab_filtered = trc.slice(pick - 3, pick + 3)
+                            wab = snrtr.slice(pick - 10, pick + 10)
+                            wab_filtered = trc.slice(pick - 10, pick + 10)
                             scales = np.logspace(0.15, 1.5, 30)
                             cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
                                                                                      plotinfo)
@@ -212,12 +212,12 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         residuallist = []
         bandindex = -1
         pickerindex = -1
-        taper_percentage = float(buffer_end) / float(win_end)
+        taper_percentage = float(buffer_end) / float(win_end + buffer_end - (win_start + buffer_start))
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = snrtr.copy()
-            trc.taper(max_percentage=taper_percentage, type='hann')
+            trc.taper(max_percentage=taper_percentage)
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
@@ -247,9 +247,9 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                                             'outputfolder': plot_output_folder}
                             # end if
 
-                            wab = snrtr.slice(pick - 3, pick + 3)
-                            wab_filtered = trc.slice(pick - 3, pick + 3)
-                            scales = np.logspace(0.5, 4, 30)
+                            wab = snrtr.slice(pick - 10, pick + 10)
+                            wab_filtered = trc.slice(pick - 10, pick + 10)
+                            scales = np.logspace(0.01, 4, 30)
                             cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
                                                                                      plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
@@ -389,7 +389,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     pickerlist_p = []
     pickerlist_s = []
     for sigma in sigmalist:
-        picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=sigma, t_up=1, nr_len=5,
+        picker_p = aicdpicker.AICDPicker(t_ma=10, nsigma=sigma, t_up=1, nr_len=5,
                                          nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
         picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=sigma, t_up=1, nr_len=5,
                                          nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
