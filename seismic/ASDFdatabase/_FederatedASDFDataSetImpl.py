@@ -371,7 +371,7 @@ class _FederatedASDFDataSetImpl():
         return s
     # end func
 
-    def local_net_sta_list(self, network_list=[], station_list=[]):
+    def stations_iterator(self, network_list=[], station_list=[]):
         workload = None
         if(self.rank==0):
             workload = []

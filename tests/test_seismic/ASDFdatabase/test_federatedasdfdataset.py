@@ -121,10 +121,10 @@ def test_get_global_time_range():
 # end func
 
 
-def test_get_local_net_sta_list():
+def test_get_stations():
     fds = FederatedASDFDataSet(asdf_file_list)
 
-    local_netsta_list = list(fds.local_net_sta_list())
+    local_netsta_list = list(fds.stations_iterator())
     rows = np.array(fds.get_stations('1900-01-01T00:00:00', '2100-01-01T00:00:00'))
 
     # Get a list of unique stations
