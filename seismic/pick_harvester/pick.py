@@ -26,8 +26,6 @@ import click
 from obspy.taup import TauPyModel
 from obspy.signal.rotate import rotate_ne_rt
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-from PhasePApy.phasepapy.phasepicker import fbpicker
-from PhasePApy.phasepapy.phasepicker import ktpicker
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
 from seismic.pick_harvester.utils import CatalogCSV, ProgressTracker, recursive_glob
@@ -35,7 +33,6 @@ import psutil
 import gc
 
 from seismic.pick_harvester.quality import compute_quality_measures
-
 
 def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
@@ -82,7 +79,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
         residuallist = []
         bandindex = -1
         pickerindex = -1
-        taper_percentage = float(buffer_end) / float(win_end)
+        taper_percentage = float(buffer_end) / float(win_end + buffer_end - (win_start + buffer_start))
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
@@ -117,8 +114,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
                                             'outputfolder': plot_output_folder}
                             # end if
 
-                            wab = snrtr.slice(pick - 3, pick + 3)
-                            wab_filtered = trc.slice(pick - 3, pick + 3)
+                            wab = snrtr.slice(pick - 10, pick + 10)
+                            wab_filtered = trc.slice(pick - 10, pick + 10)
                             scales = np.logspace(0.15, 1.5, 30)
                             cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
                                                                                      plotinfo)
@@ -212,12 +209,12 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
         residuallist = []
         bandindex = -1
         pickerindex = -1
-        taper_percentage = float(buffer_end) / float(win_end)
+        taper_percentage = float(buffer_end) / float(win_end + buffer_end - (win_start + buffer_start))
 
         foundpicks = False
         for i in range(len(bp_freqmins)):
             trc = snrtr.copy()
-            trc.taper(max_percentage=taper_percentage, type='hann')
+            trc.taper(max_percentage=taper_percentage)
             trc.filter('bandpass', freqmin=bp_freqmins[i],
                        freqmax=bp_freqmaxs[i], corners=4,
                        zerophase=True)
@@ -247,9 +244,9 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                                             'outputfolder': plot_output_folder}
                             # end if
 
-                            wab = snrtr.slice(pick - 3, pick + 3)
-                            wab_filtered = trc.slice(pick - 3, pick + 3)
-                            scales = np.logspace(0.5, 4, 30)
+                            wab = snrtr.slice(pick - 10, pick + 10)
+                            wab_filtered = trc.slice(pick - 10, pick + 10)
+                            scales = np.logspace(0.01, 4, 30)
                             cwtsnr, dom_freq, slope_ratio = compute_quality_measures(wab, wab_filtered, scales,
                                                                                      plotinfo)
                             snrlist.append([snr[ipick], cwtsnr, dom_freq, slope_ratio])
@@ -280,9 +277,10 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
 
 # end func
 
-def getWorkloadEstimate(fds, originTimestamps):
+def getWorkloadEstimate(fds, originTimestamps, network_list=[], station_list=[]):
     totalTraceCount = 0
-    for nc, sc, start_time, end_time in fds.local_net_sta_list():
+    for nc, sc, start_time, end_time in fds.stations_iterator(network_list=network_list,
+                                                              station_list=station_list):
 
         day = 24 * 3600
         curr = start_time
@@ -322,23 +320,52 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-@click.option('--min-magnitude', default=-1, help='Minimum magnitude of event; all events are analyzed by default')
+@click.option('--min-magnitude', default=-1, help='Minimum magnitude of event; all events are analyzed by default',
+              show_default=True)
 @click.option('--max-amplitude', default=1e8, help='Maximum amplitude in waveforms analyzed; default is 1e8. '
                                                    'This parameter is useful for filtering out waveform snippets '
-                                                   'with spurious spikes')
-@click.option('--restart', default=False, is_flag=True, help='Restart job')
-@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
-def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude, restart, save_quality_plots):
+                                                   'with spurious spikes',
+              show_default=True)
+@click.option('--network-list', default='*', help='A space/comma-separated list of networks to process.', type=str,
+              show_default=True)
+@click.option('--station-list', default='*', help='A space/comma-separated list of stations to process.', type=str,
+              show_default=True)
+@click.option('--restart', default=False, is_flag=True, help='Restart job',
+              show_default=True)
+@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates',
+              show_default='True')
+def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude, network_list, station_list,
+            restart, save_quality_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     EVENT_FOLDER: Path to folder containing event files\n
     OUTPUT_PATH: Output folder \n
     """
 
+    # ==================================================
+    # Initialize MPI
+    # ==================================================
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
     proc_workload = None
+
+    # ==================================================
+    # Initialize lists of networks and stations to process
+    # ==================================================
+    if(network_list=='*'):
+        network_list = []
+    else:
+        network_list = network_list.split("' ',")
+        assert len(network_list), 'Invalid network list. Aborting..'
+    # end if
+
+    if(station_list=='*'):
+        station_list = []
+    else:
+        station_list = station_list.split("' ',")
+        assert len(station_list), 'Invalid station list. Aborting..'
+    # end if
 
     if (rank == 0):
         def outputConfigParameters():
@@ -353,6 +380,8 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
             f.write('%25s\t\t: %s\n' % ('MIN_MAGNITUDE', min_magnitude))
             f.write('%25s\t\t: %s\n' % ('MAX_AMPLITUDE', max_amplitude))
+            f.write('%25s\t\t: %s\n' % ('NETWORK_LIST', network_list))
+            f.write('%25s\t\t: %s\n' % ('STATION_LIST', station_list))
             f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
             f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
@@ -389,7 +418,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     pickerlist_p = []
     pickerlist_s = []
     for sigma in sigmalist:
-        picker_p = aicdpicker.AICDPicker(t_ma=5, nsigma=sigma, t_up=1, nr_len=5,
+        picker_p = aicdpicker.AICDPicker(t_ma=10, nsigma=sigma, t_up=1, nr_len=5,
                                          nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
         picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=sigma, t_up=1, nr_len=5,
                                          nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
@@ -405,7 +434,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     # ==================================================
     taupyModel = TauPyModel(model='iasp91')
     fds = FederatedASDFDataSet(asdf_source, logger=None)
-    workload = getWorkloadEstimate(fds, originTimestamps)
+    workload = getWorkloadEstimate(fds, originTimestamps, network_list=network_list, station_list=station_list)
 
     # ==================================================
     # Define output header and open output files
@@ -428,7 +457,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
 
     progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
     totalTraceCount = 0
-    for nc, sc, start_time, end_time in fds.local_net_sta_list():
+    for nc, sc, start_time, end_time in fds.stations_iterator(network_list=network_list, station_list=station_list):
         day = 24 * 3600
         dayCount = 0
         curr = start_time
