@@ -11,7 +11,7 @@ import warnings
 warnings.simplefilter("ignore", UserWarning)
 # pylint: disable=wrong-import-position
 import urllib3
-
+import re
 import numpy as np
 import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
@@ -24,7 +24,13 @@ import click
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.stream_processing import zne_order
 from seismic.stream_io import write_h5_event_stream
+import obspy.core.util.version
+from obspy.core.inventory import Inventory
+from obspy.taup import TauPyModel
 
+from PhasePApy.phasepapy.phasepicker import aicdpicker
+from seismic.pick_harvester.utils import Event, Origin
+from seismic.pick_harvester.pick import extract_p
 
 logging.basicConfig()
 
@@ -197,13 +203,125 @@ def is_url(resource_path):
     return str_parsed.scheme and str_parsed.netloc
 # end func
 
+def trim_inventory(inventory, network_list, station_list):
+    """
+    Function to trim inventory with a given list of networks and stations.
+    Note that duplicate station-names across different networks are not
+    currently handled.
+
+    :param inventory: obspy inventory
+    :param network_list: a space-separated list of networks
+    :param stations_list: a space-separated list of stations
+    """
+
+    log = logging.getLogger(__name__)
+
+    if(network_list=='*'):
+        network_list = []
+    else:
+        network_list = re.findall('\S+', network_list)
+        assert len(network_list), 'Invalid network list. Aborting..'
+    # end if
+
+    if(station_list=='*'):
+        station_list = []
+    else:
+        station_list = re.findall('\S+', station_list)
+        assert len(station_list), 'Invalid station list. Aborting..'
+    # end if
+
+    if(len(network_list)):
+        subset_inv = Inventory(networks=[], source=obspy.core.util.version.read_release_version())
+        for net in network_list:
+            subset_inv += inventory.select(network=net)
+        # end for
+        inventory = subset_inv
+    # end if
+
+    if (len(station_list)):
+        subset_inv = Inventory(networks=[], source=obspy.core.util.version.read_release_version())
+        for sta in station_list:
+            subset_inv += inventory.select(station=sta)
+        # end for
+        inventory = subset_inv
+    # end if
+
+    net_codes = set()
+    sta_codes = set()
+    for net in inventory.networks:
+        net_codes.add(net.code)
+        for sta in net.stations:
+            sta_codes.add(sta.code)
+        # end for
+    # end for
+
+    if(len(sta_codes) == 0):
+        log.error('Inventory is empty! Aborting..')
+        exit(0)
+    # end if
+
+    log.info('Using %d networks: (%s)'%(len(net_codes), ', '.join(net_codes)))
+    log.info('and %d stations: (%s)'%(len(sta_codes), ', '.join(sta_codes)))
+
+    return inventory
+#end func
+
+class PPicker():
+    def __init__(self, taup_model_name):
+        self._taup_model = TauPyModel(model=taup_model_name)
+        self._picker_list = None
+
+        sigmalist = np.arange(8, 3, -1)
+        pickerlist = []
+        for sigma in sigmalist:
+            picker = aicdpicker.AICDPicker(t_ma=10, nsigma=sigma, t_up=1, nr_len=5,
+                                           nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+
+            pickerlist.append(picker)
+        # end for
+
+        self._picker_list = pickerlist
+    # end func
+
+    def pick(self, ztrace, ntrace, etrace):
+        slope_ratio = -1
+        arrival_time = UTC(-1)
+        origin = Origin(ztrace.stats.event_time,
+                        ztrace.stats.event_latitude,
+                        ztrace.stats.event_longitude,
+                        ztrace.stats.event_depth)
+        event = Event()
+        event.preferred_origin = origin
+
+        result = extract_p(self._taup_model, self._picker_list, event, ztrace.stats.station_longitude,
+                           ztrace.stats.station_latitude, Stream(ztrace), margin=5)
+
+        if(result):
+            picklist, residuallist, snrlist, _, _ = result
+            best_pick_idx = np.argmax(snrlist[:, -1]) # hightest slope-ratio quality-estimate
+
+            arrival_time = picklist[best_pick_idx]
+            slope_ratio = snrlist[best_pick_idx, -1]
+        # end if
+
+        ztrace.stats.update({'arrival_time': arrival_time, 'slope_ratio': slope_ratio})
+        ntrace.stats.update({'arrival_time': arrival_time, 'slope_ratio': slope_ratio})
+        etrace.stats.update({'arrival_time': arrival_time, 'slope_ratio': slope_ratio})
+    # end func
+# end class
 
 # ---+----------Main---------------------------------
 
 @click.command()
-@click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=True,
-              help=r'Path to input inventory file corresponding to waveform file, '
-              r'e.g. "/g/data/ha3/Passive/_ANU/7X\(2009-2011\)/ASDF/7X\(2009-2011\)_ASDF.xml".')
+@click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=False, default=None,
+              help=r'Path to input inventory file corresponding to waveform source provided through, '
+                   r'--waveform-database. Note that this parameter is required when the waveform source is '
+                   r'not a definition file for a FederatedASDFDataSet, in which case, the relevant inventory '
+                   r'is extracted internally.')
+@click.option('--network-list', default='*', help='A space-separated list of networks to process.', type=str,
+              show_default=True)
+@click.option('--station-list', default='*', help='A space-separated list of stations to process.', type=str,
+              show_default=True)
 @click.option('--waveform-database', type=str, required=True,
               help=r'Location of waveform source database from which to extract traces. May be a recognized service '
                    r'provider from obspy.clients.fdsn.header.URL_MAPPINGS (e.g. "ISC"), an actual URL '
@@ -234,24 +352,34 @@ def is_url(resource_path):
 @click.option('--catalog-only', is_flag=True, default=False, show_default=True,
               help='If set, only generate catalog file and exit. Used for preparing '
                    'input file on HPC systems with no internet access.')
-def main(inventory_file, waveform_database, event_catalog_file, event_trace_datafile, start_time, end_time, taup_model,
-         distance_range, magnitude_range, catalog_only=False):
+def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
+         start_time, end_time, taup_model, distance_range, magnitude_range, catalog_only=False):
 
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
 
+
+    inventory = None
+    asdf_dataset = None
     waveform_db_is_web = is_url(waveform_database) or waveform_database in obspy.clients.fdsn.header.URL_MAPPINGS
     if not waveform_db_is_web:
         assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
+        asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
+        inventory = asdf_dataset.get_inventory()
+    else:
+        assert inventory_file, 'Must provide inventory file if using a URL or an obspy client as waveform source'
+        inventory = read_inventory(inventory_file)
+        log.info("Loaded inventory {}".format(inventory_file))
+    # end if
+
+    inventory = trim_inventory(inventory, network_list=network_list, station_list=station_list)
+
     log.info("Using waveform data source: {}".format(waveform_database))
 
     min_dist_deg = distance_range[0]
     max_dist_deg = distance_range[1]
     min_mag = magnitude_range[0]
     max_mag = magnitude_range[1]
-
-    inventory = read_inventory(inventory_file)
-    log.info("Loaded inventory {}".format(inventory_file))
 
     # Compute reference lonlat from the inventory.
     channels = inventory.get_contents()['channels']
@@ -298,15 +426,18 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
         waveform_getter = client.get_waveforms
     else:
         # Form closure to allow waveform source file to be derived from a setting (or command line input)
-        asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
         def closure_get_waveforms(network, station, location, channel, starttime, endtime):
             return asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
         waveform_getter = closure_get_waveforms
     # end if
 
+    # instantiate p-arrival-picker
+    ppicker = PPicker(taup_model_name=taup_model)
+
     with tqdm(smoothing=0) as pbar:
         stream_count = 0
-        for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar):
+        for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar,
+                                 request_window=(-70, 150)):
             # Write traces to output file in append mode so that arbitrarily large file
             # can be processed. If the file already exists, then existing streams will
             # be overwritten rather than duplicated.
@@ -330,6 +461,10 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
             assert s[0].stats.channel[-1] == 'Z'
             assert s[1].stats.channel[-1] == 'N'
             assert s[2].stats.channel[-1] == 'E'
+
+            # pick waveform
+            ppicker.pick(s[0], s[1], s[2])
+
             # Iterator returns rf.RFStream. Write traces from obspy.Stream to decouple from RFStream.
             grp_id = '.'.join(s.traces[0].id.split('.')[0:3])
             event_time = str(s.traces[0].meta.event_time)[0:19]
@@ -348,7 +483,6 @@ def main(inventory_file, waveform_database, event_catalog_file, event_trace_data
             log.info("Wrote {} streams to output file".format(stream_count))
         # end if
     # end with
-
 # end main
 
 

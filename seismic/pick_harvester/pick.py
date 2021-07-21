@@ -15,6 +15,7 @@ Revision History:
 
 from mpi4py import MPI
 import os
+import re
 
 from ordered_set import OrderedSet as set
 import numpy as np
@@ -326,9 +327,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                    'This parameter is useful for filtering out waveform snippets '
                                                    'with spurious spikes',
               show_default=True)
-@click.option('--network-list', default='*', help='A space/comma-separated list of networks to process.', type=str,
+@click.option('--network-list', default='*', help='A space-separated list of networks to process.', type=str,
               show_default=True)
-@click.option('--station-list', default='*', help='A space/comma-separated list of stations to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations to process.', type=str,
               show_default=True)
 @click.option('--restart', default=False, is_flag=True, help='Restart job',
               show_default=True)
@@ -356,14 +357,14 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     if(network_list=='*'):
         network_list = []
     else:
-        network_list = network_list.split("' ',")
+        network_list = re.findall('\S+', network_list)
         assert len(network_list), 'Invalid network list. Aborting..'
     # end if
 
     if(station_list=='*'):
         station_list = []
     else:
-        station_list = station_list.split("' ',")
+        station_list = re.findall('\S+', station_list)
         assert len(station_list), 'Invalid station list. Aborting..'
     # end if
 

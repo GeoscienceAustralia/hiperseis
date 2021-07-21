@@ -18,9 +18,6 @@ import tqdm.auto as tqdm
 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
-from scipy.ndimage import gaussian_filter
-from scipy import interpolate
-from sklearn.cluster import dbscan
 import pandas as pd
 
 import seismic.receiver_fn.rf_util as rf_util
@@ -33,10 +30,7 @@ logging.basicConfig()
 
 paper_size_A4 = (8.27, 11.69)  # inches
 
-DEFAULT_HK_WEIGHTS = (0.5, 0.5, 0.0)
 DEFAULT_HK_SOLN_LABEL = 'global'
-DEFAULT_Vp = 6.4  # km/sec
-
 
 def _get_aspect(ax):
     """Compute aspect ratio of given axes data."""
@@ -93,37 +87,23 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0), filter_options=None,
-                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70)):
+def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
+                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
+                         has_reverberations=False):
     """Helper function to produce H-k stacking figure."""
 
-    if filter_options is not None:
-        channel_data.filter(**filter_options)
-    # end if
-
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
-                                                            h_range=np.linspace(20.0, 70.0, 501),
-                                                            k_range=np.linspace(1.5, 2.0, 301),
-                                                            root_order=2, V_p=V_p)
-
-    layer_maxes = [np.max(hk_stack[i, :, :]) for i in range(3)]
-    log.info("Max amplitude by layer: {}".format(layer_maxes))
-
-    # Sum the phases
-    hk_stack_sum = rf_stacking.compute_weighted_stack(hk_stack, weighting)
-
-    # Raise the final sum over phases to power >1 to increase contrast
-    hk_stack_sum = rf_util.signed_nth_power(hk_stack_sum, 2)
-    hk_stack_sum = hk_stack_sum/np.nanmax(hk_stack_sum[:])
+                                                            h_range=rf_stacking.DEFAULT_H_RANGE,
+                                                            k_range=rf_stacking.DEFAULT_k_RANGE,
+                                                            weights=weighting,
+                                                            root_order=2)
 
     sta = channel_data[0].stats.station
     channel = channel_data[0].stats.channel
     num = len(channel_data)
     title = sta + '.{}'.format(channel)
-    if filter_options is not None:
-        title += ' (filtered)'
-    # end if
-    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack_sum, title=title, num=num,
+
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
                                       depth_colour_range=depth_colour_range)
 
     # Stamp weightings onto plot
@@ -133,21 +113,15 @@ def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0)
     txt_y = yl[0] + 0.90*(yl[1] - yl[0])
     plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff",
              fontsize=12)
-    if filter_options is not None:
-        txt_y -= 0.03*(yl[1] - yl[0])
-        plt.text(txt_x, txt_y, "filter={" + '\n'.join(['{}: {}'.format(k, v) for k, v in filter_options.items()])
-                 + "}", horizontalalignment='right', verticalalignment='top', color="#ffffff", fontsize=9,
-                 fontweight='light')
-    # end if
 
     # Find and label location of maximum
     soln = []
     if labelling == 'global':
-        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack_sum)
+        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
         soln = [(h_max, k_max)]
         log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
-        soln = _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum)
+        soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
         log.info("Numerical solutions (H, k) = {}".format(soln))
     # end if
 
@@ -159,78 +133,60 @@ def _produce_hk_stacking(channel_data, V_p=DEFAULT_Vp, weighting=(0.5, 0.5, 0.0)
     return fig, soln
 # end func
 
+def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_SOLN_LABEL):
+    """Helper function to produce H-k stacking figure."""
+
+    k_grid, h_grid, hk_stack, weighting = rf_stacking.compute_sediment_hk_stack(channel_data,
+                                                                     H_c=H_c, k_c=k_c,
+                                                                     h_range=rf_stacking.DEFAULT_SED_H_RANGE,
+                                                                     k_range=rf_stacking.DEFAULT_SED_k_RANGE,
+                                                                     root_order=9)
+
+    sta = channel_data[0].stats.station
+    channel = channel_data[0].stats.channel
+    num = len(channel_data)
+    title = sta + '.{} (Sediment thickness)'.format(channel)
+
+    fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
+                                      depth_colour_range=(np.min(h_grid), np.max(h_grid)))
+
+    # Stamp weightings onto plot
+    xl = plt.xlim()
+    yl = plt.ylim()
+    txt_x = xl[0] + 0.95*(xl[1] - xl[0])
+    txt_y = yl[0] + 0.90*(yl[1] - yl[0])
+    plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff",
+             fontsize=12)
+
+    # Find and label location of maximum
+    soln = []
+    if labelling == 'global':
+        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
+        soln = [(h_max, k_max)]
+        log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+    elif labelling == 'local':
+        soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
+        log.info("Numerical solutions (H, k) = {}".format(soln))
+    # end if
+
+    # Plot the local maxima
+    for h, k in soln:
+        _plot_hk_solution_point(plt.gca(), k, h)
+    # end for
+
+    return fig, soln
+# end func
 
 def _plot_hk_solution_point(axes, k, h):
     xl = axes.get_xlim()
+    yl = axes.get_ylim()
     axes.scatter(k, h, marker='+', c="#000000", s=20)
-    if k >= 0.5*(xl[0] + xl[1]):
-        axes.text(k - 0.01, h + 1, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
-                  color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
-    else:
-        axes.text(k + 0.01, h + 1, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
-                  color="#ffffff", fontsize=14, clip_on=True)
-    # end if
+
+    x = np.mean(np.array(xl))
+    y = np.mean(np.array(yl))
+    axes.text(x, y, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
+              color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
 # end func
-
-
-def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
-    # Method here is:
-    # 1) find all local maxima
-    # 2) cluster local maxima and compute centroid of each cluster
-    # The centroids of the top max_number clusters are returned, ranked by stack amplitude.
-
-    # Only consider positive stack regions.
-    hk_stack = hk_stack_sum.copy()
-    hk_stack[hk_stack < 0] = 0
-    hk_stack_max = np.nanmax(hk_stack)
-
-    # Smooth the stack, as we're not interested in high frequency local maxima
-    hk_stack = gaussian_filter(hk_stack, sigma=3, mode='nearest')
-
-    # This method only returns locations in the interior, not on the boundary of the domain
-    local_maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.7)
-    if len(local_maxima) <= 1:
-        return [(h, k) for h, k, _, _, _ in local_maxima]
-    # end if
-
-    # Perform clustering in normalized coordinates
-    k_min, k_max = (np.nanmin(k_grid), np.nanmax(k_grid))
-    k_range = k_max - k_min
-    h_min, h_max = (np.nanmin(h_grid), np.nanmax(h_grid))
-    h_range = h_max - h_min
-
-    # Use DBSCAN to cluster nearby pointwise local maxima
-    eps = 0.05
-    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range, v/hk_stack_max] for h, k, v, _, _ in local_maxima])
-    pts_hk = np.array([[h, k] for h, k, _, _, _ in local_maxima])
-    _, labels = dbscan(pts_norm, eps, min_samples=2, metric='euclidean')
-
-    # Collect group-based local maxima
-    maxima_coords = []
-    group_ids = set(labels[labels >= 0])
-    for grp_id in group_ids:
-        maxima_coords.append(np.mean(pts_hk[labels == grp_id], axis=0))
-    # end for
-
-    # Collect remaining non-grouped points and add them to list of local maxima
-    loners = pts_hk[labels < 0]
-    if np.any(loners):
-        maxima_coords.extend(loners)
-    # end if
-
-    # Sort the maxima by amplitude of stack, and then discard values with amplitude too weak compared to strongest peak
-    if len(maxima_coords) > 1:
-        finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack_sum)
-        maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
-        strongest = finterp(maxima_coords[0][1], maxima_coords[0][0])
-        while finterp(maxima_coords[-1][1], maxima_coords[-1][0]) < 0.8*strongest:
-            maxima_coords.pop()
-        # end while
-    # end if
-
-    return maxima_coords[:max_number]
-# end func
-
 
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -245,7 +201,7 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
                    'Maximum amplitude of signal < 1.0')
 @click.option('--apply-similarity-filter', is_flag=True, default=False, show_default=True,
               help='Apply RF similarity filtering to the RFs.')
-@click.option('--hk-weights', type=(float, float, float), default=DEFAULT_HK_WEIGHTS, show_default=True,
+@click.option('--hk-weights', type=(float, float, float), default=(0.5, 0.4, 0.1), show_default=True,
               help='Weightings per arrival multiple for H-k stacking')
 @click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
               show_default=True, help='Method of labeling automatically selected solutions on H-k stack plots. '
@@ -255,23 +211,35 @@ def _find_hk_local_solutions(k_grid, h_grid, hk_stack_sum, max_number=3):
               help='The range of depth values from which to choose the maximum hk_stack value for plotting '
                    'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
-              help='If present, cutoff frequency for high pass filter to use to generate secondary H-k stacking plot.')
-@click.option('--hk-vp', type=float, default=DEFAULT_Vp, show_default=True,
-              help='Value to use for Vp (crustal P-wave velocity) for H-k stacking')
+              help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
 @click.option('--save-hk-solution', is_flag=True, default=False, show_default=True,
               help='If True, save H-k estimated solutions to CSV file with name matching output file. '
                    'If high pass filter frequency is provided (--hk-hpf-filter option), the saved solutions '
                    'will be for the filtered H-k plot rather than the original.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
-         apply_similarity_filter=False, hk_weights=DEFAULT_HK_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
-         depth_colour_range=(20, 70), hk_hpf_freq=None, hk_vp=DEFAULT_Vp, save_hk_solution=False):
+         apply_similarity_filter=False, hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
+         depth_colour_range=(20, 70), hk_hpf_freq=None, save_hk_solution=False):
     # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
 
     # Read source file
     log.info("Loading input file {}".format(input_file))
-    data_all = rf_util.read_h5_rf(input_file)
+
+    if(0):
+        stations = ['CG21', 'CH21', 'CI21', 'CG22', 'CH22', 'CI22']
+        stations = ['BQ28']
+        loc=''
+        data_all = None
+        for sta in stations:
+            if(not data_all):
+                data_all = rf_util.read_h5_rf(input_file, network='OA', station=sta, loc=loc)
+            else:
+                data_all += rf_util.read_h5_rf(input_file, network='OA', station=sta, loc=loc)
+        # end for
+    else:
+        data_all = rf_util.read_h5_rf(input_file)
+    # end if
 
     # Convert to hierarchical dictionary format
     data_dict = rf_util.rf_to_dict(data_all)
@@ -316,6 +284,7 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         network = data_dict.network
         rf_type = data_dict.rotation
         hk_soln = dict()
+        sediment_hk_soln = dict()
         station_coords = dict()
         for st in sorted(data_dict.keys()):
             station_db = data_dict[st]
@@ -348,6 +317,11 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                 rf_stream = rf.RFStream(
                     [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
             # end if
+
+            if(1): #TODO expose cli-option
+                rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.slope_ratio > 5]).sort(['back_azimuth'])
+            # end if
+
             if not rf_stream:
                 continue
             if apply_similarity_filter and len(rf_stream) >= 3:
@@ -375,6 +349,12 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             num_traces = len(rf_stream)
             assert len(t_stream) == num_traces or not t_stream
 
+            # Filter rf_stream if needed
+            if(hk_hpf_freq and hk_hpf_freq>0):
+                rf_stream.filter(type='highpass', freq=hk_hpf_freq,
+                                 corners=1, zerophase=True)
+            # end if
+
             # Plot RF stack of primary component
             trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
             fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
@@ -385,6 +365,26 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Save to new page in file
             pdf.savefig(dpi=300, orientation='portrait')
             plt.close()
+
+            reverberations_removed = False
+            # Apply reverberation filter if needed
+            if(rf_util.has_reverberations(rf_stream)):
+                rf_stream = rf_util.apply_reverberation_filter(rf_stream)
+                reverberations_removed = True
+            # end if
+
+            if(reverberations_removed):
+                # Plot reverberation-filtered RF stack
+                trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
+                fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                                                  fig_width=paper_size_A4[0])
+                fig.suptitle("Channel {} (Reverberations removed)".format(rf_stream[0].stats.channel))
+                # Customize layout to pack to top of page while preserving RF plots aspect ratios
+                _rf_layout_A4(fig)
+                # Save to new page in file
+                pdf.savefig(dpi=300, orientation='portrait')
+                plt.close()
+            # end if
 
             # Plot RF stack of transverse component
             if t_stream:
@@ -402,12 +402,10 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             # Plot H-k stack using primary RF component
             fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
                                                labelling=hk_solution_labels,
-                                               depth_colour_range=depth_colour_range,
-                                               V_p=hk_vp)
-            if save_hk_solution and hk_hpf_freq is None:
-                hk_soln[st] = maxima
-                station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
-            # end if
+                                               depth_colour_range=depth_colour_range)
+            hk_soln[st] = maxima
+            station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
+
             paper_landscape = (paper_size_A4[1], paper_size_A4[0])
             fig.set_size_inches(*paper_landscape)
             # plt.tight_layout()
@@ -415,24 +413,16 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
             pdf.savefig(dpi=300, orientation='landscape')
             plt.close()
 
-            if hk_hpf_freq is not None:
-                # Repeat H-k stack with high pass filtering
-                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
-                                                   labelling=hk_solution_labels,
-                                                   depth_colour_range=depth_colour_range,
-                                                   V_p=hk_vp,
-                                                   filter_options={'type': 'highpass', 'freq': hk_hpf_freq,
-                                                                   'corners': 1, 'zerophase': True})
-                if save_hk_solution:
-                    hk_soln[st] = maxima
-                    station_coords[st] = (channel_data[0].stats.station_latitude,
-                                          channel_data[0].stats.station_longitude)
-                # end if
+            if reverberations_removed:
+                H_c = hk_soln[st][0][0]
+                k_c = hk_soln[st][0][1]
+                fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
+                sediment_hk_soln[st] = maxima
+
                 fig.set_size_inches(*paper_landscape)
                 pdf.savefig(dpi=300, orientation='landscape')
                 plt.close()
             # end if
-
         # end for
         pbar.close()
     # end with
@@ -457,7 +447,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         df.index.name = 'Station'
         df.to_csv(csv_fname)
     # end if
-
 # end main
 
 

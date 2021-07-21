@@ -142,9 +142,7 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     :return: Handle to the figure created for the plot
     :rtype: matplotlib.figure.Figure
     """
-    # Call rf_stacking.computed_weighted_stack() first to combine weighted components before calling this function.
-    # For best practices, use a perceptually linear color map.
-    cmap = plt.cm.get_cmap('plasma')
+    cmap = plt.cm.get_cmap('rainbow')
     fig = plt.figure(figsize=(16, 12))
     if clip_negative:
         hk_stack = hk_stack.copy()
@@ -154,20 +152,20 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     assert(depth_colour_range[0] < depth_colour_range[1])
     cptmax = None
     extend = 'neither'
-    if(depth_colour_range == (20, 70)):
-        cptmax = np.nanmax(hk_stack)
-    else:
+    if(depth_colour_range[0]>np.min(h_grid) or depth_colour_range[1]<np.max(h_grid)):
         cptmax = np.nanmax(hk_stack[(h_grid>=depth_colour_range[0]) & \
                                     (h_grid<=depth_colour_range[1])])
-        cmap.set_over('cyan')
+        cmap.set_over('magenta')
         extend = 'max'
+    else:
+        cptmax = np.nanmax(hk_stack)
     # end if
-    cs = plt.contourf(k_grid, h_grid, hk_stack, levels=50, cmap=cmap, vmin=0, vmax=cptmax,
+    cs = plt.contourf(k_grid, h_grid, hk_stack, levels=20, cmap=cmap, vmin=0, vmax=cptmax,
                       extend=extend)
     cb = plt.colorbar(cs)
 
     cb.ax.set_ylabel('Stack sum')
-    plt.contour(k_grid, h_grid, hk_stack, levels=10, colors='k', linewidths=1)
+    #plt.contour(k_grid, h_grid, hk_stack, levels=10, colors='k', linewidths=1)
     plt.xlabel(r'$\kappa = \frac{V_p}{V_s}$ (ratio)', fontsize=14)
     plt.ylabel('H = Moho depth (km)', fontsize=14)
     if title is not None:
