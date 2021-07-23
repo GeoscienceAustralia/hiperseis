@@ -33,7 +33,7 @@ if sys.version_info[0] < 3:
 else:
     import pathlib  # pylint: disable=import-error
 
-from picks_reader_utils import (read_picks_ensemble, get_network_stations, compute_matching_network_mask, generate_large_events_catalog)
+from seismic.gps_corrections.picks_reader_utils import (read_picks_ensemble, get_network_stations, compute_matching_network_mask, generate_large_events_catalog)
 
 # pylint: disable=invalid-name, fixme, too-many-locals, too-many-statements
 # pylint: disable=attribute-defined-outside-init, logging-format-interpolation, logging-not-lazy
