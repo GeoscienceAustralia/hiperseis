@@ -1,10 +1,11 @@
+# module purge
 # module load python3
 # python3 -m venv venv
-# module purge
+# source venv/bin/activate
 # module load openmpi
 # module load mpi4py
 # module load hdf5/1.10.5p
-# pip install -r requirements.txt
+# pip install -r requirementsVDI.txt
 pyasdf
 numpy
 obspy
