@@ -1,0 +1,27 @@
+# module load python3
+# python3 -m venv venv
+# module purge
+# module load openmpi
+# module load mpi4py
+# module load hdf5/1.10.5p
+# pip install -r requirements.txt
+pyasdf
+numpy
+obspy
+pandas
+matplotlib
+ordered-set
+psutil
+click
+ujson
+sklearn
+netcdf4
+tqdm
+shapely
+descartes
+pyproj
+pytz
+pathlib2
+jupyter
+#  python3 -m seismic.gps_corrections.gps_clock_correction_gui
+#  env PYTHONPATH=`pwd` jupyter notebook
