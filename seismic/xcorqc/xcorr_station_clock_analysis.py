@@ -150,7 +150,7 @@ class XcorrClockAnalyzer:
             y = self.corrections_clean[mask_group]
             # Constrain the knot frequency to be proportional to the order, so that we don't overfit
             # to high frequency variations in the data just for the sake of lowering the spline residual.
-            t = np.linspace(x[0], x[-1], degree - 1)
+            t = np.linspace(x[0], x[-1], int(degree - 1))
             r = LSQUnivariateSpline(x, y, t[1:-1], k=degree)
             regressions[i] = r
 
