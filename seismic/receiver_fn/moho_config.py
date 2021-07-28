@@ -563,6 +563,10 @@ class MethodDataset:
                                 cache['.'.join((net,sta))] = (float(coords['latitude']), 
                                     float(coords['longitude']))
                                 break
+                        # end for
+                        if(coords is None):
+                            msg = 'Error: Could not find Station %s in inventory file for dataset %s..'%(sta, self.name)
+                            raise ValueError(msg)
                     else:
                         lats.append(coords[0])
                         lons.append(coords[1])
