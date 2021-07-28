@@ -162,6 +162,10 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
     # end if
     cs = plt.contourf(k_grid, h_grid, hk_stack, levels=20, cmap=cmap, vmin=0, vmax=cptmax,
                       extend=extend)
+    for c in cs.collections:
+        c.set_rasterized(True)
+    # end for
+
     cb = plt.colorbar(cs)
 
     cb.ax.set_ylabel('Stack sum')
@@ -184,7 +188,7 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
         txt_x = xl[0] + 0.95*(xl[1] - xl[0])
         txt_y = yl[0] + 0.95*(yl[1] - yl[0])
         plt.text(txt_x, txt_y, "N = {}".format(num), horizontalalignment='right',
-                 color="#ffffff", fontsize=16, fontweight='bold')
+                 color="#ffffff", fontsize=16, fontweight='bold', rasterized=True)
     # end if
 
     if save_file is not None:
@@ -208,7 +212,7 @@ def plot_hk_stack(k_grid, h_grid, hk_stack, title=None, save_file=None, num=None
 
 
 def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col='C0', title='',
-                  figsize=(10, 10), cluster=True, cluster_col='#ff4000', layout=None, fontscaling=1.0):
+                  figsize=(10, 10), cluster=False, cluster_col='#ff4000', layout=None, fontscaling=1.0):
     """Plot receiver functions around a polar plot with source direction used to position radial RF plot.
 
     :param rf_stream: Collection of RFs to plot. If passed as a list, then each stream in the list
@@ -270,7 +274,7 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
         ax.tick_params(labelsize=14*fontscaling)
 
         stream_meta = stream[0].stats
-        target_id = '.'.join([stream_meta.network, stream_meta.station, stream_meta.channel])
+        target_id = '.'.join([stream_meta.network, stream_meta.station, stream_meta.location, stream_meta.channel])
         ax.text(0.5, 0.5, target_id, fontsize=14*fontscaling, horizontalalignment='center', verticalalignment='center',
                 transform=ax.transAxes)
 

@@ -116,7 +116,7 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
 
 
 def analyze_station_orientations(ned, curation_opts, config_filtering,
-                                 config_processing, save_plots_path=None):
+                                 config_processing, parallel=True, save_plots_path=None):
     """
     Main processing function for analyzing station orientation using 3-channel
     event waveforms. Uses method of Wilde-Piorko https://doi.org/10.1007/s10950-017-9640-x
@@ -135,6 +135,8 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
     :type config_filtering: dict
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
+    :param parallel: Activates parallel processing through joblib
+    type: boolean
     :type config_processing: dict
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle
@@ -190,15 +192,26 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
 
     logger.info('Analysing arrivals')
     angles = np.linspace(-180, 180, num=20, endpoint=False)
-    job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
-    jobs = []
+
     stations = []
-    for sta, db_evid in ned.by_station():
-        stations.append((sta, len(db_evid)))
-        job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
-        jobs.append(job)
-    # end for
-    sta_ampls = job_runner(jobs)
+    sta_ampls = []
+    if(parallel):
+        job_runner = Parallel(n_jobs=-2, verbose=5, max_nbytes='16M')
+        jobs = []
+        for sta, db_evid in ned.by_station():
+            stations.append((sta, len(db_evid)))
+            job = delayed(_run_single_station)(db_evid, angles, config_filtering, config_processing)
+            jobs.append(job)
+        # end for
+        sta_ampls = job_runner(jobs)
+    else:
+        for sta, db_evid in ned.by_station():
+            stations.append((sta, len(db_evid)))
+            sta_ampl = _run_single_station(db_evid, angles, config_filtering, config_processing)
+            sta_ampls.append(sta_ampl)
+        # end for
+    # end if
+
     sta_ori_metrics = [(sta, N, ampls) for (sta, N), ampls in zip(stations, sta_ampls)]
 
     x = np.hstack((angles, angles[0] + 360))

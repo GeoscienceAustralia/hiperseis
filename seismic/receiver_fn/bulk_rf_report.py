@@ -3,6 +3,7 @@
 """Produce PDF report of network stations showing RF waveforms
 """
 
+from mpi4py import MPI
 import os
 import re
 import logging
@@ -19,10 +20,10 @@ import tqdm.auto as tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import pandas as pd
-
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
+from PyPDF2 import PdfFileMerger
 
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 
@@ -99,9 +100,10 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
                                                             root_order=2)
 
     sta = channel_data[0].stats.station
+    loc = channel_data[0].stats.location
     channel = channel_data[0].stats.channel
     num = len(channel_data)
-    title = sta + '.{}'.format(channel)
+    title = '.'.join([sta, loc, channel])
 
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
                                       depth_colour_range=depth_colour_range)
@@ -112,7 +114,7 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
     txt_x = xl[0] + 0.95*(xl[1] - xl[0])
     txt_y = yl[0] + 0.90*(yl[1] - yl[0])
     plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff",
-             fontsize=12)
+             fontsize=12, rasterized=True)
 
     # Find and label location of maximum
     soln = []
@@ -126,8 +128,8 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
     # end if
 
     # Plot the local maxima
-    for h, k in soln:
-        _plot_hk_solution_point(plt.gca(), k, h)
+    for i, (h, k) in enumerate(soln):
+        _plot_hk_solution_point(plt.gca(), k, h, i+1)
     # end for
 
     return fig, soln
@@ -156,7 +158,7 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_S
     txt_x = xl[0] + 0.95*(xl[1] - xl[0])
     txt_y = yl[0] + 0.90*(yl[1] - yl[0])
     plt.text(txt_x, txt_y, "w={}".format(weighting), horizontalalignment='right', color="#ffffff",
-             fontsize=12)
+             fontsize=12, rasterized=True)
 
     # Find and label location of maximum
     soln = []
@@ -170,22 +172,40 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_S
     # end if
 
     # Plot the local maxima
-    for h, k in soln:
-        _plot_hk_solution_point(plt.gca(), k, h)
+    for i, (h, k) in enumerate(soln):
+        _plot_hk_solution_point(plt.gca(), k, h, i+1)
     # end for
 
     return fig, soln
 # end func
 
-def _plot_hk_solution_point(axes, k, h):
+def _plot_hk_solution_point(axes, k, h, idx):
     xl = axes.get_xlim()
     yl = axes.get_ylim()
+
+    axes.text(k, h, "  %d"%(idx),
+              color="#000000", fontsize=10, horizontalalignment='right',
+              clip_on=False, rasterized=True)
+
     axes.scatter(k, h, marker='+', c="#000000", s=20)
 
     x = np.mean(np.array(xl))
-    y = np.mean(np.array(yl))
-    axes.text(x, y, "Solution H = {:.3f}, k = {:.3f}".format(h, k),
-              color="#ffffff", fontsize=14, horizontalalignment='right', clip_on=True)
+    axes.text(x, h, "H{}={:.3f}, k{}={:.3f}".format(idx, h, idx, k),
+              color="#000000", fontsize=12, horizontalalignment='left',
+              clip_on=False)
+# end func
+
+def pdf_merge(file_list, output_filename):
+    merger = PdfFileMerger(strict=False)
+
+    for pdffile in file_list:
+        fn, _ = os.path.splitext(os.path.basename(pdffile))
+        bookmark = '.'.join(fn.split('.')[1:])
+        merger.append(pdffile, bookmark)
+        os.remove(pdffile)
+    # end for
+    merger.write(output_filename)
+    merger.close()
 # end func
 
 @click.command()
@@ -212,240 +232,277 @@ def _plot_hk_solution_point(axes, k, h):
                    'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
-@click.option('--save-hk-solution', is_flag=True, default=False, show_default=True,
-              help='If True, save H-k estimated solutions to CSV file with name matching output file. '
-                   'If high pass filter frequency is provided (--hk-hpf-filter option), the saved solutions '
-                   'will be for the filtered H-k plot rather than the original.')  # pylint: disable=missing-docstring
 def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
          apply_similarity_filter=False, hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
-         depth_colour_range=(20, 70), hk_hpf_freq=None, save_hk_solution=False):
+         depth_colour_range=(20, 70), hk_hpf_freq=None):
     # docstring redundant since CLI options are already documented.
 
     log.setLevel(logging.INFO)
 
-    # Read source file
-    log.info("Loading input file {}".format(input_file))
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+    proc_hdfkeys = None
 
-    if(0):
-        stations = ['CG21', 'CH21', 'CI21', 'CG22', 'CH22', 'CI22']
-        stations = ['BQ28']
-        loc=''
-        data_all = None
-        for sta in stations:
-            if(not data_all):
-                data_all = rf_util.read_h5_rf(input_file, network='OA', station=sta, loc=loc)
-            else:
-                data_all += rf_util.read_h5_rf(input_file, network='OA', station=sta, loc=loc)
-        # end for
-    else:
-        data_all = rf_util.read_h5_rf(input_file)
+    if(rank == 0):
+        # split work over stations
+        proc_hdfkeys = rf_util.get_hdf_keys(input_file)
+        #proc_hdfkeys = ['waveforms/OA.BW28.0M']
+        #proc_hdfkeys = ['waveforms/OA.BW28.0M', 'waveforms/OA.CA26.0M']
+        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
     # end if
 
-    # Convert to hierarchical dictionary format
-    data_dict = rf_util.rf_to_dict(data_all)
+    # broadcast workload to all procs
+    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
 
-    event_mask_dict = None
-    if event_mask_folder and os.path.isdir(event_mask_folder):
-        log.info("Applying event mask from folder {}".format(event_mask_folder))
-        mask_files = os.listdir(event_mask_folder)
-        mask_files = [f for f in mask_files if os.path.isfile(os.path.join(event_mask_folder, f))]
-        pattern = r"([A-Za-z0-9\.]{5,})_event_mask\.txt"
-        pattern = re.compile(pattern)
-        event_mask_dict = dict()
-        for f in mask_files:
-            match_result = pattern.match(f)
-            if not match_result:
-                continue
-            code = match_result[1]
-            with open(os.path.join(event_mask_folder, f), 'r') as _f:
-                events = _f.readlines()
-                events = set([e.strip() for e in events])
-                event_mask_dict[code] = events
-            # end with
-        # end for
-    # end if
+    pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
 
-    if event_mask_dict:
-        log.info("Loaded {} event masks".format(len(event_mask_dict)))
-    # end if
+    pdf_names = []
+    hk_soln = dict()
+    sediment_hk_soln = dict()
+    station_coords = dict()
+    sediment_station_coords = dict()
 
-    # Plot all data to PDF file
-    fixed_stack_height_inches = 0.8
-    y_pad_inches = 1.6
-    total_trace_height_inches = paper_size_A4[1] - fixed_stack_height_inches - y_pad_inches
-    max_trace_height = 0.2
+    for proc_hdfkey in proc_hdfkeys[rank]:
+        data_all = rf.read_rf(input_file, format='h5', group=proc_hdfkey)
+        # Convert to hierarchical dictionary format
+        data_dict = rf_util.rf_to_dict(data_all)
 
-    log.setLevel(logging.WARNING)
+        nsl = proc_hdfkey.split('/')[1] # network-station-location
+        pbar.update()
+        pbar.set_description("Rank {}: {}".format(rank, nsl))
 
-    with PdfPages(output_file) as pdf:
-        # Would like to use Tex, but lack desktop PC privileges to update packages to what is required
-        plt.rc('text', usetex=False)
-        pbar = tqdm.tqdm(total=len(data_dict))
-        network = data_dict.network
-        rf_type = data_dict.rotation
-        hk_soln = dict()
-        sediment_hk_soln = dict()
-        station_coords = dict()
-        for st in sorted(data_dict.keys()):
-            station_db = data_dict[st]
+        event_mask_dict = None
+        if event_mask_folder and os.path.isdir(event_mask_folder):
+            log.info("Applying event mask from folder {}".format(event_mask_folder))
+            mask_files = os.listdir(event_mask_folder)
+            mask_files = [f for f in mask_files if os.path.isfile(os.path.join(event_mask_folder, f))]
+            pattern = r"([A-Za-z0-9\.]{5,})_event_mask\.txt"
+            pattern = re.compile(pattern)
+            event_mask_dict = dict()
+            for f in mask_files:
+                match_result = pattern.match(f)
+                if not match_result:
+                    continue
+                code = match_result[1]
+                with open(os.path.join(event_mask_folder, f), 'r') as _f:
+                    events = _f.readlines()
+                    events = set([e.strip() for e in events])
+                    event_mask_dict[code] = events
+                # end with
+            # end for
+        # end if
 
-            pbar.update()
-            pbar.set_description("{}.{}".format(network, st))
+        if event_mask_dict:
+            log.info("Loaded {} event masks".format(len(event_mask_dict)))
+        # end if
 
-            # Choose RF channel
-            channel = rf_util.choose_rf_source_channel(rf_type, station_db)
-            channel_data = station_db[channel]
-            if not channel_data:
-                continue
-            # end if
-            full_code = '.'.join([network, st, channel])
+        # Plot all data to PDF file
+        fixed_stack_height_inches = 0.8
+        y_pad_inches = 1.6
+        total_trace_height_inches = paper_size_A4[1] - fixed_stack_height_inches - y_pad_inches
+        max_trace_height = 0.2
 
-            t_channel = list(channel)
-            t_channel[-1] = 'T'
-            t_channel = ''.join(t_channel)
+        log.setLevel(logging.WARNING)
 
-            rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
-            if event_mask_dict and full_code in event_mask_dict:
-                # Select events from external source
-                event_mask = event_mask_dict[full_code]
-                rf_stream = rf.RFStream(
-                    [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort(['back_azimuth'])
-            # end if
-            if apply_amplitude_filter:
-                # Label and filter quality
-                rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
-                rf_stream = rf.RFStream(
-                    [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
-            # end if
+        curr_output_file, _ = os.path.splitext(output_file)
+        curr_output_file += '.{}.pdf'.format(nsl)
 
-            if(1): #TODO expose cli-option
-                rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.slope_ratio > 5]).sort(['back_azimuth'])
-            # end if
+        with PdfPages(curr_output_file) as pdf:
+            # Would like to use Tex, but lack desktop PC privileges to update packages to what is required
+            plt.rc('text', usetex=False)
+            network = data_dict.network
+            rf_type = data_dict.rotation
+            for st in sorted(data_dict.keys()):
+                station_db = data_dict[st]
 
-            if not rf_stream:
-                continue
-            if apply_similarity_filter and len(rf_stream) >= 3:
-                rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
-            # end if
-            if not rf_stream:
-                continue
+                # Choose RF channel
+                channel = rf_util.choose_rf_source_channel(rf_type, station_db)
+                channel_data = station_db[channel]
+                if not channel_data:
+                    continue
+                # end if
+                full_code = '.'.join([network, st, channel])
 
-            # Find matching T-component data
-            events = [tr.stats.event_id for tr in rf_stream]
-            transverse_data = station_db[t_channel]
-            t_stream = rf.RFStream(
-                [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
+                t_channel = list(channel)
+                t_channel[-1] = 'T'
+                t_channel = ''.join(t_channel)
 
-            # Plot pinwheel of primary and transverse components
-            fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
-            fig.set_size_inches(*paper_size_A4)
-            plt.tight_layout()
-            plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
-            ax = fig.gca()
-            fig.text(-0.32, -0.32, "\n".join(rf_stream[0].stats.processing), fontsize=6, transform=ax.transAxes)
-            pdf.savefig(dpi=300, orientation='portrait')
-            plt.close()
+                rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
+                if event_mask_dict and full_code in event_mask_dict:
+                    # Select events from external source
+                    event_mask = event_mask_dict[full_code]
+                    rf_stream = rf.RFStream(
+                        [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort(['back_azimuth'])
+                # end if
+                if apply_amplitude_filter:
+                    # Label and filter quality
+                    rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
+                    rf_stream = rf.RFStream(
+                        [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
+                # end if
 
-            num_traces = len(rf_stream)
-            assert len(t_stream) == num_traces or not t_stream
+                if(1): #TODO expose cli-option
+                    rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.slope_ratio > 5]).sort(['back_azimuth'])
+                # end if
 
-            # Filter rf_stream if needed
-            if(hk_hpf_freq and hk_hpf_freq>0):
-                rf_stream.filter(type='highpass', freq=hk_hpf_freq,
-                                 corners=1, zerophase=True)
-            # end if
+                if not rf_stream:
+                    continue
+                if apply_similarity_filter and len(rf_stream) >= 3:
+                    rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
+                # end if
+                if not rf_stream:
+                    continue
 
-            # Plot RF stack of primary component
-            trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
-            fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
-                                              fig_width=paper_size_A4[0])
-            fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
-            # Customize layout to pack to top of page while preserving RF plots aspect ratios
-            _rf_layout_A4(fig)
-            # Save to new page in file
-            pdf.savefig(dpi=300, orientation='portrait')
-            plt.close()
+                # Find matching T-component data
+                events = [tr.stats.event_id for tr in rf_stream]
+                transverse_data = station_db[t_channel]
+                t_stream = rf.RFStream(
+                    [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
 
-            reverberations_removed = False
-            # Apply reverberation filter if needed
-            if(rf_util.has_reverberations(rf_stream)):
-                rf_stream = rf_util.apply_reverberation_filter(rf_stream)
-                reverberations_removed = True
-            # end if
+                # Plot pinwheel of primary and transverse components
+                fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
+                fig.set_size_inches(*paper_size_A4)
+                plt.tight_layout()
+                plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
+                ax = fig.gca()
+                fig.text(-0.32, -0.32, "\n".join(rf_stream[0].stats.processing), fontsize=6,
+                         transform=ax.transAxes, rasterized=True)
+                pdf.savefig(dpi=300, orientation='portrait')
+                plt.close()
 
-            if(reverberations_removed):
-                # Plot reverberation-filtered RF stack
+                num_traces = len(rf_stream)
+                assert len(t_stream) == num_traces or not t_stream
+
+                # Filter rf_stream if needed
+                if(hk_hpf_freq and hk_hpf_freq>0):
+                    rf_stream.filter(type='highpass', freq=hk_hpf_freq,
+                                     corners=1, zerophase=True)
+                # end if
+
+                # Plot RF stack of primary component
                 trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
                 fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
                                                   fig_width=paper_size_A4[0])
-                fig.suptitle("Channel {} (Reverberations removed)".format(rf_stream[0].stats.channel))
+                fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios
                 _rf_layout_A4(fig)
                 # Save to new page in file
                 pdf.savefig(dpi=300, orientation='portrait')
                 plt.close()
-            # end if
 
-            # Plot RF stack of transverse component
-            if t_stream:
-                fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
-                                                  stack_height=fixed_stack_height_inches,
-                                                  fig_width=paper_size_A4[0])
-                fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
-                # Customize layout to pack to top of page while preserving RF plots aspect ratios
-                _rf_layout_A4(fig)
-                # Save to new page in file
-                pdf.savefig(dpi=300, orientation='portrait')
-                plt.close()
-            # end if
+                reverberations_removed = False
+                # Apply reverberation filter if needed
+                if(rf_util.has_reverberations(rf_stream)):
+                    rf_stream = rf_util.apply_reverberation_filter(rf_stream)
+                    reverberations_removed = True
+                # end if
 
-            # Plot H-k stack using primary RF component
-            fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
-                                               labelling=hk_solution_labels,
-                                               depth_colour_range=depth_colour_range)
-            hk_soln[st] = maxima
-            station_coords[st] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
+                if(reverberations_removed):
+                    # Plot reverberation-filtered RF stack
+                    trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
+                    fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                                                      fig_width=paper_size_A4[0])
+                    fig.suptitle("Channel {} (Reverberations removed)".format(rf_stream[0].stats.channel))
+                    # Customize layout to pack to top of page while preserving RF plots aspect ratios
+                    _rf_layout_A4(fig)
+                    # Save to new page in file
+                    pdf.savefig(dpi=300, orientation='portrait')
+                    plt.close()
+                # end if
 
-            paper_landscape = (paper_size_A4[1], paper_size_A4[0])
-            fig.set_size_inches(*paper_landscape)
-            # plt.tight_layout()
-            # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
-            pdf.savefig(dpi=300, orientation='landscape')
-            plt.close()
+                # Plot RF stack of transverse component
+                if t_stream:
+                    fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
+                                                      stack_height=fixed_stack_height_inches,
+                                                      fig_width=paper_size_A4[0])
+                    fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
+                    # Customize layout to pack to top of page while preserving RF plots aspect ratios
+                    _rf_layout_A4(fig)
+                    # Save to new page in file
+                    pdf.savefig(dpi=300, orientation='portrait')
+                    plt.close()
+                # end if
 
-            if reverberations_removed:
-                H_c = hk_soln[st][0][0]
-                k_c = hk_soln[st][0][1]
-                fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
-                sediment_hk_soln[st] = maxima
+                # Plot H-k stack using primary RF component
+                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+                                                   labelling=hk_solution_labels,
+                                                   depth_colour_range=depth_colour_range)
+                hk_soln[nsl] = maxima
+                station_coords[nsl] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
 
+                paper_landscape = (paper_size_A4[1], paper_size_A4[0])
                 fig.set_size_inches(*paper_landscape)
+                # plt.tight_layout()
+                # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
                 pdf.savefig(dpi=300, orientation='landscape')
                 plt.close()
-            # end if
-        # end for
-        pbar.close()
-    # end with
 
-    # Save H-k solutions to CSV file
-    if hk_soln:
-        assert len(hk_soln) == len(station_coords)
-        # Sort H-k solutions by depth from low to high
-        update_dict = {}
-        for st, hks in hk_soln.items():
-            sorted_hks = sorted([tuple(hk) for hk in hks])
-            update_dict[st] = np.array(list(station_coords[st]) + [i for hk in sorted_hks for i in hk])
-        # end for
-        hk_soln.update(update_dict)
+                if reverberations_removed:
+                    H_c = hk_soln[nsl][0][0]
+                    k_c = hk_soln[nsl][0][1]
+                    fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
+                    sediment_hk_soln[nsl] = maxima
 
-        df = pd.DataFrame.from_dict(hk_soln, orient='index')
-        colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
-        colnames = ['Latitude', 'Longitude'] + list(itertools.chain.from_iterable(colnames))
-        df.columns = colnames
-        csv_fname, _ = os.path.splitext(output_file)
-        csv_fname += '.csv'
-        df.index.name = 'Station'
-        df.to_csv(csv_fname)
+                    sediment_station_coords[nsl] = (channel_data[0].stats.station_latitude,
+                                                    channel_data[0].stats.station_longitude)
+                    fig.set_size_inches(*paper_landscape)
+                    pdf.savefig(dpi=300, orientation='landscape')
+                    plt.close()
+                # end if
+
+                plt.close('all')
+            # end for
+        # end with
+        pdf_names.append(curr_output_file)
+    # end for
+    pbar.close()
+
+    # gather hk_soln, sediment_hk_soln and associated coordinates on rank 0
+    hk_soln = comm.gather(hk_soln, root=0)
+    sediment_hk_soln = comm.gather(sediment_hk_soln, root=0)
+    station_coords = comm.gather(station_coords, root=0)
+    sediment_station_coords = comm.gather(sediment_station_coords, root=0)
+    pdf_names = comm.gather(pdf_names, root=0)
+
+    comm.Barrier()
+    if(rank==0):
+        def flatten_dict_list(dict_list):
+            return {k: v for d in dict_list for k, v in d.items()}
+        #end func
+
+        hk_soln = flatten_dict_list(hk_soln)
+        sediment_hk_soln = flatten_dict_list(sediment_hk_soln)
+        station_coords = flatten_dict_list(station_coords)
+        sediment_station_coords = flatten_dict_list(sediment_station_coords)
+        # write solutions to csv files
+        for result_hk, result_coords, fname in zip([hk_soln, sediment_hk_soln],
+                                                     [station_coords, sediment_station_coords],
+                                                     [os.path.splitext(output_file)[0] + '.csv',
+                                                      os.path.splitext(output_file)[0] + '.sed.csv']):
+            assert len(result_hk) == len(result_coords)
+
+            if(len(result_hk) == 0): continue
+
+            # Sort H-k solutions by depth from low to high
+            update_dict = {}
+            for nsl, hks in result_hk.items():
+                sorted_hks = sorted([tuple(hk) for hk in hks])
+                update_dict[nsl] = np.array(list(result_coords[nsl]) + [i for hk in sorted_hks for i in hk])
+            # end for
+            result_hk.update(update_dict)
+
+            df = pd.DataFrame.from_dict(result_hk, orient='index')
+            colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
+            colnames = ['Latitude', 'Longitude'] + list(itertools.chain.from_iterable(colnames))
+            df.columns = colnames
+            df.index.name = 'Station'
+            df.to_csv(fname)
+        # end for
+
+        # gather pdf-names, flatten list and merge pdfs
+        pdf_names = [item for items in pdf_names for item in items]
+        pdf_merge(pdf_names, output_file)
     # end if
 # end main
 

@@ -12,6 +12,7 @@ from scipy.signal import hilbert, correlate
 
 import obspy
 import rf
+import h5py
 
 from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
@@ -19,6 +20,29 @@ from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 # pylint: disable=invalid-name, logging-format-interpolation
 
 logging.basicConfig()
+
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+# end func
+
+def get_hdf_keys(h5fn):
+    fh = None
+    try:
+        fh = h5py.File(h5fn, 'r')
+    except:
+        raise IOError('Invalid file/path {}..'%(h5fn))
+    # end try
+
+    if('waveforms' not in fh.keys()):
+        raise IOError('Invalid file/path {}. "waveforms" group not found..' % (h5fn))
+    # end if
+
+    result = ['waveforms/%s'%(key) for key in fh['waveforms'].keys()]
+    del fh
+
+    return result
+# end func
 
 def has_reverberations(cha_data, dt_max=0.2):
     """

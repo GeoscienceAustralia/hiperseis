@@ -15,14 +15,8 @@ Revision History:
 
 from mpi4py import MPI
 import os, sys
-
-from os.path import join, exists
-from collections import defaultdict
-import numpy as np
-from obspy import Stream, Trace, UTCDateTime
-from multiprocessing import Pool, TimeoutError
+import re
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from obspy.core.trace import Trace
 from obspy import Stream, UTCDateTime, read_events
 from obspy.geodetics.base import locations2degrees
 from obspy.taup import TauPyModel
@@ -102,10 +96,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('input-events', required=True,
                 type=click.Path(exists=True))
-@click.argument('network-name', required=True,
-                type=str)
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
+@click.option('--network-list', default='*', help='A space-separated list of networks to process.', type=str,
+              show_default=True)
+@click.option('--station-list', default='*', help='A space-separated list of stations to process.', type=str,
+              show_default=True)
 @click.option('--start-date', default='1900-01-01T00:00:00',
               help="Start date-time in UTC format. Default is 1900-01-01T00:00:00",
               type=str)
@@ -120,8 +116,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Trace duration before p arrival in seconds. Default is 60s.")
 @click.option('--time-after-p', default=120,
               help="Trace duration after p arrival in seconds. Default is 120s")
-def process(asdf_source, input_events, network_name, output_folder, start_date, end_date,
-            min_dist, max_dist, time_before_p, time_after_p):
+def process(asdf_source, input_events, output_folder, network_list, station_list,
+            start_date, end_date, min_dist, max_dist, time_before_p, time_after_p):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files\n
     INPUT_EVENTS: Path to events catalogue in FDSNStationXML format\n
@@ -136,6 +132,23 @@ def process(asdf_source, input_events, network_name, output_folder, start_date, 
         assert 0, 'Invalid input'
     # end try
 
+    # ==================================================
+    # Initialize lists of networks and stations to process
+    # ==================================================
+    if(network_list=='*'):
+        network_list = []
+    else:
+        network_list = re.findall('\S+', network_list)
+        assert len(network_list), 'Invalid network list. Aborting..'
+    # end if
+
+    if(station_list=='*'):
+        station_list = []
+    else:
+        station_list = re.findall('\S+', station_list)
+        assert len(station_list), 'Invalid station list. Aborting..'
+    # end if
+
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
@@ -146,7 +159,12 @@ def process(asdf_source, input_events, network_name, output_folder, start_date, 
         # split work over stations
 
         stations = list(fds.unique_coordinates.keys())
-        stations = [s for s in stations if s.split('.')[0] == network_name] # filter stations
+        if(len(network_list)):
+            stations = [s for s in stations if s.split('.')[0] in network_list] # filter networks
+        # end if
+        if(len(station_list)):
+            stations = [s for s in stations if s.split('.')[1] in station_list] # filter stations
+        # end if
         meta = fds.unique_coordinates
 
         proc_stations = split_list(stations, nproc)

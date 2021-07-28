@@ -83,7 +83,21 @@ def compute_hk_stack(cha_data, h_range=None, k_range=None,
             pass
         # end try
 
-        tio = interp1d(trc.times() - lead_time, trc.data)
+        times = trc.times() - lead_time
+        times_min = np.min(times)
+        times_max = np.max(times)
+        if(np.min(t1) < times_min or \
+           np.max(t1) > times_max or \
+           np.min(t2) < times_min or \
+           np.max(t2) > times_max or \
+           np.min(t3) < times_min or \
+           np.max(t3) > times_max):
+
+            nsl = '.'.join([trc.stats.network, trc.stats.station, trc.stats.location])
+            log.warning('\nCorrected times for a trace in {} fall outside the available time-range'.format(nsl))
+        # end if
+
+        tio = interp1d(times, trc.data, fill_value=0, bounds_error=False)
 
         a, b, c = tio(t1), tio(t2), -tio(t3)
         tphase_amps.append([np.sign(a) * np.power(np.fabs(a), 1. / root_order),
@@ -187,7 +201,7 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, ro
     x = opt_result['x']
     weights = x
 
-    print('Weights: ', weights)
+    #print('Weights: ', weights)
     hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
     hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
 

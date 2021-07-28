@@ -2,21 +2,14 @@
 """Generate Receiver Functions (RF) from collection of 3-channel seismic traces.
 """
 
+from mpi4py import MPI
 import logging
 from multiprocessing import Process, Manager
 import json
 
 import numpy as np
 import click
-
-# from rf import IterMultipleComponents
-
-try:
-    from joblib import Parallel, delayed
-    parallel_available = True
-except ImportError:
-    parallel_available = False
-# end try
+import tqdm.auto as tqdm
 
 from seismic.receiver_fn.rf_process_io import async_write
 from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
@@ -24,8 +17,10 @@ from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
 from seismic.stream_quality_filter import curate_stream3c
 from seismic.stream_processing import back_azimuth_filter
-
-
+from seismic.receiver_fn import rf_util
+from seismic.network_event_dataset import NetworkEventDataset
+from seismic.stream_processing import zne_order
+from rf import RFStream
 logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
@@ -76,7 +71,6 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     deconv_domain = config_processing.get("deconv_domain", DEFAULT_DECONV_DOMAIN)
 
     logger = logging.getLogger(__name__)
-    logger.info("Event #{}".format(ev_id))
 
     assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
@@ -217,34 +211,6 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     return stream3c
 # end func
 
-
-def transform_stream_to_rf_queue(oqueue, ev_id, stream3c, config_filtering,
-                                 config_processing, **kwargs):
-    """
-    Process using transform_stream_to_rf and queue results for further handling.
-
-    :param oqueue: Output queue where filtered streams are queued
-    :type oqueue: queue or multiprocessing.Manager.Queue
-    :param ev_id: Event ID to pass on to transform_stream_to_rf
-    :param stream3c: 3-channel stream to process
-    :param config_filtering: Filtering settings
-    :param config_processing: Processing settings
-    :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
-    :type kwargs: dict
-    :return: True if stream containing receiver function is pushed into output queue
-        oqueue, False otherwise
-    :rtype: bool
-    """
-    output_stream = transform_stream_to_rf(ev_id, stream3c, config_filtering, config_processing, **kwargs)
-    if output_stream is not None:
-        oqueue.put(output_stream)
-        return True
-    else:
-        return False
-    # end if
-# end func
-
-
 def event_waveforms_to_rf(input_file, output_file, config):
     """
     Main entry point for generating RFs from event traces.
@@ -285,16 +251,6 @@ def event_waveforms_to_rf(input_file, output_file, config):
           "normalize": bool # Whether to normalize RF amplitude
         }
 
-        "system":  # job run settings
-        {
-          "parallel": bool # Use parallel execution
-          "memmap": bool # Memmap input file for improved performance in data reading thread.
-                         # Useful when data input is bottleneck, if system memory permits.
-          "temp_dir": str or path # Temporary directory to use for best performance
-          "aggressive_dispatch": bool # Dispatch all worker jobs as aggressively as possible to minimize
-                                      # chance of worker being starved of work. Uses more memory.
-        }
-
     :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
     :type input_file: str or pathlib.Path
     :param output_file: Name of hdf5 file to produce containing RFs
@@ -303,25 +259,15 @@ def event_waveforms_to_rf(input_file, output_file, config):
     :type config: dict
     :return: None
     """
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+    proc_hdfkeys = None
 
     config_filtering = config.setdefault("filtering", {})
     channel_pattern = config_filtering.get("channel_pattern")
-
     config_processing = config.setdefault("processing", {})
-
-    config_system = config.setdefault("system", {})
-    parallel = config_system.get("parallel", True)
-    aggressive_dispatch = config_system.get("aggressive_dispatch", False)
-    memmap = config_system.get("memmap", False)
-    temp_dir = config_system.get("temp_dir")
-
-    dispatch_policy = '5*n_jobs'
-    if parallel:
-        assert parallel_available, "Cannot run parallel as joblib import failed"
-        if aggressive_dispatch:
-            dispatch_policy = 'all'
-        # end if
-    # end if
+    config_correction = config.setdefault("correction", {})
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -331,39 +277,86 @@ def event_waveforms_to_rf(input_file, output_file, config):
         logger.info("Using channel matching pattern {}".format(channel_pattern))
     # end if
 
-    # Set up asynchronous buffered writing of results to file
-    mgr = Manager()
-    write_queue = mgr.Queue()
-    config_str = json.dumps(config)
-    output_thread = Process(target=async_write, args=(write_queue, output_file, 500, config_str))
-    output_thread.daemon = True
-    output_thread.start()
+    if(rank == 0):
+        logger.info("Processing source file {}".format(input_file))
 
-    logger.info("Processing source file {}".format(input_file))
-    if parallel:
-        # Process in parallel
-        logger.info("Parallel processing")
-        # n_jobs is -3 to allow one dedicated processor for running main thread and one for running output thread
-        status = Parallel(n_jobs=-3, verbose=5, max_nbytes='16M', temp_folder=temp_dir, pre_dispatch=dispatch_policy)\
-            (delayed(transform_stream_to_rf_queue)(write_queue, id, stream3c, config_filtering, config_processing)
-             for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern))
-    else:
-        # Process in serial
-        logger.info("Serial processing")
-        status = list((transform_stream_to_rf_queue(write_queue, id, stream3c, config_filtering, config_processing)
-                       for _, id, _, stream3c in IterRfH5FileEvents(input_file, memmap, channel_pattern)))
+        # split work over stations
+        proc_hdfkeys = rf_util.get_hdf_keys(input_file)
+        # shuffle keys for optimal load distribution
+        proc_hdfkeys = np.random.shuffle(proc_hdfkeys)
+
+        #proc_hdfkeys = ['waveforms/OA.BW28.0M']
+        #proc_hdfkeys = ['waveforms/OA.BW28.0M', 'waveforms/OA.CA26.0M']
+        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
     # end if
-    num_tasks = len(status)
-    num_success = np.sum(status)
-    num_rejected = num_tasks - num_success
-    logger.info("{}/{} streams returned valid RF, {} streams rejected".format(num_success, num_tasks, num_rejected))
 
-    # Signal completion
-    logger.info("Finishing...")
-    write_queue.put(None)
-    write_queue.join()
+    # broadcast workload to all procs
+    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
 
-    logger.info("generate_rf SUCCESS!")
+    # broadcast workload to all procs
+    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
+
+    pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
+
+    proc_rf_stream = RFStream()
+    for proc_hdfkey in proc_hdfkeys[rank]:
+        nsl = proc_hdfkey.split('/')[1]  # network-station-location
+        pbar.set_description("Rank {}: {}".format(rank, nsl))
+
+        net, sta, loc = nsl.split('.')
+        ned = NetworkEventDataset(input_file, network=net, station=sta, location=loc)
+
+        # apply corrections in place, as directed in json config file
+
+        status_list = []
+        for sta, db_evid in ned.by_station(): # note that ned contains a single station
+            for evid, stream in db_evid.items():
+                rf_3ch = None
+                try:
+                    stream = RFStream(stream.traces)
+                    stream.traces = sorted(stream.traces, key=zne_order)
+                    # Strongly assert expected ordering of traces. This must be respected so that
+                    # RF normalization works properly.
+                    assert stream.traces[0].stats.channel[-1] == 'Z'
+                    assert stream.traces[1].stats.channel[-1] == 'N'
+                    assert stream.traces[2].stats.channel[-1] == 'E'
+
+                    rf_3ch = transform_stream_to_rf(evid, stream, config_filtering,
+                                                    config_processing)
+                except Exception as e:
+                    print(str(e) + ' in station {}, event {}'.format(nsl, evid))
+                    status_list.append(False)
+                    continue
+                # end try
+
+                if rf_3ch is None:
+                    status_list.append(False)
+                else:
+                    status_list.append(True)
+                    proc_rf_stream += rf_3ch
+                # end if
+            # end for
+        # end for
+        pbar.update()
+
+        num_tasks = len(status_list)
+        num_success = np.sum(status_list)
+        num_rejected = num_tasks - num_success
+        logger.info("{}: {}/{} streams returned valid RF, {} streams rejected".format(nsl, num_success, num_tasks, num_rejected))
+    # end for
+    pbar.close()
+
+    # gather rf_streams on rank 0 and write to disk
+    rf_stream_list = comm.gather(proc_rf_stream, root=0)
+    if(rank == 0):
+        logger.info("Writing RF streams...")
+        for rf_stream in rf_stream_list:
+            rf_stream.write(output_file, format='H5', mode='a')
+        # end for
+
+        logger.info("Finishing...")
+        logger.info("generate_rf SUCCESS!")
+    # end for
 # end func
 
 
@@ -372,6 +365,11 @@ def event_waveforms_to_rf(input_file, output_file, config):
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--config-file', type=click.Path(dir_okay=False),
               help="Job configuration file in JSON format")
+@click.option('--correct-only', is_flag=True, default=False, show_default=True,
+              help="Apply corrections to stations listed under 'correct' in the input json "
+                   "config file and reprocess them. Note that only the stations specified "
+                   "in the 'correct' block are processed. Output for the corrected stations "
+                   "will overwrite preexisting data in the output-file for those stations")
 def _main(input_file, output_file, config_file=None):
     if config_file is not None:
         with open(config_file, 'r') as cf:
@@ -380,10 +378,10 @@ def _main(input_file, output_file, config_file=None):
     else:
         config = {}  # all default settings
     # end if
+
     # Dispatch call to worker function. See worker function for documentation.
     event_waveforms_to_rf(input_file, output_file, config)
 # end main
-
 
 if __name__ == "__main__":
     _main()  # pylint: disable=no-value-for-parameter
