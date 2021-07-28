@@ -87,9 +87,7 @@ def compute_quality_measures(trc, trc_filtered, scales, plotinfo=None):
 
         popta, _ = curve_fit(function, timesa, ab[mid:])
         poptb, _ = curve_fit(function, timesb, ab[:mid])
-        #slope_ratio = popta[0] / poptb[0]
-
-        slope_ratio = np.log10(np.fabs(np.max(trc.data)) * dom_freq)
+        slope_ratio = popta[0] / poptb[0]
 
         # =======================================
         # Plot and save results
