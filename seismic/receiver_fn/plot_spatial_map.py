@@ -113,15 +113,18 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets=None, projection
                 pt_data.append([data.lon[i], data.lat[i], data.val[i]])
             # end for
         # end for
-        pt_data = np.array(pt_data)
-        pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
 
-        cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
-        texts = []
-        for i in np.arange(len(pt_data)):
-            texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))
-            texts.append(cont_ax.text(pxy[i, 0] - .05, pxy[i, 1] - .05, pt_data[i, 2], fontdict={'size': .0001}))
-        # end for
+        if(len(pt_data)):
+            pt_data = np.array(pt_data)
+            pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
+
+            cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
+            texts = []
+            for i in np.arange(len(pt_data)):
+                texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))
+                texts.append(cont_ax.text(pxy[i, 0] - .05, pxy[i, 1] - .05, pt_data[i, 2], fontdict={'size': .0001}))
+            # end for
+        # end if
     # end if
 
     grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy', units='xy')
