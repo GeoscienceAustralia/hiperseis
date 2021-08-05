@@ -214,13 +214,6 @@ def validate(config):
         _check_type(scale_len, [float, int],
                 f"scale length for method {name} must be of type float or int")
 
-        label_on_plot = _try_lookup(params, _cc.LABEL_ON_PLOT,
-                                f"method {name} requires flag to enable/disable labels for data "
-                                f"points on plot as field "
-                                f"{_cc.LABEL_ON_PLOT}")
-        _check_type(label_on_plot, [bool, int],
-                    f"label-on-plot for method {name} must be of type bool or int")
-
         disable_flag = params.get(_cc.DISABLE)
         if disable_flag is not None:
             _check_type(disable_flag, [bool], f"{_cc.DISABLE} flag must be of type bool")
