@@ -146,6 +146,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
 
             # channel rotations through baz correction
             if(corrections.needsRotation(proc_hdfkey)):
+                # TODO : expose the following parameters
                 bazcorr_curation_opts = {"min_slope_ratio": 5,
                                          "min_snr": 2.0,
                                          "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}}

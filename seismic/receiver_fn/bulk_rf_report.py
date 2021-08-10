@@ -90,8 +90,7 @@ def _rf_layout_A4(fig):
 
 
 def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
-                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
-                         has_reverberations=False):
+                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70)):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
@@ -107,7 +106,8 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
     title = '.'.join([sta, loc, channel])
 
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
-                                      depth_colour_range=depth_colour_range)
+                                      depth_colour_range=depth_colour_range,
+                                      stack_ylabel='Moho depth')
 
     # Stamp weightings onto plot
     xl = plt.xlim()
@@ -151,7 +151,8 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_S
     title = sta + '.{} (Sediment thickness)'.format(channel)
 
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
-                                      depth_colour_range=(np.min(h_grid), np.max(h_grid)))
+                                      depth_colour_range=(np.min(h_grid), np.max(h_grid)),
+                                      stack_ylabel='Sediment thickness')
 
     # Stamp weightings onto plot
     xl = plt.xlim()
