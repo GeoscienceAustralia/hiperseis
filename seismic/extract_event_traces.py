@@ -318,9 +318,9 @@ class PPicker():
                    r'--waveform-database. Note that this parameter is required when the waveform source is '
                    r'not a definition file for a FederatedASDFDataSet, in which case, the relevant inventory '
                    r'is extracted internally.')
-@click.option('--network-list', default='*', help='A space-separated list of networks to process.', type=str,
+@click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
               show_default=True)
 @click.option('--waveform-database', type=str, required=True,
               help=r'Location of waveform source database from which to extract traces. May be a recognized service '

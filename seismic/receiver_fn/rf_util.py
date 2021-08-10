@@ -5,7 +5,7 @@
 from collections import defaultdict
 import logging
 import copy
-
+import os, re
 import numpy as np
 from scipy import signal
 from scipy.signal import hilbert, correlate
@@ -38,76 +38,83 @@ def get_hdf_keys(h5fn):
         raise IOError('Invalid file/path {}. "waveforms" group not found..' % (h5fn))
     # end if
 
-    result = ['waveforms/%s'%(key) for key in fh['waveforms'].keys()]
+    result = [key for key in fh['waveforms'].keys()]
     del fh
 
     return result
 # end func
 
-def has_reverberations(cha_data, dt_max=0.2):
-    """
-    Checks if the data shows signs of the presence of reverberations
+def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
+    network_list = []
+    station_list = []
 
-    :param cha_data: List or iterable of RF traces to use for H-k stacking.
-    :type cha_data: Iterable(rf.RFTrace)
-    :param dt_max: if the median temporal offset between an RF peak and the onset time > dt_max,
-                   this function returns true
-    :type dt_max: float
+    if(networks_string=='*'):
+        network_list = []
+    else:
+        network_list = re.findall('\S+', networks_string)
+        assert len(network_list), 'Invalid network list. Aborting..'
+    # end if
 
-    return: Bool
-    """
+    if(stations_string=='*'):
+        station_list = []
+    else:
+        station_list = re.findall('\S+', stations_string)
+        assert len(station_list), 'Invalid station list. Aborting..'
+    # end if
 
-    dt_array = []
-    for i, tr in enumerate(cha_data):
-        lead_time = tr.stats.onset - tr.stats.starttime
+    net_subset = [] # filter networks
+    if(len(network_list)):
+        for hdf_key in hdf_key_list:
+            net, sta, loc = hdf_key.split('.')
 
-        relative_time = tr.times() - lead_time
-        mask = np.array((relative_time < 0) | (relative_time > 5.0))
-        loc = np.argmax(np.ma.masked_array(tr.data, mask=mask))
-        dt_array.append(relative_time[loc])
+            if(net in network_list): net_subset.append(hdf_key)
+        # end for
+    else:
+        net_subset = hdf_key_list.copy()
+    # end if
+
+    sta_subset = [] # filter stations
+    if(len(station_list)):
+        for hdf_key in hdf_key_list:
+            net, sta, loc = hdf_key.split('.')
+
+            if(sta in station_list): sta_subset.append(hdf_key)
+        # end for
+    else:
+        sta_subset = net_subset.copy()
+    # end if
+
+    # sanity checks
+    for net in network_list:
+        if net not in [hdf_key.split('.')[0] for hdf_key in hdf_key_list]:
+            assert 0, 'Network {} not found in input dataset. Aborting..'.format(net)
     # end for
-    dt_array = np.array(dt_array)
+    for sta in station_list:
+        if sta not in [hdf_key.split('.')[1] for hdf_key in hdf_key_list]:
+            assert 0, 'Station {} not found in input dataset. Aborting..'.format(sta)
+    # end for
 
-    if(np.median(dt_array) > dt_max): return True
-
-    return False
+    return sta_subset
 # end func
 
-def apply_reverberation_filter(cha_data):
-    result_stream = []
-    for i, tr in enumerate(cha_data):
-        lead_time = tr.stats.onset - tr.stats.starttime
+def remove_group(hdf_fn,  net_sta_loc, logger=None):
+    try:
+        if(os.path.exists(hdf_fn)):
+            hdf_keys = get_hdf_keys(hdf_fn)
 
-        relative_time = tr.times() - lead_time
-        mask = np.array((relative_time < 0) | (relative_time > 5.0))
-        loc = np.argmax(np.ma.masked_array(tr.data, mask=mask))
-        dt = relative_time[loc]
-
-        data = correlate(tr.data, tr.data, mode='full')
-        data /= np.max(data)
-        data = data[len(data) // 2:]
-
-        r0 = -(np.min(data))
-        Dt = np.argmin(data) * 1. / tr.stats.sampling_rate
-
-        tr_copy = tr.copy()
-        resonance_filter = np.zeros(len(tr.data))
-        resonance_filter[0] = 1
-        resonance_filter[int(Dt * tr.stats.sampling_rate)] = r0
-        tr_copy.data = np.convolve(tr_copy.data, resonance_filter, mode='full')
-        tr_copy.data = tr_copy.data[:len(tr_copy.data) // 2 + 1]
-
-        assert tr.data.shape == tr_copy.data.shape, 'Input/output length mismatch detected in ' \
-                                                    'reverberation removal routine'
-
-        tr_copy.stats.update({'t1_offset':dt,
-                              't2_offset':Dt - dt,
-                              't3_offset':Dt})
-
-        result_stream.append(tr_copy)
-    # end for
-
-    return rf.RFStream(result_stream)
+            del_key = 'waveforms/%s'%net_sta_loc
+            if(del_key in hdf_keys):
+                with h5py.File(hdf_fn, "a") as fh:
+                    if (len(fh[del_key].keys())):
+                        del fh[del_key]
+                        if(logger): logger.info('Removing group {}'.format(del_key))
+                    # end if
+                # end with
+            # end if
+        # end if
+    except:
+        raise IOError('Failed to remove group: waveforms/{}'.format(net_sta_loc))
+    # end try
 # end func
 
 def phase_weights(stream):

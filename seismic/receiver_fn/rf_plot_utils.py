@@ -3,11 +3,13 @@
 """
 
 import logging
+import os
 import time
 from collections import defaultdict
 
 import numpy as np
 import scipy.signal
+from PyPDF2 import PdfFileMerger
 from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -17,6 +19,25 @@ import rf
 
 logging.basicConfig()
 
+def revert_baz(rf_stream):
+    def apply(st):
+        for tr in st:
+            if('orig_back_azimuth' in tr.stats.keys()):
+                tr.stats.back_azimuth = tr.stats.orig_back_azimuth
+            # end it
+        # end for
+
+        return st
+    # end func
+
+    if(isinstance(rf_stream, list)):
+        result = [apply(st.copy()) for st in rf_stream]
+    else:
+        result = apply(rf_stream.copy())
+    # end if
+
+    return result
+# end func
 
 def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):
     """Wrapper function of rf.RFStream.plot_rf() to help do RF plotting with consistent formatting and layout.
@@ -35,6 +56,9 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
     :rtype: matplotlib.figure.Figure
     """
     # Ensure traces are stackable by ignoring those that don't conform to the predominant data shape
+
+    rf_stream = revert_baz(rf_stream)
+
     all_trace_lens = np.array([len(tr) for tr in rf_stream])
     most_common_len, _ = stats.mode(all_trace_lens, axis=None)
     stackable_stream = rf.RFStream([tr for tr in rf_stream if len(tr) == most_common_len])
@@ -237,6 +261,9 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
     :return: Figure object
     :rtype: matplotlib.figure.Figure
     """
+
+    rf_stream = revert_baz(rf_stream)
+
     if not isinstance(rf_stream, list):
         rf_stream = [rf_stream]
     if layout is None:
@@ -452,4 +479,17 @@ def plot_iir_impulse_response(filter_band_hz, sampling_rate_hz, corners, zero_ph
                  .format(filter_band_hz[0], filter_band_hz[1],
                          sampling_rate_hz, corners, direction))
     return fig
+# end func
+
+def pdf_merge(file_list, output_filename):
+    merger = PdfFileMerger(strict=False)
+
+    for pdffile in file_list:
+        fn, _ = os.path.splitext(os.path.basename(pdffile))
+        bookmark = '.'.join(fn.split('.')[1:])
+        merger.append(pdffile, bookmark)
+        os.remove(pdffile)
+    # end for
+    merger.write(output_filename)
+    merger.close()
 # end func

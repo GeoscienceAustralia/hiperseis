@@ -20,7 +20,8 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from seismic.network_event_dataset import NetworkEventDataset
-from seismic.inversion.wavefield_decomp.runners import curate_seismograms, load_mcmc_solution
+from seismic.inversion.wavefield_decomp.runners import load_mcmc_solution
+from seismic.stream_quality_filter import curate_seismograms
 from seismic.stream_io import get_obspyh5_index
 
 

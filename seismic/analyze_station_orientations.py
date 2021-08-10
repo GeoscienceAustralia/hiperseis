@@ -18,26 +18,24 @@ Reference:
   J Seismol 21, 857-868 (2017). https://doi.org/10.1007/s10950-017-9640-x
 """
 
-import os
 import json
-import logging
-import copy
-from collections import defaultdict
-
-from joblib import Parallel, delayed
 import click
-import numpy as np
-from scipy import optimize, interpolate
-from rf import RFStream
-
 import matplotlib.pyplot as plt
+import os, copy
+import numpy as np
+from joblib import Parallel, delayed
+from collections import defaultdict
+from seismic.stream_quality_filter import curate_seismograms
+from rf import RFStream
+from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
 
 from seismic.network_event_dataset import NetworkEventDataset
-from seismic.inversion.wavefield_decomp.runners import curate_seismograms
-from seismic.receiver_fn.generate_rf import transform_stream_to_rf
+from scipy import optimize, interpolate
+import logging
+
+logging.basicConfig()
 
 # pylint: disable=invalid-name
-
 
 # Take care not to use any curation options that would vary if there were a station orientation error.
 DEFAULT_CURATION_OPTS = {
@@ -61,62 +59,10 @@ DEFAULT_CONFIG_PROCESSING = {
     "spiking": 1.0
 }
 
-
-def _run_single_station(db_evid, angles, config_filtering, config_processing):
-    """
-    Internal processing function for running sequence of candidate angles
-    over a single station.
-
-    :param db_evid: Dictionary of event streams (3-channel ZNE) keyed by event ID. \
-        Best obtained using class NetworkEventDataset
-    :type db_evid: sortedcontainers.SortedDict or similar dict-like
-    :param angles: Sequence of candidate correction angles to try (degrees)
-    :type angles: Iterable(float)
-    :param config_filtering: Waveform filtering options for RF processing
-    :type config_filtering: dict
-    :param config_processing: RF processing options
-    :type config_processing: dict
-    :return: Amplitude metric as a function of angle. Same length as angles array.
-    :rtype: list(float)
-    """
-    ampls = []
-    for correction in angles:
-        rf_stream_all = RFStream()
-        for evid, stream in db_evid.items():
-            stream_rot = copy.deepcopy(stream)
-            for tr in stream_rot:
-                tr.stats.back_azimuth += correction
-                while tr.stats.back_azimuth < 0:
-                    tr.stats.back_azimuth += 360
-                while tr.stats.back_azimuth >= 360:
-                    tr.stats.back_azimuth -= 360
-            # end for
-
-            rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
-                                            config_filtering, config_processing)
-            if rf_3ch is None:
-                continue
-
-            rf_stream_all += rf_3ch
-        # end for
-        if len(rf_stream_all) > 0:
-            rf_stream_R = rf_stream_all.select(component='R')
-            rf_stream_R.trim2(-5, 5, reftime='onset')
-            rf_stream_R.detrend('linear')
-            rf_stream_R.taper(0.1)
-            R_stack = rf_stream_R.stack().trim2(-1, 1, reftime='onset')[0].data
-            ampl_mean = np.mean(R_stack)
-        else:
-            ampl_mean = np.nan
-        # endif
-        ampls.append(ampl_mean)
-    # end for
-    return ampls
-# end func
-
-
-def analyze_station_orientations(ned, curation_opts, config_filtering,
-                                 config_processing, parallel=True, save_plots_path=None):
+def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
+                                 config_filtering=DEFAULT_CONFIG_FILTERING,
+                                 config_processing=DEFAULT_CONFIG_PROCESSING,
+                                 parallel=True, save_plots_path=None):
     """
     Main processing function for analyzing station orientation using 3-channel
     event waveforms. Uses method of Wilde-Piorko https://doi.org/10.1007/s10950-017-9640-x
@@ -251,6 +197,7 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
             plt.plot(x_valid, y_valid, 'x', label='Computed P arrival strength')
             plt.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
             plt.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
+            plt.text(angle_max, np.max(y_fitted), 'Max at: {} deg'.format(angle_max))
             plt.grid(linestyle=':', color="#80808080")
             plt.xlabel('Orientation correction (deg)', fontsize=12)
             plt.ylabel('P phase ampl. mean (0-1 sec)', fontsize=12)
@@ -268,6 +215,58 @@ def analyze_station_orientations(ned, curation_opts, config_filtering,
     return results
 # end func
 
+def _run_single_station(db_evid, angles, config_filtering, config_processing):
+    """
+    Internal processing function for running sequence of candidate angles
+    over a single station.
+
+    :param db_evid: Dictionary of event streams (3-channel ZNE) keyed by event ID. \
+        Best obtained using class NetworkEventDataset
+    :type db_evid: sortedcontainers.SortedDict or similar dict-like
+    :param angles: Sequence of candidate correction angles to try (degrees)
+    :type angles: Iterable(float)
+    :param config_filtering: Waveform filtering options for RF processing
+    :type config_filtering: dict
+    :param config_processing: RF processing options
+    :type config_processing: dict
+    :return: Amplitude metric as a function of angle. Same length as angles array.
+    :rtype: list(float)
+    """
+    ampls = []
+    for correction in angles:
+        rf_stream_all = RFStream()
+        for evid, stream in db_evid.items():
+            stream_rot = copy.deepcopy(stream)
+            for tr in stream_rot:
+                tr.stats.back_azimuth += correction
+                while tr.stats.back_azimuth < 0:
+                    tr.stats.back_azimuth += 360
+                while tr.stats.back_azimuth >= 360:
+                    tr.stats.back_azimuth -= 360
+            # end for
+
+            rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
+                                            config_filtering, config_processing)
+            if rf_3ch is None:
+                continue
+
+            rf_stream_all += rf_3ch
+        # end for
+        if len(rf_stream_all) > 0:
+            rf_stream_R = rf_stream_all.select(component='R')
+            rf_stream_R.trim2(-5, 5, reftime='onset')
+            rf_stream_R.detrend('linear')
+            rf_stream_R.taper(0.1)
+
+            R_stack = rf_stream_R.stack().trim2(-1, 1, reftime='onset')[0].data
+            ampl_mean = np.mean(R_stack)
+        else:
+            ampl_mean = np.nan
+        # endif
+        ampls.append(ampl_mean)
+    # end for
+    return ampls
+# end func
 
 def process_event_file(src_h5_event_file, curation_opts=None,
                        config_filtering=None, config_processing=None,

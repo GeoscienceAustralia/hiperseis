@@ -31,7 +31,7 @@ def shakenet(pretrained_weights = None,input_size = (6002,1)):
     drop5 = Dropout(0.5)(pool5)
     dense5=Dense(num_classes,activation='softmax')(drop5)
 
-    model = Model(input = inputs, output = dense5)
+    model = Model(inputs = inputs, outputs = dense5)
 
     model.compile(optimizer = Adam(lr = 1e-3), loss = 'categorical_crossentropy', metrics = ['accuracy'])
 

@@ -1,217 +1,30 @@
 #!/usr/bin/env python
 """Generate Receiver Functions (RF) from collection of 3-channel seismic traces.
 """
+import copy
 
 from mpi4py import MPI
 import logging
-from multiprocessing import Process, Manager
 import json
 
 import numpy as np
 import click
+import os
 import tqdm.auto as tqdm
-
-from seismic.receiver_fn.rf_process_io import async_write
-from seismic.receiver_fn.rf_h5_file_event_iterator import IterRfH5FileEvents
-from seismic.receiver_fn.rf_util import compute_vertical_snr
-from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
-from seismic.stream_quality_filter import curate_stream3c
-from seismic.stream_processing import back_azimuth_filter
+from seismic.receiver_fn.rf_corrections import Corrections
 from seismic.receiver_fn import rf_util
+from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
+from seismic.analyze_station_orientations import analyze_station_orientations
 from seismic.network_event_dataset import NetworkEventDataset
-from seismic.stream_processing import zne_order
+from seismic.stream_processing import zne_order, negate_channel, swap_ne_channels, correct_back_azimuth
 from rf import RFStream
+from collections import defaultdict
+
+# pylint: disable=invalid-name, logging-format-interpolationa
+
 logging.basicConfig()
 
-# pylint: disable=invalid-name, logging-format-interpolation
-
-DEFAULT_RESAMPLE_RATE_HZ = 20.0
-DEFAULT_FILTER_BAND_HZ = (0.02, 1.00)
-DEFAULT_TAPER_LIMIT = 0.05
-DEFAULT_TRIM_START_TIME_SEC = -50.0
-DEFAULT_TRIM_END_TIME_SEC = 150.0
-DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
-DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
-DEFAULT_GAUSS_WIDTH = 1.0
-DEFAULT_WATER_LEVEL = 0.01
-DEFAULT_SPIKING = 0.5
-RAW_RESAMPLE_RATE_HZ = 20.0
-BANDPASS_FILTER_ORDER = 2
-
-
-def transform_stream_to_rf(ev_id, stream3c, config_filtering,
-                           config_processing, **kwargs):
-    """Generate P-phase receiver functions for a single 3-channel stream.
-    See documentation for function event_waveforms_to_rf for details of
-    config dictionary contents.
-
-    :param ev_id: The event id
-    :type ev_id: int or str
-    :param stream3c: Stream with 3 components of trace data
-    :type stream3c: rf.RFStream
-    :param config_filtering: Dictionary containing stream filtering settings
-    :type config_filtering: dict
-    :param config_processing: Dictionary containing RF processing settings
-    :type config_processing: dict
-    :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
-    :type kwargs: dict
-    :return: RFstream containing receiver function if successful, None otherwise
-    :rtype: rf.RFStream or NoneType
-    """
-
-    resample_rate_hz = config_filtering.get("resample_rate", DEFAULT_RESAMPLE_RATE_HZ)
-    filter_band_hz = config_filtering.get("filter_band", DEFAULT_FILTER_BAND_HZ)
-    assert resample_rate_hz >= 2.0*filter_band_hz[1], "Too low sample rate will alias signal"
-    taper_limit = config_filtering.get("taper_limit", DEFAULT_TAPER_LIMIT)
-    baz_range = config_filtering.get("baz_range")
-
-    trim_start_time_sec = config_processing.get("trim_start_time", DEFAULT_TRIM_START_TIME_SEC)
-    trim_end_time_sec = config_processing.get("trim_end_time", DEFAULT_TRIM_END_TIME_SEC)
-    rotation_type = config_processing.get("rotation_type", DEFAULT_ROTATION_TYPE)
-    deconv_domain = config_processing.get("deconv_domain", DEFAULT_DECONV_DOMAIN)
-
-    logger = logging.getLogger(__name__)
-
-    assert deconv_domain.lower() in ['time', 'freq', 'iter']
-
-    # Apply any custom preprocessing step
-    custom_preproc = config_processing.get("custom_preproc")
-    if custom_preproc is not None:
-        # TODO: Improve security of exec and eval usage here.
-        load_statement = custom_preproc.get("import")
-        if load_statement is not None:
-            exec(load_statement)
-        # end if
-        # "Func" field must be present
-        func = eval(custom_preproc["func"])
-        func_args = custom_preproc.get("args")
-        if func_args is None:
-            func_args = {}
-        # Apply custom preprocessing function
-        stream3c = func(ev_id, stream3c, **func_args)
-        # Functor must return the preprocessed stream
-        assert stream3c is not None
-    # end if
-
-    if not curate_stream3c(ev_id, stream3c, logger):
-        return None
-
-    if baz_range is not None:
-        if not isinstance(baz_range[0], list):
-            baz_range = [baz_range]
-        baz = stream3c[0].stats.back_azimuth
-        if not any([back_azimuth_filter(baz, tuple(b)) for b in baz_range]):
-            return None
-    # end if
-
-    # Compute SNR of prior z-component after some low pass filtering.
-    # Apply conservative anti-aliasing filter before downsampling raw signal. Cutoff at half
-    # the Nyquist freq to make sure almost no high freq energy leaking through the filter can
-    # alias down into the frequency bands of interest.
-    stream_z = stream3c.select(component='Z').copy().filter('lowpass', freq=RAW_RESAMPLE_RATE_HZ/4.0,
-                                                            corners=2, zerophase=True)
-    # Since cutoff freq is well below Nyquist, we use a lower Lanczos kernel size (default is a=20).
-    stream_z = stream_z.interpolate(RAW_RESAMPLE_RATE_HZ, method='lanczos', a=10)
-    # Trim original trace to time window
-    stream_z.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
-    stream_z.detrend('linear')
-    stream_z.taper(taper_limit, **kwargs)
-    compute_vertical_snr(stream_z)
-
-    rotation_type = rotation_type.lower()
-    assert rotation_type in ['zrt', 'lqt']
-    if rotation_type == 'zrt':
-        rf_rotation = 'NE->RT'
-    else:
-        rf_rotation = 'ZNE->LQT'
-    # end if
-
-    stream3c.detrend('linear')
-    stream3c.taper(taper_limit, **kwargs)
-    try:
-        normalize = config_processing.get("normalize", True)
-        if deconv_domain == 'time':
-            # ZRT receiver functions must be specified
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
-                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
-            spiking = config_processing.get("spiking", DEFAULT_SPIKING)
-            kwargs.update({'spiking': spiking})
-            if not normalize:
-                # No normalization. The "normalize" argument must be set to None.
-                kwargs['normalize'] = None
-            # end if
-            stream3c.rf(rotate=rf_rotation, **kwargs)
-        elif deconv_domain == 'freq':
-            # As of https://github.com/trichter/rf/issues/15, the Gaussian parameter is directly related
-            # to the cutoff freq. Requires rf version >=0.8.0
-            if not normalize:
-                # No normalization. The "normalize" argument must be set to None.
-                kwargs['normalize'] = None
-            # end if
-            gauss_width = config_processing.get("gauss_width", DEFAULT_GAUSS_WIDTH)
-            water_level = config_processing.get("water_level", DEFAULT_WATER_LEVEL)
-            stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
-            # Interpolate to requested sampling rate.
-            stream3c.interpolate(resample_rate_hz)
-        elif deconv_domain == 'iter':
-            # For iterative deconvolution, we need to trim first before deconvolution, as the fitting to the
-            # response performs much better on shorter (trimmed) data.
-            stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
-                            corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
-            if not normalize:
-                # No normalization. The "normalize" argument must be set to None.
-                normalize = None
-            else:
-                normalize = 0  # Use Z-component for normalization
-            # end if
-            stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
-                        func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
-        else:
-            assert False, "Not yet supported deconvolution technique '{}'".format(deconv_domain)
-        # end if
-    except (IndexError, ValueError) as e:
-        logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
-        return None
-    # end try
-
-    # Check for any empty channels after deconvolution.
-    for tr in stream3c:
-        if len(tr.data) == 0:
-            logger.warning("No data left in channel {} of stream {} after deconv (skipping)".format(
-                           tr.stats.channel, ev_id))
-            return None
-        # end if
-    # end for
-
-    # Perform trimming before computing max amplitude.
-    if deconv_domain != 'iter':
-        stream3c.trim2(trim_start_time_sec, trim_end_time_sec, reftime='onset')
-    # end if
-
-    if len(stream3c) != 3:
-        logger.warning("Unexpected number of channels in stream {} after trim (skipping):\n{}"
-                       .format(ev_id, stream3c))
-        return None
-    # end if
-
-    assert len(stream_z) == 1, "Expected only Z channel for a single event in stream_z: {}".format(stream_z)
-    for tr in stream3c:
-        metadata = {
-            'amp_max': np.amax(np.abs(tr.data)),  # Max absolute amplitude
-            'amp_rms': np.sqrt(np.mean(np.square(tr.data))),  # RMS amplitude
-            'event_id': ev_id,
-            'rotation': rotation_type,
-            'snr_prior': stream_z[0].stats.snr_prior,
-            'z_amp_max': np.max(np.abs(stream_z[0].data)),  # Max amplitude on resampled original z-component
-            'z_amp_rms': np.sqrt(np.mean(np.square(stream_z[0].data)))  # RMS thereof
-        }
-        tr.stats.update(metadata)
-    # end for
-
-    return stream3c
-# end func
-
-def event_waveforms_to_rf(input_file, output_file, config):
+def event_waveforms_to_rf(input_file, output_file, config, network_list='*', station_list='*', only_corrections=False):
     """
     Main entry point for generating RFs from event traces.
 
@@ -259,10 +72,12 @@ def event_waveforms_to_rf(input_file, output_file, config):
     :type config: dict
     :return: None
     """
+
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
     proc_hdfkeys = None
+    corrections = None
 
     config_filtering = config.setdefault("filtering", {})
     channel_pattern = config_filtering.get("channel_pattern")
@@ -280,33 +95,77 @@ def event_waveforms_to_rf(input_file, output_file, config):
     if(rank == 0):
         logger.info("Processing source file {}".format(input_file))
 
-        # split work over stations
+        # retrieve all available hdf_keys
         proc_hdfkeys = rf_util.get_hdf_keys(input_file)
-        # shuffle keys for optimal load distribution
-        proc_hdfkeys = np.random.shuffle(proc_hdfkeys)
 
-        #proc_hdfkeys = ['waveforms/OA.BW28.0M']
-        #proc_hdfkeys = ['waveforms/OA.BW28.0M', 'waveforms/OA.CA26.0M']
-        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
+        # trim stations to be processed based on the user-provided network- and station-list
+        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
+
+        if(only_corrections): # trim the hdf_keys if processing only corrections
+            corrections = Corrections(config_correction, proc_hdfkeys)
+            proc_hdfkeys = [item for item in proc_hdfkeys if corrections.needsCorrections(item)]
+        # end if
     # end if
 
     # broadcast workload to all procs
     proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
 
-    # broadcast workload to all procs
-    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
+    # load corrections-config
+    corrections = Corrections(config_correction, proc_hdfkeys)
+
+    # split stations over all ranks
+    proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
 
     pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
-
     proc_rf_stream = RFStream()
+    baz_corrections = defaultdict(dict)
     for proc_hdfkey in proc_hdfkeys[rank]:
-        nsl = proc_hdfkey.split('/')[1]  # network-station-location
+        nsl = proc_hdfkey  # network-station-location
         pbar.set_description("Rank {}: {}".format(rank, nsl))
 
         net, sta, loc = nsl.split('.')
+        # note that ned contains a single station
         ned = NetworkEventDataset(input_file, network=net, station=sta, location=loc)
 
-        # apply corrections in place, as directed in json config file
+        # corrections
+        if (corrections.needsCorrections(proc_hdfkey)):
+            # channel negation
+            ch_list = corrections.needsNegation(proc_hdfkey)
+            if(ch_list):
+                for ch in ch_list:
+                    logger.info('Rank {}: {}: Negating component {}'.format(rank, nsl, ch))
+                    ned.apply(lambda st: negate_channel(None, st, ch))
+                # end for
+            # end if
+
+            # channel swaps
+            if(corrections.needsChannelSwap(proc_hdfkey)):
+                logger.info('Rank {}: {}: Applying a NE channel swap '.format(rank, nsl))
+                ned.apply(lambda st: swap_ne_channels(None, st))
+            # end if
+
+            # channel rotations through baz correction
+            if(corrections.needsRotation(proc_hdfkey)):
+                bazcorr_curation_opts = {"min_slope_ratio": 5,
+                                         "min_snr": 2.0,
+                                         "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}}
+                bazcorr_config_filtering = {"resample_rate": 4.0,
+                                            "taper_limit": 0.05,
+                                            "filter_band": [0.01, 0.5]}
+
+                result = analyze_station_orientations(copy.deepcopy(ned), parallel=False,
+                                                      curation_opts=bazcorr_curation_opts,
+                                                      config_filtering=bazcorr_config_filtering,
+                                                      save_plots_path=corrections.plot_dir)
+                baz_corrections.update({nsl: result[list(result.keys())[0]]})
+                logger.info('Rank {}: {}: Applying a baz correction '
+                            'of {}'.format(rank,
+                                           nsl,
+                                           result['.'.join([net, sta])]['azimuth_correction']))
+                ned.apply(lambda st: correct_back_azimuth(None, st,
+                                                          result['.'.join([net, sta])]['azimuth_correction']))
+            # end if
+        # end if
 
         status_list = []
         for sta, db_evid in ned.by_station(): # note that ned contains a single station
@@ -346,41 +205,71 @@ def event_waveforms_to_rf(input_file, output_file, config):
     # end for
     pbar.close()
 
+    # gather and output baz corrections
+    baz_corrections = comm.gather(baz_corrections, root=0)
+    if(rank == 0):
+        if(len(baz_corrections)):
+            output_dict = {}
+            for d in baz_corrections:
+                if(len(d)): output_dict.update(d)
+            # end for
+            json.dump(output_dict, open(os.path.join(corrections.plot_dir,
+                                                     'azimuth_corrections.json'), 'w'))
+        # end if
+    # end if
+
     # gather rf_streams on rank 0 and write to disk
     rf_stream_list = comm.gather(proc_rf_stream, root=0)
     if(rank == 0):
-        logger.info("Writing RF streams...")
-        for rf_stream in rf_stream_list:
-            rf_stream.write(output_file, format='H5', mode='a')
+        for irank, rf_st in enumerate(rf_stream_list):
+            if(len(rf_st)):
+                nsl = '.'.join([rf_st.traces[0].stats.network, rf_st.traces[0].stats.station,
+                               rf_st.traces[0].stats.location])
+
+                # remove existing traces if there are any
+                rf_util.remove_group(output_file, nsl, logger)
+
+                logger.info("Writing RF stream for {} on rank {}...".format(nsl, rank))
+                rf_st.write(output_file, format='H5', mode='a')
+            # end if
         # end for
 
         logger.info("Finishing...")
         logger.info("generate_rf SUCCESS!")
-    # end for
+    # end if
 # end func
-
 
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
-@click.option('--config-file', type=click.Path(dir_okay=False),
-              help="Job configuration file in JSON format")
-@click.option('--correct-only', is_flag=True, default=False, show_default=True,
-              help="Apply corrections to stations listed under 'correct' in the input json "
-                   "config file and reprocess them. Note that only the stations specified "
-                   "in the 'correct' block are processed. Output for the corrected stations "
-                   "will overwrite preexisting data in the output-file for those stations")
-def _main(input_file, output_file, config_file=None):
+@click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
+              show_default=True)
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+              show_default=True)
+@click.option('--config-file', type=click.Path(dir_okay=False), default=None,
+              show_default=True, help="Job configuration file in JSON format")
+@click.option('--only-corrections', is_flag=True, default=False, show_default=True,
+              help="Compute and apply corrections for stations listed under 'correct' in the "
+                   "input json config file -- all other stations are ignored. Note that "
+                   "preexisting data (for relevant channels, if present) are deleted before "
+                   "saving the corrections")
+def _main(input_file, output_file, network_list, station_list, config_file, only_corrections):
     if config_file is not None:
         with open(config_file, 'r') as cf:
             config = json.load(cf)
         # end with
+
+        config_correction = config.setdefault("correction", {})
+        if(not len(config_correction) and only_corrections):
+            assert 0, 'A correction block is required in the config file for --correct-only'
+        # end if
     else:
         config = {}  # all default settings
     # end if
 
     # Dispatch call to worker function. See worker function for documentation.
-    event_waveforms_to_rf(input_file, output_file, config)
+    event_waveforms_to_rf(input_file, output_file, config, network_list=network_list, station_list=station_list,
+                          only_corrections=only_corrections)
 # end main
 
 if __name__ == "__main__":

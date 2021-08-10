@@ -21,11 +21,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import pandas as pd
 import seismic.receiver_fn.rf_util as rf_util
+import seismic.receiver_fn.rf_corrections as rf_corrections
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
-from PyPDF2 import PdfFileMerger
 
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
+from seismic.receiver_fn.rf_plot_utils import pdf_merge
 
 logging.basicConfig()
 
@@ -195,22 +196,13 @@ def _plot_hk_solution_point(axes, k, h, idx):
               clip_on=False)
 # end func
 
-def pdf_merge(file_list, output_filename):
-    merger = PdfFileMerger(strict=False)
-
-    for pdffile in file_list:
-        fn, _ = os.path.splitext(os.path.basename(pdffile))
-        bookmark = '.'.join(fn.split('.')[1:])
-        merger.append(pdffile, bookmark)
-        os.remove(pdffile)
-    # end for
-    merger.write(output_filename)
-    merger.close()
-# end func
-
 @click.command()
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
+@click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
+              show_default=True)
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+              show_default=True)
 @click.option('--event-mask-folder', type=click.Path(dir_okay=True, exists=True, file_okay=False),
               help='Folder containing event masks to use to filter traces. Such masks are generated '
                    'using rf_handpick_tool')
@@ -221,6 +213,10 @@ def pdf_merge(file_list, output_filename):
                    'Maximum amplitude of signal < 1.0')
 @click.option('--apply-similarity-filter', is_flag=True, default=False, show_default=True,
               help='Apply RF similarity filtering to the RFs.')
+@click.option('--min-slope-ratio', type=float, default=-1, show_default=True,
+              help='Apply filtering to the RFs based on the "slope_ratio" metric that indicates robustness'
+                   'of P-arrival. Typically, a minimum slope-ratio of 5 is able to pick out strong arrivals. '
+                   'The default value of -1 does not apply this filter')
 @click.option('--hk-weights', type=(float, float, float), default=(0.5, 0.4, 0.1), show_default=True,
               help='Weightings per arrival multiple for H-k stacking')
 @click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
@@ -232,8 +228,9 @@ def pdf_merge(file_list, output_filename):
                    'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
-def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=False,
-         apply_similarity_filter=False, hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
+def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
+         apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
+         hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
          depth_colour_range=(20, 70), hk_hpf_freq=None):
     # docstring redundant since CLI options are already documented.
 
@@ -245,10 +242,13 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
     proc_hdfkeys = None
 
     if(rank == 0):
-        # split work over stations
+        # retrieve all available hdf_keys
         proc_hdfkeys = rf_util.get_hdf_keys(input_file)
-        #proc_hdfkeys = ['waveforms/OA.BW28.0M']
-        #proc_hdfkeys = ['waveforms/OA.BW28.0M', 'waveforms/OA.CA26.0M']
+
+        # trim stations to be processed based on the user-provided network- and station-list
+        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
+
+        # split work-load over all procs
         proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
     # end if
 
@@ -264,11 +264,11 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
     sediment_station_coords = dict()
 
     for proc_hdfkey in proc_hdfkeys[rank]:
-        data_all = rf.read_rf(input_file, format='h5', group=proc_hdfkey)
+        data_all = rf.read_rf(input_file, format='h5', group='waveforms/%s'%(proc_hdfkey))
         # Convert to hierarchical dictionary format
         data_dict = rf_util.rf_to_dict(data_all)
 
-        nsl = proc_hdfkey.split('/')[1] # network-station-location
+        nsl = proc_hdfkey # network-station-location
         pbar.update()
         pbar.set_description("Rank {}: {}".format(rank, nsl))
 
@@ -342,15 +342,15 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
                         [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
                 # end if
 
-                if(1): #TODO expose cli-option
-                    rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.slope_ratio > 5]).sort(['back_azimuth'])
+                if(min_slope_ratio>0):
+                    rf_stream = rf.RFStream([tr for tr in rf_stream \
+                                             if tr.stats.slope_ratio > min_slope_ratio]).sort(['back_azimuth'])
                 # end if
 
-                if not rf_stream:
-                    continue
                 if apply_similarity_filter and len(rf_stream) >= 3:
                     rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
                 # end if
+
                 if not rf_stream:
                     continue
 
@@ -393,8 +393,8 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
 
                 reverberations_removed = False
                 # Apply reverberation filter if needed
-                if(rf_util.has_reverberations(rf_stream)):
-                    rf_stream = rf_util.apply_reverberation_filter(rf_stream)
+                if(rf_corrections.has_reverberations(rf_stream)):
+                    rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
                     reverberations_removed = True
                 # end if
 
@@ -505,7 +505,6 @@ def main(input_file, output_file, event_mask_folder='', apply_amplitude_filter=F
         pdf_merge(pdf_names, output_file)
     # end if
 # end main
-
 
 if __name__ == "__main__":
     log = logging.getLogger(__name__)
