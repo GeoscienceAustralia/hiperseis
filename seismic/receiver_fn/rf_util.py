@@ -97,13 +97,14 @@ def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
     return sta_subset
 # end func
 
-def remove_group(hdf_fn,  net_sta_loc, logger=None):
+def remove_group(hdf_fn, net_sta_loc, logger=None):
     try:
         if(os.path.exists(hdf_fn)):
             hdf_keys = get_hdf_keys(hdf_fn)
 
-            del_key = 'waveforms/%s'%net_sta_loc
-            if(del_key in hdf_keys):
+            if(net_sta_loc in hdf_keys):
+                del_key = 'waveforms/%s' % net_sta_loc
+
                 with h5py.File(hdf_fn, "a") as fh:
                     if (len(fh[del_key].keys())):
                         del fh[del_key]

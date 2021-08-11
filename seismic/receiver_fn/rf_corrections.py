@@ -113,11 +113,19 @@ class Corrections:
     # end func
 
     def needsChannelSwap(self, netstaloc):
-        return self._corrections['swap_ne'][netstaloc]
+        if(self._corrections['swap_ne']):
+            return self._corrections['swap_ne'][netstaloc]
+        else:
+            return False
+        # end if
     # end func
 
     def needsRotation(self, netstaloc):
-        return self._corrections['rotate'][netstaloc]
+        if(self._corrections['rotate']):
+            return self._corrections['rotate'][netstaloc]
+        else:
+            return False
+        # end if
     # end func
 
     def needsNegation(self, netstaloc):

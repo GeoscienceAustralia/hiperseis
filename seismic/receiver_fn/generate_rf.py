@@ -229,22 +229,25 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
         # end if
     # end if
 
-    # gather rf_streams on rank 0 and write to disk
-    rf_stream_list = comm.gather(proc_rf_stream, root=0)
-    if(rank == 0):
-        for irank, rf_st in enumerate(rf_stream_list):
-            if(len(rf_st)):
-                nsl = '.'.join([rf_st.traces[0].stats.network, rf_st.traces[0].stats.station,
-                               rf_st.traces[0].stats.location])
+    # serialize writing of rf_streams to disk
+    for irank in np.arange(nproc):
+        if(irank == rank):
+            if(len(proc_rf_stream)):
+                nsl = '.'.join([proc_rf_stream.traces[0].stats.network,
+                                proc_rf_stream.traces[0].stats.station,
+                                proc_rf_stream.traces[0].stats.location])
 
                 # remove existing traces if there are any
                 rf_util.remove_group(output_file, nsl, logger)
 
                 logger.info("Writing RF stream for {} on rank {}...".format(nsl, rank))
-                rf_st.write(output_file, format='H5', mode='a')
+                proc_rf_stream.write(output_file, format='H5', mode='a')
             # end if
-        # end for
+        # end if
+        comm.Barrier()
+    # end for
 
+    if(rank == 0):
         logger.info("Finishing...")
         logger.info("generate_rf SUCCESS!")
     # end if
