@@ -44,7 +44,7 @@ class Corrections:
 
         # NE channel swaps
         try:
-            for item in self._rotate_list:
+            for item in self._swap_ne_list:
                 net, sta, loc = item.split('.')
                 found = False
                 for hdf_item in hdf_keys:
