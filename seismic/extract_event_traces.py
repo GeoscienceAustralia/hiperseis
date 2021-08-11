@@ -314,8 +314,8 @@ class PPicker():
 
 @click.command()
 @click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=False, default=None,
-              help=r'Path to input inventory file corresponding to waveform source provided through, '
-                   r'--waveform-database. Note that this parameter is required when the waveform source is '
+              help=r'Optional path to input inventory file corresponding to waveform source provided through, '
+                   r'--waveform-database. Note that this parameter is required only when the waveform source is '
                    r'not a definition file for a FederatedASDFDataSet, in which case, the relevant inventory '
                    r'is extracted internally.')
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,

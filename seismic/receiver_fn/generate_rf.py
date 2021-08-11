@@ -30,8 +30,9 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
 
     Config file consists of 3 sub-dictionaries. One named "filtering" for
     input stream filtering settings, one named "processing" for RF processing
-    settings, and one named "system" for options on how the system will run the
-    job. Each of these sub-dicts is described below::
+    settings, and one named "correction" for rotating/swapping/negating channel
+    data for one or more named stations with potential orientation discrepancies.
+    Each of these sub-dicts is described below::
 
         "filtering":  # Filtering settings
         {
@@ -62,6 +63,15 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
           "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
           "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
           "normalize": bool # Whether to normalize RF amplitude
+        }
+
+        "correction": # corrections to be applied to data for named stations prior to RF computation
+        {
+          "plot_dir": str # path to folder where plots related to orientation corrections are to be saved
+          "swap_ne": list # list of NET.STA.LOC for which N and E channels are to be swapped, e.g ["OA.BL27."],
+          "rotate": list # list of NET.STA.LOC that are to be rotated to maximize P-arrival energy on \
+                           the primary RF component, e.g ["OA.BL27."]
+          "negate": list # list of NET.STA.LOC.CHA that are to be negated, e.g ["OA.BL27..HHZ"]
         }
 
     :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
@@ -248,13 +258,18 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
               show_default=True)
 @click.option('--config-file', type=click.Path(dir_okay=False), default=None,
-              show_default=True, help="Job configuration file in JSON format")
+              show_default=True, help="Run configuration file in JSON format")
 @click.option('--only-corrections', is_flag=True, default=False, show_default=True,
-              help="Compute and apply corrections for stations listed under 'correct' in the "
+              help="Compute and apply corrections for stations listed under 'correction' in the "
                    "input json config file -- all other stations are ignored. Note that "
                    "preexisting data (for relevant channels, if present) are deleted before "
                    "saving the corrections")
 def _main(input_file, output_file, network_list, station_list, config_file, only_corrections):
+    """
+    INPUT_FILE : Input waveforms in H5 format\n
+                 (output of extract_event_traces.py)\n
+    OUTPUT_FILE : Output H5 file name
+    """
     if config_file is not None:
         with open(config_file, 'r') as cf:
             config = json.load(cf)

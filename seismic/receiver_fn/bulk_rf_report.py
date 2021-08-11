@@ -233,7 +233,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
          apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
          hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
          depth_colour_range=(20, 70), hk_hpf_freq=None):
-    # docstring redundant since CLI options are already documented.
+
+    """
+    INPUT_FILE : Input RFs in H5 format\n
+                 (output of generate_rf.py or rf_quality_filter.py)\n
+    OUTPUT_FILE : Output pdf file name
+    """
+
 
     log.setLevel(logging.INFO)
 
