@@ -168,13 +168,19 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                                                       curation_opts=bazcorr_curation_opts,
                                                       config_filtering=bazcorr_config_filtering,
                                                       save_plots_path=corrections.plot_dir)
+
                 baz_corrections.update({nsl: result[list(result.keys())[0]]})
-                logger.info('Rank {}: {}: Applying a baz correction '
-                            'of {}'.format(rank,
-                                           nsl,
-                                           result['.'.join([net, sta])]['azimuth_correction']))
-                ned.apply(lambda st: correct_back_azimuth(None, st,
-                                                          result['.'.join([net, sta])]['azimuth_correction']))
+
+                try:
+                    logger.info('Rank {}: {}: Applying a baz correction '
+                                'of {}'.format(rank,
+                                               nsl,
+                                               result['.'.join([net, sta])]['azimuth_correction']))
+                    ned.apply(lambda st: correct_back_azimuth(None, st,
+                                                              result['.'.join([net, sta])]['azimuth_correction']))
+                except:
+                    logger.warning('Channel rotation failed for {}. Moving along..'.format(nsl))
+                # end try
             # end if
         # end if
 

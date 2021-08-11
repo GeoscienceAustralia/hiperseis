@@ -27,6 +27,7 @@ def revert_baz(rf_stream):
             # end it
         # end for
 
+        st.sort(['back_azimuth'])
         return st
     # end func
 
