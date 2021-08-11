@@ -238,7 +238,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                     rf_util.remove_group(output_file, hdf_key, logger)
 
                     logger.info("Writing RF stream(s) for {} on rank {}...".format(hdf_key, rank))
-                #
+                # end for
 
                 proc_rf_stream.write(output_file, format='H5', mode='a')
             # end if
