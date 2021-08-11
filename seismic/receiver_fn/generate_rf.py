@@ -233,14 +233,13 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     for irank in np.arange(nproc):
         if(irank == rank):
             if(len(proc_rf_stream)):
-                nsl = '.'.join([proc_rf_stream.traces[0].stats.network,
-                                proc_rf_stream.traces[0].stats.station,
-                                proc_rf_stream.traces[0].stats.location])
+                for hdf_key in proc_hdfkeys[rank]:
+                    # remove existing traces if there are any
+                    rf_util.remove_group(output_file, hdf_key, logger)
 
-                # remove existing traces if there are any
-                rf_util.remove_group(output_file, nsl, logger)
+                    logger.info("Writing RF stream(s) for {} on rank {}...".format(hdf_key, rank))
+                #
 
-                logger.info("Writing RF stream for {} on rank {}...".format(nsl, rank))
                 proc_rf_stream.write(output_file, format='H5', mode='a')
             # end if
         # end if
