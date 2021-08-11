@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 from rf import RFStream
 from obspy import UTCDateTime
 
-from seismic.analyze_station_orientations import (analyze_station_orientations,
-                                                  process_event_file)
+from seismic.analyze_station_orientations import (process_event_file)
 from seismic.analyze_station_orientations import (DEFAULT_CONFIG_FILTERING,
                                                   DEFAULT_CONFIG_PROCESSING)
-from seismic.receiver_fn.generate_rf import transform_stream_to_rf
+from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
+from seismic.analyze_station_orientations import analyze_station_orientations
 from seismic.stream_processing import correct_back_azimuth
 from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 

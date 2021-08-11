@@ -19,7 +19,6 @@ import os
 import glob
 import atexit
 import logging
-import pickle
 from ordered_set import OrderedSet as set
 import numpy as np
 
@@ -35,6 +34,7 @@ import psutil
 import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
+import pickle as cPickle
 
 logging.basicConfig()
 
@@ -127,6 +127,7 @@ class _FederatedASDFDataSetImpl():
         # Create database
         self.conn = None
         self.db_fn = os.path.join(os.path.dirname(self.asdf_source),  self.source_sha1 + '.db')
+        self.masterinv = None
         self.create_database()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
@@ -165,9 +166,25 @@ class _FederatedASDFDataSetImpl():
                                   'cha varchar(6), st double, et double, tag text)')
                 self.conn.execute('create table netsta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
                                   'lat double)')
+                self.conn.execute('create table masterinv(inv blob)')
+
                 metadatalist = []
+                masterinv = None
                 for ids, ds in enumerate(self.asdf_datasets):
                     coords_dict = ds.get_all_coordinates()
+
+                    for k in coords_dict.keys():
+                        if(not masterinv):
+                            masterinv = ds.waveforms[k].StationXML
+                        else:
+                            try:
+                                masterinv += ds.waveforms[k].StationXML
+                            except Exception as e:
+                                print(e)
+                            # end try
+                        # end if
+                    # end for
+
                     for k in list(coords_dict.keys()):
                         lon = coords_dict[k]['longitude']
                         lat = coords_dict[k]['latitude']
@@ -177,6 +194,8 @@ class _FederatedASDFDataSetImpl():
                 # end for
                 self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat) values '
                                       '(?, ?, ?, ?, ?)', metadatalist)
+                self.conn.execute('insert into masterinv(inv) values(?)',
+                                  [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
             # end if
 
             tagsCount = 0
@@ -230,6 +249,10 @@ class _FederatedASDFDataSetImpl():
             ds_id, net, sta, lon, lat = row
             self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat]
         # end for
+
+        # Load master inventory
+        row = self.conn.execute('select * from masterinv').fetchall()
+        self.masterinv = cPickle.loads(row[0][0])
     # end func
 
     def get_global_time_range(self, network, station, location=None, channel=None):
@@ -431,6 +454,12 @@ class _FederatedASDFDataSetImpl():
                 yield nk, sk, start_time, end_time
             # end for
         # end for
+    # end func
+
+    def get_inventory(self, network=None, station=None):
+        inv = self.masterinv.select(network=network, station=station)
+
+        return inv
     # end func
 
     def cleanup(self):

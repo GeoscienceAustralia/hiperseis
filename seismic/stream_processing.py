@@ -4,13 +4,15 @@
 
 import copy
 import functools
+import logging
 import numbers
 import json
+import os
+from collections import defaultdict
 
 import numpy as np
 
 # pylint: disable=invalid-name
-
 
 def zne_order(tr):
     """Channel ordering sort key function for ZNE ordering
@@ -206,11 +208,12 @@ def correct_back_azimuth(_event_id, stream, baz_correction):
             back_azi += 360
         while back_azi >= 360:
             back_azi -= 360
+
+        stats.update({'orig_back_azimuth':stats.back_azimuth})
         stats.back_azimuth = back_azi
     # end for
     return stream
 # end func
-
 
 def assert_homogenous_stream(stream, funcname):
     """

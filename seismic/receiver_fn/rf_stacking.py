@@ -4,52 +4,50 @@ import logging
 
 import numpy as np
 from scipy.interpolate import interp1d
-
+from scipy.signal import correlate
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.units_utils import KM_PER_DEG
+from rf.util import DEG2KM
+from scipy.ndimage import gaussian_filter
+from scipy import interpolate
+from sklearn.cluster import dbscan
+from scipy.integrate import simps as simpson
+from scipy.optimize import minimize
+from scipy.optimize import Bounds
+import obspy
+from obspy.taup.velocity_model import VelocityModel
+import os
 
 # pylint: disable=invalid-name,logging-format-interpolation
 
 logging.basicConfig()
 
-DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 251))
-DEFAULT_k_RANGE = tuple(np.linspace(1.4, 2.0, 301))
+DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 501))
+DEFAULT_k_RANGE = tuple(np.linspace(1.5, 2.0, 301))
+DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
 
+DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 6, 21))
+DEFAULT_SED_k_RANGE = tuple(np.linspace(1.0, 5.0, 21))
 
-def compute_hk_stack(cha_data, V_p=None, h_range=None,
-                     k_range=None, root_order=1, include_t3=True):
+def compute_hk_stack(cha_data, h_range=None, k_range=None,
+                     weights=DEFAULT_WEIGHTS, root_order=1):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
     :type cha_data: Iterable(rf.RFTrace)
-    :param V_p: P-wave velocity in crustal layer, defaults to None in which case it is inferred from trace metadata
-    :type V_p: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
     :type h_range: numpy.array [1D], optional
     :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
     :type k_range: numpy.array [1D], optional
+    :param weights: numpy array of length 3, containing weights for the three phases (Ps, PpPs and (PpSs + PsPs))
+    :type weights: numpy.array [1D], optional
     :param root_order: Exponent for nth root stacking as per K.J.Muirhead (1968), defaults to 1
     :type root_order: int, optional
-    :param include_t3: If True, include the t3 (PpSs+PsPs) multiple in the stacking, defaults to True
-    :type include_t3: bool, optional
-    :return: k-grid values [2D], h-grid values [2D], H-k stack in series of 2D layers having one layer per multiple
-    :rtype: numpy.array [2D], numpy.array [2D], numpy.array [3D]
+    :return: k-grid values [2D], h-grid values [2D], H-k stack values [2D]
+    :rtype: numpy.array [2D], numpy.array [2D], numpy.array [2D]
     """
-    # It is *critical* for the correctness of the output of this function that the V_p passed in is the same as the
-    # V_p of the shallowest layer of the velocity model (from tau-py model) that was used to compute the arrival
-    # inclination of each trace. Leave as None to have this function infer V_p from the trace metadata.
-
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
-
-    infer_Vp = (V_p is None)
-    V_p_inferred = infer_Vp_from_traces(cha_data, log)
-    if infer_Vp:
-        V_p = V_p_inferred
-        log.debug("Inferred V_p = {}".format(V_p))
-    else:
-        log.debug("Using V_p = {} (inferred V_p from shallowest layer = {})".format(V_p, V_p_inferred))
-    # end if
 
     if h_range is None:
         h_range = DEFAULT_H_RANGE
@@ -60,155 +58,154 @@ def compute_hk_stack(cha_data, V_p=None, h_range=None,
 
     # Pre-compute grid quantities
     k_grid, h_grid = np.meshgrid(k_range, h_range)
-    # hk_stack = np.zeros_like(k_grid)
 
-    # Whether to use RF slowness as the ray parameter (after unit conversion) and as source of V_p,
-    # or else use specific V_p given by user.
-    stream_stack = []
-    # Loop over traces, compute times, and stack interpolated values at those times
-    channel_id = None
-    for tr in cha_data:
-        if channel_id is None:
-            channel_id = tr.stats.channel
-        else:
-            assert tr.stats.channel == channel_id, \
-                "Stacking mismatching channel data: expected {}, found {}".format(channel_id, tr.stats.channel)
+    tphase_amps = []
+    for itrc, trc in enumerate(cha_data):
+        lead_time = trc.stats.onset - trc.stats.starttime
+        p = trc.stats.slowness / DEG2KM
+        incl_deg = trc.stats.inclination
+        incl_rad = np.deg2rad(incl_deg)
+        Vp_inv = p / np.sin(incl_rad)
+        Vs_inv = k_grid * Vp_inv
+
+        term1 = np.sqrt(Vs_inv ** 2 - p ** 2)
+        term2 = np.sqrt(Vp_inv ** 2 - p ** 2)
+
+        t1 = h_grid * (term1 - term2)
+        t2 = h_grid * (term1 + term2)
+        t3 = h_grid * 2 * term1
+
+        try:
+            t1 += trc.stats.t1_offset
+            t2 += trc.stats.t2_offset
+            t3 += trc.stats.t3_offset
+        except:
+            pass
+        # end try
+
+        times = trc.times() - lead_time
+        times_min = np.min(times)
+        times_max = np.max(times)
+        if(np.min(t1) < times_min or \
+           np.max(t1) > times_max or \
+           np.min(t2) < times_min or \
+           np.max(t2) > times_max or \
+           np.min(t3) < times_min or \
+           np.max(t3) > times_max):
+
+            nsl = '.'.join([trc.stats.network, trc.stats.station, trc.stats.location])
+            log.warning('\nCorrected times for a trace in {} fall outside the available time-range'.format(nsl))
         # end if
 
-        t1, t2, t3 = compute_theoretical_phase_times(tr, h_grid, k_grid, V_p, include_t3=include_t3)
+        tio = interp1d(times, trc.data, fill_value=0, bounds_error=False)
 
-        # Apply custom time offsets if given.
-        for tval, offset_name in ((t1, 't1_offset'), (t2, 't2_offset'), (t3, 't3_offset')):
-            try:
-                if tval is not None:
-                    tval += tr.stats.sediment[offset_name]
-            except AttributeError:
-                pass
-            # end try
-        # end for
-
-        # Subtract lead time so that primary P-wave arrival is at time zero.
-        lead_time = tr.stats.onset - tr.stats.starttime
-        times = tr.times() - lead_time
-        # Create interpolator from stream signal for accurate time sampling.
-        interpolator = interp1d(times, tr.data, kind='linear', copy=False, bounds_error=False, assume_sorted=True)
-
-        phase_sum = []
-        phase_sum.append(rf_util.signed_nth_root(interpolator(t1), root_order))
-        phase_sum.append(rf_util.signed_nth_root(interpolator(t2), root_order))
-        if include_t3:
-            # Negative sign on the third term is intentional, see Chen et al. (2010) and Zhu & Kanamori (2000).
-            # It needs to be negative because the PpSs + PsPs peak has negative phase,
-            # see http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/rftn01.html
-            # Apply nth root technique to reduce uncorrelated noise (Chen et al. (2010))
-            phase_sum.append(-rf_util.signed_nth_root(interpolator(t3), root_order))
-        # end if
-
-        stream_stack.append(phase_sum)
+        a, b, c = tio(t1), tio(t2), -tio(t3)
+        tphase_amps.append([np.sign(a) * np.power(np.fabs(a), 1. / root_order),
+                            np.sign(b) * np.power(np.fabs(b), 1. / root_order),
+                            np.sign(c) * np.power(np.fabs(c), 1. / root_order)])
     # end for
-
-    # Perform the stacking (sum) across streams. hk_stack retains separate t1, t2, and t3 components here.
-    hk_stack = np.nanmean(np.array(stream_stack), axis=0)
-
-    # This inversion of the nth root is different to Sippl and Chen, but consistent with Muirhead
-    # who proposed the nth root technique. It improves the contrast of the resulting plot.
-    if root_order != 1:
-        hk_stack = rf_util.signed_nth_power(hk_stack, root_order)
+    tphase_amps = np.array(tphase_amps)
+    hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
+    hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
 
     return k_grid, h_grid, hk_stack
 # end func
 
+def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, root_order=9):
+    """Compute H-k stacking array on a dataset of receiver functions.
 
-def compute_weighted_stack(hk_components, weighting=(0.5, 0.5, 0.0)):
-    """Given stack components from function `compute_hk_stack`, compute the overall weighted stack.
-
-    :param hk_components: H-k stack layers returned from `compute_hk_stack`
-    :type hk_components: numpy.array
-    :param weighting: Weightings for (t1, t2, t3) layers respectively, defaults to (0.5, 0.5, 0.0)
-    :type weighting: tuple, optional
-    :return: Weighted stack in H-k space
-    :rtype: numpy.array
+    :param cha_data: List or iterable of RF traces to use for H-k stacking.
+    :type cha_data: Iterable(rf.RFTrace)
+    :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
+    :type h_range: numpy.array [1D], optional
+    :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
+    :type k_range: numpy.array [1D], optional
+    :param root_order: Exponent for nth root stacking as per K.J.Muirhead (1968), defaults to 1
+    :type root_order: int, optional
+    :return: k-grid values [2D], h-grid values [2D], H-k stack values [2D]
+    :rtype: numpy.array [2D], numpy.array [2D], numpy.array [2D]
     """
-    assert hk_components.shape[0] == len(weighting), hk_components.shape
-    hk_phase_stacked = np.dot(np.moveaxis(hk_components, 0, -1), np.array(weighting))
-    return hk_phase_stacked
-# end func
+    def obj_func(x0, amps):
+        curr_stack = np.sum(np.dot(np.moveaxis(amps, 1, -1), x0), axis=0)
+        idx = np.unravel_index(np.argmax(curr_stack), np.array(curr_stack).shape)
+        return -curr_stack[idx]
+    # end func
 
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
 
-def infer_Vp_from_traces(cha_data, log=None):
-    """
-    Infer the Vp value used in earth model for computing trace stats.
+    if h_range is None:
+        h_range = DEFAULT_SED_H_RANGE
+    # end if
+    if k_range is None:
+        k_range = DEFAULT_SED_k_RANGE
+    # end if
 
-    :param cha_data: Iterable of traces for a given event (e.g. obspy.Stream or rf.RFStream)
-    :type cha_data: Iterable(obspy.Stream) or Iterable(rf.RFStream)
-    :param log: Logging instance to log messages
-    :type log: logging.Logger
-    :return: Vp value
-    :rtype: float
-    """
-    # Determine the internal V_p consistent with the trace ray parameters and inclinations.
-    V_p_values = []
-    for tr in cha_data:
-        p = tr.stats.slowness / KM_PER_DEG
-        incl_deg = tr.stats.inclination
+    iasp91_path = os.path.join(os.path.abspath(os.path.dirname(obspy.__file__)), 'taup/data/iasp91.tvel')
+    vmodel = VelocityModel.read_tvel_file(iasp91_path)
+    d = np.linspace(-80, -1, 120)
+    v = vmodel.evaluate_above(depth=-d, prop='P')
+    d[-1] = 0
+    v[-1:-7:-1] = np.linspace(2, v[-6], 6)
+    vfunc = interp1d(d, v)
+
+    # Pre-compute grid quantities
+    k_grid, h_grid = np.meshgrid(k_range, h_range)
+
+    tphase_amps = []
+    for itrc, trc in enumerate(cha_data):
+        lead_time = trc.stats.onset - trc.stats.starttime
+        p = trc.stats.slowness / DEG2KM
+        incl_deg = trc.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
-        V_p_value = np.sin(incl_rad) / p
-        V_p_values.append(V_p_value)
+        Vp_inv = p / np.sin(incl_rad)
+
+        t4 = np.zeros(h_grid.shape)
+        t2 = np.zeros(h_grid.shape)
+        t3 = np.zeros(h_grid.shape)
+
+        for i in np.arange(h_grid.shape[0]):
+            interval1 = np.linspace(-h_grid[i, 0], 0, 50)
+            interval2 = np.linspace(-(h_grid[i, 0] + H_c), -h_grid[i, 0], 50)
+            v_interval1 = vfunc(interval1)
+            v_interval2 = vfunc(interval2)
+
+            for j in np.arange(h_grid.shape[1]):
+                A = simpson(np.sqrt(np.power(v_interval1 / k_grid[i, j], -2.) - p ** 2), interval1)
+                B = simpson(np.sqrt(np.power(v_interval1, -2.) - p ** 2), interval1)
+                C = simpson(np.sqrt(np.power(v_interval2 / k_c, -2.) - p ** 2), interval2)
+                D = simpson(np.sqrt(np.power(v_interval2, -2.) - p ** 2), interval2)
+
+                t4[i, j] = A - B
+                t2[i, j] = A + B + C + D
+                t3[i, j] = 2 * A + 2 * C
+            # end for
+        # end for
+
+        tio = interp1d(trc.times() - lead_time, trc.data)
+
+        a, b, c = tio(t4), tio(t2), -tio(t3)
+        tphase_amps.append([np.sign(a) * np.power(np.fabs(a), 1. / root_order),
+                            np.sign(b) * np.power(np.fabs(b), 1. / root_order),
+                            np.sign(c) * np.power(np.fabs(c), 1. / root_order)])
     # end for
-    V_p_values = np.array(V_p_values)
-    if  log is not None and not np.allclose(V_p_values, V_p_values, rtol=1e-3, atol=1e-4):
-        log.error("Inconsistent V_p values inferred from traces, H-k stacking results may be unreliable!")
-    # end if
-    V_p = np.mean(V_p_values)
+    tphase_amps = np.array(tphase_amps)
 
-    return V_p
-# end func
+    bounds = Bounds(np.zeros(3) + 0.01, np.array([0.3, 1, 1]))
+    constraints = [{'type': 'ineq', 'fun': lambda x: x},
+                   {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}]
 
+    starting_weights = np.array([0.2, 0.4, 0.4])
+    opt_result = minimize(obj_func, starting_weights, tphase_amps, method='SLSQP',
+                          bounds=bounds, constraints=constraints)
+    x = opt_result['x']
+    weights = x
 
-def compute_theoretical_phase_times(tr, H, k, V_p, include_t3=True):
-    """
-    Compute arrival times of Ps, PpPs and (PpSs + PsPs) phases relative to primary P-wave arrival time
-    for an assume Moho depth H, velocity ratio *k* = V<sub>p</sub>/V<sub>s</sub>, and p-wave velocity V<sub>p</sub>.
+    #print('Weights: ', weights)
+    hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
+    hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
 
-    :param tr: Trace for which to compute the theoretical phase arrival times
-    :type tr: obspy.Trace or rf.RFTrace
-    :param H: Presumed Moho depth (km)
-    :type H: float
-    :param k: Presumed velocity ratio *k* (dimensionless)
-    :type k: float
-    :param V_p: Presumed p-wave velocity (km/sec)
-    :type V_p: float
-    :param include_t3: Flag whether or not to compute t<sub>3</sub> value (i.e. (PpSs + PsPs) arrival time)
-    :type include_t3: bool
-    :return: Triplet of phase arrival times (t1, t2, t3). t3 is None if include_t3 is False.
-    :rtype: tuple(float, float, float)
-    """
-    incl_deg = tr.stats.inclination
-    incl_rad = np.deg2rad(incl_deg)
-    sin_i = np.sin(incl_rad)
-    p = sin_i / V_p
-
-    H_on_V_p = H/V_p
-    k2 = k*k
-
-    p2_Vp2 = p * p * V_p * V_p
-    term1 = H_on_V_p * np.sqrt(k2 - p2_Vp2)
-    term2 = H_on_V_p * np.sqrt(1 - p2_Vp2)
-
-    # Time for Ps
-    t1 = term1 - term2
-
-    # Time for PpPs
-    t2 = term1 + term2
-
-    if include_t3:
-        # Time for PpSs + PsPs
-        t3 = 2 * term1
-    else:
-        t3 = None
-    # end if
-
-    return t1, t2, t3
+    return k_grid, h_grid, hk_stack, weights
 # end func
 
 
@@ -233,7 +230,7 @@ def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
 # end func
 
 
-def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
+def _find_local_hk_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     """Given the weighted stack computed from function `compute_weighted_stack` and the corresponding
     k-grid and h-grid, find the locations in H-k space of all local maxima above a certain threshold.
 
@@ -272,4 +269,62 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     # Sort the solutions from highest stack value to the lowest.
     solutions = sorted(solutions, key=lambda v: v[2], reverse=True)
     return solutions
+# end func
+
+def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
+    # Method here is:
+    # 1) find all local maxima
+    # 2) cluster local maxima and compute centroid of each cluster
+    # The centroids of the top max_number clusters are returned, ranked by stack amplitude.
+
+    # Only consider positive stack regions.
+    hk_stack = hk_stack_sum.copy()
+    hk_stack[hk_stack < 0] = 0
+    hk_stack_max = np.nanmax(hk_stack)
+
+    # Smooth the stack, as we're not interested in high frequency local maxima
+    hk_stack = gaussian_filter(hk_stack, sigma=3, mode='nearest')
+
+    # This method only returns locations in the interior, not on the boundary of the domain
+    local_maxima = _find_local_hk_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.7)
+    if len(local_maxima) <= 1:
+        return [(h, k) for h, k, _, _, _ in local_maxima]
+    # end if
+
+    # Perform clustering in normalized coordinates
+    k_min, k_max = (np.nanmin(k_grid), np.nanmax(k_grid))
+    k_range = k_max - k_min
+    h_min, h_max = (np.nanmin(h_grid), np.nanmax(h_grid))
+    h_range = h_max - h_min
+
+    # Use DBSCAN to cluster nearby pointwise local maxima
+    eps = 0.05
+    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range, v/hk_stack_max] for h, k, v, _, _ in local_maxima])
+    pts_hk = np.array([[h, k] for h, k, _, _, _ in local_maxima])
+    _, labels = dbscan(pts_norm, eps, min_samples=2, metric='euclidean')
+
+    # Collect group-based local maxima
+    maxima_coords = []
+    group_ids = set(labels[labels >= 0])
+    for grp_id in group_ids:
+        maxima_coords.append(np.mean(pts_hk[labels == grp_id], axis=0))
+    # end for
+
+    # Collect remaining non-grouped points and add them to list of local maxima
+    loners = pts_hk[labels < 0]
+    if np.any(loners):
+        maxima_coords.extend(loners)
+    # end if
+
+    # Sort the maxima by amplitude of stack, and then discard values with amplitude too weak compared to strongest peak
+    if len(maxima_coords) > 1:
+        finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack_sum)
+        maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
+        strongest = finterp(maxima_coords[0][1], maxima_coords[0][0])
+        while finterp(maxima_coords[-1][1], maxima_coords[-1][0]) < 0.8*strongest:
+            maxima_coords.pop()
+        # end while
+    # end if
+
+    return maxima_coords[:max_number]
 # end func

@@ -195,7 +195,21 @@ class FederatedASDFDataSet():
         # end for
     # end func
 
+    def get_inventory(self, network=None, station=None):
+        """
+        This function returns the combined (for all underlying ASDF files) xml inventory when both 'network' and 'station'
+        are set to None, otherwise a subset is returned. Some processing workflows (e.g. RF) require an Obspy inventory
+        to iterate over data -- this function is intended to cater for those requirements, while the more comprehensive
+        'get_stations' function should be used for fetching matching stations that have waveform data within a given
+        time interval
 
+        :param network: network code
+        :param station: station code
+        """
+
+        inv = self.fds.get_inventory(network=network, station=station)
+        return inv
+    # end func
 # end class
 
 if __name__ == "__main__":
