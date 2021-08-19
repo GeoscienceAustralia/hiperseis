@@ -24,9 +24,9 @@ import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_corrections as rf_corrections
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
-
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
+import uuid
 
 logging.basicConfig()
 
@@ -248,6 +248,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     rank = comm.Get_rank()
     proc_hdfkeys = None
 
+    tempdir = None
     if(rank == 0):
         # retrieve all available hdf_keys
         proc_hdfkeys = rf_util.get_hdf_keys(input_file)
@@ -257,7 +258,11 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
         # split work-load over all procs
         proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
+
+        tempdir = os.path.join(os.path.dirname(output_file), str(uuid.uuid4()))
+        os.makedirs(tempdir, exist_ok=True)
     # end if
+    tempdir = comm.bcast(tempdir, root=0)
 
     # broadcast workload to all procs
     proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
@@ -312,8 +317,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
         log.setLevel(logging.WARNING)
 
-        curr_output_file, _ = os.path.splitext(output_file)
-        curr_output_file += '.{}.pdf'.format(nsl)
+        curr_output_file = os.path.join(tempdir, '{}.pdf'.format(nsl))
 
         with PdfPages(curr_output_file) as pdf:
             # Would like to use Tex, but lack desktop PC privileges to update packages to what is required
@@ -347,6 +351,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
                     rf_stream = rf.RFStream(
                         [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
+                    if(len(rf_stream) == 0):
+                        log.warning("Amplitude filter has removed all traces for {}. "
+                                    "Ensure rf_quality_filter was run beforehand..".format(nsl))
+                    # end if
                 # end if
 
                 if(min_slope_ratio>0):
@@ -446,16 +454,20 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 plt.close()
 
                 if reverberations_removed:
-                    H_c = hk_soln[nsl][0][0]
-                    k_c = hk_soln[nsl][0][1]
-                    fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
-                    sediment_hk_soln[nsl] = maxima
+                    if(len(hk_soln[nsl])):
+                        H_c = hk_soln[nsl][0][0]
+                        k_c = hk_soln[nsl][0][1]
+                        fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
+                        sediment_hk_soln[nsl] = maxima
 
-                    sediment_station_coords[nsl] = (channel_data[0].stats.station_latitude,
-                                                    channel_data[0].stats.station_longitude)
-                    fig.set_size_inches(*paper_landscape)
-                    pdf.savefig(dpi=300, orientation='landscape')
-                    plt.close()
+                        sediment_station_coords[nsl] = (channel_data[0].stats.station_latitude,
+                                                        channel_data[0].stats.station_longitude)
+                        fig.set_size_inches(*paper_landscape)
+                        pdf.savefig(dpi=300, orientation='landscape')
+                        plt.close()
+                    else:
+                        log.warning("Sediment H-K stacking for {} faile. Moving along..".format(nsl))
+                    # end if
                 # end if
 
                 plt.close('all')
@@ -510,6 +522,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
         # gather pdf-names, flatten list and merge pdfs
         pdf_names = [item for items in pdf_names for item in items]
         pdf_merge(pdf_names, output_file)
+    # end if
+
+    if(rank == 0):
+        os.removedirs(tempdir)
+
+        print("Finishing...")
+        print("bulk_rf_report SUCCESS!")
     # end if
 # end main
 

@@ -253,8 +253,8 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     # end for
 
     if(rank == 0):
-        logger.info("Finishing...")
-        logger.info("generate_rf SUCCESS!")
+        print("Finishing...")
+        print("generate_rf SUCCESS!")
     # end if
 # end func
 
