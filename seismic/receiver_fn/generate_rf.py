@@ -225,7 +225,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     # gather and output baz corrections
     baz_corrections = comm.gather(baz_corrections, root=0)
     if(rank == 0):
-        if(len(baz_corrections)):
+        if(len(baz_corrections) and corrections.plot_dir):
             output_dict = {}
             for d in baz_corrections:
                 if(len(d)): output_dict.update(d)
@@ -285,7 +285,7 @@ def _main(input_file, output_file, network_list, station_list, config_file, only
 
         config_correction = config.setdefault("correction", {})
         if(not len(config_correction) and only_corrections):
-            assert 0, 'A correction block is required in the config file for --correct-only'
+            assert 0, 'A correction block is required in the config file for --only-corrections'
         # end if
     else:
         config = {}  # all default settings

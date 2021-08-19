@@ -37,7 +37,6 @@ class Corrections:
         self._plot_dir = config_correction.setdefault('plot_dir', None)
         self._corrections = defaultdict(lambda: None)
 
-        if (not self._plot_dir): assert 0, 'config:correction: Expected parameter "plot_dir" not found..'
         if (type(self._swap_ne_list) != list): assert 0, 'config:correction: Expected a list of net.sta.loc for key: swap_ne'
         if (type(self._rotate_list) != list): assert 0, 'config:correction: Expected a list of net.sta.loc for key: rotate'
         if (type(self._negate_list) != list): assert 0, 'config:correction: Expected a list of net.sta.loc.cha for key: negate'
