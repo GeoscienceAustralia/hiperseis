@@ -196,10 +196,15 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, ro
                    {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}]
 
     starting_weights = np.array([0.2, 0.4, 0.4])
-    opt_result = minimize(obj_func, starting_weights, tphase_amps, method='SLSQP',
-                          bounds=bounds, constraints=constraints)
-    x = opt_result['x']
-    weights = x
+    weights = None
+    try:
+        opt_result = minimize(obj_func, starting_weights, tphase_amps, method='SLSQP',
+                              bounds=bounds, constraints=constraints)
+        x = opt_result['x']
+        weights = x
+    except:
+        weights = np.array([0.6, 0.3, 0.1])
+    # end try
 
     #print('Weights: ', weights)
     hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
