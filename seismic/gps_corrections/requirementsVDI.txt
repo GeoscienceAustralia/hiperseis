@@ -28,4 +28,5 @@ pathlib2
 jupyter
 #  export PYTHONPATH=$PYTHONPATH:'pwd'
 #  python3 -m seismic.gps_corrections.gps_clock_correction_gui
+# python -m seismic.gps_corrections.relative_tt_residuals_plotter seismic/gps_corrections/p_combined.txt --network1=1Q --networks2=AU --no-strict-filtering
 #  jupyter notebook
