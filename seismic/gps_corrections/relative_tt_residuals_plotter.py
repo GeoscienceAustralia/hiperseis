@@ -198,9 +198,11 @@ def pandas_timestamp_to_plottable_datetime(data):
     return data.transform(datetime.datetime.utcfromtimestamp).astype('datetime64[ms]').dt.to_pydatetime()
 
 
-def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_options, tt_scale=50,
+def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_options, tt_scale=False,
                                        snr_scale=(0, 60), annotator=None):
 
+    if tt_scale is False:
+        tt_scale = 50
     file_label = batch_options.batch_label
     save_file = batch_options.save_file
 
@@ -296,7 +298,7 @@ def _plot_target_network_rel_residuals(df, target, ref, batch_options, filter_op
         df_export.to_csv(fname, index=False)
 
 
-def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options):
+def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_options, filter_options, display_options, tt_scale):
     """
     Compute relative residuals and send to plotting function.
 
@@ -334,7 +336,7 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
         if opts.deployments is not None:
             _add_temporary_deployment_intervals(opts.deployments)
 
-    _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options,
+    _plot_target_network_rel_residuals(df_plot, target_stns, ref, batch_options, filter_options, tt_scale,
                                        annotator=lambda: _plot_decorator(display_options))
     deregister_matplotlib_converters()
 
@@ -665,13 +667,16 @@ def _get_known_temporary_deployments():
 @click.option('--interactive', is_flag=True, default=False, show_default=True,
               help='If True, plots will be displayed as popup windows instead of saving to file. '
                    'Use this option to interact with the data.')
+@click.option('--tt-scale', type=float, default=50, show_default=True,
+              help='y-axis limits for TT residual plots')
+
 def main(picks_file, network1, networks2, stations1=None, stations2=None,
          min_distance=DEFAULT_MIN_DISTANCE, max_distance=DEFAULT_MAX_DISTANCE,
          min_event_snr=DEFAULT_MIN_EVENT_SNR, cwt_cutoff=DEFAULT_CWT_CUTOFF,
          slope_cutoff=DEFAULT_SLOPE_CUTOFF, nsigma_cutoff=DEFAULT_NSIGMA_CUTOFF,
          min_event_magnitude=DEFAULT_MIN_EVENT_MAG, strict_filtering=DEFAULT_STRICT_FILTERING,
          show_deployments=False, show_historical=True, include_alternate_catalog=True,
-         export_path=None, interactive=False):  # pragma: no cover
+         export_path=None, interactive=False, tt_scale=False):  # pragma: no cover
     """
     Main function for running relative traveltime residual plotting. The picks ensemble file should
     have column headings in accordance with picks_reader_utils.PICKS_TABLE_SCHEMA.
@@ -788,7 +793,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
             df_final = analyze_target_relative_to_ref(df_picks, single_ref, TARGET_STNS, filter_options)
             # Plot results
             _plot_network_relative_to_ref_station(df_final, single_ref, TARGET_STNS, batch_options,
-                                                  filter_options, display_options)
+                                                    filter_options, display_options, tt_scale)
         # end for
     # end for
 
