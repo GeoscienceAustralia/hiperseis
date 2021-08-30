@@ -143,7 +143,7 @@ class GpsClockCorrectionApp(tk.Frame):  # pragma: no cover
         nc_file_value = self.nc_file.get()
         nc_file_valid = bool(nc_file_value) and os.path.isfile(nc_file_value)
         if nc_file_valid:
-            self.station_code= self._extract_code_from_filename(nc_file_value)
+            self.station_code = self._extract_code_from_filename(nc_file_value)
         else:
             self.station_code = ''
         self.stn_code_label['text'] = "Station code: " + self.station_code

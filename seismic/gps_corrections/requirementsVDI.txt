@@ -1,0 +1,32 @@
+# cd to hiperseis directory
+# module purge
+# module load openmpi
+# module load mpi4py
+# module load hdf5/1.10.5p
+# module load python3-as-python
+# alias python=python3
+# python -m venv venv
+# source venv/bin/activate
+# pip install -r seismic/gps_corrections/requirementsVDI.txt
+pyasdf
+numpy
+obspy
+pandas
+matplotlib
+ordered-set
+psutil
+click
+ujson
+sklearn
+netcdf4
+tqdm
+shapely
+descartes
+pyproj
+pytz
+pathlib2
+jupyter
+#  export PYTHONPATH=$PYTHONPATH:'pwd'
+#  python3 -m seismic.gps_corrections.gps_clock_correction_gui
+# python -m seismic.gps_corrections.relative_tt_residuals_plotter seismic/gps_corrections/p_combined.txt --network1=1Q --networks2=AU --no-strict-filtering
+#  jupyter notebook
