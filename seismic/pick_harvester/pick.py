@@ -257,6 +257,10 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
                                 ml_input = snrtr.slice(pick - 20, pick + 40).copy()
                                 if(type(ml_input.data) == np.ndarray):
                                     ml_input.resample(100)
+                                    ml_input.detrend()
+                                    ml_input.data -= np.mean(ml_input.data)
+                                    ml_input.normalize()
+
                                     ml_input_data = np.expand_dims(ml_input.data[0:6002], axis=0)
                                     if(ml_input_data.shape == (1, 6002)):
                                         ml_output = model.predict(np.expand_dims(ml_input.data[0:6002], axis=0), batch_size=1)
