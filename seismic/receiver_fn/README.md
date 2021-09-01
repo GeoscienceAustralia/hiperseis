@@ -11,25 +11,41 @@ Installation instructions for NCI (Gadi ) are as follows:
   4. `module load openmpi/2.1.6-mt`
   5. `module load hdf5/1.10.5p`
 
+### Upgrade pip
+
+ 1. `pip3.6 install pip==21.1.2 --user`
+
+### numpy
+
+ 1. `pip3.6 install numpy==1.18.5 --user`
+
 ### Install mpi4py that uses the correct OpenMPI libs
   1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3 install mpi4py --user` Note that we use `pip3`, the system-provided pip for python 3.6
 
 ### Build Parallel H5PY
 
-1. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from h5py repository from github fork of h5py, adapted for Gadi, for purpose of custom build
-2. `cd h5py`
-3. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
-4. `python setup.py build` Build h5py
-5. `python setup.py install --user` Install in user space
+1. `pip3.6 install cython==0.29.22 --user`
+2. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from h5py repository from github fork of h5py, adapted for Gadi, for purpose of custom build
+3. `cd h5py`
+4. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
+5. `python setup.py build` Build h5py
+6. `python setup.py install --user` Install in user space
 
-Additionally, the workflow requires the PhasePapy package (a submodule of this repository) to be
-initialized, if not already.
+### Setup standard packages
+  1. `pip3.6 install obspy==1.1.0 --user`
+  2. `pip3.6 install click==7.1.2 --user `
+  3. `pip3.6 install netCDF4==1.4.0 --user`
+  4. `pip3.6 install pyasdf==0.5.1 --user`
+  5. `pip3.6 install ordered_set ujson psutil --user`
 
 ### Initialize PhasePapy
+Additionally, the workflow requires the PhasePapy package (a submodule of this repository) to be
+initialized, if not already.
 ```
 cd hiperseis
 git submodule update --init --recursive
 ```
+
 ## Workflow
 
 The RF workflow is based on the following main steps:

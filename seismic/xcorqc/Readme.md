@@ -22,6 +22,8 @@ To set up the Python environment, the following high level order of operations m
 * Open MPI v2.1.6-mt
 * HDF5 v1.10.5p (parallel build)
 * mpi4py v3.0.3 (custom MPI build)
+* numpy 1.18.5
+* cython 0.29.22  
 * osbpy 1.1.0
 * click 7.0
 * netCDF4 1.4.0
@@ -48,19 +50,28 @@ From a login node on Gadi:
 
 #### Setup custom packages
 
+##### Upgrade pip
+
+ 1. `pip3.6 install pip==21.1.2 --user`
+
+##### numpy
+
+ 1. `pip3.6 install numpy==1.18.5 --user`
+
 ##### mpi4py
+
   1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3.6 install mpi4py --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
 
 ##### H5PY
 
-1. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from h5py repository from github fork of h5py, adapted for Gadi, for purpose of custom build
-2. `cd h5py`
-3. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
-4. `python setup.py build` Build h5py
-5. `python setup.py install --user` Install in user space
+1. `pip3.6 install cython==0.29.22 --user`
+2. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from a fork of h5py, adapted for Gadi.
+3. `cd h5py`
+4. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
+5. `python setup.py build` Build h5py
+6. `python setup.py install --user` Install in user space
 
 ##### pyFFTW
-  1. `pip3.6 install --user cython`
   2. `wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz`
   3. `tar -zxvf v0.12.0.tar.gz`
   4. `cd pyFFTW-0.12.0/`
@@ -69,9 +80,10 @@ From a login node on Gadi:
 
 #### Setup standard packages
   1. `pip3.6 install obspy==1.1.0 --user`
-  2. `pip3.6 install click --user `
+  2. `pip3.6 install click==7.1.2 --user `
   3. `pip3.6 install netCDF4==1.4.0 --user`
-  4. `pip3.6 install pyasdf --user`
+  4. `pip3.6 install pyasdf==0.5.1 --user`
+  5. `pip3.6 install ordered_set ujson psutil --user`
 
 Date last validated: 10 August 2021
 
