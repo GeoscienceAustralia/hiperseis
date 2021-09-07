@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
-from netCDF4 import Dataset as NetCDFFile
-from matplotlib.colors import LightSource
 import matplotlib as mpl
-mpl.use('Agg')
-from matplotlib.backends.backend_pdf import PdfPages
+mpl.use('agg')
+from matplotlib.colors import LightSource
 import matplotlib.pyplot as plt
-import numpy as np
 from mpl_toolkits.basemap import Basemap
+from matplotlib import cm, colors
+
+from netCDF4 import Dataset as NetCDFFile
+import numpy as np
 import click
 import rf
 from adjustText import adjust_text
-from matplotlib import cm
 import os
 from collections import defaultdict
+import gdal
 
 # below is work around of NCI python Basemap configuration problem, use line above for normal setup
 # from mympl_toolkits.basemap import Basemap
@@ -93,23 +94,23 @@ def gmtColormap(fileName):
       green.append([xNorm[i],g[i],g[i]])
       blue.append([xNorm[i],b[i],b[i]])
     colorDict = {"red":red, "green":green, "blue":blue}
-    return (x,mpl.colors.LinearSegmentedColormap('my_colormap',colorDict,255))
+
+    return (x, colors.LinearSegmentedColormap('my_colormap',colorDict,255))
 # end func
 
-def plot_map(data, topo_grid, cpt_file):
+def plot_topo(coords, topo_grid, cpt_file):
 
     fig=plt.figure(figsize=(11.69,8.27))
-    plt.tick_params(labelsize=12)
+    plt.tick_params(labelsize=8)
     
     ax = fig.add_subplot(111)
-    data=np.array(data)
-    lon_min=min(data[:,1])-1.
-    lon_max=max(data[:,1])+1.
+    lon_min=min(coords[:,0])-1.
+    lon_max=max(coords[:,0])+1.
 
-    lat_1=min(data[:,0])-1.
-    lat_2=min(data[:,0])
-    lat_min=min(data[:,0])-1.
-    lat_max=max(data[:,0])+1.
+    lat_1=min(coords[:,1])-1.
+    lat_2=min(coords[:,1])
+    lat_min=min(coords[:,1])-1.
+    lat_max=max(coords[:,1])+1.
     
     lat_0=(lat_max+lat_min)/2.
     lon_0=(lon_max+lon_min)/2.
@@ -118,13 +119,13 @@ def plot_map(data, topo_grid, cpt_file):
                 lon_0=lon_0, lat_0=lat_0, \
                 llcrnrlon=lon_min,llcrnrlat=lat_min, \
                 urcrnrlon=lon_max,urcrnrlat=lat_max,\
-                rsphere=6371200.,resolution='h',area_thresh=2000.)
+                rsphere=6371200.,resolution='h')
     
-    #m.drawcoastlines()
+    m.drawcoastlines()
     #m.drawstates()
     #m.drawcountries()
-    m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=14, dashes=[2, 2], color='0.5', linewidth=0.75)
-    m.drawmeridians(np.arange(0.,360.,1.), labels=[0,0,0,1], fontsize=14, dashes=[2, 2], color='0.5', linewidth=0.75)
+    m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
+    m.drawmeridians(np.arange(0.,360.,1.), labels=[0,0,0,1], fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
 
     
 #   ne below can draw scale but must be adjusted
@@ -138,22 +139,93 @@ def plot_map(data, topo_grid, cpt_file):
     data = nc.variables['elevation'][:] / zscale
     lons = nc.variables['lon'][:]
     lats = nc.variables['lat'][:]
-    
+
     # transform to metres
     nx = int((m.xmax-m.xmin)/500.)+1
     ny = int((m.ymax-m.ymin)/500.)+1
-    
+
     topodat = m.transform_scalar(data,lons,lats,nx,ny)
-    
+
     zvals,cmap = gmtColormap(cpt_file)
-    
+
     # make shading
-    
+
     ls = LightSource(azdeg = 180, altdeg = 45)
-    norm = mpl.colors.Normalize(vmin=-8000/zscale, vmax=5000/zscale)#myb
+    norm = colors.Normalize(vmin=-8000/zscale, vmax=5000/zscale)#myb
     rgb = ls.shade(topodat, cmap=cmap, norm=norm)
     im = m.imshow(rgb)
+
+    cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap))
+
     return m
+# end func
+
+def plot_grav(coords, grav_grid, cpt_file):
+    # Loading gravity grid
+    ds = None
+    data = None
+    try:
+        ds = gdal.Open(grav_grid, gdal.GA_ReadOnly)
+        data = ds.GetRasterBand(1).ReadAsArray()
+    except Exception as e:
+        print(str(e))
+        assert 0, 'Failed to load gravity grid'
+    # end try
+
+    gt = ds.GetGeoTransform()
+    xres = gt[1]
+    yres = gt[5]
+
+    # get the edge coordinates and add half the resolution
+    # to go to center coordinates
+    xmin = gt[0] + xres * 0.5
+    xmax = gt[0] + (xres * ds.RasterXSize) - xres * 0.5
+    ymin = gt[3] + (yres * ds.RasterYSize) + yres * 0.5
+    ymax = gt[3] - yres * 0.5
+
+    # initialize plot
+    fig=plt.figure(figsize=(11.69,8.27))
+    plt.tick_params(labelsize=8)
+
+    ax = fig.add_subplot(111)
+    lon_min=min(coords[:,0])-1
+    lon_max=max(coords[:,0])+1
+
+    lat_1=min(coords[:,1])-1
+    lat_2=min(coords[:,1])
+    lat_min=min(coords[:,1])-1
+    lat_max=max(coords[:,1])+1
+
+    lat_0=(lat_max+lat_min)/2.
+    lon_0=(lon_max+lon_min)/2.
+
+    m = Basemap(projection='lcc',lat_1=lat_1,lat_2=lat_2,\
+                lon_0=lon_0, lat_0=lat_0, \
+                llcrnrlon=lon_min,llcrnrlat=lat_min, \
+                urcrnrlon=lon_max,urcrnrlat=lat_max,\
+                rsphere=6371200.,resolution='h')
+
+    m.drawcoastlines()
+    #m.drawstates()
+    #m.drawcountries()
+    m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
+    m.drawmeridians(np.arange(0.,360.,1.), labels=[0,0,0,1], fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
+
+    lons, lats = np.meshgrid(np.linspace(xmin, xmax+xres, ds.RasterXSize),
+                             np.linspace(ymin, ymax+yres, ds.RasterYSize))
+
+    mask = (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
+
+    zvals,cmap = gmtColormap(cpt_file)
+    cbinfo = m.pcolormesh(np.ma.masked_array(lons, mask=~mask),
+                          np.ma.masked_array(lats, mask=~mask),
+                          np.ma.masked_array(data, mask=~mask),
+                          latlon=True, cmap=cmap, shading='auto', rasterized=True)
+
+    cbar = fig.colorbar(cbinfo)
+
+    return m
+# end func
 
 def get_stations(stream):
     stations=defaultdict(list)
@@ -161,82 +233,68 @@ def get_stations(stream):
         stations[station.stats.station] = [station.stats.station_longitude,station.stats.station_latitude]
     # end for
 
-    result = []
+    names = []
+    coords = []
     for k,v in stations.items():
-        result.append([k, *v])
+        names.append(k)
+        coords.append(v)
     # end for
 
-    return np.array(result)
+    return names, np.array(coords)
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 @click.command(context_settings=CONTEXT_SETTINGS)
-@click.argument('rf-file',
+@click.argument('plot-type', required=True,
+                type=click.Choice(['topo', 'grav'], case_sensitive=False))
+@click.argument('rf-file', required=True,
                 type=click.Path('r'))
-@click.argument('topo-grid', required=True,
+@click.argument('grid', required=True,
                 type=click.Path('r'))
 @click.argument('cpt-file', required=True,
                 type=click.Path('r'))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-def process(rf_file, topo_grid, cpt_file, output_path):
+def process(plot_type, rf_file, grid, cpt_file, output_path):
 
     """
+    PLOT_TYPE : Plot-type; can be either topo (topography) or grav (gravity) \n
     RF_FILE : Receiver function data in HDF5 format \n
-    TOPO_GRID: Topography grid in NetCDF format \n
+    GRID: Topography grid in NetCDF format or Gravity grid in ERS format \n
     CPT_FILE: GMT color palette to be used \n
-    OUTPUT_PATH: Otuput folder \n
+    OUTPUT_PATH: Output folder \n
 
     example usage:
-    python rf_plot_map.py OA_Yr2_event_waveforms.h5 au_gebco.nc mby_topo-bath.cpt tmp/
+    python rf_plot_map.py topo OA_Yr2_event_waveforms.h5 au_gebco.nc mby_topo-bath.cpt tmp/
 
     """
-
-    streams = rf.read_rf(rf_file)
-    # Lets see intersection of rays at 50km depth
-    ppoints = streams.ppoints(50.)
+    streams = rf.read_rf(rf_file, group='waveforms/OA.BK24.')
+    names, coords = get_stations(streams)
 
     # initialization of map
-    m = plot_map(ppoints, topo_grid, cpt_file)
+    m = None
+    if(plot_type == 'topo'):
+        m = plot_topo(coords, grid, cpt_file)
+    elif(plot_type == 'grav'):
+        m = plot_grav(coords, grid, cpt_file)
+    # end if
 
-    # RF package uses lat,lon meanwhile others use lon,lat notion
-
-    lon, lat = m(ppoints[:, 1], ppoints[:, 0])
-    plt.plot(lon, lat, 'bx', markersize=5, markeredgewidth=0.1)
-
-    # Now lets plot stations
-    coordinates = get_stations(streams)
-
-    if coordinates.ndim == 1:
-        lon, lat = m(np.float(coordinates[1]), np.float(coordinates[2]))
-        names = coordinates[0]
-    else:
-        lon, lat = m(coordinates[:, 1].astype(np.float), coordinates[:, 2].astype(np.float))
-        names = coordinates[:, 0]
-
+    lon, lat = m(coords[:,0], coords[:, 1])
     markers = plt.plot(lon, lat, 'y^', markeredgecolor='k', markeredgewidth=0.5, \
-                       markersize=10.0, alpha=0.7)
+                       markersize=10.0, alpha=0.3)
     labels = []
     for name, x, y in zip(names, lon, lat):
-        '''
-        text=plt.annotate(
-        name,
-        xy=(x, y), xytext=(-1, -20),
-        textcoords='offset points', ha='right', va='bottom')
-        '''
-
         labels.append(plt.text(x, y, name))
-
+    # end for
 
     adjust_text(labels, add_object=markers, ha='center', va='bottom')
 
     net = streams[0].stats.network
 
-    pdffile = os.path.join(output_path, net + '-map.pdf')
-    pdf = PdfPages(pdffile)
-    pdf.savefig()
-    pdf.close()
+    fname = os.path.join(output_path, net + '-{}-map.pdf'.format(plot_type))
+    plt.savefig(fname)
+    plt.close()
 # end func
 
 #-------------Main---------------------------------
