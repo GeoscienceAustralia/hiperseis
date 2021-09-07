@@ -269,7 +269,9 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
     python rf_plot_map.py topo OA_Yr2_event_waveforms.h5 au_gebco.nc mby_topo-bath.cpt tmp/
 
     """
-    streams = rf.read_rf(rf_file, group='waveforms/OA.BK24.')
+    #streams = rf.read_rf(rf_file, group='waveforms/OA.BK24.')
+    streams = rf.read_rf(rf_file)
+
     names, coords = get_stations(streams)
 
     # initialization of map
@@ -282,13 +284,13 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
 
     lon, lat = m(coords[:,0], coords[:, 1])
     markers = plt.plot(lon, lat, 'y^', markeredgecolor='k', markeredgewidth=0.5, \
-                       markersize=10.0, alpha=0.3)
+                       markersize=2, alpha=0.3)
     labels = []
     for name, x, y in zip(names, lon, lat):
-        labels.append(plt.text(x, y, name))
+        labels.append(plt.text(x, y, name, fontdict={'fontsize':5}))
     # end for
 
-    adjust_text(labels, add_object=markers, ha='center', va='bottom')
+    #adjust_text(labels, add_object=markers, ha='center', va='bottom')
 
     net = streams[0].stats.network
 
