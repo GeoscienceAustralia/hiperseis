@@ -11,7 +11,6 @@ from netCDF4 import Dataset as NetCDFFile
 import numpy as np
 import click
 import rf
-from adjustText import adjust_text
 import os
 from collections import defaultdict
 import gdal
@@ -121,7 +120,12 @@ def plot_topo(coords, topo_grid, cpt_file):
                 urcrnrlon=lon_max,urcrnrlat=lat_max,\
                 rsphere=6371200.,resolution='h')
     
-    m.drawcoastlines()
+    try:
+        m.drawcoastlines()
+    except:
+        pass
+    # end try
+
     #m.drawstates()
     #m.drawcountries()
     m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
@@ -205,7 +209,12 @@ def plot_grav(coords, grav_grid, cpt_file):
                 urcrnrlon=lon_max,urcrnrlat=lat_max,\
                 rsphere=6371200.,resolution='h')
 
-    m.drawcoastlines()
+    try:
+        m.drawcoastlines()
+    except:
+        pass
+    # end try
+
     #m.drawstates()
     #m.drawcountries()
     m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)

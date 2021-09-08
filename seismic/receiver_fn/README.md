@@ -37,6 +37,7 @@ Installation instructions for NCI (Gadi ) are as follows:
   3. `pip3.6 install netCDF4==1.4.0 --user`
   4. `pip3.6 install pyasdf==0.5.1 --user`
   5. `pip3.6 install ordered_set ujson psutil --user`
+  6. `pip3.6 install rf==0.8.0 --user`
 
 ### Initialize PhasePapy
 Additionally, the workflow requires the PhasePapy package (a submodule of this repository) to be
