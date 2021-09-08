@@ -170,7 +170,7 @@ def plot_grav(coords, grav_grid, cpt_file):
     data = None
     try:
         ds = gdal.Open(grav_grid, gdal.GA_ReadOnly)
-        data = ds.GetRasterBand(1).ReadAsArray()
+        data = np.flipud(ds.GetRasterBand(1).ReadAsArray())
     except Exception as e:
         print(str(e))
         assert 0, 'Failed to load gravity grid'
