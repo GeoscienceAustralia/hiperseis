@@ -279,7 +279,7 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
 
     """
     #streams = rf.read_rf(rf_file, group='waveforms/OA.BK24.')
-    streams = rf.read_rf(rf_file)
+    streams = rf.read_rf(rf_file, format='H5')
 
     names, coords = get_stations(streams)
 
