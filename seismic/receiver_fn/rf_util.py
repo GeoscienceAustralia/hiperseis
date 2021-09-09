@@ -5,13 +5,14 @@
 from collections import defaultdict
 import logging
 import copy
-
+import os, re
 import numpy as np
 from scipy import signal
-from scipy.signal import hilbert
+from scipy.signal import hilbert, correlate
 
 import obspy
 import rf
+import h5py
 
 from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
@@ -20,6 +21,102 @@ from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 
 logging.basicConfig()
 
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+# end func
+
+def get_hdf_keys(h5fn):
+    fh = None
+    try:
+        fh = h5py.File(h5fn, 'r')
+    except:
+        raise IOError('Invalid file/path {}..'%(h5fn))
+    # end try
+
+    if('waveforms' not in fh.keys()):
+        raise IOError('Invalid file/path {}. "waveforms" group not found..' % (h5fn))
+    # end if
+
+    result = [key for key in fh['waveforms'].keys()]
+    del fh
+
+    return result
+# end func
+
+def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
+    network_list = []
+    station_list = []
+
+    if(networks_string=='*'):
+        network_list = []
+    else:
+        network_list = re.findall('\S+', networks_string)
+        assert len(network_list), 'Invalid network list. Aborting..'
+    # end if
+
+    if(stations_string=='*'):
+        station_list = []
+    else:
+        station_list = re.findall('\S+', stations_string)
+        assert len(station_list), 'Invalid station list. Aborting..'
+    # end if
+
+    net_subset = [] # filter networks
+    if(len(network_list)):
+        for hdf_key in hdf_key_list:
+            net, sta, loc = hdf_key.split('.')
+
+            if(net in network_list): net_subset.append(hdf_key)
+        # end for
+    else:
+        net_subset = hdf_key_list.copy()
+    # end if
+
+    sta_subset = [] # filter stations
+    if(len(station_list)):
+        for hdf_key in hdf_key_list:
+            net, sta, loc = hdf_key.split('.')
+
+            if(sta in station_list): sta_subset.append(hdf_key)
+        # end for
+    else:
+        sta_subset = net_subset.copy()
+    # end if
+
+    # sanity checks
+    for net in network_list:
+        if net not in [hdf_key.split('.')[0] for hdf_key in hdf_key_list]:
+            assert 0, 'Network {} not found in input dataset. Aborting..'.format(net)
+    # end for
+    for sta in station_list:
+        if sta not in [hdf_key.split('.')[1] for hdf_key in hdf_key_list]:
+            assert 0, 'Station {} not found in input dataset. Aborting..'.format(sta)
+    # end for
+
+    return sta_subset
+# end func
+
+def remove_group(hdf_fn, net_sta_loc, logger=None):
+    try:
+        if(os.path.exists(hdf_fn)):
+            hdf_keys = get_hdf_keys(hdf_fn)
+
+            if(net_sta_loc in hdf_keys):
+                del_key = 'waveforms/%s' % net_sta_loc
+
+                with h5py.File(hdf_fn, "a") as fh:
+                    if (len(fh[del_key].keys())):
+                        del fh[del_key]
+                        if(logger): logger.info('Removing group {}'.format(del_key))
+                    # end if
+                # end with
+            # end if
+        # end if
+    except:
+        raise IOError('Failed to remove group: waveforms/{}'.format(net_sta_loc))
+    # end try
+# end func
 
 def phase_weights(stream):
     """Phase weighting takes all the traces in a stream and computes a weighting for each sample in the

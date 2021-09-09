@@ -1,1 +1,1 @@
-../../tests/seismic/xcorqc/data/test_data_ARMA.h5
+../../tests/test_seismic/xcorqc/data/test_data_ARMA.h5

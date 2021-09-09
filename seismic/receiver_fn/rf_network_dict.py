@@ -9,7 +9,9 @@ from collections import defaultdict
 
 
 class NetworkRFDict:
-    """Collection of RFs for a given network indexed by station code, channel code.
+    """
+    Collection of RFs for a given network indexed by station code, channel code.
+    Note that location codes are not taken into account.
     """
     def __init__(self, rf_stream):
         """Initialize from rf.RFStream

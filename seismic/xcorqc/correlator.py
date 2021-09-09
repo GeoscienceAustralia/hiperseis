@@ -474,7 +474,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                              'additional stats.')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 @click.option('--scratch-folder', default=None, help="Scratch folder for large jobs (e.g. $PBS_JOBFS on the NCI); "
-                                                     "default is to use the standard temp folder')
+                                                     "default is to use the standard temp folder")
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
          window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
          station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,

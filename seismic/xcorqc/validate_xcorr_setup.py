@@ -48,7 +48,7 @@ def test_setup():
 
     try:
         print("Opening ASDF file for reading")
-        afile = pyasdf.ASDFDataSet('../../tests/seismic/xcorqc/data/test_data_CMSA.h5', mode='r')
+        afile = pyasdf.ASDFDataSet('../../tests/test_seismic/xcorqc/data/test_data_CMSA.h5', mode='r')
         print("SUCCESS!")
     except:
         print("Failed opening ASDF file")

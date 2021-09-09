@@ -11,13 +11,12 @@ import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
-from adjustText import adjust_text
 
 #COLORMAP = "./moho_kennett.cpt"
 COLORMAP = ""
 
 
-def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code=None,
+def plot_spatial_map(grid_data, gradient_data, methods_datasets=None, projection_code=None,
                      title=None, feature_label=None, bounds=None, scale=None):
     """
     Make spatial plot of point dataset with filled contours overlaid on map.
@@ -103,24 +102,30 @@ def plot_spatial_map(grid_data, gradient_data, methods_datasets, projection_code
         cb.set_label(feature_label)
 
     # add station and value labels
-    sta_list = []
-    pt_data = []
-    for data in methods_datasets:
-        for i in np.arange(len(data.sta)):
-            sta_list.append(data.sta[i])
-            pt_data.append([data.lon[i], data.lat[i], data.val[i]])
-        # end for
-    # end for
-    pt_data = np.array(pt_data)
-    pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
+    if(methods_datasets):
+        sta_list = []
+        pt_data = []
+        for data in methods_datasets:
+            if(not data.label_on_plot): continue
 
-    cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
-    texts = []
-    for i in np.arange(len(pt_data)):
-        texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))
-        texts.append(cont_ax.text(pxy[i, 0] - .05, pxy[i, 1] - .05, pt_data[i, 2], fontdict={'size': .0001}))
-    # end for
-    #adjust_text(texts, lim=5)
+            for i in np.arange(len(data.sta)):
+                sta_list.append(data.sta[i])
+                pt_data.append([data.lon[i], data.lat[i], data.val[i]])
+            # end for
+        # end for
+
+        if(len(pt_data)):
+            pt_data = np.array(pt_data)
+            pxy = map_projection.transform_points(data_crs, pt_data[:,0], pt_data[:,1])[:, :2]
+
+            cont_ax.scatter(pxy[:,0], pxy[:,1], marker='o', s=0.05, zorder=2, alpha=0.3)
+            texts = []
+            for i in np.arange(len(pt_data)):
+                texts.append(cont_ax.text(pxy[i, 0] + .01, pxy[i, 1] + .01, sta_list[i], fontdict={'size':.0001}))
+                texts.append(cont_ax.text(pxy[i, 0] - .05, pxy[i, 1] - .05, pt_data[i, 2], fontdict={'size': .0001}))
+            # end for
+        # end if
+    # end if
 
     grad_ax.quiver(x, y, u, v, transform=data_crs, zorder=2, angles='xy', units='xy')
     # Hack: shrink gradient ax so it's the same size as contour ax (contour ax shrinks due to 

@@ -79,6 +79,7 @@ class ConfigConstants:
     VAL_NAME = 'val_name'
     SW_NAME = 'sw_name'
     DISABLE = 'disable'
+    LABEL_ON_PLOT = 'label_on_plot'
     INV_FILE = 'inventory_file'
     SCALE_LENGTH = 'scale_length'
     PLOT_FLAG = 'output_plot'
@@ -132,7 +133,7 @@ TOP_LEVEL_SUPPORTED_KEYS = [_cc.METHODS, _cc.PLOTTING, _cc.BOUNDS,
 DATA_PREP_SUPPORTED_KEYS = [_cc.DATA_TO_PREP, _cc.CORR_DATA, _cc.CORR_FUNC, _cc.CORR_OUT,
                             _cc.DATA_VAL, _cc.CORR_VAL]
 
-METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE, _cc.PRIORITY,
+METHOD_SUPPORTED_KEYS = [_cc.NAME, _cc.DATA, _cc.WEIGHT, _cc.DISABLE, _cc.LABEL_ON_PLOT, _cc.PRIORITY,
                          _cc.SCALE_LENGTH, _cc.VAL_NAME, _cc.SW_NAME, _cc.INV_FILE]
 
 PLOTTING_SUPPORTED_KEYS = [_cc.PLOT_FLAG, _cc.PLOT_PARAMS, 
@@ -209,7 +210,7 @@ def validate(config):
 
         scale_len = _try_lookup(params, _cc.SCALE_LENGTH,
                 f"method {name} requires spatial spread scale length in decimal degrees as field "
-                f"{_cc.SCALE_LENGTH} field")
+                f"{_cc.SCALE_LENGTH}")
         _check_type(scale_len, [float, int],
                 f"scale length for method {name} must be of type float or int")
 
@@ -437,6 +438,7 @@ class MethodDataset:
         self.name = method_params.get(_cc.NAME, 'undefined')
         self.scale_length = method_params.get(_cc.SCALE_LENGTH, None)
         self.priority = method_params.get(_cc.PRIORITY, -1)
+        self.label_on_plot = method_params.get(_cc.LABEL_ON_PLOT, False)
 
         # Parse data file
         # Scan for header
