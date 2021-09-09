@@ -8,8 +8,10 @@ module list
 
 source /g/data/ha3/Passive/Software/VENV/para_h5py/bin/activate
 
-which python3
-python3 -V
+export PYTHONPATH=$PYTHONPATH:/g/data/ha3/fxz547/Githubz/hiperseis
+
+which python
+python -V
 
 # pytest -v tests/
 
@@ -17,4 +19,4 @@ python3 -V
 #Currently Loaded Modulefiles:
 # 1) pbs   2) intel-mkl/2019.3.199   3) python3/3.7.4   4) hdf5/1.10.5p   5) openmpi/3.1.4   6) geos/3.8.0   7) proj/6.2.1  
 
-
+# python seismic/inventory/modify_inventory_files_with_new_metadata.py

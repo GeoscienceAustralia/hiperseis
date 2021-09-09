@@ -317,7 +317,13 @@ def read_response(resp_file ="/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_
 
     return resp_obj
 
-############################ Quick CLI testings
+#---------------------------------------------------------------------
+# Modify some input file paths if necessary 
+# source gadi_env.sh
+# python seismic/inventory/modify_inventory_files_with_new_metadata.py
+# TODO: Refactor the input file paths as commandline input
+#---------------------------------------------------------------------
+
 if __name__ == "__main__":
 
     print("The Obspy Version is ", obspy.__version__)
@@ -332,7 +338,7 @@ if __name__ == "__main__":
 
     # extra metadata info file(s) to be read and formatted into JSON
     # "/Datasets/GPS_ClockCorr/OA.CE28_clock_correction.csv" # "./OA.CF28_clock_correction.csv"
-    in_csv_file = os.path.join(METADB_DIR, "All_GPSClock_Correction.csv")
+    in_csv_file = os.path.join(METADB_DIR, "Ody_ClockCorr2021Sept.csv") # All_GPSClock_Correction.csv")
 
     # "/Datasets/Orientation_Correction_json/OA_ori_error_estimates.json"
     in_json_file = os.path.join(METADB_DIR, "OrientationCorr", "OA_ori_error_estimates.json")
