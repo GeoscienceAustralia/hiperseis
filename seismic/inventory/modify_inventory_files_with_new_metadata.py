@@ -70,7 +70,7 @@ class InvXML_Modifier:
         Construct a new inventory object of networks, making use of new obspy version and new attributes for Inventory
         re-write the input xml file in to new xml file
 
-                # The new network inventory has new <Module>ObsPy 1.2.1 and new <Source>
+        The new network inventory has new <Module>ObsPy 1.2.1 and new <Source>
         :return: path of new xml file
         """
 
@@ -222,13 +222,14 @@ class InvXML_Modifier:
             inv2.write(inv2_xml_file, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
                        validate=True)  # every Station got equipment
 
-            # Add responses:
-            resp_obj = read_response()
-            self.add_response_into_stationxml(inv2, resp_obj)
+            # Add responses and write out a new xml file with the responses data
+            # This requires further refine according to correct response files
+            # resp_obj = read_response()
+            # self.add_response_into_stationxml(inv2, resp_obj)
 
-            # and the original write out again to check what has been modified?
-            post_orig =  os.path.join(out_dir, a_net.code + "_stations_post_orig.xml")
-            big_inv.write(post_orig, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
+            # write out the original inv object again to check the changes with inv2 above (almost the same)
+            post_orig_file =  os.path.join(out_dir, a_net.code + "_stations_post_orig.xml")
+            big_inv.write(post_orig_file, format="stationxml", nsmap={'GeoscienceAustralia': GA_NameSpace},
                           validate=True)  # also has the Sensors etc
 
             return inv2_xml_file
@@ -319,7 +320,8 @@ def read_response(resp_file ="/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_
 
 #---------------------------------------------------------------------
 # Modify some input file paths if necessary 
-# source gadi_env.sh
+# source gadi_env.sh  or vdi_env.sh
+# export PYTHONPATH=$PYTHONPATH:~/Githubz/hiperseis  (IF import cannot find seismic package)
 # python seismic/inventory/modify_inventory_files_with_new_metadata.py
 # TODO: Refactor the input file paths as commandline input
 #---------------------------------------------------------------------
@@ -328,13 +330,14 @@ if __name__ == "__main__":
 
     print("The Obspy Version is ", obspy.__version__)
 
-    METADB_DIR = "/Datasets/Station_Extra_Metadata" #/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"
-    METADB_DIR = "/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"
+    # METADB_DIR = "/DATA/HiPerSeis/Station_Extra_Metadata" # in my Linux
+    METADB_DIR = "/g/data/ha3/Passive/SHARED_DATA/Inventory/Station_Extra_Metadata"  # at NCI
 
     # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7D_2012_2013.xml")
     # ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "7X_2009_2011_ASDF.xml")
     # "/Datasets/InventoryXml/OA_stations_2017-2018.xml"
     ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "OA_stations_2017-2018.xml")
+    ORIG_INVENTORY_FILE = os.path.join(METADB_DIR, "SrcInventoryXML", "network_AU_0.xml")
 
     # extra metadata info file(s) to be read and formatted into JSON
     # "/Datasets/GPS_ClockCorr/OA.CE28_clock_correction.csv" # "./OA.CF28_clock_correction.csv"
@@ -353,9 +356,9 @@ if __name__ == "__main__":
 
     my_obj = InvXML_Modifier(ORIG_INVENTORY_FILE, OUTPUT_DIR)
 
-    my_obj.check_invenory()
-    my_obj.split_inventory()
-    my_obj.write_new_version_inventory()
-    
+    # my_obj.check_invenory()
+    # my_obj.split_inventory()
+    # my_obj.write_new_version_inventory()
+
     # provide the right input data
     my_obj.modify_invenory(gps_clock_corr_csv=in_csv_file, orient_corr_json=in_json_file,equipment_csv=in_equip_csv)
