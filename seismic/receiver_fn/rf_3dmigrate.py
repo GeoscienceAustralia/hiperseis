@@ -44,7 +44,7 @@ def main(rf_h5_file, output_h5_file, fmin, fmax, min_slope_ratio):
     OUTPUT_H5_FILE: H5 output file name
 
     Example usage:
-        python rf_3dmigrate.py OA-ZRT-R-cleaned.h5 mig.h5 --min-slope-ratio 5 --fmin 0.1
+        mpirun -np 48 python rf_3dmigrate.py OA-ZRT-R-cleaned.h5 mig.h5 --min-slope-ratio 5 --fmin 0.1
     """
     log.setLevel(logging.DEBUG)
 

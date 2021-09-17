@@ -255,6 +255,7 @@ def app(image_fn, output_file_name, load_profile):
         Press 'h' on GUI for further help
     """
 
+    print(gui_help)
     state = State(image_fn, profile_fn=load_profile)
     state.show()
 
