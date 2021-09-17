@@ -14,7 +14,9 @@ import rf
 import os
 from collections import defaultdict
 import gdal
-
+import h5py
+from obspyh5 import iterh5
+from seismic.receiver_fn.rf_ccp_util import Gravity
 # below is work around of NCI python Basemap configuration problem, use line above for normal setup
 # from mympl_toolkits.basemap import Basemap
 
@@ -97,6 +99,30 @@ def gmtColormap(fileName):
     return (x, colors.LinearSegmentedColormap('my_colormap',colorDict,255))
 # end func
 
+def rf_get_coords(rf_fn):
+    coords = []
+    names = []
+
+    print('Reading RF station coordinates from {}..'.format(rf_fn))
+    hf = h5py.File(rf_fn, 'r')
+
+    for k1 in hf.keys():
+        for k2 in hf[k1].keys():
+            for k3 in hf[k1][k2].keys():
+                group = '{}/{}/{}'.format(k1,k2,k3)
+                for t in iterh5(rf_fn, group=group, headonly=True, mode='r'):
+                    coords.append([t.stats.station_longitude, t.stats.station_latitude])
+                    names.append(k2)
+                    break
+                # end func
+                break
+            # end for
+        # end for
+    # end for
+    coords = np.array(coords)
+    return names, coords
+# end func
+
 def plot_topo(coords, topo_grid, cpt_file):
 
     fig=plt.figure(figsize=(11.69,8.27))
@@ -136,6 +162,7 @@ def plot_topo(coords, topo_grid, cpt_file):
 #   m.drawmapscale(lon_min, lat_max, lon_max, lat_min, 400, fontsize = 16, barstyle='fancy', zorder=100)
 
     # Loading topography
+    print('Reading topography grid {}..'.format(topo_grid))
     nc = NetCDFFile(topo_grid)
     
     zscale =20. #gray
@@ -164,28 +191,19 @@ def plot_topo(coords, topo_grid, cpt_file):
     return m
 # end func
 
-def plot_grav(coords, grav_grid, cpt_file):
+def plot_grav(coords, grav_grid, cpt_file, resolution=1):
+    DEG2KM = 111.
+    dlonlat = resolution/DEG2KM
+
     # Loading gravity grid
-    ds = None
-    data = None
+    gravity = None
     try:
-        ds = gdal.Open(grav_grid, gdal.GA_ReadOnly)
-        data = np.flipud(ds.GetRasterBand(1).ReadAsArray())
+        print('Reading gravity grid {}..'.format(grav_grid))
+        gravity = Gravity(grav_grid)
     except Exception as e:
         print(str(e))
-        assert 0, 'Failed to load gravity grid'
+        assert 0, 'Failed to load gravity grid. Aborting..'
     # end try
-
-    gt = ds.GetGeoTransform()
-    xres = gt[1]
-    yres = gt[5]
-
-    # get the edge coordinates and add half the resolution
-    # to go to center coordinates
-    xmin = gt[0] + xres * 0.5
-    xmax = gt[0] + (xres * ds.RasterXSize) - xres * 0.5
-    ymin = gt[3] + (yres * ds.RasterYSize) + yres * 0.5
-    ymax = gt[3] - yres * 0.5
 
     # initialize plot
     fig=plt.figure(figsize=(11.69,8.27))
@@ -220,36 +238,27 @@ def plot_grav(coords, grav_grid, cpt_file):
     m.drawparallels(np.arange(-90.,90.,1.), labels=[1,0,0,0],fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
     m.drawmeridians(np.arange(0.,360.,1.), labels=[0,0,0,1], fontsize=8, dashes=[2, 2], color='0.5', linewidth=0.75)
 
-    lons, lats = np.meshgrid(np.linspace(xmin, xmax+xres, ds.RasterXSize),
-                             np.linspace(ymin, ymax+yres, ds.RasterYSize))
+    nx = int((lon_max - lon_min)/dlonlat + 1)
+    ny = int((lat_max - lat_min)/dlonlat + 1)
+    lons = np.linspace(lon_min, lon_max, nx)
+    lats = np.linspace(lat_min, lat_max, ny)
 
-    mask = (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
+    glons, glats = np.meshgrid(lons, lats)
+    vals = np.zeros(glons.shape)
+
+    for i in np.arange(glons.shape[0]):
+        for j in np.arange(glons.shape[1]):
+            vals[i,j] = gravity.query(glons[1,j], glats[i,j])
+        # end for
+    # end for
 
     zvals,cmap = gmtColormap(cpt_file)
-    cbinfo = m.pcolormesh(np.ma.masked_array(lons, mask=~mask),
-                          np.ma.masked_array(lats, mask=~mask),
-                          np.ma.masked_array(data, mask=~mask),
-                          latlon=True, cmap=cmap, shading='auto', rasterized=True)
+    cbinfo = m.pcolormesh(glons, glats, vals, latlon=True, cmap=cmap,
+                          shading='auto', rasterized=True)
 
     cbar = fig.colorbar(cbinfo)
 
     return m
-# end func
-
-def get_stations(stream):
-    stations=defaultdict(list)
-    for station in stream:
-        stations[station.stats.station] = [station.stats.station_longitude,station.stats.station_latitude]
-    # end for
-
-    names = []
-    coords = []
-    for k,v in stations.items():
-        names.append(k)
-        coords.append(v)
-    # end for
-
-    return names, np.array(coords)
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -278,10 +287,7 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
     python rf_plot_map.py topo OA_Yr2_event_waveforms.h5 au_gebco.nc mby_topo-bath.cpt tmp/
 
     """
-    #streams = rf.read_rf(rf_file, group='waveforms/OA.BK24.')
-    streams = rf.read_rf(rf_file, format='H5')
-
-    names, coords = get_stations(streams)
+    names, coords = rf_get_coords(rf_file)
 
     # initialization of map
     m = None
@@ -296,12 +302,13 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
                        markersize=2, alpha=0.3)
     labels = []
     for name, x, y in zip(names, lon, lat):
+        name = name.split('.')[1]
         labels.append(plt.text(x, y, name, fontdict={'fontsize':5}))
     # end for
 
     #adjust_text(labels, add_object=markers, ha='center', va='bottom')
 
-    net = streams[0].stats.network
+    net = names[0].split('.')[0]
 
     fname = os.path.join(output_path, net + '-{}-map.pdf'.format(plot_type))
     plt.savefig(fname)
