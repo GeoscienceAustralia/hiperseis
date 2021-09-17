@@ -29,7 +29,10 @@ from mpi4py import MPI
 from scipy.spatial import cKDTree
 from pyproj import Geod
 from shapely.geometry import Point, LineString
-from matplotlib.ticker import MultipleLocator
+import gdal
+from osgeo.gdalconst import *
+from affine import Affine
+import struct
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -51,6 +54,57 @@ def rtp2xyz(r, theta, phi):
     xout[:, 2] = r * np.cos(theta)
     return xout
 # end func
+
+class Gravity:
+    def __init__(self, gravity_grid_fn):
+        self._fn = gravity_grid_fn
+        self._ds = None
+        try:
+            self._ds = gdal.Open(self._fn, gdal.GA_ReadOnly)
+            self._band = self._ds.GetRasterBand(1)
+        except Exception as e:
+            print(str(e))
+            assert 0, 'Failed to load gravity grid. Aborting..'
+        # end try
+
+        self._gt = self._ds.GetGeoTransform()
+        self._affine_forward_transform = Affine.from_gdal(*self._gt)
+        self._affine_reverse_transform = ~(self._affine_forward_transform)
+        # end func
+
+    def _readPixel(self, px, py):
+        def translateFormat(pt):
+            fmttypes = {
+                GDT_Byte: 'B',
+                GDT_Int16: 'h',
+                GDT_UInt16: 'H',
+                GDT_Int32: 'i',
+                GDT_UInt32: 'I',
+                GDT_Float32: 'f',
+                GDT_Float64: 'd'
+            }
+            return fmttypes.get(pt, 'x')
+
+        # end func
+
+        structval = self._band.ReadRaster(int(px), int(py), 1, 1, buf_type=self._band.DataType)
+        val = struct.unpack(translateFormat(self._band.DataType), structval)[0]
+
+        if val == self._band.GetNoDataValue():
+            val = np.nan
+        # end if
+
+        return val
+    # end func
+
+    def query(self, lon, lat):
+        # Convert geographic co-ordinates to pixel co-ordinates
+        ipx, ipy = self._affine_reverse_transform * (lon, lat)
+        ipx, ipy = int(ipx + 0.5), int(ipy + 0.5)
+
+        return self._readPixel(ipx, ipy)
+    # end func
+# end class
 
 class Migrate:
     def __init__(self, rf_filename, min_slope_ratio=-1, earth_radius=6371, logger=None):
@@ -529,28 +583,33 @@ class CCP_VerticalProfile():
         print(self._grid_vals)
     # end func
 
-    def plot(self, ax, amp_min=-0.2, amp_max=0.2):
+    def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, gravity=None):
+        if(gax and gravity):
+            gvs = np.zeros(self._gx.shape)
+            for i in np.arange(self._nLateralNodes):
+                gvs[i] = gravity.query(self._lateralNodes[i, 0], self._lateralNodes[i, 1])
+            # end for
+
+            gax.plot(self._gx, gvs)
+            for pos in ['right', 'top']:
+                gax.spines[pos].set_visible(False)
+            # end for
+        # end if
+
         tickstep_x = 50
-        tickstep_y = 25
-        major_xlocstep = 50
-        minor_xlocstep = 5
-        major_ylocstep = 10
-        minor_ylocstep = 1
+        tickstep_y = 5
 
         ax.set_xlabel('Distance [km]', fontsize=12)
         ax.set_ylabel('Depth [km]', fontsize=12)
+        ax.tick_params(direction="in", labelleft=True, labelright=True)
 
-        ax.set_xticks(np.arange(0.0, np.max(self._gx) * 1.0001, tickstep_x))
+        ax.set_xticks(np.arange(0, np.max(self._gx) * 1.0001, tickstep_x))
         ax.set_yticks(np.arange(0, np.max(self._gd) * 1.0001, tickstep_y))
-        ax.tick_params(right=True, labelright=True, axis='y', labelsize=12)
-        ax.xaxis.set_major_locator(MultipleLocator(major_xlocstep))
-        ax.xaxis.set_minor_locator(MultipleLocator(minor_xlocstep))
-        ax.xaxis.set_tick_params(which='both', top=True)
-        ax.yaxis.set_major_locator(MultipleLocator(major_ylocstep))
-        ax.yaxis.set_minor_locator(MultipleLocator(minor_ylocstep))
-        ax.yaxis.set_tick_params(which='minor', right=True)
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+
         ax.grid(color='#808080', which='major', linestyle=':', alpha=0.5)
-        ax.grid(color='#a0a0a0', which='minor', linestyle=':', alpha=0.2, linewidth=0.5)
 
         cs = ax.contourf(self._gx, self._gd,
                          self._grid_vals,
@@ -566,8 +625,13 @@ class CCP_VerticalProfile():
                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
         # end for
 
-        ax.set_title('CCP Stack: {} --- {}'.format(self._net_sta_loc1, self._net_sta_loc2),
-                     fontdict={'fontsize': 14}, pad=40)
+        if(gax):
+            gax.set_title('CCP Stack: {} --- {}'.format(self._net_sta_loc1, self._net_sta_loc2),
+                          fontdict={'fontsize': 14}, pad=40)
+        else:
+            ax.set_title('CCP Stack: {} --- {}'.format(self._net_sta_loc1, self._net_sta_loc2),
+                         fontdict={'fontsize': 14}, pad=40)
+        # end if
+
     # end func
 # end class
-

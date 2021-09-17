@@ -15,13 +15,13 @@ Revision History:
 
 import os, sys
 import logging
-
+import numpy as np
 import click
 import json
 import matplotlib.pyplot as plt
 from PIL.PngImagePlugin import PngImageFile, PngInfo
 
-from seismic.receiver_fn.rf_ccp_util import CCPVolume, CCP_VerticalProfile
+from seismic.receiver_fn.rf_ccp_util import CCPVolume, CCP_VerticalProfile, Gravity
 
 @click.group()
 def groups():
@@ -60,6 +60,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(name='vertical', context_settings=CONTEXT_SETTINGS)
 @click.argument('ccp-h5-volume', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('profile-def', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.option('--gravity-grid', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
+              help='Gravity grid in tif/ers format. If provided, a gravity line-plot is added to each'
+                   ' vertical profile')
 @click.option('--dx', type=float, default=5, show_default=True,
               help='Horizontal distance-step (km) between start and end locations of a profile')
 @click.option('--dz', type=float, default=0.5, show_default=True,
@@ -88,21 +91,25 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'contribution of faraway values')
 @click.option('--pw-exponent', type=float, default=1, show_default=True,
               help='Exponent used in instantaneous phase-weighting of CCP amplitudes')
+@click.option('--amplitude-min', type=float, default=-0.2, show_default=True,
+              help='Minimum amplitude for colorbar normalization')
+@click.option('--amplitude-max', type=float, default=0.2, show_default=True,
+              help='Maximum amplitude for colorbar normalization')
 @click.option('--max-station-dist', type=float, default=10, show_default=True,
               help='Stations closer than max-station-dist (km) to a profile are labelled on plots')
 @click.option('--output-folder', type=str, default='./', show_default=True,
               help='Output folder')
 @click.option('--output-format', type=str, default='png', show_default=True,
               help='Output format')
-def vertical(ccp_h5_volume, profile_def, dx, dz, max_depth, swath_width, ds, extend, cell_radius,
-             idw_exponent, pw_exponent, max_station_dist, output_folder, output_format):
+def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_width, ds, extend, cell_radius,
+             idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist, output_folder, output_format):
     """ Plot CCP vertical profile \n
     CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
     PROFILE_DEF: text file containing start and end locations of each vertical profile as\n
                  NET.STA.LOC-NET.STA.LOC in each line\n\n
 
     Example usage:\n
-        python plot_ccp.pt vertical OA_ccp_volume.h5 slice_def.txt\n
+        python plot_ccp.py vertical OA_ccp_volume.h5 slice_def.txt\n
     """
     log.setLevel(logging.DEBUG)
 
@@ -113,6 +120,12 @@ def vertical(ccp_h5_volume, profile_def, dx, dz, max_depth, swath_width, ds, ext
     log.info('Loading profile definition file {}..'.format(profile_def))
     profiles = read_profile_def(profile_def, vol)
 
+    gravity = None
+    if(gravity_grid):
+        log.info('Loading gravity grid {}..'.format(gravity_grid))
+        gravity = Gravity(gravity_grid)
+    # end if
+
     for s, e in profiles:
         log.info('Processing {}..'.format('-'.join([s, e])))
 
@@ -121,18 +134,28 @@ def vertical(ccp_h5_volume, profile_def, dx, dz, max_depth, swath_width, ds, ext
                                     cell_radius=cell_radius, idw_exponent=idw_exponent,
                                     pw_exponent=pw_exponent, max_station_dist=max_station_dist)
 
-        fig, ax = plt.subplots()
+        fig, gax, ax = None, None, None
+        if(gravity):
+            fig, (gax, ax) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 5]}, sharex=True)
+        else:
+            fig, ax = plt.subplots()
+        # end if
+
         fig.set_size_inches((20, 10))
+        fig.set_dpi(300)
 
-        vprof.plot(ax)
+        # plot profile
+        vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, gravity=gravity)
+
         fname = os.path.join(output_folder, '{}-{}.{}'.format(s, e, output_format))
-
-        plt.savefig(fname, dpi=300)
+        fig.savefig(fname)
 
         if(output_format.lower() == 'png'):
             # write meta-data for translating digitization
             d = {'lon1': vprof._lon1, 'lat1': vprof._lat1,
-                 'lon2': vprof._lon2, 'lat2': vprof._lat2}
+                 'lon2': vprof._lon2, 'lat2': vprof._lat2,
+                 'x1':np.min(vprof._gx), 'y1':np.min(vprof._gd),
+                 'x2':np.max(vprof._gx), 'y2':np.max(vprof._gd)}
             sd = json.dumps(d)
 
             img = PngImageFile(fname)
