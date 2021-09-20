@@ -45,16 +45,16 @@ def main():
                         required=False)
 
     # Debugging
-    sys.argv = [
-        'C:/Users/sheec/Desktop/Project/genquakeml/genquakeml/__main__.py',
-        '-o', '/home/ssr/Desktop/Work/hiperseis/seismic/catalog/downloadquakeml/data',
-        '-s', '2021-05-24T09:27:00',
-        '-e', '2021-06-24T09:27:00',
-        '-a', "GA",
-        '-n', "3.7",
-        '-x', "4",
-        '-b', '[-58, 100, -2, 200]'
-    ]
+    # sys.argv = [
+    #     'C:/Users/sheec/Desktop/Project/genquakeml/genquakeml/__main__.py',
+    #     '-o', '/home/ssr/Desktop/Work/hiperseis/seismic/catalog/downloadquakeml/data',
+    #     '-s', '2021-05-24T09:27:00',
+    #     '-e', '2021-06-24T09:27:00',
+    #     '-a', "GA",
+    #     '-n', "3.7",
+    #     '-x', "4",
+    #     '-b', '[-58, 100, -2, 200]'
+    # ]
     args = parser.parse_args()
 
     logging.info("Running GenQuakeML")
