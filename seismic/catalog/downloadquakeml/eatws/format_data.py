@@ -1,12 +1,12 @@
 import pickle
 from obspy import UTCDateTime
-from obspy.core.event import Magnitude, Catalog, Event, Origin, Pick, Arrival, CreationInfo, WaveformStreamID, QuantityError, OriginQuality, OriginUncertainty, EventDescription
+from obspy.core.event import Magnitude, Catalog, Event, Origin, Pick, Arrival, CreationInfo, WaveformStreamID, \
+    QuantityError, OriginQuality, OriginUncertainty, EventDescription
 from obspy.geodetics import FlinnEngdahl
 from pprint import pprint
 
 
 def calculate_backazimuth_from_azimuth(azimuth):
-
     if azimuth < 180:
         return azimuth + 180
     return azimuth - 180
@@ -17,7 +17,7 @@ def get_arrivals_and_picks(event_data):
     picks = []
     for station_information in event_data["station_information"]["features"]:
         pick_object = Pick(
-            resource_id="pick_id_"+str(station_information["properties"]["arrival_id"]),
+            resource_id="pick_id_" + str(station_information["properties"]["arrival_id"]),
             force_resource_id=True,
             time=UTCDateTime(station_information["properties"]["arrival_time"]),
             time_errors=QuantityError(),
@@ -49,9 +49,9 @@ def get_arrivals_and_picks(event_data):
         )
 
         arrival_object = Arrival(
-            resource_id="arrival_id_"+str(station_information["properties"]["arrival_id"]),
+            resource_id="arrival_id_" + str(station_information["properties"]["arrival_id"]),
             force_resource_id=False,
-            pick_id="pick_id_"+str(station_information["properties"]["arrival_id"]),
+            pick_id="pick_id_" + str(station_information["properties"]["arrival_id"]),
             phase=station_information["properties"]["phase"],
             # time_correction=None,
             azimuth=station_information["properties"]["azimuth"],
@@ -80,7 +80,6 @@ def get_arrivals_and_picks(event_data):
 
 
 def get_origins(event_data, arrivals, origin_id):
-
     origins = [Origin(
         resource_id=origin_id,
         force_resource_id=False,
@@ -123,7 +122,8 @@ def get_origins(event_data, arrivals, origin_id):
             # horizontal_uncertainty=None,
             min_horizontal_uncertainty=event_data["event_details"]["properties"]["min_horizontal_uncertainty"],
             max_horizontal_uncertainty=event_data["event_details"]["properties"]["max_horizontal_uncertainty"],
-            azimuth_max_horizontal_uncertainty=event_data["event_details"]["properties"]["azimuth_horizontal_uncertainty"],
+            azimuth_max_horizontal_uncertainty=event_data["event_details"]["properties"][
+                "azimuth_horizontal_uncertainty"],
             # confidence_ellipsoid=None,
             # preferred_description=None,
             # confidence_level=None
@@ -146,7 +146,7 @@ def get_magnitude(event_data, origin_id):
     for magnitude_information in event_data["magnitudes_information"]["features"]:
         if magnitude_information["properties"]["evaluation_status"] == "confirmed":
             magnitudes = [Magnitude(
-                resource_id="magnitude_id_"+ str(magnitude_information["properties"]["earthquake_id"]),
+                resource_id="magnitude_id_" + str(magnitude_information["properties"]["earthquake_id"]),
                 force_resource_id=False,
                 mag=magnitude_information["properties"]["magnitude"],
                 mag_errors=QuantityError(),
@@ -171,7 +171,7 @@ def get_magnitude(event_data, origin_id):
 
 def get_event(event_data, picks, origins, magnitudes):
     event = Event(
-        resource_id="resource_id_"+event_data["event_details"]["properties"]["event_id"],
+        resource_id="resource_id_" + event_data["event_details"]["properties"]["event_id"],
         force_resource_id=False,
         event_type="earthquake",
         event_type_certainty="known",
@@ -194,9 +194,8 @@ def get_event(event_data, picks, origins, magnitudes):
 
 
 def save_eatws_data_to_quakeml(event_data, output_data_file):
-
     arrivals, picks = get_arrivals_and_picks(event_data)
-    origin_id = "origins_id_"+event_data["event_details"]["properties"]["origin_id"]
+    origin_id = "origins_id_" + event_data["event_details"]["properties"]["origin_id"]
     origins = get_origins(event_data, arrivals, origin_id)
     magnitudes = get_magnitude(event_data, origin_id)
     event = get_event(event_data, picks, origins, magnitudes)
