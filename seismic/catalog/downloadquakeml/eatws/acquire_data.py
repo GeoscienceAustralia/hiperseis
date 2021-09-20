@@ -5,7 +5,7 @@ from pprint import pprint
 from .constants import GA_EATWS_API
 
 
-def get_list_of_events(start_time, end_time, min_magnitude, max_magnitude):
+def get_list_of_events(start_time, end_time, min_magnitude, max_magnitude, bounding_box):
     url = GA_EATWS_API + "/wfs?service=WFS&request=getfeature&typeNames=earthquakes:earthquakes&outputFormat=application/json&CQL_FILTER=display_flag=%27Y%27%20AND%20located_in_australia=%27Y%27%20AND%20preferred_magnitude%3E=" + str(
         min_magnitude) + "%20AND%20preferred_magnitude%3C=" + str(
         max_magnitude) + "%20AND%20origin_time%20BETWEEN%20" + start_time + "Z%20AND%20" + end_time + "Z"
@@ -13,7 +13,19 @@ def get_list_of_events(start_time, end_time, min_magnitude, max_magnitude):
     response = requests.get(url)
     if response.status_code == 400:
         return {'features': [], 'totalFeatures': 0}
-    return response.json()
+
+    # remove event if its not within the bounding_box
+    min_latitude, min_longitude, max_latitude, max_longitude = bounding_box
+    print("min_latitude, min_longitude, max_latitude, max_longitude", bounding_box)
+    results = response.json()
+    features = []
+    for event in results["features"]:
+        longitude, latitude = event["geometry"]["coordinates"]
+        print("current event latitude, longitude", longitude, latitude)
+        if min_longitude < longitude < max_longitude and min_latitude < latitude < max_latitude:
+            features.append(event)
+    results["features"] = features
+    return results
 
 
 def get_station_information(earthquake_id):
@@ -47,8 +59,8 @@ def compile_event_information(event_details):
     return event_data
 
 
-def acquire_native_eatws_data(start_time, end_time, min_magnitude, max_magnitude):
-    list_of_events = get_list_of_events(start_time, end_time, min_magnitude, max_magnitude)
+def acquire_native_eatws_data(start_time, end_time, min_magnitude, max_magnitude, bounding_box):
+    list_of_events = get_list_of_events(start_time, end_time, min_magnitude, max_magnitude, bounding_box)
     print("Total events found: " + str(list_of_events["totalFeatures"]))
 
     # Debugging
