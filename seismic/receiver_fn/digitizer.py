@@ -85,10 +85,10 @@ class State:
                                  fill_value='extrapolate')
 
             # draw calibration markers
-            self._gui_circle(self._px1, self._py1, color=(0,0,255), radius=3,
-                             add_to_master=True)
-            self._gui_circle(self._px2, self._py2, color=(0,255,0), radius=3,
-                             add_to_master=True)
+            self._gui_cross_hairs(self._px1, self._py1, color=(255,0,255), radius=25,
+                                  thickness=2, add_to_master=True)
+            self._gui_cross_hairs(self._px2, self._py2, color=(255,0,255), radius=25,
+                                  thickness=2, add_to_master=True)
 
             self._calibrated = True
             if(self._profile_fn): self._load_profile()
@@ -151,6 +151,19 @@ class State:
         cv2.imshow(self._window_name, self._work_img)
     # end func
 
+    def _gui_cross_hairs(self, x, y, color=(0,0,0), radius=10, thickness=1, add_to_master=True):
+        if(add_to_master):
+            cv2.line(self._master_img, (x-radius-thickness, y), (x+radius+thickness, y), color, thickness=thickness)
+            cv2.line(self._master_img, (x, y-radius-thickness), (x, y+radius+thickness), color, thickness=thickness)
+            cv2.circle(self._master_img, (x, y), radius, color, thickness=thickness)
+        # end if
+
+        cv2.line(self._work_img, (x-radius-thickness, y), (x+radius+thickness, y), color, thickness=thickness)
+        cv2.line(self._work_img, (x, y-radius-thickness), (x, y+radius+thickness), color, thickness=thickness)
+        cv2.circle(self._work_img, (x, y), radius, color, thickness=thickness)
+        cv2.imshow(self._window_name, self._work_img)
+    # end func
+
     def _gui_message(self, text, x=None, y=None, color=(0, 0, 0), scale=5, clean=True):
         if(clean): self._work_img = self._master_img.copy()
 
@@ -175,7 +188,7 @@ class State:
 
     def show(self):
         cv2.imshow(self._window_name, self._work_img)
-        cv2.resizeWindow(self._window_name, 1200, 800)
+        cv2.resizeWindow(self._window_name, 1600, 900)
     # end func
 
     def undo_digitization_step(self):
