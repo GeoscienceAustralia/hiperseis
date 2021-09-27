@@ -637,7 +637,7 @@ class CCP_VerticalProfile():
 # end class
 
 class CCP_DepthProfile():
-    def __init__(self, ccpVolume, net_sta_loc1, net_sta_loc2, depth, dx=5, dy=5,
+    def __init__(self, ccpVolume, net_sta_loc1, net_sta_loc2, depth, dx=5, dy=5, dz=1,
                  extend=50, cell_radius=40, idw_exponent=2, pw_exponent=1):
         self._ccpVolume = ccpVolume
 
@@ -650,6 +650,7 @@ class CCP_DepthProfile():
         self._depth = depth
         self._dx = dx
         self._dy = dy
+        self._dz = dz
         self._extend = extend
         self._cell_radius = cell_radius
         self._idw_exponent = idw_exponent
@@ -746,7 +747,7 @@ class CCP_DepthProfile():
 
     # end func
 
-    def _interpolate(self, dz=1):
+    def _interpolate(self):
         ER = self._ccpVolume._earth_radius
         gxyz = rtp2xyz(self._grid[:, 0],
                        np.radians(90 - self._grid[:, 2]),
@@ -767,7 +768,7 @@ class CCP_DepthProfile():
 
             indices = np.array(indices)
 
-            indices = indices[np.fabs(data[indices, 3] - (ER - self._grid[i, 0])) < dz]
+            indices = indices[np.fabs(data[indices, 3] - (ER - self._grid[i, 0])) < self._dz]
             if (len(indices) == 0): continue
 
             d = np.zeros(len(indices))
@@ -807,6 +808,9 @@ class CCP_DepthProfile():
             ax.scatter(distx, disty, s=0.1, marker='x', c='k')
         # end for
 
-        print(np.reshape(self._grid_vals, (self._gy.shape[0], self._gx.shape[0])))
+        ax.set_title('CCP Depth profile: {} km'.format(self._depth),
+                     fontdict={'fontsize': 14}, pad=40)
+
+        #print(np.reshape(self._grid_vals, (self._gy.shape[0], self._gx.shape[0])))
     # end func
 # end class
