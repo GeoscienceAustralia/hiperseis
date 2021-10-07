@@ -8,14 +8,38 @@ import os
 import numpy as np
 import click
 import rf
-
+import pandas as pd
 from seismic.receiver_fn import rf_util, rf_corrections
+from collections import defaultdict
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
+def read_weights(file_name, network_name):
+    df = None
+    try:
+        df = pd.read_csv(file_name, skiprows=2)
+    except:
+        assert 0, 'failed to read {}. Aborting..'.format(file_name)
+    # end if
 
-def rf_inversion_export(input_h5_file, output_folder, network_code, min_slope_ratio=-1, dereverberate=False,
-                        component='R', resample_freq=6.25, trim_window=(-5.0, 20.0), moveout=True):
+    result = defaultdict(float)
+
+    for i in np.arange(len(df)):
+        if(df.iloc[i, 0] == network_name):
+            result[df.iloc[i, 1]] = df.iloc[i, -1]
+        # end if
+    # end for
+
+    if(not len(result)):
+        assert 0, 'No weights found in {} for network {}'.format(file_name, network_name)
+    # end if
+
+    return result
+# end func
+
+def rf_inversion_export(input_h5_file, output_folder, network_code, station_weights_fn=None, min_station_weight=-1,
+                        min_slope_ratio=-1, dereverberate=False, component='R', resample_freq=6.25,
+                        trim_window=(-5.0, 20.0), moveout=True):
     """Export receiver function to text format for ingestion into Fortran RF inversion code.
 
     :param input_h5_file: Input hdf5 file containing receiver function data
@@ -40,18 +64,19 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, min_slope_ra
     # Process for each station:
     # 1. Load hdf5 file containing RFs
     # 2. Filter to desired component.
-    # 3. Apply min-slope-ratio filter if provided.
-    # 4. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
-    # 5. Moveout and stack the RFs
-    # 6. Resample (lanczos) and trim RF
-    # 7. Export one file per station in (time, amplitude format)
+    # 3. Filter stations that fail the minimum-weight criteria
+    # 4. Apply min-slope-ratio filter if provided.
+    # 5. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
+    # 6. Moveout and stack the RFs
+    # 7. Resample (lanczos) and trim RF
+    # 8. Export one file per station in (time, amplitude format)
 
     output_folder += "_" + network_code
     if not os.path.isdir(output_folder):
         os.makedirs(output_folder, exist_ok=True)
     # end if
 
-    #data = rf_util.read_h5_rf(input_h5_file, network='OA', station='CI23', loc='0M')
+    #data = rf_util.read_h5_rf(input_h5_file, network='OA', station='BS24', loc='0M')
     data = rf_util.read_h5_rf(input_h5_file)
 
     data = data.select(component=component)
@@ -60,8 +85,19 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, min_slope_ra
     data = rf.RFStream([tr for tr in data if tr.stats.predicted_quality == 'a'])
 
     data_dict = rf_util.rf_to_dict(data)
+    weights_dict = None
+    if(station_weights_fn): weights_dict = read_weights(station_weights_fn, network_code)
 
     for sta, ch_dict in data_dict:
+        if(weights_dict):
+            if(weights_dict[sta] < min_station_weight):
+                print('Skipping station {}: weight {} falls below the minimum weight({})'.format(sta,
+                                                                                                 weights_dict[sta],
+                                                                                                 min_station_weight))
+                continue
+            # end if
+        # end if
+
         for cha, ch_traces in ch_dict.items():
             if len(ch_traces) < 3:
                 continue
@@ -140,15 +176,23 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, min_slope_ra
 @click.argument('output-folder', type=click.Path(dir_okay=True), required=True)
 @click.option('--network-code', type=str, required=True,
               help='Network code that this input file is for. Appended to output folder name.')
+@click.option('--station-weights', type=str, default=None, show_default=True,
+              help='A comma-separated text file containing network and station in the first two columns, '
+                   'respectively, with the last column being the weight')
+@click.option('--min-station-weight', type=float, default=-1, show_default=True,
+              help='Stations with a weight below this value are discarded. Note that this parameter '
+                   'has no effect if --station-weights is not specified')
 @click.option('--min-slope-ratio', type=float, default=-1, show_default=True,
               help='Apply filtering to the RFs based on the "slope_ratio" metric '
                    'that indicates robustness of P-arrival. Typically, a minimum '
                    'slope-ratio of 5 is able to pick out strong arrivals. The '
                    'default value of -1 does not apply this filter')
 @click.option('--dereverberate', is_flag=True, default=False, help='Apply de-reverberation filter')
-def main(input_file, output_folder, network_code, min_slope_ratio, dereverberate):  # pylint: disable=missing-docstring
-    rf_inversion_export(input_file, output_folder, network_code,
-                        min_slope_ratio=min_slope_ratio, dereverberate=dereverberate)
+def main(input_file, output_folder, network_code, station_weights, min_station_weight,
+         min_slope_ratio, dereverberate):  # pylint: disable=missing-docstring
+    rf_inversion_export(input_file, output_folder, network_code, station_weights_fn=station_weights,
+                        min_station_weight=min_station_weight, min_slope_ratio=min_slope_ratio,
+                        dereverberate=dereverberate)
 # end func
 
 
