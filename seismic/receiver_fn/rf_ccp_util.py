@@ -28,7 +28,7 @@ from scipy.signal import hilbert
 from mpi4py import MPI
 from scipy.spatial import cKDTree
 from pyproj import Geod
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, Polygon
 import gdal
 from osgeo.gdalconst import *
 from affine import Affine
@@ -579,8 +579,8 @@ class CCP_VerticalProfile():
         pw = np.reshape(np.array(swath_grid_iphase_weights),
                        (self._gs.shape[0], self._gd.shape[0], self._gx.shape[0]))
 
-        self._grid_vals = np.mean(v * np.power(np.abs(pw), self._pw_exponent), axis=0)  # todo
-        print(self._grid_vals)
+        self._grid_vals = np.mean(v * np.power(np.abs(pw), self._pw_exponent), axis=0)
+        #print(self._grid_vals)
     # end func
 
     def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, gravity=None):
@@ -633,5 +633,184 @@ class CCP_VerticalProfile():
                          fontdict={'fontsize': 14}, pad=40)
         # end if
 
+    # end func
+# end class
+
+class CCP_DepthProfile():
+    def __init__(self, ccpVolume, net_sta_loc1, net_sta_loc2, depth, dx=5, dy=5, dz=1,
+                 extend=50, cell_radius=40, idw_exponent=2, pw_exponent=1):
+        self._ccpVolume = ccpVolume
+
+        self._net_sta_loc1 = net_sta_loc1
+        self._net_sta_loc2 = net_sta_loc2
+        self._lon1 = None
+        self._lat1 = None
+        self._lon2 = None
+        self._lat2 = None
+        self._depth = depth
+        self._dx = dx
+        self._dy = dy
+        self._dz = dz
+        self._extend = extend
+        self._cell_radius = cell_radius
+        self._idw_exponent = idw_exponent
+        self._pw_exponent = pw_exponent
+        self._length_x = None
+        self._length_y = None
+        self._nx = None
+        self._ny = None
+
+        self._ynodes = None
+        self._grid = None
+        self._gx = None
+        self._gy = None
+        self._gs = None
+        self._gmeta = None
+        self._grid_vals = None
+
+        # fetch coordinates from CCP-volume
+        lon1 = lat1 = lon2 = lat2 = None
+        try:
+            lon1, lat1 = self._ccpVolume._meta[net_sta_loc1][:2]
+            lon2, lat2 = self._ccpVolume._meta[net_sta_loc2][:2]
+        except Exception as e:
+            print(str(e))
+            assert 0, 'Station not found. Aborting..'
+        # end try
+
+        self._generateGrid(lon1, lat1, lon2, lat2)
+        self._interpolate()
+
+    # end func
+
+    def _generateGrid(self, lon1, lat1, lon2, lat2):
+        geod = Geod(ellps="WGS84")
+
+        # extend profile
+        az, baz, _ = geod.inv(lon1, lat1, lon2, lat2)
+
+        self._lon1, self._lat1, _ = geod.fwd(lon1, lat1, baz, self._extend * 1e3)
+        self._lon2, self._lat2, _ = geod.fwd(lon2, lat2, az, self._extend * 1e3)
+
+        self._length_x = geod.geometry_length(LineString([Point(self._lon1, self._lat1),
+                                                          Point(self._lon2, self._lat1)])) / 1e3
+        self._length_y = geod.geometry_length(LineString([Point(self._lon1, self._lat1),
+                                                          Point(self._lon1, self._lat2)])) / 1e3
+
+        self._nx = np.int_(np.ceil(self._length_x / self._dx)) + 1
+        self._ny = np.int_(np.ceil(self._length_y / self._dy)) + 1
+
+        self._ynodes = np.vstack([np.array([self._lon1, self._lat1]),
+                                  np.array(geod.npts(self._lon1, self._lat1,
+                                                     self._lon1, self._lat2,
+                                                     self._ny - 2)),
+                                  np.array([self._lon1, self._lat2])])
+
+        r = self._ccpVolume._earth_radius - self._depth
+        az, baz, _ = geod.inv(self._lon1, self._lat1, self._lon2, self._lat1)
+
+        # Assemble 3D nodes
+        self._grid = np.zeros((self._nx * self._ny, 3))
+        for i in np.arange(self._ny):
+            startLon, startLat = self._ynodes[i]
+            endLon, endLat, _ = geod.fwd(startLon, startLat, az, self._length_x * 1e3)
+            xnodes = np.vstack([np.array([startLon, startLat]),
+                                np.array(geod.npts(startLon, startLat, endLon, endLat, self._nx - 2)),
+                                np.array([endLon, endLat])])
+
+            for j in np.arange(self._nx):
+                idx = i * self._nx + j
+                self._grid[idx, :] = np.array([r, xnodes[j, 0], xnodes[j, 1]])
+            # end for
+        # end for
+
+        self._gx = np.linspace(0, self._length_x, self._nx)
+        self._gy = np.linspace(0, self._length_y, self._ny)
+
+        # Gather metadata
+        p = Polygon([(self._lon1, self._lat1), (self._lon2, self._lat1),
+                     (self._lon2, self._lat2), (self._lon1, self._lat2)])
+        self._gmeta = {}
+        for k in self._ccpVolume._meta.keys():
+            attrs = self._ccpVolume._meta[k]
+
+            site = Point(attrs[0], attrs[1])
+            if (p.contains(site)):
+                distx = geod.geometry_length(LineString([Point(self._lon1, self._lat1),
+                                                         Point(attrs[0], self._lat1)])) / 1e3
+                disty = geod.geometry_length(LineString([Point(self._lon1, self._lat1),
+                                                         Point(self._lon1, attrs[1])])) / 1e3
+
+                self._gmeta[k] = {'distx': distx, 'disty': disty, 'corrected': attrs[-1]}
+            # end if
+        # end for
+
+    # end func
+
+    def _interpolate(self):
+        ER = self._ccpVolume._earth_radius
+        gxyz = rtp2xyz(self._grid[:, 0],
+                       np.radians(90 - self._grid[:, 2]),
+                       np.radians(self._grid[:, 1]))
+
+        grid_vals = np.zeros(gxyz.shape[0])
+        grid_iphase_weights = np.zeros(len(gxyz), dtype=np.complex)
+
+        p = self._idw_exponent
+        r = self._cell_radius
+        tree = self._ccpVolume._tree
+        data = self._ccpVolume._data
+
+        for i in np.arange(gxyz.shape[0]):
+            indices = np.array(tree.query_ball_point(gxyz[i, :], r=r))
+
+            if (len(indices) == 0): continue
+
+            indices = np.array(indices)
+
+            indices = indices[np.fabs(data[indices, 3] - (ER - self._grid[i, 0])) < self._dz]
+            if (len(indices) == 0): continue
+
+            d = np.zeros(len(indices))
+            d[:] = np.sqrt(np.sum(np.power(gxyz[i] - data[indices, :3], 2), axis=1))
+
+            idwIndices = indices
+            idw = np.zeros(d.shape)
+            idw = 1. / np.power(d, p)
+
+            grid_iphase_weights[i] = np.mean(data[idwIndices, 5] + 1j * data[idwIndices, 6])
+            grid_vals[i] = np.sum(idw * data[idwIndices, 4]) / np.sum(idw) * \
+                           np.power(np.abs(grid_iphase_weights[i]), self._pw_exponent)
+        # end for
+
+        self._grid_vals = grid_vals
+
+    # end func
+
+    def plot(self, ax, amp_min=-0.2, amp_max=0.2):
+        ax.set_xlabel('Distance [km]', fontsize=12)
+        ax.set_ylabel('Distance [km]', fontsize=12)
+
+        cs = ax.contourf(self._gx, self._gy,
+                         np.reshape(self._grid_vals, (self._gy.shape[0], self._gx.shape[0])),
+                         cmap='seismic', levels=np.linspace(amp_min, amp_max, 100))
+        for c in cs.collections:
+            c.set_rasterized(True)
+        # end for
+
+        for k in self._gmeta.keys():
+            distx = self._gmeta[k]['distx']
+            disty = self._gmeta[k]['disty']
+            ax.text(distx, disty, "{}{}".format('*' if self._gmeta[k]['corrected'] else '', k),
+                    horizontalalignment='right', alpha=0.2,
+                    bbox=dict(facecolor='none', alpha=0.4, edgecolor='none'),
+                    fontsize=4, backgroundcolor='#ffffffa0')
+            ax.scatter(distx, disty, s=0.1, marker='x', c='k')
+        # end for
+
+        ax.set_title('CCP Depth profile: {} km'.format(self._depth),
+                     fontdict={'fontsize': 14}, pad=40)
+
+        #print(np.reshape(self._grid_vals, (self._gy.shape[0], self._gx.shape[0])))
     # end func
 # end class
