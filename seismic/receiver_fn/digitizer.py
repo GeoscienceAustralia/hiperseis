@@ -210,7 +210,7 @@ class State:
                                         self._meta['y2'])
         ds = '#' + json.dumps(json.loads(d))
         print(ds, file=file)
-        print('#pixel-x pixel-y longitude    latitude    depth', file=file)
+        print('#pixel-x pixel-y longitude    latitude    distance    depth', file=file)
         for dc in self._digitization_coords:
             px = dc[0]
             py = dc[1]
@@ -228,7 +228,7 @@ class State:
                                                self._baz, -dist * 1e3) # dist in m
             # end if
 
-            print('{:7d} {:7d} {:3.7f} {:3.7f} {:5.7f}'.format(px, py, elon, elat, depth), file=file)
+            print('{:7d} {:7d} {:3.7f} {:3.7f} {:5.7f} {:5.7f}'.format(px, py, elon, elat, dist, depth), file=file)
         # end for
     # end func
 # end class
