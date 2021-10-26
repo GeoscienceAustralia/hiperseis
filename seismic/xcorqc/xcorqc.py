@@ -34,7 +34,7 @@ from scipy import signal
 
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.xcorqc.utils import get_stream
+from seismic.xcorqc.utils import get_stream, fill_gaps
 from netCDF4 import Dataset
 from functools import reduce
 from seismic.xcorqc.utils import SpooledXcorrResults 
@@ -212,6 +212,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 wtr1s = int(np.ceil(itr1e))
                 wtr2s = int(np.ceil(itr2e))
                 continue
+            # end if
+
+            # Attempt to fill small gaps (3s or smaller in length)
+            if (np.ma.is_masked(tr1_d_all[wtr1s:wtr1e])):
+                tr1_d_all[wtr1s:wtr1e] = fill_gaps(tr1_d_all[wtr1s:wtr1e], dt=1./sr1)
+            # end if
+
+            if (np.ma.is_masked(tr2_d_all[wtr2s:wtr2e])):
+                tr2_d_all[wtr2s:wtr2e] = fill_gaps(tr2_d_all[wtr2s:wtr2e], dt=1./sr2)
             # end if
 
             # Discard windows with masked regions, i.e. with gaps or windows that are all zeros

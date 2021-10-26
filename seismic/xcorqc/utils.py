@@ -6,6 +6,7 @@ from collections import defaultdict
 from obspy import UTCDateTime, read_inventory, Inventory, Stream
 from obspy.geodetics.base import gps2dist_azimuth
 from tempfile import SpooledTemporaryFile
+from scipy.interpolate import interp1d
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -62,6 +63,34 @@ def drop_bogus_traces(st, sampling_rate_cutoff=1):
     badTraces = [tr for tr in st if tr.stats.sampling_rate < sampling_rate_cutoff]
 
     for tr in badTraces: st.remove(tr)
+# end func
+
+def fill_gaps(data, dt, max_gap_seconds=3):
+    """
+    Fills gaps <= max_gap_seconds in length via linear interpolation
+    """
+
+    if (not np.ma.is_masked(data)): return data
+
+    gaps = np.ma.clump_masked(data)
+
+    for gap in gaps:
+        s, e = gap.start, gap.stop
+        if ((e - s) * dt > max_gap_seconds):
+            return data
+    # end for
+
+    valIndices = np.ma.where(~data.mask)[0]
+
+    if (valIndices.shape[0] < 2): return data
+
+    tOld = valIndices * dt
+    tNew = np.arange(data.shape[0]) * dt
+
+    io = interp1d(tOld, data[valIndices], bounds_error=False, fill_value='extrapolate')
+
+    result = io(tNew)
+    return result
 # end func
 
 def _get_stream_00T(fds, net, sta, cha, start_time, end_time,

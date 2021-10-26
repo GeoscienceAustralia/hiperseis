@@ -35,6 +35,8 @@ import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
 import pickle as cPickle
+import pandas as pd
+from rtree import index
 
 logging.basicConfig()
 
@@ -129,8 +131,112 @@ class _FederatedASDFDataSetImpl():
         self.db_fn = os.path.join(os.path.dirname(self.asdf_source),  self.source_sha1 + '.db')
         self.masterinv = None
         self.create_database()
+        self._load_corrections()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
+    # end func
+
+    def _load_corrections(self):
+        self.correction_files = []
+        self.correction_map_tree = defaultdict(lambda: defaultdict(list))
+        self.correction_map_bounds = defaultdict(lambda: defaultdict(list))
+        self.correction_map_values = defaultdict(lambda: defaultdict(list))
+
+        pattern = os.path.join(os.path.dirname(self.asdf_source), '.corrections/*.csv')
+        fnames = glob.glob(pattern)
+
+        if(len(fnames)): print('Loading corrections..')
+
+        for fname in fnames:
+            try:
+                df = pd.read_csv(fname, delimiter='\t', header=0)
+
+                for i in np.arange(len(df)):
+                    net = df['net'][i]
+                    sta = df['sta'][i]
+                    corr = df['clock_correction'][i]
+                    st = UTCDateTime(df['date'][i]).timestamp
+                    et = st + 24*3600
+
+                    if(type(self.correction_map_tree[net][sta]) != index.Index):
+                        self.correction_map_tree[net][sta] = index.Index()
+                        self.correction_map_bounds[net][sta] = []
+                        self.correction_map_values[net][sta] = []
+                    # end if
+
+                    self.correction_map_tree[net][sta].insert(i, (st, 1, et, 1))
+                    self.correction_map_bounds[net][sta].append([st, et])
+                    self.correction_map_values[net][sta].append(corr)
+                # end for
+            except:
+                raise ValueError('Failed to read corrections file {}..'.format(fname))
+            #end try
+        # end for
+    #end func
+
+    def _get_correction(self, net, sta, st, et):
+        tindex = self.correction_map_tree[net][sta]
+        if(type(tindex) != index.Index):
+            return None
+        else:
+            epsilon = 1e-5
+            indices = list(tindex.intersection((st.timestamp+epsilon, 1, et.timestamp-epsilon, 1)))
+
+            if(len(indices)):
+                if(len(indices) == 1): raise ValueError('Error encountered in _get_correction. Aborting..')
+
+                cst, cet = self.correction_map_bounds[net][sta][indices[0]]
+                a = np.fmax(st, cst)
+                b = np.fmin(et, cet)
+
+                if(a <= b): raise ValueError('Error encountered in _get_correction. Aborting..')
+
+                # return overlap and correction
+                return [UTCDateTime(a), UTCDateTime(b)], self.correction_map_values[net][sta][indices[0]]
+            else:
+                return None
+            # end if
+        #end if
+    #end func
+
+    def _apply_correction(self, stream):
+        resultStream = Stream()
+        for tr in stream:
+            net = tr.stats.network
+            sta = tr.stats.station
+            st  = tr.stats.starttime
+            et  = tr.stats.endtime
+
+            if(st == et):
+                resultStream.append(tr)
+                continue
+            # end if
+
+            result = self._get_correction(net, sta, st, et)
+
+            if(result):
+                ost, oet = result[0]
+                corr = result[1]
+
+                trCorrected = tr.copy().slice(ost, oet)
+                trCorrected.stats.starttime -= corr
+                currStream = Stream([tr.slice(st, ost),
+                                     trCorrected,
+                                     tr.slice(oet, et)])
+
+                # overlap resulting from correction applied is discarded (methode=0)
+                currStream.merge()
+                if(len(currStream) == 1):
+                    resultStream.append(currStream[0])
+                else:
+                    raise ValueError('Merge error in _apply_correction')
+                # end if
+            else:
+                resultStream.append(tr)
+            # end if
+        # end for
+
+        return resultStream
     # end func
 
     def create_database(self):
@@ -390,6 +496,9 @@ class _FederatedASDFDataSetImpl():
             t.trim(starttime=starttime,
                    endtime=endtime)
         # end for
+
+        # apply corrections if available
+        s = self._apply_correction(s)
 
         return s
     # end func
