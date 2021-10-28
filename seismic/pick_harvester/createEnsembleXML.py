@@ -466,6 +466,8 @@ class Catalog():
                         missingStations[a.net+'.'+a.sta] += 1
                         continue
                     # end if
+
+                    if(len(a.cha.strip()) == 0): continue # discard arrivals with no channel code
                     oldPick  = OPick( resource_id=OResourceIdentifier(id=self.get_id()),
                                       time=UTCDateTime(a.utctime),
                                       waveform_id=OWaveformStreamID(network_code=a.net,

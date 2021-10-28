@@ -318,6 +318,9 @@ def _plot_network_relative_to_ref_station(df_plot, ref, target_stns, batch_optio
     :type display_options: class DisplayOptions
     """
     register_matplotlib_converters()
+
+    if(df_plot is None): return
+
     df_plot = df_plot.assign(relTtResidual=(df_plot['ttResidual'] - df_plot['ttResidualRef']))
 
     # Re-order columns
@@ -724,7 +727,7 @@ def main(picks_file, network1, networks2, stations1=None, stations2=None,
     df_picks = df_raw_picks
     log.debug("Picks before global filter: {}".format(len(df_picks)))
     filter_chain = [lambda _df: filter_limit_channels(_df, filter_options.channel_preference),
-                    filter_duplicated_network_codes,
+                    #filter_duplicated_network_codes,
                     lambda _df: filter_to_teleseismic(_df, min_distance, max_distance)]
     for f in filter_chain:
         df_picks = f(df_picks)
