@@ -147,14 +147,20 @@ class _FederatedASDFDataSetImpl():
 
         if(len(fnames)): print('Loading corrections..')
 
+        dtypes = {'net':object, 'sta':object, 'loc':object, 'comp':object, 'date':object,
+                  'clock_correction':object}
         for fname in fnames:
             try:
-                df = pd.read_csv(fname, delimiter='\t', header=0)
+                df = pd.read_csv(fname, delimiter=',', header=0, dtype=dtypes)
 
                 for i in np.arange(len(df)):
                     net = df['net'][i]
                     sta = df['sta'][i]
                     corr = df['clock_correction'][i]
+
+                    if(corr == 'NOXCOR'): continue
+                    else: corr = float(df['clock_correction'][i])
+
                     st = UTCDateTime(df['date'][i]).timestamp
                     et = st + 24*3600
 
