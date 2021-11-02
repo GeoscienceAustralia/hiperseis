@@ -65,18 +65,19 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, station_weig
     # 1. Load hdf5 file containing RFs
     # 2. Filter to desired component.
     # 3. Filter stations that fail the minimum-weight criteria
-    # 4. Apply min-slope-ratio filter if provided.
-    # 5. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
-    # 6. Moveout and stack the RFs
-    # 7. Resample (lanczos) and trim RF
-    # 8. Export one file per station in (time, amplitude format)
+    # 4. Apply min-slope-ratio filter if provided
+    # 5. Apply dereverberation filter if specified
+    # 6. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
+    # 7. Moveout and stack the RFs
+    # 8. Resample (lanczos) and trim RF
+    # 9. Export one file per station in (time, amplitude format)
 
     output_folder += "_" + network_code
     if not os.path.isdir(output_folder):
         os.makedirs(output_folder, exist_ok=True)
     # end if
 
-    #data = rf_util.read_h5_rf(input_h5_file, network='OA', station='BS24', loc='0M')
+    #data = rf_util.read_h5_rf(input_h5_file, network='OA', station='CI23', loc='0M')
     data = rf_util.read_h5_rf(input_h5_file)
 
     data = data.select(component=component)
@@ -143,6 +144,16 @@ def rf_inversion_export(input_h5_file, output_folder, network_code, station_weig
             if moveout:
                 similar_traces.moveout()
             # end if
+
+            # report stats for traces included in stack
+            print('{}.{}: Traces included in stack ({}): '.format(network_code, sta, len(similar_traces)))
+            for strc in similar_traces:
+                print('\t Event id, time, lon, lat: {}, {}, {}, {}'. format(strc.stats.event_id,
+                                                                         strc.stats.event_time,
+                                                                         strc.stats.event_longitude,
+                                                                         strc.stats.event_latitude))
+            # end for
+
             stack = similar_traces.stack()
             trace = stack[0]
             exact_start_time = trace.stats.onset + trim_window[0]
