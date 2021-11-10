@@ -15,7 +15,12 @@ def calculate_backazimuth_from_azimuth(azimuth):
 def get_arrivals_and_picks(event_data):
     arrivals = []
     picks = []
-    for station_information in event_data["station_information"]["features"]:
+    for station_information in event_data["station_information"]["features"]:        
+        if event_data["event_details"]["properties"]["evaluation_status"] == 'FINL':
+            eval_stat = 'final'
+        else:
+            eval_stat = event_data["event_details"]["properties"]["evaluation_status"]
+        #end if
         pick_object = Pick(
             resource_id="pick_id_" + str(station_information["properties"]["arrival_id"]),
             force_resource_id=True,
@@ -38,7 +43,7 @@ def get_arrivals_and_picks(event_data):
             phase_hint=station_information["properties"]["phase"],
             polarity="undecidable",
             evaluation_mode=event_data["event_details"]["properties"]["evaluation_mode"],
-            evaluation_status=event_data["event_details"]["properties"]["evaluation_status"],
+            evaluation_status=eval_stat,
             comments=[],
             creation_info=CreationInfo(
                 agency_id=event_data["event_details"]["properties"]["source"],
@@ -80,12 +85,17 @@ def get_arrivals_and_picks(event_data):
 
 
 def get_origins(event_data, arrivals, origin_id):
+    if len(event_data["station_information"]["features"]) == 0:
+        region = None
+    else:
+        region = event_data["station_information"]["features"][0]["properties"]["network_code"]
+    #end if
     origins = [Origin(
         resource_id=origin_id,
         force_resource_id=False,
         time=UTCDateTime(event_data["event_details"]["properties"]["origin_time"]),
         time_errors=QuantityError(
-            uncertainty=event_data["event_details"]["properties"]["origin_time_uncertainty"]
+        uncertainty=event_data["event_details"]["properties"]["origin_time_uncertainty"]
         ),
         longitude=event_data["event_details"]["properties"]["latitude"],
         longitude_errors=QuantityError(),
@@ -128,7 +138,7 @@ def get_origins(event_data, arrivals, origin_id):
             # preferred_description=None,
             # confidence_level=None
         ),
-        region=event_data["station_information"]["features"][0]["properties"]["network_code"],
+        region=region,
         # evaluation_mode=None,
         # evaluation_status=None,
         # comments=[],
@@ -143,9 +153,15 @@ def get_origins(event_data, arrivals, origin_id):
 
 
 def get_magnitude(event_data, origin_id):
+    magnitudes = list()
     for magnitude_information in event_data["magnitudes_information"]["features"]:
         if magnitude_information["properties"]["evaluation_status"] == "confirmed":
-            magnitudes = [Magnitude(
+            if event_data["event_details"]["properties"]["evaluation_status"] == 'FINL':
+                eval_stat = 'final'
+            else:
+                eval_stat = event_data["event_details"]["properties"]["evaluation_status"]
+            #end if
+            magnitudes.append(Magnitude(
                 resource_id="magnitude_id_" + str(magnitude_information["properties"]["earthquake_id"]),
                 force_resource_id=False,
                 mag=magnitude_information["properties"]["magnitude"],
@@ -156,7 +172,7 @@ def get_magnitude(event_data, origin_id):
                 station_count=event_data["event_details"]["properties"]["station_count"],
                 azimuthal_gap=event_data["event_details"]["properties"]["azimuthal_gap"],
                 evaluation_mode=event_data["event_details"]["properties"]["evaluation_mode"],
-                evaluation_status=event_data["event_details"]["properties"]["evaluation_status"],
+                evaluation_status=eval_stat,
                 comments=[],
                 station_magnitude_contributions="",
                 creation_info=CreationInfo(
@@ -165,8 +181,36 @@ def get_magnitude(event_data, origin_id):
                     author_uri="ga.gov.au",
                     version="1.0"
                 )
-            )]
-            return magnitudes
+            ))
+    if len(magnitudes) == 0:
+        for magnitude_information in event_data["magnitudes_information"]["features"]:
+            if event_data["event_details"]["properties"]["evaluation_status"] == 'FINL':
+                eval_stat = 'final'
+            else:
+                eval_stat = event_data["event_details"]["properties"]["evaluation_status"]
+            #end if
+            magnitudes.append(Magnitude(
+                resource_id="magnitude_id_" + str(magnitude_information["properties"]["earthquake_id"]),
+                force_resource_id=False,
+                mag=magnitude_information["properties"]["magnitude"],
+                mag_errors=QuantityError(),
+                magnitude_type=magnitude_information["properties"]["type"],
+                origin_id=origin_id,
+                # method_id=None,
+                station_count=event_data["event_details"]["properties"]["station_count"],
+                azimuthal_gap=event_data["event_details"]["properties"]["azimuthal_gap"],
+                evaluation_mode=event_data["event_details"]["properties"]["evaluation_mode"],
+                evaluation_status=eval_stat,
+                comments=[],
+                station_magnitude_contributions="",
+                creation_info=CreationInfo(
+                    agency_id=event_data["event_details"]["properties"]["source"],
+                    author=event_data["event_details"]["properties"]["source"],
+                    author_uri="ga.gov.au",
+                    version="1.0"
+                )
+            ))
+    return magnitudes
 
 
 def get_event(event_data, picks, origins, magnitudes):

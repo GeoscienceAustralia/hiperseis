@@ -21,7 +21,7 @@ def get_list_of_events(start_time, end_time, min_magnitude, max_magnitude, bound
     features = []
     for event in results["features"]:
         longitude, latitude = event["geometry"]["coordinates"]
-        print("current event latitude, longitude", longitude, latitude)
+        print("current event latitude, longitude", latitude, longitude)
         if min_longitude < longitude < max_longitude and min_latitude < latitude < max_latitude:
             features.append(event)
     results["features"] = features
