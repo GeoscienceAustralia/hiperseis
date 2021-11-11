@@ -2,7 +2,8 @@
 Description:
     This script will download a catalogue of events from the ISC database given
     various input criteria by the user. An output file will be generated for 
-    each month in the requested time span.
+    each month or each day in the requested time span (depending on argument 
+    "--split_by_day".
     
 Developer: Lachlan Adams 
 Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
@@ -11,11 +12,20 @@ Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
 
 import argparse, os
 import numpy as np
+from obspy import UTCDateTime
 
 def process():
     """
     Download ISC catalogue fulfilling specified criteria, splitting into a
     catalogue for each month.
+    
+    
+    Usage
+    -----
+    python download_isc.py --bbox min_lon min_lat max_lon max_lat
+    --start_date YY-MM-DD --start_time hh:mm:ss --end_date YYYY-MM-DD 
+    --end_time hh:mm:ss --mag_range min_mag max_mag --output_path 
+    .../output_path --split_by_day
     
     
     """
@@ -34,6 +44,7 @@ def process():
     parser.add_argument("--mag_range", nargs=2, type=float, default=None,
                         help="Enter as '--mag_range min_mag max_mag'")
     parser.add_argument("--output_path", type=str, default=None)
+    parser.add_argument("--split_by_day", type=bool, default=False)
     
     args = parser.parse_args()
     output_path = args.output_path
@@ -43,6 +54,7 @@ def process():
     end_date = args.end_date
     end_time = args.end_time
     mag_range = args.mag_range
+    split_by_day = args.split_by_day
     
     if output_path is None:
         output_path = input("Output path? ")
@@ -71,6 +83,61 @@ def process():
     end_year, end_month, end_day = \
         (int(item) for item in end_date.split('-'))
     
+    if split_by_day:
+        get_events_by_day(min_lon, min_lat, max_lon, max_lat, start_date, 
+                          start_time, end_date, end_time, min_mag, max_mag, 
+                          output_path)
+    else:
+        get_events_by_month(min_lon, min_lat, max_lon, max_lat, start_year, 
+                            start_month, start_day, start_time, end_year, 
+                            end_month, end_day, end_time, min_mag, max_mag, 
+                            output_path)
+    #end if
+    
+#end func
+    
+def get_events_by_day(min_lon, min_lat, max_lon, max_lat, start_date, 
+                      start_time, end_date, end_time, min_mag, max_mag, 
+                      output_path):
+    st = UTCDateTime(str(start_date + 'T' + start_time))
+    et = UTCDateTime(str(end_date + 'T' + end_time))
+    
+    time_range = et - st
+    ints = np.hstack([np.arange(0, time_range, 86400), np.array([time_range])])
+    
+    days = [st + ints[i] for i in range(len(ints))]
+    start_times = days[:-1]
+    end_times = days[1:]
+    for day in range(len(days)-1):
+        start_year = start_times[day].year
+        start_month = start_times[day].month
+        start_day = start_times[day].day
+        start_hour = start_times[day].hour
+        start_minute = start_times[day].minute
+        start_second = start_times[day].second
+        end_year = end_times[day].year
+        end_month = end_times[day].month
+        end_day = end_times[day].day
+        end_hour = end_times[day].hour
+        end_minute = end_times[day].minute
+        end_second = end_times[day].second
+        start_time = '%s:%s:%s'%(str(start_hour).zfill(2), 
+                                 str(start_minute).zfill(2), 
+                                 str(start_second).zfill(2))
+        end_time = '%s:%s:%s'%(str(end_hour).zfill(2), 
+                               str(end_minute).zfill(2), 
+                               str(end_second).zfill(2))
+        download_events(min_lon, min_lat, max_lon, max_lat, start_year, 
+                        start_month, start_day, start_time, end_year, 
+                        end_month, end_day, end_time, min_mag, max_mag, 
+                        output_path)
+    #end for
+#end func    
+
+def get_events_by_month(min_lon, min_lat, max_lon, max_lat, start_year, 
+                        start_month, start_day, start_time, end_year, 
+                        end_month, end_day, end_time, min_mag, max_mag, 
+                        output_path):
     if end_year == start_year:
         year = start_year
         if end_month == start_month:
@@ -146,7 +213,7 @@ def process():
             #end if
         #end for
     #end if
-#end func
+#end func    
             
 def download_events(min_lon, min_lat, max_lon, max_lat, start_year, 
                     start_month, start_day, start_time, end_year, end_month, 
@@ -200,12 +267,16 @@ def download_events(min_lon, min_lat, max_lon, max_lat, start_year,
         os.mkdir(path)
     #end if
     
-    filename = '%s-%s-%sT%s_%s-%s-%sT%s.xml'%(start_year, 
-                                              str(start_month).zfill(2), 
-                                              str(start_day).zfill(2), 
-                                              start_time, end_year, 
-                                              str(end_month).zfill(2), 
-                                              str(end_day).zfill(2), end_time)
+    start_hour, start_minute, start_second = start_time.split(':')
+    end_hour, end_minute, end_second = end_time.split(':')
+    
+    filename = '%s-%s-%sT%s-%s-%s_%s-%s-%sT%s-%s-%s.xml' \
+                %(start_year, str(start_month).zfill(2), 
+                  str(start_day).zfill(2), str(start_hour).zfill(2),
+                  str(start_minute).zfill(2), str(start_second).zfill(2),
+                  end_year, str(end_month).zfill(2), str(end_day).zfill(2), 
+                  str(end_hour).zfill(2), str(end_minute).zfill(2), 
+                  str(end_second).zfill(2))
     file = os.path.join(path, filename)
     
     wget_string = str("wget --output-document=%s "%file + \

@@ -97,9 +97,9 @@ def get_origins(event_data, arrivals, origin_id):
         time_errors=QuantityError(
         uncertainty=event_data["event_details"]["properties"]["origin_time_uncertainty"]
         ),
-        longitude=event_data["event_details"]["properties"]["latitude"],
+        longitude=event_data["event_details"]["properties"]["longitude"],
         longitude_errors=QuantityError(),
-        latitude=event_data["event_details"]["properties"]["longitude"],
+        latitude=event_data["event_details"]["properties"]["latitude"],
         latitude_errors=QuantityError(),
         depth=event_data["event_details"]["properties"]["depth"],
         depth_errors=QuantityError(
