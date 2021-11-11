@@ -142,6 +142,19 @@ class _FederatedASDFDataSetImpl():
         self.correction_map_bounds = defaultdict(lambda: defaultdict(list))
         self.correction_map_values = defaultdict(lambda: defaultdict(list))
 
+        # check to see if corrections are to be applied
+        self.corrections_enabled = False
+        if('GPS_CLOCK_CORRECTION' in os.environ.keys()):
+            try:
+                self.corrections_enabled = np.bool_(np.int_(os.environ['GPS_CLOCK_CORRECTION']))
+            except Exception as e:
+                print(str(e))
+                assert 0, 'Invalid value for GPS_CLOCK_CORRECTION: {}. Must be 1 or 0. Aborting..'.format(os.environ['GPS_CLOCK_CORRECTION'])
+            # end try
+        # end if
+        
+        if(not self.corrections_enabled): return
+
         pattern = os.path.join(os.path.dirname(self.asdf_source), '.corrections/*.csv')
         fnames = glob.glob(pattern)
 
@@ -189,13 +202,17 @@ class _FederatedASDFDataSetImpl():
             indices = list(tindex.intersection((st.timestamp+epsilon, 1, et.timestamp-epsilon, 1)))
 
             if(len(indices)):
-                if(len(indices) == 1): raise ValueError('Error encountered in _get_correction. Aborting..')
+                if(len(indices) > 1): 
+                    raise ValueError('Error encountered in _get_correction. Aborting..')
+                # end if
 
                 cst, cet = self.correction_map_bounds[net][sta][indices[0]]
                 a = np.fmax(st, cst)
                 b = np.fmin(et, cet)
 
-                if(a <= b): raise ValueError('Error encountered in _get_correction. Aborting..')
+                if(a > b): 
+                    raise ValueError('Error encountered in _get_correction. Aborting..')
+                # end if
 
                 # return overlap and correction
                 return [UTCDateTime(a), UTCDateTime(b)], self.correction_map_values[net][sta][indices[0]]
@@ -504,7 +521,9 @@ class _FederatedASDFDataSetImpl():
         # end for
 
         # apply corrections if available
-        s = self._apply_correction(s)
+        if(self.corrections_enabled):
+            s = self._apply_correction(s)
+        # end if
 
         return s
     # end func
