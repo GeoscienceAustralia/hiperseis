@@ -207,8 +207,8 @@ class _FederatedASDFDataSetImpl():
                 # end if
 
                 cst, cet = self.correction_map_bounds[net][sta][indices[0]]
-                a = np.fmax(st, cst)
-                b = np.fmin(et, cet)
+                a = np.fmax(st.timestamp, cst)
+                b = np.fmin(et.timestamp, cet)
 
                 if(a > b): 
                     raise ValueError('Error encountered in _get_correction. Aborting..')
@@ -223,40 +223,68 @@ class _FederatedASDFDataSetImpl():
     #end func
 
     def _apply_correction(self, stream):
-        resultStream = Stream()
-        for tr in stream:
-            net = tr.stats.network
-            sta = tr.stats.station
-            st  = tr.stats.starttime
-            et  = tr.stats.endtime
-
-            if(st == et):
-                resultStream.append(tr)
-                continue
-            # end if
-
-            result = self._get_correction(net, sta, st, et)
-
-            if(result):
-                ost, oet = result[0]
-                corr = result[1]
-
-                trCorrected = tr.copy().slice(ost, oet)
-                trCorrected.stats.starttime -= corr
-                currStream = Stream([tr.slice(st, ost),
-                                     trCorrected,
-                                     tr.slice(oet, et)])
-
-                # overlap resulting from correction applied is discarded (methode=0)
-                currStream.merge()
-                if(len(currStream) == 1):
-                    resultStream.append(currStream[0])
-                else:
-                    raise ValueError('Merge error in _apply_correction')
+        
+        def day_split(trc):
+            stream = Stream()
+            step = 24*3600 # seconds
+            
+            st = trc.stats.starttime
+            et = trc.stats.endtime
+            dayAlignedStartTime = UTCDateTime(year=st.year, month=st.month, day=st.day)
+            ct = dayAlignedStartTime
+            
+            trcCopy = trc.copy()
+            while(ct < et):
+                if(ct + step > et):
+                    step = et - ct
                 # end if
-            else:
-                resultStream.append(tr)
-            # end if
+                
+                stream += trcCopy.slice(ct, ct + step)
+
+                ct += step
+            # wend
+
+            return stream
+        #end func
+
+        resultStream = Stream()
+        for mtr in stream:
+            dayStream = day_split(mtr)
+
+            for tr in dayStream:
+                net = tr.stats.network
+                sta = tr.stats.station
+                st  = tr.stats.starttime
+                et  = tr.stats.endtime
+            
+                if(st == et):
+                    resultStream.append(tr)
+                    continue
+                # end if
+                
+                result = self._get_correction(net, sta, st, et)
+
+                if(result):
+                    ost, oet = result[0]
+                    corr = result[1]
+
+                    trCorrected = tr.copy().slice(ost, oet)
+                    trCorrected.stats.starttime -= corr
+                    currStream = Stream([tr.slice(st, ost),
+                                         trCorrected,
+                                         tr.slice(oet, et)])
+
+                    # overlap resulting from correction applied is discarded (method=0)
+                    currStream.merge()
+                    if(len(currStream) == 1):
+                        resultStream.append(currStream[0])
+                    else:
+                        raise ValueError('Merge error in _apply_correction')
+                    # end if
+                else:
+                    resultStream.append(tr)
+                # end if
+            # end for
         # end for
 
         return resultStream
@@ -272,9 +300,9 @@ class _FederatedASDFDataSetImpl():
                 tokens = tokens[3].split('__')
                 cc = tokens[0]
                 starttime = UTCDateTime(tokens[1]).timestamp
-                endttime  = UTCDateTime(tokens[2]).timestamp
+                endtime  = UTCDateTime(tokens[2]).timestamp
 
-                return nc, sc, lc, cc, starttime, endttime
+                return nc, sc, lc, cc, starttime, endtime
             except Exception:
                 if self.logger:
                     self.logger.error("Failed to decode tag {}".format(tag))
