@@ -342,24 +342,20 @@ class CCPVolume():
         # end for
 
         # read ccp volume
+        self._data = []
         for k in hf.keys():
-            if (self._data is None):
-                self._data = np.array(hf[k])
-            else:
-                self._data = np.concatenate((self._data, hf[k]), axis=0)
-            # end if
-            #break
+            self._data.append(np.array(hf[k]))
         # end for
+        self._data = np.vstack(self._data)
 
-        #print(self._data.shape)
-        self._tree = cKDTree(self._data[:, :3])
+        self._tree = cKDTree(self._data[:, :3], balanced_tree=False)
 
         hf.close()
     # end func
 # end class
 
 class CCP_VerticalProfile():
-    def __init__(self, ccpVolume, profile_start, profile_end, dx=5, dz=0.5, max_depth=100,
+    def __init__(self, ccpVolume, profile_start, profile_end, dx=5, dz=0.5, max_depth=150,
                  swath_width=40, ds=10, extend=50, cell_radius=20, idw_exponent=2,
                  pw_exponent=1, max_station_dist=10):
         self._ccpVolume = ccpVolume
