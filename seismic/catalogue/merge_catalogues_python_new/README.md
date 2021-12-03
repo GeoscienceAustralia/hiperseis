@@ -1,5 +1,5 @@
 # Description
-These scripts will take catalogues of events and produce a single merged list of the catalogues. 
+These scripts will take catalogues of events and produce a single merged list of all events in the catalogue, and their picks. 
 
 Workflow
 --------
