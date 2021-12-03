@@ -433,9 +433,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--one-bit-normalize', is_flag=True,
               help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
                    "is N(0,1), i.e. 0-mean and unit variance")
-@click.option('--read-buffer-size', default=10,
+@click.option('--read-buffer-size', default=1,
               type=int,
-              help="Data read buffer size; default is 10 x 'interval_seconds'. This parameter allows fetching data in bulk,"
+              help="Data read buffer size; default is 1 x 'interval_seconds'. This parameter allows fetching data in bulk,"
                    " which can improve efficiency, but has no effect on the results produced")
 @click.option('--ds1-zchan', default='BHZ',
               type=str,

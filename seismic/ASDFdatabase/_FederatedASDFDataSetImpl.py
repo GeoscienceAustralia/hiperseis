@@ -142,6 +142,19 @@ class _FederatedASDFDataSetImpl():
         self.correction_map_bounds = defaultdict(lambda: defaultdict(list))
         self.correction_map_values = defaultdict(lambda: defaultdict(list))
 
+        # check to see if corrections are to be applied
+        self.corrections_enabled = False
+        if('GPS_CLOCK_CORRECTION' in os.environ.keys()):
+            try:
+                self.corrections_enabled = np.bool_(np.int_(os.environ['GPS_CLOCK_CORRECTION']))
+            except Exception as e:
+                print(str(e))
+                assert 0, 'Invalid value for GPS_CLOCK_CORRECTION: {}. Must be 1 or 0. Aborting..'.format(os.environ['GPS_CLOCK_CORRECTION'])
+            # end try
+        # end if
+        
+        if(not self.corrections_enabled): return
+
         pattern = os.path.join(os.path.dirname(self.asdf_source), '.corrections/*.csv')
         fnames = glob.glob(pattern)
 
@@ -189,13 +202,17 @@ class _FederatedASDFDataSetImpl():
             indices = list(tindex.intersection((st.timestamp+epsilon, 1, et.timestamp-epsilon, 1)))
 
             if(len(indices)):
-                if(len(indices) == 1): raise ValueError('Error encountered in _get_correction. Aborting..')
+                if(len(indices) > 1): 
+                    raise ValueError('Error encountered in _get_correction. Aborting..')
+                # end if
 
                 cst, cet = self.correction_map_bounds[net][sta][indices[0]]
-                a = np.fmax(st, cst)
-                b = np.fmin(et, cet)
+                a = np.fmax(st.timestamp, cst)
+                b = np.fmin(et.timestamp, cet)
 
-                if(a <= b): raise ValueError('Error encountered in _get_correction. Aborting..')
+                if(a > b): 
+                    raise ValueError('Error encountered in _get_correction. Aborting..')
+                # end if
 
                 # return overlap and correction
                 return [UTCDateTime(a), UTCDateTime(b)], self.correction_map_values[net][sta][indices[0]]
@@ -206,40 +223,68 @@ class _FederatedASDFDataSetImpl():
     #end func
 
     def _apply_correction(self, stream):
-        resultStream = Stream()
-        for tr in stream:
-            net = tr.stats.network
-            sta = tr.stats.station
-            st  = tr.stats.starttime
-            et  = tr.stats.endtime
-
-            if(st == et):
-                resultStream.append(tr)
-                continue
-            # end if
-
-            result = self._get_correction(net, sta, st, et)
-
-            if(result):
-                ost, oet = result[0]
-                corr = result[1]
-
-                trCorrected = tr.copy().slice(ost, oet)
-                trCorrected.stats.starttime -= corr
-                currStream = Stream([tr.slice(st, ost),
-                                     trCorrected,
-                                     tr.slice(oet, et)])
-
-                # overlap resulting from correction applied is discarded (methode=0)
-                currStream.merge()
-                if(len(currStream) == 1):
-                    resultStream.append(currStream[0])
-                else:
-                    raise ValueError('Merge error in _apply_correction')
+        
+        def day_split(trc):
+            stream = Stream()
+            step = 24*3600 # seconds
+            
+            st = trc.stats.starttime
+            et = trc.stats.endtime
+            dayAlignedStartTime = UTCDateTime(year=st.year, month=st.month, day=st.day)
+            ct = dayAlignedStartTime
+            
+            trcCopy = trc.copy()
+            while(ct < et):
+                if(ct + step > et):
+                    step = et - ct
                 # end if
-            else:
-                resultStream.append(tr)
-            # end if
+                
+                stream += trcCopy.slice(ct, ct + step)
+
+                ct += step
+            # wend
+
+            return stream
+        #end func
+
+        resultStream = Stream()
+        for mtr in stream:
+            dayStream = day_split(mtr)
+
+            for tr in dayStream:
+                net = tr.stats.network
+                sta = tr.stats.station
+                st  = tr.stats.starttime
+                et  = tr.stats.endtime
+            
+                if(st == et):
+                    resultStream.append(tr)
+                    continue
+                # end if
+                
+                result = self._get_correction(net, sta, st, et)
+
+                if(result):
+                    ost, oet = result[0]
+                    corr = result[1]
+
+                    trCorrected = tr.copy().slice(ost, oet)
+                    trCorrected.stats.starttime -= corr
+                    currStream = Stream([tr.slice(st, ost),
+                                         trCorrected,
+                                         tr.slice(oet, et)])
+
+                    # overlap resulting from correction applied is discarded (method=0)
+                    currStream.merge()
+                    if(len(currStream) == 1):
+                        resultStream.append(currStream[0])
+                    else:
+                        raise ValueError('Merge error in _apply_correction')
+                    # end if
+                else:
+                    resultStream.append(tr)
+                # end if
+            # end for
         # end for
 
         return resultStream
@@ -255,9 +300,9 @@ class _FederatedASDFDataSetImpl():
                 tokens = tokens[3].split('__')
                 cc = tokens[0]
                 starttime = UTCDateTime(tokens[1]).timestamp
-                endttime  = UTCDateTime(tokens[2]).timestamp
+                endtime  = UTCDateTime(tokens[2]).timestamp
 
-                return nc, sc, lc, cc, starttime, endttime
+                return nc, sc, lc, cc, starttime, endtime
             except Exception:
                 if self.logger:
                     self.logger.error("Failed to decode tag {}".format(tag))
@@ -504,7 +549,9 @@ class _FederatedASDFDataSetImpl():
         # end for
 
         # apply corrections if available
-        s = self._apply_correction(s)
+        if(self.corrections_enabled):
+            s = self._apply_correction(s)
+        # end if
 
         return s
     # end func
