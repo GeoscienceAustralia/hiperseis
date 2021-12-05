@@ -68,7 +68,7 @@ Criteria
 
 - Events in the rest of the world are filtered to have magnitude larger than 5.5.
 
-- Events with +/- 15 seconds and within 50km of one another are counted as duplicates, and only one is kept.
+- Events within +/- 15 seconds and within 50km of one another are counted as duplicates, and only one is kept.
 
 - Hypocentres sourced from Gary Gibson are used to replace those in the GA catalogues if a duplicate is found.
 
