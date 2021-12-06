@@ -342,28 +342,26 @@ class CCPVolume():
         # end for
 
         # read ccp volume
+        self._data = []
         for k in hf.keys():
-            if (self._data is None):
-                self._data = np.array(hf[k])
-            else:
-                self._data = np.concatenate((self._data, hf[k]), axis=0)
+            self._data.append(np.array(hf[k]))
         # end for
+        self._data = np.vstack(self._data)
 
-        #print(self._data.shape)
-        self._tree = cKDTree(self._data[:, :3])
+        self._tree = cKDTree(self._data[:, :3], balanced_tree=False)
 
         hf.close()
     # end func
 # end class
 
 class CCP_VerticalProfile():
-    def __init__(self, ccpVolume, net_sta_loc1, net_sta_loc2, dx=5, dz=0.5, max_depth=100,
+    def __init__(self, ccpVolume, profile_start, profile_end, dx=5, dz=0.5, max_depth=150,
                  swath_width=40, ds=10, extend=50, cell_radius=20, idw_exponent=2,
                  pw_exponent=1, max_station_dist=10):
         self._ccpVolume = ccpVolume
 
-        self._net_sta_loc1 = net_sta_loc1
-        self._net_sta_loc2 = net_sta_loc2
+        self._profile_start = profile_start
+        self._profile_end = profile_end
         self._lon1 = None
         self._lat1 = None
         self._lon2 = None
@@ -395,14 +393,29 @@ class CCP_VerticalProfile():
         self._grid_vals = None
 
         # fetch coordinates from CCP-volume
-        lon1 = lat1 = lon2 = lat2 = None
-        try:
-            lon1, lat1 = self._ccpVolume._meta[net_sta_loc1][:2]
-            lon2, lat2 = self._ccpVolume._meta[net_sta_loc2][:2]
-        except Exception as e:
-            print(str(e))
-            assert 0, 'Station not found. Aborting..'
-        # end try
+        def get_location(loc):
+            lon = lat = None
+            try:
+                if(type(loc) == str):
+                    try:
+                        lon, lat = self._ccpVolume._meta[loc][:2]
+                    except Exception as e:
+                        print(str(e))
+                        assert 0, 'Station not found. Aborting..'
+                    # end try
+                else:
+                    lon, lat = loc[0], loc[1]
+                # end if
+            except Exception as e:
+                print(str(e))
+                assert 0, 'Error encountered processing profile start/end location. Aborting..'
+            # end try
+
+            return lon, lat
+        # end func
+
+        lon1, lat1 = get_location(self._profile_start)
+        lon2, lat2 = get_location(self._profile_end)
 
         self._generateGrid(lon1, lat1, lon2, lat2)
         self._generateGridMeta()
@@ -625,20 +638,31 @@ class CCP_VerticalProfile():
                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
         # end for
 
-        if(gax):
-            gax.set_title('CCP Stack: {} --- {}'.format(self._net_sta_loc1, self._net_sta_loc2),
-                          fontdict={'fontsize': 14}, pad=40)
-        else:
-            ax.set_title('CCP Stack: {} --- {}'.format(self._net_sta_loc1, self._net_sta_loc2),
-                         fontdict={'fontsize': 14}, pad=40)
-        # end if
+        titleAx = None
+        if(gax): titleAx = gax
+        else: titleAx = ax
 
+        titleAx.set_title('CCP Stack: {} --- {}'.format(str(self._profile_start), str(self._profile_end)),
+                          fontdict={'fontsize': 14}, pad=40)
     # end func
 # end class
 
 class CCP_DepthProfile():
     def __init__(self, ccpVolume, net_sta_loc1, net_sta_loc2, depth, dx=5, dy=5, dz=1,
                  extend=50, cell_radius=40, idw_exponent=2, pw_exponent=1):
+        """
+        :param ccpVolume:
+        :param profile_start: Either a NET.STA.LOC string or a tuple (lon, lat)
+        :param profile_end: Either a NET.STA.LOC string or a tuple (lon, lat)
+        :param depth:
+        :param dx:
+        :param dy:
+        :param dz:
+        :param extend:
+        :param cell_radius:
+        :param idw_exponent:
+        :param pw_exponent:
+        """
         self._ccpVolume = ccpVolume
 
         self._net_sta_loc1 = net_sta_loc1
