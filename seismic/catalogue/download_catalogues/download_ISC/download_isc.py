@@ -284,6 +284,7 @@ def download_events(min_lon, min_lat, max_lon, max_lat, start_year,
                       "out_format=QuakeML&" + \
                       "request=STNARRIVALS&" + \
                       "ttime=on&" + \
+                      "iscreview=on&" + \
                       "stnsearch=GLOBAL&" + \
                       "searchshape=RECT&" + \
                       "bot_lat=%s&"%min_lat + \
