@@ -23,12 +23,12 @@ def xyz2rtp(x, y, z):
     tmp1 = x * x + y * y
     tmp2 = tmp1 + z * z
     rout[0] = np.sqrt(tmp2)
-    rout[1] = np.arctan2(sqrt(tmp1), z)
+    rout[1] = np.arctan2(np.sqrt(tmp1), z)
     rout[2] = np.arctan2(y, x)
     return rout
 # end func
 
-def getStationInventory(master_inventory, inventory_cache, netsta):
+def getStationInventory(master_inventory, inventory_cache, netsta, location_preferences_dict):
     netstaInv = None
     if (master_inventory):
         if (inventory_cache is None): inventory_cache = defaultdict(list)
@@ -37,7 +37,7 @@ def getStationInventory(master_inventory, inventory_cache, netsta):
         if (isinstance(inventory_cache[netsta], Inventory)):
             netstaInv = inventory_cache[netsta]
         else:
-            inv = master_inventory.select(network=net, station=sta)
+            inv = master_inventory.select(network=net, station=sta, location=location_preferences_dict[netsta])
             if(len(inv.networks)):
                 inventory_cache[netsta] = inv
                 netstaInv = inv
@@ -93,11 +93,13 @@ def fill_gaps(data, dt, max_gap_seconds=3):
     return result
 # end func
 
-def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
+def _get_stream_00T(fds, net, sta, cha, start_time, end_time, location_preferences_dict,
                       baz=None, trace_count_threshold=200,
                       logger=None, verbose=1):
 
-    stations = fds.get_stations(start_time, end_time, network=net, station=sta)
+    netsta = net + '.' + sta
+    stations = fds.get_stations(start_time, end_time, network=net, station=sta,
+                                location=location_preferences_dict[netsta])
 
     stations_nch = [s for s in stations if 'N' == s[3][-1].upper() or '1' == s[3][-1]]  # only N channels
     stations_ech = [s for s in stations if 'E' == s[3][-1].upper() or '2' == s[3][-1]]  # only E channels
@@ -153,15 +155,17 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time,
     return stt
 # end func
 
-def get_stream(fds, net, sta, cha, start_time, end_time,
+def get_stream(fds, net, sta, cha, start_time, end_time, location_preferences_dict,
                baz=None, trace_count_threshold=200,
                logger=None, verbose=1):
 
-    if (cha == '00T'): return _get_stream_00T(fds, net, sta, cha, start_time, end_time,
+    if (cha == '00T'): return _get_stream_00T(fds, net, sta, cha, start_time, end_time, location_preferences_dict,
                                               baz=baz, trace_count_threshold=trace_count_threshold,
                                               logger=logger, verbose=verbose)
     st = Stream()
-    stations = fds.get_stations(start_time, end_time, network=net, station=sta)
+    netsta = net + '.' + sta
+    stations = fds.get_stations(start_time, end_time, network=net, station=sta,
+                                location=location_preferences_dict[netsta])
     for codes in stations:
         if (cha != codes[3]): continue
         st += fds.get_waveforms(codes[0], codes[1], codes[2], codes[3], start_time,
