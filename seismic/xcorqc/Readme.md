@@ -84,6 +84,8 @@ From a login node on Gadi:
   3. `pip3.6 install netCDF4==1.4.0 --user`
   4. `pip3.6 install pyasdf==0.5.1 --user`
   5. `pip3.6 install ordered_set ujson psutil --user`
+  6. `pip3.6 install pandas==1.1.5 --user`
+  7. `pip3.6 install Rtree==0.9.7 --user`
 
 Date last validated: 10 August 2021
 
