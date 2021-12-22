@@ -223,29 +223,33 @@ class _FederatedASDFDataSetImpl():
     #end func
 
     def _apply_correction(self, stream):
-        
+
         def day_split(trc):
-            stream = Stream()
-            step = 24*3600 # seconds
-            
+            rstream = Stream()
+            daySeconds = 24 * 3600  # seconds
+
             st = trc.stats.starttime
             et = trc.stats.endtime
             dayAlignedStartTime = UTCDateTime(year=st.year, month=st.month, day=st.day)
-            ct = dayAlignedStartTime
-            
+            dayAlignedEndTime = dayAlignedStartTime + daySeconds
+
+            ct = st
             trcCopy = trc.copy()
-            while(ct < et):
-                if(ct + step > et):
-                    step = et - ct
+            while (ct < et):
+                step = daySeconds
+
+                if (ct + step > dayAlignedEndTime):
+                    step = dayAlignedEndTime - ct
                 # end if
-                
-                stream += trcCopy.slice(ct, ct + step)
+
+                rstream += trcCopy.slice(ct, ct + step, nearest_sample=False)
 
                 ct += step
+                dayAlignedEndTime += daySeconds
             # wend
 
-            return stream
-        #end func
+            return rstream
+        # end func
 
         resultStream = Stream()
         for mtr in stream:
