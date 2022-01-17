@@ -357,11 +357,13 @@ class _FederatedASDFDataSetImpl():
                                       '(?, ?, ?, ?, ?)', metadatalist)
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
+                self.conn.commit()
+                self.conn.close()
             # end if
 
             tagsCount = 0
             for ids, ds in enumerate(self.asdf_datasets):
-                print(('Creating index for %s..' % (self.asdf_file_names[ids])))
+                if(self.rank==0): print(('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids]))))
 
                 keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
@@ -381,24 +383,32 @@ class _FederatedASDFDataSetImpl():
                     # end for
                 # end for
 
-                data = self.comm.gather(data, root=0)
-                if(self.rank==0):
-                    data = [item for sublist in data for item in sublist]
-                    self.conn.executemany('insert into wdb(ds_id, net, sta, loc, cha, st, et, tag) values '
-                                          '(?, ?, ?, ?, ?, ?, ?, ?)', data)
-                    print(('Inserted %d entries on rank %d'%(len(data), self.rank)))
-                    tagsCount += len(data)
+                for irank in np.arange(self.nproc):
+                    if(irank == self.rank):
+                        if(len(data)):
+                            self.conn = sqlite3.connect(self.db_fn)
+                            self.conn.executemany('insert into wdb(ds_id, net, sta, loc, cha, st, et, tag) values '
+                                                  '(?, ?, ?, ?, ?, ?, ?, ?)', data)
+                            print(('\tInserted %d entries on rank %d'%(len(data),
+                                                                       self.rank)))
+                            tagsCount += len(data)
+                            self.conn.commit()
+                            self.conn.close()
+                        # end if
                     # end if
+
+                    self.comm.Barrier()
+                # end for
             # end for
 
             if(self.rank==0):
+                print('Creating table indices..')
+                self.conn = sqlite3.connect(self.db_fn)
                 self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
                 self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
                 self.conn.commit()
-                print(('Created database on rank %d for %d waveforms (%5.2f MB)' % \
-                      (self.rank, tagsCount, round(psutil.Process().memory_info().rss / 1024. / 1024., 2))))
-
                 self.conn.close()
+                print('Done..')
             # end if
             self.comm.Barrier()
             self.conn = sqlite3.connect(self.db_fn)
