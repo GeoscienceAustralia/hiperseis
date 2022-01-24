@@ -59,6 +59,10 @@ class Dataset:
                          np.radians(self.metadata[netsta][0])])
         # end for
 
+        if(len(rtps) == 0):
+            assert 0, 'No station-pairs found due to missing stations. Aborting..'
+        # end if
+
         rtps = np.array(rtps)
         xyzs = rtp2xyz(rtps[:, 0], rtps[:, 1], rtps[:, 2])
 
@@ -126,6 +130,30 @@ class Dataset:
     # end func
 # end class
 
+def read_location_preferences(location_preferences_fn):
+    result = defaultdict(lambda: None)
+
+    if(location_preferences_fn):
+        pref_list = open(location_preferences_fn, 'r').readlines()
+
+        for pref in pref_list:
+            pref = pref.strip()
+            if (len(pref)):
+                try:
+                    netsta, loc = pref.split()
+                    net, sta = netsta.split('.')
+
+                    result[netsta] = loc
+                except Exception as e:
+                    print(str(e))
+                    assert 0, 'Error parsing: {}'.format(pref)
+                # end try
+            # end if
+        # end for
+    # end if
+    return result
+# end func
+
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds, window_overlap, window_buffer_length,
             resample_rate=None, taper_length=0.05, nearest_neighbours=1,
@@ -133,7 +161,7 @@ def process(data_source1, data_source2, output_path,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-            one_bit_normalize=False, read_buffer_size=10,
+            one_bit_normalize=False, read_buffer_size=1, location_preferences=None,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, restart=False, dry_run=False,
@@ -162,6 +190,7 @@ def process(data_source1, data_source2, output_path,
     ds2 = Dataset(data_source2, netsta_list2)
 
     proc_stations = []
+    location_preferences_dict = None
     time_tag = None
     if (rank == 0):
         # Register time tag with high resolution, since queued jobs can readily
@@ -227,12 +256,17 @@ def process(data_source1, data_source2, output_path,
             for keep_pair in keep_list:
                 keep_pair = keep_pair.strip()
                 if(len(keep_pair)):
-                    knet1, ksta1, knet2, ksta2 = keep_pair.split('.')
+                    try:
+                        knet1, ksta1, knet2, ksta2 = keep_pair.split('.')
 
-                    keep_pair_alt = '%s.%s.%s.%s'%(knet2, ksta2, knet1, ksta1)
+                        keep_pair_alt = '%s.%s.%s.%s'%(knet2, ksta2, knet1, ksta1)
 
-                    if(keep_pair in pairs_set or keep_pair_alt in pairs_set):
-                        result.add(('%s.%s'%(knet1, ksta1), '%s.%s'%(knet2, ksta2)))
+                        if(keep_pair in pairs_set or keep_pair_alt in pairs_set):
+                            result.add(('%s.%s'%(knet1, ksta1), '%s.%s'%(knet2, ksta2)))
+                    except Exception as e:
+                        print(str(e))
+                        assert 0, 'Error parsing: {}'.format(keep_pair)
+                    # end try
                 # end if
             # end for
 
@@ -265,6 +299,7 @@ def process(data_source1, data_source2, output_path,
         return
     # end if
 
+    location_preferences_dict = read_location_preferences(location_preferences)
     # broadcast workload to all procs
     proc_stations = comm.bcast(proc_stations, root=0)
     time_tag = comm.bcast(time_tag, root=0)
@@ -295,8 +330,8 @@ def process(data_source1, data_source2, output_path,
             continue
         # end if
 
-        netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
-        netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
+        netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1, location_preferences_dict)
+        netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2, location_preferences_dict)
 
         def evaluate_channels(cha1, cha2):
             result = []
@@ -351,7 +386,7 @@ def process(data_source1, data_source2, output_path,
                            endTime, netsta1, netsta2, netsta1inv, netsta2inv,
                            instrument_response_output, water_level,
                            corr_chans[0], corr_chans[1],
-                           baz_netsta1, baz_netsta2,
+                           baz_netsta1, baz_netsta2, location_preferences_dict,
                            resample_rate, taper_length, read_buffer_size, interval_seconds,
                            window_seconds, window_overlap, window_buffer_length,
                            fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
@@ -437,6 +472,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               type=int,
               help="Data read buffer size; default is 1 x 'interval_seconds'. This parameter allows fetching data in bulk,"
                    " which can improve efficiency, but has no effect on the results produced")
+@click.option('--location-preferences', default=None,
+              type=click.Path('r'),
+              help="A space-separated two-columned text file containing location code preferences for "
+                   "stations in the form: 'NET.STA LOC'. Note that location code preferences need not "
+                   "be provided for all stations -- the default is None. This approach allows "
+                   "preferential selection of data from particular location codes for stations that "
+                   "feature data from multiple location codes")
 @click.option('--ds1-zchan', default='BHZ',
               type=str,
               help="Name of z-channel for data-source-1. This parameter and the five following are required to "
@@ -478,17 +520,16 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
          window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
          station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
-         water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+         water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
-    :param data_source1: Text file containing paths to ASDF files
-    :param data_source2: Text file containing paths to ASDF files
-    :param output_path: Output folder
-    :param interval_seconds: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day
-    :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. INTERVAL_SECONDS must be a multiple of \
-                    window_seconds
-    :param window_overlap: Window overlap fraction; e.g. 0.1 for 10% overlap
+    DATA_SOURCE1: Text file containing paths to ASDF files \n
+    DATA_SOURCE2: Text file containing paths to ASDF files \n
+    OUTPUT_PATH: Output folder \n
+    INTERVAL_SECONDS: Length of time window (s) over which to compute cross-correlations; e.g. 86400 for 1 day\n
+    WINDOW_SECONDS: Length of stacking window (s); e.g 3600 for an hour. WINDOW_SECONDS must be a factor of INTERVAL_SECONDS\n
+    WINDOQ_OVERLAP: Window overlap fraction; e.g. 0.1 for 10% overlap\n
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
@@ -498,7 +539,7 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
             window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
             station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
-            water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size,
+            water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size, location_preferences,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
             ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder)
 # end func

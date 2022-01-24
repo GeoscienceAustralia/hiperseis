@@ -464,6 +464,7 @@ def IntervalStackXCorr(refds, tempds,
                        temp_cha,
                        baz_ref_net_sta,
                        baz_temp_net_sta,
+                       location_preferences_dict=defaultdict(lambda: None),
                        resample_rate=None,
                        taper_length=0.05,
                        buffer_seconds=864000, interval_seconds=86400,
@@ -516,6 +517,8 @@ def IntervalStackXCorr(refds, tempds,
     :param baz_ref_net_sta: Back-azimuth of ref station from temp station in degrees
     :type baz_temp_net_sta: float
     :param baz_temp_net_sta: Back-azimuth of temp station from ref station in degrees
+    :type location_preferences_dict: defaultdict
+    :param location_preferences_dict: A defaultdict containing location code preferences, keyed by NET.STA
     :type resample_rate: float
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type taper_length: float
@@ -580,10 +583,14 @@ def IntervalStackXCorr(refds, tempds,
     # end if
 
     # setup logger
-    stationPair = '%s.%s' % (ref_net_sta, temp_net_sta)
+    ref_loc = location_preferences_dict[ref_net_sta]
+    temp_loc = location_preferences_dict[temp_net_sta]
+    if(ref_loc is None): ref_loc = ''
+    if(temp_loc is None): temp_loc = ''
+    stationPair = '%s.%s.%s.%s.%s.%s' % (ref_net_sta, ref_loc, ref_cha, temp_net_sta, temp_loc, temp_cha)
     fn = os.path.join(outputPath, '%s.log' % (stationPair if not tracking_tag else
                                               '.'.join([stationPair, tracking_tag])))
-    logger = setup_logger('%s.%s' % (ref_net_sta, temp_net_sta), fn)
+    logger = setup_logger(stationPair, fn)
 
     #######################################
     # Initialize variables for main loop
@@ -610,7 +617,10 @@ def IntervalStackXCorr(refds, tempds,
         refSt = None
         try:
             rnc, rsc = ref_net_sta.split('.')
-            refSt = get_stream(refds, rnc, rsc, ref_cha, cTime, cTime + cStep, baz=baz_ref_net_sta,
+            refSt = get_stream(refds, rnc, rsc,
+                               ref_cha, cTime, cTime + cStep,
+                               location_preferences_dict,
+                               baz=baz_ref_net_sta,
                                logger=logger, verbose=verbose)
         except Exception as e:
             logger.error('\t'+str(e))
@@ -634,7 +644,10 @@ def IntervalStackXCorr(refds, tempds,
         tempSt = None
         try:
             tnc, tsc = temp_net_sta.split('.')
-            tempSt = get_stream(tempds, tnc, tsc, temp_cha, cTime, cTime + cStep, baz=baz_temp_net_sta,
+            tempSt = get_stream(tempds, tnc, tsc,
+                                temp_cha, cTime, cTime + cStep,
+                                location_preferences_dict,
+                                baz=baz_temp_net_sta,
                                 logger=logger, verbose=verbose)
         except Exception as e:
             logger.error('\t'+str(e))

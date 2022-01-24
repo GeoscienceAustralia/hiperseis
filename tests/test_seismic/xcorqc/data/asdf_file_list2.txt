@@ -1,1 +1,0 @@
-../../tests/test_seismic/xcorqc/data/test_data_CMSA.h5

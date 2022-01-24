@@ -26,6 +26,7 @@ import shutil
 # Prepare input
 netsta1 = 'AU.ARMA'
 netsta2 = 'AU.QLP'
+location_code = ''
 
 # TODO: Fix resource management here so that asdf_files_dir gets deleted when tests finished/finalized.
 path = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +54,7 @@ inv = read_inventory('%s/data/response_inventory.fdsnxml'%(path))
 expected_folder = tempfile.mkdtemp()
 cmd = 'tar -zxvf %s -C %s'%('%s/data/expected/expected.tar.gz'%path, expected_folder)
 os.system(cmd)
+output_folder = str(tempfile.mkdtemp())
 
 @pytest.fixture(params=['BHZ', '00T'])
 def cha(request):
@@ -94,7 +96,7 @@ def inv1(request):
 def inv2(request):
     return request.param
 
-def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window_seconds,
+def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds,
                                clip_to_2std, whitening, one_bit_normalize,
                                envelope_normalize, ensemble_stack):
     start_time = '2011-03-11T00:00:00Z'
@@ -108,13 +110,6 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
 
     # skipping inconsistent parameterizations
     if (one_bit_normalize and clip_to_2std): return
-
-    if isinstance(tmpdir, str):
-        output_folder = os.path.join(tmpdir, 'output')
-        os.makedirs(output_folder)
-    else:
-        output_folder = str(tmpdir.mkdir('output'))
-    # end if
 
     IntervalStackXCorr(fds1, fds2,
                        start_time, end_time,
@@ -136,12 +131,14 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
                        outputPath=output_folder, verbose=2, tracking_tag=tag)
 
     # Read result
-    fn = os.path.join(output_folder, '%s.%s.%s.nc'%(netsta1, netsta2, tag))
+    fn = os.path.join(output_folder, '%s.%s.%s.%s.%s.%s.%s.nc'%(netsta1, location_code, cha,
+                                                                netsta2, location_code, cha, tag))
     dc = Dataset(fn)
     xcorr_c = dc.variables['xcorr'][:]
 
     # Read expected
-    fn = '%s/%s.%s.%s.nc'%(expected_folder, netsta1, netsta2, tag)
+    fn = '%s/%s.%s.%s.%s.%s.%s.%s.nc'%(expected_folder, netsta1, location_code, cha,
+                                       netsta2, location_code, cha, tag)
     de = Dataset(fn)
     xcorr_e = de.variables['xcorr'][:]
 
@@ -153,13 +150,10 @@ def test_interval_stack_xcorr_(tmpdir, cha, inv1, inv2, interval_seconds, window
     # end if
 
     assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
-
-    shutil.rmtree(output_folder)
 # end func
 
 
 if __name__ == '__main__':
-    test_dir = tempfile.mkdtemp()
     cha = 'BHZ'
     inv1 = inv.select(network='AU', station='ARMA')
     inv2 = inv.select(network='AU', station='QLP')
@@ -170,7 +164,7 @@ if __name__ == '__main__':
     one_bit_normalize = False
     envelope_normalize = False
     ensemble_stack = False
-    test_interval_stack_xcorr_(test_dir, cha, inv1, inv2, interval_seconds, window_seconds,
+    test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds,
                                clip_to_2std, whitening, one_bit_normalize,
                                envelope_normalize, ensemble_stack)
 # end if
