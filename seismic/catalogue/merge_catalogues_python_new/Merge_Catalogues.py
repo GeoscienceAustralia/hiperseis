@@ -16,7 +16,8 @@ import argparse, csv, glob, os
 def reorder_list_by_date(lst):
     """
     Takes a list of events and picks, extracts the event rows, sorts them by 
-    origin time, and returns the sorted list with attached picks.
+    origin time, and returns the sorted list with attached picks. Also converts
+    depth to kilometres so it can be used by the pick harvester routine.
     
     
     Parameters
@@ -74,7 +75,8 @@ def reorder_list_by_date(lst):
         if row[0][0] == '#':
             i = i + 1
             row[-1] = i
-            row[-3] = str('smi:local/' + str(i))
+            row[-3] = str(i) #str('smi:local/' + str(i))
+            row[9] = str(float(row[9])/1e3)
         #end if
     #end for
             

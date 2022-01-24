@@ -64,30 +64,31 @@ def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
     Returns
     -------
     azim : float
-        Azimuth from (lon1, lat1) to (lon2, lat2).
+        Azimuth from (lon1, colat1) to (lon2, colat2).
         
         
     """
     if units == 'degrees':
-        colat1 = 90 - lat1
-        colat2 = 90 - lat2
         degrad = np.pi/180.0
         a = lon1*degrad
-        b = colat1*degrad
+        b = (90.0-lat1)*degrad
         x = lon2*degrad
-        y = colat2*degrad
+        y = (90.0-lat2)*degrad
     else:
         a = lon1
-        b = np.pi/2 - lat1
+        b = np.pi/2.0 - lat1
         x = lon2
-        y = np.pi/2 - lat2
+        y = mp.pi/2.0 - lat2
     #end if
-    azim = np.arctan(np.sin(x - a)/(np.sin(b)*np.cos(y)/np.sin(y) - \
+    azim = np.arctan(np.sin(x - a)/(np.sin(b)/np.tan(y) - \
                                     np.cos(b)*np.cos(x - a)))
-    if lon2 > lon1 and colat2 < colat1: pass
-    elif colat2 > colat1: azim = azim + np.pi
-    elif lon2 < lon1 and colat2 < colat1: azim = azim + 2*np.pi
-    if units == 'degrees': azim = azim/degrad
+    
+    offset1 = np.pi*(lat1 > lat2)
+    offset2 = np.pi*(np.logical_and(lat1 == lat2, b > np.pi/2.0))
+    
+    azim = (azim + offset1 + offset2 + 2*np.pi) % (2*np.pi)
+    if units == 'degrees': 
+        azim = azim/degrad
     return azim
 #end func
     
