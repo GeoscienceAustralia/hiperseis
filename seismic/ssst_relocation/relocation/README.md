@@ -143,7 +143,7 @@ temp_networks: list, describing temporary seismic station deployments which are 
 
 Usage
 -----
-Run multiple iterations of this algorithm using the command below, e.g. by executing "for i in `seq 1 $number_of_iterations`; do <command>; done". On the first iteration, the algorithm only finds hypocentres which are unstable, using no time corrections. On all subsequent iterations, the configuration specified is followed.
+Run multiple iterations of this algorithm using the command below, e.g. by executing `for i in 'seq 1 $number_of_iterations'; do <command>; done`. On the first iteration, the algorithm only finds hypocentres which are unstable, using no time corrections. On all subsequent iterations, the configuration specified is followed.
 
 >
 > mpirun -np $number_of_processors main.py --config_file <configuration file> --tt_table_path .../tt_table_path/ --input_path .../input_path/ --elcordir .../elcordir/ --iteration $i --output_path .../output_path/
