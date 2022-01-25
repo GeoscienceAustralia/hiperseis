@@ -9,7 +9,7 @@ from obspy.core.event import Catalog, Event, Origin, Pick, WaveformStreamID, \
                              OriginQuality, OriginUncertainty
 from obspy import UTCDateTime
 import numpy as np
-import argparse, os
+import argparse, configparser, os
 from mpi4py import MPI
 
 def azimuth(lon1, colat1, lon2, colat2, units='degrees'):
@@ -153,6 +153,9 @@ def convert_array_to_catalogue(arr, event_ids):
     catalogue = Catalog(events=None)
     for event_id in event_ids:
         event_arr = arr[arr['event_id'] == event_id]
+        if len(event_arr) == 0:
+            continue
+        #end if
         event = convert_array_to_event(event_arr)
         catalogue.append(event)
     #end for
@@ -457,9 +460,20 @@ def process():
     parser = argparse.ArgumentParser(description='Catalogue converter')
 
     parser.add_argument("--event_file", type=str, required=True)
+    parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--output_path", type=str, default=".")
     parser.add_argument("--output_format", type=str, default='SC3ML')
     args = parser.parse_args()
+    
+    config = configparser.ConfigParser()
+    config.read(args.config_file)
+    config = config['default']
+    ignore_temp_networks = config['ignore_temp_networks'] == 'True'
+    if ignore_temp_networks:
+        temp_networks = config['temp_networks'].split(', ')
+    else:
+        temp_networks = list()
+    #end if
     
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
@@ -479,6 +493,8 @@ def process():
     events_split = comm.scatter(events_split, root=0)
     picks_split = np.load(os.path.join(args.output_path, 
                                        '%s.npy'%str(rank).zfill(3)))
+    ind = ~np.isin(picks_split['net'], np.array(temp_networks))
+    picks_split = picks_split[ind]
     
     os.remove(os.path.join(args.output_path, '%s.npy'%str(rank).zfill(3)))
     

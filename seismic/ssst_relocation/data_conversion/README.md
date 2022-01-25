@@ -36,12 +36,21 @@ Usage
 
 
 # convert_array_to_catalogue.py
-If using the iLoc earthquake relocation algorithm, a SeisComp3 database is required for data storage and input. This script will convert the output of convert_for_relocation.py into the correct format for upload to this database. Note that the output of conver_for_relocation.py is still used by the SSST relocation algorithm.
+If using the iLoc earthquake relocation algorithm, a SeisComp3 database is required for data storage and input. This script will convert the output of convert_for_relocation.py into the correct format for upload to this database. Note that the output of conver_for_relocation.py is still used by the SSST relocation algorithm. 
+
+Configuration
+-------------
+If a user wishes for iLoc to ignore certain networks when performing the relocation with iLoc, these must be specified in a configuration file. Two pieces of information are needed.
+1) ignore_temp_networks: boolean. True if the user wishes to ignore certain networks.
+2) temp_networks: list, with separator ', '.
+The format for this configuraton file is the same as the example network_config.txt file.
 
 
 Arguments
 ---------
 --event_file: Name of file containing array of picks.
+
+--config_file: Name of configuration file telling algorithm which networks to ignore.
 
 --output_path: Output path.
 
@@ -51,7 +60,7 @@ Arguments
 Usage
 -----
 >
-> mpirun -np $number_of_processors python convert_array_to_catalogue.py --event_file .../event_file.npy --output_path .../output_path/ --output_format <output_format>
+> mpirun -np $number_of_processors python convert_array_to_catalogue.py --event_file <event_file.npy> --config_file <network_config.txt> --output_path .../output_path/ --output_format <output_format>
 >
 
 
