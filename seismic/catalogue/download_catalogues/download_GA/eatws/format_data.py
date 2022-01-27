@@ -6,7 +6,7 @@ from obspy.core.event import Magnitude, Catalog, Event, Origin, Pick, Arrival, C
 from obspy.geodetics import FlinnEngdahl
 from pprint import pprint
 
-def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
+def azimuth(lon1, colat1, lon2, colat2, units='degrees'):
     """
     Function to calculate the azimuth from (lon1, lat1) to (lon2, lat2).
     
@@ -16,14 +16,14 @@ def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
     lon1 : float
         Longitude of point 1.
         
-    lat1 : float
-        Latitude of point 1.
+    colat1 : float
+        Colatitude of point 1.
         
     lon2 : float
         Longitude of point 2.
     
-    lat2 : float
-        Latitude of point 2.
+    colat2 : float
+        Colatitude of point 2.
         
     units : string (optional)
         'degrees' or 'radians' describing the units in which lon1, lat1, lon2,
@@ -33,13 +33,11 @@ def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
     Returns
     -------
     azim : float
-        Azimuth from (lon1, lat1) to (lon2, lat2).
+        Azimuth from (lon1, colat1) to (lon2, colat2).
         
         
     """
     if units == 'degrees':
-        colat1 = 90 - lat1
-        colat2 = 90 - lat2
         degrad = np.pi/180.0
         a = lon1*degrad
         b = colat1*degrad
@@ -47,16 +45,19 @@ def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
         y = colat2*degrad
     else:
         a = lon1
-        b = np.pi/2 - lat1
+        b = colat1
         x = lon2
-        y = np.pi/2 - lat2
+        y = colat2
     #end if
-    azim = np.arctan(np.sin(x - a)/(np.sin(b)*np.cos(y)/np.sin(y) - \
+    azim = np.arctan(np.sin(x - a)/(np.sin(b)/np.tan(y) - \
                                     np.cos(b)*np.cos(x - a)))
-    if lon2 > lon1 and colat2 < colat1: pass
-    elif colat2 > colat1: azim = azim + np.pi
-    elif lon2 < lon1 and colat2 < colat1: azim = azim + 2*np.pi
-    if units == 'degrees': azim = azim/degrad
+    
+    offset1 = np.pi*(colat1 < colat2)
+    offset2 = np.pi*(np.logical_and(colat1 == colat2, b > np.pi/2.0))
+    
+    azim = (azim + offset1 + offset2 + 2*np.pi) % (2*np.pi)
+    if units == 'degrees': 
+        azim = azim/degrad
     return azim
 #end func
 
@@ -85,9 +86,9 @@ def get_arrivals_and_picks(event_data):
             # horizontal_slowness=None,
             # horizontal_slowness_errors=None,
             backazimuth=azimuth(station_information["properties"]["longitude"],
-                                station_information["properties"]["latitude"],
+                                90.0-station_information["properties"]["latitude"],
                                 event_data["event_details"]["properties"]["longitude"],
-                                event_data["event_details"]["properties"]["latitude"]),
+                                90.0-event_data["event_details"]["properties"]["latitude"]),
             backazimuth_errors=QuantityError(),
             # slowness_method_id=None,
             # onset=None,
@@ -111,9 +112,9 @@ def get_arrivals_and_picks(event_data):
             phase=station_information["properties"]["phase"],
             # time_correction=None,
             azimuth=azimuth(event_data["event_details"]["properties"]["longitude"],
-                            event_data["event_details"]["properties"]["latitude"],
+                            90.0-event_data["event_details"]["properties"]["latitude"],
                             station_information["properties"]["longitude"],
-                            station_information["properties"]["latitude"]),
+                            90.0-station_information["properties"]["latitude"]),
             distance=station_information["properties"]["distance"],
             # takeoff_angle=None,
             takeoff_angle_errors=QuantityError(),

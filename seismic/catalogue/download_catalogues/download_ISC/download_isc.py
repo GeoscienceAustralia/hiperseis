@@ -1,9 +1,10 @@
 """
-Description:
-    This script will download a catalogue of events from the ISC database given
-    various input criteria by the user. An output file will be generated for 
-    each month or each day in the requested time span (depending on argument 
-    "--split_by_day".
+Description
+-----------
+This script will download a catalogue of events from the ISC database given
+various input criteria by the user. An output file will be generated for each 
+month or each day in the requested time span (depending on argument 
+"--split_by_day").
     
 Developer: Lachlan Adams 
 Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com

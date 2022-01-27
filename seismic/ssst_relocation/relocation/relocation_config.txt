@@ -1,0 +1,27 @@
+[iLoc]
+hypo_thr_dist_deg = 0.25
+hypo_thr_time_sec = 10.0
+corr_thr_dist_deg = 0.25
+thr_p = 5.0
+thr_s = 10.0
+no_relocation = False
+correction_method = None
+iloc_redefine_phases = False
+iloc_use_rstt = False
+phases = P, Pg, Pn, Pb, S, Sg, Sn, Sb
+
+[default]
+hypo_thr_dist_deg = 0.25
+hypo_thr_time_sec = 10.0
+corr_thr_dist_deg = 0.25
+thr_p = 5.0
+thr_s = 10.0
+no_relocation = False
+correction_method = SSST
+reloc_dlat = 0.25
+reloc_ddep = 10.0
+reloc_nit = 5
+reloc_norm = 1
+reloc_sfrac = 0.5
+phases = P, Pg, Pn, Pb, S, Sg, Sn, Sb
+temp_networks = 7B, 7D, 7E, 7F, 7G, 7J, 7Q, 7T, 7U, 7W, 7X, OA, W1, AQ
