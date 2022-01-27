@@ -911,17 +911,17 @@ def predict_travel_times(picks, phase_list, TT_dict, ellipcorr_dict, config):
     phases_p, ptt_p, resid_p = \
         compute_travel_time(1, ecdist[ind_p], azim[ind_p], ecolat[ind_p], 
                             edepth[ind_p], selev[ind_p], ett[ind_p], 
-                            p_phase_list, TT_dict, ellipcorr_dict, 2*thr_p)
+                            p_phase_list, TT_dict, ellipcorr_dict, thr_p)
     
     phases_s, ptt_s, resid_s = \
         compute_travel_time(-1, ecdist[ind_s], azim[ind_s], ecolat[ind_s], 
                             edepth[ind_s], selev[ind_s], ett[ind_s], 
-                            s_phase_list, TT_dict, ellipcorr_dict, 2*thr_s)
+                            s_phase_list, TT_dict, ellipcorr_dict, thr_s)
         
     phases_x, ptt_x, resid_x = \
         compute_travel_time(0, ecdist[ind_x], azim[ind_x], ecolat[ind_x], 
                             edepth[ind_x], selev[ind_x], ett[ind_x], 
-                            phase_list, TT_dict, ellipcorr_dict, 2*thr_s)
+                            phase_list, TT_dict, ellipcorr_dict, thr_s)
         
     picks['phase'][ind_p] = phases_p
     picks['phase'][ind_s] = phases_s

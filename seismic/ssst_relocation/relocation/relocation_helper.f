@@ -193,9 +193,12 @@ Cf2py intent(out) qual
                      iph=iph0(ip)
                      phase=phases(ip)
                      wt=wt0(ip)
-                     ecdist=acos(cos(ecolat)*cos(scolat)+
-     &                           sin(ecolat)*sin(scolat)*
-     &                           cos(elon-slon))
+!                     ecdist=acos(cos(ecolat)*cos(scolat)+
+!     &                           sin(ecolat)*sin(scolat)*
+!     &                           cos(elon-slon))
+                     ecdist=2.0*asin(sqrt(sin((scolat-ecolat)/2.0)**2+
+     &                                    sin(scolat)*sin(ecolat)*
+     &                                    sin((slon-elon)/2.0)**2))
                      angdist=ecdist*degrad
 
                      call azimuth(elon,pi/2.0-ecolat,slon,
@@ -276,8 +279,9 @@ Cf2py intent(out) qual
          iph=iph0(ip)
          phase=phases(ip)
          wt=wt0(ip)
-         ecdist=acos(cos(ecolat)*cos(scolat)+
-     &               sin(ecolat)*sin(scolat)*cos(elon-slon))
+         ecdist=2.0*asin(sqrt(sin((scolat-ecolat)/2.0)**2+
+     &                        sin(scolat)*sin(ecolat)*
+     &                        sin((slon-elon)/2.0)**2))
          angdist=ecdist*degrad
 
          call azimuth(elon,pi/2.0-ecolat,slon,pi/2.0-scolat,azim)

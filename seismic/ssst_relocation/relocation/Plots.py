@@ -84,7 +84,7 @@ def compute_rays(picks):
 #end func
     
 def filter_rays(rays, lonmin, lonmax, latmin, latmax):
-    degrad = np.single(np.pi/180.0)
+    degrad = np.pi/180.0
     u, v, start, end = rays
     
     lons = (np.linspace(0.0, (end - start) % 360.0).T + \
@@ -101,8 +101,14 @@ def filter_rays(rays, lonmin, lonmax, latmin, latmax):
     lons = lons/degrad
     lats = lats/degrad
     
-    ind1 = np.logical_and(lons >= lonmin, lons % 360.0 <= lonmax % 360.0)
-    ind2 = np.logical_and(lats >= latmin, lats % 360.0 <= latmax % 360.0)
+    if lonmax == 180.0:
+        ind1 = (lons >= lonmin)
+    else:
+        ind1 = np.logical_and(lons >= lonmin, 
+                              (lons + 180.0) % 360.0 <= \
+                              (lonmax + 180.0) % 360.0)
+    #end if
+    ind2 = np.logical_and(lats >= latmin, lats <= latmax)
     ind = np.logical_and(ind1, ind2)
     rows = np.argwhere(np.any(ind, axis=1)).T[0]
     
@@ -186,8 +192,8 @@ def residual_histogram(picks, title_prefix, output_path, tcor_available=False,
     #end if
 #end func
     
-def raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval,
-                 title_prefix, output_path, show=False):
+def raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval, bin_width, 
+                 bin_min, title_prefix, output_path, show=False):
     degrad = np.pi/180.0
     u, v, start, end = rays
     u = u[::ray_interval]
@@ -195,7 +201,14 @@ def raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval,
     start = start[::ray_interval]
     end = end[::ray_interval]
     
-    lons = lonmin + np.arange(0.0, (0.1 + lonmax - lonmin) % 360.0, 0.1)
+    if lonmax - lonmin == 360.0:
+        lons = lonmin + np.arange(0.0, (bin_width + lonmax - lonmin), 
+                                  bin_width)
+    else:
+        lons = lonmin + np.arange(0.0, (bin_width + lonmax - lonmin) % 360.0, 
+                                  bin_width)
+    #end if
+    lat_bins = np.arange(latmin, latmax + bin_width, bin_width)
     
     lons = lons*degrad
     v_temp = v*degrad
@@ -215,6 +228,10 @@ def raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval,
     ind = np.logical_or(ind1, ind2)
     lats[ind] = np.nan
     
+    hist = np.apply_along_axis(lambda a: np.histogram(a, bins=lat_bins)[0], 
+                               1, lats).astype(float)
+    hist[hist < bin_min] = np.nan
+    
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.stock_img()
@@ -227,12 +244,47 @@ def raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval,
     gl.xformatter = LONGITUDE_FORMATTER
     gl.yformatter = LATITUDE_FORMATTER
     plt.plot(lons, lats, c='m', lw=0.01)
-    plt.xlim([lonmin, lonmin + (lonmax - lonmin) % 360.0])
+    if lonmax - lonmin == 360.0:
+        plt.xlim([lonmin, lonmax])
+    else:
+        plt.xlim([lonmin, lonmin + (lonmax - lonmin) % 360.0])
+    #end if
     plt.ylim([latmin, latmax])
     plt.title(str(title_prefix + ' rays'))
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
     plt.savefig(os.path.join(output_path, str(title_prefix + '.rays.png')))
+    if show:
+        plt.show()
+    #end if
+    
+    plt.figure(figsize=(10, 10))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.stock_img()
+    ax.coastlines()
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=2, 
+                      color='gray', alpha=0.5, linestyle='--')
+    gl.xlabels_top = False
+    gl.ylabels_left = True
+    gl.ylabels_right = False
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    im = plt.pcolormesh(lons, lat_bins[:-1], hist.T, vmin=1, 
+                        vmax=np.nanmax(hist), cmap='hot_r')
+    cbar = plt.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.04,
+                        extend='min')
+    cbar.set_label('Hitcount')
+    if lonmax - lonmin == 360.0:
+        plt.xlim([lonmin, lonmax])
+    else:
+        plt.xlim([lonmin, lonmin + (lonmax - lonmin) % 360.0])
+    #end if
+    plt.ylim([latmin, latmax])
+    plt.title(str(title_prefix + ' rays heatplot'))
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    plt.savefig(os.path.join(output_path, 
+                             str(title_prefix + '.rays_heatplot.png')))
     if show:
         plt.show()
     #end if
@@ -281,6 +333,8 @@ def process():
     parser.add_argument("--plot_raypaths", type=bool, default=False)
     parser.add_argument("--tcor_available", type=bool, default=False)
     parser.add_argument("--ray_interval", type=int, default=1)
+    parser.add_argument("--ray_heatplot_bin_width", type=float, default=0.1)
+    parser.add_argument("--ray_heatplot_bin_min", type=int, default=1)
     
     """
     import sys
@@ -290,7 +344,7 @@ def process():
                 "--output_path", '/g/data/ha3/la8536/SSST/output_events/',
                 "--lonmin", '110', "--lonmax", '155', "--latmin", '-45', 
                 "--latmax", '-10', "--plot_residuals", 'True', 
-                "--plot_epicentres", 'True', --show", 'True']
+                "--plot_epicentres", 'True', "--show", 'True']
     """
     
     args = parser.parse_args()
@@ -302,6 +356,8 @@ def process():
     plot_raypaths = args.plot_raypaths
     tcor_available = args.tcor_available
     ray_interval = args.ray_interval
+    ray_heatplot_bin_width = args.ray_heatplot_bin_width
+    ray_heatplot_bin_min = args.ray_heatplot_bin_min
     lonmin = args.lonmin
     lonmax = args.lonmax
     latmin = args.latmin
@@ -340,6 +396,7 @@ def process():
             rays = filter_rays(rays, lonmin, lonmax, latmin, latmax)
             print('Producing geodesic plot, time =', time.time() - t0)
             raypath_plot(rays, lonmin, lonmax, latmin, latmax, ray_interval,
+                         ray_heatplot_bin_width, ray_heatplot_bin_min,
                          title_prefix, output_path, show=show)
         #end if
         
