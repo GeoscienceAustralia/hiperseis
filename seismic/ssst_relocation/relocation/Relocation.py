@@ -186,13 +186,12 @@ def push_time_corrections_to_database(picks):
     return
 #end func
     
-def extract_hypocentres_from_database(events, picks, config, 
-                                      unstable_events=list()):
+def update_hypocentres_from_database(events, picks, hypo_dict, config, 
+                                     unstable_events=list()):    
     """
-    Retrieves updated hypocentres from SeisComp3 database after relocation has
-    been performed. Attaches these new hypocentres to their corresponding
-    picks, or if the hypocentre has changed by more than 'thr_dist' or 
-    'thr_time', event ID is added to 'unstable_events'.
+    Attaches new hypocentres to their corresponding picks, or if the hypocentre 
+    has changed by more than 'thr_dist' or 'thr_time', event ID is added to 
+    'unstable_events'.
     
     
     Parameters
@@ -213,6 +212,9 @@ def extract_hypocentres_from_database(events, picks, config,
                  ('domFreq', 'half'), ('qualityMeasureSlope', 'half'), 
                  ('bandIndex', 'uint8'), ('nSigma', 'uint8')]
     
+    hypo_dict : dictionary
+        Dictionary of updated event hypocentres.
+    
     config : configparser.SectionProxy object
         Information from config file.
     
@@ -231,27 +233,9 @@ def extract_hypocentres_from_database(events, picks, config,
         
         
     """
-    import MySQLdb
-    from obspy import UTCDateTime
     
     thr_dist = float(config['hypo_thr_dist_deg'])
     thr_time = float(config['hypo_thr_time_sec'])
-    
-    db = MySQLdb.connect(host="localhost", user="sysop", passwd="sysop", 
-                         db="seiscomp3")
-    c = db.cursor()
-    c.execute(str('select ep.publicID, o.longitude_value, ' + \
-                  'o.latitude_value, o.depth_value, o.time_value, ' + \
-                  'o.time_value_ms, o._oid from Origin o, ' + \
-                  'PublicObject op, Event e, PublicObject ep where ' + \
-                  'o._oid=op._oid and e._oid=ep._oid and ' + \
-                  'e.preferredOriginID=op.publicID'))
-    rows = c.fetchall()
-    hypo_dict = {row[0]: (float(row[1]), float(row[2]), float(row[3])*1e3,
-                          UTCDateTime(row[4]).timestamp + int(row[5])/1e6) \
-                          for row in rows if row[0] in events}
-    c.close()
-    db.close()
     
     for event in events:
         inds = picks['event_id'] == event
@@ -276,6 +260,47 @@ def extract_hypocentres_from_database(events, picks, config,
         picks['origin_time'][inds] = time2
     #end for
     return picks, unstable_events
+#end func
+    
+def extract_hypocentres_from_database(events):
+    """
+    Retrieves updated hypocentres from SeisComp3 database after relocation has
+    been performed.
+    
+    
+    Parameters
+    ----------
+    events : list
+        List of event IDs for which to retrieve updated hypocentres.
+        
+    
+    Returns
+    -------
+    hypo_dict : dictionary
+        Dictionary of updated event hypocentres.
+        
+        
+    """
+    import MySQLdb
+    from obspy import UTCDateTime
+    
+    db = MySQLdb.connect(host="localhost", user="sysop", passwd="sysop", 
+                         db="seiscomp3")
+    c = db.cursor()
+    c.execute(str('select ep.publicID, o.longitude_value, ' + \
+                  'o.latitude_value, o.depth_value, o.time_value, ' + \
+                  'o.time_value_ms, o._oid from Origin o, ' + \
+                  'PublicObject op, Event e, PublicObject ep where ' + \
+                  'o._oid=op._oid and e._oid=ep._oid and ' + \
+                  'e.preferredOriginID=op.publicID'))
+    rows = c.fetchall()
+    hypo_dict = {row[0]: (float(row[1]), float(row[2]), float(row[3])*1e3,
+                          UTCDateTime(row[4]).timestamp + int(row[5])/1e6) \
+                          for row in rows if row[0] in events}
+    c.close()
+    db.close()
+    
+    return hypo_dict
 #end func    
     
 def compute_new_hypocentre(events, picks, TT_dict, ellipcorr_dict, output_path, 

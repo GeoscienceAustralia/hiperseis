@@ -246,6 +246,17 @@ def process():
                 "--elcordir", '/g/data/ha3/la8536/SSST/TT_tables/',
                 "--iteration", '0',
                 "--output_path", '/g/data/ha3/la8536/SSST/test/']
+    sys.argv = ['/home/centos/ladams/ssst_relocation/relocation/main.py', 
+                "--config_file", 
+                '/home/centos/ladams/ssst_relocation/relocation/relocation_config.txt',
+                "--tt_table_path", 
+                '/home/centos/ladams/ssst_relocation/TT_tables/',
+                "--input_path", 
+                '/home/centos/ladams/ssst_relocation/output_events/ssst_iloc/',
+                "--elcordir", '/home/centos/ladams/ssst_relocation/TT_tables/',
+                "--iteration", '0', "--output_path", 
+                '/home/centos/ladams/ssst_relocation/output_events/ssst_iloc/',
+                "--relocation_algorithm", 'iloc']
     """
     
     args = parser.parse_args()
@@ -410,11 +421,17 @@ def process():
             if relocation_algorithm == 'iloc':
                 """
                 If relocation algorithm is iloc:
-                    1. Partition event ID between processors.
+                    1. Partition pick array by event ID between processors.
                     2. Push time corrections to database.
+                    3. Save pick arrays to file.
                 """
                 from Relocation import push_time_corrections_to_database
                 push_time_corrections_to_database(picks)
+                for i in range(nproc):
+                    np.save(os.path.join(output_path, 
+                                         '%s.npy'%str(i).zfill(3)), 
+                            picks_split[i])
+                #end for
                 write(outfile, 'Relocating events using iLoc, time = ', 
                       time.time() - t0)
             else:
@@ -444,33 +461,30 @@ def process():
             If relocation algorithm is iloc:
                 1. Compute new hypocentres using iloc.
                 2. Extract hypocentres from database.
-                3. Split pick array randomly and save to file for calculation 
-                    of residuals with respect to new hypocentre.
-                4. Load pick save file.
+                3. Load pick save file.
+                4. Update picks wiht new hypocentres.
             """
-            from Relocation import compute_new_hypocentre_iloc
-            compute_new_hypocentre_iloc(events_split, output_path, rank, 
-                                        config)
+            from Relocation import compute_new_hypocentre_iloc, \
+                                   update_hypocentres_from_database
+            compute_new_hypocentre_iloc(events_split, output_path, config, 
+                                        rank)
             comm.barrier()
             
             if rank == 0:
                 from Relocation import extract_hypocentres_from_database
                 events = list(np.unique(picks['event_id']))
-                picks, unstable_events = \
-                    extract_hypocentres_from_database(events, picks, config,
-                                                      unstable_events=\
-                                                      unstable_events)
-                picks_split = list(np.array_split(picks, nproc))
-                for i in range(nproc):
-                    np.save(os.path.join(output_path, 
-                                         '%s.npy'%str(i).zfill(3)), 
-                            picks_split[i])
-                #end for
+                hypo_dict = extract_hypocentres_from_database(events)
             #end if
             
-            unstable_events = comm.bcast(unstable_events, root=0)
+            hypo_dict = comm.bcast(hypo_dict, root=0)
             picks_split = np.load(os.path.join(output_path, 
                                                '%s.npy'%str(rank).zfill(3)))
+            
+            picks_split, unstable_events = \
+                update_hypocentres_from_database(events, picks_split, 
+                                                 hypo_dict, config, 
+                                                 unstable_events=\
+                                                 unstable_events)
         else:
             """
             If relocation algorithm is not iloc:
