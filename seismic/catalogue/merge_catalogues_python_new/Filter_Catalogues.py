@@ -78,7 +78,7 @@ def azimuth(lon1, lat1, lon2, lat2, units='degrees'):
         a = lon1
         b = np.pi/2.0 - lat1
         x = lon2
-        y = mp.pi/2.0 - lat2
+        y = np.pi/2.0 - lat2
     #end if
     azim = np.arctan(np.sin(x - a)/(np.sin(b)/np.tan(y) - \
                                     np.cos(b)*np.cos(x - a)))

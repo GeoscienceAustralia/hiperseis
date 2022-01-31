@@ -470,10 +470,10 @@ def process():
                                         rank)
             comm.barrier()
             
+            hypo_dict = None
             if rank == 0:
                 from Relocation import extract_hypocentres_from_database
-                events = list(np.unique(picks['event_id']))
-                hypo_dict = extract_hypocentres_from_database(events)
+                hypo_dict = extract_hypocentres_from_database()
             #end if
             
             hypo_dict = comm.bcast(hypo_dict, root=0)
@@ -481,7 +481,7 @@ def process():
                                                '%s.npy'%str(rank).zfill(3)))
             
             picks_split, unstable_events = \
-                update_hypocentres_from_database(events, picks_split, 
+                update_hypocentres_from_database(events_split, picks_split, 
                                                  hypo_dict, config, 
                                                  unstable_events=\
                                                  unstable_events)
