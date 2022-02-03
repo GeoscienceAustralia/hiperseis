@@ -244,7 +244,11 @@ def update_hypocentres_from_database(events, picks, hypo_dict, config,
         lat1 = 90.0 - picks_temp['ecolat'][0]
         time1 = picks_temp['origin_time'][0]
         
-        lon2, lat2, depth2, time2 = hypo_dict[event]
+        try:
+            lon2, lat2, depth2, time2 = hypo_dict[event]
+        except:
+            continue
+        #end try
         
         if np.abs(lon1 - lon2) > thr_dist or np.abs(lat1 - lat2) > thr_dist \
             or np.abs(time1 - time2) > thr_time: 
@@ -262,17 +266,11 @@ def update_hypocentres_from_database(events, picks, hypo_dict, config,
     return picks, unstable_events
 #end func
     
-def extract_hypocentres_from_database(events):
+def extract_hypocentres_from_database():
     """
     Retrieves updated hypocentres from SeisComp3 database after relocation has
     been performed.
     
-    
-    Parameters
-    ----------
-    events : list
-        List of event IDs for which to retrieve updated hypocentres.
-        
     
     Returns
     -------
@@ -296,7 +294,7 @@ def extract_hypocentres_from_database(events):
     rows = c.fetchall()
     hypo_dict = {row[0]: (float(row[1]), float(row[2]), float(row[3])*1e3,
                           UTCDateTime(row[4]).timestamp + int(row[5])/1e6) \
-                          for row in rows if row[0] in events}
+                          for row in rows}
     c.close()
     db.close()
     

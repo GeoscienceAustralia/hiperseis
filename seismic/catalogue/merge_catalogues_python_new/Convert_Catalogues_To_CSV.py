@@ -425,6 +425,37 @@ def find_station_information(stat, net, lon, lat, ot, station_dict,
         dist = ang_dist(lon, lat, slon, slat)
         return slon, slat, selev, net, dist
     else:
+        key = str('IR.' + stat)
+        if key in IR_station_dict.keys():
+            slon, slat, selev, _, _ = IR_station_dict[key]
+            dist = ang_dist(lon, lat, slon, slat)
+            keys = [key for key in station_dict.keys() \
+                if key.split('.')[1] == stat]
+            if len(keys) == 0:
+                return slon, slat, selev, 'IR', dist
+            else:
+                rows = [station_dict[key] for key in keys]
+                slons = np.array([row[0] for row in rows])
+                slats = np.array([row[1] for row in rows])
+                dists = ang_dist(slon, slat, slons, slats)
+                if np.nanmin(dists) < 0.01:
+                    ind = np.argwhere(dists == np.nanmin(dists))[0][0]
+                    slon, slat, selev, _, _ = rows[ind]
+                    net = keys[ind].split('.')[0]
+                    dist = ang_dist(lon, lat, slon, slat)
+                    return slon, slat, selev, net, dist
+                else:
+                    return slon, slat, selev, 'IR', dist
+                #end if
+            #end if
+        else:
+            slon = slat = selev = None
+            dist = 999.0
+            return slon, slat, selev, net, dist
+        #end if
+    #end if
+    """
+    else:
         keys = [key for key in station_dict.keys() \
                 if key.split('.')[1] == stat]
         if len(keys) > 1: #More than one matching record
@@ -471,6 +502,7 @@ def find_station_information(stat, net, lon, lat, ot, station_dict,
             #end if
         #end if
     #end if
+    """
 #end func
     
 def write_list_to_csv(lst, path, rank, nproc):
