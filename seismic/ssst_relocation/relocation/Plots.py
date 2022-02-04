@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Dec 23 14:36:56 2021
+Description
+-----------
+This script is used to generate diagnostic plots from the output of the event 
+relocation and phase redefinition algorithm.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import argparse, os, time
@@ -145,7 +149,8 @@ def hypocentres_from_picks(picks):
     return hypocentres
 #end func
 
-def epicentre_scatterplot(hypocentres, title_prefix, output_path, show=False):
+def epicentre_scatterplot(hypocentres, title_prefix, output_path, lonmin, 
+                          lonmax, latmin, latmax, show=False):
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.stock_img()
@@ -158,10 +163,12 @@ def epicentre_scatterplot(hypocentres, title_prefix, output_path, show=False):
     gl.xformatter = LONGITUDE_FORMATTER
     gl.yformatter = LATITUDE_FORMATTER
     plt.scatter(hypocentres['elon'], hypocentres['elat'], s=0.5, c='b')
-    plt.xlim(np.floor(np.min(hypocentres['elon'])), 
-             np.ceil(np.max(hypocentres['elon'])))
-    plt.ylim(np.floor(np.min(hypocentres['elat'])),
-             np.ceil(np.max(hypocentres['elat'])))
+    if lonmax - lonmin == 360.0:
+        plt.xlim([lonmin, lonmax])
+    else:
+        plt.xlim([lonmin, lonmin + (lonmax - lonmin) % 360.0])
+    #end if
+    plt.ylim(latmin, latmax)
     plt.title(str(title_prefix + ' epicentres'))
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
@@ -313,6 +320,88 @@ def read_input_txt(filename, tcor_available):
     arr = np.array([tuple(row) for row in rows[1:]], dtype=dtype)
     return arr
 #end func    
+    
+def depth_cross_section(hypocentres, title_prefix, output_path, x1, y1, x2, y2, 
+                        dmax, i, show=False):  
+    # Line length
+    L = ((x2 - x1)**2 + (y2 - y1)**2)**0.5
+    
+    # Midpoint
+    x0 = (x1 + x2)/2
+    y0 = (y1 + y2)/2
+    
+    
+    # Filter
+    # ((x - x0)^2 + (y - y0)^2) < L^2 + dmax^2
+    x = hypocentres['elon']
+    y = hypocentres['elat']
+    z = hypocentres['edepth']
+    filt = ((x - x0)**2 + (y - y0)**2) < (L**2 + dmax**2)
+    
+    x = x[filt]
+    y = y[filt]
+    z = z[filt]
+    
+    # Find line between points
+    # y = y1 + (x - x1)*(y2 - y1)/(x2 - x1)
+    # m1 = (y2 - y1)/(x2 - x1)
+    # b1 = y1 - x1*m1
+    
+    # Distance to line
+    # d = |(x2 - x1)*(y1 - y0) - (x1 - x0)*(y2 - y1)|/ \
+    #     ((x2 - x1)^2 + (y2 - y1)^2)^0.5
+    
+    filt = np.abs((x2 - x1)*(y1 - y) - (x1 - x)*(y2 - y1))/L < dmax
+    x = x[filt]
+    y = y[filt]
+    z = z[filt]
+    
+    # Project onto line
+    # y = m2*x + b2
+    # m2 = -(x2 - x1)/(y2 - y1)
+    # b2 = y - m2*x
+    # [[-m1 1], [-m2 1]]*[x, y] = [b1 b2]
+    # [x, y] = [[1 -1],[m2 -m1]]*[b1, b2]/(m2 - m1)
+    # x = (b1 - b2)/(m2 - m1)
+    # y = (m2*b1 - m1*b2)/(m2 - m1)
+    
+    m1 = (y2 - y1)/(x2 - x1)
+    b1 = y1 - x1*m1
+    m2 = -(x2 - x1)/(y2 - y1)
+    b2 = y - m2*x
+    
+    xproj = (b1 - b2)/(m2 - m1)
+    yproj = (m2*b1 - m1*b2)/(m2 - m1)
+    
+    # Filter
+    filt1 = np.logical_and(xproj >= np.min((x1, x2)), 
+                           xproj <= np.max((x1, x2)))
+    filt2 = np.logical_and(yproj >= np.min((y1, y2)), 
+                           yproj <= np.max((y1, y2)))
+    filt = np.logical_and(filt1, filt2)
+    
+    xproj = xproj[filt]
+    yproj = yproj[filt]
+    z = z[filt]
+    
+    # Find point along line
+    D = ((xproj - x1)**2 + (yproj - y1)**2)**0.5
+    
+    # Plot
+    plt.figure(figsize=(5, 5))
+    plt.scatter(D, z, s=0.5, c='b')
+    plt.ylim(0, np.floor(np.max(z)))
+    plt.title(str(title_prefix + ' depth cross section'))
+    plt.xlabel('Projected distance along line')
+    plt.ylabel('Depth')
+    plt.gca().invert_yaxis()
+    plt.savefig(os.path.join(output_path, 
+                             str(title_prefix + '.depth_cross_section_' + \
+                                 str(i) + '.png')))
+    if show:
+        plt.show()
+    #end if
+#end func    
 
 def process():
     parser = argparse.ArgumentParser(description='Plots')
@@ -331,20 +420,24 @@ def process():
     parser.add_argument("--plot_epicentres", type=bool, default=False)
     parser.add_argument("--plot_residuals", type=bool, default=False)
     parser.add_argument("--plot_raypaths", type=bool, default=False)
+    parser.add_argument("--plot_depth_cross_section", type=bool, default=False)
     parser.add_argument("--tcor_available", type=bool, default=False)
     parser.add_argument("--ray_interval", type=int, default=1)
     parser.add_argument("--ray_heatplot_bin_width", type=float, default=0.1)
     parser.add_argument("--ray_heatplot_bin_min", type=int, default=1)
+    parser.add_argument("--depth_cross_sect_params", type=float, nargs=5, 
+                        action='append', default=list())
     
     """
     import sys
     sys.argv = ['/g/data/ha3/la8536/SSST/relocation/Plots.py',
                 "--files", 
-                '/g/data/ha3/la8536/SSST/output_events/ensemble.p_copy.txt',
-                "--output_path", '/g/data/ha3/la8536/SSST/output_events/',
-                "--lonmin", '110', "--lonmax", '155', "--latmin", '-45', 
-                "--latmax", '-10', "--plot_residuals", 'True', 
-                "--plot_epicentres", 'True', "--show", 'True']
+                '/g/data/ha3/la8536/SSST/output_picks/original/' + \
+                'ensemble.p_copy.txt',
+                "--output_path", '/g/data/ha3/la8536/SSST/Plots/',
+                "--lonmin", '145', "--lonmax", '155', "--latmin", '-40', 
+                "--latmax", '-30', "--show", 'True', "--tcor_available", 
+                'True']
     """
     
     args = parser.parse_args()
@@ -354,6 +447,7 @@ def process():
     plot_epicentres = args.plot_epicentres
     plot_residuals = args.plot_residuals
     plot_raypaths = args.plot_raypaths
+    plot_depth_cross_section = args.plot_depth_cross_section
     tcor_available = args.tcor_available
     ray_interval = args.ray_interval
     ray_heatplot_bin_width = args.ray_heatplot_bin_width
@@ -366,6 +460,7 @@ def process():
     depthmax = args.depthmax
     timemin = args.timemin
     timemax = args.timemax
+    depth_cross_sect_params = args.depth_cross_sect_params
     
     for file in files:
         t0 = time.time()
@@ -374,7 +469,7 @@ def process():
         picks = read_input_txt(file, tcor_available)
         title_prefix = os.path.basename(file)[:-4]
         
-        if plot_epicentres:
+        if plot_epicentres or plot_depth_cross_section:
             print('Finding hypocentres, time =', time.time() - t0)
             hypocentres = hypocentres_from_picks(picks)
             print('Filtering hypocentres, time =', time.time() - t0)
@@ -383,9 +478,23 @@ def process():
                                              latmax=latmax, depthmin=depthmin, 
                                              depthmax=depthmax, 
                                              timemin=timemin, timemax=timemax)
+        #end if
+        
+        if plot_epicentres:
             print('Producing epicentre scatterplot, time =', time.time() - t0)
             epicentre_scatterplot(hypocentres, title_prefix, output_path, 
-                                  show=show)
+                                  lonmin, lonmax, latmin, latmax,show=show)
+        #end if
+        
+        if plot_depth_cross_section:
+            print('Producing depth cross sections, time =', time.time() - t0)
+            i = 0
+            for row in depth_cross_sect_params:
+                i = i + 1
+                x1, y1, x2, y2, dmax = row
+                depth_cross_section(hypocentres, title_prefix, output_path, x1, 
+                                    y1, x2, y2, dmax, i, show=show)
+            #end for
         #end if
         
         if plot_raypaths:

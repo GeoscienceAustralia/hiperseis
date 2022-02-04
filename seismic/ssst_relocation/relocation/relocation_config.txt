@@ -2,6 +2,7 @@
 hypo_thr_dist_deg = 0.25
 hypo_thr_time_sec = 10.0
 corr_thr_dist_deg = 0.25
+corr_min_points = 5
 thr_p = 5.0
 thr_s = 10.0
 no_relocation = False
@@ -14,6 +15,7 @@ phases = P, Pg, Pn, Pb, S, Sg, Sn, Sb
 hypo_thr_dist_deg = 0.25
 hypo_thr_time_sec = 10.0
 corr_thr_dist_deg = 0.25
+corr_min_points = 5
 thr_p = 5.0
 thr_s = 10.0
 no_relocation = False

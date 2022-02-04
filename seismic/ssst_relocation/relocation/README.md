@@ -143,8 +143,34 @@ temp_networks: list, describing temporary seismic station deployments which are 
 
 Usage
 -----
-Run multiple iterations of this algorithm using the command below, e.g. by executing `for i in 'seq 1 $number_of_iterations'; do <command>; done`. On the first iteration, the algorithm only finds hypocentres which are unstable, using no time corrections. On all subsequent iterations, the configuration specified is followed.
+Run multiple iterations of this algorithm using the command below, e.g. by executing "for i in `seq 1 $number_of_iterations`; do <command>; done". On the first iteration, the algorithm only finds hypocentres which are unstable, using no time corrections. On all subsequent iterations, the configuration specified is followed.
 
 >
 > mpirun -np $number_of_processors main.py --config_file <configuration file> --tt_table_path .../tt_table_path/ --input_path .../input_path/ --elcordir .../elcordir/ --iteration $i --output_path .../output_path/
 >
+
+# Plots.py
+This script is used to generate plots showing the output of the workflow. The input files should be of the type generated using seismic/ssst_relocation/data_conversion/convert_after_relocation.py.
+
+
+Arguments
+---------
+--files: list of files to make plots from.
+
+--output_path: desired output directory.
+
+--show: set to True if you wish to display plots while executing script. Plots are always saved in 'output_path'.
+
+--plot_epicentres, --plot_residuals, --plot_raypaths, --plot_depth_cross_sections: Set any of these to True to generate plots of the corresponding type.
+
+--tcor_available: Set to True if a column is created for time corrections in the input files.
+
+--ray_interval: One out of every n rays will be plotted if ray_interval = n.
+
+--ray_heatplot_bin_width: Float describing width of bins to use for ray heatplot histogram.
+
+--ray_heatplot_bin_min: Integer describing the smallest number of rays intersecting a bin for the bin to be shaded on the heat plot.
+
+--depth_cross_sect_params: list of values, in order lon1, lat1, lon2, lat2, dist. This will plot the depth cross section for the line between (lon1, lat1) and (lon2, lat2) where all events within a distance 'dist' of the line are projected onto it. This argument may be specified several times if more than one plot is to be generated.
+
+--lonmin, --lonmax, --latmin, --latmax, --depthmin, --depthmax, --timemin, --timemax: Bounding box values.

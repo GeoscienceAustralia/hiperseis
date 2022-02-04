@@ -1,8 +1,13 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Dec  8 14:08:43 2021
+Description
+-----------
+This module is used by the event relocation and phase redefinition algorithm
+to compute source-specific or static station term time corrections to apply to
+arrivals before relocation.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import numpy as np
@@ -166,7 +171,6 @@ def calculate_station_corrections(statnames, picks, rank, config,
         
     """
     method = config['correction_method']
-    thr = float(config['corr_thr_dist_deg'])
     
     statlist = [Station(stat, picks[picks['stat'] == stat]) \
                 for stat in statnames]
@@ -203,7 +207,7 @@ def calculate_station_corrections(statnames, picks, rank, config,
             f = obj.resids[:, 3]
             if method == 'SSST':
                 obj.method = 'SSST'
-                sph_corr = sphere_corr(x1, y1, z1, x2, y2, z2, f, thr)
+                sph_corr = sphere_corr(x1, y1, z1, x2, y2, z2, f, config)
                 obj.correction = [(pickIds[i], sph_corr[i]) \
                                   for i in range(len(pickIds))]
             elif method == 'SST':
@@ -229,7 +233,7 @@ def calculate_station_corrections(statnames, picks, rank, config,
     return picks
 #end func
     
-def sphere_corr(x1, y1, z1, x2, y2, z2, f, thr, minpoints=5):
+def sphere_corr(x1, y1, z1, x2, y2, z2, f, config):
     """
     Computes a time correction for each event at location (x1, y1, z1) based on
     the travel time residuals for neighbouring events at (x2, y2, z2), if 
@@ -260,13 +264,8 @@ def sphere_corr(x1, y1, z1, x2, y2, z2, f, thr, minpoints=5):
     f : numpy.ndarray
         Travel time residual.
         
-    thr : float
-        Maximum angular distance (degrees) between events to be considered 
-        'neighbours'.
-        
-    minpoints : integer
-        Minimum number of points in neighbourhood of an event to compute a 
-        time correction.
+    config : configparser.SectionProxy object
+        Information from config file.
         
     
     Returns
@@ -277,6 +276,9 @@ def sphere_corr(x1, y1, z1, x2, y2, z2, f, thr, minpoints=5):
         
         
     """
+    
+    thr = float(config['corr_thr_dist_deg'])
+    minpoints = int(config['corr_min_points'])
     
     r = (ang_dist(np.expand_dims(x1, 1), np.expand_dims(y1, 1), 
                   np.expand_dims(x2, 1).T, np.expand_dims(y2, 1).T))

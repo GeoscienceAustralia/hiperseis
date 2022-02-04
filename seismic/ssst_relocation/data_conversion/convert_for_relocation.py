@@ -1,3 +1,15 @@
+"""
+Description
+-----------
+This script is used to convert the output of the catalogue compilation workflow
+and the pick harvesting workflow into the format required by the event 
+relocation and phase redefinition algorithm.
+
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
+"""
+
 import argparse, glob, os, time
 import numpy as np
 from obspy import UTCDateTime

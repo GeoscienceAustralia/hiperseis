@@ -668,6 +668,5 @@ def process():
 #end func
     
 if __name__ == "__main__":
-    pass
-    #process()
+    process()
 #end if

@@ -1,6 +1,11 @@
 """
-Boilerplate
+Description
+-----------
+This script is used to convert the output of the catalogue compilation workflow
+and the pick harvesting workflow into the .xml format required by SeisComp3.
 
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
 
 """
 

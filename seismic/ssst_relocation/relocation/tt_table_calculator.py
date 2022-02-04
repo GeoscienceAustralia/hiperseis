@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Dec 23 16:08:36 2021
+Description
+-----------
+This script is used to create pre-computed travel time tables for use by the
+event relocation and phase redefinition algorithm.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import numpy as np
