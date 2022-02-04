@@ -1,8 +1,13 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Dec  8 14:04:14 2021
+Description
+-----------
+This script is used to perform phase redefinition for picks attributed to 
+seismic events, and to perform event relocation using static or source-specific 
+station terms.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import argparse, configparser, os, time, warnings
@@ -359,6 +364,7 @@ def process():
         for i in range(nproc):
             picks_split.append(np.load(os.path.join(output_path, 
                                                     '%s.npy'%str(i).zfill(3))))
+            os.remove(os.path.join(output_path, '%s.npy'%str(i).zfill(3)))
         #end for
         
         picks = np.hstack(picks_split)
@@ -404,6 +410,7 @@ def process():
         for i in range(nproc):
             picks_split.append(np.load(os.path.join(output_path, 
                                                     '%s.npy'%str(i).zfill(3))))
+            os.remove(os.path.join(output_path, '%s.npy'%str(i).zfill(3)))
         #end for
         
         picks = np.hstack(picks_split)
@@ -417,7 +424,10 @@ def process():
             np.save(filename, picks)
         else:        
             picks_split, events_split = partition_by_event(picks, nproc)
-            
+            for i in range(nproc):
+                np.save(os.path.join(output_path, '%s.npy'%str(i).zfill(3)), 
+                        picks_split[i])
+            #end for
             if relocation_algorithm == 'iloc':
                 """
                 If relocation algorithm is iloc:
@@ -427,11 +437,6 @@ def process():
                 """
                 from Relocation import push_time_corrections_to_database
                 push_time_corrections_to_database(picks)
-                for i in range(nproc):
-                    np.save(os.path.join(output_path, 
-                                         '%s.npy'%str(i).zfill(3)), 
-                            picks_split[i])
-                #end for
                 write(outfile, 'Relocating events using iLoc, time = ', 
                       time.time() - t0)
             else:
@@ -440,11 +445,6 @@ def process():
                     1. Partition pick array by event ID between processors.
                     2. Save pick arrays to file.
                 """
-                for i in range(nproc):
-                    np.save(os.path.join(output_path, 
-                                         '%s.npy'%str(i).zfill(3)), 
-                            picks_split[i])
-                #end for
                 write(outfile, 'Relocating events, time = ', time.time() - t0)
             #end if
         #end if

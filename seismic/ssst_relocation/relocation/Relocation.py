@@ -1,8 +1,13 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Dec  8 14:28:34 2021
+Description
+-----------
+This module is used by the event relocation and phase redefinition algorithm
+to perform event relocation and to communicate with the seiscomp3 database if 
+required to do so.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import os, subprocess

@@ -1,3 +1,15 @@
+"""
+Description
+-----------
+This script is used to convert the output of the event relocation and phase 
+redefinition algorithm into the format required by the tomographic inversion 
+software.
+
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
+"""
+
 import argparse, os
 import numpy as np
 

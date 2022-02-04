@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
 """
-Created on Mon Dec  6 16:06:47 2021
+Description
+-----------
+This module is used by the event relocation and phase redefinition algorithm 
+for travel time prediction.
 
-@author: U37509
+Developer: Lachlan Adams 
+Contact: lachlan.adams@ga.gov.au or lachlan.adams.1996@outlook.com
+
 """
 
 import glob, os
