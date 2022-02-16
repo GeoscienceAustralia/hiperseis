@@ -164,36 +164,49 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_
                                     cell_radius=cell_radius, idw_exponent=idw_exponent,
                                     pw_exponent=pw_exponent, max_station_dist=max_station_dist)
 
-        fig, gax, ax = None, None, None
-        if(gravity):
-            fig, (gax, ax) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 5]}, sharex=True)
-        else:
-            fig, ax = plt.subplots()
-        # end if
-
-        fig.set_size_inches((20, 10))
-        fig.set_dpi(300)
-
-        # plot profile
-        vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, gravity=gravity)
-
         fname = os.path.join(output_folder, '{}-{}.{}'.format(s, e, output_format))
-        fig.savefig(fname)
 
-        if(output_format.lower() == 'png'):
-            # write meta-data for translating digitization
-            d = {'lon1': vprof._lon1, 'lat1': vprof._lat1,
-                 'lon2': vprof._lon2, 'lat2': vprof._lat2,
-                 'x1':np.min(vprof._gx), 'y1':np.min(vprof._gd),
-                 'x2':np.max(vprof._gx), 'y2':np.max(vprof._gd)}
-            sd = json.dumps(d)
+        if(output_format.lower() == 'txt'):
+            ggx, ggd = np.meshgrid(vprof._gx, vprof._gd)
 
-            img = PngImageFile(fname)
-            meta = PngInfo()
-            meta.add_text('profile_meta', sd)
+            grid = np.zeros((vprof._grid.shape[0], 5))
+            grid[:, 0] = vprof._grid[:, 1]
+            grid[:, 1] = vprof._grid[:, 2]
+            grid[:, 2] = ggx.flatten()
+            grid[:, 3] = ggd.flatten()
+            grid[:, 4] = vprof._grid_vals.flatten()
+            np.savetxt(fname, grid, header='lon lat distance(km) depth(km) amplitude(arb. units)', fmt='%10.10f')
+        else:
+            fig, gax, ax = None, None, None
+            if(gravity):
+                fig, (gax, ax) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [1, 5]}, sharex=True)
+            else:
+                fig, ax = plt.subplots()
+            # end if
 
-            img.save(fname, pnginfo=meta)
-            img.close()
+            fig.set_size_inches((20, 10))
+            fig.set_dpi(300)
+
+            # plot profile
+            vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, gravity=gravity)
+
+            fig.savefig(fname)
+
+            if(output_format.lower() == 'png'):
+                # write meta-data for translating digitization
+                d = {'lon1': vprof._lon1, 'lat1': vprof._lat1,
+                     'lon2': vprof._lon2, 'lat2': vprof._lat2,
+                     'x1':np.min(vprof._gx), 'y1':np.min(vprof._gd),
+                     'x2':np.max(vprof._gx), 'y2':np.max(vprof._gd)}
+                sd = json.dumps(d)
+
+                img = PngImageFile(fname)
+                meta = PngInfo()
+                meta.add_text('profile_meta', sd)
+
+                img.save(fname, pnginfo=meta)
+                img.close()
+            # end if
         # end if
     # end for
 # end
