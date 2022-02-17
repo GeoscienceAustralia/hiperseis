@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from PIL.PngImagePlugin import PngImageFile, PngInfo
 
 from seismic.receiver_fn.rf_ccp_util import CCPVolume, CCP_VerticalProfile, CCP_DepthProfile, Gravity
+from utils.sgrid import SGrid
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -93,7 +94,14 @@ def read_profile_def(fname, ccpVolume, type):
 @click.argument('profile-def', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.option('--gravity-grid', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
               help='Gravity grid in tif/ers format. If provided, a gravity line-plot is added to each'
-                   ' vertical profile')
+                   ' vertical profile. Note that this parameter is ignored if the output-format is set '
+                   'to txt')
+@click.option('--mt-sgrid', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
+              help='MT grid in sgrid format. If provided, an additional column with resistivity values are '
+                   'added in the output text file. Note that this parameter is ignored if the output-format '
+                   'is set to png')
+@click.option('--mt-utm-zone', type=str, default=None, show_default=True,
+              help='UTM zone for mt-grid e.g. 53S. This parameter is ignored if mt-grid is not provided')
 @click.option('--dx', type=float, default=5, show_default=True,
               help='Horizontal distance-step (km) between start and end locations of a profile')
 @click.option('--dz', type=float, default=0.5, show_default=True,
@@ -130,10 +138,11 @@ def read_profile_def(fname, ccpVolume, type):
               help='Stations closer than max-station-dist (km) to a profile are labelled on plots')
 @click.option('--output-folder', type=str, default='./', show_default=True,
               help='Output folder')
-@click.option('--output-format', type=str, default='png', show_default=True,
+@click.option('--output-format', type=click.Choice(['png', 'txt']), default='png', show_default=True,
               help='Output format')
-def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_width, ds, extend, cell_radius,
-             idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist, output_folder, output_format):
+def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx, dz, max_depth, swath_width, ds,
+             extend, cell_radius, idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist,
+             output_folder, output_format):
     """ Plot CCP vertical profile \n
     CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
     PROFILE_DEF: text file containing start and end locations of each vertical profile as\n
@@ -143,6 +152,10 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_
         python plot_ccp.py vertical OA_ccp_volume.h5 slice_def.txt\n
     """
     log.setLevel(logging.DEBUG)
+
+    # sanity checks
+    if (mt_sgrid and not mt_utm_zone): assert 0, 'UTM zone for {} not specified. ' \
+                                                'See help for --mt-utm-zone'.format(mt_sgrid)
 
     log.info('Loading CCP volume {}..'.format(ccp_h5_volume))
     vol = CCPVolume(ccp_h5_volume)
@@ -154,6 +167,12 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_
     if(gravity_grid):
         log.info('Loading gravity grid {}..'.format(gravity_grid))
         gravity = Gravity(gravity_grid)
+    # end if
+
+    mt = None
+    if(mt_sgrid):
+        log.info('Loading MT SGrid {}..'.format(mt_sgrid))
+        mt = SGrid(mt_sgrid, mt_utm_zone)
     # end if
 
     for s, e in profiles:
@@ -175,7 +194,27 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_
             grid[:, 2] = ggx.flatten()
             grid[:, 3] = ggd.flatten()
             grid[:, 4] = vprof._grid_vals.flatten()
-            np.savetxt(fname, grid, header='lon lat distance(km) depth(km) amplitude(arb. units)', fmt='%10.10f')
+
+            if(mt):
+                grid = np.hstack((grid, np.atleast_2d(np.zeros(grid.shape[0])).T))
+
+                grid[:, 5] = mt.get_values(grid[:, 0], grid[:, 1], grid[:, 3]*1e3, p=3)
+
+                """
+                fig, ax = plt.subplots(1)
+                fig.set_size_inches(25,10)
+                fig.set_dpi(300)
+
+                vals = np.reshape(np.array(grid[:, 5]), (vprof._gd.shape[0], vprof._gx.shape[0]))
+                ax.pcolor(np.log1p(vals), cmap='seismic_r')
+                plt.savefig(fname+'.png')
+                """
+
+                np.savetxt(fname, grid, header='lon lat distance(km) depth(km) amplitude(arb. units) resistivity(ohm m)',
+                           fmt='%10.10f')
+            else:
+                np.savetxt(fname, grid, header='lon lat distance(km) depth(km) amplitude(arb. units)', fmt='%10.10f')
+            # end if
         else:
             fig, gax, ax = None, None, None
             if(gravity):
@@ -241,7 +280,7 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, dx, dz, max_depth, swath_
               help='Maximum amplitude for colorbar normalization')
 @click.option('--output-folder', type=str, default='./', show_default=True,
               help='Output folder')
-@click.option('--output-format', type=str, default='png', show_default=True,
+@click.option('--output-format', type=click.Choice(['png', 'txt']), default='png', show_default=True,
               help='Output format')
 def depth(ccp_h5_volume, profile_def, dx, dy, dz, extend, cell_radius,
           idw_exponent, pw_exponent, amplitude_min, amplitude_max, output_folder, output_format):
@@ -271,15 +310,29 @@ def depth(ccp_h5_volume, profile_def, dx, dy, dz, extend, cell_radius,
                                  cell_radius=cell_radius, idw_exponent=idw_exponent,
                                  pw_exponent=pw_exponent)
 
-        fig, ax = plt.subplots()
-        fig.set_size_inches((10, 10))
-        fig.set_dpi(300)
-
-        # plot profile
-        dprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max)
-
         fname = os.path.join(output_folder, '{}-{}-depth-{}.{}'.format(s, e, int(depth), output_format))
-        fig.savefig(fname)
+
+        if(output_format.lower() == 'txt'):
+            ggx, ggy = np.meshgrid(dprof._gx, dprof._gy)
+
+            grid = np.zeros((dprof._grid.shape[0], 5))
+            grid[:, 0] = dprof._grid[:, 1]
+            grid[:, 1] = dprof._grid[:, 2]
+            grid[:, 2] = ggx.flatten()
+            grid[:, 3] = ggy.flatten()
+            grid[:, 4] = dprof._grid_vals.flatten()
+
+            np.savetxt(fname, grid, header='lon lat x(km) y(km) amplitude(arb. units)', fmt='%10.10f')
+        else:
+            fig, ax = plt.subplots()
+            fig.set_size_inches((10, 10))
+            fig.set_dpi(300)
+
+            # plot profile
+            dprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max)
+
+            fig.savefig(fname)
+        # end if
     # end for
 # end
 
