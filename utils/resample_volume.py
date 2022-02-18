@@ -23,6 +23,7 @@ from pyevtk.hl import gridToVTK
 from netCDF4 import Dataset
 import click
 import os.path as path
+from seismic.xcorqc.utils import rtp2xyz
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -32,16 +33,6 @@ def rtp2xyz(r, theta, phi):
     xout[:, 1] = rst * np.sin(phi)
     xout[:, 2] = r * np.cos(theta)
     return xout
-# end func
-
-def xyz2rtp(x, y, z):
-    rout = np.zeros((x.shape[0], 3))
-    tmp1 = x * x + y * y
-    tmp2 = tmp1 + z * z
-    rout[:, 0] = np.sqrt(tmp2)
-    rout[:, 1] = np.arctan2(np.sqrt(tmp1), z)
-    rout[:, 2] = np.arctan2(y, x)
-    return rout
 # end func
 
 class Resample:
