@@ -5,11 +5,15 @@ The workflow requires MPI (mpi4py) and parallel HDF5 (h5py) capabilities on the 
 Installation instructions for NCI (Gadi ) are as follows:
 
 ### Load system modules:
-  1. `module purge` highly recommeneded to purge all modules to begin with
+  1. `module purge`
   2. `module load pbs` 
   3. `module load python3-as-python`
-  4. `module load openmpi/2.1.6-mt`
+  4. `module load openmpi/3.1.4`
   5. `module load hdf5/1.10.5p`
+
+### Remove old packages
+1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
+2. `rm -rf ~/.local/lib/python3.6/site-packages/mpi4py*`
 
 ### Upgrade pip
 
@@ -20,16 +24,14 @@ Installation instructions for NCI (Gadi ) are as follows:
  1. `pip3.6 install numpy==1.18.5 --user`
 
 ### Install mpi4py that uses the correct OpenMPI libs
-  1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3 install mpi4py --user` Note that we use `pip3`, the system-provided pip for python 3.6
+  1. `MPICC=/apps/openmpi/3.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3 --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
 
 ### Build Parallel H5PY
 
 1. `pip3.6 install cython==0.29.22 --user`
-2. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from h5py repository from github fork of h5py, adapted for Gadi, for purpose of custom build
+2. `git clone --single-branch --branch 3.1.0-gadi-tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 3.1.0) from a fork of h5py, adapted for Gadi.
 3. `cd h5py`
-4. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
-5. `python setup.py build` Build h5py
-6. `python setup.py install --user` Install in user space
+4. `CC=mpicc HDF5_MPI="ON" HDF5_DIR=/apps/hdf5/1.10.5p/ python setup.py install --user` Configure, build and install
 
 ### Setup standard packages
   1. `pip3.6 install obspy==1.1.0 --user`

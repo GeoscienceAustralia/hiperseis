@@ -19,15 +19,15 @@ To set up the Python environment, the following high level order of operations m
 
 ### Library version summary
 
-* Open MPI v2.1.6-mt
+* Open MPI v3.1.4
 * HDF5 v1.10.5p (parallel build)
-* mpi4py v3.0.3 (custom MPI build)
+* mpi4py v3.1.3 (custom MPI build)
 * numpy 1.18.5
 * cython 0.29.22  
 * osbpy 1.1.0
 * click 7.0
 * netCDF4 1.4.0
-* h5py 2.10.0 (custom MPI build)
+* h5py 3.1.0 (custom MPI build)
 * pyasdf 0.5.1
 * pyFFTW 0.12.0
 
@@ -44,11 +44,15 @@ From a login node on Gadi:
   1. `module purge`
   2. `module load pbs` 
   3. `module load python3-as-python`
-  4. `module load openmpi/2.1.6-mt`
+  4. `module load openmpi/3.1.4`
   5. `module load hdf5/1.10.5p`
   6. `module load fftw3/3.3.8`
 
 #### Setup custom packages
+
+##### Remove old packages
+1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
+2. `rm -rf ~/.local/lib/python3.6/site-packages/mpi4py*`
 
 ##### Upgrade pip
 
@@ -60,16 +64,14 @@ From a login node on Gadi:
 
 ##### mpi4py
 
-  1. `MPICC=/apps/openmpi/2.1.6-mt/bin/mpicc pip3.6 install mpi4py --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
+  1. `MPICC=/apps/openmpi/3.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3 --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
 
 ##### H5PY
 
 1. `pip3.6 install cython==0.29.22 --user`
-2. `git clone --single-branch --branch 2.10.0.gadi_tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 2.10.0) from a fork of h5py, adapted for Gadi.
+2. `git clone --single-branch --branch 3.1.0-gadi-tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 3.1.0) from a fork of h5py, adapted for Gadi.
 3. `cd h5py`
-4. `CC=mpicc python setup.py configure --mpi --hdf5=/apps/hdf5/1.10.5p/` Configure with mpi enabled
-5. `python setup.py build` Build h5py
-6. `python setup.py install --user` Install in user space
+4. `CC=mpicc HDF5_MPI="ON" HDF5_DIR=/apps/hdf5/1.10.5p/ python setup.py install --user` Configure, build and install
 
 ##### pyFFTW
   2. `wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz`
@@ -87,7 +89,7 @@ From a login node on Gadi:
   6. `pip3.6 install pandas==1.1.5 --user`
   7. `pip3.6 install Rtree==0.9.7 --user`
 
-Date last validated: 10 August 2021
+Date last validated: 18 Feb 2022
 
 ### Setup validation
 

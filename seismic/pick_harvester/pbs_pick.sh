@@ -15,9 +15,11 @@
 # this is tested working in NCI gadi system.
 # Alternative is to use anaconda python3 env "conda activate hiperseispy37" (vdi)
 module purge
-module load python3/3.7.4
-module load openmpi/2.1.6-mt
+module load pbs
+module load python3-as-python
+module load openmpi/3.1.4/
 module load hdf5/1.10.5p
+
 #export GDAL_DATA=/apps/gdal/3.0.2/share/gdal/
 #export PYTHONPATH=/apps/gdal/3.0.2/lib64:/apps/gdal/3.0.2/lib64/python3.7/site-packages
 export PYTHONPATH=/home/547/fxz547/github/hiperseis/:$PYTHONPATH

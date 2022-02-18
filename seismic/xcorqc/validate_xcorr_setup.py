@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 #
-# Test that the user's Raijin setup is capable of importing and using require libraries
+# Test that the user's setup on Gadi is capable of importing and using require libraries
 # for x-correlation in mpi runtime environment.
-# Requires Python 2.7.13 and the following module loads before running:
-#     module load openmpi/2.1.1
-#     module load hdf5/1.10.2p
-#     module load module load mpi4py/3.0.0-py2
+#     module purge
+#     module load pbs
+#     module load python3-as-python
+#     module load openmpi/3.1.4
+#     module load hdf5/1.10.5p
 
 import sys
 

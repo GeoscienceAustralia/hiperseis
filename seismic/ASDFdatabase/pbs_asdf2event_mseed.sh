@@ -12,7 +12,7 @@
 module purge
 module load pbs
 module load python3-as-python
-module load openmpi/2.1.6-mt
+module load openmpi/3.1.4/
 module load hdf5/1.10.5p
 
 export PATH=$HOME/.local/bin:$PATH
