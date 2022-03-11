@@ -9,10 +9,29 @@ import numbers
 import json
 import os
 from collections import defaultdict
+from obspy.signal.filter import lowpass
+from obspy.core import Stream, Trace
 
 import numpy as np
 
 # pylint: disable=invalid-name
+
+def zerophase_resample(item, resample_hz):
+    def _zerophase_resample(trc, resample_hz):
+        if(np.ma.is_masked(trc.data)): raise TypeError
+
+        if(resample_hz < trc.stats.sampling_rate):
+            trc.data = lowpass(trc.data, resample_hz / 2., trc.stats.sampling_rate, corners=2, zerophase=True)
+        # end if
+
+        trc.resample(resample_hz, no_filter=True)
+    # end func
+
+    if(isinstance(item, Stream)):
+        for trc in item: _zerophase_resample(trc, resample_hz)
+    elif(isinstance(item, Trace)): _zerophase_resample(item, resample_hz)
+    else: raise TypeError
+# end func
 
 def zne_order(tr):
     """Channel ordering sort key function for ZNE ordering

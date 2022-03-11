@@ -133,7 +133,7 @@ def iter_h5_stream(src_file, headonly=False):
 # end func
 
 
-def write_h5_event_stream(dest_h5_file, stream, mode='a', ignore=()):
+def write_h5_event_stream(dest_h5_file, stream, index=EVENTIO_H5INDEX, mode='a', ignore=()):
     """
     Write stream to HDF5 file in event indexed format using obspy.
 
@@ -141,6 +141,8 @@ def write_h5_event_stream(dest_h5_file, stream, mode='a', ignore=()):
     :type dest_h5_file: str or pathlib.Path
     :param stream: The stream to write
     :type stream: obspy.Stream
+    :param index: Trace-data organization scheme -- see default EVENTIO_H5INDEX
+    :type: str
     :param mode: Write mode, such as 'w' or 'a'. Use 'a' to iteratively write multiple streams to one file.
     :type mode: str
     :param ignore: List of headers to ignore when writing attributes to group. Passed on directly to obspyh5.writeh5
@@ -150,7 +152,7 @@ def write_h5_event_stream(dest_h5_file, stream, mode='a', ignore=()):
     # custom iterators.
     assert mode.lower() != 'r', 'Write mode cannot be \'r\''
     prior_index = obspyh5._INDEX
-    obspyh5.set_index(EVENTIO_H5INDEX)
+    obspyh5.set_index(index)
     stream.write(dest_h5_file, 'H5', mode=mode, ignore=ignore)
     obspyh5.set_index(prior_index)
 # end func

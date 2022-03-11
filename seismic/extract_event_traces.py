@@ -15,8 +15,11 @@ import re
 import numpy as np
 import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
+from obspy.signal.filter import lowpass
 from obspy.clients.fdsn import Client
+from obspy.core.event import Catalog
 from obspy.core import Stream
+from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 from rf import iter_event_data
 from tqdm import tqdm
 import click
@@ -30,12 +33,16 @@ from obspy.taup import TauPyModel
 
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 from seismic.pick_harvester.utils import Event, Origin
-from seismic.pick_harvester.pick import extract_p
+from seismic.pick_harvester.pick import extract_p, extract_s
+from seismic.stream_processing import zerophase_resample
 
+from collections import defaultdict
 logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
+SW_MIN_MAG = 6.
+SW_MAX_DEPTH = 150 #km
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
     """Load event catalog (if available) or create event catalog from FDSN server.
@@ -171,7 +178,6 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
     return st
 # end func
 
-
 def timestamp_filename(fname, t0, t1):
     """Append pair of timestamps (start and end time) to file name in format that is
        compatible with filesystem file naming.
@@ -266,24 +272,25 @@ def trim_inventory(inventory, network_list, station_list):
     return inventory
 #end func
 
-class PPicker():
+class Picker():
     def __init__(self, taup_model_name):
         self._taup_model = TauPyModel(model=taup_model_name)
-        self._picker_list = None
+        self._picker_list_p = []
+        self._picker_list_s = []
 
         sigmalist = np.arange(8, 3, -1)
-        pickerlist = []
         for sigma in sigmalist:
-            picker = aicdpicker.AICDPicker(t_ma=10, nsigma=sigma, t_up=1, nr_len=5,
-                                           nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+            picker_p = aicdpicker.AICDPicker(t_ma=10, nsigma=sigma, t_up=1, nr_len=5,
+                                             nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
+            picker_s = aicdpicker.AICDPicker(t_ma=15, nsigma=sigma, t_up=1, nr_len=5,
+                                             nr_coeff=2, pol_len=10, pol_coeff=10, uncert_coeff=3)
 
-            pickerlist.append(picker)
+            self._picker_list_p.append(picker_p)
+            self._picker_list_s.append(picker_s)
         # end for
-
-        self._picker_list = pickerlist
     # end func
 
-    def pick(self, ztrace, ntrace, etrace):
+    def pick(self, ztrace, ntrace, etrace, phase='P'):
         slope_ratio = -1
         arrival_time = UTC(-1)
         origin = Origin(ztrace.stats.event_time,
@@ -293,8 +300,17 @@ class PPicker():
         event = Event()
         event.preferred_origin = origin
 
-        result = extract_p(self._taup_model, self._picker_list, event, ztrace.stats.station_longitude,
-                           ztrace.stats.station_latitude, Stream(ztrace), margin=5)
+        result = None
+        if(phase == 'P'):
+            result = extract_p(self._taup_model, self._picker_list_p, event, ztrace.stats.station_longitude,
+                               ztrace.stats.station_latitude, Stream(ztrace), margin=5)
+        elif(phase == 'S'):
+            result = extract_s(self._taup_model, self._picker_list_s, event, ztrace.stats.station_longitude,
+                               ztrace.stats.station_latitude, Stream(ntrace), Stream(etrace),
+                               ntrace.stats.back_azimuth, margin=10)
+        else:
+            assert 0, 'Unknown phase: {}. Must be "P" or "S"'.format(phase)
+        # end if
 
         if(result):
             picklist, residuallist, snrlist, _, _ = result
@@ -309,6 +325,185 @@ class PPicker():
         etrace.stats.update({'arrival_time': arrival_time, 'slope_ratio': slope_ratio})
     # end func
 # end class
+
+def sw_catalog(catalog):
+    # Trim catalog for surface waves, removing proximal events, as done in function catclean in:
+    # https://github.com/jbrussell/DLOPy_v1.0/blob/master/pysave/locfuns.py
+    def close(x1, x2):
+        if (np.fabs(x1-x2) < 0.8):
+            return True
+        else:
+            return False
+        # end if
+    #end func
+
+    stime = np.array([e.preferred_origin().time.timestamp for e in catalog])
+    lon = np.array([e.preferred_origin().longitude for e in catalog])
+    lat = np.array([e.preferred_origin().latitude for e in catalog])
+    depth = np.array([e.preferred_origin().depth for e in catalog])
+    mag = np.array([float(e.magnitudes[0].mag) for e in catalog])
+
+    repeated = []
+    for i in np.arange((len(stime))):
+        for j in np.arange((len(stime))):
+            if(i==j): continue
+
+            if (np.fabs(stime[j]-stime[i]) < 60*15 and
+                    close(lat[j], lat[i]) and
+                    close(lon[j], lon[i]) and
+                    np.fabs(mag[j] - mag[i]) < 0.3):
+                repeated.append(j)
+            # end if
+        # end for
+    # end for
+    repeated = set(repeated)
+
+    out_cat = Catalog()
+    for i, e in enumerate(catalog):
+        if(e.magnitudes[0].mag < SW_MIN_MAG): continue
+        if(e.preferred_origin().depth/1e3 > SW_MAX_DEPTH): continue
+
+        if(i not in repeated):
+            out_cat.append(e)
+        # end if
+    # end for
+
+    return out_cat
+# end func
+
+def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
+                 tt_model='iasp91', wave='P', resample_hz=10, dry_run=True):
+
+    assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
+
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
+
+    # descriptions
+    descs = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surace-wave'}
+
+    # initialize event time-window dict
+    request_window = defaultdict(tuple) # seconds
+    request_window['P'] = (-70, 150)
+    request_window['S'] = (-100, 150)
+    request_window['SW'] = (-70, 4*60*60)
+
+    # initialize phase-map dict
+    phase_map = defaultdict(str) # seconds
+    phase_map['P'] = 'P'
+    phase_map['S'] = 'S'
+    phase_map['SW'] = 'P' # for surface-waves we use P-onset time within iter_event_data
+
+    # initialize event distance-range dict
+    distance_range = defaultdict(tuple) # arc degrees
+    distance_range['P'] = (30, 90)
+    distance_range['S'] = (30, 90)
+    distance_range['SW'] = (5, 175)
+
+    # instantiate arrival-picker
+    picker = Picker(taup_model_name=tt_model)
+
+    # initialize trace-data organization scheme
+    # P-waveforms are stored under root group 'waveforms' for backward compatibility
+    tf = '.datetime:%Y-%m-%dT%H:%M:%S'
+    h5_index_dict = defaultdict(str)
+    h5_index_dict['P'] = 'waveforms/{network}.{station}.{location}/{event_time%s}/' % tf + \
+                         '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
+    h5_index_dict['S'] = 'waveforms/S/{network}.{station}.{location}/{event_time%s}/' % tf + \
+                         '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
+    h5_index_dict['SW'] = 'waveforms/SW/{network}.{station}.{location}/{event_time%s}/' % tf + \
+                         '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
+
+    nsl_dict = defaultdict(str) # net.sta.loc -> cha
+    for item in inventory.get_contents()['channels']:
+        tokens = item.split('.')
+        nsl_dict['.'.join(tokens[:3])] = tokens[-1]
+    # end for
+
+    for nsl, cha in nsl_dict.items():
+        net, sta, loc = nsl.split('.')
+
+        #if(nsl != 'OA.BL32.'): continue
+
+        curr_inv = inventory.select(network=net, station=sta, location=loc)
+
+        coord = curr_inv.get_coordinates(nsl + '.' + cha)
+        sta_lon, sta_lat = coord['longitude'], coord['latitude']
+        curr_cat = Catalog()
+        for event in catalog:
+            po = (event.preferred_origin() or event.origins[0])
+            da = gps2dist_azimuth(po.latitude, po.longitude, sta_lat, sta_lon)
+
+            dist_deg = kilometers2degrees(da[0] / 1e3)
+
+            if(dist_deg >= distance_range[wave][0] and dist_deg <= distance_range[wave][1]):
+                curr_cat.append(event)
+            # end if
+        # end for
+
+        log.info('{}: found {} matching events'.format('.'.join([net, sta]), len(curr_cat)))
+        if(dry_run): continue
+
+        with tqdm(smoothing=0, desc=descs[wave]) as pbar:
+            stream_count = 0
+            for s in iter_event_data(curr_cat, curr_inv, waveform_getter,
+                                     phase=phase_map[wave],
+                                     tt_model=tt_model, pbar=pbar,
+                                     request_window=request_window[wave]):
+                # Write traces to output file in append mode so that arbitrarily large file
+                # can be processed. If the file already exists, then existing streams will
+                # be overwritten rather than duplicated.
+                # Check first if rotation for unaligned *H1, *H2 channels to *HN, *HE is required.
+                if not s:
+                    continue
+                # end if
+                if s.select(component='1') and s.select(component='2'):
+                    try:
+                        s.rotate('->ZNE', inventory=inventory)
+                    except ValueError as e:
+                        log.error('Unable to rotate to ZNE with error:\n{}'.format(str(e)))
+                        continue
+                    # end try
+                # end if
+                # Order the traces in ZNE ordering. This is required so that normalization
+                # can be specified in terms of an integer index, i.e. the default of 0 in rf
+                # library will normalize against the Z component.
+                s.traces = sorted(s.traces, key=zne_order)
+                # Assert the ordering of traces in the stream is ZNE.
+                assert s[0].stats.channel[-1] == 'Z'
+                assert s[1].stats.channel[-1] == 'N'
+                assert s[2].stats.channel[-1] == 'E'
+
+                # pick P arrivals while exporting data for surface-waves
+                picker.pick(s[0], s[1], s[2], phase=phase_map[wave])
+
+                # Iterator returns rf.RFStream. Write traces from obspy.Stream to decouple from RFStream.
+                grp_id = '.'.join(s.traces[0].id.split('.')[0:3])
+                event_time = str(s.traces[0].meta.event_time)[0:19]
+                pbar.set_description("[{}] {} | {}".format(descs[wave], grp_id, event_time))
+                out_stream = obspy.Stream([tr for tr in s])
+                assert out_stream[0].stats.channel[-1] == 'Z'
+                assert out_stream[1].stats.channel[-1] == 'N'
+                assert out_stream[2].stats.channel[-1] == 'E'
+
+                # resample after lowpass @ resample_rate / 2 Hz
+                for tr in out_stream:
+                    zerophase_resample(tr, resample_hz)
+                # end for
+
+                write_h5_event_stream(event_trace_datafile, out_stream, index=h5_index_dict[wave], mode='a')
+                stream_count += 1
+                #break
+            # end for
+
+            if stream_count == 0:
+                log.warning("No traces found!")
+            else:
+                log.info("Wrote {} {} streams to output file".format(stream_count, descs[wave]))
+            # end if
+        # end with
+    # end for
+# end func
 
 # ---+----------Main---------------------------------
 
@@ -345,19 +540,40 @@ class PPicker():
 @click.option('--taup-model', type=str, default='iasp91', show_default=True,
               help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
                    'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
-@click.option('--distance-range', type=(float, float), default=(30.0, 90.0), show_default=True,
+@click.option('--distance-range', type=(float, float), default=(0, 180.0), show_default=True,
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
-@click.option('--magnitude-range', type=(float, float), default=(5.5, 7.0), show_default=True,
+@click.option('--magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog.')
 @click.option('--catalog-only', is_flag=True, default=False, show_default=True,
               help='If set, only generate catalog file and exit. Used for preparing '
                    'input file on HPC systems with no internet access.')
+@click.option('--resample-hz', type=float, default=10, show_default=True,
+              help='Resampling frequency (default 10 Hz) for output traces')
+@click.option('--p-data', is_flag=True, default=False, show_default=True,
+              help='Extracts waveform data around P-arrival')
+@click.option('--s-data', is_flag=True, default=False, show_default=True,
+              help='Extracts waveform data around S-arrival')
+@click.option('--sw-data', is_flag=True, default=False, show_default=True,
+              help='Extracts waveform data around surface-wave arrival')
+@click.option('--dry-run', is_flag=True, default=False, show_default=True,
+              help='Reports events available to each station, by wave-type and exits without outputting any data. '
+                   'Has no effect on --catalog-only mode.')
 def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
-         start_time, end_time, taup_model, distance_range, magnitude_range, catalog_only=False):
+         start_time, end_time, taup_model, distance_range, magnitude_range, catalog_only, resample_hz,
+         p_data, s_data, sw_data, dry_run):
 
-    log = logging.getLogger(__name__)
+    log = logging.getLogger('extract_event_traces')
     log.setLevel(logging.INFO)
 
+    # sanity check
+    owave_types = defaultdict(bool)
+    if(not(p_data or s_data or sw_data) and not catalog_only):
+        assert 0, 'At least one from [--p-data, --s-data, --sw-data] must be specified. Aborting'
+    else:
+        owave_types['P'] = p_data
+        owave_types['S'] = s_data
+        owave_types['SW'] = sw_data
+    # end if
 
     inventory = None
     asdf_dataset = None
@@ -431,60 +647,16 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         waveform_getter = closure_get_waveforms
     # end if
 
-    # instantiate p-arrival-picker
-    ppicker = PPicker(taup_model_name=taup_model)
+    for wave, flag in owave_types.items():
+        if(not flag): continue
 
-    with tqdm(smoothing=0) as pbar:
-        stream_count = 0
-        for s in iter_event_data(catalog, inventory, waveform_getter, tt_model=taup_model, pbar=pbar,
-                                 request_window=(-70, 150)):
-            # Write traces to output file in append mode so that arbitrarily large file
-            # can be processed. If the file already exists, then existing streams will
-            # be overwritten rather than duplicated.
-            # Check first if rotation for unaligned *H1, *H2 channels to *HN, *HE is required.
-            if not s:
-                continue
-            # end if
-            if s.select(component='1') and s.select(component='2'):
-                try:
-                    s.rotate('->ZNE', inventory=inventory)
-                except ValueError as e:
-                    log.error('Unable to rotate to ZNE with error:\n{}'.format(str(e)))
-                    continue
-                # end try
-            # end if
-            # Order the traces in ZNE ordering. This is required so that normalization
-            # can be specified in terms of an integer index, i.e. the default of 0 in rf
-            # library will normalize against the Z component.
-            s.traces = sorted(s.traces, key=zne_order)
-            # Assert the ordering of traces in the stream is ZNE.
-            assert s[0].stats.channel[-1] == 'Z'
-            assert s[1].stats.channel[-1] == 'N'
-            assert s[2].stats.channel[-1] == 'E'
+        curr_catalog = catalog
+        if(wave == 'SW'): curr_catalog = sw_catalog(catalog) # remove proximal events for surface-wave output
 
-            # pick waveform
-            ppicker.pick(s[0], s[1], s[2])
-
-            # Iterator returns rf.RFStream. Write traces from obspy.Stream to decouple from RFStream.
-            grp_id = '.'.join(s.traces[0].id.split('.')[0:3])
-            event_time = str(s.traces[0].meta.event_time)[0:19]
-            pbar.set_description("{} -- {}".format(grp_id, event_time))
-            out_stream = obspy.Stream([tr for tr in s])
-            assert out_stream[0].stats.channel[-1] == 'Z'
-            assert out_stream[1].stats.channel[-1] == 'N'
-            assert out_stream[2].stats.channel[-1] == 'E'
-            write_h5_event_stream(event_trace_datafile, out_stream, mode='a')
-            stream_count += 1
-        # end for
-
-        if stream_count == 0:
-            log.warning("No traces found!")
-        else:
-            log.info("Wrote {} streams to output file".format(stream_count))
-        # end if
-    # end with
+        extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
+                     tt_model=taup_model, wave=wave, resample_hz=resample_hz, dry_run=dry_run)
+    # end for
 # end main
-
 
 if __name__ == '__main__':
     main()  # pylint: disable=no-value-for-parameter
