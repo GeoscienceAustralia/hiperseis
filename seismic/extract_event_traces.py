@@ -5,7 +5,7 @@ magnitude and time range.
 
 import os.path
 import logging
-import re
+from mpi4py import MPI
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -15,7 +15,6 @@ import re
 import numpy as np
 import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
-from obspy.signal.filter import lowpass
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
 from obspy.core import Stream
@@ -26,7 +25,7 @@ import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.stream_processing import zne_order
-from seismic.stream_io import write_h5_event_stream
+from seismic.stream_io import safe_iter_event_data, write_h5_event_stream
 import obspy.core.util.version
 from obspy.core.inventory import Inventory
 from obspy.taup import TauPyModel
@@ -43,6 +42,7 @@ logging.basicConfig()
 
 SW_MIN_MAG = 6.
 SW_MAX_DEPTH = 150 #km
+SW_RESAMPLE_HZ = 2. #Hz
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
     """Load event catalog (if available) or create event catalog from FDSN server.
@@ -400,56 +400,75 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     distance_range['S'] = (30, 90)
     distance_range['SW'] = (5, 175)
 
+    # initialize dict that indicates whether rfstats should be generated
+    rfstats_map = defaultdict(bool) # seconds
+    rfstats_map['P'] = True
+    rfstats_map['S'] = True
+    rfstats_map['SW'] = False # for surface-waves we don't need rfstats
+
     # instantiate arrival-picker
     picker = Picker(taup_model_name=tt_model)
 
     # initialize trace-data organization scheme
     # P-waveforms are stored under root group 'waveforms' for backward compatibility
     tf = '.datetime:%Y-%m-%dT%H:%M:%S'
-    h5_index_dict = defaultdict(str)
-    h5_index_dict['P'] = 'waveforms/{network}.{station}.{location}/{event_time%s}/' % tf + \
-                         '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
-    h5_index_dict['S'] = 'waveforms/S/{network}.{station}.{location}/{event_time%s}/' % tf + \
-                         '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
-    h5_index_dict['SW'] = 'waveforms/SW/{network}.{station}.{location}/{event_time%s}/' % tf + \
+    h5_index = 'waveforms/{wave_type}/{network}.{station}.{location}/{event_time%s}/' % tf + \
                          '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
 
-    nsl_dict = defaultdict(str) # net.sta.loc -> cha
-    for item in inventory.get_contents()['channels']:
-        tokens = item.split('.')
-        nsl_dict['.'.join(tokens[:3])] = tokens[-1]
-    # end for
+    # Initialize MPI
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
 
-    for nsl, cha in nsl_dict.items():
-        net, sta, loc = nsl.split('.')
-
-        #if(nsl != 'OA.BL32.'): continue
-
-        curr_inv = inventory.select(network=net, station=sta, location=loc)
-
-        coord = curr_inv.get_coordinates(nsl + '.' + cha)
-        sta_lon, sta_lat = coord['longitude'], coord['latitude']
-        curr_cat = Catalog()
-        for event in catalog:
-            po = (event.preferred_origin() or event.origins[0])
-            da = gps2dist_azimuth(po.latitude, po.longitude, sta_lat, sta_lon)
-
-            dist_deg = kilometers2degrees(da[0] / 1e3)
-
-            if(dist_deg >= distance_range[wave][0] and dist_deg <= distance_range[wave][1]):
-                curr_cat.append(event)
-            # end if
+    nsl_dict = None
+    if(rank==0):
+        nsl_dict = []
+        for i in np.arange(nproc): nsl_dict.append(defaultdict(list)) # net.sta.loc -> cha
+        
+        temp_dict = defaultdict(list)
+        for item in inventory.get_contents()['channels']:
+            tokens = item.split('.')
+            temp_dict['.'.join(tokens[:3])] = tokens[-1]
         # end for
 
-        log.info('{}: found {} matching events'.format('.'.join([net, sta]), len(curr_cat)))
-        if(dry_run): continue
+        njob = len(temp_dict)
+        nbogus = np.int(np.ceil(njob/float(nproc)))*nproc - njob
+        for i in np.arange(nbogus): temp_dict['%i.%i.%i'%(i, i, i)] = '-1'
 
-        with tqdm(smoothing=0, desc=descs[wave]) as pbar:
+        cproc = 0
+        for k, v in temp_dict.items():
+            nsl_dict[cproc][k] = v
+            cproc = (cproc + 1)%nproc
+        # end for
+    # end if
+
+    nsl_dict = comm.scatter(nsl_dict, root=0)
+
+    for nsl, cha in nsl_dict.items():
+        if(cha == '-1'):
+            for irank in np.arange(nproc):
+                comm.Barrier()
+            # end for
+        else:
+            net, sta, loc = nsl.split('.')
+
+            curr_inv = inventory.select(network=net, station=sta, location=loc)
+
+            coord = curr_inv.get_coordinates(nsl + '.' + cha)
+            sta_lon, sta_lat = coord['longitude'], coord['latitude']
+
+            if(dry_run): continue
+
             stream_count = 0
-            for s in iter_event_data(curr_cat, curr_inv, waveform_getter,
-                                     phase=phase_map[wave],
-                                     tt_model=tt_model, pbar=pbar,
-                                     request_window=request_window[wave]):
+            sta_stream = Stream()
+
+            pbar=tqdm(desc=descs[wave], total=len(catalog) * len(curr_inv))
+            for s in safe_iter_event_data(catalog, curr_inv, waveform_getter,
+                                          use_rfstats=rfstats_map[wave],
+                                          phase=phase_map[wave],
+                                          tt_model=tt_model, pbar=None,#pbar,
+                                          request_window=request_window[wave],
+                                          dist_range=distance_range[wave]):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
                 # be overwritten rather than duplicated.
@@ -474,13 +493,13 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 assert s[1].stats.channel[-1] == 'N'
                 assert s[2].stats.channel[-1] == 'E'
 
-                # pick P arrivals while exporting data for surface-waves
-                picker.pick(s[0], s[1], s[2], phase=phase_map[wave])
+                # don't pick for surface-waves
+                if(rfstats_map[wave]): picker.pick(s[0], s[1], s[2], phase=phase_map[wave])
 
                 # Iterator returns rf.RFStream. Write traces from obspy.Stream to decouple from RFStream.
                 grp_id = '.'.join(s.traces[0].id.split('.')[0:3])
                 event_time = str(s.traces[0].meta.event_time)[0:19]
-                pbar.set_description("[{}] {} | {}".format(descs[wave], grp_id, event_time))
+
                 out_stream = obspy.Stream([tr for tr in s])
                 assert out_stream[0].stats.channel[-1] == 'Z'
                 assert out_stream[1].stats.channel[-1] == 'N'
@@ -488,12 +507,27 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
                 # resample after lowpass @ resample_rate / 2 Hz
                 for tr in out_stream:
-                    zerophase_resample(tr, resample_hz)
+                    res_hz = SW_RESAMPLE_HZ if wave == 'SW' else resample_hz
+                    zerophase_resample(tr, res_hz)
+                   
+                    tr.stats.update({'wave_type':wave})
                 # end for
 
-                write_h5_event_stream(event_trace_datafile, out_stream, index=h5_index_dict[wave], mode='a')
+                sta_stream += out_stream
                 stream_count += 1
-                #break
+
+                pbar.set_description("[{}] {} | {}".format(descs[wave], grp_id, event_time))
+                pbar.update()
+            # end for
+            pbar.close()
+
+            for irank in np.arange(nproc):
+                if(irank == rank):
+                    if(len(sta_stream)):
+                        write_h5_event_stream(event_trace_datafile, sta_stream, index=h5_index, mode='a')
+                    # end if
+                # end if
+                comm.Barrier()
             # end for
 
             if stream_count == 0:
@@ -501,8 +535,13 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             else:
                 log.info("Wrote {} {} streams to output file".format(stream_count, descs[wave]))
             # end if
-        # end with
+        # end if
     # end for
+
+    if(rank == 0):
+        print("Finishing...")
+        print("extract_event_traces SUCCESS!")
+    # end if
 # end func
 
 # ---+----------Main---------------------------------
@@ -580,7 +619,7 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
     waveform_db_is_web = is_url(waveform_database) or waveform_database in obspy.clients.fdsn.header.URL_MAPPINGS
     if not waveform_db_is_web:
         assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
-        asdf_dataset = FederatedASDFDataSet(waveform_database, logger=log)
+        asdf_dataset = FederatedASDFDataSet(waveform_database)
         inventory = asdf_dataset.get_inventory()
     else:
         assert inventory_file, 'Must provide inventory file if using a URL or an obspy client as waveform source'
@@ -656,6 +695,7 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
                      tt_model=taup_model, wave=wave, resample_hz=resample_hz, dry_run=dry_run)
     # end for
+    del asdf_dataset
 # end main
 
 if __name__ == '__main__':

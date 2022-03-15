@@ -5,16 +5,19 @@
 import os
 import itertools
 import logging
-
+import numpy as np
 from sortedcontainers import SortedDict, SortedSet, SortedList
 import obspy
 from obspy.taup import TauPyModel
 from obspy.io.sac.sactrace import SACTrace
 import h5py
 import obspyh5
-from obspyh5 import dataset2trace, is_obspyh5
+from obspyh5 import dataset2trace, is_obspyh5, trace2group
+from os.path import splitext
 
 from seismic.units_utils import KM_PER_DEG
+from rf.rfstream import rfstats, obj2stats
+from rf.util import _get_stations
 
 # pylint: disable=invalid-name
 
@@ -29,6 +32,106 @@ EVENTIO_H5INDEX = (
     '{channel}_{starttime%s}_{endtime%s}' % (EVENTIO_TF, EVENTIO_TF)
     )
 
+def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, phase='P',
+                    request_window=None, pad=10, pbar=None, **kwargs):
+    """
+    Return iterator yielding three component streams per station and event.
+
+    :param events: list of events or `~obspy.core.event.Catalog` instance
+    :param inventory: `~obspy.core.inventory.inventory.Inventory` instance
+        with station and channel information
+    :param get_waveforms: Function returning the data. It has to take the
+        arguments network, station, location, channel, starttime, endtime.
+    :param phase: Considered phase, e.g. 'P', 'S', 'PP'
+    :type request_window: tuple (start, end)
+    :param request_window: requested time window around the onset of the phase
+    :param float pad: add specified time in seconds to request window and
+       trim afterwards again
+    :param pbar: tqdm_ instance for displaying a progressbar
+    :param kwargs: all other kwargs are passed to `~rf.rfstream.rfstats()`
+
+    :return: three component streams with raw data
+
+    Example usage with progressbar::
+
+        from tqdm import tqdm
+        from rf.util import iter_event_data
+        with tqdm() as t:
+            for stream3c in iter_event_data(*args, pbar=t):
+                do_something(stream3c)
+
+    .. _tqdm: https://pypi.python.org/pypi/tqdm
+    """
+    from rf.rfstream import rfstats, RFStream
+    method = phase[-1].upper()
+    if request_window is None:
+        request_window = (-50, 150) if method == 'P' else (-100, 50)
+    stations = _get_stations(inventory)
+    if pbar is not None:
+        pbar.total = len(events) * len(stations)
+    for event, seedid in itertools.product(events, stations):
+        if pbar is not None:
+            pbar.update(1)
+        origin_time = (event.preferred_origin() or event.origins[0])['time']
+        try:
+            args = (seedid[:-1] + stations[seedid], origin_time)
+            coords = inventory.get_coordinates(*args)
+        except Exception:  # station not available at that time
+            continue
+
+        stats = None
+        if(use_rfstats):
+            try:
+                stats = rfstats(station=coords, event=event, phase=phase, **kwargs)
+            except Exception as ex:
+                from warnings import warn
+                warn('Error "%s" in rfstats call for event %s, station %s.'
+                     % (ex, event.resource_id, seedid))
+                continue
+            if not stats:
+                continue
+        else:
+            stats = obj2stats(event, coords)
+        # end if
+
+        net, sta, loc, cha = seedid.split('.')
+
+        if(use_rfstats):
+            starttime = stats.onset + request_window[0]
+            endtime = stats.onset + request_window[1]
+        else:
+            starttime = origin_time + request_window[0]
+            endtime = origin_time + request_window[1]
+        # end if
+
+        kws = {'network': net, 'station': sta, 'location': loc,
+               'channel': cha, 'starttime': starttime - pad,
+               'endtime': endtime + pad}
+        try:
+            stream = get_waveforms(**kws)
+            stream.trim(starttime, endtime)
+            stream.merge()
+        except Exception:  # no data available
+            continue
+
+        if len(stream) != 3:
+            from warnings import warn
+            warn('Need 3 component seismograms. %d components '
+                 'detected for event %s, station %s.'
+                 % (len(stream), event.resource_id, seedid))
+            continue
+        if any(isinstance(tr.data, np.ma.masked_array) for tr in stream):
+            from warnings import warn
+            warn('Gaps or overlaps detected for event %s, station %s.'
+                 % (event.resource_id, seedid))
+            continue
+
+        for tr in stream:
+            tr.stats.update(stats)
+        # end for
+
+        yield RFStream(stream)
+# end func
 
 def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveforms'):
     """Helper function to load stream data from hdf5 file saved by obspyh5 HDF5 file IO.
@@ -132,7 +235,6 @@ def iter_h5_stream(src_file, headonly=False):
     # end with
 # end func
 
-
 def write_h5_event_stream(dest_h5_file, stream, index=EVENTIO_H5INDEX, mode='a', ignore=()):
     """
     Write stream to HDF5 file in event indexed format using obspy.
@@ -141,8 +243,6 @@ def write_h5_event_stream(dest_h5_file, stream, index=EVENTIO_H5INDEX, mode='a',
     :type dest_h5_file: str or pathlib.Path
     :param stream: The stream to write
     :type stream: obspy.Stream
-    :param index: Trace-data organization scheme -- see default EVENTIO_H5INDEX
-    :type: str
     :param mode: Write mode, such as 'w' or 'a'. Use 'a' to iteratively write multiple streams to one file.
     :type mode: str
     :param ignore: List of headers to ignore when writing attributes to group. Passed on directly to obspyh5.writeh5
@@ -156,7 +256,6 @@ def write_h5_event_stream(dest_h5_file, stream, index=EVENTIO_H5INDEX, mode='a',
     stream.write(dest_h5_file, 'H5', mode=mode, ignore=ignore)
     obspyh5.set_index(prior_index)
 # end func
-
 
 def sac2hdf5(src_folder, basenames, channels, dest_h5_file, tt_model_id='iasp91'):
     """
