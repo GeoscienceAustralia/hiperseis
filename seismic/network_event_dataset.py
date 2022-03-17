@@ -31,7 +31,7 @@ class NetworkEventDataset:
      Preferably each input trace will already have an 'event_id' attribute in its stats. If
      not, an event ID will be invented based on station identifiers and time window.
     """
-    def __init__(self, stream_src, network=None, station=None, location='', ordering='ZNE'):
+    def __init__(self, stream_src, network=None, station=None, location='', ordering='ZNE', root='/waveforms'):
         """
         Initialize from data source (file or obspy.Stream). Traces are COPIED into
         the dataset in order to leave input object intact, since many obspy functions
@@ -67,7 +67,7 @@ class NetworkEventDataset:
                 data_src = stream_src
             # end if
         elif os.path.isfile(stream_src):
-            data_src = read_h5_stream(stream_src, network, station, location)
+            data_src = read_h5_stream(stream_src, network, station, location, root=root)
         else:
             assert False, "Unknown data source {}".format(type(stream_src))
         # end if

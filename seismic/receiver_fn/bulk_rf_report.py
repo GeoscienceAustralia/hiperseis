@@ -26,6 +26,7 @@ import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
+from seismic.stream_io import get_obspyh5_index
 import uuid
 
 logging.basicConfig()
@@ -251,7 +252,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     tempdir = None
     if(rank == 0):
         # retrieve all available hdf_keys
-        proc_hdfkeys = rf_util.get_hdf_keys(input_file)
+        proc_hdfkeys = get_obspyh5_index(input_file, seeds_only=True)
 
         # trim stations to be processed based on the user-provided network- and station-list
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)

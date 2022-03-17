@@ -133,6 +133,25 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
         yield RFStream(stream)
 # end func
 
+def safe_h5_root(src_file, root):
+    # Origianlly, 'P' waveforms we re all written under '/waveforms' in write_h5_event_stream.
+    # However, it has now been updated to be able to extract 'P', 'S' and 'Surface-wave' waveforms
+    # and store them under 'P', 'S' and 'SW' sub-folders under '/waveforms', respectively.
+
+    # This function returns a backward compatible H5 root.
+
+    if (root.strip('/') == 'waveforms'):
+        hf = h5py.File(src_file, 'r')
+        keys = hf['waveforms'].keys()
+        if (np.sum([item in keys for item in ['P', 'S', 'SW']])):
+            root = '/waveforms/P'  # set default to point ot 'P' waveforms
+        # end if
+        hf.close()
+    # end if
+
+    return root
+# end func
+
 def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveforms'):
     """Helper function to load stream data from hdf5 file saved by obspyh5 HDF5 file IO.
     Typically the source file is generated using `extract_event_traces.py` script.
@@ -149,6 +168,10 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
     :return: All the loaded data in an obspy Stream.
     :rtype: obspy.Stream
     """
+
+    # Ensure backward compatibility
+    root = safe_h5_root(src_file, root)
+
     logger = logging.getLogger(__name__)
     if (network is None and station is not None) or (network is not None and station is None):
         logger.warning("network and station should both be specified - IGNORING incomplete specification")
@@ -164,7 +187,7 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
 # end func
 
 
-def get_obspyh5_index(src_file, seeds_only=False):
+def get_obspyh5_index(src_file, seeds_only=False, root='/waveforms'):
     """Scrape the index (only) from an obspyh5 file.
 
     :param src_file: Name of file to extract index from
@@ -180,11 +203,12 @@ def get_obspyh5_index(src_file, seeds_only=False):
     assert is_obspyh5(src_file), '{} is not an obspyh5 file'.format(src_file)
     index = SortedDict()
     with h5py.File(src_file, mode='r') as h5f:
-        root = h5f['/waveforms']
+        root = safe_h5_root(src_file, root)
+        root_g = h5f[root]
         if seeds_only:
-            return SortedList(root.keys())
+            return [key for key in root_g.keys()]
         # end if
-        for seedid, station_grp in root.items():
+        for seedid, station_grp in root_g.items():
             for event_grp in station_grp.values():
                 evid = None
                 for channel in event_grp.values():
@@ -201,7 +225,7 @@ def get_obspyh5_index(src_file, seeds_only=False):
 # end func
 
 
-def iter_h5_stream(src_file, headonly=False):
+def iter_h5_stream(src_file, headonly=False, root='/waveforms'):
     """
     Iterate over hdf5 file containing streams in obspyh5 format.
 
@@ -215,8 +239,9 @@ def iter_h5_stream(src_file, headonly=False):
     logger = logging.getLogger(__name__)
     fname = os.path.split(src_file)[-1]
     with h5py.File(src_file, mode='r') as h5f:
-        root = h5f['/waveforms']
-        for seedid, station_grp in root.items():
+        root = safe_h5_root(src_file, root)
+        root_g = h5f[root]
+        for seedid, station_grp in root_g.items():
             logger.info('{}: Group {}'.format(fname, seedid))
             num_events = len(station_grp)
             for i, (_src_event_time, event_grp) in enumerate(station_grp.items()):
@@ -255,6 +280,27 @@ def write_h5_event_stream(dest_h5_file, stream, index=EVENTIO_H5INDEX, mode='a',
     obspyh5.set_index(index)
     stream.write(dest_h5_file, 'H5', mode=mode, ignore=ignore)
     obspyh5.set_index(prior_index)
+# end func
+
+def remove_group(hdf_fn, net_sta_loc, root='/waveforms', logger=None):
+    try:
+        if(os.path.exists(hdf_fn)):
+            hdf_keys = get_obspyh5_index(hdf_fn, seeds_only=True, root=root)
+
+            if(net_sta_loc in hdf_keys):
+                del_key = 'waveforms/%s' % net_sta_loc
+
+                with h5py.File(hdf_fn, "a") as fh:
+                    if (len(fh[del_key].keys())):
+                        del fh[del_key]
+                        if(logger): logger.info('Removing group {}'.format(del_key))
+                    # end if
+                # end with
+            # end if
+        # end if
+    except:
+        raise IOError('Failed to remove group: waveforms/{}'.format(net_sta_loc))
+    # end try
 # end func
 
 def sac2hdf5(src_folder, basenames, channels, dest_h5_file, tt_model_id='iasp91'):
