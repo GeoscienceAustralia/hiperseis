@@ -14,7 +14,7 @@ import tqdm.auto as tqdm
 from seismic.receiver_fn.rf_corrections import Corrections
 from seismic.receiver_fn import rf_util
 from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
-from seismic.analyze_station_orientations import analyze_station_orientations
+from seismic.rf_station_orientations import analyze_station_orientations
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.stream_processing import zne_order, negate_channel, swap_ne_channels, correct_back_azimuth
 from seismic.stream_io import remove_group, get_obspyh5_index
@@ -165,7 +165,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                                             "taper_limit": 0.05,
                                             "filter_band": [0.01, 0.5]}
 
-                result = analyze_station_orientations(copy.deepcopy(ned), parallel=False,
+                result = analyze_station_orientations(copy.deepcopy(ned),
                                                       curation_opts=bazcorr_curation_opts,
                                                       config_filtering=bazcorr_config_filtering,
                                                       save_plots_path=corrections.plot_dir)

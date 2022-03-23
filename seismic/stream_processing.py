@@ -212,7 +212,7 @@ def correct_back_azimuth(_event_id, stream, baz_correction):
     :param baz_correction: Any object with a registered `scalarize` function for
         generating an angle correction for a trace in degrees. E.g. could be a
         numeric value, a dictionary of correction values, or a file produced by
-        script `analyze_station_orientations.py`
+        script `rf_station_orientations.py`
     :return: Stream with modified back azimuth
     :rtype: Same as type(stream)
     """

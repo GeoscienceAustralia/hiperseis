@@ -92,7 +92,8 @@ class NetworkEventDataset:
             except AttributeError:
                 event_id = '.'.join([net, sta, loc, '_'.join([str(tr.stats.starttime), str(tr.stats.endtime)])])
             # end try
-            self.db_sta.setdefault(sta, SortedDict()).setdefault(event_id, obspy.Stream()).append(dupe_trace)
+            key = '.'.join([sta, loc])
+            self.db_sta.setdefault(key, SortedDict()).setdefault(event_id, obspy.Stream()).append(dupe_trace)
         # end for
 
         # Index same obspy.Stream instances in event dict. This way, any changes

@@ -10,11 +10,10 @@ import matplotlib.pyplot as plt
 from rf import RFStream
 from obspy import UTCDateTime
 
-from seismic.analyze_station_orientations import (process_event_file)
-from seismic.analyze_station_orientations import (DEFAULT_CONFIG_FILTERING,
-                                                  DEFAULT_CONFIG_PROCESSING)
+from seismic.rf_station_orientations import (DEFAULT_CONFIG_FILTERING,
+                                             DEFAULT_CONFIG_PROCESSING)
 from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
-from seismic.analyze_station_orientations import analyze_station_orientations
+from seismic.rf_station_orientations import analyze_station_orientations
 from seismic.stream_processing import correct_back_azimuth
 from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
 
@@ -26,8 +25,7 @@ SYNTH_CURATION_OPTS = {
     "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
 }
 
-EXPECTED_SYNTH_KEY = 'SY.OAA'
-
+EXPECTED_SYNTH_KEY = 'SY.OAA.'
 
 def compute_ned_stacked_rf(ned):
     # Compute RF from NetworkEventDataset and return R component
@@ -174,22 +172,17 @@ def test_rotation_error(ned_rotation_error, expected_receiver_fn, tmpdir_factory
     assert np.allclose(actual_data, expected_data, rtol=1.0e-3, atol=1.0e-5)
 # end func
 
+def test_analyze_file(_master_event_dataset):
+    ned = copy.deepcopy(_master_event_dataset)
+    results = analyze_station_orientations(ned, curation_opts=SYNTH_CURATION_OPTS)
 
-def test_analyze_file(synth_event_file, tmpdir):
-    # Test file interface for orientation analysis
-    output_file = os.path.join(tmpdir.strpath, 'test_analyze_file.json')
-    process_event_file(synth_event_file, curation_opts=SYNTH_CURATION_OPTS,
-                       dest_file=output_file)
-    assert os.path.isfile(output_file)
-    with open(output_file, 'r') as f:
-        result = json.load(f)
-        assert EXPECTED_SYNTH_KEY in result
-        result = result[EXPECTED_SYNTH_KEY]
-        dates = result['date_range']
-        t0 = UTCDateTime(dates[0])
-        t1 = UTCDateTime(dates[1])
-        assert t1 > t0
-        correction = result['azimuth_correction']
-        assert correction == 0
-    # end with
+    assert EXPECTED_SYNTH_KEY in results
+    result = results[EXPECTED_SYNTH_KEY]
+    dates = result['date_range']
+    t0 = UTCDateTime(dates[0])
+    t1 = UTCDateTime(dates[1])
+    assert t1 > t0
+    correction = result['azimuth_correction']
+    assert correction == 0
 # end func
+
