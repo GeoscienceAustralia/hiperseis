@@ -673,20 +673,28 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         results[full_code]['date_range'] = [str(start_time), str(end_time)]
     # end for
 
+    logger.info('Analysing arrivals')
+
     r1cc, r1phi, r2cc, r2phi = compute_phis(ned, grv_dict)
     corr, err, ndata, nevents = summary_calculations(r1cc, r1phi, r2cc, r2phi)
 
+    corr *= -1 # converting to azimuth correction
+    while (corr > 180): corr -= 360
+    while (corr < -180): corr += 360
+
     results[full_code]['azimuth_correction'] = corr
-    results[full_code]['error'] = err
+    results[full_code]['uncertainty'] = err
 
+    logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
+        full_code, -corr, err, int(nevents)))
+
+    CEN = corr
+    c = np.matlib.repmat([40, 35, 30, 25, 20, 15, 10], r1cc.shape[0], 1)
     if save_plots_path is not None:
-        CEN = corr
-
         _f = plt.figure(figsize=(16, 9))
         plt.subplot(1, 1, 1)
         plt.title('DLOPy results: ' + full_code, fontsize=16)
         plt.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
-        c = np.matlib.repmat([40, 35, 30, 25, 20, 15, 10], r1cc.shape[0], 1)
         sc = plt.scatter(r1cc, centerat(r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
                          label='R1')
         plt.scatter(r2cc, centerat(r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
@@ -709,90 +717,25 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         plt.savefig(outfile, dpi=300)
         plt.close()
     elif(ax is not None):
-        pass
+        fig = ax.get_figure()
+        ax.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
+        sc = ax.scatter(r1cc, centerat(r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
+                         label='R1')
+        ax.scatter(r2cc, centerat(r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
+                    label='R2')
+        ax.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
+
+        cax = fig.add_axes([0.1, 0.075, 0.01, 0.1])
+        cbar = fig.colorbar(sc, cax=cax, orientation='vertical')
+        cbar.set_label('Frequency (mHz)', fontsize=6)
+        ax.set_ylabel('BH1 Orientation \n Angle ($^\circ$)', fontsize=16)
+        ax.set_ylim([CEN - 180, CEN + 180]);
+        ax.set_xlim([0, 1])
+
+        ax.text(0.9, 0.9, 'N = {}'.format(int(nevents)), ha='right', va='top',
+                 transform=ax.transAxes)
+        ax.legend(framealpha=0.7)
     # end if
 
     return results
 # end func
-
-@click.command()
-@click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
-                required=True)
-@click.option('--dest-file', type=click.Path(dir_okay=False),
-              help='Output file in which to store results in JSON text format')
-@click.option('--save-plots-path', type=click.Path(file_okay=False),
-              help='Optional folder in which to save plot per station')
-@click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
-              show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
-              show_default=True)
-def main(src_h5_event_file, dest_file, save_plots_path, network_list, station_list):
-    """
-    Run station orientation checks.
-
-    Example usage::
-
-
-    :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks, typically
-        generated using `extract_event_traces.py`
-    :type src_h5_event_file: str or pathlib.Path
-    :param dest_file: Output file in which to store results in JSON text format
-    :type dest_file: str or pathlib.Path
-    :param save_plots_path: Optional folder in which to save plot per station of mean corrections
-    :type save_plots_path: str or pathlib.Path
-    """
-
-    comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()
-    rank = comm.Get_rank()
-    proc_hdfkeys = None
-    h5_root = 'waveforms/SW'
-
-    if(rank == 0):
-        # retrieve all available hdf_keys
-        proc_hdfkeys = get_obspyh5_index(src_h5_event_file, seeds_only=True, root=h5_root)
-
-        # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
-
-        # split work-load over all procs
-        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
-    # end if
-
-    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
-
-    local_results = defaultdict(dict)
-    pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
-    grv_dict = load_grv()
-    for nsl in proc_hdfkeys[rank]:
-        pbar.set_description("Rank {}: {}".format(rank, nsl))
-        net, sta, loc = nsl.split('.')
-
-        # note that ned contains a single station
-        ned = NetworkEventDataset(src_h5_event_file, network=net, station=sta, location=loc, root=h5_root)
-        results = analyze_station_orientations(ned, grv_dict, save_plots_path=save_plots_path)
-
-        local_results.update(results)
-        pbar.update()
-    # end for
-
-    comm.barrier()
-
-    global_results = comm.gather(local_results, root=0)
-    if (rank == 0):
-        flat_dict=defaultdict()
-        for d in global_results: flat_dict.update(d)
-
-        if dest_file is not None:
-            with open(dest_file, 'w') as f:
-                json.dump(flat_dict, f, indent=4)
-        # end if
-
-        print("Finishing...")
-        print("swp_station_orientations SUCCESS!")
-    # end if
-# end func
-
-if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
-# end if

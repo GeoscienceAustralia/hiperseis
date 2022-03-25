@@ -205,6 +205,7 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
             plt.close()
         elif(ax is not None):
             ax.plot(x_valid, y_valid, 'x', label='Computed P arrival strength')
+            ax.plot(angles_fine, yint_cubsp, '--', alpha=0.7, label='Cubic spline fit')
             ax.plot(angles_fine, y_fitted, '--', alpha=0.7, label='Cosine fit')
             ax.text(angle_max, np.max(y_fitted), 'Max at: {} deg'.format(angle_max))
             ax.set_xlabel('Orientation correction (deg)', fontsize=12)
@@ -270,89 +271,3 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
     # end for
     return ampls
 # end func
-
-@click.command()
-@click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
-                required=True)
-@click.option('--dest-file', type=click.Path(dir_okay=False),
-              help='Output file in which to store results in JSON text format')
-@click.option('--save-plots-path', type=click.Path(file_okay=False),
-              help='Optional folder in which to save plot per station')
-@click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
-              show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
-              show_default=True)
-def main(src_h5_event_file, dest_file, save_plots_path, network_list, station_list):
-    """
-    Run station orientation checks.
-
-    Example usage::
-
-    :param src_h5_event_file: Event waveform file whose waveforms are used to perform checks, typically
-        generated using `extract_event_traces.py`
-    :type src_h5_event_file: str or pathlib.Path
-    :param dest_file: Output file in which to store results in JSON text format
-    :type dest_file: str or pathlib.Path
-    :param save_plots_path: Optional folder in which to save plot per station of mean
-        arrival RF amplitude as function of correction angle
-    :type save_plots_path: str or pathlib.Path
-    """
-
-    curation_opts = DEFAULT_CURATION_OPTS
-    config_filtering = DEFAULT_CONFIG_FILTERING
-    config_processing = DEFAULT_CONFIG_PROCESSING
-
-    comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()
-    rank = comm.Get_rank()
-    proc_hdfkeys = None
-    h5_root = 'waveforms/'
-
-    if(rank == 0):
-        # retrieve all available hdf_keys
-        proc_hdfkeys = get_obspyh5_index(src_h5_event_file, seeds_only=True, root=h5_root)
-
-        # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
-
-        # split work-load over all procs
-        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
-    # end if
-
-    proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
-
-    local_results = defaultdict(dict)
-    pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
-    for nsl in proc_hdfkeys[rank]:
-        pbar.set_description("Rank {}: {}".format(rank, nsl))
-        net, sta, loc = nsl.split('.')
-
-        # note that ned contains a single station
-        ned = NetworkEventDataset(src_h5_event_file, network=net, station=sta, location=loc, root=h5_root)
-        results = analyze_station_orientations(ned, curation_opts, config_filtering,
-                                               config_processing, save_plots_path=save_plots_path)
-
-        local_results.update(results)
-        pbar.update()
-    # end for
-
-    comm.barrier()
-
-    global_results = comm.gather(local_results, root=0)
-    if (rank == 0):
-        flat_dict=defaultdict()
-        for d in global_results: flat_dict.update(d)
-
-        if dest_file is not None:
-            with open(dest_file, 'w') as f:
-                json.dump(flat_dict, f, indent=4)
-        # end if
-
-        print("Finishing...")
-        print("rf_station_orientation SUCCESS!")
-    # end if
-# end func
-
-if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
-# end if
