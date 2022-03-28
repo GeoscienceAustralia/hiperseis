@@ -702,7 +702,8 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         plt.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
         cbar = plt.colorbar(sc)
         cbar.set_label('Frequency (mHz)')
-        plt.ylabel('BH1 Orientation \n Angle ($^\circ$)', fontsize=16)
+        plt.xlabel('Correlation coefficient', fontsize=12)
+        plt.ylabel('Orientation correction (deg)', fontsize=12)
         plt.ylim([CEN - 180, CEN + 180]);
         plt.xlim([0, 1])
         plt.yticks(fontsize=16)
@@ -711,7 +712,7 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         plt.title(full_code, fontsize=14)
         plt.text(0.9, 0.9, 'N = {}'.format(int(nevents)), ha='right', va='top',
                  transform=plt.gca().transAxes)
-        plt.legend(framealpha=0.7)
+        plt.legend(framealpha=0.5)
         outfile = '_'.join([full_code, 'swp_ori.png'])
         outfile = os.path.join(str(save_plots_path), outfile)
         plt.savefig(outfile, dpi=300)
@@ -728,13 +729,14 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         cax = fig.add_axes([0.1, 0.075, 0.01, 0.1])
         cbar = fig.colorbar(sc, cax=cax, orientation='vertical')
         cbar.set_label('Frequency (mHz)', fontsize=6)
-        ax.set_ylabel('BH1 Orientation \n Angle ($^\circ$)', fontsize=16)
+        ax.set_xlabel('Correlation coefficient', fontsize=12)
+        ax.set_ylabel('Orientation correction (deg)', fontsize=12)
         ax.set_ylim([CEN - 180, CEN + 180]);
         ax.set_xlim([0, 1])
 
         ax.text(0.9, 0.9, 'N = {}'.format(int(nevents)), ha='right', va='top',
                  transform=ax.transAxes)
-        ax.legend(framealpha=0.7)
+        ax.legend(framealpha=0.5)
     # end if
 
     return results

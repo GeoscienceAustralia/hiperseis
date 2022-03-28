@@ -90,14 +90,14 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     diffs = []
     rf_corrs = corrections_dict['rf']
     swp_corrs = corrections_dict['swp']
-    for item in coords.keys():
-        lon, lat = coords[item]
+    for nsl in coords.keys():
+        lon, lat = coords[nsl]
 
         corr_rf = None
         corr_swp = None
         try:
-            corr_rf = rf_corrs[item]['azimuth_correction']
-            corr_swp = swp_corrs[item]['azimuth_correction']
+            corr_rf = rf_corrs[nsl]['azimuth_correction']
+            corr_swp = swp_corrs[nsl]['azimuth_correction']
 
             while (corr_rf > 180): corr_rf -= 360
             while (corr_rf < -180): corr_rf += 360
@@ -123,8 +123,8 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
             corr_rf = None
             corr_swp = None
             try:
-                corr_swp = swp_corrs[item]['azimuth_correction']
-                corr_rf = rf_corrs[item]['azimuth_correction']
+                corr_swp = swp_corrs[nsl]['azimuth_correction']
+                corr_rf = rf_corrs[nsl]['azimuth_correction']
 
                 while (corr_rf > 180): corr_rf -= 360
                 while (corr_rf < -180): corr_rf += 360
@@ -275,7 +275,7 @@ def main(src_h5_event_file, network, output_basename, station_list):
         logger.info('Plotting summary..')
         summary_ofn = os.path.join(tempdir, 'summary.pdf')
         plot_summary(flat_coords_dict, flat_results_dict, summary_ofn)
-        pdf_names.append(summary_ofn)
+        pdf_names = [summary_ofn] + pdf_names
 
         pdf_merge(pdf_names, pdf_fn)
 

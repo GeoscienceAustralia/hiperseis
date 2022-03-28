@@ -198,7 +198,7 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
             plt.title('{}.{}'.format(ned.network, sta), fontsize=14)
             plt.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                      transform=plt.gca().transAxes)
-            plt.legend(framealpha=0.7)
+            plt.legend(framealpha=0.5, loc='lower left')
             outfile = '_'.join([code, config_processing["deconv_domain"], 'ori.png'])
             outfile = os.path.join(str(save_plots_path), outfile)
             plt.savefig(outfile, dpi=300)
@@ -212,7 +212,7 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
             ax.set_ylabel('P phase ampl. mean (0-1 sec)', fontsize=12)
             ax.text(0.9, 0.9, 'N = {}'.format(N), ha='right', va='top',
                     transform=ax.transAxes)
-            ax.legend(framealpha=0.7)
+            ax.legend(framealpha=0.5, loc='lower left')
         # end if
     # end for
 
