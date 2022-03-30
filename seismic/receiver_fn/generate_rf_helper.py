@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig()
 
-DEFAULT_RESAMPLE_RATE_HZ = 20.0
+DEFAULT_RESAMPLE_RATE_HZ = 10.0
 DEFAULT_FILTER_BAND_HZ = (0.02, 1.00)
 DEFAULT_TAPER_LIMIT = 0.05
 DEFAULT_TRIM_START_TIME_SEC = -50.0
@@ -19,7 +19,7 @@ DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
 DEFAULT_GAUSS_WIDTH = 1.0
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
-RAW_RESAMPLE_RATE_HZ = 20.0
+RAW_RESAMPLE_RATE_HZ = 10.0
 BANDPASS_FILTER_ORDER = 2
 
 def transform_stream_to_rf(ev_id, stream3c, config_filtering,

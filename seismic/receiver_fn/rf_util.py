@@ -26,24 +26,6 @@ def split_list(lst, npartitions):
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
-def get_hdf_keys(h5fn):
-    fh = None
-    try:
-        fh = h5py.File(h5fn, 'r')
-    except:
-        raise IOError('Invalid file/path {}..'%(h5fn))
-    # end try
-
-    if('waveforms' not in fh.keys()):
-        raise IOError('Invalid file/path {}. "waveforms" group not found..' % (h5fn))
-    # end if
-
-    result = [key for key in fh['waveforms'].keys()]
-    del fh
-
-    return result
-# end func
-
 def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
     network_list = []
     station_list = []
@@ -95,27 +77,6 @@ def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
     # end for
 
     return sta_subset
-# end func
-
-def remove_group(hdf_fn, net_sta_loc, logger=None):
-    try:
-        if(os.path.exists(hdf_fn)):
-            hdf_keys = get_hdf_keys(hdf_fn)
-
-            if(net_sta_loc in hdf_keys):
-                del_key = 'waveforms/%s' % net_sta_loc
-
-                with h5py.File(hdf_fn, "a") as fh:
-                    if (len(fh[del_key].keys())):
-                        del fh[del_key]
-                        if(logger): logger.info('Removing group {}'.format(del_key))
-                    # end if
-                # end with
-            # end if
-        # end if
-    except:
-        raise IOError('Failed to remove group: waveforms/{}'.format(net_sta_loc))
-    # end try
 # end func
 
 def phase_weights(stream):

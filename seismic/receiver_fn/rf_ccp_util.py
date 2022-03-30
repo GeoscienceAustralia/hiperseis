@@ -33,6 +33,7 @@ import gdal
 from osgeo.gdalconst import *
 from affine import Affine
 import struct
+from seismic.stream_io import get_obspyh5_index
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -125,7 +126,7 @@ class Migrate:
     def process_streams(self, output_file, fmin=None, fmax=None, primary_component='R', model='iasp91', phase='P'):
         proc_hkeys = None
         if(self._rank == 0):
-            hkeys = rf_util.get_hdf_keys(self._rf_filename)
+            hkeys = get_obspyh5_index(self._rf_filename, seeds_only=True)
             assert len(hkeys), 'No hdf5-groups found in file {}. Aborting..'.format(self._rf_filename)
 
             # split workload

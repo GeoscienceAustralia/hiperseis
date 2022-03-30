@@ -34,6 +34,7 @@ import psutil
 import gc
 
 from seismic.pick_harvester.quality import compute_quality_measures
+from seismic.stream_processing import zerophase_resample
 
 def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitude,
               st, win_start=-50, win_end=50, resample_hz=20,
@@ -63,7 +64,7 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     try:
         snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         snrst = snrst.copy()
-        snrst.resample(resample_hz)
+        zerophase_resample(snrst, resample_hz)
         snrst.detrend('linear')
     except:
         return None
@@ -177,13 +178,13 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     try:
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         stn = stn.copy()
-        stn.resample(resample_hz)
+        zerophase_resample(stn, resample_hz)
         stn.detrend('linear')
 
         if (ste):
             ste = ste.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
             ste = ste.copy()
-            ste.resample(resample_hz)
+            zerophase_resample(ste, resample_hz)
             ste.detrend('linear')
         # end if
 

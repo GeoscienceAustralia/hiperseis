@@ -80,7 +80,7 @@ def test_network_event_dataset(tmpdir):
         assert list(test_ned.db_evid.keys()) == sorted(test_ned.db_evid.keys())
 
         # Test iteration by station code
-        expected_stations = ['TE01', 'TE02', 'TE03', 'TE04']
+        expected_stations = ['TE01.', 'TE02.', 'TE03.', 'TE04.']
         assert [sta for sta, _ in test_ned.by_station()] == expected_stations
 
         # Test iteration by event id
@@ -134,7 +134,7 @@ def test_network_event_dataset(tmpdir):
         assert test_ned.event('NON_EXISTENT') == None
 
         # Test pruning of streams
-        discard = (('TE03', '07'), ('TE01', '05'), ('TE02', '00'), ('TE04', '03'))
+        discard = (('TE03.', '07'), ('TE01.', '05'), ('TE02.', '00'), ('TE04.', '03'))
         test_ned.prune(discard)
         assert len(test_ned) == num_streams - 4
 
