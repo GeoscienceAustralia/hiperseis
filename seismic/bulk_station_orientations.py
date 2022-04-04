@@ -162,7 +162,8 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     plt.savefig(output_fn, dpi=300)
 # end func
 
-@click.command()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('src-h5-event-file', type=click.Path(exists=True, dir_okay=False),
                 required=True)
 @click.argument('network', type=str, required=True)

@@ -33,7 +33,7 @@ To set up the Python environment, the following high level order of operations m
 
 ### Limitations
 
-Due to the limited number of python versions and natively-compiled versions of core libraries (MPI, HDF5, etc.) available on Gadi, the recommended approach is to use the system-provided python3.6 and install dependencies in user space (`--user` option of `pip`). Alternate combinations of Python and core library dependencies are expected to work, but have not been tested.
+Due to the limited number of python versions and natively-compiled versions of core libraries (MPI, HDF5, etc.) available on Gadi, the recommended approach is to use the system-provided python3.6 and install dependencies in user space (`--user` option of `pip`).
 
 
 ### Setup process
