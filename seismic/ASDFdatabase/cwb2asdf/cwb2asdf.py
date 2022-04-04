@@ -14,7 +14,7 @@ Revision History:
 """
 
 import glob
-import os
+import os, fnmatch, re
 import random
 from collections import defaultdict
 
@@ -24,6 +24,7 @@ import pyasdf
 from mpi4py import MPI
 from obspy import read
 from obspy.core.inventory import read_inventory
+from obspy.core import Stream
 from ordered_set import OrderedSet as set
 from tqdm import tqdm
 
@@ -51,7 +52,7 @@ def make_ASDF_tag(tr, tag):
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-
+BUFFER_LENGTH = 1000
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-folder', required=True,
@@ -70,42 +71,73 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
     INVENTORY: Path to FDSNStationXML inventory containing channel-level metadata for all stations \n
     OUTPUT_FILE_NAME: Name of output ASDF file \n
     """
+
+    def _write(ds, ostream, inventory_dict, netsta_set):
+        try:
+            ds.add_waveforms(ostream, tag='raw_recording')
+        except Exception as e:
+            print(e)
+            print('Failed to append stream:')
+            print(ostream)
+        # end try
+
+        for item in netsta_set:
+            try:
+                ds.add_stationxml(inventory_dict[item])
+            except Exception as e:
+                print(e)
+                print('Failed to append inventory:')
+                print((inventory_dict[item]))
+            # end try
+        # end for
+    # end func
+
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
-    # Read inventory
-    inv = None
-    try:
-        inv = read_inventory(inventory)
-    except Exception as e:
-        print(e)
-    # end try
-
-    files = np.array(glob.glob(input_folder + '/*.mseed'))
-    random.Random(nproc).shuffle(files)
-    # files = files[:100]
-
-    ustations = set()
+    files = None
+    my_files = None
     ustationInv = defaultdict(list)
-    networklist = []
-    stationlist = []
-    for file in files:
-        _, _, net, sta, _ = file.split('.')
-        ustations.add('%s.%s' % (net, sta))
-        networklist.append(net)
-        stationlist.append(sta)
-    # end for
+    if(rank == 0):
+        # Read inventory
+        inv = None
+        try:
+            inv = read_inventory(inventory)
+        except Exception as e:
+            print(e)
+        # end try
 
-    networklist = np.array(networklist)
-    stationlist = np.array(stationlist)
+        # generate a list of files
+        paths = [i for i in os.listdir(input_folder) if os.path.isfile(os.path.join(input_folder, i))]
+        expr = re.compile(fnmatch.translate('*.mseed'), re.IGNORECASE)
+        files = [os.path.join(input_folder, j) for j in paths if re.match(expr, j)]
 
-    idx = np.lexsort((networklist, stationlist))
-    files = files[idx]
+        files = np.array(files)
+        random.Random(nproc).shuffle(files)
+        # files = files[:100]
 
-    myfiles = split_list(files, nproc)[rank]
+        ustations = set()
+        networklist = []
+        stationlist = []
+        for file in files:
+            _, _, net, sta, _ = file.split('.')
+            #tokens = os.path.basename(file).split('.')
+            #net, sta = tokens[0], tokens[1]
 
-    if (rank == 0):
+            ustations.add('%s.%s' % (net, sta))
+            networklist.append(net)
+            stationlist.append(sta)
+        # end for
+
+        networklist = np.array(networklist)
+        stationlist = np.array(stationlist)
+
+        idx = np.lexsort((networklist, stationlist))
+        files = files[idx]
+        my_files = split_list(files, nproc)
+
+        # station inventories
         for i, ustation in enumerate(ustations):
             net, sta = ustation.split('.')
             sinv = inv.select(network=net, station=sta)
@@ -117,11 +149,13 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
             # end if
         # end for
     # end if
+
+    myfiles = comm.scatter(my_files, root=0)
     ustationInv = comm.bcast(ustationInv, root=0)
 
     # Extract trace-count-lists in parallel
     mytrccountlist = np.zeros(len(myfiles))
-    for ifile, file in enumerate(tqdm(myfiles)):
+    for ifile, file in enumerate(tqdm(myfiles, desc='Rank: {}'.format(rank))):
         try:
             st = read(file, headonly=True)
             mytrccountlist[ifile] = len(st)
@@ -153,7 +187,9 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
         if (os.path.exists(output_file_name)): os.remove(output_file_name)
         ds = pyasdf.ASDFDataSet(output_file_name, compression='gzip-3', mpi=False)
 
-        for ifile, file in enumerate(tqdm(files)):
+        ostream = Stream()
+        netsta_set = set()
+        for ifile, file in enumerate(tqdm(files, desc='Rank: {}'.format(rank))):
             st = []
             if (trccountlist[ifile] > ntraces_per_file):
                 continue
@@ -184,36 +220,32 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
                     # end if
                 # end if
 
-                for tr in st:
+                if(len(ostream) < BUFFER_LENGTH):
+                    for tr in st:
 
-                    if (tr.stats.npts == 0): continue
-                    if (min_length_sec):
-                        if (tr.stats.npts * tr.stats.delta < min_length_sec): continue
-                    # end if
+                        if (tr.stats.npts == 0): continue
+                        if (min_length_sec):
+                            if (tr.stats.npts * tr.stats.delta < min_length_sec): continue
+                        # end if
 
-                    asdfTag = make_ASDF_tag(tr, "raw_recording").encode('ascii')
+                        ostream += tr
+                    # end for
 
-                    try:
-                        ds.add_waveforms(tr, tag='raw_recording')
-                    except Exception as e:
-                        print(e)
-                        print('Failed to append trace:')
-                        print(tr)
-                    # end try
-                # end for
-
-                try:
-                    ds.add_stationxml(ustationInv[netsta])
-                except Exception as e:
-                    print(e)
-                    print('Failed to append inventory:')
-                    print((ustationInv[netsta]))
-                # end try
+                    netsta_set.add(netsta)
+                else:
+                    _write(ds, ostream, ustationInv, netsta_set)
+                    ostream = Stream()
+                    netsta_set = set()
+                # end if
             # end if
         # end for
+
+        _write(ds, ostream, ustationInv, netsta_set)
+
         print('Closing asdf file..')
         del ds
     # end if
+# end func
 
 ####################################################################################################################
 # Example commandline run:

@@ -30,7 +30,7 @@ def split_list(lst, npartitions):
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
-def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
+def dump_traces(ds, sn_list, start_date, end_date, length, min_length_sec, output_folder):
     """
     Dump mseed traces from an ASDF file in parallel
 
@@ -62,7 +62,7 @@ def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
                 try:
                     st = ds.get_waveforms(net, sta, '*', '*', current_time, current_time+length, tag='raw_recording')
                 except:
-                    logf.write('Failed to read stream: %s\n' % (fsName))
+                    logf.write('Failed to read stream: %s\n' % ('.'.join([net, sta])))
                     continue
                 # end try
 
@@ -74,6 +74,18 @@ def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
                 fsName = '%s.%s-%s.MSEED'%(sn, current_time.timestamp, (current_time+length).timestamp)
 
                 try:
+                    if(min_length_sec):
+                        ost = Stream()
+
+                        for tr in st:
+                            if (tr.stats.npts * tr.stats.delta > min_length_sec):
+                                ost += tr
+                            # end if
+                        # end for
+
+                        st = ost
+                    # end if
+
                     st.write(os.path.join(output_folder, fsName), format="MSEED")
                     trCounts += len(st)
                 except:
@@ -87,26 +99,62 @@ def dump_traces(ds, sn_list, start_date, end_date, length, output_folder):
         else:
             # dump all traces as they appear within the asdf file
             logf.write('Exporting mseed files for station: %s\n'%(sn))
-            sta = ds.waveforms[sn]
-            for tag in sta.list():
-                s = sta[tag]
 
-                for t in s:
-                    if(not isinstance(t, Trace)): continue
+            sta = None
+            try:
+                sta = ds.waveforms[sn]
+            except Exception as e:
+                print(sn, str(e))
+            # end try
 
-                    fsName = '%s.%s-%s.MSEED'%(t.id,
-                                               t.stats.starttime.strftime("%y-%m-%d.T%H:%M:%S"),
-                                               t.stats.endtime.strftime("%y-%m-%d.T%H:%M:%S"))
+            if(sta):
+                tags = []
+                try:
+                    tags = sta.list()
+                except Exception as e:
+                    print(sn, str(e))
+                # end try
+
+                for tag in tags:
+                    if ('raw_recording' not in tag): continue
+
+                    st=[]
                     try:
-                        t.write(os.path.join(os.path.join(output_folder, sn), fsName),
-                                 format="MSEED")
-                        trCounts += len(s)
-                        logf.write('Wrote waveform with tag: %s\n' % (tag))
+                        st = sta[tag]
                     except Exception as e:
-                        logf.write('Failed to write trace: %s\n'%(fsName))
-                        logf.flush()
+                        print(tag, str(e))
+                        continue
+                    # end try
+
+                    if (min_length_sec):
+                        ost = Stream()
+
+                        for tr in st:
+                            if (tr.stats.npts * tr.stats.delta > min_length_sec):
+                                ost += tr
+                            # end if
+                        # end for
+
+                        st = ost
+                    # end if
+
+                    for t in st:
+                        if(not isinstance(t, Trace)): continue
+
+                        fsName = '%s.%s-%s.MSEED'%(t.id,
+                                                   t.stats.starttime.strftime("%y-%m-%d.T%H:%M:%S"),
+                                                   t.stats.endtime.strftime("%y-%m-%d.T%H:%M:%S"))
+                        try:
+                            t.write(os.path.join(output_folder, fsName),
+                                    format="MSEED")
+                            trCounts += len(st)
+                            logf.write('Wrote waveform with tag: %s\n' % (tag))
+                        except Exception as e:
+                            logf.write('Failed to write trace: %s\n'%(fsName))
+                            logf.flush()
+                    # end for
                 # end for
-            # end for
+            # end if
         # end if
 
         logf.write('\t Exported (%d) traces.\n' % (trCounts))
@@ -134,16 +182,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--length', default=86400,
               help="Length of each trace in seconds. If specified, both 'start-date' and 'end-date' must be specified; " 
                    "otherwise this parameter is ignored; default is 86400 s (1 day)")
-def process(input_asdf, output_folder, start_date, end_date, length):
+@click.option('--min-length-sec', type=int, default=250, help="Minimum length in seconds")
+def process(input_asdf, output_folder, start_date, end_date, length, min_length_sec):
     """
     INPUT_ASDF: Path to input ASDF file\n
     OUTPUT_FOLDER: Output folder \n
 
-    The script has two modes of operations: \n
+    The script has two modes of operation: \n
     i. parameters --start-date, --end-date and --length (default 1 day) are specified, which results in
-       mseed files, each --length seconds long, being output for the time-range specified \n
+       mseed files, each --length seconds long or shorter (but longer than min_length_sec, if specified),
+       being output for the time-range specified \n
     ii. parameters --start-date and --end-date are not provided, which results in the dumping of all
-        waveforms (of any arbitrary lengths) as they appear in the ASDF file \n
+        waveforms (longer than min_length_sec, if specified) as they appear in the ASDF file \n
     \n
     Example usage:
     mpirun -np 2 python asdf2mseed.py ./test.asdf /tmp/output --start-date 2013-01-01T00:00:00 --end-date 2016-01-01T00:00:00
@@ -168,7 +218,7 @@ def process(input_asdf, output_folder, start_date, end_date, length):
     if(rank == 0):
         # split work over stations
 
-        stations = list(ds.get_all_coordinates().keys())
+        stations = ds.waveforms.list()
         meta = ds.get_all_coordinates()
 
         proc_stations = split_list(stations, nproc)
@@ -178,7 +228,11 @@ def process(input_asdf, output_folder, start_date, end_date, length):
         f = open(fn, 'w+')
         f.write('#Station\t\tLongitude\t\tLatitude\n')
         for sn in stations:
-            f.write('%s\t\t%f\t\t%f\n'%(sn, meta[sn]['longitude'], meta[sn]['latitude']))
+            try:
+                f.write('%s\t\t%f\t\t%f\n'%(sn, meta[sn]['longitude'], meta[sn]['latitude']))
+            except:
+                continue
+            # end try
         # end for
         f.close()
     # end if
@@ -187,7 +241,7 @@ def process(input_asdf, output_folder, start_date, end_date, length):
     proc_stations = comm.bcast(proc_stations, root=0)
 
     print (proc_stations[rank])
-    dump_traces(ds, proc_stations[rank], start_date, end_date, length, output_folder)
+    dump_traces(ds, proc_stations[rank], start_date, end_date, length, min_length_sec, output_folder)
 
     del ds
 # end func
