@@ -392,7 +392,9 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     phase_map = defaultdict(str) # seconds
     phase_map['P'] = 'P'
     phase_map['S'] = 'S'
-    phase_map['SW'] = 'P' # for surface-waves we use P-onset time within iter_event_data
+    # for surface-waves we use the default phase (P), but internally, safe_iter_event_data
+    # extracts data around event origin time
+    phase_map['SW'] = 'P'
 
     # initialize event distance-range dict
     distance_range = defaultdict(tuple) # arc degrees
@@ -420,6 +422,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
+    # data extraction is parallelized over stations
     nsl_dict = None
     if(rank==0):
         nsl_dict = []
@@ -431,7 +434,9 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             temp_dict['.'.join(tokens[:3])] = tokens[-1]
         # end for
 
-        njob = len(temp_dict)
+        njob = len(temp_dict) # total number of stations
+        # Add made up entries to ensure MPI-barrier calls are balanced across all
+        # processors
         nbogus = np.int(np.ceil(njob/float(nproc)))*nproc - njob
         for i in np.arange(nbogus): temp_dict['%i.%i.%i'%(i, i, i)] = '-1'
 
@@ -446,6 +451,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
     for nsl, cha in nsl_dict.items():
         if(cha == '-1'):
+            # Nothing to do for made up entries, which exist for the sole purpose of balancing
+            # MPI-barrier calls across all processors
             for irank in np.arange(nproc):
                 comm.Barrier()
             # end for
