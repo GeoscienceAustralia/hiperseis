@@ -176,9 +176,8 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                     logger.info('Rank {}: {}: Applying a baz correction '
                                 'of {}'.format(rank,
                                                nsl,
-                                               result['.'.join([net, sta])]['azimuth_correction']))
-                    ned.apply(lambda st: correct_back_azimuth(None, st,
-                                                              result['.'.join([net, sta])]['azimuth_correction']))
+                                               result[nsl]['azimuth_correction']))
+                    ned.apply(lambda st: correct_back_azimuth(None, st, result[nsl]['azimuth_correction']))
                 except:
                     logger.warning('Channel rotation failed for {}. Moving along..'.format(nsl))
                 # end try
@@ -242,7 +241,11 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
             if(len(proc_rf_stream)):
                 for hdf_key in proc_hdfkeys[rank]:
                     # remove existing traces if there are any
-                    remove_group(output_file, hdf_key, logger=logger)
+                    try:
+                        remove_group(output_file, hdf_key, logger=logger)
+                    except Exception as e:
+                        logger.warning(str(e))
+                    # end try
 
                     logger.info("Writing RF stream(s) for {} on rank {}...".format(hdf_key, rank))
                 # end for
