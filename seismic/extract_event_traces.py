@@ -31,7 +31,7 @@ from obspy.core.inventory import Inventory
 from obspy.taup import TauPyModel
 
 from PhasePApy.phasepapy.phasepicker import aicdpicker
-from seismic.pick_harvester.utils import Event, Origin
+from seismic.pick_harvester.utils import Event, Origin, Magnitude
 from seismic.pick_harvester.pick import extract_p, extract_s
 from seismic.stream_processing import zerophase_resample
 
@@ -273,6 +273,8 @@ def trim_inventory(inventory, network_list, station_list):
 #end func
 
 class Picker():
+    counter = 0 # static variable to count number of calls made
+
     def __init__(self, taup_model_name):
         self._taup_model = TauPyModel(model=taup_model_name)
         self._picker_list_p = []
@@ -299,6 +301,8 @@ class Picker():
                         ztrace.stats.event_depth)
         event = Event()
         event.preferred_origin = origin
+        event.public_id = Picker.counter; Picker.counter += 1
+        event.preferred_magnitude = Magnitude(mag=ztrace.stats.event_magnitude, mag_type='M')
 
         result = None
         if(phase == 'P'):

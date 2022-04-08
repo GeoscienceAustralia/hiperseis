@@ -64,8 +64,8 @@ def extract_p(taupy_model, pickerlist, event, station_longitude, station_latitud
     try:
         snrst = st.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         snrst = snrst.copy()
-        zerophase_resample(snrst, resample_hz)
         snrst.detrend('linear')
+        zerophase_resample(snrst, resample_hz)
     except:
         return None
     # end try
@@ -178,14 +178,14 @@ def extract_s(taupy_model, pickerlist, event, station_longitude, station_latitud
     try:
         stn = stn.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
         stn = stn.copy()
-        zerophase_resample(stn, resample_hz)
         stn.detrend('linear')
+        zerophase_resample(stn, resample_hz)
 
         if (ste):
             ste = ste.slice(po.utctime + tat + win_start + buffer_start, po.utctime + tat + win_end + buffer_end)
             ste = ste.copy()
-            zerophase_resample(ste, resample_hz)
             ste.detrend('linear')
+            zerophase_resample(ste, resample_hz)
         # end if
 
         if (ste):

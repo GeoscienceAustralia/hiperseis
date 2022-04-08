@@ -60,6 +60,8 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_
 
     rf_stream = revert_baz(rf_stream)
 
+    if(time_window): rf_stream = rf_stream.copy().slice2(*time_window, reftime='onset')
+
     all_trace_lens = np.array([len(tr) for tr in rf_stream])
     most_common_len, _ = stats.mode(all_trace_lens, axis=None)
     stackable_stream = rf.RFStream([tr for tr in rf_stream if len(tr) == most_common_len])
