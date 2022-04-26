@@ -8,6 +8,8 @@ Installation instructions for NCI (Gadi ) are as follows:
   3. `module load python3-as-python`
   4. `module load openmpi/3.1.4`
   5. `module load hdf5/1.10.5p`
+  6. `module load geos`
+  7. `module load proj`
 
 ### Remove old packages
 1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
