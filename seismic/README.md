@@ -44,10 +44,12 @@ Installation instructions for NCI (Gadi ) are as follows:
   6. `pip3.6 install obspyh5==0.5.0 --user`
   7. `pip3.6 install rf==0.8.0 --user`
   8. `pip3.6 install matplotlib==3.3.4 --user`
-  9. `pip3.6 install cartopy==0.19.0.post1 --user`
-  10. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('/tmp/test.pdf'); print('\nSUCCESS');"`
+  9. `pip3.6 install sortedcontainers --user`
+  10. `pip3.6 install PyPDF2==1.26.0 --user`
+  11. `pip3.6 install cartopy==0.19.0.post1 --user`
+  12. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('/tmp/test.pdf'); print('\nSUCCESS');"`
 
-Step 10 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
+Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
 jobs are launched on NCI compute nodes that do not allow internet access.
 
 ### Initialize PhasePapy
