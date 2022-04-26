@@ -157,7 +157,23 @@ def _get_stream_00T(fds, net, sta, cha, start_time, end_time, location_preferenc
 
 def get_stream(fds, net, sta, cha, start_time, end_time, location_preferences_dict,
                baz=None, trace_count_threshold=200,
-               logger=None, verbose=1):
+               logger=None, verbose=1, js=None):
+
+    #js=None
+    year = None
+    start_time = UTCDateTime(start_time)
+    end_time = UTCDateTime(end_time)
+    old_start_time = UTCDateTime(start_time)
+    if(js):
+        year = js.get_year(net, sta, location_preferences_dict[net+'.'+sta], start_time)
+
+        if(year):
+            end_time.year = year + (end_time.year - start_time.year)
+            start_time.year = year
+        else:
+            return Stream()
+        # end if
+    # end if
 
     if (cha == '00T'): return _get_stream_00T(fds, net, sta, cha, start_time, end_time, location_preferences_dict,
                                               baz=baz, trace_count_threshold=trace_count_threshold,
@@ -191,8 +207,56 @@ def get_stream(fds, net, sta, cha, start_time, end_time, location_preferences_di
         raise
     # end try
 
+    if(year):
+
+        for tr in st:
+            start_year = tr.stats.starttime.year
+            end_year = tr.stats.endtime.year
+
+            tr.stats.starttime.year = UTCDateTime(old_start_time).year
+            tr.stats.endtime.year = tr.stats.starttime.year + (end_year - start_year)
+        # end for
+    # end if
+
     return st
 # end func
+
+class JulianShift:
+    def __init__(self, fds):
+        self._fds = fds
+        self._buckets = defaultdict(lambda: defaultdict(set))
+    # end func
+
+    def get_year(self, net, sta, loc, start_time):
+        key = '.'.join([net, sta])
+        if(loc): key = '.'.join([key, loc])
+
+        if(key not in self._buckets.keys()):
+            query_string = "select st from wdb where net='{}' and sta='{}'".format(net, sta)
+            if(loc): query_string += " and loc='{}'".format(loc)
+
+            start_times = np.array(self._fds.fds.conn.execute(query_string).fetchall())
+
+            for st in start_times:
+                st = UTCDateTime(st)
+                self._buckets[key][st.julday].add(st.year)
+            # end for
+        else:
+            start_time = UTCDateTime(start_time)
+            q_julday = start_time.julday
+            q_year = start_time.year
+
+            if(q_julday not in self._buckets[key].keys()):
+                return None
+            else:
+                years_available = np.array(list(self._buckets[key][q_julday]))
+                idx = np.argmax(np.fabs(q_year - years_available))
+
+                return years_available[idx]
+            # end if
+        # end if
+    # end func
+# end class
 
 class ProgressTracker:
     def __init__(self, output_folder, restart_mode=False):

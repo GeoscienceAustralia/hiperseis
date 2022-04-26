@@ -37,7 +37,7 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.utils import get_stream, fill_gaps
 from netCDF4 import Dataset
 from functools import reduce
-from seismic.xcorqc.utils import SpooledXcorrResults 
+from seismic.xcorqc.utils import SpooledXcorrResults, JulianShift
 logging.basicConfig()
 
 
@@ -157,12 +157,18 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     # sr = 0
     resultCache = []
 
-    # set day-aligned start-indices
+    # set aligned start-indices
+    max_dt = np.max([1./sr1, 1./sr2])
     maxStartTime = max(tr1.stats.starttime, tr2.stats.starttime)
-    dayAlignedStartTime = UTCDateTime(year=maxStartTime.year, month=maxStartTime.month,
-                                      day=maxStartTime.day)
-    itr1s = (dayAlignedStartTime - tr1.stats.starttime) * sr1
-    itr2s = (dayAlignedStartTime - tr2.stats.starttime) * sr2
+    alignedStartTime = None
+    if(np.fabs(tr1.stats.starttime - tr2.stats.starttime) > max_dt):
+        alignedStartTime = UTCDateTime(year=maxStartTime.year, month=maxStartTime.month,
+                                       day=maxStartTime.day)
+    else:
+        alignedStartTime = maxStartTime
+    # end if
+    itr1s = (alignedStartTime - tr1.stats.starttime) * sr1
+    itr2s = (alignedStartTime - tr2.stats.starttime) * sr2
 
     if resample_rate:
         sr1 = resample_rate
@@ -177,15 +183,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     intervalStartSeconds = []
     intervalEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
-        itr1e = min(lentr1_all, itr1s + interval_samples_1)
-        itr2e = min(lentr2_all, itr2s + interval_samples_2)
-
         while (itr1s < 0) or (itr2s < 0):
             itr1s += (window_samples_1 - 2*window_buffer_seconds*sr1_orig) - \
                      (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap
             itr2s += (window_samples_2 - 2*window_buffer_seconds*sr2_orig) - \
                      (window_samples_2 - 2*window_buffer_seconds*sr2_orig) * window_overlap
         # end while
+
+        itr1e = min(lentr1_all, itr1s + interval_samples_1)
+        itr2e = min(lentr2_all, itr2s + interval_samples_2)
 
         if (np.fabs(itr1e - itr1s) < sr1_orig) or (np.fabs(itr2e - itr2s) < sr2_orig):
             itr1s = itr1e
@@ -605,6 +611,7 @@ def IntervalStackXCorr(refds, tempds,
     intervalEndTimes = []
     sr = 0
     spooledXcorr = None
+    tjs = JulianShift(tempds)
     while cTime < endTime:
         cStep = buffer_seconds
 
@@ -641,6 +648,7 @@ def IntervalStackXCorr(refds, tempds,
 
         logger.info('\tFetching data for station %s..' % temp_net_sta)
 
+        #print('ref: ', UTCDateTime(cTime).julday)
         tempSt = None
         try:
             tnc, tsc = temp_net_sta.split('.')
@@ -648,7 +656,7 @@ def IntervalStackXCorr(refds, tempds,
                                 temp_cha, cTime, cTime + cStep,
                                 location_preferences_dict,
                                 baz=baz_temp_net_sta,
-                                logger=logger, verbose=verbose)
+                                logger=logger, verbose=verbose, js=tjs)
         except Exception as e:
             logger.error('\t'+str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
@@ -664,6 +672,7 @@ def IntervalStackXCorr(refds, tempds,
             continue
         else:
             pass
+            #for k in tjs._buckets: print(tjs._buckets[k].keys())
             # print tempSt
         # end if
 
