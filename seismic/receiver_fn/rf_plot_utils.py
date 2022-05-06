@@ -13,6 +13,7 @@ from PyPDF2 import PdfFileMerger
 from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from scipy import signal
 import rf
 
 # pylint: disable=invalid-name, logging-format-interpolation
@@ -38,6 +39,37 @@ def revert_baz(rf_stream):
     # end if
 
     return result
+# end func
+
+def plot_rf_psd(rf_stream, ax, time_window=(-10.0, 25.0), min_slope_ratio=-1):
+    if(time_window): rf_stream = rf_stream.copy().slice2(*time_window, reftime='onset')
+
+    all_trace_lens = np.array([len(tr) for tr in rf_stream])
+    most_common_len, _ = stats.mode(all_trace_lens, axis=None)
+    psd_stream = rf.RFStream([tr for tr in rf_stream if len(tr) == most_common_len])
+
+    # plot psd
+    psd_array = []
+    fbins = None
+    for trace in psd_stream:
+        fbins, psd = signal.welch(trace.data, fs=trace.stats.sampling_rate,
+                                  detrend='linear')
+
+        psd_array.append(psd)
+        ax.loglog(fbins, psd, alpha=0.05, c='m')
+    # end for
+
+    if (len(psd_array)):
+        psd_array = np.array(psd_array)
+        psd_mean = np.nanmean(psd_array, axis=0)
+
+        ax.loglog(fbins, psd_mean, alpha=1, c='m', lw=2, label='Mean PSD')
+        ax.set_xlabel('Freq. [Hz]')
+        ax.set_ylabel('Power Spectral Density [arb. units]')
+        ax.text(x=0.9, y=0.85, s='{} Traces'.format(len(psd_array)), transform=ax.transAxes)
+        ax.legend()
+        ax.grid()
+    # end if
 # end func
 
 def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):

@@ -182,7 +182,7 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, ro
             # end for
         # end for
 
-        tio = interp1d(trc.times() - lead_time, trc.data)
+        tio = interp1d(trc.times() - lead_time, trc.data, bounds_error=False, fill_value=0)
 
         a, b, c = tio(t4), tio(t2), -tio(t3)
         tphase_amps.append([np.sign(a) * np.power(np.fabs(a), 1. / root_order),
