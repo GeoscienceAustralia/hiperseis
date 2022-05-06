@@ -376,6 +376,16 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 t_stream = rf.RFStream(
                     [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
 
+                # Plot psd
+                fig, ax = plt.subplots()
+                fig.set_size_inches(paper_size_A4[1], paper_size_A4[0])
+                fig.suptitle('.'.join([nsl, channel]))
+                ax.set_rasterized(True)
+
+                rf_plot_utils.plot_rf_psd(rf_stream, ax, min_slope_ratio=min_slope_ratio)
+                pdf.savefig(dpi=300, orientation='landscape')
+                plt.close()
+
                 # Plot pinwheel of primary and transverse components
                 fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
                 fig.set_size_inches(*paper_size_A4)
