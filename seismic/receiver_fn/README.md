@@ -21,7 +21,7 @@ The work in this module utilizes the RF framework developed in the Python [`rf` 
 developed by Tom Eulenfeld](https://doi.org/10.21105/joss.01808).
 
 
-## [1. Event Trace Extraction](../README.md#Event Trace Extraction)
+## [1. Event Trace Extraction](../README.md#event-trace-extraction)
 
 ## 2. Receiver Function Calculation / Correction
 
