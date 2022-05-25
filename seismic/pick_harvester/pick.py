@@ -442,7 +442,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
+    header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat stationElev_m az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofp = None
@@ -505,7 +505,7 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
                     if (len(st) == 0): continue
                     dropBogusTraces(st)
 
-                    slon, slat = codes[4], codes[5]
+                    slon, slat, elev_m = codes[4], codes[5], codes[6]
                     for ei in eventIndices:
                         event = events[ei]
                         po = event.preferred_origin
@@ -527,13 +527,13 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
 
                             arcdistance = kilometers2degrees(da[0] / 1e3)
                             for ip, pick in enumerate(picklist):
-                                line = '%s %f %f %f %f %f ' \
-                                       '%s %s %s %f %f %f ' \
+                                line = '%d %f %f %f %f %f ' \
+                                       '%s %s %s %f %f %f %f ' \
                                        '%f %f %f ' \
                                        '%f %f %f %f %f ' \
                                        '%d %d\n' % (
                                        event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                       codes[0], codes[1], codes[3], pick.timestamp, slon, slat, elev_m,
                                        da[1], da[2], arcdistance,
                                        residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2], snrlist[ip, 3],
                                        bandindex, sigmalist[pickerindex])
@@ -552,13 +552,13 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
 
                                 arcdistance = kilometers2degrees(da[0] / 1e3)
                                 for ip, pick in enumerate(picklist):
-                                    line = '%s %f %f %f %f %f ' \
-                                           '%s %s %s %f %f %f ' \
+                                    line = '%d %f %f %f %f %f ' \
+                                           '%s %s %s %f %f %f %f ' \
                                            '%f %f %f ' \
                                            '%f %f %f %f %f ' \
                                            '%d %d\n' % (
                                            event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                           codes[0], codes[1], codes[3], pick.timestamp, slon, slat,
+                                           codes[0], codes[1], codes[3], pick.timestamp, slon, slat, elev_m,
                                            da[1], da[2], arcdistance,
                                            residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
                                            snrlist[ip, 3],
@@ -627,13 +627,13 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
 
                                 arcdistance = kilometers2degrees(da[0] / 1e3)
                                 for ip, pick in enumerate(picklist):
-                                    line = '%s %f %f %f %f %f ' \
-                                           '%s %s %s %f %f %f ' \
+                                    line = '%d %f %f %f %f %f ' \
+                                           '%s %s %s %f %f %f %f ' \
                                            '%f %f %f ' \
                                            '%f %f %f %f %f ' \
                                            '%d %d\n' % (
                                            event.public_id, po.utctime.timestamp, mag, po.lon, po.lat, po.depthkm,
-                                           codesn[0], codesn[1], '00T', pick.timestamp, slon, slat,
+                                           codesn[0], codesn[1], '00T', pick.timestamp, slon, slat, elev_m,
                                            da[1], da[2], arcdistance,
                                            residuallist[ip], snrlist[ip, 0], snrlist[ip, 1], snrlist[ip, 2],
                                            snrlist[ip, 3],
@@ -677,8 +677,6 @@ def process(asdf_source, event_folder, output_path, min_magnitude, max_amplitude
     if (rank == 0):
         merge_results(output_path)
     # end if
-
-
 # end func
 
 def merge_results(output_path):

@@ -64,7 +64,7 @@ def test_db_integrity():
     waveform_count = 0
     rows = fds.get_stations('1900-01-01T00:00:00', '2100-01-01T00:00:00')
     for row in rows:
-        n, s, l, c, _, _ = row
+        n, s, l, c, _, _, _ = row
 
         waveform_count += fds.get_waveform_count(n, s, l, c, '1900:01:01T00:00:00', '2100:01:01T00:00:00')
     # end for

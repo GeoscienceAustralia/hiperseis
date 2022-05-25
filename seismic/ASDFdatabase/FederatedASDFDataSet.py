@@ -130,7 +130,7 @@ class FederatedASDFDataSet():
         :param location: location code (optional)
         :param channel: channel code (optional)
 
-        :return: a list containing [net, sta, loc, cha, lon, lat] in each row
+        :return: a list containing [net, sta, loc, cha, lon, lat, elev_m] in each row
         """
         results = self.fds.get_stations(starttime, endtime, network, station, location, channel)
         return results
