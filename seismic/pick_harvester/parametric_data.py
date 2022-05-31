@@ -4,7 +4,6 @@ import numpy as np
 from obspy import UTCDateTime
 from scipy.spatial import cKDTree
 import pyproj
-import gc
 
 from seismic.pick_harvester.utils import split_list
 
@@ -191,15 +190,23 @@ class ParametricData:
         if(not self.events_only):
             # process arrivals on all ranks
             arrival_ids = self.comm.scatter(arrival_ids, root=0)
-            file_content = open(self.csv_catalog).readlines()
 
             print ('Loading {} arrivals from {} on rank {}'.format(len(arrival_ids), self.csv_catalog, self.rank))
-            for iline, event_id in arrival_ids:
+            idx = 0
+            for f_iline, line in enumerate(open(self.csv_catalog, 'r')):
+                if(idx >= len(arrival_ids)): break
+                iline, event_id = arrival_ids[idx]
+                if(f_iline != iline):
+                    continue
+                else:
+                    idx = idx + 1
+                # end if
+
                 """
                  0    1    2    3    4    5    6        7      8    9  10  11  12  13     14        15
                 sta, cha, loc, net, lon, lat, elev_m, phase, YYYY, MM, DD, hh, mm, ss, ang_dist, event_id
                 """
-                items = file_content[iline].split(',')
+                items = line.split(',')
 
                 sta, cha, loc, net = map(str.strip, items[0:4])
                 lon = lat = elev_m = 0
@@ -223,8 +230,6 @@ class ParametricData:
                 arrivals.append((event_id, net, sta, loc, cha, lon, lat, elev_m, phase,
                                  np.float64(atime.timestamp), -1)) # -1 for quality_measure_slope
             # end for
-            file_content = None # free up memory
-            gc.collect()
 
             # convert arrivals to a structured array
             arrivals = np.array(arrivals, dtype=self.arrival_fields)
@@ -254,13 +259,21 @@ class ParametricData:
         print('Loading {} automatic arrivals from {} on rank {}'.format(len(arrival_ids), fn, self.rank))
 
         arrivals = []
-        file_content = open(fn).readlines()
-        for iline in arrival_ids:
+        idx = 0
+        for f_iline, line in enumerate(open(fn, 'r')):
+            if(idx >= len(arrival_ids)): break
+            iline = arrival_ids[idx]
+
+            if(f_iline != iline):
+                continue
+            else:
+                idx = idx + 1
+            # end if
             """
             #eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat stationElev_m az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma
               0             1         2      3         4            5       6   7   8        9           10         11           12      13 14     15        16      17        18            19          20              21       22  
             """
-            items = file_content[iline].split()
+            items = line.split()
             event_id = int(items[0])
             loc = ''
             net, sta, cha = map(str.strip, items[6:9])
@@ -275,4 +288,3 @@ class ParametricData:
         return arrivals
     # end func
 # end class
-
