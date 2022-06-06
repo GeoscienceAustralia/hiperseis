@@ -14,6 +14,11 @@ Installation instructions for NCI (Gadi ) are as follows:
 ### Remove old packages
 1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
 2. `rm -rf ~/.local/lib/python3.6/site-packages/mpi4py*`
+3. `rm -rf ~/.local/lib/python3.6/site-packages/cartopy`
+4. `rm -rf ~/.local/lib/python3.6/site-packages/Cartopy*`
+5. `rm -rf ~/.local/lib/python3.6/site-packages/shapely`
+6. `rm -rf ~/.local/lib/python3.6/site-packages/Shapely*`
+7. `rm -rf ~/.local/lib/python3.6/site-packages/*geos*`
 
 ### Upgrade pip
 
@@ -41,14 +46,15 @@ Installation instructions for NCI (Gadi ) are as follows:
   3. `pip3.6 install netCDF4==1.4.0 --user`
   4. `pip3.6 install pyasdf==0.5.1 --user`
   5. `pip3.6 install ordered_set ujson psutil --user`
-  6. `pip3.6 install obspyh5==0.5.0 --user`
-  7. `pip3.6 install rf==0.8.0 --user`
-  8. `pip3.6 install matplotlib==3.3.4 --user`
-  9. `pip3.6 install sortedcontainers --user`
-  10. `pip3.6 install PyPDF2==1.26.0 --user`
+  6. `pip3.6 install obspyh5==0.5.0 --user`  
+  7. `pip3.6 install matplotlib==3.3.4 --user`
+  8. `pip3.6 install sortedcontainers --user`
+  9. `pip3.6 install PyPDF2==1.26.0 --user`
+  10. `pip3.6 install shapely==1.8.1.post1 --no-binary shapely --user`
   11. `pip3.6 install cartopy==0.19.0.post1 --user`
-  12. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('/tmp/test.pdf'); print('\nSUCCESS');"`
+  12. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('"/tmp/cartopy_$USER.pdf"'); print('\nSUCCESS');"`  
   13. `pip3.6 install PyWavelets==1.1.1 --user`
+  14. `pip3.6 install rf==0.8.0 --user`
 
 Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
 jobs are launched on NCI compute nodes that do not allow internet access.
