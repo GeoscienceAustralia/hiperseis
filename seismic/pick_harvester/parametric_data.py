@@ -20,6 +20,8 @@ class ParametricData:
         self.rank = self.comm.Get_rank()
         self.events = []
         self.arrivals = []
+        self.source_enum = defaultdict(int)
+        self.arrival_source = None
         self.kdtree = None
         self._lonlatalt2xyz = None
 
@@ -36,10 +38,14 @@ class ParametricData:
         # load events and arrivals
         self.events, self.arrivals = self._load_catalog()
 
+        # label arrivals by event-source
+        if(not self.events_only): self._label_arrivals()
+
         # initialize kd-tree
         self._initialize_kdtree()
 
         print('rank {}: {} arrivals'.format(self.rank, len(self.arrivals)))
+        if(self.rank == 0): print('Completed loading catalogue..')
         #if(self.rank == 0): print(self.arrivals)
     # end func
 
@@ -71,8 +77,44 @@ class ParametricData:
         return result
     # end func
 
+    def _label_arrivals(self):
+        self.arrival_source = np.zeros(len(self.arrivals), dtype=np.int)
+
+        if(self.rank == 0):
+            sources = set(self.events['source'])
+            for i, source in enumerate(sources): self.source_enum[source] = i+1
+
+            print('Labelling arrivals by event source {}..'.format(self.source_enum.items()))
+
+            arrival_source = np.zeros(len(self.arrivals), dtype=np.int)
+            for source in sources:
+                enum = self.source_enum[source]
+                sids = np.argwhere(self.events['source'] == source).flatten()
+                source_eids = set(list(self.events['event_id'][sids]))
+
+                for i, eid in enumerate(self.arrivals['event_id']):
+                    if(eid in source_eids): arrival_source[i] = enum
+                # end for
+            # end for
+
+            self.arrival_source = arrival_source
+        # end if
+
+        self.source_enum = self.comm.bcast(self.source_enum, root=0)
+        self.comm.Bcast([self.arrival_source, MPI.INT], root=0)
+
+        assert np.all(self.arrival_source > 0)
+
+        if(self.rank == 0 and 0):
+            print('rank: {} arrival_source {}'.format(self.rank, self.arrival_source))
+            for i in np.arange(len(self.arrivals)):
+                print(self.arrivals[i])
+            # end for
+        # end if
+    # end func
+
     def _initialize_kdtree(self, ellipsoidal_distance=True):
-        ER = 6371e3 #km
+        ER = 6371e3 #m
 
         elons = self.events['lon']
         elats = self.events['lat']
@@ -80,8 +122,8 @@ class ParametricData:
         xyz = None
         if(ellipsoidal_distance):
             transformer = pyproj.Transformer.from_crs(
-                            {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
-                            {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'})
+                {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
+                {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'})
             self._lonlatalt2xyz = lambda lon, lat, alt: np.vstack(transformer.transform(lon, lat, alt,
                                                                                         radians=False)).T
         else:
@@ -100,11 +142,6 @@ class ParametricData:
         # end if
         xyz = self._lonlatalt2xyz(elons, elats, ealts)
         self.kdtree = cKDTree(xyz)
-
-        if(self.rank == 0):
-            pass
-            #print(xyz)
-        # end if
     # end func
 
     def _gather_arrivals(self, rank_arrivals):
@@ -124,12 +161,12 @@ class ParametricData:
                                       displacements, type_map[dtype]])
                 global_arrivals[name][:] = temp
             else:
-                length = 10
+                length = np.dtype(dtype).itemsize
                 temp = np.empty(nelem*length, dtype='b')
                 self.comm.Allgatherv(np.array(rank_arrivals[name]).tobytes(),
                                      [temp, arrival_counts*length,
                                       displacements*length, MPI.CHAR])
-                global_arrivals[name] = np.frombuffer(temp, dtype='S10')
+                global_arrivals[name] = np.frombuffer(temp, dtype=dtype)
             # end if
         # end for
         return global_arrivals
@@ -239,6 +276,7 @@ class ParametricData:
                 arrivals = np.hstack([arrivals, self._load_automatic_picks(auto_pick_fn, phase)])
             # end for
 
+            if(self.rank == 0): print('Gathering arrivals on all ranks..')
             arrivals = self._gather_arrivals(arrivals)
         # end if
 
