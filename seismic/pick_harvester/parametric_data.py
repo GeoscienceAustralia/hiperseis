@@ -2,9 +2,7 @@ from mpi4py import MPI
 from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import UTCDateTime
-from scipy.spatial import cKDTree
-import pyproj
-
+from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
 class ParametricData:
@@ -19,11 +17,10 @@ class ParametricData:
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.events = []
+        self.event_id_to_idx = None
         self.arrivals = []
         self.source_enum = defaultdict(int)
         self.arrival_source = None
-        self.kdtree = None
-        self._lonlatalt2xyz = None
 
         # sanity check
         for item in self.phase_list:
@@ -38,11 +35,12 @@ class ParametricData:
         # load events and arrivals
         self.events, self.arrivals = self._load_catalog()
 
+        # create a map to translate event-id to array index
+        self.event_id_to_idx = np.ones(np.max(self.events['event_id']) + 1, dtype=np.int) * -1
+        for i in np.arange(len(self.events)): self.event_id_to_idx[self.events['event_id'][i]] = i
+
         # label arrivals by event-source
         if(not self.events_only): self._label_arrivals()
-
-        # initialize kd-tree
-        self._initialize_kdtree()
 
         print('rank {}: {} arrivals'.format(self.rank, len(self.arrivals)))
         if(self.rank == 0): print('Completed loading catalogue..')
@@ -103,7 +101,7 @@ class ParametricData:
         self.source_enum = self.comm.bcast(self.source_enum, root=0)
         self.comm.Bcast([self.arrival_source, MPI.INT], root=0)
 
-        assert np.all(self.arrival_source > 0)
+        assert np.all(self.arrival_source > 0), 'Arrivals found with no corresponding event-ids..'
 
         if(self.rank == 0 and 0):
             print('rank: {} arrival_source {}'.format(self.rank, self.arrival_source))
@@ -111,37 +109,6 @@ class ParametricData:
                 print(self.arrivals[i])
             # end for
         # end if
-    # end func
-
-    def _initialize_kdtree(self, ellipsoidal_distance=True):
-        ER = 6371e3 #m
-
-        elons = self.events['lon']
-        elats = self.events['lat']
-        ealts = -self.events['depth_km'] * 1e3
-        xyz = None
-        if(ellipsoidal_distance):
-            transformer = pyproj.Transformer.from_crs(
-                {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
-                {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'})
-            self._lonlatalt2xyz = lambda lon, lat, alt: np.vstack(transformer.transform(lon, lat, alt,
-                                                                                        radians=False)).T
-        else:
-            def rtp2xyz(r, theta, phi):
-                xout = np.zeros((r.shape[0], 3))
-                rst = r * np.sin(theta)
-                xout[:, 0] = rst * np.cos(phi)
-                xout[:, 1] = rst * np.sin(phi)
-                xout[:, 2] = r * np.cos(theta)
-                return xout
-            # end func
-
-            self._lonlatalt2xyz = lambda lon, lat, alt: rtp2xyz(np.atleast_1d(ER + alt),
-                                                                np.atleast_1d(np.radians(90 - lat)),
-                                                                np.atleast_1d(np.radians(lon)))
-        # end if
-        xyz = self._lonlatalt2xyz(elons, elats, ealts)
-        self.kdtree = cKDTree(xyz)
     # end func
 
     def _gather_arrivals(self, rank_arrivals):
@@ -193,9 +160,18 @@ class ParametricData:
                     second, lon, lat, depth_km = map(float, items[6:10])
                     mb, ms, ml, mw = map(float, items[11:15])
 
-                    if(lon < -180 or lon > 180): raise ValueError('Invalid origin lon on line {}'.format(iline))
-                    if(lat < -90 or lat > 90): raise ValueError('Invalid origin lat on line {}'.format(iline))
-                    if(depth_km < 0): raise ValueError('Invalid origin depth on line {}'.format(iline))
+                    if(lon < -180 or lon > 180):
+                        print('Invalid origin lon on line {}. Moving along..'.format(iline+1))
+                        continue
+                    # end if
+                    if(lat < -90 or lat > 90):
+                        print('Invalid origin lat on line {}. Moving along..'.format(iline+1))
+                        continue
+                    # end if
+                    if(depth_km < 0):
+                        print('Invalid origin depth on line {}. Moving along..'.format(iline+1))
+                        continue
+                    # end if
 
                     mag = 0
                     if(mw>0): mag = mw
@@ -326,3 +302,17 @@ class ParametricData:
         return arrivals
     # end func
 # end class
+
+if __name__ == "__main__":
+    if(1):
+        pd = ParametricData('./small_merge_catalogues_output.csv',
+                            auto_pick_files=['small_p_combined.txt', 'small_s_combined.txt'],
+                            auto_pick_phases=['P', 'S'],
+                            events_only=False)
+    else:
+        pd = ParametricData('./merge_catalogues_output.csv',
+                            auto_pick_files=['old_p_combined.txt', 'old_s_combined.txt'],
+                            auto_pick_phases=['P', 'S'],
+                            events_only=False)
+    # end if
+# end if
