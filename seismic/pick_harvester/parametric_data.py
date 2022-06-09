@@ -1,9 +1,9 @@
-from mpi4py import MPI
 from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import UTCDateTime
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
+from mpi4py import MPI
 
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
@@ -40,7 +40,7 @@ class ParametricData:
         for i in np.arange(len(self.events)): self.event_id_to_idx[self.events['event_id'][i]] = i
 
         # label arrivals by event-source
-        if(not self.events_only): self._label_arrivals()
+        #if(not self.events_only): self._label_arrivals()
 
         print('rank {}: {} arrivals'.format(self.rank, len(self.arrivals)))
         if(self.rank == 0): print('Completed loading catalogue..')
@@ -111,30 +111,42 @@ class ParametricData:
         # end if
     # end func
 
-    def _gather_arrivals(self, rank_arrivals):
-        # gather arrivals from all ranks on all ranks
+    def _sync_var(self, rank_values):
+        # sync variable across ranks
+        type_map = {np.dtype('int32'): MPI.INT, np.dtype('float32'): MPI.FLOAT,
+                    np.dtype('float64'): MPI.DOUBLE, np.dtype('S10'): MPI.CHAR}
+        counts = np.array(self.comm.allgather(len(rank_values)))
+
+        global_values = None
+        dtype = rank_values.dtype
+        nelem = np.sum(counts)
+        displacements = np.zeros(self.nproc)
+        displacements[1:] = np.cumsum(counts[:-1])
+        if(dtype.char == 'S'):
+            length = np.dtype(dtype).itemsize
+            global_values = np.empty(nelem*length, dtype='b')
+            self.comm.Allgatherv(np.array(rank_values).tobytes(),
+                                 [global_values, counts*length,
+                                  displacements*length, MPI.CHAR])
+            global_values = np.frombuffer(global_values, dtype=dtype)
+        else:
+            global_values = np.empty(nelem, dtype=dtype)
+            self.comm.Allgatherv(np.array(rank_values),
+                                 [global_values, counts,
+                                  displacements, type_map[rank_values.dtype]])
+        # end if
+        self.comm.Barrier()
+        return global_values
+    # end func
+
+    def _sync_arrivals(self, rank_arrivals):
+        # sync arrivals from all ranks on all ranks
         arrival_counts = np.array(self.comm.allgather(len(rank_arrivals)))
 
         nelem = np.sum(arrival_counts)
-        displacements = np.zeros(self.nproc)
-        displacements[1:] = np.cumsum(arrival_counts[:-1])
         global_arrivals = np.empty(nelem, dtype=self.arrival_fields)
-        type_map = {'i4': MPI.INT, 'f4': MPI.FLOAT, 'f8': MPI.DOUBLE}
         for name, dtype in zip(self.arrival_fields['names'], self.arrival_fields['formats']):
-            if(dtype in ['i4', 'f4', 'f8']):
-                temp = np.zeros(nelem, dtype=dtype)
-                self.comm.Allgatherv(np.array(rank_arrivals[name]),
-                                     [temp, arrival_counts,
-                                      displacements, type_map[dtype]])
-                global_arrivals[name][:] = temp
-            else:
-                length = np.dtype(dtype).itemsize
-                temp = np.empty(nelem*length, dtype='b')
-                self.comm.Allgatherv(np.array(rank_arrivals[name]).tobytes(),
-                                     [temp, arrival_counts*length,
-                                      displacements*length, MPI.CHAR])
-                global_arrivals[name] = np.frombuffer(temp, dtype=dtype)
-            # end if
+            global_arrivals[name][:] = self._sync_var(rank_arrivals[name])
         # end for
         return global_arrivals
     # end func
@@ -253,7 +265,7 @@ class ParametricData:
             # end for
 
             if(self.rank == 0): print('Gathering arrivals on all ranks..')
-            arrivals = self._gather_arrivals(arrivals)
+            arrivals = self._sync_arrivals(arrivals)
         # end if
 
         return events, arrivals

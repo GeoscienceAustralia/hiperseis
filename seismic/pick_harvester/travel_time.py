@@ -126,7 +126,8 @@ class TTInterpolator:
             models.add(model)
             phase_names.add(phase_name)
         # end for
-        print('Loading travel-time tables for phases {} for models {}..'.format(list(phase_names), list(models)))
+        print('Loading travel-time tables for phases {} for models {}..'.format(sorted(list(phase_names)),
+                                                                                sorted(list(models))))
     # end func
 
     def get_tt(self, phase, ecdist, depth_km, model='ak135'):
