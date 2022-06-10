@@ -7,7 +7,7 @@ from pyproj import Geod
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
-from seismic.pick_harvester.parametric_data import ParametricData
+from seismic.pick_harvester.test_pd import ParametricData
 import importlib
 import sys, os
 from os.path import abspath, dirname
@@ -16,19 +16,17 @@ ellip_corr_path = os.path.join(dirname(dirname(dirname(abspath(__file__)))), 'el
 sys.path.append(ellip_corr_path)
 from PyEllipCorr import PyEllipCorr
 from seismic.pick_harvester.travel_time import TTInterpolator
-from mpi4py import MPI
+import traceback
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb P* Pn S Sg Sb S* Sn'):
         super(SSSTRelocator, self).__init__(csv_catalog, auto_pick_files, auto_pick_phases,
                                             events_only, phase_list)
-        self.EARTH_RADIUS = 6371 #km
+        self.EARTH_RADIUS = 6371. #km
         self.DEG2KM = np.pi/180 * self.EARTH_RADIUS
         self.kdtree = None
         self._lonlatalt2xyz = None
-        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
-        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
         self.ecdist = None
         self.azim = None
         self.elev_corr = None
@@ -54,40 +52,32 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def compute_distance_azimuth(self):
-        elon = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]]
-        elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]]
-        slon = self.arrivals['lon'][self.local_arrivals_indices]
-        slat = self.arrivals['lat'][self.local_arrivals_indices]
+        elon = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id']]]
+        elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+        slon = self.arrivals['lon']
+        slat = self.arrivals['lat']
 
-        local_azim, _, local_ecdist = self._geod.inv(elon, elat, slon, slat)
-        self.azim = self._sync_var(np.array(local_azim.astype('f4')))
-        self.ecdist = self._sync_var(np.array(local_ecdist.astype('f4')))
+        azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
+        self.azim = np.array(azim.astype('f4'))
+        self.ecdist = np.array(ecdist.astype('f4'))
     # end func
 
     def compute_elevation_correction(self):
-        vsurf = self.vsurf[self.local_arrivals_indices]
-        print(self.rank, 'hereA')
-        #elev_km = (self.arrivals['elev_m'][self.local_arrivals_indices]) / 1e3
-        elev_km = np.ones(len(vsurf), dtype='f4')
-        print(self.rank, 'hereB')
-        print(self.rank, 'here0')
-        #edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]]
-        edepth_km = np.ones(len(vsurf), dtype='f4')*100
-        print(self.rank, 'here1')
-        dtdd = self._tti.get_dtdd(self.arrivals['phase'][self.local_arrivals_indices],
-                                  self.ecdist[self.local_arrivals_indices],
-                                  edepth_km)
+        vsurf = self.vsurf
+        elev_km = self.arrivals['elev_m'] / 1e3
+        edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id']]]
 
+        dtdd = self._tti.get_dtdd(self.arrivals['phase'],
+                                  self.ecdist,
+                                  edepth_km)
         elev_corr = vsurf * (dtdd / self.DEG2KM)
-        elev_corr *= elev_corr
+        elev_corr = np.power(elev_corr, 2.)
         elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
         elev_corr = np.sqrt(1. - elev_corr)
-        elev_corr *= elev_km / vsurf
-        print(self.rank, 'here2')
+        elev_corr = elev_corr * elev_km / vsurf
 
-        local_elev_corr = np.array(elev_corr.astype('f4'))
-        print(self.rank, 'here3', np.sum(np.isnan(local_elev_corr)))
-        self.elev_corr = self._sync_var(local_elev_corr)
+        elev_corr = np.array(elev_corr.astype('f4'))
+        self.elev_corr = elev_corr
     # end func
 
     def _initialize_kdtree(self, ellipsoidal_distance=False):
@@ -128,20 +118,19 @@ if __name__ == "__main__":
                            auto_pick_files=['small_p_combined.txt', 'small_s_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
-        if(sr.rank==0): print('computing distance, azimuth, elev_corr')
+        print('computing distance, azimuth, elev_corr')
         sr.compute_distance_azimuth()
         sr.compute_elevation_correction()
-        if(sr.rank==0): print(sr.azim, sr.ecdist, sr.elev_corr)
+        print(sr.azim, sr.ecdist, sr.elev_corr)
+        print(sr.has_arrival(1, 'AU', 'FITZ', 'P'))
     else:
         sr = SSSTRelocator('./merge_catalogues_output.csv',
                            auto_pick_files=['p_combined.txt', 's_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
-        if(sr.rank==0):
-            print(len(sr.arrivals), sr.arrivals.dtype.itemsize)
-            print('computing distance, azimuth, elev_corr')
+        print('computing distance, azimuth, elev_corr')
         sr.compute_distance_azimuth()
         sr.compute_elevation_correction()
-        if(sr.rank==0): print(sr.azim, sr.ecdist, sr.elev_corr)
+        print(sr.azim, sr.ecdist, sr.elev_corr)
     # end if
 # end if
