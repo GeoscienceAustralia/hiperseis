@@ -7,7 +7,7 @@ from pyproj import Geod
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
-from seismic.pick_harvester.test_pd import ParametricData
+from seismic.pick_harvester.parametric_data import ParametricData
 import importlib
 import sys, os
 from os.path import abspath, dirname
@@ -113,7 +113,7 @@ class SSSTRelocator(ParametricData):
 # end class
 
 if __name__ == "__main__":
-    if(0):
+    if(1):
         sr = SSSTRelocator('./small_merge_catalogues_output.csv',
                            auto_pick_files=['small_p_combined.txt', 'small_s_combined.txt'],
                            auto_pick_phases=['P', 'S'],
