@@ -10,20 +10,24 @@ import os, shutil
 
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
-                 events_only=False, phase_list='P Pg Pb P* Pn S Sg Sb S* Sn'):
+                 events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
         self.csv_catalog = csv_catalog
         self.auto_pick_files = auto_pick_files
         self.auto_pick_phases = auto_pick_phases
         self.events_only = events_only
         self.phase_list = set(map(str.strip, phase_list.split())) if len(phase_list) else set()
+        self._temp_dir = temp_dir
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
         self.events = []
         self.event_id_to_idx = None
         self.arrivals = []
-        self.source_enum = defaultdict(int)
-        self.arrival_source = None
+        self._source_enum = defaultdict(int)
+        self._arrival_source = None
+
+        # create temp_dir
+        self._make_temp_dir()
 
         # sanity check
         for item in self.phase_list:
@@ -50,7 +54,6 @@ class ParametricData:
         print(
             'Completed loading catalogue with {} events and {} arrivals..'.format(len(self.events), len(self.arrivals)))
         # print(self.arrivals)
-
     # end func
 
     def has_arrival(self, event_id, network, station, phase_list=''):
@@ -82,36 +85,56 @@ class ParametricData:
 
     # end func
 
+    def __del__(self):
+        self.comm.Barrier()
+        if (self.rank == 0):
+            print('Removing temp-dir: {}..'.format(self._temp_dir))
+            shutil.rmtree(self._temp_dir)
+        # end if
+    # end func
+
+    def _make_temp_dir(self):
+        if(self.rank == 0):
+            self._temp_dir = os.path.join(self._temp_dir, str(uuid.uuid4()))
+            os.makedirs(self._temp_dir, exist_ok=True)
+        # end if
+        self.comm.Barrier()
+        self._temp_dir = self.comm.bcast(self._temp_dir, root=0)
+    # end func
+
     def _label_arrivals(self):
-        self.arrival_source = np.zeros(len(self.arrivals), dtype='i4')
-
         sources = set(self.events['source'])
-        for i, source in enumerate(sources): self.source_enum[source] = i + 1
+        for i, source in enumerate(sources): self._source_enum[source] = i + 1
 
-        print('Labelling arrivals by event source {}..'.format(self.source_enum.items()))
+        print('Labelling arrivals by event source {}..'.format(self._source_enum.items()))
 
         arrival_source = np.zeros(len(self.arrivals), dtype='i4')
         for source in sources:
-            enum = self.source_enum[source]
+            enum = self._source_enum[source]
             sids = np.argwhere(self.events['source'] == source).flatten()
-            source_eids = set(list(self.events['event_id'][sids]))
+            source_eids = self.events['event_id'][sids]
 
-            for i, eid in enumerate(self.arrivals['event_id']):
-                if (eid in source_eids): arrival_source[i] = enum
-            # end for
+            arrival_source[np.isin(self.arrivals['event_id'], source_eids)] = enum
         # end for
 
-        self.arrival_source = arrival_source
+        self._arrival_source = arrival_source
 
-        assert np.all(self.arrival_source > 0), 'Arrivals found with no corresponding event-ids..'
+        assert np.all(self._arrival_source > 0), 'Arrivals found with no corresponding event-ids..'
+
+        # create source-type attributes marking arrivals
+        for source in sources:
+            setattr(self, 'is_{}'.format(source.decode()), self._arrival_source == self._source_enum[source])
+        # end for
+
+        # attribute marking automatic picks
+        setattr(self, 'is_AUTO', self.arrivals['quality_measure_slope'] > -1)
 
         if (0):
-            print('arrival_source {}'.format(self.arrival_source))
+            print('arrival_source {}'.format(self._arrival_source))
             for i in np.arange(len(self.arrivals)):
                 print(self.arrivals[i])
             # end for
         # end if
-
     # end func
 
     def _load_catalog(self):
@@ -119,11 +142,7 @@ class ParametricData:
         arrival_ids = []
         arrivals = []
 
-        tempdir = None
         if (self.rank == 0):
-            tempdir = os.path.join(os.path.dirname(self.csv_catalog), str(uuid.uuid4()))
-            os.makedirs(tempdir, exist_ok=True)
-
             print('Loading events from {}'.format(self.csv_catalog))
             event_id = -1
             for iline, line in enumerate(open(self.csv_catalog, 'r')):
@@ -179,7 +198,7 @@ class ParametricData:
 
             # convert events to a structured array
             events = np.array(events, dtype=self.event_fields)
-            np.save(os.path.join(tempdir, 'events.npy'), events)
+            np.save(os.path.join(self._temp_dir, 'events.npy'), events)
 
             if (not self.events_only):
                 print('Loading {} arrivals from {}'.format(len(arrival_ids), self.csv_catalog))
@@ -234,17 +253,14 @@ class ParametricData:
                 # end for
                 assert np.all(arrivals['event_id'] >= 0), 'Invalid event-ids found in arrivals'
             # end if
-            np.save(os.path.join(tempdir, 'arrivals.npy'), arrivals)
+            np.save(os.path.join(self._temp_dir, 'arrivals.npy'), arrivals)
         # end if
         self.comm.Barrier()
 
-        tempdir = self.comm.bcast(tempdir, root=0)
         if (self.rank > 0):
-            events = np.load(os.path.join(tempdir, 'events.npy'))
-            if (not self.events_only): arrivals = np.load(os.path.join(tempdir, 'arrivals.npy'))
+            events = np.load(os.path.join(self._temp_dir, 'events.npy'))
+            if (not self.events_only): arrivals = np.load(os.path.join(self._temp_dir, 'arrivals.npy'))
         # end if
-        self.comm.Barrier()
-        if (self.rank == 0): shutil.rmtree(tempdir)
 
         return events, arrivals
     # end func
