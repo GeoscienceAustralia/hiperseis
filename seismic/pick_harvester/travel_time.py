@@ -26,9 +26,9 @@ class Phase:
 
         vidx = ~np.isnan(self.times.flatten())
 
-        self.times_io = CloughTocher2DInterpolator(points[vidx], self.times.flatten()[vidx])
-        self.dtdd_io = CloughTocher2DInterpolator(points[vidx], self.dtdd.flatten()[vidx])
-        self.dtdh_io = CloughTocher2DInterpolator(points[vidx], self.dtdh.flatten()[vidx])
+        self.times_io = CloughTocher2DInterpolator(points[vidx], self.times.flatten()[vidx], fill_value=0)
+        self.dtdd_io = CloughTocher2DInterpolator(points[vidx], self.dtdd.flatten()[vidx], fill_value=0)
+        self.dtdh_io = CloughTocher2DInterpolator(points[vidx], self.dtdh.flatten()[vidx], fill_value=0)
     # end func
 
     def _parse_tt(self, tt_file_content, nanval=-999.0):
@@ -126,25 +126,25 @@ class TTInterpolator:
             models.add(model)
             phase_names.add(phase_name)
         # end for
-        print('Loading travel-time tables for phases {} for models {}..'.format(sorted(list(phase_names)),
-                                                                                sorted(list(models))))
     # end func
 
     def get_tt(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.ones(len(phase))*np.nan
+                result = np.zeros(len(phase), dtype='f4')
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
 
-                    result[indices] = self.phases[model][cphase].times_io(ecdist[indices],
-                                                                          depth_km[indices])
+                    if(len(indices)):
+                        result[indices] = self.phases[model][cphase].times_io(ecdist[indices],
+                                                                              depth_km[indices])
+                    # end if
                 # end for
 
                 return result
             else:
-                result = np.nan
+                result = 0.
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].times_io(ecdist, depth_km)
                 # end if
@@ -159,18 +159,20 @@ class TTInterpolator:
     def get_dtdd(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.ones(len(phase))*np.nan
+                result = np.zeros(len(phase), dtype='f4')
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
 
-                    result[indices] = self.phases[model][cphase].dtdd_io(ecdist[indices],
-                                                                         depth_km[indices])
+                    if(len(indices)):
+                        result[indices] = self.phases[model][cphase].dtdd_io(ecdist[indices],
+                                                                             depth_km[indices])
+                    # end if
                 # end for
 
                 return result
             else:
-                result = np.nan
+                result = 0.
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].dtdd_io(ecdist, depth_km)
                 # end if
@@ -185,18 +187,20 @@ class TTInterpolator:
     def get_dtdh(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.ones(len(phase))*np.nan
+                result = np.zeros(len(phase), dtype='f4')
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
 
-                    result[indices] = self.phases[model][cphase].dtdh_io(ecdist[indices],
-                                                                         depth_km[indices])
+                    if(len(indices)):
+                        result[indices] = self.phases[model][cphase].dtdh_io(ecdist[indices],
+                                                                             depth_km[indices])
+                    # end if
                 # end for
 
                 return result
             else:
-                result = np.nan
+                result = 0.
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].dtdh_io(ecdist, depth_km)
                 # end if

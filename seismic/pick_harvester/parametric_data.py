@@ -7,7 +7,6 @@ from mpi4py import MPI
 import uuid
 import os, shutil
 
-
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
@@ -42,14 +41,17 @@ class ParametricData:
             'formats': ['i4', 'S10', 'S10', 'S10', 'S10', 'f4', 'f4', 'f4', 'S10', 'f8', 'f4']}
 
         # load events and arrivals
-        self.events, self.arrivals = self._load_catalog()
+        #self.events, self.arrivals = self._load_catalog()
+        self.events = np.load('events.npy')
+        self.arrivals= np.load('arr.npy')
+        #self.arrivals = self.arrivals[0:10000]
 
         # create a map to translate event-id to array index
         self.event_id_to_idx = np.ones(np.max(self.events['event_id']) + 1, dtype='i4') * -1
         for i in np.arange(len(self.events)): self.event_id_to_idx[self.events['event_id'][i]] = i
 
         # label arrivals by event-source
-        if (not self.events_only): self._label_arrivals()
+        #if (not self.events_only): self._label_arrivals()
 
         print(
             'Completed loading catalogue with {} events and {} arrivals..'.format(len(self.events), len(self.arrivals)))

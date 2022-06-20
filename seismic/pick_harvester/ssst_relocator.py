@@ -12,11 +12,12 @@ import importlib
 import sys, os
 from os.path import abspath, dirname
 
-ellip_corr_path = os.path.join(dirname(dirname(dirname(abspath(__file__)))), 'ellip-corr')
-sys.path.append(ellip_corr_path)
-from PyEllipCorr import PyEllipCorr
 from seismic.pick_harvester.travel_time import TTInterpolator
+from seismic.pick_harvester.ellipticity import Ellipticity
 import traceback
+import psutil
+import h5py
+from mpi4py import MPI
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
@@ -27,15 +28,17 @@ class SSSTRelocator(ParametricData):
         self.DEG2KM = np.pi/180 * self.EARTH_RADIUS
         self.kdtree = None
         self._lonlatalt2xyz = None
+        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
+        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
         self.ecdist = None
         self.edepth_km = None
-        self.ecolat = None
+        self.elat = None
         self.azim = None
         self.elev_corr = None
         self.ellip_corr = None
         self.vsurf = None
         self._tti = TTInterpolator()
-        self._pyellipcorr = PyEllipCorr()
+        self._ellipticity = Ellipticity()
         self._geod = Geod(a=180/np.pi, f=0)
 
         self._initialize_kdtree()
@@ -66,21 +69,24 @@ class SSSTRelocator(ParametricData):
         slon = self.arrivals['lon']
         slat = self.arrivals['lat']
 
-        azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
-        self.azim = np.array(azim.astype('f4'))
-        self.ecdist = np.array(ecdist.astype('f4'))
-
         self.edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id']]]
-        self.ecolat = 90 - self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+        self.elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+
+        azim, _, ecdist = self._geod.inv(elon[self.local_arrivals_indices],
+                                         elat[self.local_arrivals_indices],
+                                         slon[self.local_arrivals_indices],
+                                         slat[self.local_arrivals_indices])
+        self.azim = self._sync_var(np.array(azim.astype('f4')))
+        self.ecdist = self._sync_var(np.array(ecdist.astype('f4')))
     # end func
 
     def compute_elevation_correction(self):
-        vsurf = self.vsurf
-        elev_km = self.arrivals['elev_m'] / 1e3
+        vsurf = self.vsurf[self.local_arrivals_indices]
+        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices] / 1e3
 
-        dtdd = self._tti.get_dtdd(self.arrivals['phase'],
-                                  self.ecdist,
-                                  self.edepth_km)
+        dtdd = self._tti.get_dtdd(self.arrivals['phase'][self.local_arrivals_indices],
+                                  self.ecdist[self.local_arrivals_indices],
+                                  self.edepth_km[self.local_arrivals_indices])
         elev_corr = vsurf * (dtdd / self.DEG2KM)
         elev_corr = np.power(elev_corr, 2.)
         elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
@@ -88,20 +94,17 @@ class SSSTRelocator(ParametricData):
         elev_corr = elev_corr * elev_km / vsurf
 
         elev_corr = np.array(elev_corr.astype('f4'))
-        elev_corr[np.isnan(elev_corr)] = 0.
-        self.elev_corr = elev_corr
+        self.elev_corr = self._sync_var(elev_corr)
     # end func
 
     def compute_ellipticity_correction(self):
-        ellip_corr = np.zeros(len(self.arrivals), dtype='f4')
-
-        for i, arrival in enumerate(self.arrivals):
-            ellip_corr[i] = self._pyellipcorr.get_correction(arrival['phase'], self.ecdist[i],
-                                                             self.edepth_km[i], self.ecolat[i],
-                                                             self.azim[i])
-        # end for
-        ellip_corr[np.isnan(ellip_corr)] = 0.
-        self.ellip_corr = ellip_corr
+        ellip_corr = self._ellipticity.get_correction(self.arrivals['phase'][self.local_arrivals_indices],
+                                                      self.ecdist[self.local_arrivals_indices],
+                                                      self.edepth_km[self.local_arrivals_indices],
+                                                      self.elat[self.local_arrivals_indices],
+                                                      self.azim[self.local_arrivals_indices])
+        ellip_corr = np.array(ellip_corr.astype('f4'))
+        self.ellip_corr = self._sync_var(ellip_corr)
     # end func
 
     def _initialize_kdtree(self, ellipsoidal_distance=False):
@@ -142,18 +145,29 @@ class SSSTRelocator(ParametricData):
         dtype = rank_values.dtype
         displacements = np.zeros(self.nproc, dtype='i4')
         displacements[1:] = np.cumsum(counts[:-1])
-        global_values = np.empty(nelem, dtype=dtype)
+        global_values = np.zeros(nelem, dtype=dtype)
 
-        fn = self._temp_dir + '/{}.npy'.format(self.rank)
-        np.save(fn, rank_values)
-        self.comm.Barrier()
+        fn = self._temp_dir + '/sync.h5'
 
         for irank in np.arange(self.nproc):
-            b, e = displacements[irank], displacements[irank]+counts[irank]
-            fn = self._temp_dir + '/{}.npy'.format(irank)
-            global_values[b:e] = np.load(fn.format(irank))
+            if(self.rank == irank):
+                hf = h5py.File(fn, 'a')
+                dset = hf.create_dataset("%d" % (self.rank), rank_values.shape, dtype=rank_values.dtype)
+                dset[:] = rank_values
+                hf.close()
+            # end if
+            self.comm.Barrier()
         # end for
+
+        hf = h5py.File(fn, 'r')
+        for irank in np.arange(self.nproc):
+            b, e = displacements[irank], displacements[irank]+counts[irank]
+            global_values[b:e] = hf['{}'.format(irank)][:]
+        # end for
+        hf.close()
+
         self.comm.Barrier()
+        if(self.rank == 0): os.remove(fn)
 
         return global_values
     # end func
@@ -165,24 +179,43 @@ if __name__ == "__main__":
                            auto_pick_files=['small_p_combined.txt', 'small_s_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
-        print('computing distance, azimuth, elev_corr')
+        if(sr.rank==0): print('computing essentials..')
         sr.compute_essentials()
+        if(sr.rank==0): print('computing elevation corrections..')
         sr.compute_elevation_correction()
+        if(sr.rank==0): print('computing ellipticity corrections..')
         sr.compute_ellipticity_correction()
         if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr)
-        test_ellip_corr = sr._sync_var(split_list(sr.ellip_corr, sr.nproc)[sr.rank])
-        assert np.all(sr.ellip_corr == test_ellip_corr), 'Sync-var failed'
+
+        test_elev_corr = sr._sync_var(np.array(split_list(sr.elev_corr, sr.nproc)[sr.rank]))
+        #test_elev_corr = sr._sync_var_h5(np.array(split_list(sr.elev_corr, sr.nproc)[sr.rank]))
+
+        try:
+            assert np.all(sr.elev_corr == test_elev_corr), 'Sync-var failed on rank {}'.format(sr.rank)
+        except:
+            np.savetxt('{}.synced.txt'.format(sr.rank), test_elev_corr)
+            np.savetxt('{}.ellip_corr.txt'.format(sr.rank), sr.elev_corr)
+        # end try
     else:
         sr = SSSTRelocator('./merge_catalogues_output.csv',
                            auto_pick_files=['p_combined.txt', 's_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
-        print('computing distance, azimuth, elev_corr')
+        if(sr.rank==0): print('computing essentials..')
         sr.compute_essentials()
+        if(sr.rank==0): print('computing elevation corrections..')
         sr.compute_elevation_correction()
+        if(sr.rank==0): print('computing ellipticity corrections..')
         sr.compute_ellipticity_correction()
+
+        print('Rank {}: memory used: {}'.format(sr.rank,
+                                                round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
+
         if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr)
-        test_ellip_corr = sr._sync_var(split_list(sr.ellip_corr, sr.nproc)[sr.rank])
-        assert np.all(sr.ellip_corr == test_ellip_corr), 'Sync-var failed'
+
+        for name, dtype in zip(sr.arrival_fields['names'], sr.arrival_fields['formats']):
+            test_var = sr._sync_var(sr.arrivals[name][sr.local_arrivals_indices])
+            assert np.all(test_var == sr.arrivals[name]), 'Sync-{} failed on rank {}'.format(name, sr.rank)
+        # end for
     # end if
 # end if
