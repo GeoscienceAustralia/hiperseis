@@ -17,7 +17,7 @@ from seismic.pick_harvester.ellipticity import Ellipticity
 import traceback
 import psutil
 import h5py
-from mpi4py import MPI
+from itertools import combinations
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
@@ -61,6 +61,60 @@ class SSSTRelocator(ParametricData):
     def is_S(self):
         result = self.arrivals['phase'].astype('S1') == b'S'
         return result
+    # end func
+
+    def coalesce_network_codes(self):
+        self.arrivals['net'] = np.load('coalesced_net.npy')
+        return
+
+        MDIST = 500 # maximum distance in metres
+        iter_count = 0
+        while(1):
+            dupdict = defaultdict(set)
+            coordsdict = defaultdict(list)
+            for arrival in self.arrivals:
+                if(arrival['net'] not in dupdict[arrival['sta']]):
+                    dupdict[arrival['sta']].add(arrival['net'])
+                    coordsdict[arrival['net'] + b'.' + arrival['sta']] = [arrival['lon'], arrival['lat']]
+                # end if
+            # end for
+
+            swap_map = defaultdict(str)
+            swap_fail_map = defaultdict(list)
+            for sta, nets in dupdict.items():
+                if(len(nets)>1):
+                    nets = sorted(list(nets), reverse=True)
+                    for net1, net2 in combinations(nets, r=2):
+                        lon1, lat1 = coordsdict[net1 + b'.' + sta]
+                        lon2, lat2 = coordsdict[net2 + b'.' + sta]
+
+                        _, _, dist = self._geod.inv(lon1, lat1, lon2, lat2)
+                        dist *= self.DEG2KM * 1e3 #m
+                        if(dist < MDIST):
+                            swap_map[(net1, sta)] = net2
+                        else:
+                            swap_fail_map[(net1, sta)] = [net2, dist]
+                        # end if
+                    # end for
+                # end if
+            # end for
+
+            sum = 0
+            local_net_codes = np.array(self.arrivals['net'][self.local_arrivals_indices])
+            local_sta_codes = np.array(self.arrivals['sta'][self.local_arrivals_indices])
+            for (net1, sta), net2 in swap_map.items():
+                net_sta_match = (local_net_codes == net1) & (local_sta_codes == sta)
+                sum += np.sum(net_sta_match)
+
+                local_net_codes[net_sta_match] = net2
+            # end for
+
+            self.arrivals['net'] = self._sync_var(local_net_codes)
+
+            iter_count += 1
+            if(len(swap_map) == 0): break
+        # wend
+        #if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
     # end func
 
     def compute_essentials(self):
@@ -201,6 +255,9 @@ if __name__ == "__main__":
                            auto_pick_files=['p_combined.txt', 's_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
+
+        if(sr.rank==0): print('coalescing network codes..')
+        sr.coalesce_network_codes()
         if(sr.rank==0): print('computing essentials..')
         sr.compute_essentials()
         if(sr.rank==0): print('computing elevation corrections..')
@@ -215,6 +272,7 @@ if __name__ == "__main__":
 
         for name, dtype in zip(sr.arrival_fields['names'], sr.arrival_fields['formats']):
             test_var = sr._sync_var(sr.arrivals[name][sr.local_arrivals_indices])
+
             assert np.all(test_var == sr.arrivals[name]), 'Sync-{} failed on rank {}'.format(name, sr.rank)
         # end for
     # end if
