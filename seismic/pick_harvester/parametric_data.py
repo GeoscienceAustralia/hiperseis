@@ -22,8 +22,6 @@ class ParametricData:
         self.events = []
         self.event_id_to_idx = None
         self.arrivals = []
-        self._source_enum = defaultdict(int)
-        self._arrival_source = None
 
         # create temp_dir
         self._make_temp_dir()
@@ -44,17 +42,14 @@ class ParametricData:
         #self.events, self.arrivals = self._load_catalog()
         self.events = np.load('events.npy')
         self.arrivals= np.load('arr.npy')
-        #self.arrivals = self.arrivals[0:10000]
+        #self.arrivals = self.arrivals[10000000:10100000]
 
         # create a map to translate event-id to array index
         self.event_id_to_idx = np.ones(np.max(self.events['event_id']) + 1, dtype='i4') * -1
         for i in np.arange(len(self.events)): self.event_id_to_idx[self.events['event_id'][i]] = i
 
-        # label arrivals by event-source
-        #if (not self.events_only): self._label_arrivals()
-
-        print(
-            'Completed loading catalogue with {} events and {} arrivals..'.format(len(self.events), len(self.arrivals)))
+        print('Completed loading catalogue with {} events and {} arrivals..'.format(len(self.events),
+                                                                                    len(self.arrivals)))
         # print(self.arrivals)
     # end func
 
@@ -102,41 +97,6 @@ class ParametricData:
         # end if
         self.comm.Barrier()
         self._temp_dir = self.comm.bcast(self._temp_dir, root=0)
-    # end func
-
-    def _label_arrivals(self):
-        sources = set(self.events['source'])
-        for i, source in enumerate(sources): self._source_enum[source] = i + 1
-
-        print('Labelling arrivals by event source {}..'.format(self._source_enum.items()))
-
-        arrival_source = np.zeros(len(self.arrivals), dtype='i4')
-        for source in sources:
-            enum = self._source_enum[source]
-            sids = np.argwhere(self.events['source'] == source).flatten()
-            source_eids = self.events['event_id'][sids]
-
-            arrival_source[np.isin(self.arrivals['event_id'], source_eids)] = enum
-        # end for
-
-        self._arrival_source = arrival_source
-
-        assert np.all(self._arrival_source > 0), 'Arrivals found with no corresponding event-ids..'
-
-        # create source-type attributes marking arrivals
-        for source in sources:
-            setattr(self, 'is_{}'.format(source.decode()), self._arrival_source == self._source_enum[source])
-        # end for
-
-        # attribute marking automatic picks
-        setattr(self, 'is_AUTO', self.arrivals['quality_measure_slope'] > -1)
-
-        if (0):
-            print('arrival_source {}'.format(self._arrival_source))
-            for i in np.arange(len(self.arrivals)):
-                print(self.arrivals[i])
-            # end for
-        # end if
     # end func
 
     def _load_catalog(self):

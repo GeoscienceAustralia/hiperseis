@@ -37,13 +37,24 @@ class SSSTRelocator(ParametricData):
         self.elev_corr = None
         self.ellip_corr = None
         self.vsurf = None
+        self.ett = None
+        self.residual = None
+        self._source_enum = defaultdict(int)
+        self._arrival_source = None
         self._tti = TTInterpolator()
         self._ellipticity = Ellipticity()
         self._geod = Geod(a=180/np.pi, f=0)
 
+        self._label_arrivals()
+        self._coalesce_network_codes()
         self._initialize_kdtree()
 
-        # initialize surface velocity array
+        # compute empirical tt (need only be computed once)
+        self.ett = self.arrivals['arrival_ts'] - \
+                   self.events['origin_ts'][self.event_id_to_idx[self.arrivals['event_id']]]
+
+        # initialize surface velocity array (only needs to be computed once, since
+        # elevations are fixed and P/S arrivals are not interchanged)
         vs_surf = 3.46        # Sg velocity km/s for elevation corrections
         vp_surf = 5.8         # Pg velocity km/s for elevation corrections
         pidx = self.is_P()
@@ -63,7 +74,122 @@ class SSSTRelocator(ParametricData):
         return result
     # end func
 
-    def coalesce_network_codes(self):
+    def compute_essentials(self):
+        elon = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id']]]
+        elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+        slon = self.arrivals['lon']
+        slat = self.arrivals['lat']
+
+        self.edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id']]]
+        self.elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+
+        azim, _, ecdist = self._geod.inv(elon[self.local_arrivals_indices],
+                                         elat[self.local_arrivals_indices],
+                                         slon[self.local_arrivals_indices],
+                                         slat[self.local_arrivals_indices])
+        self.azim = self._sync_var(np.array(azim.astype('f4')))
+        self.ecdist = self._sync_var(np.array(ecdist.astype('f4')))
+    # end func
+
+    def compute_elevation_correction(self):
+        vsurf = self.vsurf[self.local_arrivals_indices]
+        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices] / 1e3
+
+        dtdd = self._tti.get_dtdd(self.arrivals['phase'][self.local_arrivals_indices],
+                                  self.ecdist[self.local_arrivals_indices],
+                                  self.edepth_km[self.local_arrivals_indices])
+        elev_corr = vsurf * (dtdd / self.DEG2KM)
+        elev_corr = np.power(elev_corr, 2.)
+        elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
+        elev_corr = np.sqrt(1. - elev_corr)
+        elev_corr = elev_corr * elev_km / vsurf
+
+        elev_corr = np.array(elev_corr.astype('f4'))
+        self.elev_corr = self._sync_var(elev_corr)
+    # end func
+
+    def compute_ellipticity_correction(self):
+        ellip_corr = self._ellipticity.get_correction(self.arrivals['phase'][self.local_arrivals_indices],
+                                                      self.ecdist[self.local_arrivals_indices],
+                                                      self.edepth_km[self.local_arrivals_indices],
+                                                      self.elat[self.local_arrivals_indices],
+                                                      self.azim[self.local_arrivals_indices])
+        ellip_corr = np.array(ellip_corr.astype('f4'))
+        self.ellip_corr = self._sync_var(ellip_corr)
+    # end func
+
+    def compute_residual(self):
+        ptt = self._tti.get_tt(self.arrivals['phase'][self.local_arrivals_indices],
+                               self.ecdist[self.local_arrivals_indices],
+                               self.edepth_km[self.local_arrivals_indices]) + \
+              self.elev_corr[self.local_arrivals_indices] + \
+              self.ellip_corr[self.local_arrivals_indices]
+
+        local_residual = self.ett[self.local_arrivals_indices] - ptt.astype('f8')
+        self.residual = self._sync_var(local_residual)
+    # end func
+
+    def _initialize_kdtree(self, ellipsoidal_distance=False):
+        ER = self.EARTH_RADIUS * 1e3 #m
+
+        elons = self.events['lon']
+        elats = self.events['lat']
+        ealts = -self.events['depth_km'] * 1e3 #m
+        xyz = None
+        if(ellipsoidal_distance):
+            transformer = pyproj.Transformer.from_crs(
+                {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
+                {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'})
+            self._lonlatalt2xyz = lambda lon, lat, alt: np.vstack(transformer.transform(lon, lat, alt,
+                                                                                        radians=False)).T
+        else:
+            def rtp2xyz(r, theta, phi):
+                xout = np.zeros((r.shape[0], 3))
+                rst = r * np.sin(theta)
+                xout[:, 0] = rst * np.cos(phi)
+                xout[:, 1] = rst * np.sin(phi)
+                xout[:, 2] = r * np.cos(theta)
+                return xout
+            # end func
+
+            self._lonlatalt2xyz = lambda lon, lat, alt: rtp2xyz(np.atleast_1d(ER + alt),
+                                                                np.atleast_1d(np.radians(90 - lat)),
+                                                                np.atleast_1d(np.radians(lon)))
+        # end if
+        xyz = self._lonlatalt2xyz(elons, elats, ealts)
+        self.kdtree = cKDTree(xyz)
+    # end func
+
+    def _label_arrivals(self):
+        sources = set(self.events['source'])
+        for i, source in enumerate(sources): self._source_enum[source] = i + 1
+
+        if(self.rank == 0): print('Labelling arrivals by event source {}..'.format(self._source_enum.items()))
+
+        arrival_source = np.zeros(self.local_arrivals_indices.shape, dtype='i4')
+        local_event_ids = self.arrivals['event_id'][self.local_arrivals_indices]
+        for source in sources:
+            enum = self._source_enum[source]
+            sids = np.argwhere(self.events['source'] == source).flatten()
+            source_eids = self.events['event_id'][sids]
+
+            arrival_source[np.isin(local_event_ids, source_eids)] = enum
+        # end for
+
+        assert np.all(arrival_source > 0), 'Arrivals found with no corresponding event-ids..'
+
+        self._arrival_source = self._sync_var(arrival_source)
+
+        # create source-type attributes marking arrivals
+        for source in sources:
+            setattr(self, 'is_{}'.format(source.decode()), self._arrival_source == self._source_enum[source])
+        # end for
+
+        # attribute marking automatic picks
+        setattr(self, 'is_AUTO', self.arrivals['quality_measure_slope'] > -1)
+    # end func
+
+    def _coalesce_network_codes(self):
         self.arrivals['net'] = np.load('coalesced_net.npy')
         return
 
@@ -115,81 +241,6 @@ class SSSTRelocator(ParametricData):
             if(len(swap_map) == 0): break
         # wend
         #if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
-    # end func
-
-    def compute_essentials(self):
-        elon = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id']]]
-        elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
-        slon = self.arrivals['lon']
-        slat = self.arrivals['lat']
-
-        self.edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id']]]
-        self.elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
-
-        azim, _, ecdist = self._geod.inv(elon[self.local_arrivals_indices],
-                                         elat[self.local_arrivals_indices],
-                                         slon[self.local_arrivals_indices],
-                                         slat[self.local_arrivals_indices])
-        self.azim = self._sync_var(np.array(azim.astype('f4')))
-        self.ecdist = self._sync_var(np.array(ecdist.astype('f4')))
-    # end func
-
-    def compute_elevation_correction(self):
-        vsurf = self.vsurf[self.local_arrivals_indices]
-        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices] / 1e3
-
-        dtdd = self._tti.get_dtdd(self.arrivals['phase'][self.local_arrivals_indices],
-                                  self.ecdist[self.local_arrivals_indices],
-                                  self.edepth_km[self.local_arrivals_indices])
-        elev_corr = vsurf * (dtdd / self.DEG2KM)
-        elev_corr = np.power(elev_corr, 2.)
-        elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
-        elev_corr = np.sqrt(1. - elev_corr)
-        elev_corr = elev_corr * elev_km / vsurf
-
-        elev_corr = np.array(elev_corr.astype('f4'))
-        self.elev_corr = self._sync_var(elev_corr)
-    # end func
-
-    def compute_ellipticity_correction(self):
-        ellip_corr = self._ellipticity.get_correction(self.arrivals['phase'][self.local_arrivals_indices],
-                                                      self.ecdist[self.local_arrivals_indices],
-                                                      self.edepth_km[self.local_arrivals_indices],
-                                                      self.elat[self.local_arrivals_indices],
-                                                      self.azim[self.local_arrivals_indices])
-        ellip_corr = np.array(ellip_corr.astype('f4'))
-        self.ellip_corr = self._sync_var(ellip_corr)
-    # end func
-
-    def _initialize_kdtree(self, ellipsoidal_distance=False):
-        ER = self.EARTH_RADIUS * 1e3 #m
-
-        elons = self.events['lon']
-        elats = self.events['lat']
-        ealts = -self.events['depth_km'] * 1e3 #m
-        xyz = None
-        if(ellipsoidal_distance):
-            transformer = pyproj.Transformer.from_crs(
-                {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
-                {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'})
-            self._lonlatalt2xyz = lambda lon, lat, alt: np.vstack(transformer.transform(lon, lat, alt,
-                                                                                        radians=False)).T
-        else:
-            def rtp2xyz(r, theta, phi):
-                xout = np.zeros((r.shape[0], 3))
-                rst = r * np.sin(theta)
-                xout[:, 0] = rst * np.cos(phi)
-                xout[:, 1] = rst * np.sin(phi)
-                xout[:, 2] = r * np.cos(theta)
-                return xout
-            # end func
-
-            self._lonlatalt2xyz = lambda lon, lat, alt: rtp2xyz(np.atleast_1d(ER + alt),
-                                                                np.atleast_1d(np.radians(90 - lat)),
-                                                                np.atleast_1d(np.radians(lon)))
-        # end if
-        xyz = self._lonlatalt2xyz(elons, elats, ealts)
-        self.kdtree = cKDTree(xyz)
     # end func
 
     def _sync_var(self, rank_values):
@@ -256,24 +307,26 @@ if __name__ == "__main__":
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
 
-        if(sr.rank==0): print('coalescing network codes..')
-        sr.coalesce_network_codes()
         if(sr.rank==0): print('computing essentials..')
         sr.compute_essentials()
         if(sr.rank==0): print('computing elevation corrections..')
         sr.compute_elevation_correction()
         if(sr.rank==0): print('computing ellipticity corrections..')
         sr.compute_ellipticity_correction()
+        if(sr.rank==0): print('computing residuals..')
+        sr.compute_residual()
 
         print('Rank {}: memory used: {}'.format(sr.rank,
                                                 round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
 
-        if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr)
+        if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr, sr.residual)
 
-        for name, dtype in zip(sr.arrival_fields['names'], sr.arrival_fields['formats']):
-            test_var = sr._sync_var(sr.arrivals[name][sr.local_arrivals_indices])
+        if(0):
+            for name, dtype in zip(sr.arrival_fields['names'], sr.arrival_fields['formats']):
+                test_var = sr._sync_var(sr.arrivals[name][sr.local_arrivals_indices])
 
-            assert np.all(test_var == sr.arrivals[name]), 'Sync-{} failed on rank {}'.format(name, sr.rank)
-        # end for
+                assert np.all(test_var == sr.arrivals[name]), 'Sync-{} failed on rank {}'.format(name, sr.rank)
+            # end for
+        # end if
     # end if
 # end if
