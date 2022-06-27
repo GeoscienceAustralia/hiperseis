@@ -30,12 +30,6 @@ class SSSTRelocator(ParametricData):
         self._lonlatalt2xyz = None
         self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
         self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
-        self.ecdist = None
-        self.edepth_km = None
-        self.elat = None
-        self.azim = None
-        self.elev_corr = None
-        self.ellip_corr = None
         self.vsurf = None
         self.ett = None
         self.residual = None
@@ -57,47 +51,90 @@ class SSSTRelocator(ParametricData):
         # elevations are fixed and P/S arrivals are not interchanged)
         vs_surf = 3.46        # Sg velocity km/s for elevation corrections
         vp_surf = 5.8         # Pg velocity km/s for elevation corrections
-        pidx = self.is_P()
-        sidx = self.is_S()
+        pidx = self.is_P(self.arrivals['phase'])
+        sidx = self.is_S(self.arrivals['phase'])
         self.vsurf = np.zeros(len(self.arrivals), dtype='f4')
         self.vsurf[pidx] = vp_surf
         self.vsurf[sidx] = vs_surf
     # end func
 
-    def is_P(self):
-        result = self.arrivals['phase'].astype('S1') == b'P'
+    def is_P(self, phase):
+        result = phase.astype('S1') == b'P'
         return result
     # end func
 
-    def is_S(self):
-        result = self.arrivals['phase'].astype('S1') == b'S'
+    def is_S(self, phase):
+        result = phase.astype('S1') == b'S'
         return result
     # end func
 
-    def compute_essentials(self):
-        elon = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id']]]
-        elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
-        slon = self.arrivals['lon']
-        slat = self.arrivals['lat']
+    def _compute_residual_helper(self, phase, mask=None):
+        if(mask is None): mask = np.ones(len(phase), dtype='i4')
 
-        self.edepth_km = self.events['depth_km'][self.event_id_to_idx[self.arrivals['event_id']]]
-        self.elat = self.events['lat'][self.event_id_to_idx[self.arrivals['event_id']]]
+        # event indices for local arrivals
+        indices = self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]
+        elon = self.events['lon'][indices][mask]
+        elat = self.events['lat'][indices][mask]
+        edepth_km = self.events['depth_km'][indices][mask]
 
-        azim, _, ecdist = self._geod.inv(elon[self.local_arrivals_indices],
-                                         elat[self.local_arrivals_indices],
-                                         slon[self.local_arrivals_indices],
-                                         slat[self.local_arrivals_indices])
-        self.azim = self._sync_var(np.array(azim.astype('f4')))
-        self.ecdist = self._sync_var(np.array(ecdist.astype('f4')))
+        slon = self.arrivals['lon'][self.local_arrivals_indices][mask]
+        slat = self.arrivals['lat'][self.local_arrivals_indices][mask]
+        vsurf = self.vsurf[self.local_arrivals_indices][mask]
+        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices][mask] / 1e3
+
+        azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
+
+        elev_corr = self.compute_elevation_correction(phase, vsurf, elev_km, ecdist, edepth_km)
+        ellip_corr = self.compute_ellipticity_correction(phase, ecdist, edepth_km, elat, azim)
+        ptt = self._tti.get_tt(phase, ecdist, edepth_km) + elev_corr + ellip_corr
+
+        residual = self.ett[self.local_arrivals_indices][mask] - ptt.astype('f8')
+
+        if(self.rank == 0): print(elev_corr, ellip_corr, residual)
+
+        return residual
     # end func
 
-    def compute_elevation_correction(self):
-        vsurf = self.vsurf[self.local_arrivals_indices]
-        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices] / 1e3
+    def compute_residual(self):
+        phase = self.arrivals['phase'][self.local_arrivals_indices]
 
-        dtdd = self._tti.get_dtdd(self.arrivals['phase'][self.local_arrivals_indices],
-                                  self.ecdist[self.local_arrivals_indices],
-                                  self.edepth_km[self.local_arrivals_indices])
+        local_residual = self._compute_residual_helper(phase)
+
+        self.residual = self._sync_var(local_residual)
+    # end func
+
+    def redefine_phases(self):
+        phase = self.arrivals[self.local_arrivals_indices]
+        is_p = self.is_P(phase)
+        is_s = self.is_S(phase)
+        p_indices = np.argwhere(is_p)
+        s_indices = np.argwhere(is_s)
+
+        p_residuals = np.zeros((len(p_indices), len(self.p_phases)))
+        s_residuals = np.zeros((len(s_indices), len(self.s_phases)))
+
+        test_p_phase = np.zeros(len(p_indices), self.arrivals['phase'].dtype)
+        for ip, p in enumerate(self.p_phases):
+            test_p_phase[:] = p
+            p_residuals[:, ip] = self._compute_residual_helper(test_p_phase)
+        # end for
+
+        test_s_phase = np.zeros(len(s_indices), self.arrivals['phase'].dtype)
+        for ip, p in enumerate(self.s_phases):
+            test_s_phase[:] = p
+            s_residuals[:, ip] = self._compute_residual_helper(test_s_phase)
+        # end for
+
+        new_phase = np.zeros(len(self.local_arrivals_indices), dtype=self.arrivals['phase'].dtype)
+        new_phase[is_p] = b'Px'
+        new_phase[is_s] = b'Sx'
+
+        new_phase[p_indices] = self.p_phases[np.argmin(p_residuals, axis=1)]
+        new_phase[s_indices] = self.s_phases[np.argmin(s_residuals, axis=1)]
+    # end func
+
+    def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
+        dtdd = self._tti.get_dtdd(phase, ecdist, edepth_km)
         elev_corr = vsurf * (dtdd / self.DEG2KM)
         elev_corr = np.power(elev_corr, 2.)
         elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
@@ -105,28 +142,19 @@ class SSSTRelocator(ParametricData):
         elev_corr = elev_corr * elev_km / vsurf
 
         elev_corr = np.array(elev_corr.astype('f4'))
-        self.elev_corr = self._sync_var(elev_corr)
+
+        return elev_corr
     # end func
 
-    def compute_ellipticity_correction(self):
-        ellip_corr = self._ellipticity.get_correction(self.arrivals['phase'][self.local_arrivals_indices],
-                                                      self.ecdist[self.local_arrivals_indices],
-                                                      self.edepth_km[self.local_arrivals_indices],
-                                                      self.elat[self.local_arrivals_indices],
-                                                      self.azim[self.local_arrivals_indices])
+    def compute_ellipticity_correction(self, phase, ecdist, edepth_km, elat, azim):
+        ellip_corr = self._ellipticity.get_correction(phase, ecdist, edepth_km, elat, azim)
         ellip_corr = np.array(ellip_corr.astype('f4'))
-        self.ellip_corr = self._sync_var(ellip_corr)
+
+        return ellip_corr
     # end func
 
-    def compute_residual(self):
-        ptt = self._tti.get_tt(self.arrivals['phase'][self.local_arrivals_indices],
-                               self.ecdist[self.local_arrivals_indices],
-                               self.edepth_km[self.local_arrivals_indices]) + \
-              self.elev_corr[self.local_arrivals_indices] + \
-              self.ellip_corr[self.local_arrivals_indices]
-
-        local_residual = self.ett[self.local_arrivals_indices] - ptt.astype('f8')
-        self.residual = self._sync_var(local_residual)
+    def compute_ssst_correction(self):
+        pass
     # end func
 
     def _initialize_kdtree(self, ellipsoidal_distance=False):
@@ -193,7 +221,7 @@ class SSSTRelocator(ParametricData):
         self.arrivals['net'] = np.load('coalesced_net.npy')
         return
 
-        MDIST = 500 # maximum distance in metres
+        MDIST = 1e3 # maximum distance in metres
         iter_count = 0
         while(1):
             dupdict = defaultdict(set)
@@ -240,7 +268,7 @@ class SSSTRelocator(ParametricData):
             iter_count += 1
             if(len(swap_map) == 0): break
         # wend
-        #if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
+        if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
     # end func
 
     def _sync_var(self, rank_values):
@@ -284,42 +312,17 @@ if __name__ == "__main__":
                            auto_pick_files=['small_p_combined.txt', 'small_s_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
-        if(sr.rank==0): print('computing essentials..')
-        sr.compute_essentials()
-        if(sr.rank==0): print('computing elevation corrections..')
-        sr.compute_elevation_correction()
-        if(sr.rank==0): print('computing ellipticity corrections..')
-        sr.compute_ellipticity_correction()
-        if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr)
-
-        test_elev_corr = sr._sync_var(np.array(split_list(sr.elev_corr, sr.nproc)[sr.rank]))
-        #test_elev_corr = sr._sync_var_h5(np.array(split_list(sr.elev_corr, sr.nproc)[sr.rank]))
-
-        try:
-            assert np.all(sr.elev_corr == test_elev_corr), 'Sync-var failed on rank {}'.format(sr.rank)
-        except:
-            np.savetxt('{}.synced.txt'.format(sr.rank), test_elev_corr)
-            np.savetxt('{}.ellip_corr.txt'.format(sr.rank), sr.elev_corr)
-        # end try
     else:
         sr = SSSTRelocator('./merge_catalogues_output.csv',
                            auto_pick_files=['p_combined.txt', 's_combined.txt'],
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
 
-        if(sr.rank==0): print('computing essentials..')
-        sr.compute_essentials()
-        if(sr.rank==0): print('computing elevation corrections..')
-        sr.compute_elevation_correction()
-        if(sr.rank==0): print('computing ellipticity corrections..')
-        sr.compute_ellipticity_correction()
         if(sr.rank==0): print('computing residuals..')
         sr.compute_residual()
 
         print('Rank {}: memory used: {}'.format(sr.rank,
                                                 round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
-
-        if(sr.rank == 0): print(sr.azim, sr.ecdist, sr.elev_corr, sr.ellip_corr, sr.residual)
 
         if(0):
             for name, dtype in zip(sr.arrival_fields['names'], sr.arrival_fields['formats']):

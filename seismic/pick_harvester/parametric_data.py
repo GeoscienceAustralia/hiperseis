@@ -15,6 +15,8 @@ class ParametricData:
         self.auto_pick_phases = auto_pick_phases
         self.events_only = events_only
         self.phase_list = set(map(str.strip, phase_list.split())) if len(phase_list) else set()
+        self.p_phases = np.array([item for item in self.phase_list if item[0]=='P'])
+        self.s_phases = np.array([item for item in self.phase_list if item[0]=='S'])
         self._temp_dir = temp_dir
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()

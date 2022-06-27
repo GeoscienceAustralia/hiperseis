@@ -6,13 +6,15 @@ import matplotlib.pyplot as plt
 import traceback
 import os
 
+LARGE_VALUE = np.iinfo('i4').max
 class Phase:
-    def __init__(self, tt_file_content):
+    def __init__(self, tt_file_content, fill_value=LARGE_VALUE):
         self.ecdists = None
         self.depths_km = None
         self.times = None
         self.dtdd = None
         self.dtdh = None
+        self._fill_value = fill_value
 
         self.times_io = None
         self.dtdd_io = None
@@ -26,9 +28,9 @@ class Phase:
 
         vidx = ~np.isnan(self.times.flatten())
 
-        self.times_io = CloughTocher2DInterpolator(points[vidx], self.times.flatten()[vidx], fill_value=0)
-        self.dtdd_io = CloughTocher2DInterpolator(points[vidx], self.dtdd.flatten()[vidx], fill_value=0)
-        self.dtdh_io = CloughTocher2DInterpolator(points[vidx], self.dtdh.flatten()[vidx], fill_value=0)
+        self.times_io = CloughTocher2DInterpolator(points[vidx], self.times.flatten()[vidx], fill_value=self._fill_value)
+        self.dtdd_io = CloughTocher2DInterpolator(points[vidx], self.dtdd.flatten()[vidx], fill_value=self._fill_value)
+        self.dtdh_io = CloughTocher2DInterpolator(points[vidx], self.dtdh.flatten()[vidx], fill_value=self._fill_value)
     # end func
 
     def _parse_tt(self, tt_file_content, nanval=-999.0):
