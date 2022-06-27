@@ -695,9 +695,9 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         plt.subplot(1, 1, 1)
         plt.title('DLOPy results: ' + full_code, fontsize=16)
         plt.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
-        sc = plt.scatter(r1cc, centerat(r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
+        sc = plt.scatter(r1cc, centerat(-r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
                          label='R1')
-        plt.scatter(r2cc, centerat(r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
+        plt.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
                     label='R2')
         plt.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
         cbar = plt.colorbar(sc)
@@ -720,9 +720,9 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
     elif(ax is not None):
         fig = ax.get_figure()
         ax.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
-        sc = ax.scatter(r1cc, centerat(r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
+        sc = ax.scatter(r1cc, centerat(-r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
                          label='R1')
-        ax.scatter(r2cc, centerat(r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
+        ax.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
                     label='R2')
         ax.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
 

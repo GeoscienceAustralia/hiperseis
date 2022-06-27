@@ -1,0 +1,26 @@
+#!/bin/bash
+#PBS -P vy72
+#PBS -N extract_waveforms
+#PBS -q express
+#PBS -l walltime=24:00:00,mem=192GB,ncpus=48,jobfs=50GB
+#PBS -l storage=scratch/rxh562+gdata/ha3
+#PBS -l wd
+#PBS -j oe
+#PBS -M rakib.hassan@ga.gov.au
+#PBS -m bae
+
+module purge
+module load pbs
+module load python3-as-python
+module load openmpi/3.1.4
+module load hdf5/1.10.5p
+module load geos
+
+export PATH=$HOME/.local/bin:$PATH
+export PYTHONPATH=/g/data/ha3/rakib/seismic/pst/hiperseis/:$PYTHONPATH
+export LC_ALL=en_AU.UTF-8
+export LANG=en_AU.UTF-8
+
+mpirun -np 48 python /g/data/ha3/rakib/seismic/pst/hiperseis/seismic/extract_event_traces.py --waveform-database /g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt --event-catalog-file /g/data/ha3/rakib/seismic/pst/orientation/OA_events_20170911T000036-20210401T053646.xml --event-trace-datafile /g/data/ha3/Passive/SHARED_DATA/DataQuality/Orientation/OA/OA_waveforms.h5 --network-list "OA" --p-data --s-data --sw-data > /g/data/ha3/rakib/seismic/pst/orientation/out.txt 2>&1
+
+
