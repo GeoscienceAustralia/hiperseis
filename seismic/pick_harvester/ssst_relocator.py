@@ -69,7 +69,7 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def _compute_residual_helper(self, phase, mask=None):
-        if(mask is None): mask = np.ones(len(phase), dtype='i4')
+        if (mask is None): mask = np.ones(len(phase), dtype='?')
 
         # event indices for local arrivals
         indices = self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]
@@ -90,7 +90,7 @@ class SSSTRelocator(ParametricData):
 
         residual = self.ett[self.local_arrivals_indices][mask] - ptt.astype('f8')
 
-        if(self.rank == 0): print(elev_corr, ellip_corr, residual)
+        if (self.rank == 0): print(elev_corr, ellip_corr, residual)
 
         return residual
     # end func
@@ -104,11 +104,11 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def redefine_phases(self):
-        phase = self.arrivals[self.local_arrivals_indices]
+        phase = self.arrivals['phase'][self.local_arrivals_indices]
         is_p = self.is_P(phase)
         is_s = self.is_S(phase)
-        p_indices = np.argwhere(is_p)
-        s_indices = np.argwhere(is_s)
+        p_indices = np.argwhere(is_p).squeeze()
+        s_indices = np.argwhere(is_s).squeeze()
 
         p_residuals = np.zeros((len(p_indices), len(self.p_phases)))
         s_residuals = np.zeros((len(s_indices), len(self.s_phases)))
@@ -116,21 +116,23 @@ class SSSTRelocator(ParametricData):
         test_p_phase = np.zeros(len(p_indices), self.arrivals['phase'].dtype)
         for ip, p in enumerate(self.p_phases):
             test_p_phase[:] = p
-            p_residuals[:, ip] = self._compute_residual_helper(test_p_phase)
+            p_residuals[:, ip] = self._compute_residual_helper(test_p_phase, mask=is_p)
         # end for
 
         test_s_phase = np.zeros(len(s_indices), self.arrivals['phase'].dtype)
         for ip, p in enumerate(self.s_phases):
             test_s_phase[:] = p
-            s_residuals[:, ip] = self._compute_residual_helper(test_s_phase)
+            s_residuals[:, ip] = self._compute_residual_helper(test_s_phase, mask=is_s)
         # end for
 
-        new_phase = np.zeros(len(self.local_arrivals_indices), dtype=self.arrivals['phase'].dtype)
-        new_phase[is_p] = b'Px'
-        new_phase[is_s] = b'Sx'
+        local_new_phase = np.zeros(len(self.local_arrivals_indices), dtype=self.arrivals['phase'].dtype)
+        local_new_phase[is_p] = b'Px'
+        local_new_phase[is_s] = b'Sx'
 
-        new_phase[p_indices] = self.p_phases[np.argmin(p_residuals, axis=1)]
-        new_phase[s_indices] = self.s_phases[np.argmin(s_residuals, axis=1)]
+        local_new_phase[p_indices] = self.p_phases[np.argmin(np.fabs(p_residuals), axis=1)]
+        local_new_phase[s_indices] = self.s_phases[np.argmin(np.fabs(s_residuals), axis=1)]
+
+        self.arrivals['phase'] = self._sync_var(local_new_phase)
     # end func
 
     def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
@@ -158,6 +160,8 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def _initialize_kdtree(self, ellipsoidal_distance=False):
+        if(self.rank == 0): print('Initializing Kd-tree..')
+
         ER = self.EARTH_RADIUS * 1e3 #m
 
         elons = self.events['lon']
@@ -218,6 +222,7 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def _coalesce_network_codes(self):
+        if(self.rank == 0): print('Coalescing network codes..')
         self.arrivals['net'] = np.load('coalesced_net.npy')
         return
 
@@ -318,8 +323,22 @@ if __name__ == "__main__":
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
 
-        if(sr.rank==0): print('computing residuals..')
-        sr.compute_residual()
+        if(sr.rank==0): print('Redefining phases..')
+        if(sr.rank == 0): old_phase = np.array(sr.arrivals['phase'])
+        sr.redefine_phases()
+
+        if(sr.rank == 0):
+            filt = ~sr.is_ISC & sr.is_AUTO
+            # filt = np.ones(len(sr.is_ISC), dtype='?')
+            for p in np.concatenate((sr.p_phases, sr.s_phases, np.array(['Px', 'Sx'], dtype='U2'))):
+                p = p.encode()
+                before = np.sum(old_phase[filt] == p)
+                after = np.sum(sr.arrivals['phase'][filt] == p)
+                change = 0
+                if (before): change = (before - after) / float(before) * 100
+                print('Auto phase {}: before: {} after: {} change: {}%'.format(p, before, after, change))
+            # end for
+        # end if
 
         print('Rank {}: memory used: {}'.format(sr.rank,
                                                 round(psutil.Process().memory_info().rss / 1024. / 1024., 2)))
