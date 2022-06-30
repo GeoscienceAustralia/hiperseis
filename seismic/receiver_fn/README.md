@@ -164,7 +164,7 @@ A small percentage of stations in some networks (e.g. OA) suffer from channel or
 problems. Those stations can be corrected through a combination of channel rotation, negation 
 or swapping (N/E). Typically, one would generate the RFs and visualize them as described in 
 [Visualization of RFs](#4-analyses-and-visualization-of-rfs) -- note that the
-[RF Quality Filtering](#rf-quality-filtering) step can be skipped for the corrections and 
+[RF Quality Filtering](#3-rf-quality-filtering) step can be skipped for the corrections and 
 completed afterwards. A pdf report generated as described in
 [Visualization of RFs](#4-analyses-and-visualization-of-rfs) helps identify stations with orientation problems.
 Once a list of problematic stations is compiled, users need to run `generate_rf.py` with the same
