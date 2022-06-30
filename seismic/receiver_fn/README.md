@@ -23,7 +23,7 @@ developed by Tom Eulenfeld](https://doi.org/10.21105/joss.01808).
 
 ## [1. Event Trace Extraction](../README.md#event-trace-extraction)
 
-## 2. Receiver Function Calculation / Correction
+## 2. Receiver Function Calculation and Correction
 
 The `generate_rf.py` script reads the event traces  produced by `extract_event_traces.py` 
 and generates receiver functions. The script parallelizes RF computation over stations 
@@ -163,10 +163,10 @@ config_rfs.json:
 A small percentage of stations in some networks (e.g. OA) suffer from channel orientation 
 problems. Those stations can be corrected through a combination of channel rotation, negation 
 or swapping (N/E). Typically, one would generate the RFs and visualize them as described in 
-[Visualization of RFs](#visualization-of-rfs) -- note that the
+[Visualization of RFs](#4-analyses-and-visualization-of-rfs) -- note that the
 [RF Quality Filtering](#rf-quality-filtering) step can be skipped for the corrections and 
 completed afterwards. A pdf report generated as described in
-[Visualization of RFs](#visualization-of-rfs) helps identify stations with orientation problems.
+[Visualization of RFs](#4-analyses-and-visualization-of-rfs) helps identify stations with orientation problems.
 Once a list of problematic stations is compiled, users need to run `generate_rf.py` with the same
 input/output parameters, but with a `correction` block added to the json configuration file, as 
 follows:
@@ -256,13 +256,13 @@ To use script `rf_quality_filter.py`, the following parameters should be provide
 For additional options, see `rf_quality_filter.py --help`.
 
 
-## 4. Analyses/Visualization of RFs
+## 4. Analyses and Visualization of RFs
 
 Automatic report generation on a full set of RF results is performed using the MPI-parallelized 
 `bulk_rf_report.py` script.
 This script needs to be provided with an input H5 file containing RFs generated in 
-[Receiver Function Calculation](#receiver-function-calculation) or that in 
-[RF Quality Filtering](#rf-quality-filtering) and an output file name -- it then generates 
+[Receiver Function Calculation](#2-receiver-function-calculation-and-correction) or that in 
+[RF Quality Filtering](#3-rf-quality-filtering) and an output file name -- it then generates 
 a PDF report containing a standard set of visualisations of the RFs:
 
 * Pinwheel diagram showing RFs source directions around the full azimuthal range
@@ -275,9 +275,9 @@ Quality filters can be used to filter out spurious RFs, as described in usage de
 `bulk_rf_report.py --help`.
 
 Note that, if `bulk_rf_report.py` is run on RFs produced in 
-[Receiver Function Calculation](#receiver-function-calculation), `--min-slope-ratio` is 
+[Receiver Function Calculation](#2-receiver-function-calculation-and-correction), `--min-slope-ratio` is 
 the only quality-filter available. Otherwise, if run on the output generated in 
-[RF Quality Filtering](#rf-quality-filtering), all quality-filters described above 
+[RF Quality Filtering](#3-rf-quality-filtering), all quality-filters described above 
 are available for use. Use of at least one of these options is highly recommended to 
 remove spurious RFs.
 
