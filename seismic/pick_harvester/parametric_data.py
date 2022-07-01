@@ -2,7 +2,6 @@ from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import UTCDateTime
 from collections import defaultdict
-from seismic.pick_harvester.utils import split_list
 from mpi4py import MPI
 import uuid
 import os, shutil
@@ -10,6 +9,7 @@ import os, shutil
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
+        self.STATION_DIST_M = 1e3 # distance in metres within which neighbouring stations are coalesced
         self.csv_catalog = csv_catalog
         self.auto_pick_files = auto_pick_files
         self.auto_pick_phases = auto_pick_phases
@@ -50,8 +50,11 @@ class ParametricData:
         self.event_id_to_idx = np.ones(np.max(self.events['event_id']) + 1, dtype='i4') * -1
         for i in np.arange(len(self.events)): self.event_id_to_idx[self.events['event_id'][i]] = i
 
-        print('Completed loading catalogue with {} events and {} arrivals..'.format(len(self.events),
-                                                                                    len(self.arrivals)))
+        if(self.rank == 0): print('Loaded catalogue with {} events and {} arrivals..'.format(len(self.events),
+                                                                                             len(self.arrivals)))
+        # coalesce network codes
+        self._coalesce_network_codes()
+
         # print(self.arrivals)
     # end func
 
@@ -90,6 +93,60 @@ class ParametricData:
             print('Removing temp-dir: {}..'.format(self._temp_dir))
             shutil.rmtree(self._temp_dir)
         # end if
+    # end func
+
+    def _coalesce_network_codes(self):
+        if(self.rank == 0): print('Coalescing network codes..')
+        self.arrivals['net'] = np.load('coalesced_net.npy')
+        return
+
+        iter_count = 0
+        while(1):
+            dupdict = defaultdict(set)
+            coordsdict = defaultdict(list)
+            for arrival in self.arrivals:
+                if(arrival['net'] not in dupdict[arrival['sta']]):
+                    dupdict[arrival['sta']].add(arrival['net'])
+                    coordsdict[arrival['net'] + b'.' + arrival['sta']] = [arrival['lon'], arrival['lat']]
+                # end if
+            # end for
+
+            swap_map = defaultdict(str)
+            swap_fail_map = defaultdict(list)
+            for sta, nets in dupdict.items():
+                if(len(nets)>1):
+                    nets = sorted(list(nets), reverse=True)
+                    for net1, net2 in combinations(nets, r=2):
+                        lon1, lat1 = coordsdict[net1 + b'.' + sta]
+                        lon2, lat2 = coordsdict[net2 + b'.' + sta]
+
+                        _, _, dist = self._geod.inv(lon1, lat1, lon2, lat2)
+                        dist *= self.DEG2KM * 1e3 #m
+                        if(dist < self.STATION_DIST_M):
+                            swap_map[(net1, sta)] = net2
+                        else:
+                            swap_fail_map[(net1, sta)] = [net2, dist]
+                        # end if
+                    # end for
+                # end if
+            # end for
+
+            sum = 0
+            local_net_codes = np.array(self.arrivals['net'][self.local_arrivals_indices])
+            local_sta_codes = np.array(self.arrivals['sta'][self.local_arrivals_indices])
+            for (net1, sta), net2 in swap_map.items():
+                net_sta_match = (local_net_codes == net1) & (local_sta_codes == sta)
+                sum += np.sum(net_sta_match)
+
+                local_net_codes[net_sta_match] = net2
+            # end for
+
+            self.arrivals['net'] = self._sync_var(local_net_codes)
+
+            iter_count += 1
+            if(len(swap_map) == 0): break
+        # wend
+        if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
     # end func
 
     def _make_temp_dir(self):

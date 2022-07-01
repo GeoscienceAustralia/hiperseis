@@ -10,8 +10,7 @@ from seismic.pick_harvester.utils import split_list
 from seismic.pick_harvester.parametric_data import ParametricData
 import importlib
 import sys, os
-from os.path import abspath, dirname
-
+from tqdm import tqdm
 from seismic.pick_harvester.travel_time import TTInterpolator
 from seismic.pick_harvester.ellipticity import Ellipticity
 import traceback
@@ -24,12 +23,10 @@ class SSSTRelocator(ParametricData):
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
         super(SSSTRelocator, self).__init__(csv_catalog, auto_pick_files, auto_pick_phases,
                                             events_only, phase_list, temp_dir)
-        self.EARTH_RADIUS = 6371. #km
-        self.DEG2KM = np.pi/180 * self.EARTH_RADIUS
-        self.kdtree = None
+        self.EARTH_RADIUS_KM = 6371.
+        self.DEG2KM = np.pi/180 * self.EARTH_RADIUS_KM
+        self.BALL_RADIUS_KM = 11 #~0.1 arc-degrees
         self._lonlatalt2xyz = None
-        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
-        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
         self.vsurf = None
         self.ett = None
         self.residual = None
@@ -38,12 +35,19 @@ class SSSTRelocator(ParametricData):
         self._tti = TTInterpolator()
         self._ellipticity = Ellipticity()
         self._geod = Geod(a=180/np.pi, f=0)
+        self.station_id = None
+        self.ssst_tcorr = None
+        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
+        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
 
+        np.random.seed(0)
+        np.random.shuffle(self.arrivals)
+
+        self._assign_station_ids()
         self._label_arrivals()
-        self._coalesce_network_codes()
-        self._initialize_kdtree()
+        self._initialize_spatial_functors()
 
-        # compute empirical tt (need only be computed once)
+        # compute empirical tt
         self.ett = self.arrivals['arrival_ts'] - \
                    self.events['origin_ts'][self.event_id_to_idx[self.arrivals['event_id']]]
 
@@ -66,6 +70,33 @@ class SSSTRelocator(ParametricData):
     def is_S(self, phase):
         result = phase.astype('S1') == b'S'
         return result
+    # end func
+
+    def _assign_station_ids(self):
+        if(self.rank == 0): print('Assigning station IDs..')
+
+        netsta_ids = None
+        if(self.rank == 0):
+            nets = self.arrivals['net']
+            stas = self.arrivals['sta']
+
+            netstas = np.unique(np.char.add(np.char.add(nets, b'.'), stas))
+            netsta_ids = {}
+            for sid, netsta in enumerate(netstas):
+                netsta_ids[netsta] = sid
+            # end for
+        # end if
+        netsta_ids = self.comm.bcast(netsta_ids)
+
+        station_id = np.zeros(len(self.local_arrivals_indices), dtype='i4')
+        local_nets = self.arrivals['net'][self.local_arrivals_indices]
+        local_stas = self.arrivals['sta'][self.local_arrivals_indices]
+        local_netstas = np.char.add(np.char.add(local_nets, b'.'), local_stas)
+        for i, local_netsta in enumerate(local_netstas):
+            station_id[i] = netsta_ids[local_netsta]
+        # end for
+
+        self.station_id = self._sync_var(station_id)
     # end func
 
     def _compute_residual_helper(self, phase, mask=None):
@@ -103,12 +134,14 @@ class SSSTRelocator(ParametricData):
         self.residual = self._sync_var(local_residual)
     # end func
 
-    def redefine_phases(self):
+    def redefine_phases(self, mask=None):
+        if(mask is None): mask = np.ones(len(self.local_arrivals_indices), dtype='?')
+
         phase = self.arrivals['phase'][self.local_arrivals_indices]
-        is_p = self.is_P(phase)
-        is_s = self.is_S(phase)
-        p_indices = np.argwhere(is_p).squeeze()
-        s_indices = np.argwhere(is_s).squeeze()
+        is_p = self.is_P(phase) & mask
+        is_s = self.is_S(phase) & mask
+        p_indices = np.argwhere(is_p).flatten()
+        s_indices = np.argwhere(is_s).flatten()
 
         p_residuals = np.zeros((len(p_indices), len(self.p_phases)))
         s_residuals = np.zeros((len(s_indices), len(self.s_phases)))
@@ -125,14 +158,22 @@ class SSSTRelocator(ParametricData):
             s_residuals[:, ip] = self._compute_residual_helper(test_s_phase, mask=is_s)
         # end for
 
-        local_new_phase = np.zeros(len(self.local_arrivals_indices), dtype=self.arrivals['phase'].dtype)
-        local_new_phase[is_p] = b'Px'
-        local_new_phase[is_s] = b'Sx'
+        local_new_phase = np.array(self.arrivals['phase'][self.local_arrivals_indices])
+        local_new_residual = np.array(self.residual[self.local_arrivals_indices])
+
+        local_new_phase[p_indices] = b'Px'
+        local_new_phase[s_indices] = b'Sx'
 
         local_new_phase[p_indices] = self.p_phases[np.argmin(np.fabs(p_residuals), axis=1)]
         local_new_phase[s_indices] = self.s_phases[np.argmin(np.fabs(s_residuals), axis=1)]
 
+        p_argmin_indices = np.argmin(np.fabs(p_residuals), axis=1)
+        s_argmin_indices = np.argmin(np.fabs(s_residuals), axis=1)
+        local_new_residual[p_indices] = np.take_along_axis(p_residuals, p_argmin_indices[:, None], axis=1).flatten()
+        local_new_residual[s_indices] = np.take_along_axis(s_residuals, s_argmin_indices[:, None], axis=1).flatten()
+
         self.arrivals['phase'] = self._sync_var(local_new_phase)
+        self.residual = self._sync_var(local_new_residual)
     # end func
 
     def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
@@ -155,19 +196,56 @@ class SSSTRelocator(ParametricData):
         return ellip_corr
     # end func
 
-    def compute_ssst_correction(self):
-        pass
+    def compute_ssst_correction(self, mask=None):
+        if(mask is None): mask = np.ones(len(self.arrivals), dtype='?')
+
+        stas = np.unique(self.station_id)
+        local_sids = split_list(stas, self.nproc)[self.rank]
+        local_corrs = np.zeros(len(self.arrivals), dtype='f4')
+
+        for sid in tqdm(local_sids, desc='Rank {}: '.format(self.rank)):
+            sta_arrival_indices = np.argwhere((self.station_id == sid) & (mask)).flatten()
+            sta_arrivals = self.arrivals[sta_arrival_indices]
+
+            phases = set(sta_arrivals['phase'])
+            phase_trees = {}
+            phase_residuals = {}
+            phase_arrival_indices = {}
+            for p in phases:
+                pmask = sta_arrivals['phase'] == p
+
+                event_indices = self.event_id_to_idx[sta_arrivals['event_id'][pmask]]
+                elons = self.events['lon'][event_indices]
+                elats = self.events['lat'][event_indices]
+                ealts = -self.events['depth_km'][event_indices] * 1e3  # m
+
+                xyz = self._lonlatalt2xyz(elons, elats, ealts)
+                phase_trees[p] = cKDTree(xyz)
+                phase_residuals[p] = self.residual[sta_arrival_indices][pmask]
+                phase_arrival_indices[p] = sta_arrival_indices[pmask]
+            # end for
+
+            for i, sta_arrival in enumerate(sta_arrivals):
+                idx = self.event_id_to_idx[sta_arrival['event_id']]
+                elon = self.events['lon'][idx]
+                elat = self.events['lat'][idx]
+                ealt = -self.events['depth_km'][idx] * 1e3  # m
+                cxyz = self._lonlatalt2xyz(elon, elat, ealt).flatten()
+                indices = phase_trees[sta_arrival['phase']].query_ball_point(cxyz,
+                                                                             self.BALL_RADIUS_KM * 1e3)
+                corr = np.median(phase_residuals[sta_arrival['phase']][indices])
+                local_corrs[sta_arrival_indices[i]] = corr
+            # end for
+        # end for
+
+        self.ssst_tcorr = self._sum(local_corrs)
     # end func
 
-    def _initialize_kdtree(self, ellipsoidal_distance=False):
-        if(self.rank == 0): print('Initializing Kd-tree..')
+    def _initialize_spatial_functors(self, ellipsoidal_distance=False):
+        if(self.rank == 0): print('Initializing spatial functors..')
 
-        ER = self.EARTH_RADIUS * 1e3 #m
+        ER = self.EARTH_RADIUS_KM * 1e3 #m
 
-        elons = self.events['lon']
-        elats = self.events['lat']
-        ealts = -self.events['depth_km'] * 1e3 #m
-        xyz = None
         if(ellipsoidal_distance):
             transformer = pyproj.Transformer.from_crs(
                 {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
@@ -188,8 +266,6 @@ class SSSTRelocator(ParametricData):
                                                                 np.atleast_1d(np.radians(90 - lat)),
                                                                 np.atleast_1d(np.radians(lon)))
         # end if
-        xyz = self._lonlatalt2xyz(elons, elats, ealts)
-        self.kdtree = cKDTree(xyz)
     # end func
 
     def _label_arrivals(self):
@@ -219,61 +295,6 @@ class SSSTRelocator(ParametricData):
 
         # attribute marking automatic picks
         setattr(self, 'is_AUTO', self.arrivals['quality_measure_slope'] > -1)
-    # end func
-
-    def _coalesce_network_codes(self):
-        if(self.rank == 0): print('Coalescing network codes..')
-        self.arrivals['net'] = np.load('coalesced_net.npy')
-        return
-
-        MDIST = 1e3 # maximum distance in metres
-        iter_count = 0
-        while(1):
-            dupdict = defaultdict(set)
-            coordsdict = defaultdict(list)
-            for arrival in self.arrivals:
-                if(arrival['net'] not in dupdict[arrival['sta']]):
-                    dupdict[arrival['sta']].add(arrival['net'])
-                    coordsdict[arrival['net'] + b'.' + arrival['sta']] = [arrival['lon'], arrival['lat']]
-                # end if
-            # end for
-
-            swap_map = defaultdict(str)
-            swap_fail_map = defaultdict(list)
-            for sta, nets in dupdict.items():
-                if(len(nets)>1):
-                    nets = sorted(list(nets), reverse=True)
-                    for net1, net2 in combinations(nets, r=2):
-                        lon1, lat1 = coordsdict[net1 + b'.' + sta]
-                        lon2, lat2 = coordsdict[net2 + b'.' + sta]
-
-                        _, _, dist = self._geod.inv(lon1, lat1, lon2, lat2)
-                        dist *= self.DEG2KM * 1e3 #m
-                        if(dist < MDIST):
-                            swap_map[(net1, sta)] = net2
-                        else:
-                            swap_fail_map[(net1, sta)] = [net2, dist]
-                        # end if
-                    # end for
-                # end if
-            # end for
-
-            sum = 0
-            local_net_codes = np.array(self.arrivals['net'][self.local_arrivals_indices])
-            local_sta_codes = np.array(self.arrivals['sta'][self.local_arrivals_indices])
-            for (net1, sta), net2 in swap_map.items():
-                net_sta_match = (local_net_codes == net1) & (local_sta_codes == sta)
-                sum += np.sum(net_sta_match)
-
-                local_net_codes[net_sta_match] = net2
-            # end for
-
-            self.arrivals['net'] = self._sync_var(local_net_codes)
-
-            iter_count += 1
-            if(len(swap_map) == 0): break
-        # wend
-        if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
     # end func
 
     def _sync_var(self, rank_values):
@@ -309,6 +330,40 @@ class SSSTRelocator(ParametricData):
 
         return global_values
     # end func
+
+    def _sum(self, rank_values):
+        # sum of local values across ranks
+        counts = np.array(self.comm.allgather(len(rank_values)), dtype='i4')
+        assert(np.all(counts[0]==counts))
+
+        nelem = counts[0]
+        dtype = rank_values.dtype
+        global_values = np.zeros(nelem, dtype=dtype)
+
+        fn = self._temp_dir + '/sum.h5'
+
+        for irank in np.arange(self.nproc):
+            if(self.rank == irank):
+                hf = h5py.File(fn, 'a')
+                dset = hf.create_dataset("%d" % (self.rank), rank_values.shape, dtype=rank_values.dtype)
+                dset[:] = rank_values
+                hf.close()
+            # end if
+            self.comm.Barrier()
+        # end for
+
+        hf = h5py.File(fn, 'r')
+        for irank in np.arange(self.nproc):
+            global_values[:] += hf['{}'.format(irank)][:]
+        # end for
+        hf.close()
+
+        self.comm.Barrier()
+        if(self.rank == 0): os.remove(fn)
+
+        return global_values
+    # end func
+
 # end class
 
 if __name__ == "__main__":
@@ -323,9 +378,20 @@ if __name__ == "__main__":
                            auto_pick_phases=['P', 'S'],
                            events_only=False)
 
-        if(sr.rank==0): print('Redefining phases..')
         if(sr.rank == 0): old_phase = np.array(sr.arrivals['phase'])
-        sr.redefine_phases()
+
+        if(sr.rank==0): print('Computing residuals..')
+        sr.compute_residual()
+
+        if(sr.rank==0): print('Redefining phases..')
+        sr.redefine_phases(mask=sr.is_ISC[sr.local_arrivals_indices] & ~sr.is_AUTO[sr.local_arrivals_indices])
+
+        if(sr.rank==0): print('Computing SSST corrections..')
+        sr.compute_ssst_correction(mask=sr.is_ISC & ~sr.is_AUTO)
+        if(sr.rank==0):
+            np.save('test_arrivals.npy', sr.arrivals)
+            np.save('ssst_tcorr.npy', sr.ssst_tcorr)
+        # end if
 
         if(sr.rank == 0):
             filt = ~sr.is_ISC & sr.is_AUTO
