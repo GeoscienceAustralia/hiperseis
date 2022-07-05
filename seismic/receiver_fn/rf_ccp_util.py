@@ -136,7 +136,6 @@ class Migrate:
         proc_hkeys = self._comm.bcast(proc_hkeys, root=0)
 
         # read local traces
-
         self._p_traces = RFStream()
         for hkey in proc_hkeys[self._rank]:
             if(self._logger): self._logger.info('rank {}: loading {}..'.format(self._rank, hkey))
@@ -230,11 +229,18 @@ class Migrate:
 
             xyzs   = rtp2xyz(rs, thetas, phis)
 
+            #===============================================================
+            # Create time-to-[depth,x,y,z] interpolants
+            #===============================================================
             t2dio  = interp1d(times, depths)
             t2xio  = interp1d(times, xyzs[:,0])
             t2yio  = interp1d(times, xyzs[:,1])
             t2zio  = interp1d(times, xyzs[:,2])
 
+            #===============================================================
+            # Create a depth-to-time interpolant as expelined here:
+            # https://stackoverflow.com/questions/47275957/invert-interpolation-to-give-the-variable-associated-with-a-desired-interpolatio
+            #===============================================================
             tck = splrep(times, depths, k=3, s=0)
 
             NZ = 1500
@@ -250,6 +256,15 @@ class Migrate:
             vp = vmodel.evaluate_above(dnew, 'p')
             vs = vmodel.evaluate_above(dnew, 's')
 
+            #========================================================================
+            # Create an interpolant for the delay time (t_Ps) of a non-vertically
+            # incident Ps wave as follows:
+            #          0
+            # tps(d) = ∫ sqrt(Vs^-2 - p^2) - sqrt(Vp^-2 - p^2) dd
+            #          d
+            # Ref: https://ds.iris.edu/media/workshop/2013/01/advanced-studies-institute-on-seismological-research/files/Frassetto_RF-Stack_ASI.pdf
+            # Note that the later phases (PpPs and PsPs+PpSs) are currently ignored.
+            #========================================================================
             tps = np.zeros(dnew.shape)
             p = t.stats.slowness / DEG2KM
             for idx in np.arange(1, dnew.shape[0]+1):
@@ -261,19 +276,32 @@ class Migrate:
             t.trim(starttime=t.stats.onset, endtime=t.stats.endtime)
             ipt.trim(starttime=ipt.stats.onset, endtime=ipt.stats.endtime)
 
+            #=========================================================================
+            # Create time-to-data interpolants for RF amplitude and real and imaginary
+            # components of the analytic representation
+            #=========================================================================
             t2aio = interp1d(t.times(), t.data, bounds_error=False, fill_value=0)
             t2irio = interp1d(ipt.times(), np.real(ipt.data), bounds_error=False, fill_value=0)
             t2icio = interp1d(ipt.times(), np.imag(ipt.data), bounds_error=False, fill_value=0)
 
+            # array to store values for all station traces to be written to an HDF5 file
             if(point_data_array is None):
                 point_data_array = np.zeros((len(self._p_traces), NZ, 7))
             # end if
 
+            #=========================================================================
+            # Populate array with values for x, y, z and depth, going from:
+            # depth -> time -> x, etc.
+            #=========================================================================
             point_data_array[it, :, 0] = np.squeeze(t2xio(d2tio(dnew)))
             point_data_array[it, :, 1] = np.squeeze(t2yio(d2tio(dnew)))
             point_data_array[it, :, 2] = np.squeeze(t2zio(d2tio(dnew)))
             point_data_array[it, :, 3] = np.squeeze(t2dio(d2tio(dnew)))
 
+            #==========================================================================
+            # Populate array with RF trace amplitudes and real and imaginary components
+            # of the analytic representation at t_Ps delay times
+            #==========================================================================
             point_data_array[it, :, 4] = np.squeeze(t2aio(tps))
             point_data_array[it, :, 5] = np.squeeze(t2irio(tps))
             point_data_array[it, :, 6] = np.squeeze(t2icio(tps))
