@@ -10,6 +10,7 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
   5. `module load hdf5/1.10.5p`
   6. `module load geos`
   7. `module load proj/6.2.1`
+  8. `module load gdal/3.0.2/`
 
 ### Remove old packages
 1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
@@ -19,6 +20,8 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
 5. `rm -rf ~/.local/lib/python3.6/site-packages/shapely`
 6. `rm -rf ~/.local/lib/python3.6/site-packages/Shapely*`
 7. `rm -rf ~/.local/lib/python3.6/site-packages/*geos*`
+8. `rm -rf /home/562/rxh562/.local/lib/python3.6/site-packages/gdal*`
+9. `rm -rf ~/.local/lib/python3.6/site-packages/pygdal`
 
 ### Upgrade pip
 
@@ -55,6 +58,13 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
   12. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('"/tmp/cartopy_$USER.pdf"'); print('\nSUCCESS');"`  
   13. `pip3.6 install PyWavelets==1.1.1 --user`
   14. `pip3.6 install rf==0.8.0 --user`
+  15. `pip3.6 install affine==2.3.0 --user`
+  16. `pip3.6 install future==0.18.2 --user`
+  17. `pip3.6 install joblib==0.14.1 --user`
+  18. `pip3.6 install pandas==1.1.5 --user`
+  19. `pip3.6 install pyproj==3.0.1 --user`
+  20. `pip3.6 install scipy==1.4.1 --user`
+  21. `pip3.6 install tqdm==4.43.0 --user`
 
 Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
 jobs are launched on NCI compute nodes that do not allow internet access.
