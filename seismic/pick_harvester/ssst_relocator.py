@@ -3,7 +3,6 @@ import numpy as np
 from obspy import UTCDateTime
 from scipy.spatial import cKDTree
 import pyproj
-from pyproj import Geod
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
@@ -16,15 +15,12 @@ from seismic.pick_harvester.ellipticity import Ellipticity
 import traceback
 import psutil
 import h5py
-from itertools import combinations
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
         super(SSSTRelocator, self).__init__(csv_catalog, auto_pick_files, auto_pick_phases,
                                             events_only, phase_list, temp_dir)
-        self.EARTH_RADIUS_KM = 6371.
-        self.DEG2KM = np.pi/180 * self.EARTH_RADIUS_KM
         self.BALL_RADIUS_KM = 11 #~0.1 arc-degrees
         self._lonlatalt2xyz = None
         self.vsurf = None
@@ -34,11 +30,8 @@ class SSSTRelocator(ParametricData):
         self._arrival_source = None
         self._tti = TTInterpolator()
         self._ellipticity = Ellipticity()
-        self._geod = Geod(a=180/np.pi, f=0)
         self.station_id = None
         self.ssst_tcorr = None
-        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
-        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
 
         np.random.seed(0)
         np.random.shuffle(self.arrivals)
@@ -295,40 +288,6 @@ class SSSTRelocator(ParametricData):
 
         # attribute marking automatic picks
         setattr(self, 'is_AUTO', self.arrivals['quality_measure_slope'] > -1)
-    # end func
-
-    def _sync_var(self, rank_values):
-        # sync variable across ranks
-        counts = np.array(self.comm.allgather(len(rank_values)), dtype='i4')
-        nelem = np.sum(counts)
-        dtype = rank_values.dtype
-        displacements = np.zeros(self.nproc, dtype='i4')
-        displacements[1:] = np.cumsum(counts[:-1])
-        global_values = np.zeros(nelem, dtype=dtype)
-
-        fn = self._temp_dir + '/sync.h5'
-
-        for irank in np.arange(self.nproc):
-            if(self.rank == irank):
-                hf = h5py.File(fn, 'a')
-                dset = hf.create_dataset("%d" % (self.rank), rank_values.shape, dtype=rank_values.dtype)
-                dset[:] = rank_values
-                hf.close()
-            # end if
-            self.comm.Barrier()
-        # end for
-
-        hf = h5py.File(fn, 'r')
-        for irank in np.arange(self.nproc):
-            b, e = displacements[irank], displacements[irank]+counts[irank]
-            global_values[b:e] = hf['{}'.format(irank)][:]
-        # end for
-        hf.close()
-
-        self.comm.Barrier()
-        if(self.rank == 0): os.remove(fn)
-
-        return global_values
     # end func
 
     def _sum(self, rank_values):

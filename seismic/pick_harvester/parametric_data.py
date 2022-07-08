@@ -5,10 +5,16 @@ from collections import defaultdict
 from mpi4py import MPI
 import uuid
 import os, shutil
+from itertools import combinations
+from pyproj import Geod
+from seismic.pick_harvester.utils import split_list
+import h5py
 
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
+        self.EARTH_RADIUS_KM = 6371.
+        self.DEG2KM = np.pi/180 * self.EARTH_RADIUS_KM
         self.STATION_DIST_M = 1e3 # distance in metres within which neighbouring stations are coalesced
         self.csv_catalog = csv_catalog
         self.auto_pick_files = auto_pick_files
@@ -21,9 +27,12 @@ class ParametricData:
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
+        self._geod = Geod(a=180/np.pi, f=0)
         self.events = []
         self.event_id_to_idx = None
         self.arrivals = []
+        self.local_events_indices = None
+        self.local_arrivals_indices = None
 
         # create temp_dir
         self._make_temp_dir()
@@ -41,9 +50,9 @@ class ParametricData:
             'formats': ['i4', 'S10', 'S10', 'S10', 'S10', 'f4', 'f4', 'f4', 'S10', 'f8', 'f4']}
 
         # load events and arrivals
-        #self.events, self.arrivals = self._load_catalog()
-        self.events = np.load('events.npy')
-        self.arrivals= np.load('arr.npy')
+        self.events, self.arrivals = self._load_catalog()
+        #self.events = np.load('events.npy')
+        #self.arrivals= np.load('arr.npy')
         #self.arrivals = self.arrivals[10000000:10100000]
 
         # create a map to translate event-id to array index
@@ -53,6 +62,8 @@ class ParametricData:
         if(self.rank == 0): print('Loaded catalogue with {} events and {} arrivals..'.format(len(self.events),
                                                                                              len(self.arrivals)))
         # coalesce network codes
+        self.local_events_indices = np.array(split_list(np.arange(len(self.events)), self.nproc)[self.rank], dtype='i4')
+        self.local_arrivals_indices = np.array(split_list(np.arange(len(self.arrivals)), self.nproc)[self.rank], dtype='i4')
         self._coalesce_network_codes()
 
         # print(self.arrivals)
@@ -97,8 +108,9 @@ class ParametricData:
 
     def _coalesce_network_codes(self):
         if(self.rank == 0): print('Coalescing network codes..')
-        self.arrivals['net'] = np.load('coalesced_net.npy')
-        return
+
+        #self.arrivals['net'] = np.load('coalesced_net.npy')
+        #return
 
         iter_count = 0
         while(1):
@@ -312,7 +324,39 @@ class ParametricData:
         return arrivals
     # end func
 
+    def _sync_var(self, rank_values):
+        # sync variable across ranks
+        counts = np.array(self.comm.allgather(len(rank_values)), dtype='i4')
+        nelem = np.sum(counts)
+        dtype = rank_values.dtype
+        displacements = np.zeros(self.nproc, dtype='i4')
+        displacements[1:] = np.cumsum(counts[:-1])
+        global_values = np.zeros(nelem, dtype=dtype)
 
+        fn = self._temp_dir + '/sync.h5'
+
+        for irank in np.arange(self.nproc):
+            if(self.rank == irank):
+                hf = h5py.File(fn, 'a')
+                dset = hf.create_dataset("%d" % (self.rank), rank_values.shape, dtype=rank_values.dtype)
+                dset[:] = rank_values
+                hf.close()
+            # end if
+            self.comm.Barrier()
+        # end for
+
+        hf = h5py.File(fn, 'r')
+        for irank in np.arange(self.nproc):
+            b, e = displacements[irank], displacements[irank]+counts[irank]
+            global_values[b:e] = hf['{}'.format(irank)][:]
+        # end for
+        hf.close()
+
+        self.comm.Barrier()
+        if(self.rank == 0): os.remove(fn)
+
+        return global_values
+    # end func
 # end class
 
 if __name__ == "__main__":
