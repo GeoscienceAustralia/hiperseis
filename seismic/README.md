@@ -65,13 +65,15 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
   19. `pip3.6 install pyproj==3.0.1 --user`
   20. `pip3.6 install scipy==1.4.1 --user`
   21. `pip3.6 install tqdm==4.43.0 --user`
+  22. `pip3.6 install scikit-learn==0.22.2.post1 --user`
+
 
 Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
 jobs are launched on NCI compute nodes that do not allow internet access.
 
 ### Initialize PhasePapy
 Additionally, the workflow requires the PhasePapy package (a submodule of this repository) to be
-initialized, if not already.
+initialized, if it has not been already.
 ```
 cd hiperseis
 git submodule update --init --recursive
