@@ -24,7 +24,6 @@ class SSSTRelocator(ParametricData):
         self.BALL_RADIUS_KM = 11 #~0.1 arc-degrees
         self._lonlatalt2xyz = None
         self.vsurf = None
-        self.ett = None
         self.residual = None
         self._source_enum = defaultdict(int)
         self._arrival_source = None
@@ -39,10 +38,6 @@ class SSSTRelocator(ParametricData):
         self._assign_station_ids()
         self._label_arrivals()
         self._initialize_spatial_functors()
-
-        # compute empirical tt
-        self.ett = self.arrivals['arrival_ts'] - \
-                   self.events['origin_ts'][self.event_id_to_idx[self.arrivals['event_id']]]
 
         # initialize surface velocity array (only needs to be computed once, since
         # elevations are fixed and P/S arrivals are not interchanged)
@@ -92,19 +87,26 @@ class SSSTRelocator(ParametricData):
         self.station_id = self._sync_var(station_id)
     # end func
 
-    def _compute_residual_helper(self, phase, mask=None):
-        if (mask is None): mask = np.ones(len(phase), dtype='?')
+    def _compute_residual_helper(self, phase, imask=None):
+        """
+        Operates on local data
+
+        @param phase: dim(local_arrival_indices)
+        @param imask: dim(local_arrival_indices)
+        @return:
+        """
+        if (imask is None): imask = np.ones(len(phase), dtype='?')
 
         # event indices for local arrivals
         indices = self.event_id_to_idx[self.arrivals['event_id'][self.local_arrivals_indices]]
-        elon = self.events['lon'][indices][mask]
-        elat = self.events['lat'][indices][mask]
-        edepth_km = self.events['depth_km'][indices][mask]
+        elon = self.events['lon'][indices][imask]
+        elat = self.events['lat'][indices][imask]
+        edepth_km = self.events['depth_km'][indices][imask]
 
-        slon = self.arrivals['lon'][self.local_arrivals_indices][mask]
-        slat = self.arrivals['lat'][self.local_arrivals_indices][mask]
-        vsurf = self.vsurf[self.local_arrivals_indices][mask]
-        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices][mask] / 1e3
+        slon = self.arrivals['lon'][self.local_arrivals_indices][imask]
+        slat = self.arrivals['lat'][self.local_arrivals_indices][imask]
+        vsurf = self.vsurf[self.local_arrivals_indices][imask]
+        elev_km = self.arrivals['elev_m'][self.local_arrivals_indices][imask] / 1e3
 
         azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
 
@@ -112,7 +114,11 @@ class SSSTRelocator(ParametricData):
         ellip_corr = self.compute_ellipticity_correction(phase, ecdist, edepth_km, elat, azim)
         ptt = self._tti.get_tt(phase, ecdist, edepth_km) + elev_corr + ellip_corr
 
-        residual = self.ett[self.local_arrivals_indices][mask] - ptt.astype('f8')
+        # compute empirical tt
+        ett = self.arrivals['arrival_ts'][self.local_arrivals_indices][imask] - \
+              self.events['origin_ts'][indices][imask]
+
+        residual = ett - ptt.astype('f8')
 
         if (self.rank == 0): print(elev_corr, ellip_corr, residual)
 
@@ -127,12 +133,17 @@ class SSSTRelocator(ParametricData):
         self.residual = self._sync_var(local_residual)
     # end func
 
-    def redefine_phases(self, mask=None):
-        if(mask is None): mask = np.ones(len(self.local_arrivals_indices), dtype='?')
+    def redefine_phases(self, imask=None):
+        """
+        Operates on local data, followed by a global sync
+
+        @param imask: dim(local_arrival_indices)
+        """
+        if(imask is None): imask = np.ones(len(self.local_arrivals_indices), dtype='?')
 
         phase = self.arrivals['phase'][self.local_arrivals_indices]
-        is_p = self.is_P(phase) & mask
-        is_s = self.is_S(phase) & mask
+        is_p = self.is_P(phase) & imask
+        is_s = self.is_S(phase) & imask
         p_indices = np.argwhere(is_p).flatten()
         s_indices = np.argwhere(is_s).flatten()
 
@@ -142,13 +153,13 @@ class SSSTRelocator(ParametricData):
         test_p_phase = np.zeros(len(p_indices), self.arrivals['phase'].dtype)
         for ip, p in enumerate(self.p_phases):
             test_p_phase[:] = p
-            p_residuals[:, ip] = self._compute_residual_helper(test_p_phase, mask=is_p)
+            p_residuals[:, ip] = self._compute_residual_helper(test_p_phase, imask=is_p)
         # end for
 
         test_s_phase = np.zeros(len(s_indices), self.arrivals['phase'].dtype)
         for ip, p in enumerate(self.s_phases):
             test_s_phase[:] = p
-            s_residuals[:, ip] = self._compute_residual_helper(test_s_phase, mask=is_s)
+            s_residuals[:, ip] = self._compute_residual_helper(test_s_phase, imask=is_s)
         # end for
 
         local_new_phase = np.array(self.arrivals['phase'][self.local_arrivals_indices])
@@ -170,6 +181,16 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
+        """
+        Operates on input parameters without respect to local/global indices
+
+        @param phase: dim(any)
+        @param vsurf:  dim(any)
+        @param elev_km:  dim(any)
+        @param ecdist:  dim(any)
+        @param edepth_km:  dim(any)
+        @return:
+        """
         dtdd = self._tti.get_dtdd(phase, ecdist, edepth_km)
         elev_corr = vsurf * (dtdd / self.DEG2KM)
         elev_corr = np.power(elev_corr, 2.)
@@ -183,21 +204,35 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def compute_ellipticity_correction(self, phase, ecdist, edepth_km, elat, azim):
+        """
+        Operates on input parameters without respect to local/global indices
+
+        @param phase:  dim(any)
+        @param ecdist:  dim(any)
+        @param edepth_km:  dim(any)
+        @param elat:  dim(any)
+        @param azim:  dim(any)
+        @return:
+        """
         ellip_corr = self._ellipticity.get_correction(phase, ecdist, edepth_km, elat, azim)
         ellip_corr = np.array(ellip_corr.astype('f4'))
 
         return ellip_corr
     # end func
 
-    def compute_ssst_correction(self, mask=None):
-        if(mask is None): mask = np.ones(len(self.arrivals), dtype='?')
+    def compute_ssst_correction(self, imask=None):
+        """
+        Operates on global data
+        @param imask: dim(len(arrivals))
+        """
+        if(imask is None): imask = np.ones(len(self.arrivals), dtype='?')
 
         stas = np.unique(self.station_id)
         local_sids = split_list(stas, self.nproc)[self.rank]
         local_corrs = np.zeros(len(self.arrivals), dtype='f4')
 
         for sid in tqdm(local_sids, desc='Rank {}: '.format(self.rank)):
-            sta_arrival_indices = np.argwhere((self.station_id == sid) & (mask)).flatten()
+            sta_arrival_indices = np.argwhere((self.station_id == sid) & (imask)).flatten()
             sta_arrivals = self.arrivals[sta_arrival_indices]
 
             phases = set(sta_arrivals['phase'])
@@ -205,17 +240,17 @@ class SSSTRelocator(ParametricData):
             phase_residuals = {}
             phase_arrival_indices = {}
             for p in phases:
-                pmask = sta_arrivals['phase'] == p
+                pimask = sta_arrivals['phase'] == p
 
-                event_indices = self.event_id_to_idx[sta_arrivals['event_id'][pmask]]
+                event_indices = self.event_id_to_idx[sta_arrivals['event_id'][pimask]]
                 elons = self.events['lon'][event_indices]
                 elats = self.events['lat'][event_indices]
                 ealts = -self.events['depth_km'][event_indices] * 1e3  # m
 
                 xyz = self._lonlatalt2xyz(elons, elats, ealts)
                 phase_trees[p] = cKDTree(xyz)
-                phase_residuals[p] = self.residual[sta_arrival_indices][pmask]
-                phase_arrival_indices[p] = sta_arrival_indices[pmask]
+                phase_residuals[p] = self.residual[sta_arrival_indices][pimask]
+                phase_arrival_indices[p] = sta_arrival_indices[pimask]
             # end for
 
             for i, sta_arrival in enumerate(sta_arrivals):
@@ -343,10 +378,10 @@ if __name__ == "__main__":
         sr.compute_residual()
 
         if(sr.rank==0): print('Redefining phases..')
-        sr.redefine_phases(mask=sr.is_ISC[sr.local_arrivals_indices] & ~sr.is_AUTO[sr.local_arrivals_indices])
+        sr.redefine_phases(imask=~sr.is_ISC[sr.local_arrivals_indices] & sr.is_AUTO[sr.local_arrivals_indices])
 
         if(sr.rank==0): print('Computing SSST corrections..')
-        sr.compute_ssst_correction(mask=sr.is_ISC & ~sr.is_AUTO)
+        sr.compute_ssst_correction(imask=~sr.is_ISC & sr.is_AUTO)
         if(sr.rank==0):
             np.save('test_arrivals.npy', sr.arrivals)
             np.save('ssst_tcorr.npy', sr.ssst_tcorr)

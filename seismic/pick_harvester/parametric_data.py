@@ -50,9 +50,9 @@ class ParametricData:
             'formats': ['i4', 'S10', 'S10', 'S10', 'S10', 'f4', 'f4', 'f4', 'S10', 'f8', 'f4']}
 
         # load events and arrivals
-        self.events, self.arrivals = self._load_catalog()
-        #self.events = np.load('events.npy')
-        #self.arrivals= np.load('arr.npy')
+        #self.events, self.arrivals = self._load_catalog()
+        self.events = np.load('events.npy')
+        self.arrivals= np.load('arrivals.npy')
         #self.arrivals = self.arrivals[10000000:10100000]
 
         # create a map to translate event-id to array index
@@ -109,8 +109,8 @@ class ParametricData:
     def _coalesce_network_codes(self):
         if(self.rank == 0): print('Coalescing network codes..')
 
-        #self.arrivals['net'] = np.load('coalesced_net.npy')
-        #return
+        self.arrivals['net'] = np.load('coalesced_net.npy')
+        return
 
         iter_count = 0
         while(1):
