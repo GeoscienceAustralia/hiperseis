@@ -72,6 +72,8 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
         log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
         log.info("Using catalog file: {}".format(cat_file))
         catalog = read_events(cat_file)
+
+        catalog = catalog.filter("time > {}".format(str(starttime)), "time < {}".format(str(endtime)))
     else:
         min_magnitude = magnitude_range[0]
         max_magnitude = magnitude_range[1]
@@ -548,11 +550,6 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             # end if
         # end if
     # end for
-
-    if(rank == 0):
-        print("Finishing...")
-        print("extract_event_traces SUCCESS!")
-    # end if
 # end func
 
 # ---+----------Main---------------------------------
@@ -611,6 +608,11 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
          start_time, end_time, taup_model, distance_range, magnitude_range, catalog_only, resample_hz,
          p_data, s_data, sw_data, dry_run):
+    
+    # Initialize MPI
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
 
     log = logging.getLogger('extract_event_traces')
     log.setLevel(logging.INFO)
@@ -640,47 +642,54 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
 
     inventory = trim_inventory(inventory, network_list=network_list, station_list=station_list)
 
-    log.info("Using waveform data source: {}".format(waveform_database))
+    if(rank == 0): log.info("Using waveform data source: {}".format(waveform_database))
 
     min_dist_deg = distance_range[0]
     max_dist_deg = distance_range[1]
     min_mag = magnitude_range[0]
     max_mag = magnitude_range[1]
+    
+    lonlat = None
+    if(rank == 0):
+        # Compute reference lonlat from the inventory.
+        channels = inventory.get_contents()['channels']
+        lonlat_coords = []
+        for ch in channels:
+            coords = inventory.get_coordinates(ch)
+            lonlat_coords.append((coords['longitude'], coords['latitude']))
+        lonlat_coords = np.array(lonlat_coords)
+        lonlat = np.mean(lonlat_coords, axis=0)
+        log.info("Inferred reference coordinates {}".format(lonlat))
 
-    # Compute reference lonlat from the inventory.
-    channels = inventory.get_contents()['channels']
-    lonlat_coords = []
-    for ch in channels:
-        coords = inventory.get_coordinates(ch)
-        lonlat_coords.append((coords['longitude'], coords['latitude']))
-    lonlat_coords = np.array(lonlat_coords)
-    lonlat = np.mean(lonlat_coords, axis=0)
-    log.info("Inferred reference coordinates {}".format(lonlat))
+        # If start and end time not provided, infer from date range of inventory.
+        if not start_time:
+            start_time = inventory[0].start_date
+            for net in inventory:
+                start_time = min(start_time, net.start_date)
+            log.info("Inferred start time {}".format(start_time))
+        # end if
+        if not end_time:
+            end_time = inventory[0].end_date
+            if end_time is None:
+                end_time = UTC.now()
+            for net in inventory:
+                end_time = max(end_time, net.end_date)
+            log.info("Inferred end time {}".format(end_time))
+        # end if
 
-    # If start and end time not provided, infer from date range of inventory.
-    if not start_time:
-        start_time = inventory[0].start_date
-        for net in inventory:
-            start_time = min(start_time, net.start_date)
-        log.info("Inferred start time {}".format(start_time))
+        start_time = UTC(start_time)
+        end_time = UTC(end_time)
+        if not os.path.exists(event_catalog_file):
+            event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
+        event_trace_datafile = timestamp_filename(event_trace_datafile, start_time, end_time)
+        assert not os.path.exists(event_trace_datafile), \
+            "Output file {} already exists, please remove!".format(event_trace_datafile)
+        log.info("Traces will be written to: {}".format(event_trace_datafile))
     # end if
-    if not end_time:
-        end_time = inventory[0].end_date
-        if end_time is None:
-            end_time = UTC.now()
-        for net in inventory:
-            end_time = max(end_time, net.end_date)
-        log.info("Inferred end time {}".format(end_time))
-    # end if
-
-    start_time = UTC(start_time)
-    end_time = UTC(end_time)
-    if not os.path.exists(event_catalog_file):
-        event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
-    event_trace_datafile = timestamp_filename(event_trace_datafile, start_time, end_time)
-    assert not os.path.exists(event_trace_datafile), \
-        "Output file {} already exists, please remove!".format(event_trace_datafile)
-    log.info("Traces will be written to: {}".format(event_trace_datafile))
+    lonlat = comm.bcast(lonlat, root=0)
+    start_time = comm.bcast(start_time, root=0)
+    end_time = comm.bcast(end_time, root=0)
+    event_trace_datafile = comm.bcast(event_trace_datafile, root=0)
 
     exit_after_catalog = catalog_only
     catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
@@ -707,6 +716,11 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
                      tt_model=taup_model, wave=wave, resample_hz=resample_hz, dry_run=dry_run)
     # end for
     del asdf_dataset
+    
+    if(rank == 0):
+        print("Finishing...")
+        print("extract_event_traces SUCCESS!")
+    # end if
 # end main
 
 if __name__ == '__main__':
