@@ -68,12 +68,18 @@ def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_r
 
     # If file needs to be generated, then this function requires internet access.
     if os.path.exists(cat_file):
+        min_magnitude = magnitude_range[0]
+        max_magnitude = magnitude_range[1]
+        
         # For HPC systems with no internet access, the catalog file must be pre-generated
         log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
         log.info("Using catalog file: {}".format(cat_file))
         catalog = read_events(cat_file)
-
-        catalog = catalog.filter("time > {}".format(str(starttime)), "time < {}".format(str(endtime)))
+        
+        # While events are downloaded, the ISC magnitude filter does not efectively cull earthquakes outside the requested 
+        # magnitude-range. A secondary magnitude filter is therefore added here to cull events outside the magnitude-range.
+        catalog = catalog.filter("time > {}".format(str(starttime)), "time < {}".format(str(endtime)),
+                                 "magnitude >= {}".format(min_magnitude), "magnitude <= {}".format(max_magnitude))
     else:
         min_magnitude = magnitude_range[0]
         max_magnitude = magnitude_range[1]
@@ -492,7 +498,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 if s.select(component='1') and s.select(component='2'):
                     try:
                         s.rotate('->ZNE', inventory=inventory)
-                    except ValueError as e:
+                    except Exception as e:
                         log.error('Unable to rotate to ZNE with error:\n{}'.format(str(e)))
                         continue
                     # end try
