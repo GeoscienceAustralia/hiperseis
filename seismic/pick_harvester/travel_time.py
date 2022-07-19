@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import traceback
 import os
 
-LARGE_VALUE = np.iinfo('i4').max
+LARGE_VALUE = float(np.iinfo('i4').max)
 class Phase:
     def __init__(self, tt_file_content, fill_value=LARGE_VALUE):
         self.ecdists = None
@@ -106,6 +106,7 @@ class Phase:
 
 class TTInterpolator:
     def __init__(self):
+        self.fill_value = LARGE_VALUE
         self._ttt_zip_fn = os.path.dirname(os.path.abspath(__file__)) + '/tt/ttt.zip'
         self.phases = defaultdict(lambda: defaultdict(list))
 
@@ -123,7 +124,7 @@ class TTInterpolator:
                 content.append(line.strip())
             # end for
 
-            p = Phase(content)
+            p = Phase(content, fill_value=self.fill_value)
             self.phases[model][phase_name] = p
             models.add(model)
             phase_names.add(phase_name)
@@ -133,7 +134,7 @@ class TTInterpolator:
     def get_tt(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.zeros(len(phase), dtype='f4')
+                result = np.ones(len(phase), dtype='f4') * self.fill_value
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
@@ -146,7 +147,7 @@ class TTInterpolator:
 
                 return result
             else:
-                result = 0.
+                result = self.fill_value
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].times_io(ecdist, depth_km)
                 # end if
@@ -161,7 +162,7 @@ class TTInterpolator:
     def get_dtdd(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.zeros(len(phase), dtype='f4')
+                result = np.ones(len(phase), dtype='f4') * self.fill_value
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
@@ -174,7 +175,7 @@ class TTInterpolator:
 
                 return result
             else:
-                result = 0.
+                result = self.fill_value
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].dtdd_io(ecdist, depth_km)
                 # end if
@@ -189,7 +190,7 @@ class TTInterpolator:
     def get_dtdh(self, phase, ecdist, depth_km, model='ak135'):
         try:
             if(type(phase) == np.ndarray):
-                result = np.zeros(len(phase), dtype='f4')
+                result = np.ones(len(phase), dtype='f4') * self.fill_value
 
                 for cphase in self.phases[model].keys():
                     indices = np.argwhere(cphase == phase).flatten()
@@ -202,7 +203,7 @@ class TTInterpolator:
 
                 return result
             else:
-                result = 0.
+                result = self.fill_value
                 if(phase in self.phases[model].keys()):
                     result = self.phases[model][phase].dtdh_io(ecdist, depth_km)
                 # end if

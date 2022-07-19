@@ -50,10 +50,20 @@ class ParametricData:
             'formats': ['i4', 'S10', 'S10', 'S10', 'S10', 'f4', 'f4', 'f4', 'S10', 'f8', 'f4']}
 
         # load events and arrivals
-        #self.events, self.arrivals = self._load_catalog()
-        self.events = np.load('events.npy')
-        self.arrivals= np.load('arrivals.npy')
-        #self.arrivals = self.arrivals[10000000:10100000]
+        if(0):
+            self.events, self.arrivals = self._load_catalog()
+            if(self.rank == 0):
+                np.save('events.npy', self.events)
+                np.save('arrivals.npy', self.arrivals)
+            # end if
+        else:
+            self.events = np.load('events.npy')
+            self.arrivals= np.load('arrivals.npy')
+        # end if
+
+        np.random.seed(0)
+        np.random.shuffle(self.arrivals)
+        np.random.shuffle(self.events)
 
         # create a map to translate event-id to array index
         self.event_id_to_idx = np.ones(np.max(self.events['event_id']) + 1, dtype='i4') * -1
@@ -109,8 +119,10 @@ class ParametricData:
     def _coalesce_network_codes(self):
         if(self.rank == 0): print('Coalescing network codes..')
 
-        self.arrivals['net'] = np.load('coalesced_net.npy')
-        return
+        if(1):
+            self.arrivals['net'] = np.load('coalesced_net.npy')
+            return
+        # end if
 
         iter_count = 0
         while(1):

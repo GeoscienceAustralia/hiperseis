@@ -137,7 +137,7 @@ class Ellipticity:
                         corr_count += len(indices)
                     # end if
                 # end for
-                if(corr_count < len(phase)): print('Warning: some phases {} not found..'.format(set(list(phase)) - set(self.phases.keys())))
+                #if(corr_count < len(phase)): print('Warning: some phases {} not found..'.format(set(list(phase)) - set(self.phases.keys())))
 
                 return result
             else:
