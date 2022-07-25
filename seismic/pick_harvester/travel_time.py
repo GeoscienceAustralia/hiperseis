@@ -1,14 +1,13 @@
-import zipfile, io
 from collections import defaultdict
 import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
-import matplotlib.pyplot as plt
 import traceback
 import os
+import glob
 
 LARGE_VALUE = float(np.iinfo('i4').max)
 class Phase:
-    def __init__(self, tt_file_content, fill_value=LARGE_VALUE):
+    def __init__(self, tt_fn, fill_value=LARGE_VALUE):
         self.ecdists = None
         self.depths_km = None
         self.times = None
@@ -20,7 +19,7 @@ class Phase:
         self.dtdd_io = None
         self.dtdh_io = None
 
-        self._parse_tt(tt_file_content)
+        self._parse_tt(tt_fn)
 
         # instantiate interpolators
         xg, yg = np.meshgrid(self.ecdists, self.depths_km, indexing='ij')
@@ -33,7 +32,7 @@ class Phase:
         self.dtdh_io = CloughTocher2DInterpolator(points[vidx], self.dtdh.flatten()[vidx], fill_value=self._fill_value)
     # end func
 
-    def _parse_tt(self, tt_file_content, nanval=-999.0):
+    def _parse_tt(self, tt_fn, nanval=-999.0):
         ecdists = []
         depths_km = []
         times = []
@@ -51,7 +50,7 @@ class Phase:
         dtdh_end = 0
 
         ind = 0
-        for line in tt_file_content:
+        for line in open(tt_fn).readlines():
             row = line.split()
             if ' '.join(row) == '# delta samples':
                 dists_start = ind + 1
@@ -73,7 +72,7 @@ class Phase:
         dtdh_end = ind - 4
 
         ind = 0
-        for line in tt_file_content:
+        for line in open(tt_fn).readlines():
             row = line.split()
             if ind in range(dists_start, dists_end+1):
                 ecdists = ecdists + [float(item) for item in row if item != '']
@@ -106,25 +105,23 @@ class Phase:
 
 class TTInterpolator:
     def __init__(self):
+        """
+        Reads travel-time tables for various phases from models ak135 and iasp91, as found
+        in iLoc source tar ball
+        """
         self.fill_value = LARGE_VALUE
-        self._ttt_zip_fn = os.path.dirname(os.path.abspath(__file__)) + '/tt/ttt.zip'
+        self._ttt_folder = os.path.dirname(os.path.abspath(__file__)) + '/tt/'
         self.phases = defaultdict(lambda: defaultdict(list))
 
         # read and process tt-tables
-        zf = zipfile.ZipFile(self._ttt_zip_fn)
+        tt_files = glob.glob(self._ttt_folder + '/*.tab')
         models = set()
         phase_names = set()
-        for item in zf.filelist:
-            fn = item.filename
-            model, phase_name, _ = fn.split('.')
+        for fn in tt_files:
+            model, phase_name, _ = os.path.basename(fn).split('.')
             phase_name = str.encode(phase_name) # convert to byte-string
 
-            content = []
-            for line in io.TextIOWrapper(zf.open(fn), encoding='utf-8'):
-                content.append(line.strip())
-            # end for
-
-            p = Phase(content, fill_value=self.fill_value)
+            p = Phase(fn, fill_value=self.fill_value)
             self.phases[model][phase_name] = p
             models.add(model)
             phase_names.add(phase_name)
@@ -215,3 +212,4 @@ class TTInterpolator:
         # end try
     # end func
 # end class
+

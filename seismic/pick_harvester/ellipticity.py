@@ -1,4 +1,3 @@
-import zipfile, io
 from collections import defaultdict
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator

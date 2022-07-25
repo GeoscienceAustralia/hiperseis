@@ -31,6 +31,9 @@ class SSSTRelocator(ParametricData):
         self.station_id = None
         self.ssst_tcorr = np.zeros(len(self.arrivals), dtype='f4')
 
+        # keep a copy of original events for comparing relocations against
+        self.orig_events = np.array(self.events)
+
         self._assign_station_ids()
         self._label_data()
         self._initialize_spatial_functors()
@@ -87,8 +90,8 @@ class SSSTRelocator(ParametricData):
         """
         Operates on local data
 
-        @param phase: dim(local_arrival_indices)
-        @param imask: dim(local_arrival_indices)
+        @param phase: dim(self.local_arrival_indices)
+        @param imask: dim(self.local_arrival_indices)
         @return:
         """
         if (imask is None): imask = np.ones(len(phase), dtype='?')
@@ -137,7 +140,7 @@ class SSSTRelocator(ParametricData):
         """
         Operates on local data, followed by a global sync
 
-        @param imask: dim(local_arrival_indices)
+        @param imask: dim(self.local_arrival_indices)
         """
         if(imask is None): imask = np.ones(len(self.local_arrivals_indices), dtype='?')
 
@@ -191,7 +194,7 @@ class SSSTRelocator(ParametricData):
 
     def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
         """
-        Operates on input parameters without respect to local/global indices
+        Operates on input parameters irrespective of local/global indices
 
         @param phase: dim(any)
         @param vsurf:  dim(any)
@@ -214,7 +217,7 @@ class SSSTRelocator(ParametricData):
 
     def compute_ellipticity_correction(self, phase, ecdist, edepth_km, elat, azim):
         """
-        Operates on input parameters without respect to local/global indices
+        Operates on input parameters irrespective of local/global indices
 
         @param phase:  dim(any)
         @param ecdist:  dim(any)
@@ -229,15 +232,15 @@ class SSSTRelocator(ParametricData):
         return ellip_corr
     # end func
 
-    def compute_ssst_correction(self, imask=None, ball_radius_km=11.):
+    def compute_ssst_correction(self, imask=None, event_quality=None, ball_radius_km=11.):
         """
         Operates on global data
-        @param imask: dim(len(arrivals))
+        @param imask: dim(len(self.arrivals))
+        @param event_quality: dim(len(self.events))
+        @param ball_radius_km: radius of sphere for computing SSST corrections
         """
         if(imask is None): imask = np.ones(len(self.arrivals), dtype='?')
-
-        #test_imask = (~self.is_AUTO_arrival) | ((self.is_AUTO_arrival) & (self.arrivals['quality_measure_slope']>=2))
-        #imask = imask & test_imask
+        if(event_quality is None): event_quality = np.ones(len(self.events), dtype='?')
 
         stas = np.unique(self.station_id)
         local_sids = split_list(stas, self.nproc)[self.rank]
@@ -255,6 +258,10 @@ class SSSTRelocator(ParametricData):
                 pimask = sta_arrivals['phase'] == p
 
                 event_indices = self.event_id_to_idx[sta_arrivals['event_id'][pimask]]
+
+                # drop events where event_quality is False
+                event_indices = event_indices[event_quality[event_indices]]
+
                 elons = self.events['lon'][event_indices]
                 elats = self.events['lat'][event_indices]
                 ealts = -self.events['depth_km'][event_indices] * 1e3  # m
@@ -285,6 +292,156 @@ class SSSTRelocator(ParametricData):
         # end for
 
         self.ssst_tcorr = self._sum(local_corrs)
+    # end func
+
+    def relocate_events(self, imask=None, reloc_niter=10, reloc_dlon=0.25,
+                        reloc_dlat=0.25, reloc_ddep=10, reloc_sfrac=0.5):
+
+        """
+        Operates on local data
+
+        @param imask: dim(self.local_event_indices)
+        @param reloc_niter:
+        @param reloc_dlon:
+        @param reloc_dlat:
+        @param reloc_ddep:
+        @param reloc_sfrac:
+        @return: dim(self.local_event_indices)
+        """
+
+        if (imask is None): imask = np.ones(len(self.local_events_indices), dtype='?')
+
+        qual = np.ones(len(self.local_events_indices), dtype='?')
+        for i, iev in enumerate(tqdm(self.local_events_indices[imask])):
+            event = self.events[iev]
+
+            arrival_indices = np.argwhere(self.arrivals['event_id'] == event['event_id']).flatten()
+            ones = np.ones(len(arrival_indices))
+
+            slon = self.arrivals['lon'][arrival_indices]
+            slat = self.arrivals['lat'][arrival_indices]
+            vsurf = self.vsurf[arrival_indices]
+            elev_km = self.arrivals['elev_m'][arrival_indices] / 1e3
+            phase = self.arrivals['phase'][arrival_indices]
+            ett = self.arrivals['arrival_ts'][arrival_indices] - event['origin_ts']
+            ssst_tcorr = self.ssst_tcorr[arrival_indices]
+
+            elon0 = event['lon']
+            elat0 = event['lat']
+            edepth_km0 = event['depth_km']
+
+            elon_best = elon0
+            elat_best = elat0
+            edepth_km_best = edepth_km0
+
+            dlon = reloc_dlon
+            dlat = reloc_dlat
+            ddep = reloc_ddep
+            sfrac = reloc_sfrac
+
+            dt = 0
+            dtbest = dt
+            npick_used_best = 0
+
+            E0 = 0
+            Ebest = 1e20
+            for ireloc in np.arange(reloc_niter):
+                for ilon in np.arange(-1, 2):
+                    elon = elon0 + ilon * dlon
+                    for ilat in np.arange(-1, 2):
+                        elat = elat0 + ilat * dlat
+                        for idep in np.arange(-1, 2):
+                            edepth_km = edepth_km0 + idep * ddep
+                            azim, _, ecdist = self._geod.inv(elon * ones, elat * ones, slon, slat)
+
+                            elev_corr = self.compute_elevation_correction(phase, vsurf, elev_km, ecdist, edepth_km * ones)
+                            ellip_corr = self.compute_ellipticity_correction(phase, ecdist, edepth_km * ones, elat * ones,
+                                                                           azim)
+                            tt = self._tti.get_tt(phase, ecdist, edepth_km * ones)
+                            tt = np.ma.masked_array(tt, mask=tt == self._tti.fill_value)
+
+                            npick_used = np.sum(~tt.mask)
+                            if (npick_used):
+                                ptt = tt + elev_corr + ellip_corr
+                                residual = ett - ssst_tcorr - ptt
+
+                                residmed = np.ma.mean(residual)
+                                E0 = np.sqrt(np.mean(np.power(residual - residmed, 2)))
+
+                                if (E0 < Ebest):
+                                    Ebest = E0
+                                    elon_best = elon
+                                    elat_best = elat
+                                    edepth_km_best = edepth_km
+                                    dtbest = residmed
+                                    npick_used_best = npick_used
+                                # end if
+                            # end if
+                        # end for
+                    # end for
+                # end for
+                elon0, elat0, edepth_km0 = elon_best, elat_best, edepth_km_best
+                dlon, dlat, ddep = np.array([dlon, dlat, ddep]) * sfrac
+            # end for
+            self.events[iev]['lon'] = elon_best
+            self.events[iev]['lat'] = elat_best
+            self.events[iev]['depth_km'] = edepth_km_best
+            self.events[iev]['origin_ts'] += dtbest
+            qual[i] = True if npick_used_best >= 3 else False
+        # end for
+
+        self.events['lon'] = self._sync_var(self.events['lon'][self.local_events_indices])
+        self.events['lat'] = self._sync_var(self.events['lat'][self.local_events_indices])
+        self.events['depth_km'] = self._sync_var(self.events['depth_km'][self.local_events_indices])
+        self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
+
+        qual = self._sync_var(qual)
+        return qual
+    # end func
+
+    def ssst_relocate(self, arrival_imask=None, event_imask=None,
+                      ssst_niter=5, ball_radius_km=55):
+        """
+        Operates both on global and local data
+        @param arrival_imask: dim(self.arrivals)
+        @param event_imask: dim(self.events)
+        @param ssst_niter:
+        @param ball_radius_km:
+        @return:
+        """
+
+        SOL_DLON = 0.25 # +/- 0.25 degrees
+        SOL_DLAT = 0.25 # +/- 0.25 degrees
+        SOL_DDEPTH_KM = 20 # +/- 20 km
+        SOL_DT = 5 # +/- 5 seconds
+
+        if (arrival_imask is None): arrival_imask = np.ones(len(self.arrivals), dtype='?')
+        if (event_imask is None): event_imask = np.ones(len(self.svents), dtype='?')
+
+        qual = None
+        for issst in tqdm(np.arange(ssst_niter), desc='SSST-iter: '):
+            self.compute_residual()
+            self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
+
+            self.compute_ssst_correction(imask=arrival_imask,
+                                         event_quality=qual,
+                                         ball_radius_km=float(ball_radius_km) / float(issst + 1))
+
+            np.save('_ssst_tcorr_{}.npy'.format(issst), self.ssst_tcorr)
+            np.save('_relocated_ga_events_{}.npy'.format(issst), self.events)
+            np.save('_relocated_ga_arrivals_{}.npy'.format(issst), self.arrivals)
+            np.save('_relocated_ga_residuals_{}.npy'.format(issst), self.residual)
+
+            qual = self.relocate_events(imask=event_imask[self.local_events_indices])
+
+            # label divergent events so their arrivals are not used while SSST
+            # correction terms are computed
+            cei = (np.fabs(self.orig_events['lon'] - self.events['lon']) < SOL_DLON) & \
+                  (np.fabs(self.orig_events['lat'] - self.events['lat']) < SOL_DLAT) & \
+                  (np.fabs(self.orig_events['depth_km'] - self.events['depth_km']) < SOL_DDEPTH_KM) & \
+                  ((np.fabs(self.orig_events['origin_ts'] - self.events['origin_ts']) < SOL_DT))
+            qual[~cei] = False
+        # end for
     # end func
 
     def _initialize_spatial_functors(self, ellipsoidal_distance=False):
@@ -388,150 +545,12 @@ class SSSTRelocator(ParametricData):
     # end func
 # end class
 
-def relocate_events(sr, imask=None):
-    debug=False
-
-    if (imask is None): imask = np.ones(len(sr.local_events_indices), dtype='?')
-
-    reloc_niter = 10
-    for iev in tqdm(sr.local_events_indices[imask]):
-        event = sr.events[iev]
-
-        #if(event['event_id'] != 29711): continue
-        #if(event['event_id'] != 27161): continue
-
-        arrival_indices = np.argwhere(sr.arrivals['event_id'] == event['event_id']).flatten()
-
-        if debug: print(event)
-        if debug: print(sr.arrivals[arrival_indices])
-
-        if(0):
-            temp = []
-            for ai in arrival_indices:
-                if(sr.is_AUTO_arrival[ai]):
-                    pass
-                    if(sr.arrivals['quality_measure_slope'][ai]>=2): temp.append(ai)
-                else:
-                    temp.append(ai)
-                # end if
-            # end for
-            arrival_indices = np.array(temp, dtype='i4')
-        # end if
-
-        ones = np.ones(len(arrival_indices))
-
-        slon = sr.arrivals['lon'][arrival_indices]
-        slat = sr.arrivals['lat'][arrival_indices]
-        vsurf = sr.vsurf[arrival_indices]
-        elev_km = sr.arrivals['elev_m'][arrival_indices] / 1e3
-        phase = sr.arrivals['phase'][arrival_indices]
-        ett = sr.arrivals['arrival_ts'][arrival_indices] - event['origin_ts']
-        ssst_tcorr = sr.ssst_tcorr[arrival_indices]
-
-        elon0 = event['lon']
-        elat0 = event['lat']
-        edepth_km0 = event['depth_km']
-
-        elon_best = elon0
-        elat_best = elat0
-        edepth_km_best = edepth_km0
-
-        dt = 0
-        dtbest = dt
-        npick_used_best = len(arrival_indices)
-
-        dlat = 0.25
-        dlon = 0.25
-        ddep = 10  # km
-        sfrac = 0.5
-
-        E0 = 0
-        Ebest = 1e20
-        ibest=None
-        #print(elon_best, elat_best, edepth_km_best, dtbest, npick_used_best)
-        for ireloc in np.arange(reloc_niter):
-            for ilon in np.arange(-1, 2):
-                elon = elon0 + ilon * dlon
-                for ilat in np.arange(-1, 2):
-                    elat = elat0 + ilat * dlat
-                    for idep in np.arange(-1, 2):
-                        edepth_km = edepth_km0 + idep * ddep
-                        azim, _, ecdist = sr._geod.inv(elon * ones, elat * ones, slon, slat)
-
-                        elev_corr = sr.compute_elevation_correction(phase, vsurf, elev_km, ecdist, edepth_km * ones)
-                        ellip_corr = sr.compute_ellipticity_correction(phase, ecdist, edepth_km * ones, elat * ones,
-                                                                       azim)
-                        tt = sr._tti.get_tt(phase, ecdist, edepth_km * ones)
-                        tt = np.ma.masked_array(tt, mask=tt == sr._tti.fill_value)
-
-                        npick_used = np.sum(~tt.mask)
-                        if (npick_used):
-                            ptt = tt + elev_corr + ellip_corr
-                            residual = ett - ssst_tcorr - ptt
-
-                            residmed = np.ma.mean(residual)
-                            E0 = np.sqrt(np.mean(np.power(residual - residmed, 2)))
-
-                            if (E0 < Ebest):
-                                if debug: print(E0, Ebest, npick_used,'/',len(tt), '----------')
-                                Ebest = E0
-                                elon_best = elon
-                                elat_best = elat
-                                edepth_km_best = edepth_km
-                                dtbest = residmed
-                                npick_used_best = npick_used
-                                ibest = (ireloc, ilon, ilat, idep)
-                            # end if
-                        # end if
-                    # end for
-                # end for
-            # end for
-            elon0, elat0, edepth_km0 = elon_best, elat_best, edepth_km_best
-            dlon, dlat, ddep = np.array([dlon, dlat, ddep]) * sfrac
-        # end for
-        #print(elon_best, elat_best, edepth_km_best, dtbest, npick_used_best)
-        #print('-------')
-        #results.append([elon_best, elat_best, edepth_km_best, dtbest, npick_used_best])
-        sr.events[iev]['lon'] = elon_best
-        sr.events[iev]['lat'] = elat_best
-        sr.events[iev]['depth_km'] = edepth_km_best
-        sr.events[iev]['origin_ts'] += dtbest
-    # end for
-    if debug: print(sr.events[event['event_id'] == 29711])
-
-    sr.events['lon'] = sr._sync_var(sr.events['lon'][sr.local_events_indices])
-    sr.events['lat'] = sr._sync_var(sr.events['lat'][sr.local_events_indices])
-    sr.events['depth_km'] = sr._sync_var(sr.events['depth_km'][sr.local_events_indices])
-    sr.events['origin_ts'] = sr._sync_var(sr.events['origin_ts'][sr.local_events_indices])
-# end func
-
-def ssst_relocate():
-    ssst_niter = 5
-
+if __name__ == "__main__":
     sr = SSSTRelocator('./merge_catalogues_output.csv',
                        auto_pick_files=['p_combined.txt', 's_combined.txt'],
                        auto_pick_phases=['P', 'S'],
                        events_only=False)
-
-    ball_radius_km = 55
-    for issst in tqdm(np.arange(ssst_niter), desc='SSST-iter: '):
-        sr.compute_residual()
-        sr.redefine_phases(imask=sr.is_GA_arrival[sr.local_arrivals_indices])
-
-        sr.compute_ssst_correction(imask=sr.is_GA_arrival,
-                                   ball_radius_km=float(ball_radius_km)/float(issst+1))
-
-        np.save('ssst_tcorr_{}.npy'.format(issst), sr.ssst_tcorr)
-        np.save('relocated_ga_events_{}.npy'.format(issst), sr.events)
-        np.save('relocated_ga_arrivals_{}.npy'.format(issst), sr.arrivals)
-        np.save('relocated_ga_residuals_{}.npy'.format(issst), sr.residual)
-
-        relocate_events(sr, sr.is_GA_event[sr.local_events_indices])
-    # end for
-# end func
-
-if __name__ == "__main__":
-    ssst_relocate()
+    sr.ssst_relocate(arrival_imask=sr.is_GA_arrival, event_imask=sr.is_GA_event)
     exit(0)
 
 
