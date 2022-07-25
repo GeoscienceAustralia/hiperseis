@@ -191,7 +191,9 @@ def main(src_h5_event_file, network, output_basename, station_list):
     tempdir = None
     if(rank == 0):
         # retrieve all available hdf_keys
-        proc_hdfkeys = get_obspyh5_index(src_h5_event_file, seeds_only=True, root=rf_h5_root)
+        proc_hdfkeys = set(get_obspyh5_index(src_h5_event_file, seeds_only=True, root=rf_h5_root))
+        proc_hdfkeys = proc_hdfkeys.union(set(get_obspyh5_index(src_h5_event_file, seeds_only=True, root=sw_h5_root)))
+        proc_hdfkeys = list(proc_hdfkeys)
 
         # trim stations to be processed based on the user-provided network- and station-list
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network, station_list)

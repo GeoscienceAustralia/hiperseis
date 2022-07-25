@@ -181,8 +181,14 @@ def read_h5_stream(src_file, network=None, station=None, loc='', root='/waveform
     else:
         group = root
     # end if
+    
+    stream = obspy.Stream()
+    try:
+        stream = obspy.read(src_file, format='h5', group=group)
+    except Exception as e:
+        print(str(e), ' Returning empty stream..')
+    # end try
 
-    stream = obspy.read(src_file, format='h5', group=group)
     return stream
 # end func
 
