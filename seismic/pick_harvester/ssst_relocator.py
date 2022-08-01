@@ -15,6 +15,7 @@ from seismic.pick_harvester.ellipticity import Ellipticity
 import traceback
 import psutil
 import h5py
+import json
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
@@ -30,9 +31,13 @@ class SSSTRelocator(ParametricData):
         self._ellipticity = Ellipticity()
         self.station_id = None
         self.ssst_tcorr = np.zeros(len(self.arrivals), dtype='f4')
+        self.event_quality = np.ones(len(self.events), dtype='?') # all events are considered good at the outset
 
         # keep a copy of original events for comparing relocations against
         self.orig_events = np.array(self.events)
+
+        # a copy of residuals computed before phases are redefined and ssst-relocations applied
+        self.r0 = None
 
         self._assign_station_ids()
         self._label_data()
@@ -179,9 +184,6 @@ class SSSTRelocator(ParametricData):
         p_threshold = 5 #TODO
         s_threshold = 10
 
-        #print('total {}, bad {}'.format(len(p_indices), np.sum(np.fabs(local_new_residual[p_indices]) > p_threshold)))
-        #print('total {}, bad {}'.format(len(s_indices), np.sum(np.fabs(local_new_residual[s_indices]) > s_threshold)))
-
         local_new_phase[p_indices[np.fabs(local_new_residual[p_indices]) > p_threshold]] = b'Px'
         local_new_phase[s_indices[np.fabs(local_new_residual[s_indices]) > s_threshold]] = b'Sx'
 
@@ -295,7 +297,8 @@ class SSSTRelocator(ParametricData):
     # end func
 
     def relocate_events(self, imask=None, reloc_niter=10, reloc_dlon=0.25,
-                        reloc_dlat=0.25, reloc_ddep=10, reloc_sfrac=0.5):
+                        reloc_dlat=0.25, reloc_ddep=10, reloc_sfrac=0.5,
+                        min_slope_ratio=3):
 
         """
         Operates on local data
@@ -306,7 +309,7 @@ class SSSTRelocator(ParametricData):
         @param reloc_dlat:
         @param reloc_ddep:
         @param reloc_sfrac:
-        @return: dim(self.local_event_indices)
+        @return: dim(self.local_event_indices), quality of local events
         """
 
         if (imask is None): imask = np.ones(len(self.local_events_indices), dtype='?')
@@ -316,6 +319,14 @@ class SSSTRelocator(ParametricData):
             event = self.events[iev]
 
             arrival_indices = np.argwhere(self.arrivals['event_id'] == event['event_id']).flatten()
+            #b=len(arrival_indices)
+            # drop automatic arrival indices where slope_ratio < min_slope_ratio
+            arrival_indices = arrival_indices[ ((self.is_AUTO_arrival[arrival_indices]) & \
+                                                (self.arrivals['quality_measure_slope'][arrival_indices] >= min_slope_ratio)) | \
+                                               (~self.is_AUTO_arrival[arrival_indices]) ]
+            #a=len(arrival_indices)
+            #print('{}/{}'.format(a,b))
+
             ones = np.ones(len(arrival_indices))
 
             slon = self.arrivals['lon'][arrival_indices]
@@ -395,21 +406,53 @@ class SSSTRelocator(ParametricData):
         self.events['depth_km'] = self._sync_var(self.events['depth_km'][self.local_events_indices])
         self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
 
-        qual = self._sync_var(qual)
         return qual
     # end func
 
-    def ssst_relocate(self, arrival_imask=None, event_imask=None,
-                      ssst_niter=5, ball_radius_km=55):
+    def ssst_relocate(self, event_imask=None, arrival_imask=None,
+                      ssst_niter=5, ball_radius_km=55, output_fn=None):
         """
         Operates both on global and local data
-        @param arrival_imask: dim(self.arrivals)
-        @param event_imask: dim(self.events)
+        @param event_imask: dim(self.events). Events to be relocated.
+        @param arrival_imask: dim(self.arrivals). Arrivals whose phases are to be redefined.
         @param ssst_niter:
         @param ball_radius_km:
+        @param output_fn:
         @return:
         """
 
+        def dump_h5(fn, iter):
+            h = h5py.File(fn, 'a')
+
+            eg = h.create_group('{}/events'.format(iter))
+            ag = h.create_group('{}/arrivals'.format(iter))
+
+            # dump events
+            for var in sr.event_fields['names']:
+                eg.create_dataset(var, data=self.events[var])
+            # end for
+
+            # dump event-quality
+            eg.create_dataset('event_quality', data=self.event_quality)
+
+            # dump arrivals
+            for var in sr.arrival_fields['names']:
+                ag.create_dataset(var, data=self.arrivals[var])
+            # end for
+
+            # dump ssst-tcorrs
+            else: ag.create_dataset('ssst_tcorr', data=self.ssst_tcorr)
+
+            # dump residuals
+            if(iter == 0): ag.create_dataset('residual', data=self.r0)
+            else: ag.create_dataset('residual', data=self.residual)
+
+            h.close()
+        # end func
+
+        #===========================================================
+        # Relocate events and redefine phases
+        #===========================================================
         SOL_DLON = 0.25 # +/- 0.25 degrees
         SOL_DLAT = 0.25 # +/- 0.25 degrees
         SOL_DDEPTH_KM = 20 # +/- 20 km
@@ -420,28 +463,47 @@ class SSSTRelocator(ParametricData):
 
         qual = None
         for issst in tqdm(np.arange(ssst_niter), desc='SSST-iter: '):
+            #=======================================================
+            # compute all residuals and save r0, since some
+            # residuals are recomputed in redefine_phases
+            #=======================================================
             self.compute_residual()
+            if(issst == 0): self.r0 = np.array(self.residual)
+
+            # dump results
+            if(self.rank == 0 and output_fn): dump_h5(output_fn, issst)
+
             self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
 
             self.compute_ssst_correction(imask=arrival_imask,
-                                         event_quality=qual,
+                                         event_quality=self.event_quality,
                                          ball_radius_km=float(ball_radius_km) / float(issst + 1))
-
-            np.save('_ssst_tcorr_{}.npy'.format(issst), self.ssst_tcorr)
-            np.save('_relocated_ga_events_{}.npy'.format(issst), self.events)
-            np.save('_relocated_ga_arrivals_{}.npy'.format(issst), self.arrivals)
-            np.save('_relocated_ga_residuals_{}.npy'.format(issst), self.residual)
 
             qual = self.relocate_events(imask=event_imask[self.local_events_indices])
 
             # label divergent events so their arrivals are not used while SSST
             # correction terms are computed
-            cei = (np.fabs(self.orig_events['lon'] - self.events['lon']) < SOL_DLON) & \
-                  (np.fabs(self.orig_events['lat'] - self.events['lat']) < SOL_DLAT) & \
-                  (np.fabs(self.orig_events['depth_km'] - self.events['depth_km']) < SOL_DDEPTH_KM) & \
-                  ((np.fabs(self.orig_events['origin_ts'] - self.events['origin_ts']) < SOL_DT))
+            cei = (np.fabs(self.orig_events['lon'][self.local_events_indices] - self.events['lon'][self.local_events_indices]) < SOL_DLON) & \
+                  (np.fabs(self.orig_events['lat'][self.local_events_indices] - self.events['lat'][self.local_events_indices]) < SOL_DLAT) & \
+                  (np.fabs(self.orig_events['depth_km'][self.local_events_indices] - self.events['depth_km'][self.local_events_indices]) < SOL_DDEPTH_KM) & \
+                  ((np.fabs(self.orig_events['origin_ts'][self.local_events_indices] - self.events['origin_ts'][self.local_events_indices]) < SOL_DT))
             qual[~cei] = False
+
+            self.event_quality = self._sync_var(qual)
         # end for
+
+        #===========================================================
+        # Compute residual and redefine phases after final
+        # relocation
+        #===========================================================
+        self.compute_residual()
+        self.compute_ssst_correction(imask=arrival_imask,
+                                     event_quality=self.event_quality,
+                                     ball_radius_km=float(ball_radius_km) / float(ssst_niter))
+        self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
+
+        # dump results after final phase redefinition
+        if (self.rank == 0 and output_fn): dump_h5(output_fn, ssst_niter)
     # end func
 
     def _initialize_spatial_functors(self, ellipsoidal_distance=False):
@@ -545,14 +607,78 @@ class SSSTRelocator(ParametricData):
     # end func
 # end class
 
+def parse_config(sr, cfn):
+    c = json.load(open(cfn))
+
+    sources = set([i.decode() for i in set(sr.events['source'])])
+
+    # sanity check 1: ensure keys are available
+    if (len(set(c.keys()) - sources)):
+        assert 0, 'Keys {} not found in data set. Aborting..'.format(list(set(c.keys()) - sources))
+    # end if
+
+    # sanity check 2: ensure config blocks are specified for each source
+    if (len(sources - set(c.keys()))):
+        assert 0, 'Config block not found for source: {}. Aborting..'.format(list(sources - set(c.keys())))
+    # end if
+
+    # sanity check 3: each block must have three entries (events, preexisting_arrivals, automatic_arrivals)
+    items = set(['events', 'preexisting_arrivals', 'automatic_arrivals'])
+    for k in c.keys():
+        if (set(c[k].keys()) != items):
+            assert 0, 'Invalid keys found: {}'.format(list(items.symmetric_difference(set(c[k].keys()))))
+        # end if
+    # end for
+
+    # sanity check 4: check entries for events, preexisting_arrivals and automatic_arrivals
+    expected_values = {'events': ['relocate', 'fixed'],
+                       'preexisting_arrivals': ['redefine', 'fixed'],
+                       'automatic_arrivals': ['redefine', 'fixed']}
+    for k in c.keys():
+        for ek, ev in expected_values.items():
+            if (c[k][ek] not in ev):
+                assert 0, 'Invalid values found for "{}" in block "{}". Expected values are: {}'.format(ek, k, ev)
+            # end if
+        # end for
+    # end for
+
+    events_imask = np.zeros(len(sr.events), dtype='?')
+    arrivals_imask = np.zeros(len(sr.arrivals), dtype='?')
+    for k in c.keys():
+        event_attr = 'is_{}_event'.format(k)
+        arrival_attr = 'is_{}_arrival'.format(k)
+
+        if (c[k]['events'] == 'relocate'):
+            events_imask |= getattr(sr, event_attr)
+        # end if
+
+        if (c[k]['preexisting_arrivals'] == 'redefine'):
+            arrivals_imask |= ((getattr(sr, arrival_attr)) & (~sr.is_AUTO_arrival))
+        # end if
+
+        if (c[k]['automatic_arrivals'] == 'redefine'):
+            arrivals_imask |= ((getattr(sr, arrival_attr)) & (sr.is_AUTO_arrival))
+        # end if
+    # end for
+
+    return events_imask, arrivals_imask
+# end func
+
 if __name__ == "__main__":
     sr = SSSTRelocator('./merge_catalogues_output.csv',
                        auto_pick_files=['p_combined.txt', 's_combined.txt'],
                        auto_pick_phases=['P', 'S'],
                        events_only=False)
-    sr.ssst_relocate(arrival_imask=sr.is_GA_arrival, event_imask=sr.is_GA_event)
-    exit(0)
 
+    events_imask, arrivals_imask = parse_config(sr, 'config.json')
+
+    ofn = 'output.h5'
+    if(sr.rank==0):
+        if(os.path.exists(ofn)): os.remove(ofn)
+
+    sr.ssst_relocate(event_imask=events_imask, arrival_imask=arrivals_imask,
+                     output_fn=ofn)
+    exit(0)
 
     if(0):
         sr = SSSTRelocator('./small_merge_catalogues_output.csv',
