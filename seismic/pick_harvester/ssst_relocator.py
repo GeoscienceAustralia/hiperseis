@@ -30,7 +30,7 @@ class SSSTRelocator(ParametricData):
         self._tti = TTInterpolator()
         self._ellipticity = Ellipticity()
         self.station_id = None
-        self.ssst_tcorr = np.zeros(len(self.arrivals), dtype='f4')
+        self.tcorr = np.zeros(len(self.arrivals), dtype='f4')
         self.event_quality = np.ones(len(self.events), dtype='?') # all events are considered good at the outset
 
         # keep a copy of original events for comparing relocations against
@@ -111,7 +111,7 @@ class SSSTRelocator(ParametricData):
         slat = self.arrivals['lat'][self.local_arrivals_indices][imask]
         vsurf = self.vsurf[self.local_arrivals_indices][imask]
         elev_km = self.arrivals['elev_m'][self.local_arrivals_indices][imask] / 1e3
-        ssst_tcorr = self.ssst_tcorr[self.local_arrivals_indices][imask]
+        tcorr = self.tcorr[self.local_arrivals_indices][imask]
 
         azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
 
@@ -123,7 +123,7 @@ class SSSTRelocator(ParametricData):
         ett = self.arrivals['arrival_ts'][self.local_arrivals_indices][imask] - \
               self.events['origin_ts'][indices][imask]
 
-        residual = ett - ssst_tcorr - (ptt.astype('f8') + elev_corr + ellip_corr)
+        residual = ett - tcorr - (ptt.astype('f8') + elev_corr + ellip_corr)
         #residual = ett - (ptt.astype('f8') + elev_corr + ellip_corr)
 
         # set invalid residuals
@@ -234,7 +234,46 @@ class SSSTRelocator(ParametricData):
         return ellip_corr
     # end func
 
-    def compute_ssst_correction(self, imask=None, event_quality=None, ball_radius_km=11.):
+    def compute_sst_correction(self, imask=None, min_slope_ratio=5):
+        """
+        Operates on global data
+        @param imask: dim(len(self.arrivals))
+        @param min_slope_ratio:
+        """
+        if(imask is None): imask = np.ones(len(self.arrivals), dtype='?')
+
+        stas = np.unique(self.station_id)
+        local_sids = split_list(stas, self.nproc)[self.rank]
+        local_corrs = np.ones(len(self.arrivals), dtype='f4') * np.nan
+
+        for sid in tqdm(local_sids, desc='SST Rank {}: '.format(self.rank)):
+            sta_arrival_indices = np.argwhere((self.station_id == sid) & (imask)).flatten()
+
+            # drop automatic arrival indices where slope_ratio < min_slope_ratio
+            sta_arrival_indices = sta_arrival_indices[ ((self.is_AUTO_arrival[sta_arrival_indices]) & \
+                                                        (self.arrivals['quality_measure_slope'][sta_arrival_indices] >= min_slope_ratio)) | \
+                                                       (~self.is_AUTO_arrival[sta_arrival_indices]) ]
+
+            sta_arrivals = self.arrivals[sta_arrival_indices]
+
+            phases = set(sta_arrivals['phase'])
+            for p in phases:
+                pimask = sta_arrivals['phase'] == p
+
+                residuals = self.residual[sta_arrival_indices][pimask]
+                residuals = np.ma.masked_array(residuals, mask=residuals==self._tti.fill_value)
+                sst_corr = 0
+                if(np.sum(~residuals.mask)): sst_corr = np.ma.mean(residuals)
+
+                local_corrs[sta_arrival_indices[pimask]] = sst_corr
+            # end for
+        # end for
+
+        indices = np.argwhere(~np.isnan(local_corrs)).flatten()
+        self.tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
+    # end func
+
+    def compute_ssst_correction(self, imask=None, event_quality=None, ball_radius_km=55, min_slope_ratio=5):
         """
         Operates on global data
         @param imask: dim(len(self.arrivals))
@@ -246,10 +285,16 @@ class SSSTRelocator(ParametricData):
 
         stas = np.unique(self.station_id)
         local_sids = split_list(stas, self.nproc)[self.rank]
-        local_corrs = np.zeros(len(self.arrivals), dtype='f4')
+        local_corrs = np.ones(len(self.arrivals), dtype='f4') * np.nan
 
-        for sid in tqdm(local_sids, desc='Rank {}: '.format(self.rank)):
+        for sid in tqdm(local_sids, desc='SSST Rank {}: '.format(self.rank)):
             sta_arrival_indices = np.argwhere((self.station_id == sid) & (imask)).flatten()
+
+            # drop automatic arrival indices where slope_ratio < min_slope_ratio
+            sta_arrival_indices = sta_arrival_indices[ ((self.is_AUTO_arrival[sta_arrival_indices]) & \
+                                                        (self.arrivals['quality_measure_slope'][sta_arrival_indices] >= min_slope_ratio)) | \
+                                                       (~self.is_AUTO_arrival[sta_arrival_indices]) ]
+
             sta_arrivals = self.arrivals[sta_arrival_indices]
 
             phases = set(sta_arrivals['phase'])
@@ -293,12 +338,13 @@ class SSSTRelocator(ParametricData):
             # end for
         # end for
 
-        self.ssst_tcorr = self._sum(local_corrs)
+        indices = np.argwhere(~np.isnan(local_corrs)).flatten()
+        self.tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
     # end func
 
     def relocate_events(self, imask=None, reloc_niter=10, reloc_dlon=0.25,
                         reloc_dlat=0.25, reloc_ddep=10, reloc_sfrac=0.5,
-                        min_slope_ratio=3):
+                        min_slope_ratio=5):
 
         """
         Operates on local data
@@ -315,7 +361,7 @@ class SSSTRelocator(ParametricData):
         if (imask is None): imask = np.ones(len(self.local_events_indices), dtype='?')
 
         qual = np.ones(len(self.local_events_indices), dtype='?')
-        for i, iev in enumerate(tqdm(self.local_events_indices[imask])):
+        for i, iev in enumerate(tqdm(self.local_events_indices[imask], desc='RELOC Rank {}: '.format(self.rank))):
             event = self.events[iev]
 
             arrival_indices = np.argwhere(self.arrivals['event_id'] == event['event_id']).flatten()
@@ -335,7 +381,7 @@ class SSSTRelocator(ParametricData):
             elev_km = self.arrivals['elev_m'][arrival_indices] / 1e3
             phase = self.arrivals['phase'][arrival_indices]
             ett = self.arrivals['arrival_ts'][arrival_indices] - event['origin_ts']
-            ssst_tcorr = self.ssst_tcorr[arrival_indices]
+            tcorr = self.tcorr[arrival_indices]
 
             elon0 = event['lon']
             elat0 = event['lat']
@@ -374,7 +420,7 @@ class SSSTRelocator(ParametricData):
                             npick_used = np.sum(~tt.mask)
                             if (npick_used):
                                 ptt = tt + elev_corr + ellip_corr
-                                residual = ett - ssst_tcorr - ptt
+                                residual = ett - tcorr - ptt
 
                                 residmed = np.ma.mean(residual)
                                 E0 = np.sqrt(np.mean(np.power(residual - residmed, 2)))
@@ -397,14 +443,14 @@ class SSSTRelocator(ParametricData):
             self.events[iev]['lon'] = elon_best
             self.events[iev]['lat'] = elat_best
             self.events[iev]['depth_km'] = edepth_km_best
-            self.events[iev]['origin_ts'] += dtbest
+            #self.events[iev]['origin_ts'] += dtbest
             qual[i] = True if npick_used_best >= 3 else False
         # end for
 
         self.events['lon'] = self._sync_var(self.events['lon'][self.local_events_indices])
         self.events['lat'] = self._sync_var(self.events['lat'][self.local_events_indices])
         self.events['depth_km'] = self._sync_var(self.events['depth_km'][self.local_events_indices])
-        self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
+        #self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
 
         return qual
     # end func
@@ -441,69 +487,75 @@ class SSSTRelocator(ParametricData):
             # end for
 
             # dump ssst-tcorrs
-            else: ag.create_dataset('ssst_tcorr', data=self.ssst_tcorr)
+            else: ag.create_dataset('tcorr', data=self.tcorr)
 
             # dump residuals
-            if(iter == 0): ag.create_dataset('residual', data=self.r0)
-            else: ag.create_dataset('residual', data=self.residual)
+            if(iter == 0): ag.create_dataset('r0', data=self.r0)
+            ag.create_dataset('residual', data=self.residual)
 
             h.close()
         # end func
 
-        #===========================================================
-        # Relocate events and redefine phases
-        #===========================================================
         SOL_DLON = 0.25 # +/- 0.25 degrees
         SOL_DLAT = 0.25 # +/- 0.25 degrees
         SOL_DDEPTH_KM = 20 # +/- 20 km
         SOL_DT = 5 # +/- 5 seconds
+        BALL_RADIUS_KM = 330
 
         if (arrival_imask is None): arrival_imask = np.ones(len(self.arrivals), dtype='?')
         if (event_imask is None): event_imask = np.ones(len(self.svents), dtype='?')
 
         qual = None
-        for issst in tqdm(np.arange(ssst_niter), desc='SSST-iter: '):
-            #=======================================================
-            # compute all residuals and save r0, since some
-            # residuals are recomputed in redefine_phases
-            #=======================================================
-            self.compute_residual()
-            if(issst == 0): self.r0 = np.array(self.residual)
+        self.compute_residual()
+        self.r0 = np.array(self.residual)
 
-            # dump results
-            if(self.rank == 0 and output_fn): dump_h5(output_fn, issst)
-
+        if(1):
+            #===========================================================
+            # SST relocate events and redefine phases
+            #===========================================================
             self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
-
-            self.compute_ssst_correction(imask=arrival_imask,
-                                         event_quality=self.event_quality,
-                                         ball_radius_km=float(ball_radius_km) / float(issst + 1))
-
+            self.compute_sst_correction(imask=arrival_imask)
             qual = self.relocate_events(imask=event_imask[self.local_events_indices])
 
-            # label divergent events so their arrivals are not used while SSST
-            # correction terms are computed
-            cei = (np.fabs(self.orig_events['lon'][self.local_events_indices] - self.events['lon'][self.local_events_indices]) < SOL_DLON) & \
-                  (np.fabs(self.orig_events['lat'][self.local_events_indices] - self.events['lat'][self.local_events_indices]) < SOL_DLAT) & \
-                  (np.fabs(self.orig_events['depth_km'][self.local_events_indices] - self.events['depth_km'][self.local_events_indices]) < SOL_DDEPTH_KM) & \
-                  ((np.fabs(self.orig_events['origin_ts'][self.local_events_indices] - self.events['origin_ts'][self.local_events_indices]) < SOL_DT))
-            qual[~cei] = False
-
             self.event_quality = self._sync_var(qual)
-        # end for
 
-        #===========================================================
-        # Compute residual and redefine phases after final
-        # relocation
-        #===========================================================
-        self.compute_residual()
-        self.compute_ssst_correction(imask=arrival_imask,
-                                     event_quality=self.event_quality,
-                                     ball_radius_km=float(ball_radius_km) / float(ssst_niter))
-        self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
+            # dump results
+            if (self.rank == 0 and output_fn): dump_h5(output_fn, 0)
+        # end if
 
-        # dump results after final phase redefinition
-        if (self.rank == 0 and output_fn): dump_h5(output_fn, ssst_niter)
+        if(1):
+            # ===========================================================
+            # SSST relocate events and redefine phases
+            # ===========================================================
+            for issst in tqdm(np.arange(1, ssst_niter+1), desc='SSST-iter: '):
+                #=======================================================
+                # compute all residuals and save r0, since some
+                # residuals are recomputed in redefine_phases
+                #=======================================================
+                self.compute_residual()
+
+                self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
+
+                self.compute_ssst_correction(imask=arrival_imask,
+                                             event_quality=self.event_quality,
+                                             ball_radius_km=float(BALL_RADIUS_KM) / float(issst))
+
+                qual = self.relocate_events(imask=event_imask[self.local_events_indices])
+
+                # label divergent events so their arrivals are not used while SSST
+                # correction terms are computed
+                cei = (np.fabs(self.orig_events['lon'][self.local_events_indices] - self.events['lon'][self.local_events_indices]) < SOL_DLON) & \
+                      (np.fabs(self.orig_events['lat'][self.local_events_indices] - self.events['lat'][self.local_events_indices]) < SOL_DLAT) & \
+                      (np.fabs(self.orig_events['depth_km'][self.local_events_indices] - self.events['depth_km'][self.local_events_indices]) < SOL_DDEPTH_KM) & \
+                      ((np.fabs(self.orig_events['origin_ts'][self.local_events_indices] - self.events['origin_ts'][self.local_events_indices]) < SOL_DT))
+                qual[~cei] = False
+
+                self.event_quality = self._sync_var(qual)
+
+                # dump results
+                if (self.rank == 0 and output_fn): dump_h5(output_fn, issst)
+            # end for
+        # end if
     # end func
 
     def _initialize_spatial_functors(self, ellipsoidal_distance=False):
@@ -573,22 +625,21 @@ class SSSTRelocator(ParametricData):
         setattr(self, 'is_AUTO_arrival', self.arrivals['quality_measure_slope'] > -1)
     # end func
 
-    def _sum(self, rank_values):
-        # sum of local values across ranks
-        counts = np.array(self.comm.allgather(len(rank_values)), dtype='i4')
-        assert(np.all(counts[0]==counts))
+    def _gather(self, final_size, rank_values, rank_indices):
+        assert(len(rank_values) == len(rank_indices))
 
-        nelem = counts[0]
         dtype = rank_values.dtype
-        global_values = np.zeros(nelem, dtype=dtype)
+        global_values = np.zeros(final_size, dtype=dtype)
 
-        fn = self._temp_dir + '/sum.h5'
+        fn = self._temp_dir + '/gather.h5'
 
         for irank in np.arange(self.nproc):
             if(self.rank == irank):
                 hf = h5py.File(fn, 'a')
-                dset = hf.create_dataset("%d" % (self.rank), rank_values.shape, dtype=rank_values.dtype)
+                dset = hf.create_dataset("{}".format(self.rank), rank_values.shape, dtype=rank_values.dtype)
                 dset[:] = rank_values
+                dset_i = hf.create_dataset("{}_i".format(self.rank), rank_values.shape, dtype=rank_indices.dtype)
+                dset_i[:] = rank_indices
                 hf.close()
             # end if
             self.comm.Barrier()
@@ -596,7 +647,9 @@ class SSSTRelocator(ParametricData):
 
         hf = h5py.File(fn, 'r')
         for irank in np.arange(self.nproc):
-            global_values[:] += hf['{}'.format(irank)][:]
+            dset = hf['{}'.format(irank)][:]
+            dset_i = hf['{}_i'.format(irank)][:]
+            global_values[dset_i] = dset
         # end for
         hf.close()
 
@@ -703,7 +756,7 @@ if __name__ == "__main__":
         sr.compute_ssst_correction()
         if(sr.rank==0):
             np.save('test_arrivals.npy', sr.arrivals)
-            np.save('ssst_tcorr.npy', sr.ssst_tcorr)
+            np.save('tcorr.npy', sr.tcorr)
         # end if
 
         if(sr.rank == 0):
