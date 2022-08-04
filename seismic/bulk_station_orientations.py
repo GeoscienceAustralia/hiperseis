@@ -27,6 +27,7 @@ import click
 import uuid, json
 import cartopy.crs as ccrs
 import numpy as np
+from scipy.stats import circmean as cmean
 import matplotlib
 from mpi4py import MPI
 
@@ -55,6 +56,7 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     maxLat = -1e32
 
     coords = defaultdict()
+    lons = []
     for k, v in station_coords_dict.items():
         lon, lat = v[0], v[1]
 
@@ -64,6 +66,7 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
         maxLat = max(lat, maxLat)
 
         coords[k] = [lon, lat]
+        lons.append(lon)
     # end for
 
     minLon -= 0.5
@@ -71,7 +74,11 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     minLat -= 0.5
     maxLat += 0.5
 
-    crs = ccrs.PlateCarree()
+    lons = np.array(lons)
+    clon = cmean(lons, high=180, low=-180)
+
+    crs = ccrs.PlateCarree(central_longitude=clon)
+
     fig = plt.figure(figsize=(paper_size_A4[0], paper_size_A4[1]))
     ax1 = plt.subplot(2, 1, 1, projection=crs)
     ax2 = plt.subplot(2, 1, 2, projection=crs)
@@ -79,7 +86,7 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     for ax, ttext in zip([ax1, ax2], ['Azimuth corrections (RF)', 'Azimuth corrections (Surface-wave Polarization)']):
         # draw coastlines.
         ax.coastlines('50m')
-        ax.set_extent([minLon, maxLon, minLat, maxLat], crs)
+        #ax.set_extent([minLon, maxLon, minLat, maxLat], crs)
         gl = ax.gridlines(draw_labels=True,
                           linewidth=1, color='gray',
                           alpha=0.5, linestyle='--')
@@ -139,8 +146,8 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
             for ax, corr in zip([ax1, ax2], [corr_rf, corr_swp]):
                 # print (np.fabs(corr_rf-corr_swp))
                 color = cmap(norm(np.fabs(corr_rf - corr_swp)))
-                px, py = lon, lat
-                pxl, pyl = lon + 0.02, lat - 0.1
+                px, py = lon-clon, lat
+                pxl, pyl = lon-clon + 0.02, lat - 0.1
                 ax.scatter(px, py, 2, transform=crs, marker='o', c='g', edgecolor='none', zorder=10)
                 ax.annotate(sta, xy=(pxl, pyl), fontsize=3)
 
