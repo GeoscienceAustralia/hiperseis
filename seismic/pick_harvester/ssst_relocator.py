@@ -31,7 +31,9 @@ class SSSTRelocator(ParametricData):
         self._ellipticity = Ellipticity()
         self.station_id = None
         self.tcorr = np.zeros(len(self.arrivals), dtype='f4')
+        self.sst_tcorr = np.zeros(len(self.arrivals), dtype='f4')
         self.event_quality = np.ones(len(self.events), dtype='?') # all events are considered good at the outset
+        self.arrivals_relocated = None # arrivals that belong to events being relocated
 
         # keep a copy of original events for comparing relocations against
         self.orig_events = np.array(self.events)
@@ -270,18 +272,17 @@ class SSSTRelocator(ParametricData):
         # end for
 
         indices = np.argwhere(~np.isnan(local_corrs)).flatten()
-        self.tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
+        self.sst_tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
+        self.tcorr[:] = self.sst_tcorr[:]
     # end func
 
-    def compute_ssst_correction(self, imask=None, event_quality=None, ball_radius_km=55, min_slope_ratio=5):
+    def compute_ssst_correction(self, imask=None, ball_radius_km=55, min_slope_ratio=5):
         """
         Operates on global data
         @param imask: dim(len(self.arrivals))
-        @param event_quality: dim(len(self.events))
         @param ball_radius_km: radius of sphere for computing SSST corrections
         """
         if(imask is None): imask = np.ones(len(self.arrivals), dtype='?')
-        if(event_quality is None): event_quality = np.ones(len(self.events), dtype='?')
 
         stas = np.unique(self.station_id)
         local_sids = split_list(stas, self.nproc)[self.rank]
@@ -307,7 +308,7 @@ class SSSTRelocator(ParametricData):
                 event_indices = self.event_id_to_idx[sta_arrivals['event_id'][pimask]]
 
                 # drop events where event_quality is False
-                event_indices = event_indices[event_quality[event_indices]]
+                event_indices = event_indices[self.event_quality[event_indices]]
 
                 elons = self.events['lon'][event_indices]
                 elats = self.events['lat'][event_indices]
@@ -339,7 +340,20 @@ class SSSTRelocator(ParametricData):
         # end for
 
         indices = np.argwhere(~np.isnan(local_corrs)).flatten()
-        self.tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
+        global_tcorr = self._gather(len(self.arrivals), local_corrs[indices], indices)
+
+        # ===========================================================
+        # Time corrections (both sst and ssst) applied to arrivals
+        # that belong to events being relocated are cumulative, since
+        # they result in relocation of respective event origins.
+        # Arrivals whose phases are simply redefined without their
+        # respective events being relocated, on the other hand, must
+        # factor in both sst (if available) and ssst time corrections
+        # for the current ssst-relocation iteration.
+        # ===========================================================
+        self.tcorr[self.arrivals_relocated] = global_tcorr[self.arrivals_relocated]
+        self.tcorr[~self.arrivals_relocated] = self.sst_tcorr[~self.arrivals_relocated] + \
+                                               global_tcorr[~self.arrivals_relocated]
     # end func
 
     def relocate_events(self, imask=None, reloc_niter=10, reloc_dlon=0.25,
@@ -355,12 +369,17 @@ class SSSTRelocator(ParametricData):
         @param reloc_dlat:
         @param reloc_ddep:
         @param reloc_sfrac:
-        @return: dim(self.local_event_indices), quality of local events
+        @return:
         """
+        SOL_DLON = 0.25 # +/- 0.25 degrees
+        SOL_DLAT = 0.25 # +/- 0.25 degrees
+        SOL_DDEPTH_KM = 20 # +/- 20 km
+        SOL_DT = 5 # +/- 5 seconds
 
         if (imask is None): imask = np.ones(len(self.local_events_indices), dtype='?')
 
         qual = np.ones(len(self.local_events_indices), dtype='?')
+        selected_local_indices = np.argwhere(imask).flatten()
         for i, iev in enumerate(tqdm(self.local_events_indices[imask], desc='RELOC Rank {}: '.format(self.rank))):
             event = self.events[iev]
 
@@ -443,16 +462,21 @@ class SSSTRelocator(ParametricData):
             self.events[iev]['lon'] = elon_best
             self.events[iev]['lat'] = elat_best
             self.events[iev]['depth_km'] = edepth_km_best
-            #self.events[iev]['origin_ts'] += dtbest
-            qual[i] = True if npick_used_best >= 3 else False
+            self.events[iev]['origin_ts'] += dtbest
+
+            good = (np.fabs(self.orig_events[iev]['lon'] - self.events[iev]['lon']) < SOL_DLON) & \
+                   (np.fabs(self.orig_events[iev]['lat'] - self.events[iev]['lat']) < SOL_DLAT) & \
+                   (np.fabs(self.orig_events[iev]['depth_km'] - self.events[iev]['depth_km']) < SOL_DDEPTH_KM) & \
+                   ((np.fabs(self.orig_events[iev]['origin_ts'] - self.events[iev]['origin_ts']) < SOL_DT))
+            qual[selected_local_indices[i]] = (npick_used_best >= 3) & (good)
         # end for
 
         self.events['lon'] = self._sync_var(self.events['lon'][self.local_events_indices])
         self.events['lat'] = self._sync_var(self.events['lat'][self.local_events_indices])
         self.events['depth_km'] = self._sync_var(self.events['depth_km'][self.local_events_indices])
-        #self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
+        self.events['origin_ts'] = self._sync_var(self.events['origin_ts'][self.local_events_indices])
 
-        return qual
+        self.event_quality = self._sync_var(qual)
     # end func
 
     def ssst_relocate(self, event_imask=None, arrival_imask=None,
@@ -496,16 +520,17 @@ class SSSTRelocator(ParametricData):
             h.close()
         # end func
 
-        SOL_DLON = 0.25 # +/- 0.25 degrees
-        SOL_DLAT = 0.25 # +/- 0.25 degrees
-        SOL_DDEPTH_KM = 20 # +/- 20 km
-        SOL_DT = 5 # +/- 5 seconds
         BALL_RADIUS_KM = 330
 
         if (arrival_imask is None): arrival_imask = np.ones(len(self.arrivals), dtype='?')
         if (event_imask is None): event_imask = np.ones(len(self.svents), dtype='?')
 
-        qual = None
+        self.arrivals_relocated = np.isin(self.arrivals['event_id'], self.events['event_id'][event_imask])
+
+        # =======================================================
+        # compute all residuals and save r0, since some
+        # residuals are recomputed in redefine_phases
+        # =======================================================
         self.compute_residual()
         self.r0 = np.array(self.residual)
 
@@ -515,9 +540,7 @@ class SSSTRelocator(ParametricData):
             #===========================================================
             self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
             self.compute_sst_correction(imask=arrival_imask)
-            qual = self.relocate_events(imask=event_imask[self.local_events_indices])
-
-            self.event_quality = self._sync_var(qual)
+            self.relocate_events(imask=event_imask[self.local_events_indices])
 
             # dump results
             if (self.rank == 0 and output_fn): dump_h5(output_fn, 0)
@@ -528,29 +551,19 @@ class SSSTRelocator(ParametricData):
             # SSST relocate events and redefine phases
             # ===========================================================
             for issst in tqdm(np.arange(1, ssst_niter+1), desc='SSST-iter: '):
-                #=======================================================
-                # compute all residuals and save r0, since some
-                # residuals are recomputed in redefine_phases
-                #=======================================================
                 self.compute_residual()
-
                 self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
 
                 self.compute_ssst_correction(imask=arrival_imask,
-                                             event_quality=self.event_quality,
+                                             #ball_radius_km=float(BALL_RADIUS_KM))
                                              ball_radius_km=float(BALL_RADIUS_KM) / float(issst))
 
-                qual = self.relocate_events(imask=event_imask[self.local_events_indices])
+                self.relocate_events(imask=event_imask[self.local_events_indices])
 
-                # label divergent events so their arrivals are not used while SSST
-                # correction terms are computed
-                cei = (np.fabs(self.orig_events['lon'][self.local_events_indices] - self.events['lon'][self.local_events_indices]) < SOL_DLON) & \
-                      (np.fabs(self.orig_events['lat'][self.local_events_indices] - self.events['lat'][self.local_events_indices]) < SOL_DLAT) & \
-                      (np.fabs(self.orig_events['depth_km'][self.local_events_indices] - self.events['depth_km'][self.local_events_indices]) < SOL_DDEPTH_KM) & \
-                      ((np.fabs(self.orig_events['origin_ts'][self.local_events_indices] - self.events['origin_ts'][self.local_events_indices]) < SOL_DT))
-                qual[~cei] = False
-
-                self.event_quality = self._sync_var(qual)
+                if(issst == ssst_niter):
+                    self.compute_residual()
+                    self.redefine_phases(imask=arrival_imask[self.local_arrivals_indices])
+                # end if
 
                 # dump results
                 if (self.rank == 0 and output_fn): dump_h5(output_fn, issst)
@@ -723,11 +736,13 @@ if __name__ == "__main__":
                        auto_pick_phases=['P', 'S'],
                        events_only=False)
 
-    events_imask, arrivals_imask = parse_config(sr, 'config.json')
-
-    ofn = 'output.h5'
+    ofn = None
+    if(len(sys.argv)==2): ofn = sys.argv[1]
+    else: ofn = 'output.h5'
     if(sr.rank==0):
         if(os.path.exists(ofn)): os.remove(ofn)
+
+    events_imask, arrivals_imask = parse_config(sr, 'config.json')
 
     sr.ssst_relocate(event_imask=events_imask, arrival_imask=arrivals_imask,
                      output_fn=ofn)
