@@ -485,7 +485,7 @@ class SSSTRelocator(ParametricData):
         self.event_quality = self._sync_var(qual)
     # end func
 
-    def ssst_relocate(self, ssst_niter=5, ball_radius_km=55, output_fn=None):
+    def ssst_relocate(self, ssst_niter=5, ball_radius_km=55, min_slope_ratio=5, output_fn=None):
         """
         Operates both on global and local data
         @param ssst_niter:
@@ -523,8 +523,6 @@ class SSSTRelocator(ParametricData):
             h.close()
         # end func
 
-        BALL_RADIUS_KM = 330
-
         # =======================================================
         # compute all residuals and save r0, since some
         # residuals are recomputed in redefine_phases
@@ -537,8 +535,9 @@ class SSSTRelocator(ParametricData):
             # SST relocate events and redefine phases
             #===========================================================
             self.redefine_phases(imask=self.arrivals_imask[self.local_arrivals_indices])
-            self.compute_sst_correction()
-            self.relocate_events(imask=self.events_imask[self.local_events_indices])
+            self.compute_sst_correction(min_slope_ratio=min_slope_ratio)
+            self.relocate_events(imask=self.events_imask[self.local_events_indices],
+                                 min_slope_ratio=min_slope_ratio)
 
             # dump results
             if (self.rank == 0 and output_fn): dump_h5(output_fn, 0)
@@ -552,10 +551,11 @@ class SSSTRelocator(ParametricData):
                 self.compute_residual()
                 self.redefine_phases(imask=self.arrivals_imask[self.local_arrivals_indices])
 
-                self.compute_ssst_correction(#ball_radius_km=float(BALL_RADIUS_KM))
-                                             ball_radius_km=float(BALL_RADIUS_KM) / float(issst))
+                self.compute_ssst_correction(ball_radius_km=ball_radius_km,
+                                             min_slope_ratio=min_slope_ratio)
 
-                self.relocate_events(imask=self.events_imask[self.local_events_indices])
+                self.relocate_events(imask=self.events_imask[self.local_events_indices],
+                                     min_slope_ratio=min_slope_ratio)
 
                 if(issst == ssst_niter):
                     self.compute_residual()
@@ -748,8 +748,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               show_default=True)
 @click.option('--ssst-niter', type=int, default=5,
               help='Number of ssst iterations', show_default=True)
+@click.option('--ball-radius-km', type=int, default=55,
+              help='Radius of sphere in km used for calculating ssst corrections', show_default=True)
 def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_picks_s,
-            min_slope_ratio, ssst_niter):
+            min_slope_ratio, ssst_niter, ball_radius_km):
     """
     CATALOG_CSV: catalog in csv format
     CONFIG: config file in json format
@@ -775,7 +777,8 @@ def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_
                        auto_pick_phases=auto_pick_phases,
                        events_only=False)
 
-    sr.ssst_relocate(ssst_niter=ssst_niter, output_fn=output_file_name)
+    sr.ssst_relocate(ssst_niter=ssst_niter, min_slope_ratio=min_slope_ratio,
+                     output_fn=output_file_name)
 # end func
 
 if __name__ == "__main__":
