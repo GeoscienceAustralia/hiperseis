@@ -1,22 +1,17 @@
 from ordered_set import OrderedSet as set
 import numpy as np
-from obspy import UTCDateTime
 from scipy.spatial import cKDTree
 import pyproj
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
 from seismic.pick_harvester.parametric_data import ParametricData
-import importlib
-import sys, os
+import os
 from tqdm import tqdm
 from seismic.pick_harvester.travel_time import TTInterpolator
 from seismic.pick_harvester.ellipticity import Ellipticity
-import traceback
-import psutil
 import h5py
 import json
-import click
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[], config_fn=None,
@@ -26,7 +21,7 @@ class SSSTRelocator(ParametricData):
         self.config_fn = config_fn
         self._lonlatalt2xyz = None
         self.vsurf = None
-        self.residual = None
+        self.residual = np.zeros(len(self.arrivals), dtype='f4')
         self._source_enum = defaultdict(int)
         self._arrival_source = None
         self._tti = TTInterpolator()
@@ -42,6 +37,9 @@ class SSSTRelocator(ParametricData):
 
         # keep a copy of original events for comparing relocations against
         self.orig_events = np.array(self.events)
+
+        # keep a copy of input arrival phases for producing relevant plots
+        self.orig_phases = np.array(self.arrivals['phase'])
 
         # a copy of residuals computed before phases are redefined and ssst-relocations applied
         self.r0 = None
@@ -134,11 +132,9 @@ class SSSTRelocator(ParametricData):
               self.events['origin_ts'][indices][imask]
 
         residual = ett - tcorr - (ptt.astype('f8') + elev_corr + ellip_corr)
-        #residual = ett - (ptt.astype('f8') + elev_corr + ellip_corr)
 
         # set invalid residuals
         residual[ptt == self._tti.fill_value] = self._tti.fill_value
-        #print("Rank: {}, Num invalid residuals: {}".format(self.rank, np.sum(ptt==self._tti.fill_value)))
 
         return residual
     # end func
@@ -727,60 +723,3 @@ class SSSTRelocator(ParametricData):
         self.arrivals_relocated = np.isin(self.arrivals['event_id'], self.events['event_id'][self.events_imask])
     # end func
 # end class
-
-
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.argument('catalog_csv', type=click.Path(exists=True, dir_okay=False),
-                required=True)
-@click.argument('config', type=click.Path(exists=True, dir_okay=False),
-                required=True)
-@click.argument('output_file_name', type=click.Path(exists=False, dir_okay=False),
-                required=True)
-@click.option('--automatic-picks-p', type=click.Path(dir_okay=False), default=None,
-              help='Automatic P picks in txt format (output of pick.py).', show_default=True)
-@click.option('--automatic-picks-s', type=click.Path(dir_okay=False), default=None,
-              help='Automatic S picks in txt format (output of pick.py).', show_default=True)
-@click.option('--min-slope-ratio', default=5, help='Automatic arrivals with quality_measure_slope less than this '
-                                                   'value are excluded from SST and SSST computations and the event '
-                                                   'relocation procedure -- the phases of such arrivals are redefined '
-                                                   'nonetheless.',
-              show_default=True)
-@click.option('--ssst-niter', type=int, default=5,
-              help='Number of ssst iterations', show_default=True)
-@click.option('--ball-radius-km', type=int, default=55,
-              help='Radius of sphere in km used for calculating ssst corrections', show_default=True)
-def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_picks_s,
-            min_slope_ratio, ssst_niter, ball_radius_km):
-    """
-    CATALOG_CSV: catalog in csv format
-    CONFIG: config file in json format
-    OUTPUT_FILE_NAME: name of output file
-    """
-
-    if('H5' not in output_file_name.upper()): output_file_name = output_file_name + '.h5'
-
-    auto_pick_files = []
-    auto_pick_phases = []
-    if(automatic_picks_p):
-        auto_pick_files.append(automatic_picks_p)
-        auto_pick_phases.append('P')
-    # end if
-    if(automatic_picks_s):
-        auto_pick_files.append(automatic_picks_s)
-        auto_pick_phases.append('S')
-    # end if
-
-    sr = SSSTRelocator(catalog_csv,
-                       config_fn=config,
-                       auto_pick_files=auto_pick_files,
-                       auto_pick_phases=auto_pick_phases,
-                       events_only=False)
-
-    sr.ssst_relocate(ssst_niter=ssst_niter, min_slope_ratio=min_slope_ratio,
-                     output_fn=output_file_name)
-# end func
-
-if __name__ == "__main__":
-    process()
-# end if
