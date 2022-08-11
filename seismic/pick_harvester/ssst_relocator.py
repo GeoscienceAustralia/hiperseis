@@ -1,3 +1,17 @@
+"""
+Description:
+    Implements the SSSTRelocator class that relocates events and redefines arrival phases
+
+References:
+
+CreationDate:   20/07/22
+Developer:      rakib.hassan@ga.gov.au
+
+Revision History:
+    LastUpdate:     20/07/22   RH
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
+"""
+
 from ordered_set import OrderedSet as set
 import numpy as np
 from scipy.spatial import cKDTree
@@ -512,10 +526,27 @@ class SSSTRelocator(ParametricData):
             # dump ssst-tcorrs
             else: ag.create_dataset('tcorr', data=self.tcorr)
 
-            # dump residuals
-            if(iter == 0): ag.create_dataset('r0', data=self.r0)
+            # dump residual
             ag.create_dataset('residual', data=self.residual)
 
+            if(iter == 0):
+                # dump r0
+                ag.create_dataset('r0', data=self.r0)
+
+                # dump all is_SRC_[event/arrival] boolean arrays -- note that these flags
+                # remain immutable since creation
+                vlist = [v for v in vars(self) if 'is' in v and ('event' in v or 'arrival' in v)]
+                for v in vlist:
+                    if('event' in v):
+                        eg.create_dataset(v, data=getattr(self, v))
+                    elif('arrival' in v):
+                        ag.create_dataset(v, data=getattr(self, v))
+                    # end if
+                # end for
+
+                # dump event-id-to-idx
+                eg.create_dataset('event_id_to_idx', data=self.event_id_to_idx)
+            # end if
             h.close()
         # end func
 

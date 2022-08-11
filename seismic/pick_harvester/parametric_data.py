@@ -1,3 +1,17 @@
+"""
+Description:
+    Reads parametric data from a catalog and optionally provided automatic picks
+
+References:
+
+CreationDate:   10/06/22
+Developer:      rakib.hassan@ga.gov.au
+
+Revision History:
+    LastUpdate:     10/06/22   RH
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
+"""
+
 from ordered_set import OrderedSet as set
 import numpy as np
 from obspy import UTCDateTime

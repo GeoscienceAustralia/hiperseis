@@ -1,3 +1,18 @@
+#!/bin/env python
+"""
+Description:
+    Relocates events and redefines arrival phases
+
+References:
+
+CreationDate:   10/08/22
+Developer:      rakib.hassan@ga.gov.au
+
+Revision History:
+    LastUpdate:     10/08/22   RH
+    LastUpdate:     dd/mm/yyyy  Who     Optional description
+"""
+
 import matplotlib.pyplot as plt
 
 from seismic.pick_harvester.ssst_relocator import SSSTRelocator
@@ -333,6 +348,9 @@ def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_
     """
 
     if('H5' not in output_file_name.upper()): output_file_name = output_file_name + '.h5'
+    if(os.path.exists(output_file_name)):
+        assert 0, 'Output file exists; Aborting..'
+    # end if
 
     auto_pick_files = []
     auto_pick_phases = []
