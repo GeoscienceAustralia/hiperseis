@@ -326,7 +326,7 @@ class _FederatedASDFDataSetImpl():
                 self.conn.execute('create table wdb(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
                 self.conn.execute('create table netsta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
-                                  'lat double)')
+                                  'lat double, elev_m double)')
                 self.conn.execute('create table masterinv(inv blob)')
 
                 metadatalist = []
@@ -349,12 +349,13 @@ class _FederatedASDFDataSetImpl():
                     for k in list(coords_dict.keys()):
                         lon = coords_dict[k]['longitude']
                         lat = coords_dict[k]['latitude']
+                        elev_m = coords_dict[k]['elevation_in_m']
                         nc, sc = k.split('.')
-                        metadatalist.append([ids, nc, sc, lon, lat])
+                        metadatalist.append([ids, nc, sc, lon, lat, elev_m])
                     # end for
                 # end for
-                self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat) values '
-                                      '(?, ?, ?, ?, ?)', metadatalist)
+                self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat, elev_m) values '
+                                      '(?, ?, ?, ?, ?, ?)', metadatalist)
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
                 self.conn.commit()
@@ -417,8 +418,8 @@ class _FederatedASDFDataSetImpl():
         # Load metadata
         rows = self.conn.execute('select * from netsta').fetchall()
         for row in rows:
-            ds_id, net, sta, lon, lat = row
-            self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat]
+            ds_id, net, sta, lon, lat, elev_m = row
+            self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat, elev_m]
         # end for
 
         # Load master inventory
@@ -468,7 +469,8 @@ class _FederatedASDFDataSetImpl():
 
             rv = (net, sta, loc, cha,
                   self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][0],
-                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][1])
+                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][1],
+                  self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)][2])
             results.add(rv)
         # end for
 

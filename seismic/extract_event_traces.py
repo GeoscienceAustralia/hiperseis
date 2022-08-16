@@ -170,7 +170,7 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
                                                   location=location)
     if matching_stations:
         ch_matcher = re.compile(channel)
-        for net, sta, loc, cha, _, _ in matching_stations:
+        for net, sta, loc, cha, _, _, _ in matching_stations:
             if ch_matcher.match(cha):
                 st += asdf_dataset.get_waveforms(net, sta, loc, cha, starttime, endtime)
         # end for
@@ -303,21 +303,20 @@ class Picker():
     def pick(self, ztrace, ntrace, etrace, phase='P'):
         slope_ratio = -1
         arrival_time = UTC(-1)
-        origin = Origin(ztrace.stats.event_time,
-                        ztrace.stats.event_latitude,
-                        ztrace.stats.event_longitude,
-                        ztrace.stats.event_depth)
-        event = Event()
-        event.preferred_origin = origin
-        event.public_id = Picker.counter; Picker.counter += 1
-        event.preferred_magnitude = Magnitude(mag=ztrace.stats.event_magnitude, mag_type='M')
+
+        # construct a named array for event meta-data, as expected in extract_[p/s]
+        event_fields = {'names': ['source', 'event_id', 'origin_ts', 'mag', 'lon', 'lat', 'depth_km'],
+                        'formats': ['S10', 'i4', 'f8', 'f4', 'f4', 'f4', 'f4']}
+        events = np.array([('', 0, ztrace.stats.event_time.timestamp,
+                            ztrace.stats.event_magnitude, ztrace.stats.event_longitude,
+                            ztrace.stats.event_latitude, ztrace.stats.event_depth)], dtype=event_fields)
 
         result = None
         if(phase == 'P'):
-            result = extract_p(self._taup_model, self._picker_list_p, event, ztrace.stats.station_longitude,
+            result = extract_p(self._taup_model, self._picker_list_p, events[0], ztrace.stats.station_longitude,
                                ztrace.stats.station_latitude, Stream(ztrace), margin=5)
         elif(phase == 'S'):
-            result = extract_s(self._taup_model, self._picker_list_s, event, ztrace.stats.station_longitude,
+            result = extract_s(self._taup_model, self._picker_list_s, events[0], ztrace.stats.station_longitude,
                                ztrace.stats.station_latitude, Stream(ntrace), Stream(etrace),
                                ntrace.stats.back_azimuth, margin=10)
         else:

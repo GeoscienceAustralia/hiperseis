@@ -23,16 +23,21 @@ def split_list(lst, npartitions):
 # end func
 
 class Origin:
+    __slots__ = ['utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list']
+
     def __init__(self, utctime, lat, lon, depthkm):
         self.utctime = utctime
         self.lat = lat
         self.lon = lon
         self.depthkm = depthkm
         self.magnitude_list = []
+        self.arrival_list = []
     # end func
 # end class
 
 class Event:
+    __slots__ = ['public_id', 'preferred_origin', 'preferred_magnitude', 'origin_list']
+
     def __init__(self):
         self.public_id = None
         self.preferred_origin = None
@@ -42,9 +47,28 @@ class Event:
 # end class
 
 class Magnitude:
+    __slots__ = ['magnitude_value', 'magnitude_type']
+
     def __init__(self, mag, mag_type):
         self.magnitude_value = mag
         self.magnitude_type = mag_type
+    # end func
+# end class
+
+class Arrival:
+    __slots__ = ['net', 'sta', 'loc', 'cha', 'lon', 'lat', 'elev', 'phase', 'utctime', 'distance']
+
+    def __init__(self, net, sta, loc, cha, lon, lat, elev, phase, utctime, distance):
+        self.net = net
+        self.sta = sta
+        self.loc = loc
+        self.cha = cha
+        self.lon = lon
+        self.lat = lat
+        self.elev = elev
+        self.phase = phase
+        self.utctime = utctime
+        self.distance = distance
     # end func
 # end class
 
@@ -270,8 +294,9 @@ class Catalog():
 # end class
 
 class CatalogCSV:
-    def __init__(self, event_folder):
+    def __init__(self, event_folder, events_only=True):
         self.event_folder = event_folder
+        self.events_only = events_only
         self.comm = MPI.COMM_WORLD
         self.nproc = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -312,7 +337,7 @@ class CatalogCSV:
 
                         mb = vals[10]
                         ms = vals[11]
-                        mi = vals[12]
+                        ml = vals[12]
                         mw = vals[13]
                         mag = 0
                         magtype='mw'
@@ -325,12 +350,12 @@ class CatalogCSV:
                         elif(mb>0):
                             mag = mb
                             magtype = 'mb'
-                        elif(mi>0):
-                            mag = mi
-                            magtype = 'mi'
+                        elif(ml>0):
+                            mag = ml
+                            magtype = 'ml'
                         # end if
 
-                        eventid = vals[-1]
+                        eventid = int(vals[-1])
 
                         utctime = None
                         try:
@@ -348,6 +373,8 @@ class CatalogCSV:
 
                         eventList.append(event)
                         poTimestamps.append(origin.utctime.timestamp)
+                    else:
+                        if(self.events_only): continue
                     # end if
                 # end for
             # end for

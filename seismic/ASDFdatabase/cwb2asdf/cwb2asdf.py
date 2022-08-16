@@ -60,12 +60,15 @@ BUFFER_LENGTH = 1000
 @click.argument('inventory', required=True,
                 type=click.Path(exists=True))
 @click.argument('output-file-name', required=True)
+@click.option('--channels-to-extract', type=str, default=None, help="Channels to extract, within quotes and space- "
+                                                                   "separated.")
 @click.option('--min-length-sec', type=int, default=None, help="Minimum length in seconds")
 @click.option('--merge-threshold', type=int, default=None, help="Merge traces if the number of traces fetched for an "
                                                                 "interval exceeds this threshold")
 @click.option('--ntraces-per-file', type=int, default=3600, help="Maximum number of traces per file; if exceeded, the "
                                                                  "file is ignored.")
-def process(input_folder, inventory, output_file_name, min_length_sec, merge_threshold, ntraces_per_file):
+def process(input_folder, inventory, output_file_name, channels_to_extract, min_length_sec, merge_threshold,
+            ntraces_per_file):
     """
     INPUT_FOLDER: Path to input folder containing miniseed files \n
     INVENTORY: Path to FDSNStationXML inventory containing channel-level metadata for all stations \n
@@ -92,6 +95,11 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
         # end for
     # end func
 
+    # process channels-to-extract
+    if(channels_to_extract is not None):
+        channels_to_extract = set([item.strip().upper() for item in channels_to_extract.split()])
+    # end if
+
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
@@ -115,20 +123,29 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
 
         files = np.array(files)
         random.Random(nproc).shuffle(files)
-        # files = files[:100]
+        #files = files[370:380]
 
         ustations = set()
         networklist = []
         stationlist = []
+        filtered_files = []
         for file in files:
-            _, _, net, sta, _ = file.split('.')
+            #_, _, net, sta, _ = file.split('.')
             #tokens = os.path.basename(file).split('.')
             #net, sta = tokens[0], tokens[1]
+
+            st = read(file, headonly=True)
+            if(len(st) == 0): continue
+
+            net = st[0].meta.network
+            sta = st[0].meta.station
 
             ustations.add('%s.%s' % (net, sta))
             networklist.append(net)
             stationlist.append(sta)
+            filtered_files.append(file)
         # end for
+        files = np.array(filtered_files)
 
         networklist = np.array(networklist)
         stationlist = np.array(stationlist)
@@ -222,6 +239,9 @@ def process(input_folder, inventory, output_file_name, min_length_sec, merge_thr
 
                 if(len(ostream) < BUFFER_LENGTH):
                     for tr in st:
+                        if (channels_to_extract):
+                            if (tr.meta.channel not in channels_to_extract): continue
+                        # end if
 
                         if (tr.stats.npts == 0): continue
                         if (min_length_sec):

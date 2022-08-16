@@ -30,7 +30,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 
 # Initialize input data
 files_dir = tempfile.mkdtemp(suffix='_test_correlator')
-files_dir = '/g/data/ha3/rakib/tmp/xcorrOutput'
+#files_dir = '/g/data/ha3/rakib/tmp/xcorrOutput'
 asdf_file_list1 = os.path.join(files_dir, 'asdf_file_list1.txt')
 asdf_file_list2 = os.path.join(files_dir, 'asdf_file_list2.txt')
 pref_file1 = os.path.join(files_dir, 'pref_file1.txt')
