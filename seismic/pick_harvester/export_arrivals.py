@@ -22,7 +22,7 @@ import numpy as np
 from pyproj import Geod
 from geographiclib.geodesic import Geodesic
 from tqdm import tqdm
-
+from cycler import cycler
 import os
 import click
 
@@ -201,6 +201,23 @@ def plot_results(input_h5, pdf_output_fn, min_slope_ratio=5):
     # end for
 
     # ===========================================================
+    # Gather indices of different phases
+    # ===========================================================
+    phase_indices_dict = {}
+    for p in [b'P', b'Pg', b'Pb', b'Pn', b'S', b'Sg', b'Sb', b'Sn']:
+        phase_indices_dict[p] = arrivals['phase'] == p
+    # end for
+
+    elons = events['lon'][event_id_to_idx[arrivals['event_id']]]
+    elats = events['lat'][event_id_to_idx[arrivals['event_id']]]
+    slons = arrivals['lon']
+    slats = arrivals['lat']
+    azim, _, ecdist = geod.inv(elons, elats, slons, slats)
+
+    t = arrivals['arrival_ts'] - events['origin_ts'][event_id_to_idx[arrivals['event_id']]]
+    custom_cycler = (cycler(color=['r', 'g', 'b', 'm']))
+
+    # ===========================================================
     # Plot distributions of residuals for all preexisting arrivals
     # to be exported
     # ===========================================================
@@ -211,8 +228,8 @@ def plot_results(input_h5, pdf_output_fn, min_slope_ratio=5):
     sfilt = (eqfilt) & (arrivals['phase'].astype('S1') == b'S') & \
             (~is_AUTO_arrival) & (np.fabs(residual) < S_CUTOFF)
 
-    fig, axes = plt.subplots(1, 2)
-    fig.set_size_inches(10, 5)
+    fig, axes = plt.subplots(1, 4)
+    fig.set_size_inches(20, 5)
 
     _ = axes[0].hist(residual[pfilt], bins=20)
     _ = axes[1].hist(residual[sfilt], bins=20)
@@ -225,6 +242,32 @@ def plot_results(input_h5, pdf_output_fn, min_slope_ratio=5):
     axes[0].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(residual[pfilt])), transform=axes[0].transAxes)
     axes[1].text(0.7, 0.7, 'N: {}'.format(np.sum(sfilt)), transform=axes[1].transAxes)
     axes[1].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(residual[sfilt])), transform=axes[1].transAxes)
+
+    # distance-time scatter plots
+    axes[2].set_prop_cycle(custom_cycler)
+    axes[3].set_prop_cycle(custom_cycler)
+
+    for k in phase_indices_dict.keys():
+        x1 = y1 = x2 = y2 = None
+        if (b'P' in k):
+            x1 = ecdist[phase_indices_dict[k] & eqfilt & ~is_AUTO_arrival & (np.fabs(residual) < P_CUTOFF)]
+            y1 = t[phase_indices_dict[k] & eqfilt & ~is_AUTO_arrival & (np.fabs(residual) < P_CUTOFF)]
+            axes[2].scatter(x1, y1, s=0.1, label=k.decode(), rasterized=True)
+        elif (b'S' in k):
+            x2 = ecdist[phase_indices_dict[k] & eqfilt & ~is_AUTO_arrival & (np.fabs(residual) < S_CUTOFF)]
+            y2 = t[phase_indices_dict[k] & eqfilt & ~is_AUTO_arrival & (np.fabs(residual) < S_CUTOFF)]
+            axes[3].scatter(x2, y2, s=0.1, label=k.decode(), rasterized=True)
+        # end if
+    # end for
+    lg0 = axes[2].legend()
+    lg1 = axes[3].legend()
+
+    for handle in lg0.legendHandles: handle.set_sizes([5.0])
+    for handle in lg1.legendHandles: handle.set_sizes([5.0])
+    axes[2].set_xlabel('Distance [°]')
+    axes[2].set_ylabel('Time [s]')
+    axes[3].set_xlabel('Distance [°]')
+    axes[3].set_ylabel('Time [s]')
 
     fig.suptitle('All Preexisting Arrivals', fontsize=18)
     pdf.savefig(dpi=300)
@@ -241,8 +284,8 @@ def plot_results(input_h5, pdf_output_fn, min_slope_ratio=5):
             (is_AUTO_arrival & (arrivals['quality_measure_slope'] > min_slope_ratio)) & \
             (np.fabs(residual) < S_CUTOFF)
 
-    fig, axes = plt.subplots(1, 2)
-    fig.set_size_inches(10, 5)
+    fig, axes = plt.subplots(1, 4)
+    fig.set_size_inches(20, 5)
 
     _ = axes[0].hist(residual[pfilt], bins=20)
     _ = axes[1].hist(residual[sfilt], bins=20)
@@ -255,6 +298,32 @@ def plot_results(input_h5, pdf_output_fn, min_slope_ratio=5):
     axes[0].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(residual[pfilt])), transform=axes[0].transAxes)
     axes[1].text(0.7, 0.7, 'N: {}'.format(np.sum(sfilt)), transform=axes[1].transAxes)
     axes[1].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(residual[sfilt])), transform=axes[1].transAxes)
+
+    # distance-time scatter plots
+    axes[2].set_prop_cycle(custom_cycler)
+    axes[3].set_prop_cycle(custom_cycler)
+
+    for k in phase_indices_dict.keys():
+        x1 = y1 = x2 = y2 = None
+        if (b'P' in k):
+            x1 = ecdist[phase_indices_dict[k] & eqfilt & is_AUTO_arrival & (np.fabs(residual) < P_CUTOFF)]
+            y1 = t[phase_indices_dict[k] & eqfilt & is_AUTO_arrival & (np.fabs(residual) < P_CUTOFF)]
+            axes[2].scatter(x1, y1, s=0.1, label=k.decode(), rasterized=True)
+        elif (b'S' in k):
+            x2 = ecdist[phase_indices_dict[k] & eqfilt & is_AUTO_arrival & (np.fabs(residual) < S_CUTOFF)]
+            y2 = t[phase_indices_dict[k] & eqfilt & is_AUTO_arrival & (np.fabs(residual) < S_CUTOFF)]
+            axes[3].scatter(x2, y2, s=0.1, label=k.decode(), rasterized=True)
+        # end if
+    # end for
+    lg0 = axes[2].legend()
+    lg1 = axes[3].legend()
+
+    for handle in lg0.legendHandles: handle.set_sizes([5.0])
+    for handle in lg1.legendHandles: handle.set_sizes([5.0])
+    axes[2].set_xlabel('Distance [°]')
+    axes[2].set_ylabel('Time [s]')
+    axes[3].set_xlabel('Distance [°]')
+    axes[3].set_ylabel('Time [s]')
 
     fig.suptitle('All Automatic Arrivals (slope-ratio > {})'.format(min_slope_ratio), fontsize=18)
     pdf.savefig(dpi=300)
