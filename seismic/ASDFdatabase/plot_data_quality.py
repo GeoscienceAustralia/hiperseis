@@ -40,7 +40,7 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.dates import DateFormatter, AutoDateLocator
 from mpi4py import MPI
-from mpl_toolkits.basemap import Basemap
+import cartopy.crs as ccrs
 from obspy import UTCDateTime
 from ordered_set import OrderedSet as set
 from tqdm import tqdm
@@ -179,9 +179,7 @@ def plot_results(stations, results, output_basename):
     pdf = PdfPages('%s.pdf' % output_basename)
 
     fig = plt.figure(figsize=(20, 30))
-    ax1 = fig.add_axes([0.05, 0.05, 0.9, 0.7])
-    ax2 = fig.add_axes([0.05, 0.7, 0.9, 0.3])
-    ax2.set_visible(False)
+    ax1 = fig.add_axes([0.05, 0.05, 0.9, 0.7], projection=ccrs.PlateCarree())
 
     minLon = 1e32
     maxLon = -1e32
@@ -203,18 +201,14 @@ def plot_results(stations, results, output_basename):
     minLat -= 1
     maxLat += 1
 
-    m = Basemap(ax=ax1, projection='merc',
-                resolution='i', llcrnrlat=minLat, urcrnrlat=maxLat,
-                llcrnrlon=minLon, urcrnrlon=maxLon,
-                lat_0=(minLat + maxLat) / 2., lon_0=(minLon + maxLon) / 2.)
+    ax1.set_extent([minLon, maxLon, minLat, maxLat], crs=ccrs.PlateCarree())
     # draw coastlines.
-    m.drawcoastlines()
+    ax1.coastlines('50m')
 
     # draw grid
-    parallels = np.linspace(np.around(minLat / 5) * 5 - 5, np.around(maxLat / 5) * 5 + 5, 6)
-    m.drawparallels(parallels, labels=[True, True, False, False], fontsize=20)
-    meridians = np.linspace(np.around(minLon / 5) * 5 - 5, np.around(maxLon / 5) * 5 + 5, 6)
-    m.drawmeridians(meridians, labels=[False, False, True, True], fontsize=20)
+    ax1.gridlines(draw_labels=True,
+                  linewidth=1, color='gray',
+                  alpha=0.5, linestyle='--')
 
     # plot stations
     norm = matplotlib.colors.Normalize(vmin=minUsableDays, vmax=maxUsableDays, clip=True)
@@ -229,20 +223,20 @@ def plot_results(stations, results, output_basename):
 
         lon, lat = s[4], s[5]
 
-        px, py = m(lon, lat)
-        pxl, pyl = m(lon, lat - 0.1)
         days = usableStationDays['%s.%s' % (s[0], s[1])]
-        m.scatter(px, py, s=400, marker='v',
-                  c=mapper.to_rgba(days),
-                  edgecolor='none', label='%s: %d' % (s[1], days))
-        ax1.annotate(s[1], xy=(px + 0.05, py + 0.05), fontsize=22)
+        ax1.scatter(lon, lat, s=400, transform=ccrs.PlateCarree(), marker='v', c=mapper.to_rgba(days),
+                    edgecolor='none', label='%s: %d' % (s[1], days))
+        ax1.annotate(s[1], xy=(lon + 0.05, lat + 0.05),
+                     xycoords=ccrs.PlateCarree()._as_mpl_transform(ax1),
+                     fontsize=22)
     # end for
 
-    fig.axes[0].set_title("Network Name: %s" % s[0], fontsize=30, y=1.05)
-    fig.axes[0].legend(prop={'size': 16}, loc=(0.2, 1.3),
-                       ncol=5, fancybox=True, title='No. of Usable Days',
-                       title_fontsize=16)
-
+    ax1.set_title("Network Name: %s" % s[0], fontsize=30, y=1.05)
+    ax1.legend(prop={'size': 16}, loc=(0.2, 1.3),
+               ncol=5, fancybox=True, title='No. of Usable Days',
+               title_fontsize=16)
+    #fig.colorbar(mapper, orientation='horizontal', label='Days')
+    plt.tight_layout()
     pdf.savefig()
     plt.close()
 
@@ -328,8 +322,6 @@ def plot_results(stations, results, output_basename):
     # end for
 
     pdf.close()
-
-
 # end func
 
 
