@@ -20,7 +20,7 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
 5. `rm -rf ~/.local/lib/python3.6/site-packages/shapely`
 6. `rm -rf ~/.local/lib/python3.6/site-packages/Shapely*`
 7. `rm -rf ~/.local/lib/python3.6/site-packages/*geos*`
-8. `rm -rf /home/562/rxh562/.local/lib/python3.6/site-packages/gdal*`
+8. `rm -rf ~/.local/lib/python3.6/site-packages/gdal*`
 9. `rm -rf ~/.local/lib/python3.6/site-packages/pygdal`
 
 ### Upgrade pip
@@ -66,7 +66,7 @@ Installation instructions for the NCI (Gadi), to be executed from a login node, 
   20. `pip3.6 install scipy==1.4.1 --user`
   21. `pip3.6 install tqdm==4.43.0 --user`
   22. `pip3.6 install scikit-learn==0.22.2.post1 --user`
-
+  23. `pip3.6 install rtree==0.9.7 --user`
 
 Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
 jobs are launched on NCI compute nodes that do not allow internet access.
