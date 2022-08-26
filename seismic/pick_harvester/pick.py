@@ -464,6 +464,9 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
         ofs = open(ofns, 'a+')
     # end if
 
+
+    trace_count_threshold = 720 # over a 24 hr period that would be ~120 s per trace, which is the amount of data being
+                                # processed in extract_p and extract_s
     progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
     totalTraceCount = 0
     for nc, sc, start_time, end_time in fds.stations_iterator(network_list=network_list, station_list=station_list):
@@ -500,7 +503,7 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
                     st = fds.get_waveforms(codes[0], codes[1], codes[2], codes[3],
                                            curr,
                                            curr + step,
-                                           trace_count_threshold=200)
+                                           trace_count_threshold=trace_count_threshold)
 
                     try:
                         st.merge(method=-1)
@@ -526,7 +529,7 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
                         if (np.isnan(mag) or mag < min_magnitude): continue
 
                         # check if catalog already has P arrivals for current (net, sta, event)
-                        has_p_arrival = cat.has_arrival(eid, codes[0], codes[1], phase_list=P_PHASES)
+                        has_p_arrival = cat.has_arrival(eid, codes[0], codes[1], slon, slat, phase_list=P_PHASES)
 
                         if(not has_p_arrival):
                             result = extract_p(taupyModel, pickerlist_p, event, slon, slat, st,
@@ -556,7 +559,7 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
 
                         if (len(stations_nch) == 0 and len(stations_ech) == 0):
                             # check if catalog already has S arrivals for current (net, sta, event)
-                            has_s_arrival = cat.has_arrival(eid, codes[0], codes[1], phase_list=S_PHASES)
+                            has_s_arrival = cat.has_arrival(eid, codes[0], codes[1], slon, slat, phase_list=S_PHASES)
 
                             if(not has_s_arrival):
                                 result = extract_s(taupyModel, pickerlist_s, event, slon, slat, st, None, da[2],
@@ -600,11 +603,11 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
                         stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
                                                 curr,
                                                 curr + step,
-                                                trace_count_threshold=200)
+                                                trace_count_threshold=trace_count_threshold)
                         ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
                                                 curr,
                                                 curr + step,
-                                                trace_count_threshold=200)
+                                                trace_count_threshold=trace_count_threshold)
 
                         try:
                             stn.merge(method=-1)
@@ -635,7 +638,7 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
                             if (np.isnan(mag) or mag < min_magnitude): continue
 
                             # check if catalog already has S arrivals for current (net, sta, event)
-                            has_s_arrival = cat.has_arrival(eid, codesn[0], codesn[1], phase_list=S_PHASES)
+                            has_s_arrival = cat.has_arrival(eid, codesn[0], codesn[1], slon, slat, phase_list=S_PHASES)
 
                             if(not has_s_arrival):
                                 result = extract_s(taupyModel, pickerlist_s, event, slon, slat, stn, ste, da[2],
@@ -727,8 +730,6 @@ def merge_results(output_path):
 
         ofn.close()
     # end for
-
-
 # end func
 
 if (__name__ == '__main__'):
