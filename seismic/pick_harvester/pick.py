@@ -623,8 +623,7 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
                         if (len(stn) == 0): continue
                         if (len(ste) == 0): continue
 
-                        slon, slat = codesn[4], codesn[5]
-
+                        slon, slat, elev_m = codesn[4], codesn[5], codesn[6]
                         for ei in eventIndices:
                             event = cat.events[ei]
                             eid = event['event_id']
@@ -677,13 +676,12 @@ def process(asdf_source, csv_catalog_file, output_path, min_magnitude, max_ampli
         sw_stop = datetime.now()
         totalTime = (sw_stop - sw_start).total_seconds()
 
-        gc.collect()
+        #gc.collect()
         print(('(Rank %d: %5.2f%%, %d/%d) Processed %d traces and found %d p-arrivals and %d s-arrivals for ' \
-               'network %s station %s in %f s. Memory usage: %5.2f MB.' % \
+               'network %s station %s in %5.2f s.' % \
                (rank, (float(totalTraceCount) / float(workload) * 100) if workload > 0 else 100, totalTraceCount,
                 workload,
-                traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime,
-                round(psutil.Process().memory_info().rss / 1024. / 1024., 2))))
+                traceCountP + traceCountS, pickCountP, pickCountS, nc, sc, totalTime)))
     # end for
     ofp.close()
     ofs.close()

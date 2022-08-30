@@ -152,7 +152,7 @@ class ParametricData:
     def _coalesce_network_codes(self):
         if(self.rank == 0): print('Coalescing network codes..')
 
-        if(1):
+        if(0):
             self.arrivals['net'] = np.load('coalesced_net.npy')
             return
         # end if

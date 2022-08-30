@@ -599,19 +599,25 @@ class _FederatedASDFDataSetImpl():
                 for sta in stas:
                     sta = sta[0]
 
-                    tbounds = self.conn.execute("select st, et from wdb where net='%s' and sta='%s' order by et"
+                    # trace-count, min(st), max(et)
+                    attribs = self.conn.execute("select count(st), min(st), max(et) from wdb where net='%s' and sta='%s'"
                                                 %(net, sta)).fetchall()
 
-                    if(len(tbounds)==0): continue
-                    #tbounds = np.array(tbounds)
-                    #tbounds = split_list_by_timespan(tbounds, self.nproc)
-                    tbounds = split_list(tbounds, self.nproc)
+                    if(len(attribs)==0): continue
+                    tcount, min_st, max_et = np.array(attribs).flatten()
+
+                    # create start and end times for each rank
+                    r = np.linspace(min_st, max_et, self.nproc + 1)
+                    rank_spans = np.vstack([r[0:-1], r[1:]]).T
+
+                    # reproducibly shuffle rank-spans to balance load across ranks
+                    np.random.seed(int(tcount))
+                    rank_spans = split_list(rank_spans, self.nproc)
+                    np.random.shuffle(rank_spans)
 
                     for iproc in np.arange(self.nproc):
-                        if (len(tbounds[iproc])):
-                            arr = np.array(tbounds[iproc])
-                            workload[iproc][net][sta] = np.array([np.min(arr[:,0]),
-                                                                  np.max(arr[:,1])])
+                        if (len(rank_spans[iproc])):
+                            workload[iproc][net][sta] = rank_spans[iproc].flatten()
                         # end for
                     # end for
                 # end for
