@@ -26,7 +26,7 @@ DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 501))
 DEFAULT_k_RANGE = tuple(np.linspace(1.5, 2.0, 301))
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
 
-DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 6, 21))
+DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 10, 35))
 DEFAULT_SED_k_RANGE = tuple(np.linspace(1.0, 5.0, 21))
 
 def compute_hk_stack(cha_data, h_range=None, k_range=None,
