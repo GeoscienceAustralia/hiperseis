@@ -131,7 +131,7 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
 
     # Plot the local maxima
     for i, (h, k) in enumerate(soln):
-        _plot_hk_solution_point(plt.gca(), k, h, i+1)
+        _plot_hk_solution_point(plt.gca(), k, h, i)
     # end for
 
     return fig, soln
@@ -176,7 +176,7 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_S
 
     # Plot the local maxima
     for i, (h, k) in enumerate(soln):
-        _plot_hk_solution_point(plt.gca(), k, h, i+1)
+        _plot_hk_solution_point(plt.gca(), k, h, i)
     # end for
 
     return fig, soln
@@ -455,7 +455,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                                                    labelling=hk_solution_labels,
                                                    depth_colour_range=depth_colour_range)
                 hk_soln[nsl] = maxima
-                station_coords[nsl] = (channel_data[0].stats.station_latitude, channel_data[0].stats.station_longitude)
+                station_coords[nsl] = (channel_data[0].stats.station_longitude, channel_data[0].stats.station_latitude)
 
                 paper_landscape = (paper_size_A4[1], paper_size_A4[0])
                 fig.set_size_inches(*paper_landscape)
@@ -471,8 +471,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                         fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
                         sediment_hk_soln[nsl] = maxima
 
-                        sediment_station_coords[nsl] = (channel_data[0].stats.station_latitude,
-                                                        channel_data[0].stats.station_longitude)
+                        sediment_station_coords[nsl] = (channel_data[0].stats.station_longitude,
+                                                        channel_data[0].stats.station_latitude)
                         fig.set_size_inches(*paper_landscape)
                         pdf.savefig(dpi=300, orientation='landscape')
                         plt.close()
@@ -524,7 +524,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
             df = pd.DataFrame.from_dict(result_hk, orient='index')
             colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
-            colnames = ['Latitude', 'Longitude'] + list(itertools.chain.from_iterable(colnames))
+            colnames = ['Longitude', 'Latitude'] + list(itertools.chain.from_iterable(colnames))
             df.columns = colnames
             df.index.name = 'Station'
             df.to_csv(fname)

@@ -331,5 +331,10 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
         # end while
     # end if
 
-    return maxima_coords[:max_number]
+    result = np.array(maxima_coords[:max_number])
+
+    # sort results by depth
+    if(len(result)): result = result[result[:, 0].argsort()]
+
+    return result
 # end func
