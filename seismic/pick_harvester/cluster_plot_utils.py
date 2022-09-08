@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy
 from ordered_set import OrderedSet as set
 from matplotlib.backends.backend_pdf import PdfPages
 import cartopy.crs as ccrs
@@ -61,7 +62,7 @@ def plot_before_cluster(sr:SSST_Result, ng:NestedGrid, pdf:PdfPages, min_slope_r
     p_slons = slons[imask]
     p_slats = slats[imask]
     p_ecdists = ecdists[imask]
-    for i in tqdm(np.arange(0, len(p_elons), 100), desc='P-arrivals: '):
+    for i in tqdm(np.arange(0, len(p_elons), 1), desc='P-arrivals: '):
         elon, elat, slon, slat = p_elons[i], p_elats[i], \
                                  p_slons[i], p_slats[i]
 
@@ -85,7 +86,7 @@ def plot_before_cluster(sr:SSST_Result, ng:NestedGrid, pdf:PdfPages, min_slope_r
     s_slons = slons[imask]
     s_slats = slats[imask]
     s_ecdists = ecdists[imask]
-    for i in tqdm(np.arange(0, len(s_elons), 10), desc='S-arrivals'):
+    for i in tqdm(np.arange(0, len(s_elons), 1), desc='S-arrivals'):
         elon, elat, slon, slat = s_elons[i], s_elats[i], \
                                  s_slons[i], s_slats[i]
 
@@ -272,6 +273,108 @@ def plot_before_cluster(sr:SSST_Result, ng:NestedGrid, pdf:PdfPages, min_slope_r
     fig.suptitle('All Automatic Arrivals (slope-ratio > {})'.format(min_slope_ratio), fontsize=18)
     pdf.savefig(dpi=300)
     plt.close()
+# end func
 
-    pdf.close()
+def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: NestedGrid, pdf: PdfPages):
+    cover_page(pdf, "After Clustering")
+
+    geod = Geod(a=180 / np.pi, f=0)
+
+    # define 2D grid
+    sx, ex, dx = -180, 180, ng.ig.dx
+    sy, ey, dy = 90, -90, ng.ig.dy
+
+    nx = np.int_(np.ceil((ex - sx) / dx)) + 1
+    ny = np.int_(np.ceil((sy - ey) / dy)) + 1
+    res = int(1 / float(dx))  # per deg
+
+    gx, gy = np.meshgrid(np.linspace(sx, ex, nx), np.linspace(sy, ey, ny), indexing='ij')
+
+    gzp = np.zeros(gx.shape)
+    gzs = np.zeros(gx.shape)
+
+    # ===========================================================
+    # Process clustered P arrivals
+    # ===========================================================
+    for i in tqdm(np.arange(0, len(p_clustered), 1), desc='P-arrivals'):
+        elon, elat, slon, slat, ecdist = p_clustered['elon'][i], p_clustered['elat'][i], p_clustered['slon'][i], \
+                                         p_clustered['slat'][i], p_clustered['ecdist'][i]
+
+        npts = int(np.ceil(ecdist * res))
+        xy = np.vstack([np.array([elon, elat]),
+                        np.array(geod.npts(elon, elat, slon, slat, npts)),
+                        np.array([slon, slat])])
+        cxi = np.int_((xy[:, 0] - sx) / dx)
+        cyi = np.int_((sy - xy[:, 1]) / dy)
+        gzp[cxi, cyi] += 1
+    # end for
+
+    # ===========================================================
+    # Process clustered S arrivals
+    # ===========================================================
+    for i in tqdm(np.arange(0, len(s_clustered), 1), desc='S-arrivals'):
+        elon, elat, slon, slat, ecdist = s_clustered['elon'][i], s_clustered['elat'][i], s_clustered['slon'][i], \
+                                         s_clustered['slat'][i], s_clustered['ecdist'][i]
+
+        npts = int(np.ceil(ecdist * res))
+        xy = np.vstack([np.array([elon, elat]),
+                        np.array(geod.npts(elon, elat, slon, slat, npts)),
+                        np.array([slon, slat])])
+        cxi = np.int_((xy[:, 0] - sx) / dx)
+        cyi = np.int_((sy - xy[:, 1]) / dy)
+        gzs[cxi, cyi] += 1
+    # end for
+
+    # ===========================================================
+    # Plot results
+    # ===========================================================
+    # Plot p-coverage
+    fig = plt.figure()
+
+    fig.set_size_inches(20, 10)
+    cax1 = fig.add_axes([0.1, 0.1, 0.4, 0.1])
+    cax2 = fig.add_axes([0.5, 0.1, 0.4, 0.1])
+    cax1.set_visible(False)
+    cax2.set_visible(False)
+
+    llcrnrlat = -54
+    urcrnrlat = 0
+    llcrnrlon = 100
+    urcrnrlon = 180
+    vmin = 20
+
+    ax1 = fig.add_subplot(1, 2, 1, projection=ccrs.PlateCarree())
+    ax1.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
+    ax1.coastlines('50m')
+
+    cbi = ax1.pcolormesh(gx, gy, gzp, vmin=vmin, vmax=np.max(gzp), cmap=plt.get_cmap('gist_heat_r', 50))
+
+    cbi.cmap.set_under('green')
+    cbar = fig.colorbar(cbi, ax=cax1, format='%d', extend='min',
+                        orientation='horizontal')
+    cbar.set_label("Hitcount")
+    ticks = list(cbar.get_ticks())
+    cbar.set_ticks([vmin] + ticks)
+    cbar.ax.tick_params(labelsize=6)
+    ax1.set_title('P-arrivals')
+
+    # Plot s-coverage
+    ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.PlateCarree())
+    ax2.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
+    ax2.coastlines('50m')
+
+    cbi = ax2.pcolormesh(gx, gy, gzs, vmin=vmin, vmax=np.max(gzs), cmap=plt.get_cmap('gist_heat_r', 50))
+
+    cbi.cmap.set_under('green')
+    cbar = fig.colorbar(cbi, ax=cax2, format='%d', extend='min',
+                        orientation='horizontal')
+    cbar.set_label("Hitcount")
+    ticks = list(cbar.get_ticks())
+    cbar.set_ticks([vmin] + ticks)
+    cbar.ax.tick_params(labelsize=6)
+    ax2.set_title('S-arrivals')
+
+    fig.suptitle('Surface-projected Clustered Raypath Coverage in the Australasian Region', size=18)
+    pdf.savefig(dpi=300)
+    plt.close()
 # end func

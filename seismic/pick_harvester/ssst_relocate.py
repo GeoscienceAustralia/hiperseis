@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 
 from seismic.pick_harvester.ssst_relocator import SSSTRelocator
 from ordered_set import OrderedSet as set
-import h5py
 from matplotlib.backends.backend_pdf import PdfPages
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
@@ -26,51 +25,13 @@ import numpy as np
 import os
 import click
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
+from seismic.pick_harvester.ssst_utils import get_iters, h5_to_named_array
 
 AU_SHEAR_DISPLACEMENTS_SHP_FILE = os.path.dirname(os.path.abspath(__file__)) + \
                                   '/notebooks/data/ShearDisplacementLines2_5M.shp'
-def h5_to_named_array(hfn, key):
-    h = h5py.File(hfn, 'r')
 
-    result = np.array([])
-    try:
-        if (type(h[key]) == h5py.Group):
-            names = []
-            formats = []
-            data = []
-            for k in h[key].keys():
-                names.append(k)
-                var = h[key][k][:]
-                data.append(var)
-                formats.append(var.dtype.str)
-            # end for
-
-            fields = {'names': names, 'formats': formats}
-            result = np.zeros(len(data[0]), dtype=fields)
-
-            for item, k in zip(data, names):
-                result[k] = item
-            # end for
-        else:
-            result = h[key][:]
-        # end if
-    except Exception as e:
-        print(str(e))
-    # end try
-    h.close()
-
-    return result
-# end func
-
-def get_iters(hfn):
-    h = h5py.File(hfn, 'r')
-
-    iters = list(map(int, h.keys()))
-    h.close()
-    return iters
-# end func
-
-def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
+def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn,
+                                 p_residual_cutoff, s_residual_cutoff):
     pdf = PdfPages(pdf_output_fn)
     iters = get_iters(h5_output_fn)
 
@@ -87,7 +48,7 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
         if (is_relocated):
             reloc_events = h5_to_named_array(h5_output_fn, '{}/events'.format(iters[-1]))[is_src_event]
             orig_events = sr.orig_events[getattr(sr, event_attr)]
-            converged_filt = reloc_events['event_quality']
+            converged_imask = reloc_events['event_quality']
 
             # maps and magnitude distributions
             crs = ccrs.PlateCarree()
@@ -96,22 +57,22 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
 
             for ax in axes:
                 ax.coastlines('50m')
-                lons, lats, mags = orig_events['lon'], orig_events['lat'], orig_events['mag']
 
                 if (src in [b'GA', b'GG']):
                     shape_feature = ShapelyFeature(Reader(AU_SHEAR_DISPLACEMENTS_SHP_FILE).geometries(),
-                                                   ccrs.PlateCarree(), facecolor='none')
+                                                   crs, facecolor='none', edgecolor='k', lw=0.05, zorder=1)
 
                     ax.add_feature(shape_feature)
                     ax.set_extent([110, 160, -10, -45], crs)
                 # end if
             # end for
+            lons, lats, mags = orig_events['lon'], orig_events['lat'], orig_events['mag']
 
-            axes[0].scatter(lons, lats, s=10, transform=crs, marker='o', c='r', cmap='jet', edgecolor='none',
-                            alpha=1)
-            axes[1].scatter(reloc_events['lon'][converged_filt],
-                            reloc_events['lat'][converged_filt], s=10, transform=crs,
-                            marker='o', c='g', cmap='jet', edgecolor='none', alpha=1)
+            axes[0].scatter(lons, lats, s=10, transform=crs, marker='o', c='r', edgecolor='none',
+                            alpha=1, zorder=10)
+            axes[1].scatter(reloc_events['lon'][converged_imask],
+                            reloc_events['lat'][converged_imask], s=10, transform=crs,
+                            marker='o', c='g', edgecolor='none', alpha=1, zorder=10)
             axes[0].set_title('Original Events')
             axes[1].set_title('Relocated Events')
 
@@ -120,8 +81,8 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
             ax0.text(0.7, 0.7, 'N: {}'.format(len(orig_events['mag'])), transform=ax0.transAxes)
 
             ax1 = fig.add_subplot(333)
-            _ = ax1.hist(reloc_events['mag'][converged_filt])
-            ax1.text(0.7, 0.7, 'N: {}'.format(len(reloc_events['mag'][converged_filt])),
+            _ = ax1.hist(reloc_events['mag'][converged_imask])
+            ax1.text(0.7, 0.7, 'N: {}'.format(len(reloc_events['mag'][converged_imask])),
                      transform=ax1.transAxes)
 
             ax0.set_xlabel('Magnitude'); ax1.set_xlabel('Magnitude')
@@ -136,17 +97,17 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
             for ivar, var in enumerate(['lon', 'lat', 'depth_km', 'origin_ts']):
                 ax = axes.flatten()[ivar]
 
-                data = orig_events[var][converged_filt] - reloc_events[var][converged_filt]
+                data = orig_events[var][converged_imask] - reloc_events[var][converged_imask]
                 _ = ax.hist(data, bins=20)
                 ax.set_xlabel('$\Delta$ %s' % (var.upper()))
                 ax.set_ylabel('Frequency')
 
-                ax.text(0.7, 0.7, 'N: {}'.format(np.sum(converged_filt)), transform=ax.transAxes)
+                ax.text(0.7, 0.7, 'N: {}'.format(np.sum(converged_imask)), transform=ax.transAxes)
                 ax.text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(data)), transform=ax.transAxes)
             # end for
             pdf.savefig(dpi=300)
             plt.close()
-            # end if
+        # end if
     # end if
 
     # residual distributions for input data
@@ -155,7 +116,6 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
         fig.set_size_inches(10, 10)
 
         phase = sr.orig_phases
-        cutoff_times = [5, 10]
         phase_imasks = [sr.is_P(phase),
                         sr.is_S(phase)]
 
@@ -176,10 +136,10 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
         k = 0
         for pt, pi in zip(phase_types.keys(), phase_imasks):
             # preexisting P/S arrivals
-            filt = pi
+            p_imask = pi
 
-            r1 = sr.r0[~sr.is_AUTO_arrival & is_src_arrival & filt]
-            r2 = sr.r0[sr.is_AUTO_arrival & is_src_arrival & filt]
+            r1 = sr.r0[~sr.is_AUTO_arrival & is_src_arrival & p_imask]
+            r2 = sr.r0[sr.is_AUTO_arrival & is_src_arrival & p_imask]
 
             r1 = r1[np.fabs(r1) < PREEX_CUTOFF]
             r2 = r2[np.fabs(r2) < PREEX_CUTOFF]
@@ -215,18 +175,18 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
             q = h5_to_named_array(h5_output_fn, '{}/arrivals/quality_measure_slope'.format(i))
             phase = h5_to_named_array(h5_output_fn, '{}/arrivals/phase'.format(i))
 
-            cutoff_times = [5, 10]
+            cutoff_times = [p_residual_cutoff, s_residual_cutoff]
             phase_imasks = [sr.is_P(h5_to_named_array(h5_output_fn, '{}/arrivals/phase'.format(i))),
                             sr.is_S(h5_to_named_array(h5_output_fn, '{}/arrivals/phase'.format(i)))]
 
             for pt, ct, pi in zip(phase_types.keys(), cutoff_times, phase_imasks):
                 # preexisting P/S arrivals
-                filt = pi
-                filt &= eq[sr.event_id_to_idx[sr.arrivals['event_id']]]
-                filt &= np.fabs(res) < ct
+                imask = pi
+                imask &= eq[sr.event_id_to_idx[sr.arrivals['event_id']]]
+                imask &= np.fabs(res) < ct
 
-                r = res[~sr.is_AUTO_arrival & is_src_arrival & filt]
-                tc = tcorr[~sr.is_AUTO_arrival & is_src_arrival & filt]
+                r = res[~sr.is_AUTO_arrival & is_src_arrival & imask]
+                tc = tcorr[~sr.is_AUTO_arrival & is_src_arrival & imask]
 
                 phc = {}
                 for p in phase_types[pt]:
@@ -268,8 +228,8 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
 
                 for j, cutoff in enumerate([-1, 1, 2, 3, 4, 5]):
                     title = 'All' if j == 0 else 'Slope-ratio > {}'.format(cutoff)
-                    r = res[sr.is_AUTO_arrival & is_src_arrival & filt & (q > cutoff)]
-                    tc = tcorr[sr.is_AUTO_arrival & is_src_arrival & filt & (q > cutoff)]
+                    r = res[sr.is_AUTO_arrival & is_src_arrival & imask & (q > cutoff)]
+                    tc = tcorr[sr.is_AUTO_arrival & is_src_arrival & imask & (q > cutoff)]
 
                     _ = axes[0, j].hist(r, bins=20)
                     _ = axes[1, j].hist(tc, bins=20)
@@ -295,11 +255,14 @@ def plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_output_fn):
     pdf.close()
 # end func
 
-def plot_ssst_results(sr:SSSTRelocator, h5_output_fn:str, pdf_output_fn:str):
+def plot_ssst_results(sr:SSSTRelocator, h5_output_fn:str, pdf_output_fn:str,
+                      p_residual_cutoff=5, s_residual_cutoff=10):
     """
     @param sr:
     @param h5_output_fn:
     @param pdf_output_fn:
+    @param p_residual_cutoff
+    @param s_residual_cutoff
     @return:
     """
     sources = set(sr.events['source'])
@@ -308,7 +271,8 @@ def plot_ssst_results(sr:SSSTRelocator, h5_output_fn:str, pdf_output_fn:str):
     for src in sources:
         pdf_ofn = os.path.join(sr._temp_dir, 'ssst.{}.pdf'.format(src.decode()))
         try:
-            plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_ofn)
+            plot_ssst_results_for_source(sr, src, h5_output_fn, pdf_ofn,
+                                         p_residual_cutoff, s_residual_cutoff)
             pdf_files.append(pdf_ofn)
         except Exception as e:
             print(str(e))
@@ -330,6 +294,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Automatic P picks in txt format (output of pick.py).', show_default=True)
 @click.option('--automatic-picks-s', type=click.Path(dir_okay=False), default=None,
               help='Automatic S picks in txt format (output of pick.py).', show_default=True)
+@click.option('--phases', default='P Pg Pb Pn S Sg Sb Sn',
+              help='A space-separated list of phases (case-sensitive and within quotes) to process. '
+                   'Note that phases not in the list are dropped.',
+              show_default=True)
+@click.option('--p-residual-cutoff', default=5., help='P-arrivals with abs(residual) exceeding this cutoff are dropped.',
+              show_default=True)
+@click.option('--s-residual-cutoff', default=10., help='S-arrivals with abs(residual) exceeding this cutoff are dropped.',
+              show_default=True)
 @click.option('--min-slope-ratio', default=5, help='Automatic arrivals with quality_measure_slope less than this '
                                                    'value are excluded from SST and SSST computations and the event '
                                                    'relocation procedure -- the phases of such arrivals are redefined '
@@ -339,8 +311,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Number of ssst iterations', show_default=True)
 @click.option('--ball-radius-km', type=int, default=55,
               help='Radius of sphere in km used for calculating ssst corrections', show_default=True)
-def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_picks_s,
-            min_slope_ratio, ssst_niter, ball_radius_km):
+def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_picks_s, phases,
+            p_residual_cutoff, s_residual_cutoff, min_slope_ratio, ssst_niter, ball_radius_km):
     """
     CATALOG_CSV: catalog in csv format
     CONFIG: config file in json format
@@ -364,13 +336,15 @@ def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_
     # end if
 
     sr = SSSTRelocator(catalog_csv,
-                       config_fn=config,
                        auto_pick_files=auto_pick_files,
                        auto_pick_phases=auto_pick_phases,
-                       events_only=False)
+                       config_fn=config,
+                       phase_list=phases,
+                       p_residual_cutoff=p_residual_cutoff,
+                       s_residual_cutoff=s_residual_cutoff)
 
-    sr.ssst_relocate(ssst_niter=ssst_niter, min_slope_ratio=min_slope_ratio,
-                     output_fn=output_file_name)
+    sr.ssst_relocate(ssst_niter=ssst_niter, ball_radius_km=ball_radius_km,
+                     min_slope_ratio=min_slope_ratio, output_fn=output_file_name)
 
     # generate plots on master rank
     if(sr.rank == 0):
@@ -379,7 +353,8 @@ def process(catalog_csv, config, output_file_name, automatic_picks_p, automatic_
         pdf_output_file_name, _ = os.path.splitext(output_file_name)
         pdf_output_file_name += '.pdf'
 
-        plot_ssst_results(sr, output_file_name, pdf_output_file_name)
+        plot_ssst_results(sr, output_file_name, pdf_output_file_name,
+                          p_residual_cutoff, s_residual_cutoff)
     # end if
 # end func
 

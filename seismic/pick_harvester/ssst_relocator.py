@@ -29,10 +29,13 @@ import json
 
 class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[], config_fn=None,
-                 events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
+                 phase_list='P Pg Pb Pn S Sg Sb Sn',
+                 p_residual_cutoff=5, s_residual_cutoff=10, temp_dir='./'):
         super(SSSTRelocator, self).__init__(csv_catalog, auto_pick_files, auto_pick_phases,
-                                            events_only, phase_list, temp_dir)
+                                            False, phase_list, temp_dir)
         self.config_fn = config_fn
+        self.p_residual_cutoff = p_residual_cutoff
+        self.s_residual_cutoff = s_residual_cutoff
         self._lonlatalt2xyz = None
         self.vsurf = None
         self.residual = np.zeros(len(self.arrivals), dtype='f4')
@@ -201,14 +204,11 @@ class SSSTRelocator(ParametricData):
         local_new_residual[p_indices] = np.take_along_axis(p_residuals, p_argmin_indices[:, None], axis=1).flatten()
         local_new_residual[s_indices] = np.take_along_axis(s_residuals, s_argmin_indices[:, None], axis=1).flatten()
 
-        p_threshold = 5 #TODO
-        s_threshold = 10
+        local_new_phase[p_indices[np.fabs(local_new_residual[p_indices]) > self.p_residual_cutoff]] = b'Px'
+        local_new_phase[s_indices[np.fabs(local_new_residual[s_indices]) > self.s_residual_cutoff]] = b'Sx'
 
-        local_new_phase[p_indices[np.fabs(local_new_residual[p_indices]) > p_threshold]] = b'Px'
-        local_new_phase[s_indices[np.fabs(local_new_residual[s_indices]) > s_threshold]] = b'Sx'
-
-        local_new_residual[p_indices[np.fabs(local_new_residual[p_indices]) > p_threshold]] = self._tti.fill_value
-        local_new_residual[s_indices[np.fabs(local_new_residual[s_indices]) > s_threshold]] = self._tti.fill_value
+        local_new_residual[p_indices[np.fabs(local_new_residual[p_indices]) > self.p_residual_cutoff]] = self._tti.fill_value
+        local_new_residual[s_indices[np.fabs(local_new_residual[s_indices]) > self.s_residual_cutoff]] = self._tti.fill_value
 
         self.arrivals['phase'] = self._sync_var(local_new_phase)
         self.residual = self._sync_var(local_new_residual)
@@ -304,6 +304,7 @@ class SSSTRelocator(ParametricData):
         local_sids = split_list(stas, self.nproc)[self.rank]
         local_corrs = np.ones(len(self.arrivals), dtype='f4') * np.nan
 
+        MIN_SSST_ARRIVALS = 5 # ssst corrections are computed when number of arrivals >= this value
         for sid in tqdm(local_sids, desc='SSST Rank {}: '.format(self.rank)):
             sta_arrival_indices = np.argwhere((self.station_id == sid) & (imask)).flatten()
 
@@ -348,7 +349,7 @@ class SSSTRelocator(ParametricData):
                 nbr_phase_residuals = np.ma.masked_array(nbr_phase_residuals,
                                                          mask=nbr_phase_residuals==self._tti.fill_value)
 
-                if(np.sum(~nbr_phase_residuals.mask) >= 5): #TODO
+                if(np.sum(~nbr_phase_residuals.mask) >= MIN_SSST_ARRIVALS):
                     corr = np.ma.median(nbr_phase_residuals)
                     local_corrs[sta_arrival_indices[i]] = corr
                 # end if
@@ -391,6 +392,7 @@ class SSSTRelocator(ParametricData):
         SOL_DLAT = 0.25 # +/- 0.25 degrees
         SOL_DDEPTH_KM = 20 # +/- 20 km
         SOL_DT = 5 # +/- 5 seconds
+        MIN_ARRIVALS = 3 # minimum number of usable arrivals an event must have to be considered of good quality
 
         if (imask is None): imask = np.ones(len(self.local_events_indices), dtype='?')
 
@@ -484,7 +486,7 @@ class SSSTRelocator(ParametricData):
                    (np.fabs(self.orig_events[iev]['lat'] - self.events[iev]['lat']) < SOL_DLAT) & \
                    (np.fabs(self.orig_events[iev]['depth_km'] - self.events[iev]['depth_km']) < SOL_DDEPTH_KM) & \
                    ((np.fabs(self.orig_events[iev]['origin_ts'] - self.events[iev]['origin_ts']) < SOL_DT))
-            qual[selected_local_indices[i]] = (npick_used_best >= 3) & (good)
+            qual[selected_local_indices[i]] = (npick_used_best >= MIN_ARRIVALS) & (good)
         # end for
 
         self.events['lon'] = self._sync_var(self.events['lon'][self.local_events_indices])

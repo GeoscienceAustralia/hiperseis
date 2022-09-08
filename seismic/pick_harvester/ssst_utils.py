@@ -2,7 +2,48 @@ import numpy as np
 from pyproj import Geod
 from tqdm import tqdm
 from collections import defaultdict
-from seismic.pick_harvester.ssst_relocate import get_iters, h5_to_named_array
+import h5py
+
+def h5_to_named_array(hfn, key):
+    h = h5py.File(hfn, 'r')
+
+    result = np.array([])
+    try:
+        if (type(h[key]) == h5py.Group):
+            names = []
+            formats = []
+            data = []
+            for k in h[key].keys():
+                names.append(k)
+                var = h[key][k][:]
+                data.append(var)
+                formats.append(var.dtype.str)
+            # end for
+
+            fields = {'names': names, 'formats': formats}
+            result = np.zeros(len(data[0]), dtype=fields)
+
+            for item, k in zip(data, names):
+                result[k] = item
+            # end for
+        else:
+            result = h[key][:]
+        # end if
+    except Exception as e:
+        print(str(e))
+    # end try
+    h.close()
+
+    return result
+# end func
+
+def get_iters(hfn):
+    h = h5py.File(hfn, 'r')
+
+    iters = list(map(int, h.keys()))
+    h.close()
+    return iters
+# end func
 
 class SSST_Result:
     def __init__(self, h5_fn, iteration=-1):

@@ -97,12 +97,12 @@ class ParametricData:
         if (',' in phase_list): raise ValueError('A space-separated list of phases expected')
         if (len(phase_list)): phase_list = set(map(str.strip, phase_list.split()))
 
-        event_filter = self.arrivals['event_id'] == event_id
-        m_nets = self.arrivals[event_filter]['net']
-        m_stas = self.arrivals[event_filter]['sta']
-        m_phases = self.arrivals[event_filter]['phase']
-        m_lons = self.arrivals[event_filter]['lon']
-        m_lats = self.arrivals[event_filter]['lat']
+        event_imask = self.arrivals['event_id'] == event_id
+        m_nets = self.arrivals[event_imask]['net']
+        m_stas = self.arrivals[event_imask]['sta']
+        m_phases = self.arrivals[event_imask]['phase']
+        m_lons = self.arrivals[event_imask]['lon']
+        m_lats = self.arrivals[event_imask]['lat']
 
         # print(m_nets, m_stas, m_phases)
         result = False

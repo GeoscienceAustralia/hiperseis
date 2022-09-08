@@ -17,7 +17,7 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from seismic.pick_harvester.cluster_utils import NestedGrid
 from seismic.pick_harvester.ssst_utils import SSST_Result
-from seismic.pick_harvester.cluster_plot_utils import plot_before_cluster
+from seismic.pick_harvester.cluster_plot_utils import plot_before_cluster, plot_after_cluster
 from collections import defaultdict
 from tqdm import tqdm
 import os
@@ -66,35 +66,36 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             p_residual_cutoff=5., s_residual_cutoff=10.,
             min_slope_ratio=5):
 
-    def cluster_helper(imask):
-        source_block = get_source_block_indices(ng, sr, imask)
-        station_block = get_station_block_indices(ng, sr, imask)
+    def cluster_helper(c_imask, phase_type):
+        source_block = get_source_block_indices(ng, sr, c_imask)
+        station_block = get_station_block_indices(ng, sr, c_imask)
 
         cdict = defaultdict(list)
-        for i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist \
-                in tqdm(zip(source_block, station_block,
-                            sr.residual[imask], sr.eorigin_ts[imask],
-                            sr.elons[imask], sr.elats[imask], sr.edepths_km[imask],
-                            sr.slons[imask], sr.slats[imask], sr.selevs_km[imask],
-                            (sr.arrival_ts[imask] - sr.eorigin_ts[imask] - sr.tcorr[imask]),
-                            sr.ecdists[imask])):
-            cdict[(i, j)].append([i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist])
+        for i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist, phase \
+                in zip(source_block, station_block,
+                            sr.residual[c_imask], sr.eorigin_ts[c_imask],
+                            sr.elons[c_imask], sr.elats[c_imask], sr.edepths_km[c_imask],
+                            sr.slons[c_imask], sr.slats[c_imask], sr.selevs_km[c_imask],
+                            (sr.arrival_ts[c_imask] - sr.eorigin_ts[c_imask] - sr.tcorr[c_imask]),
+                            sr.ecdists[c_imask], sr.phase[c_imask]):
+            cdict[(i, j)].append([i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist,
+                                  phase.decode()])
         # end for
 
         # convert dict-entries to numpy arrays
-        for k in cdict.keys(): cdict[k] = np.array(cdict[k])
+        for k in tqdm(cdict.keys()): cdict[k] = np.array(cdict[k])
 
         result = []
-        for i, (k, item) in enumerate(tqdm(cdict.items())):
-            item_residuals = item[:, 2]
-            med_idx = np.argwhere(item_residuals == np.quantile(item_residuals, 0.5, interpolation='nearest'))[0][0]
+        for i, (k, item) in enumerate(cdict.items()):
+            item_ott = item[:, 10]
+            med_idx = np.argwhere(item_ott == np.quantile(item_ott, 0.5, interpolation='nearest'))[0][0]
 
-            result.append(tuple(item[med_idx, :]))
+            result.append(tuple((*item[med_idx, :], phase_type)))
         # end for
 
         fields = {'names': ['source_block', 'station_block', 'residual', 'eorigin_ts', 'elon', 'elat', 'edepth_km',
-                            'slon', 'slat', 'selev_km', 'observed_tt', 'ecdist'],
-                  'formats': ['i4', 'i4', 'f4', 'f8', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4']}
+                            'slon', 'slat', 'selev_km', 'observed_tt', 'ecdist', 'phase', 'phase_type'],
+                  'formats': ['i4', 'i4', 'f4', 'f8', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'U10', 'i4']}
         result = np.array(result, dtype=fields)
         return result
     # end func
@@ -130,13 +131,34 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             (imask_phase)
 
     # cluster p-phases
-    print('Clustering P hases..')
-    cp = cluster_helper(imask & sr.is_P)
-    print(len(cp))
+    print('Clustering P phases..')
+    cp = cluster_helper(imask & sr.is_P, 1)
 
-    print('Clustering S hases..')
-    cs = cluster_helper(imask & paired) # S phases must have accompanying P phases
-    print(len(cs))
+    print('Clustering S phases..')
+    cs = cluster_helper(imask & paired, 2) # S phases must have accompanying P phases
+
+    return cp, cs
+# end func
+
+def save_clustered(ofn, p_clustered:np.ndarray, s_clustered:np.ndarray):
+    fh = open(ofn, 'w')
+
+    fmt = ''
+    for name, dtype in p_clustered.dtype.descr:
+        if ('i4' in dtype):
+            fmt += '%10.0f '
+        elif ('f8' in dtype):
+            fmt += '%16.0f '
+        elif ('f4' in dtype):
+            fmt += '%16.7f '
+        elif ('U' in dtype):
+            fmt += '%s '
+        # end if
+    # end for
+
+    np.savetxt(fh, p_clustered, fmt=fmt, header='   '.join(p_clustered.dtype.names), delimiter=' ')
+    np.savetxt(fh, s_clustered, fmt=fmt, delimiter=' ')
+    fh.close()
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -147,8 +169,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 required=True)
 @click.argument('output_file_name', type=click.Path(exists=False, dir_okay=False),
                 required=True)
-@click.option('--phases', default='P Pg Pb S Sg Sb', help='A space-separated list of phases (within quotes) to cluster. '
-                                                          'Note that phases not in the list are dropped.',
+@click.option('--phases', default='P Pg Pb S Sg Sb', help='A space-separated list of phases (case-sensitive and within '
+                                                          'quotes) to cluster. Note that phases not in the list are '
+                                                          'dropped.',
               show_default=True)
 @click.option('--min-slope-ratio', default=5, help='Automatic arrivals with quality_measure_slope less than this '
                                                    'value are discarded prior to the clustering step',
@@ -172,7 +195,7 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
     OUTPUT_FILE_NAME: name of output file
     """
 
-    if('CSV' not in output_file_name.upper()): output_file_name = output_file_name + '.csv'
+    if('TXT' not in output_file_name.upper()): output_file_name = output_file_name + '.txt'
     pdf_output_fn, _ = os.path.splitext(output_file_name)
     pdf_output_fn += '.pdf'
 
@@ -187,7 +210,17 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
 
     print('Generating diagnostic plots before clustering..')
     #plot_before_cluster(sr, ng, pdf, min_slope_ratio=min_slope_ratio)
-    cluster(ng, sr, phases, p_residual_cutoff=p_residual_cutoff, s_residual_cutoff=s_residual_cutoff)
+
+    print('Clustering arrivals..')
+    cp, cs = cluster(ng, sr, phases, p_residual_cutoff=p_residual_cutoff, s_residual_cutoff=s_residual_cutoff)
+
+    print('Generating diagnostic plots after clustering..')
+    #plot_after_cluster(cp, cs, ng, pdf)
+
+    pdf.close()
+
+    print('Saving results..')
+    save_clustered(output_file_name, cp, cs)
 # end func
 
 if __name__ == "__main__":
