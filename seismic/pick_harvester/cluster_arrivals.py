@@ -64,33 +64,36 @@ def get_station_block_indices(ng:NestedGrid, sr:SSST_Result, imask):
 
 def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             p_residual_cutoff=5., s_residual_cutoff=10.,
-            min_slope_ratio=5):
+            min_slope_ratio=5, only_paired_s=False):
 
-    def cluster_helper(c_imask, phase_type):
+    def cluster_helper(c_imask):
         source_block = get_source_block_indices(ng, sr, c_imask)
         station_block = get_station_block_indices(ng, sr, c_imask)
 
         cdict = defaultdict(list)
-        for i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist, phase \
-                in zip(source_block, station_block,
-                            sr.residual[c_imask], sr.eorigin_ts[c_imask],
-                            sr.elons[c_imask], sr.elats[c_imask], sr.edepths_km[c_imask],
-                            sr.slons[c_imask], sr.slats[c_imask], sr.selevs_km[c_imask],
-                            (sr.arrival_ts[c_imask] - sr.eorigin_ts[c_imask] - sr.tcorr[c_imask]),
-                            sr.ecdists[c_imask], sr.phase[c_imask]):
-            cdict[(i, j)].append([i, j, r, eots, elon, elat, edepth_km, slon, slat, selev_km, ott, ecdist,
-                                  phase.decode()])
+        indices = np.arange(len(sr.arrivals))
+        for i, j, idx in tqdm(zip(source_block, station_block, indices[c_imask])):
+            cdict[(i, j)].append([i, j, idx])
         # end for
 
         # convert dict-entries to numpy arrays
         for k in tqdm(cdict.keys()): cdict[k] = np.array(cdict[k])
 
         result = []
-        for i, (k, item) in enumerate(cdict.items()):
-            item_ott = item[:, 10]
-            med_idx = np.argwhere(item_ott == np.quantile(item_ott, 0.5, interpolation='nearest'))[0][0]
+        for k, rows in tqdm(cdict.items()):
+            ott = sr.ott[rows[:, 2]]
 
-            result.append(tuple((*item[med_idx, :], phase_type)))
+            med_idx = np.argwhere(ott == np.quantile(ott, 0.5, interpolation='nearest'))[0][0]
+
+            src_block, sta_block, g_med_idx = rows[med_idx, :]
+            tup = (src_block, sta_block, sr.residual[g_med_idx], sr.eorigin_ts[g_med_idx],
+                   sr.elons[g_med_idx], sr.elats[g_med_idx], sr.edepths_km[g_med_idx],
+                   sr.slons[g_med_idx], sr.slats[g_med_idx], sr.selevs_km[g_med_idx],
+                   (sr.arrivals['arrival_ts'][g_med_idx] - sr.eorigin_ts[g_med_idx] - sr.tcorr[g_med_idx]),
+                   sr.ecdists[g_med_idx], sr.arrivals['phase'][g_med_idx],
+                   1 if sr.is_P[g_med_idx] else 2)
+
+            result.append(tup)
         # end for
 
         fields = {'names': ['source_block', 'station_block', 'residual', 'eorigin_ts', 'elon', 'elat', 'edepth_km',
@@ -100,10 +103,13 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
         return result
     # end func
 
-    print('Finding paired P and S arrivals..')
-    paired = sr.find_paired()
-    cutoff = np.zeros(len(sr.arrivals))
+    paired_S = None
+    if(only_paired_s):
+        print('Finding paired S arrivals..')
+        paired_S = sr.find_paired_S()
+    # end if
 
+    cutoff = np.zeros(len(sr.arrivals))
     cutoff[sr.is_P] = p_residual_cutoff
     cutoff[sr.is_S] = s_residual_cutoff
 
@@ -132,10 +138,11 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
 
     # cluster p-phases
     print('Clustering P phases..')
-    cp = cluster_helper(imask & sr.is_P, 1)
+    cp = cluster_helper(imask & sr.is_P)
 
     print('Clustering S phases..')
-    cs = cluster_helper(imask & paired, 2) # S phases must have accompanying P phases
+    s_imask = paired_S if paired_S else sr.is_S
+    cs = cluster_helper(imask & s_imask)
 
     return cp, cs
 # end func
@@ -186,9 +193,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--inner-depth-refinement-factor', default=1, help='Depth-refinement factor for inner grid. '
                                                                  'Must be a power of 2.',
               show_default=True)
+@click.option('--only-paired-s', default=False, is_flag=True, help='S arrivals not accompanied by corresponding P '
+                                                                   'arrivals are dropped before clustering.',
+              show_default=True)
 def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
             p_residual_cutoff, s_residual_cutoff,
-            outer_depth_refinement_factor, inner_depth_refinement_factor):
+            outer_depth_refinement_factor, inner_depth_refinement_factor, only_paired_s):
     """
     INPUT_H5: hdf5 input (output of ssst_relocate.py)
     PARAM_FN: Grid parameterization file
@@ -209,13 +219,15 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
     pdf = PdfPages(pdf_output_fn)
 
     print('Generating diagnostic plots before clustering..')
-    #plot_before_cluster(sr, ng, pdf, min_slope_ratio=min_slope_ratio)
+    plot_before_cluster(sr, ng, pdf, min_slope_ratio=min_slope_ratio)
 
     print('Clustering arrivals..')
-    cp, cs = cluster(ng, sr, phases, p_residual_cutoff=p_residual_cutoff, s_residual_cutoff=s_residual_cutoff)
+    cp, cs = cluster(ng, sr, phases, p_residual_cutoff=p_residual_cutoff,
+                     s_residual_cutoff=s_residual_cutoff, min_slope_ratio=min_slope_ratio,
+                     only_paired_s=only_paired_s)
 
     print('Generating diagnostic plots after clustering..')
-    #plot_after_cluster(cp, cs, ng, pdf)
+    plot_after_cluster(cp, cs, ng, pdf)
 
     pdf.close()
 

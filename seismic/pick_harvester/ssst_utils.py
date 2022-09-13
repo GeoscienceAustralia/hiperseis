@@ -1,8 +1,9 @@
 import numpy as np
-from pyproj import Geod
 from tqdm import tqdm
 from collections import defaultdict
 import h5py
+from seismic.pick_harvester.ellipticity import Ellipticity
+from pyproj import Geod
 
 def h5_to_named_array(hfn, key):
     h = h5py.File(hfn, 'r')
@@ -69,17 +70,30 @@ class SSST_Result:
         self.selevs_km = self.arrivals['elev_m'] / 1e3
         self.arrival_ts = self.arrivals['arrival_ts']
 
-        _, _, self.ecdists = self.geod.inv(self.elons, self.elats, self.slons, self.slats)
+        self.azims, _, self.ecdists = self.geod.inv(self.elons, self.elats, self.slons, self.slats)
         equality = h5_to_named_array(self.h5_fn, '{}/events/event_quality'.format(self.iter))
 
         self.equality = equality[self.event_id_to_idx[self.arrivals['event_id']]]
         self.is_P = self.phase.astype('S1') == b'P'
         self.is_S = self.phase.astype('S1') == b'S'
         self.slope_ratio = self.arrivals['quality_measure_slope']
+
+        # ===========================================================
+        # Compute ellipticity-correction
+        # ===========================================================
+        self.ellipticity = Ellipticity()
+
+        self.ellip_corr = self.ellipticity.get_correction(self.phase, self.ecdists,
+                                                           self.edepths_km, self.elats, self.azims)
+
+        # ===========================================================
+        # Compute observed travel-times
+        # ===========================================================
+        self.ott = self.arrival_ts - self.eorigin_ts - self.tcorr + self.ellip_corr
     # end func
 
-    def find_paired(self):
-        paired = np.zeros(len(self.arrivals), dtype='?')
+    def find_paired_S(self):
+        paired_S = np.zeros(len(self.arrivals), dtype='?')
         has_p_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
         indices = np.arange(len(self.arrivals))
 
@@ -95,9 +109,9 @@ class SSST_Result:
             eid, net, sta, loc = self.arrivals[idx]['event_id'], self.arrivals[idx]['net'], \
                                  self.arrivals[idx]['sta'], self.arrivals[idx]['loc']
 
-            if (has_p_dict[eid][net][sta][loc]): paired[idx] = 1
+            if (has_p_dict[eid][net][sta][loc]): paired_S[idx] = 1
         # end for
 
-        return paired
+        return paired_S
     # end func
 # end class

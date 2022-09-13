@@ -376,5 +376,27 @@ def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: Ne
 
     fig.suptitle('Surface-projected Clustered Raypath Coverage in the Australasian Region', size=18)
     pdf.savefig(dpi=300)
+
+    # ===========================================================
+    # Plot distributions of residuals for clustered arrivals
+    # ===========================================================
+    fig, axes = plt.subplots(1, 2)
+    fig.set_size_inches(10, 5)
+
+    _ = axes[0].hist(p_clustered['residual'], bins=20)
+    _ = axes[1].hist(s_clustered['residual'], bins=20)
+
+    axes[0].set_xlabel('Residual [s]'); axes[0].set_ylabel('Frequency')
+    axes[1].set_xlabel('Residual [s]'); axes[1].set_ylabel('Frequency')
+    axes[0].set_title('P-arrivals'); axes[1].set_title('S-arrivals')
+
+    axes[0].text(0.7, 0.7, 'N: {}'.format(len(p_clustered)), transform=axes[0].transAxes)
+    axes[0].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(p_clustered['residual'])), transform=axes[0].transAxes)
+    axes[1].text(0.7, 0.7, 'N: {}'.format(len(s_clustered)), transform=axes[1].transAxes)
+    axes[1].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(s_clustered['residual'])), transform=axes[1].transAxes)
+
+    fig.suptitle('Clustered Arrivals', fontsize=18)
+    pdf.savefig(dpi=300)
+
     plt.close()
 # end func
