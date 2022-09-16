@@ -1,7 +1,7 @@
 #!/bin/env python
 """
 Description:
-    Exports events and arrivals from the HDF5 output of ssst_relocate.py
+    Clusters arrivals from the HDF5 output of ssst_relocate.py
 
 References:
 
