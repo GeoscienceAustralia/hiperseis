@@ -283,7 +283,8 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
                                                               'AXIS_N {} {} {} '.format(
                                                                   nx, ny, nz),
                                                               'PROP_ALIGNMENT POINTS',
-                                                              'ASCII_DATA_FILE {}'.format(ascii_data_file),
+                                                              'ASCII_DATA_FILE {}'.format(os.path.basename(
+                                                                  ascii_data_file)),
                                                               '',
                                                               '',
                                                               'PROPERTY 1 "{}"'.format(prop_name),

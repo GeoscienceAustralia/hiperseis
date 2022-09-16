@@ -64,7 +64,7 @@ class ParametricData:
             'formats': ['i4', 'S10', 'S10', 'S10', 'S10', 'f4', 'f4', 'f4', 'S10', 'f8', 'f4']}
 
         # load events and arrivals
-        if(0):
+        if(1):
             self.events, self.arrivals = self._load_catalog()
             if(self.rank == 0):
                 np.save('events.npy', self.events)
@@ -93,18 +93,20 @@ class ParametricData:
         # print(self.arrivals)
     # end func
 
-    def has_arrival(self, event_id, network, station, phase_list=''):
+    def has_arrival(self, event_id, network, station, station_lon, station_lat, phase_list=''):
         if (',' in phase_list): raise ValueError('A space-separated list of phases expected')
         if (len(phase_list)): phase_list = set(map(str.strip, phase_list.split()))
 
-        event_filter = self.arrivals['event_id'] == event_id
-        m_nets = self.arrivals[event_filter]['net']
-        m_stas = self.arrivals[event_filter]['sta']
-        m_phases = self.arrivals[event_filter]['phase']
+        event_imask = self.arrivals['event_id'] == event_id
+        m_nets = self.arrivals[event_imask]['net']
+        m_stas = self.arrivals[event_imask]['sta']
+        m_phases = self.arrivals[event_imask]['phase']
+        m_lons = self.arrivals[event_imask]['lon']
+        m_lats = self.arrivals[event_imask]['lat']
 
         # print(m_nets, m_stas, m_phases)
         result = False
-        for net, sta, phase in zip(m_nets, m_stas, m_phases):
+        for net, sta, phase, lon, lat in zip(m_nets, m_stas, m_phases, m_lons, m_lats):
             net, sta, phase = net.decode(), sta.decode(), phase.decode()
             if (network == net and station == sta):
                 if (len(phase_list)):
@@ -115,6 +117,23 @@ class ParametricData:
                 else:
                     result = True
                     break
+                # end if
+            elif (station == sta):
+                # use station coordinates to account for cases when network codes
+                # may have been mangled in _coalesce_network_codes
+                _, _, dist = self._geod.inv(lon, lat, station_lon, station_lat)
+                if(dist < self.STATION_DIST_M):
+                    if (len(phase_list)):
+                        if (phase in phase_list):
+                            result = True
+
+                            #print(net, sta, [lon, lat], network, station, [station_lon, station_lat])
+                            break
+                        # end if
+                    else:
+                        result = True
+                        break
+                    # end if
                 # end if
             # end if
         # end for
@@ -133,7 +152,7 @@ class ParametricData:
     def _coalesce_network_codes(self):
         if(self.rank == 0): print('Coalescing network codes..')
 
-        if(1):
+        if(0):
             self.arrivals['net'] = np.load('coalesced_net.npy')
             return
         # end if
