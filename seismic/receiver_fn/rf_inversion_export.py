@@ -8,11 +8,13 @@ import os
 import numpy as np
 import click
 import rf
+from rf import RFStream
 import pandas as pd
 from seismic.receiver_fn import rf_util, rf_corrections
 from collections import defaultdict
 from scipy import stats
 from seismic.stream_io import get_obspyh5_index
+from scipy.signal import hilbert
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
@@ -38,9 +40,34 @@ def read_weights(file_name):
     return result
 # end func
 
+def phase_weighted_stack(stream:RFStream, phase_weight=1.):
+    if(len(stream)==0): return None
+
+    iphase = []
+    data = []
+    for tr in stream:
+        data.append(tr.data)
+        analytic = hilbert(tr.data)
+        angle = np.angle(analytic)
+        iphase.append(np.exp(1j * angle))
+    # end for
+    data = np.array(data).T
+    iphase_wt = np.abs(np.mean(np.array(iphase).T, axis=1))
+
+    samples = np.mean(data, axis=1)
+    samples *= np.power(iphase_wt, phase_weight)
+
+    # Call RF-stack for setting appropriate headers
+    dummy_stack = stream.stack()
+    dummy_stack[0].data = samples
+
+    return dummy_stack
+# end func
+
 def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_list="*", station_weights_fn=None,
                         min_station_weight=-1, apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
+                        apply_phase_weighting=False, pw_exponent=1.,
                         component='R', resample_freq=6.25, trim_window=(-5.0, 20.0), moveout=True):
     """Export receiver function to text format for ingestion into Fortran RF inversion code.
 
@@ -78,12 +105,13 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     # 2. Filter to desired component.
     # 3. Filter stations that fail the minimum-weight criteria
     # 4. Apply amplitude filter if provided
-    # 4. Apply min-slope-ratio filter if provided
-    # 5. Apply dereverberation filter if specified
-    # 6. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
-    # 7. Moveout and stack the RFs
-    # 8. Resample (lanczos) and trim RF
-    # 9. Export one file per station in (time, amplitude format)
+    # 5. Apply min-slope-ratio filter if provided
+    # 6. Apply dereverberation filter if specified
+    # 7. Apply back-azimuth filter if specified
+    # 8. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
+    # 9. Moveout and stack the RFs
+    # 10. Resample (lanczos) and trim RF
+    # 11. Export one file per station in (time, amplitude format)
 
     hdfkeys = get_obspyh5_index(input_h5_file, seeds_only=True)
 
@@ -99,9 +127,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 
         # Select component
         data = data.select(component=component)
-
-        #rf_util.label_rf_quality_simple_amplitude('ZRT', data, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=2.0)
-        #data = rf.RFStream([tr for tr in data if tr.stats.predicted_quality == 'a'])
 
         if apply_amplitude_filter:
             # Label and filter quality
@@ -217,7 +242,33 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                                                                         strc.stats.back_azimuth))
                 # end for
 
-                stack = ch_traces.stack()
+                stack = None
+                if(apply_phase_weighting):
+                    print('{}.{}: Applying a phase-weighted stack..'.format(network_code, sta))
+
+                    stack = phase_weighted_stack(ch_traces, phase_weight=pw_exponent)
+
+                    if(0): # debug plots
+                        import matplotlib.pyplot as plt
+                        from seismic.receiver_fn.rf_plot_utils import plot_rf_stack
+                        fn1 = os.path.join(output_folder, "_".join([network_code, sta, ch_traces[0].stats.location, cha]) + "_linear.pdf")
+                        fn2 = os.path.join(output_folder, "_".join([network_code, sta, ch_traces[0].stats.location, cha]) + "_pw.pdf")
+
+                        lin = ch_traces[0].copy()
+                        pw = ch_traces[0].copy()
+
+                        lin.data = ch_traces.stack()[0].data
+                        pw.data = stack[0].data
+                        fig = plot_rf_stack(RFStream([lin]))
+                        plt.savefig(fn1)
+
+                        fig = plot_rf_stack(RFStream([pw]))
+                        plt.savefig(fn2)
+                    # end if
+                else:
+                    print('{}.{}: Applying a linear stack..'.format(network_code, sta))
+                    stack = ch_traces.stack()
+                # end if
                 trace = stack[0]
                 exact_start_time = trace.stats.onset + trim_window[0]
                 stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
@@ -239,7 +290,9 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 iterdeconv_scaling = 1
                 column_data = np.array([times, trace.data/iterdeconv_scaling]).T
                 fname = os.path.join(output_folder, "_".join([network_code, sta, trace.stats.location, cha]) + "_rf.dat")
-                np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'))
+                np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'),
+                           header='{} (lon, lat): {}, {}'.format(trace.id, trace.stats.station_longitude,
+                                                                 trace.stats.station_latitude))
             # end for
         # end for
     # end for
@@ -274,9 +327,14 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
               help='Min and Max back-azimuth, specified as two floating point values separated by space. '
                    'RF traces with a back-azimuth outside this range are dropped')
 @click.option('--dereverberate', is_flag=True, default=False, help='Apply de-reverberation filter')
+@click.option('--apply-phase-weighting', is_flag=True, default=False, show_default=True,
+              help='Compute phase-weighed RF stacks. The default is linear stacks.')
+@click.option('--pw-exponent', type=float, default=1, show_default=True,
+              help='Exponent used in instantaneous phase-weighting of RF amplitudes. This parameter '
+                   'has no effect when --apply-phase-weighting is absent.')
 def main(input_file, output_folder, network_list, station_list, station_weights, min_station_weight,
          apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
-         dereverberate):
+         dereverberate, apply_phase_weighting, pw_exponent):
 
     assert baz_range[1] > baz_range[0], 'Invalid min/max back-azimuth; Aborting..'
 
@@ -287,7 +345,9 @@ def main(input_file, output_folder, network_list, station_list, station_weights,
                         apply_similarity_filter=apply_similarity_filter,
                         min_slope_ratio=min_slope_ratio,
                         baz_range=baz_range,
-                        dereverberate=dereverberate)
+                        dereverberate=dereverberate,
+                        apply_phase_weighting=apply_phase_weighting,
+                        pw_exponent=pw_exponent)
 # end func
 
 if __name__ == "__main__":
