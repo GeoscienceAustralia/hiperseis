@@ -13,33 +13,61 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-import os, sys
-
-from collections import defaultdict
 import numpy as np
-from obspy import Stream, Trace, UTCDateTime
-from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from tqdm import tqdm
+from obspy import UTCDateTime
 import click
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from collections import defaultdict
+from tqdm import tqdm
 
-def dump_gaps(asdf_source, network, start_date, end_date, min_gap_length, output_filename):
+
+def find_gaps(asdf_source, network=None, station=None, location=None,
+              channel=None, start_date_ts=None, end_date_ts=None,
+              min_gap_length=86400):
     ds = FederatedASDFDataSet(asdf_source)
     conn = ds.fds.conn
 
-    query = 'select st, et, net, sta, loc, cha from wdb where net="{}"'.format(network)
-    if(start_date and end_date):
-        query += ' and st>={} and et<={}'.format(start_date, end_date)
+    clause_added = 0
+    query = 'select net, sta, loc, cha, st, et from wdb '
+    if(network or station or location or channel or (start_date_ts and end_date_ts)): query += " where "
+
+    if(network):
+        query += ' net="{}" '.format(network)
+        clause_added += 1
+    # end if
+
+    if(station):
+        if(clause_added): query += ' and sta="{}" '.format(station)
+        else: query += ' sta="{}" '.format(station)
+        clause_added += 1
+    # end if
+
+    if(location):
+        if(clause_added): query += ' and loc="{}" '.format(location)
+        else: query += ' loc="{}" '.format(location)
+        clause_added += 1
+    # end if
+
+    if(channel):
+        if(clause_added): query += ' and cha="{}" '.format(channel)
+        else: query += ' cha="{}" '.format(channel)
+        clause_added += 1
+    # end if
+
+    if(start_date_ts and end_date_ts):
+        if(clause_added): query += ' and st>={} and et<={}'.format(start_date_ts, end_date_ts)
+        else: query += ' st>={} and et<={}'.format(start_date_ts, end_date_ts)
     # end if
     query += ' order by st, et'
 
     rows = conn.execute(query).fetchall()
-    rows = np.array(rows, dtype=[('st', 'float'), ('et', 'float'),
-                                ('net', 'object'),
-                                ('sta', 'object'),
-                                ('loc', 'object'),
-                                ('cha', 'object')])
 
+    array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                   ('loc', 'U10'), ('cha', 'U10'),
+                   ('st', 'float'), ('et', 'float')]
+    rows = np.array(rows, dtype=array_dtype)
 
+    # Process rows
     tree = lambda: defaultdict(tree)
     nested_dict = tree()
     for i in tqdm(np.arange(rows.shape[0])):
@@ -57,7 +85,7 @@ def dump_gaps(asdf_source, network, start_date, end_date, min_gap_length, output
         nested_dict[net][sta][loc][cha].append([st, et])
     # end for
 
-    fh = open(output_filename, 'w+')
+    result = []
     for net in nested_dict.keys():
         for sta in nested_dict[net].keys():
             for loc in nested_dict[net][sta].keys():
@@ -75,10 +103,7 @@ def dump_gaps(asdf_source, network, start_date, end_date, min_gap_length, output
                             for i, idx in enumerate(gaps):
                                 idx = idx[0]
 
-                                fh.write('{} {} {} {} {} {}\n'.format(net, sta,
-                                                                      loc if len(loc) else '--',
-                                                                      cha, UTCDateTime(et[idx]),
-                                                                      UTCDateTime(st[idx + 1])))
+                                result.append((net, sta, loc, cha, et[idx], st[idx + 1]))
                             # end for
                         # end if
                     # end if
@@ -87,32 +112,38 @@ def dump_gaps(asdf_source, network, start_date, end_date, min_gap_length, output
             # end for
         # end for
     # end for
-    fh.close()
-# end func
+    result = np.array(result, dtype=array_dtype)
 
+    return result
+# end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('asdf-source', required=True,
                 type=click.Path(exists=True))
-@click.argument('network-name', required=True,
-                type=str)
 @click.argument('output-filename', required=True,
                 type=click.Path(dir_okay=False))
+@click.option('--network', type=str, default=None, show_default=True,
+                help="Network name")
+@click.option('--station', type=str, default=None, show_default=True,
+              help="Station name")
+@click.option('--location', type=str, default=None, show_default=True,
+              help="Location name")
+@click.option('--channel', type=str, default=None, show_default=True,
+              help="Channel name")
 @click.option('--start-date', default=None,
               help="Start date-time in UTC format. If specified, 'end-date' must also be specified; " 
                    "otherwise this parameter is ignored.",
-              type=str)
+              type=str, show_default=True)
 @click.option('--end-date', default=None,
               help="End date-time in UTC format. If specified, 'start-date' must also be specified; " 
                    "otherwise this parameter is ignored.",
-              type=str)
-@click.option('--min-length', default=86400, type=float,
+              type=str, show_default=True)
+@click.option('--min-gap-length', default=86400, type=float, show_default=True,
               help="Minimum length of gaps in seconds to report")
-def process(asdf_source, network_name, output_filename, start_date, end_date, min_length):
+def process(asdf_source, output_filename, network, station, location, channel, start_date, end_date, min_gap_length):
     """
     ASDF_SOURCE: Path to text file containing paths to ASDF files\n
-    NETWORK_NAME: Network name \n
     OUTPUT_FILENAME: Output file-name\n
 
     Example usage:
@@ -122,15 +153,25 @@ def process(asdf_source, network_name, output_filename, start_date, end_date, mi
     try:
         start_date = UTCDateTime(start_date).timestamp if start_date else None
         end_date   = UTCDateTime(end_date).timestamp if end_date else None
-        length     = int(min_length)
     except Exception as e:
         print(str(e))
         assert 0, 'Invalid input'
     # end try
 
-    assert min_length > 0, '--min-length must be > 0'
+    assert min_gap_length > 0, '--min-gap-length must be > 0'
 
-    dump_gaps(asdf_source, network_name, start_date, end_date, min_length, output_filename)
+    gaps = find_gaps(asdf_source, network, station, location, channel, start_date, end_date, min_gap_length)
+
+    # Dump results to file
+    fh = open(output_filename, 'w+')
+    for i in np.arange(len(gaps)):
+        row = gaps[i]
+        fh.write('{} {} {} {} {} {}\n'.format(row['net'], row['sta'],
+                                              row['loc'] if len(row['loc']) else '--',
+                                              row['cha'], UTCDateTime(row['st']),
+                                              UTCDateTime(row['et'])))
+    # end for
+    fh.close()
 # end func
 
 if (__name__ == '__main__'):
