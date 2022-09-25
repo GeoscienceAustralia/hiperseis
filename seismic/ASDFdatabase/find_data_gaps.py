@@ -20,7 +20,6 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from collections import defaultdict
 from tqdm import tqdm
 
-
 def find_gaps(asdf_source, network=None, station=None, location=None,
               channel=None, start_date_ts=None, end_date_ts=None,
               min_gap_length=86400):
