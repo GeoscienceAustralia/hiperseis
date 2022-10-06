@@ -22,6 +22,7 @@ import os
 
 logging.basicConfig()
 
+DEFAULT_Vp = 6.4  # km/sec
 DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 501))
 DEFAULT_k_RANGE = tuple(np.linspace(1.5, 2.0, 301))
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
@@ -29,12 +30,14 @@ DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
 DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 10, 35))
 DEFAULT_SED_k_RANGE = tuple(np.linspace(1.0, 5.0, 21))
 
-def compute_hk_stack(cha_data, h_range=None, k_range=None,
+def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
                      weights=DEFAULT_WEIGHTS, root_order=1):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
     :type cha_data: Iterable(rf.RFTrace)
+    :param Vp: Average crustal Vp for computing H-k stacks
+    :type Vp: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
     :type h_range: numpy.array [1D], optional
     :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
@@ -62,10 +65,10 @@ def compute_hk_stack(cha_data, h_range=None, k_range=None,
     tphase_amps = []
     for itrc, trc in enumerate(cha_data):
         lead_time = trc.stats.onset - trc.stats.starttime
-        p = trc.stats.slowness / DEG2KM
         incl_deg = trc.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
-        Vp_inv = p / np.sin(incl_rad)
+        p = np.sin(incl_rad) / Vp
+        Vp_inv = 1./Vp
         Vs_inv = k_grid * Vp_inv
 
         term1 = np.sqrt(Vs_inv ** 2 - p ** 2)
@@ -111,11 +114,17 @@ def compute_hk_stack(cha_data, h_range=None, k_range=None,
     return k_grid, h_grid, hk_stack
 # end func
 
-def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, root_order=9):
+def compute_sediment_hk_stack(cha_data, H_c, k_c, Vp=DEFAULT_Vp, h_range=None, k_range=None, root_order=9):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
     :type cha_data: Iterable(rf.RFTrace)
+    :param H_c: Crustal thickness estimate from H-k stack
+    :type H_c: float, optional
+    :param k_c: Crustal Vp/Vs ratio estimate from H-k stack
+    :type k_c: float, optional
+    :param Vp: Average crustal Vp for computing H-k stacks
+    :type Vp: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
     :type h_range: numpy.array [1D], optional
     :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
@@ -155,10 +164,9 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, ro
     tphase_amps = []
     for itrc, trc in enumerate(cha_data):
         lead_time = trc.stats.onset - trc.stats.starttime
-        p = trc.stats.slowness / DEG2KM
         incl_deg = trc.stats.inclination
         incl_rad = np.deg2rad(incl_deg)
-        Vp_inv = p / np.sin(incl_rad)
+        p = np.sin(incl_rad) / Vp
 
         t4 = np.zeros(h_grid.shape)
         t2 = np.zeros(h_grid.shape)

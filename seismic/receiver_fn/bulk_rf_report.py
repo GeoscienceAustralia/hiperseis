@@ -90,11 +90,13 @@ def _rf_layout_A4(fig):
 # end func
 
 
-def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
+def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
+                         weighting=rf_stacking.DEFAULT_WEIGHTS,
                          labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70)):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
+                                                            Vp=Vp,
                                                             h_range=rf_stacking.DEFAULT_H_RANGE,
                                                             k_range=rf_stacking.DEFAULT_k_RANGE,
                                                             weights=weighting,
@@ -137,11 +139,12 @@ def _produce_hk_stacking(channel_data, weighting=rf_stacking.DEFAULT_WEIGHTS,
     return fig, soln
 # end func
 
-def _produce_sediment_hk_stacking(channel_data, H_c, k_c, labelling=DEFAULT_HK_SOLN_LABEL):
+def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT_Vp,
+                                  labelling=DEFAULT_HK_SOLN_LABEL):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack, weighting = rf_stacking.compute_sediment_hk_stack(channel_data,
-                                                                     H_c=H_c, k_c=k_c,
+                                                                     H_c=H_c, k_c=k_c, Vp=Vp,
                                                                      h_range=rf_stacking.DEFAULT_SED_H_RANGE,
                                                                      k_range=rf_stacking.DEFAULT_SED_k_RANGE,
                                                                      root_order=9)
@@ -198,7 +201,8 @@ def _plot_hk_solution_point(axes, k, h, idx):
               clip_on=False)
 # end func
 
-@click.command()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
@@ -219,6 +223,8 @@ def _plot_hk_solution_point(axes, k, h, idx):
               help='Apply filtering to the RFs based on the "slope_ratio" metric that indicates robustness'
                    'of P-arrival. Typically, a minimum slope-ratio of 5 is able to pick out strong arrivals. '
                    'The default value of -1 does not apply this filter')
+@click.option('--hk-vp', type=float, default=rf_stacking.DEFAULT_Vp, show_default=True,
+              help='Value to use for Vp (crustal P-wave velocity [km/s]) for H-k stacking')
 @click.option('--hk-weights', type=(float, float, float), default=(0.5, 0.4, 0.1), show_default=True,
               help='Weightings per arrival multiple for H-k stacking')
 @click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
@@ -232,8 +238,8 @@ def _plot_hk_solution_point(axes, k, h, idx):
               help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
          apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
-         hk_weights=rf_stacking.DEFAULT_WEIGHTS, hk_solution_labels=DEFAULT_HK_SOLN_LABEL,
-         depth_colour_range=(20, 70), hk_hpf_freq=None):
+         hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
+         hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70), hk_hpf_freq=None):
 
     """
     INPUT_FILE : Input RFs in H5 format\n
@@ -451,7 +457,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # end if
 
                 # Plot H-k stack using primary RF component
-                fig, maxima = _produce_hk_stacking(rf_stream, weighting=hk_weights,
+                fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
                                                    labelling=hk_solution_labels,
                                                    depth_colour_range=depth_colour_range)
                 hk_soln[nsl] = maxima
@@ -468,7 +474,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     if(len(hk_soln[nsl])):
                         H_c = hk_soln[nsl][0][0]
                         k_c = hk_soln[nsl][0][1]
-                        fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c)
+                        fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp)
                         sediment_hk_soln[nsl] = maxima
 
                         sediment_station_coords[nsl] = (channel_data[0].stats.station_longitude,
