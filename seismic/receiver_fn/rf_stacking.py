@@ -22,7 +22,7 @@ import os
 
 logging.basicConfig()
 
-DEFAULT_Vp = 6.4  # km/sec
+DEFAULT_Vp = 6.5  # km/sec
 DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 501))
 DEFAULT_k_RANGE = tuple(np.linspace(1.5, 2.0, 301))
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
