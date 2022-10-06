@@ -114,7 +114,7 @@ if __name__=="__main__":
     if(msi.rank == 0):
         print(msi.tree['AU'].keys())
         print(msi.tree['AU']['AXCOZ'].keys())
-        r = msi.get_waveforms('AU', 'AXCOZ', '00', 'HHN', UTCDateTime("2020-10-01"), UTCDateTime("2020-10-01-T00:01:00"))
+        r = msi.get_waveforms('AU', 'AXCOZ', '00', 'HHN', UTCDateTime("2020-10-01"), UTCDateTime("2020-10-02"))
         print(r)
     # end if
 # end if

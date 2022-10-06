@@ -649,6 +649,106 @@ class _FederatedASDFDataSetImpl():
         return inv
     # end func
 
+    def find_gaps(self, network=None, station=None, location=None,
+                  channel=None, start_date_ts=None, end_date_ts=None,
+                  min_gap_length=86400):
+
+        clause_added = 0
+        query = 'select net, sta, loc, cha, st, et from wdb '
+        if (network or station or location or channel or (start_date_ts and end_date_ts)): query += " where "
+
+        if (network):
+            query += ' net="{}" '.format(network)
+            clause_added += 1
+        # end if
+
+        if (station):
+            if (clause_added):
+                query += ' and sta="{}" '.format(station)
+            else:
+                query += ' sta="{}" '.format(station)
+            clause_added += 1
+        # end if
+
+        if (location):
+            if (clause_added):
+                query += ' and loc="{}" '.format(location)
+            else:
+                query += ' loc="{}" '.format(location)
+            clause_added += 1
+        # end if
+
+        if (channel):
+            if (clause_added):
+                query += ' and cha="{}" '.format(channel)
+            else:
+                query += ' cha="{}" '.format(channel)
+            clause_added += 1
+        # end if
+
+        if (start_date_ts and end_date_ts):
+            if (clause_added):
+                query += ' and st>={} and et<={}'.format(start_date_ts, end_date_ts)
+            else:
+                query += ' st>={} and et<={}'.format(start_date_ts, end_date_ts)
+        # end if
+        query += ' order by st, et'
+
+        rows = self.conn.execute(query).fetchall()
+
+        array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                       ('loc', 'U10'), ('cha', 'U10'),
+                       ('st', 'float'), ('et', 'float')]
+        rows = np.array(rows, dtype=array_dtype)
+
+        # Process rows
+        tree = lambda: defaultdict(tree)
+        nested_dict = tree()
+        for i in np.arange(rows.shape[0]):
+            net = rows['net'][i]
+            sta = rows['sta'][i]
+            loc = rows['loc'][i]
+            cha = rows['cha'][i]
+            st = rows['st'][i]
+            et = rows['et'][i]
+
+            if (type(nested_dict[net][sta][loc][cha]) == defaultdict):
+                nested_dict[net][sta][loc][cha] = []
+            # end if
+
+            nested_dict[net][sta][loc][cha].append([st, et])
+        # end for
+
+        result = []
+        for net in nested_dict.keys():
+            for sta in nested_dict[net].keys():
+                for loc in nested_dict[net][sta].keys():
+                    for cha in nested_dict[net][sta][loc].keys():
+                        arr = nested_dict[net][sta][loc][cha]
+                        if (len(arr)):
+                            arr = np.array(arr)
+                            st = arr[:, 0]
+                            et = arr[:, 1]
+                            assert np.allclose(np.array(sorted(st)), st), 'Start-times array not sorted!'
+                            gaps = np.argwhere((st[1:] - et[:-1]) >= min_gap_length)
+
+                            if (len(gaps)):
+                                for i, idx in enumerate(gaps):
+                                    idx = idx[0]
+
+                                    result.append((net, sta, loc, cha, et[idx], st[idx + 1]))
+                                # end for
+                            # end if
+                        # end if
+                    # end for
+                # end for
+            # end for
+        # end for
+        result = np.array(result, dtype=array_dtype)
+
+        return result
+    # end func
+
     def cleanup(self):
         for i, ds in enumerate(self.asdf_datasets):
             # if self.logger:
