@@ -92,7 +92,8 @@ def _rf_layout_A4(fig):
 
 def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
                          weighting=rf_stacking.DEFAULT_WEIGHTS,
-                         labelling=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70)):
+                         semblance_weighted=True, labelling=DEFAULT_HK_SOLN_LABEL,
+                         depth_colour_range=(20, 70)):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
@@ -100,7 +101,8 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
                                                             h_range=rf_stacking.DEFAULT_H_RANGE,
                                                             k_range=rf_stacking.DEFAULT_k_RANGE,
                                                             weights=weighting,
-                                                            root_order=2)
+                                                            root_order=2,
+                                                            semblance_weighted=semblance_weighted)
 
     sta = channel_data[0].stats.station
     loc = channel_data[0].stats.location
@@ -236,10 +238,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
+@click.option('--disable-semblance-weighting', is_flag=True, default=False, show_default=True,
+              help='Disables default semblance-weighting applied to H-k stacks.')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
          apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
-         hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70), hk_hpf_freq=None):
+         hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
+         hk_hpf_freq=None, disable_semblance_weighting=False):
 
     """
     INPUT_FILE : Input RFs in H5 format\n
@@ -458,6 +463,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
                 # Plot H-k stack using primary RF component
                 fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
+                                                   semblance_weighted=(not disable_semblance_weighting),
                                                    labelling=hk_solution_labels,
                                                    depth_colour_range=depth_colour_range)
                 hk_soln[nsl] = maxima
@@ -483,7 +489,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                         pdf.savefig(dpi=300, orientation='landscape')
                         plt.close()
                     else:
-                        log.warning("Sediment H-K stacking for {} faile. Moving along..".format(nsl))
+                        log.warning("Sediment H-K stacking for {} failed. Moving along..".format(nsl))
                     # end if
                 # end if
 

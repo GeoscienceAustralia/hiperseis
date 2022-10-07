@@ -31,7 +31,7 @@ DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 10, 35))
 DEFAULT_SED_k_RANGE = tuple(np.linspace(1.0, 5.0, 21))
 
 def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
-                     weights=DEFAULT_WEIGHTS, root_order=1):
+                     weights=DEFAULT_WEIGHTS, root_order=1, semblance_weighted=True):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
@@ -65,9 +65,8 @@ def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
     tphase_amps = []
     for itrc, trc in enumerate(cha_data):
         lead_time = trc.stats.onset - trc.stats.starttime
-        incl_deg = trc.stats.inclination
-        incl_rad = np.deg2rad(incl_deg)
-        p = np.sin(incl_rad) / Vp
+        p = trc.stats.slowness / DEG2KM
+
         Vp_inv = 1./Vp
         Vs_inv = k_grid * Vp_inv
 
@@ -108,8 +107,20 @@ def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
                             np.sign(c) * np.power(np.fabs(c), 1. / root_order)])
     # end for
     tphase_amps = np.array(tphase_amps)
-    hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
-    hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
+
+    hk_stack = None
+    if(semblance_weighted):
+        # see Eaton et al. 2006 (doi.org/10.1016/j.tecto.2006.01.023)
+        S = np.power(np.sum(tphase_amps, axis=0), 2.) / np.sum(np.power(tphase_amps, 2.), axis=0)
+        S /= np.max(S)
+
+        hk_stack = np.sum(tphase_amps, axis=0)
+        hk_stack = np.sum(hk_stack * np.dot(np.moveaxis(S, 0, -1), weights), axis=0)
+        hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
+    else:
+        hk_stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
+        hk_stack = np.sign(hk_stack) * np.power(np.fabs(hk_stack), root_order)
+    # end if
 
     return k_grid, h_grid, hk_stack
 # end func
@@ -164,9 +175,7 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, Vp=DEFAULT_Vp, h_range=None, k
     tphase_amps = []
     for itrc, trc in enumerate(cha_data):
         lead_time = trc.stats.onset - trc.stats.starttime
-        incl_deg = trc.stats.inclination
-        incl_rad = np.deg2rad(incl_deg)
-        p = np.sin(incl_rad) / Vp
+        p = trc.stats.slowness / DEG2KM
 
         t4 = np.zeros(h_grid.shape)
         t2 = np.zeros(h_grid.shape)
