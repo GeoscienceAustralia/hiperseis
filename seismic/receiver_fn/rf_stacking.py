@@ -112,7 +112,10 @@ def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
     if(semblance_weighted):
         # see Eaton et al. 2006 (doi.org/10.1016/j.tecto.2006.01.023)
         S = np.power(np.sum(tphase_amps, axis=0), 2.) / np.sum(np.power(tphase_amps, 2.), axis=0)
-        S /= np.max(S)
+        S /= float(tphase_amps.shape[0])
+
+        assert np.max(S) <= 1., 'Semblance-weighting error detected ' \
+                                'while processing station: {}'.format(cha_data[0].stats.station)
 
         hk_stack = np.sum(tphase_amps, axis=0)
         hk_stack = np.sum(hk_stack * np.dot(np.moveaxis(S, 0, -1), weights), axis=0)
