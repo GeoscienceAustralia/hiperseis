@@ -43,8 +43,8 @@ logging.basicConfig()
 # Take care not to use any curation options that would vary if there were a station orientation error.
 DEFAULT_CURATION_OPTS = {
     "min_snr": 2.0,
-    "max_raw_amplitude": 20000.0,
-    "rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
+    #"max_raw_amplitude": 20000.0,
+    #"rms_amplitude_bounds": {"R/Z": 1.0, "T/Z": 1.0}
 }
 
 DEFAULT_CONFIG_FILTERING = {
