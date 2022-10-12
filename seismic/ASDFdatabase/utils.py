@@ -38,6 +38,9 @@ class MseedIndex:
         offsets = None
         if (self.rank == 0):
             self.mseed_files = np.array(glob(os.path.join(self.mseed_folder, pattern)))
+
+            #self.mseed_files = self.mseed_files[:1000]
+
             work_load = MseedIndex.split_list(self.mseed_files, self.nproc)
             counts = np.array([len(item) for item in work_load])
             offsets = np.append(0, np.cumsum(counts[:-1]))
@@ -69,9 +72,9 @@ class MseedIndex:
 
         meta_list = self.comm.gather(meta_list, root=0)
         if (self.rank == 0):
-            print('Creating metadata index..')
-
             meta_list = [item for ritem in meta_list for item in ritem]  # flatten list of lists
+
+            print('Creating metadata index for {} mseed files..'.format(len(meta_list)))
 
             for row in tqdm(meta_list):
                 idx, nc, sc, lc, cc, st, et = row
@@ -85,19 +88,25 @@ class MseedIndex:
     # end func
 
     def get_waveforms(self, net, sta, loc, cha, st: UTCDateTime, et: UTCDateTime):
-        st_ts = st.timestamp
-        et_ts = et.timestamp
+        assert self.rank == 0, 'This function is only accessible from Rank 0. Aborting..'
+
+        epsilon = 1e-5
+        st_ts = st.timestamp + epsilon
+        et_ts = et.timestamp - epsilon
 
         result = Stream([])
-        assert self.rank == 0, 'Waveforms must be accessed from Rank 0. Aborting..'
         try:
             target_index = self.tree[net][sta][loc][cha]
 
             if(type(target_index) == index.Index):
                 file_indices = np.array(list(target_index.intersection((st_ts, 1, et_ts, 1))), dtype='i4')
 
-                for mfile in self.mseed_files[file_indices]:
-                    result += read(mfile).slice(st, et, nearest_sample=False).copy()
+                # since file names are repeated for multiple traces, we need a unique set
+                for mfile in set(self.mseed_files[file_indices]):
+                    result += read(mfile).select(network=net,
+                                                 station=sta,
+                                                 location=loc,
+                                                 channel=cha).slice(st, et, nearest_sample=False).copy()
                 # end for
             # end if
         except Exception as e:
@@ -105,6 +114,59 @@ class MseedIndex:
         # end try
 
         return result
+    # end func
+
+    def get_stations(self, st:UTCDateTime, et:UTCDateTime, net=None, sta=None, loc=None, cha=None):
+        assert self.rank == 0, 'This function is only accessible from Rank 0. Aborting..'
+
+        epsilon = 1e-5
+        st_ts = st.timestamp + epsilon
+        et_ts = et.timestamp - epsilon
+
+        _net = _sta = _loc = _cha = None
+
+        if(net==None): _net = self.tree.keys()
+        else: _net = [net]
+
+        result = []
+        for nc in _net:
+            if (sta==None): _sta = self.tree[nc].keys()
+            else: _sta = [sta]
+
+            for sc in _sta:
+                if (loc==None): _loc = self.tree[nc][sc].keys()
+                else: _loc = [loc]
+
+                for lc in _loc:
+                    if (cha==None): _cha = self.tree[nc][sc][lc].keys()
+                    else: _cha= [cha]
+
+                    for cc in _cha:
+                        target_index = self.tree[nc][sc][lc][cc]
+                        if (type(target_index) == index.Index):
+                            entries = list(target_index.intersection((st_ts, 1, et_ts, 1)))
+
+                            if(len(entries)): result.append([nc, sc, lc, cc])
+                        # end if
+                    # end for
+                # end for
+            # end for
+        # end for
+
+        return result
+    # end func
+
+    def get_time_range(self, net, sta, loc, cha):
+        assert self.rank == 0, 'This function is only accessible from Rank 0. Aborting..'
+
+        target_index = self.tree[net][sta][loc][cha]
+
+        if (type(target_index) == index.Index):
+            bounds = target_index.bounds
+            return UTCDateTime(bounds[0]), UTCDateTime(bounds[2])
+        # end if
+
+        return None
     # end func
 # end func
 
@@ -114,7 +176,8 @@ if __name__=="__main__":
     if(msi.rank == 0):
         print(msi.tree['AU'].keys())
         print(msi.tree['AU']['AXCOZ'].keys())
-        r = msi.get_waveforms('AU', 'AXCOZ', '00', 'HHN', UTCDateTime("2020-10-01"), UTCDateTime("2020-10-02"))
+        r = msi.get_waveforms('AU', 'AXCOZ', '00', 'HHZ', UTCDateTime(2021, 1, 3, 22, 9, 26), UTCDateTime(2021, 1, 4, 0, 0))
         print(r)
+        print(msi.get_time_range('AU', 'AXCOZ', '00', 'HHN'))
     # end if
 # end if
