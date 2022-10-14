@@ -8,6 +8,7 @@ from obspy import read
 from obspy.core import Stream, Trace
 import os
 from tqdm import tqdm
+from ordered_set import OrderedSet as set
 
 MAX_DATE = UTCDateTime(4102444800.0)
 MIN_DATE = UTCDateTime(-2208988800.0)
@@ -37,7 +38,7 @@ class MseedIndex:
         work_load = None
         offsets = None
         if (self.rank == 0):
-            self.mseed_files = np.array(glob(os.path.join(self.mseed_folder, pattern)))
+            self.mseed_files = np.array(sorted(glob(os.path.join(self.mseed_folder, pattern))))
 
             #self.mseed_files = self.mseed_files[:1000]
 
@@ -74,7 +75,7 @@ class MseedIndex:
         if (self.rank == 0):
             meta_list = [item for ritem in meta_list for item in ritem]  # flatten list of lists
 
-            print('Creating metadata index for {} mseed files..'.format(len(meta_list)))
+            print('\nCreating metadata index for {} traces..'.format(len(meta_list)))
 
             for row in tqdm(meta_list):
                 idx, nc, sc, lc, cc, st, et = row
@@ -146,7 +147,7 @@ class MseedIndex:
                         if (type(target_index) == index.Index):
                             entries = list(target_index.intersection((st_ts, 1, et_ts, 1)))
 
-                            if(len(entries)): result.append([nc, sc, lc, cc])
+                            if(len(entries)): result.append((nc, sc, lc, cc))
                         # end if
                     # end for
                 # end for
@@ -166,7 +167,7 @@ class MseedIndex:
             return UTCDateTime(bounds[0]), UTCDateTime(bounds[2])
         # end if
 
-        return None
+        return MAX_DATE, MIN_DATE
     # end func
 # end func
 
