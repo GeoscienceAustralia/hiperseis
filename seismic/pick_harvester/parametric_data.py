@@ -27,6 +27,20 @@ import h5py
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
+        """
+        :param csv_catalog: path to catalog file in csv format
+        :param auto_pick_files: optional list of files containing automatic arrivals. Each file
+                                should contain arrivals of the same phase (e.g. P and S arrivals
+                                output from pick.py)
+        :param auto_pick_phases: optional list of phases corresponding to each file provided in
+                                 auto_pick_files
+        :param events_only: whether only events should be loaded
+        :param phase_list: a space-separated list of phases to be read from the catalogue -- all
+                           other phases not in this list are discarded
+        :param temp_dir: path to a temporary folder to be used for syncing data across processors.
+                         Note that this temporary folder must be accessible by all MPI ranks, e.g.
+                         within a project folder on the NCI.
+        """
         self.EARTH_RADIUS_KM = 6371.
         self.DEG2KM = np.pi/180 * self.EARTH_RADIUS_KM
         self.STATION_DIST_M = 1e3 # distance in metres within which neighbouring stations are coalesced

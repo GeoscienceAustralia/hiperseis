@@ -31,6 +31,24 @@ class SSSTRelocator(ParametricData):
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[], config_fn=None,
                  phase_list='P Pg Pb Pn S Sg Sb Sn',
                  p_residual_cutoff=5, s_residual_cutoff=10, temp_dir='./'):
+        """
+        :param csv_catalog: path to catalog file in csv format
+        :param auto_pick_files: optional list of files containing automatic arrivals. Each file
+                                should contain arrivals of the same phase (e.g. P and S arrivals
+                                output from pick.py)
+        :param auto_pick_phases: optional list of phases corresponding to each file provided in
+                                 auto_pick_files
+        :param config_fn: a config file as described in ../Readme.md
+        :param phase_list: a space-separated list of phases to be read from the catalogue -- all
+                           other phases not in this list are discarded
+        :param p_residual_cutoff: ± residual cutoff for P-arrivals -- P-phases with residuals
+                                  exceeding this cutoff are discarded.
+        :param s_residual_cutoff: ± residual cutoff for S-arrivals -- S-phases with residuals
+                                  exceeding this cutoff are discarded
+        :param temp_dir: path to a temporary folder to be used for syncing data across processors.
+                         Note that this temporary folder must be accessible by all MPI ranks, e.g.
+                         within a project folder on the NCI.
+        """
         super(SSSTRelocator, self).__init__(csv_catalog, auto_pick_files, auto_pick_phases,
                                             False, phase_list, temp_dir)
         self.config_fn = config_fn
