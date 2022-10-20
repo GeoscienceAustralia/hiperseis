@@ -12,6 +12,7 @@ Revision History:
 """
 
 import numpy as np
+import obspy
 from obspy import UTCDateTime
 import click
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
@@ -23,6 +24,7 @@ from obspy.core import Stream
 import pyasdf
 import shutil
 import tempfile
+from collections import defaultdict
 from ordered_set import OrderedSet as set
 
 class DataPool:
@@ -145,6 +147,7 @@ class DataPool:
             else: wet = wst + step
 
             wd = self.get_waveforms(net, sta, loc, cha, wst, wet)
+            wd = Stream([tr for tr in wd if (tr.stats.endtime - tr.stats.starttime) >= self.min_gap_length])
             yield wd
 
             wst += step
@@ -156,7 +159,50 @@ class DataPool:
     # end func
 # end class
 
-def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str, dry_run=False):
+def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
+                     location_mappings=None, dry_run=False):
+    def update_inventory_metadata(inv: obspy.Inventory):
+        if(location_mappings):
+            for net_sta_loc in location_mappings.keys():
+                if(not location_mappings[net_sta_loc]): continue
+
+                mnet, msta, mloc = net_sta_loc.split('.')
+
+                for network in inv.networks:
+                    if(network.code == mnet):
+                        for station in network.stations:
+                            if(station.code == msta):
+                                for channel in station:
+                                    if((channel.location_code == mloc) or (mloc == '*')):
+                                        #print('inv_meta', net_sta_loc, location_mappings[net_sta_loc])
+                                        channel.location_code = location_mappings[net_sta_loc]
+                                    # end if
+                                # end for
+                            # end if
+                        # end for
+                    # end if
+                # end for
+            # end for
+        # end if
+        return inv
+    # end func
+
+    def update_stream_metadata(wstream: obspy.core.Stream):
+        for trc in wstream:
+            net_sta_loc = '{}.{}.{}'.format(trc.stats.network, trc.stats.station, trc.stats.location)
+            net_sta_wc = '{}.{}.*'.format(trc.stats.network, trc.stats.station) # wild-card location
+
+            to_loc1 = location_mappings[net_sta_loc]
+            to_loc2 = location_mappings[net_sta_wc]
+
+            if(to_loc1): trc.stats.location = to_loc1
+            elif(to_loc2): trc.stats.location = to_loc2
+            #print('stream_meta', to_loc1, to_loc2)
+        # end for
+
+        return wstream
+    # end func
+
     # get list of stations from DataPool to augment data from
     dp_stations = set(dp.get_stations(MIN_DATE, MAX_DATE))
 
@@ -193,6 +239,8 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
 
                 count = 0
                 for wd in dp.waveform_iterator(net, sta, loc, cha, dp_st, ref_st):
+                    if(location_mappings): wd = update_stream_metadata(wd)
+
                     output_ds.add_waveforms(wd, tag='raw_recording')
                     wdata_added = True
                     count += 1
@@ -215,6 +263,9 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
                 for wd in dp.waveform_iterator(gap[0], gap[1], gap[2], gap[3],
                                                UTCDateTime(gap[4]),
                                                UTCDateTime(gap[5])):
+
+                    if(location_mappings): wd = update_stream_metadata(wd)
+
                     output_ds.add_waveforms(wd, tag='raw_recording')
                     wdata_added = True
                     count += 1
@@ -231,15 +282,21 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
 
                 count = 0
                 for wd in dp.waveform_iterator(net, sta, loc, cha, ref_et, dp_et):
+                    if(location_mappings): wd = update_stream_metadata(wd)
+
                     output_ds.add_waveforms(wd, tag='raw_recording')
                     wdata_added = True
                     count += 1
+                    break
                 # end for
                 print('. Added {} traces'.format(count))
             # end if
 
             if(wdata_added):
                 inventory = rds.get_inventory(network=net, station=sta)
+
+                if (location_mappings): inventory = update_inventory_metadata(inventory)
+
                 output_ds.add_stationxml(inventory)
             # end if
 
@@ -263,9 +320,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(dir_okay=False))
 @click.option('--min-gap-length', default=120, type=float, show_default=True,
               help="Minimum length of gaps in seconds to fill")
+@click.option('--location-code-mappings', default=None, type=str, show_default=True,
+              help="A space-separated, three-columned text file containing 'NET.STA' 'FROM_LOC' 'TO_LOC' "
+                   "in each row. All data from 'data-src' that match 'NET.STA.FROM_LOC' will have their "
+                   "location codes redefined to 'NET.STA.TO_LOC'. 'FROM_LOC' can be set to '*' to set "
+                   "all corresponding location codes to 'TO_LOC'")
 @click.option('--dry-run', default=False, is_flag=True, show_default=True,
               help="Dry run only reports stations whose data can be augmented/filled")
-def process(asdf_ref, data_src, output_filename, min_gap_length=600, dry_run=False):
+def process(asdf_ref, data_src, output_filename, min_gap_length=600, location_code_mappings=None, dry_run=False):
     """
     ASDF_REF: Text file containing paths to ASDF files, the data from which are to be used as the reference
               for finding and filling gaps\n
@@ -284,8 +346,28 @@ def process(asdf_ref, data_src, output_filename, min_gap_length=600, dry_run=Fal
     rds = FederatedASDFDataSet(asdf_ref)
     dp = DataPool(data_src, min_gap_length, os.path.dirname(data_src))
 
+    # parse location code mappings
+    loc_mappings = defaultdict(lambda:None)
+    if(location_code_mappings and len(location_code_mappings)):
+        try:
+            lines = open(location_code_mappings).readlines()
+            for line in lines:
+                line = line.strip()
+                if(not len(line)): continue
+                netsta, from_loc, to_loc = line.split()
+                loc_mappings['{}.{}'.format(netsta, from_loc)] = to_loc
+            # end for
+        except Exception as e:
+            assert 0, 'Failed to read location-code mappings with error: {}. Aborting..'.format(e)
+        # end try
+
+        if(len(loc_mappings)):
+            if(rds.fds.rank == 0): print('\n\nFound location-code mappings: {}\n'.format(dict(loc_mappings)))
+        # end func
+    # end if
+
     if(rds.fds.rank == 0):
-        u = augment_and_fill(rds, dp, output_filename, dry_run=dry_run)
+        u = augment_and_fill(rds, dp, output_filename, location_mappings=loc_mappings, dry_run=dry_run)
         if(dry_run):
             print('\n\nData can be augmented/filled for the following stations: {}\n\n'.format(u))
         else:
