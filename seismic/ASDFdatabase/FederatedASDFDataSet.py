@@ -210,6 +210,24 @@ class FederatedASDFDataSet():
         inv = self.fds.get_inventory(network=network, station=station)
         return inv
     # end func
+
+    def find_gaps(self, network=None, station=None, location=None,
+                  channel=None, start_date_ts=None, end_date_ts=None,
+                  min_gap_length=86400):
+        """
+        This function returns gaps in data as a numpy array with columns: net, sta, loc, cha, start_timestamp,
+        end_timestamp.
+        @param network: network code
+        @param station: station code
+        @param location: location code
+        @param channel: channel code
+        @param start_date_ts: start timestamp
+        @param end_date_ts: end timestamp
+        @param min_gap_length: minimum length of gap; smaller gaps in data are ignored
+        @return:
+        """
+        return self.fds.find_gaps(network, station, location, channel, start_date_ts, end_date_ts, min_gap_length)
+    # end func
 # end class
 
 if __name__ == "__main__":
