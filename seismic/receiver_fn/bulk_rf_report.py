@@ -133,9 +133,33 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
         log.info("Numerical solutions (H, k) = {}".format(soln))
     # end if
 
+    # ==========================================================================
     # Plot the local maxima
+    # ==========================================================================
+    def compute_arrival_times(p, h, k):
+        Vp_inv = 1. / Vp
+
+        Vs_inv = k * Vp_inv
+        term1 = np.sqrt(Vs_inv ** 2 - p ** 2)
+        term2 = np.sqrt(Vp_inv ** 2 - p ** 2)
+
+        t1 = h * (term1 - term2)
+        t2 = h * (term1 + term2)
+        t3 = h * 2 * term1
+
+        return t1, t2, t3
+    # end func
     for i, (h, k) in enumerate(soln):
-        _plot_hk_solution_point(plt.gca(), k, h, i)
+        phase_time_dict = {}
+        p_array = np.array([trc.stats.slowness / rf_stacking.DEG2KM for trc in channel_data])
+        p_mean = np.mean(p_array)
+        p_std = np.std(p_array)
+        min_times = compute_arrival_times(p_mean - p_std, h, k)
+        max_times = compute_arrival_times(p_mean + p_std, h, k)
+        phase_time_dict['t1'] = sorted(np.array([min_times[0], max_times[0]]))
+        phase_time_dict['t2'] = sorted(np.array([min_times[1], max_times[1]]))
+        phase_time_dict['t3'] = sorted(np.array([min_times[2], max_times[2]]))
+        _plot_hk_solution_point(plt.gca(), k, h, i, phase_time_dict)
     # end for
 
     return fig, soln
@@ -187,7 +211,7 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
     return fig, soln
 # end func
 
-def _plot_hk_solution_point(axes, k, h, idx):
+def _plot_hk_solution_point(axes, k, h, idx, phase_time_dict=None):
     xl = axes.get_xlim()
     yl = axes.get_ylim()
 
@@ -198,9 +222,21 @@ def _plot_hk_solution_point(axes, k, h, idx):
     axes.scatter(k, h, marker='+', c="#000000", s=20)
 
     x = np.mean(np.array(xl))
+    x1 = x + (xl[1]-x)*0.55
     axes.text(x, h, "H{}={:.3f}, k{}={:.3f}".format(idx, h, idx, k),
               color="#000000", fontsize=12, horizontalalignment='left',
               clip_on=False)
+    if(phase_time_dict):
+        axes.text(x1, h+0.6, "Ps: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t1']),
+                  color="#000000", fontsize=4, horizontalalignment='left',
+                  clip_on=False)
+        axes.text(x1, h, "PpPs: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t2']),
+                  color="#000000", fontsize=4, horizontalalignment='left',
+                  clip_on=False)
+        axes.text(x1, h-0.6, "PpSs+PsPs: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t3']),
+                  color="#000000", fontsize=4, horizontalalignment='left',
+                  clip_on=False)
+    # end if
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
