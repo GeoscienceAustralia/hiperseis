@@ -80,9 +80,9 @@ class ParametricData:
         # load events and arrivals
         if(1):
             self.events, self.arrivals = self._load_catalog()
-            if(self.rank == 0):
-                np.save('events.npy', self.events)
-                np.save('arrivals.npy', self.arrivals)
+            #if(self.rank == 0):
+            #    np.save('events.npy', self.events)
+            #    np.save('arrivals.npy', self.arrivals)
             # end if
         else:
             self.events = np.load('events.npy')

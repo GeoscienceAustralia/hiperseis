@@ -37,7 +37,7 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.utils import get_stream, fill_gaps
 from netCDF4 import Dataset
 from functools import reduce
-from seismic.xcorqc.utils import SpooledXcorrResults 
+from seismic.xcorqc.utils import SpooledMatrix
 logging.basicConfig()
 
 
@@ -707,7 +707,13 @@ def IntervalStackXCorr(refds, tempds,
         # end if
 
         if(spooledXcorr is None):
-            spooledXcorr = SpooledXcorrResults(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair, dir=scratch_folder)
+            """
+            Spooled storage for cross-correlations. Stacked cross-correlations computed were previously
+            gathered in memory, before being written to netCDF4 files at the end. Because we now need to
+            output all cross-correlations, unstacked, the memory requirements have jumped by a factor of
+            ~26. We now write the CCs to a spooled storage as they are being computed.
+            """
+            spooledXcorr = SpooledMatrix(xcl.shape[1], dtype=xcl.dtype, max_size_mb=2048, prefix=stationPair, dir=scratch_folder)
         # end if
         
         # write xcorr results to spooled buffer
