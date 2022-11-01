@@ -375,12 +375,10 @@ def process(asdf_source, network, spec_method, output_path, win_length,
     spooled_results = []
     pbar = tqdm(total=len(proc_stations))
     for station in proc_stations:
-        spooled_mat = SpooledMatrix(-1, # placeholder
-                                    dtype=np.float32, max_size_mb=1048,
-                                    prefix=station, dir=tempdir)
+        spooled_mat = None
+        good_freqs = None
 
         net, sta = station.split('.')
-        good_freqs = None
         for st in waveform_iterator3c(fds, net, sta, start_time, end_time):
             if(not len(st)): continue # no data found
 
@@ -388,26 +386,43 @@ def process(asdf_source, network, spec_method, output_path, win_length,
                                                                  st[0].stats.starttime.strftime('%Y-%m-%d'),
                                                                  st[0].stats.endtime.strftime('%Y-%m-%d')))
 
-            freqs = create_HVSR( st, spooled_mat,
-                                 spectra_method=spectra_method,
-                                 spectra_options={'time_bandwidth': 3.5,
-                                                   'number_of_tapers': None,
-                                                   'quadratic': False,
-                                                   'adaptive': True, 'nfft': None,
-                                                   'taper': 'blackman'},
-                                 window_length=win_length,
-                                 bin_samples=nfrequencies,
-                                 bin_sampling=freq_sampling,
-                                 f_min=initialfreq,
-                                 f_max=np.min([finalfreq, (1./st[0].stats.delta)*0.5]),
-                                 triggering_options=triggering_options,
-                                 lowpass_value = lowpass_value,
-                                 highpass_value = highpass_value,
-                                 new_sample_rate=resample_rate,
-                                 resample_log_freq=resample_log_freq,
-                                 smoothing=smooth_spectra_method )
+            freqs, hvsr_matrix = create_HVSR( st,
+                                              spectra_method=spectra_method,
+                                              spectra_options={'time_bandwidth': 3.5,
+                                                               'number_of_tapers': None,
+                                                               'quadratic': False,
+                                                               'adaptive': True, 'nfft': None,
+                                                               'taper': 'blackman'},
+                                              window_length=win_length,
+                                              bin_samples=nfrequencies,
+                                              bin_sampling=freq_sampling,
+                                              f_min=initialfreq,
+                                              f_max=np.min([finalfreq, (1./st[0].stats.delta)*0.5]),
+                                              triggering_options=triggering_options,
+                                              lowpass_value = lowpass_value,
+                                              highpass_value = highpass_value,
+                                              new_sample_rate=resample_rate,
+                                              resample_log_freq=resample_log_freq,
+                                              smoothing=smooth_spectra_method )
+
             if(freqs is not None):
                 good_freqs = freqs
+
+                if (spooled_mat is None):
+                    spooled_mat = SpooledMatrix(hvsr_matrix.shape[1],
+                                                dtype=np.float32, max_size_mb=1048,
+                                                prefix=station, dir=tempdir)
+                # end if
+
+                # append results to spooled_mat
+                if(spooled_mat.ncols == hvsr_matrix.shape[1]):
+                    for i in np.arange(len(hvsr_matrix)): spooled_mat.write_row(hvsr_matrix[i, :])
+                else:
+                    print('Warning: Discrepant hvsr_matrix shape found for {} at time {}. '
+                          'Expected {} columns, found {}. Ignoring and moving along..'
+                          .format(station, st[0].stats.starttime.strftime('%Y-%m-%d'),
+                                  spooled_mat.ncols, hvsr_matrix.shape[1]))
+                # end if
                 #break
             # end if
         # end for

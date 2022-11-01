@@ -262,8 +262,7 @@ def findCommonQuietAreas(areas, length, min_length):
                                                  min_length)
     return common_quiet_times
 
-def calculateHVSR(stream, _intervals, spooled_mat:SpooledMatrix,
-                  window_length, method, options,
+def calculateHVSR(stream, _intervals, window_length, method, options,
                   smoothing=None, smoothing_count=1, smoothing_constant=40,
                   message_function=None, bin_samples=100, bin_sampling='log',
                   f_min=0.1,f_max=50.0, resample_log_freq=False):
@@ -278,6 +277,7 @@ def calculateHVSR(stream, _intervals, spooled_mat:SpooledMatrix,
     # XXX: Add option to use the raw data stream.
     # Create the matrix that will be used to store the single spectra.
     hvsr_matrix = np.empty((length, good_length), dtype='f4')
+    good_freq = None
     if method == 'multitaper':
         if options['nfft']:
             good_length = options['nfft']// 2 + 1
@@ -680,13 +680,7 @@ def calculateHVSR(stream, _intervals, spooled_mat:SpooledMatrix,
         hvsr_matrix = interp_hvsr_matrix
     # end if
 
-    # Adjust columns in spooled_storage if needed
-    spooled_mat.reset_ncols(hvsr_matrix.shape[1])
-
-    # append results to spooled_mat
-    for i in np.arange(len(hvsr_matrix)): spooled_mat.write_row(hvsr_matrix[i, :])
-
-    return good_freq
+    return good_freq, hvsr_matrix
 # end func
 
 def detectTraceOrientation(stream):

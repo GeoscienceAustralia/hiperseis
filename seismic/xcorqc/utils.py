@@ -253,12 +253,6 @@ class SpooledMatrix:
         return self._nrows
     # end func
 
-    def reset_ncols(self, ncols:int):
-        if(self._ncols == ncols): return
-        assert self._nrows == 0, 'Cannot reset ncols; there exists data writen earlier..'
-        self._ncols = ncols
-    # end func
-
     def write_row(self, row_array):
         assert(row_array.dtype == self._dtype)
         assert(len(row_array.shape) == 1)

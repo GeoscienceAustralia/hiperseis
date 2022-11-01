@@ -10,9 +10,8 @@
 #---------------------------------------------------------------------
 
 from seismic.hvsr.htov import *
-from seismic.xcorqc.utils import SpooledMatrix
 
-def create_HVSR(stream, spooled_mat:SpooledMatrix,
+def create_HVSR(stream,
                 vertical_channel=None, spectra_method='multitaper',
                 spectra_options={'time_bandwidth':3.5, 'number_of_tapers':
                 None, 'quadratic':False, 'adaptive':True,
@@ -134,17 +133,17 @@ def create_HVSR(stream, spooled_mat:SpooledMatrix,
                                         window_length, npts)
     if not len(intervals):
         #print('Warning: No quiet intervals found. Moving along..')
-        return None
+        return None, None
     # end if
 
-    freqs = calculateHVSR(stream, intervals, spooled_mat,
-                          window_length, spectra_method,
-                          spectra_options,
-                          smoothing=smoothing,
-                          message_function=message_function,
-                          bin_samples=bin_samples,
-                          bin_sampling=bin_sampling,
-                          f_min=f_min,f_max=f_max,
-                          resample_log_freq=resample_log_freq)
-    return freqs
+    freqs, hvsr_matrix = calculateHVSR(stream, intervals,
+                                       window_length, spectra_method,
+                                       spectra_options,
+                                       smoothing=smoothing,
+                                       message_function=message_function,
+                                       bin_samples=bin_samples,
+                                       bin_sampling=bin_sampling,
+                                       f_min=f_min,f_max=f_max,
+                                       resample_log_freq=resample_log_freq)
+    return freqs, hvsr_matrix
 # end func
