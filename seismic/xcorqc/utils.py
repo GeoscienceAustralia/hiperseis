@@ -242,24 +242,30 @@ class SpooledMatrix:
 
         self._file = SpooledTemporaryFile(prefix = self._prefix, mode = 'w+b', max_size = max_size_mb * 1024**2, dir=dir)
     # end func
-    
+
     @property
     def ncols(self):
         return self._ncols
     # end func
-    
+
     @property
     def nrows(self):
         return self._nrows
     # end func
 
+    def reset_ncols(self, ncols:int):
+        if(self._ncols == ncols): return
+        assert self._nrows == 0, 'Cannot reset ncols; there exists data writen earlier..'
+        self._ncols = ncols
+    # end func
+
     def write_row(self, row_array):
-        assert(row_array.dtype == self._dtype) 
+        assert(row_array.dtype == self._dtype)
         assert(len(row_array.shape) == 1)
         assert(row_array.shape[0] == self._ncols)
 
         self._file.write(row_array.data)
-        
+
         self._nrows += 1
     # end func
 
@@ -270,11 +276,21 @@ class SpooledMatrix:
 
             nbytes = self._ncols * np.dtype(self._dtype).itemsize
             row = np.frombuffer(self._file.read(nbytes), dtype=self._dtype)
-        
+
             return row
         else:
             return None
     # end func
+
+    def get_matrix(self):
+        mat = np.empty([])
+        if(self.nrows>0 and self.ncols>0):
+            mat = np.zeros((self.nrows, self.ncols), dtype=self._dtype)
+            for i in np.arange(self.nrows): mat[i, :] = self.read_row(i)
+        # enf if
+
+        return mat
+    # end if
 
     def __del__(self):
         self._file.close()
