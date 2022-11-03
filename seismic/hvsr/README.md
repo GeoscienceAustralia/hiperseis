@@ -10,5 +10,5 @@ Original HVSR processing (multitaper, single taper, etc) has been maintained.
 
 ## Setup Additional standard packages
 
-1. `pip3 install mtspec==0.3.2 --user`
-2. `pip3 install stockwell==1.0.7 --user`
+1. `pip3.6 install mtspec==0.3.2 --user`
+2. `pip3.6 install stockwell==1.0.7 --user`
