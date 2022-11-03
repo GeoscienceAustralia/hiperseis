@@ -9,6 +9,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
 import click
+from scipy.signal import resample
 from seismic.hvsr.utils import waveform_iterator3c
 from seismic.xcorqc.utils import SpooledMatrix
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
@@ -49,9 +50,10 @@ def generate_master_curve(station:str, output_path:str,
     hvsr_matrix.sort(axis=0)
 
     # Only senseful for mean calculations. Omitted for the median.
-    if cutoff_value != 0.0 and master_method != 'median':
+    if cutoff_value != 0.0:
         hvsr_matrix = hvsr_matrix[int(nwindows * cutoff_value):
                                   int(np.ceil(nwindows * (1 - cutoff_value))), :]
+        nwindows = len(hvsr_matrix)
     # end if
 
     # Mean.
@@ -130,10 +132,14 @@ def generate_master_curve(station:str, output_path:str,
             ymin = np.min(hvsr_matrix)
             ymax = np.max(hvsr_matrix)
             ax.vlines(f0_mean, ymin, ymax,
-                      colors='r', linestyles='solid', label='Mean f0: {:0.2f} Hz'.format(f0_mean))
+                      colors='r', linestyles='solid', label='Mean f0: {:0.3f} Hz'.format(f0_mean))
+
+            lb = np.max([f0_mean-f0_std, np.min(hvsr_freq)])
+            ub = np.min([f0_mean+f0_std, np.max(hvsr_freq)])
             ax.fill_betweenx([ymin, ymax],
-                             f0_mean-f0_std, f0_mean+f0_std, color='salmon',
-                             label='f0 ± 1 STD', alpha=0.3)
+                             lb, ub, color='salmon',
+                             label='f0 ± 1 STD ({:0.3f})'.format('' if f0_std is None else f0_std),
+                             alpha=0.3)
         # end if
         ax.legend()
 
@@ -145,7 +151,7 @@ def generate_master_curve(station:str, output_path:str,
         pdf.savefig(dpi=300)
         plt.close()
     # end with
-    return output_file, hvsr_freq, master_curve, lerr, uerr
+    return output_file, hvsr_freq, master_curve, lerr, uerr, f0_mean, f0_std
 # end func
 
 def get_stations_to_process(fds:FederatedASDFDataSet, network:str, station_list:list):
@@ -195,7 +201,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--trigger-highpass-value', default=None, type=float, help="Highpass filter value (Hz) to use for triggering only and not for data "
                                                              "data processing")
 @click.option('--resample-rate', default=None, type=int, help="Traces are resampled to this sampling rate as a pre-processing step."
-                                                                "Default is None.")
+                                                              "Default is None.")
 @click.option('--nfreq', default=50, help="Number of frequency bins")
 @click.option('--fmin', default=0.1, help="Lowest frequency")
 @click.option('--fmax', default=40., help="Highest frequency, which is clipped to the Nyquist value if larger")
@@ -405,8 +411,11 @@ def process(asdf_source, network, spec_method, output_path, win_length,
                                               resample_log_freq=resample_log_freq,
                                               smoothing=smooth_spectra_method )
 
-            if(freqs is not None):
-                good_freqs = freqs
+            if((freqs is not None) and
+                    (hvsr_matrix is not None) and
+                    (np.all(hvsr_matrix != 0))):
+
+                if(good_freqs is None): good_freqs = freqs
 
                 if (spooled_mat is None):
                     spooled_mat = SpooledMatrix(hvsr_matrix.shape[1],
@@ -416,39 +425,60 @@ def process(asdf_source, network, spec_method, output_path, win_length,
 
                 # append results to spooled_mat
                 if(spooled_mat.ncols == hvsr_matrix.shape[1]):
-                    for i in np.arange(len(hvsr_matrix)): spooled_mat.write_row(hvsr_matrix[i, :])
+                    for i in np.arange(len(hvsr_matrix)):
+                        if(~(np.isnan(hvsr_matrix[i, :]).any() | np.isinf(hvsr_matrix[i, :]).any())):
+                            spooled_mat.write_row(hvsr_matrix[i, :])
+                        # end if
+                    # end for
                 else:
                     print('Warning: Discrepant hvsr_matrix shape found for {} at time {}. '
-                          'Expected {} columns, found {}. Ignoring and moving along..'
+                          'Expected {} columns, found {}. Resampling and moving long..'
                           .format(station, st[0].stats.starttime.strftime('%Y-%m-%d'),
                                   spooled_mat.ncols, hvsr_matrix.shape[1]))
+                    for i in np.arange(len(hvsr_matrix)):
+                        if(~(np.isnan(hvsr_matrix[i, :]).any() | np.isinf(hvsr_matrix[i, :]).any())):
+                            spooled_mat.write_row(resample(hvsr_matrix[i, :], spooled_mat.ncols))
+                        # end if
+                    # end for
                 # end if
                 #break
             # end if
         # end for
-        spooled_results.append((station, spooled_mat, good_freqs))
+
+        if((spooled_mat is not None) and (good_freqs is not None)):
+            spooled_results.append((station, spooled_mat, good_freqs))
+        # end if
+
         pbar.update()
     # end for
     pbar.close()
 
     # serialize processing of hvsr results
     pdf_files = []
+    CUTOFF = 0.1 # throw away top and bottom 10% of amplitudes for each frequency
     for irank in np.arange(nproc):
         if(rank==irank):
             for station, sm, freqs in spooled_results:
-                result = generate_master_curve(station, tempdir, sm, freqs, master_curve_method, 0,
-                                            clip_freq, lowest_freq, highest_freq,
-                                            win_length)
+                result = generate_master_curve(station, tempdir, sm, freqs, master_curve_method, CUTOFF,
+                                               clip_freq, lowest_freq, highest_freq,
+                                               win_length)
                 if(result):
                     net, sta = station.split('.')
-                    pdf_fn, hvsr_freq, master_curve, lerr, uerr = result
+                    pdf_fn, hvsr_freq, master_curve, lerr, uerr, f0_mean, f0_std = result
                     pdf_files.append(pdf_fn)
 
                     # output hv
                     ofn = os.path.join(output_path, '{}.{}.hv.txt'.format(output_prefix, sta))
+                    header = "{}: Lon: {} Lat: {}\n" \
+                             "Mean f0: {:0.3f} Hz\n" \
+                             "f0 STD: {:0.3f} Hz\n" \
+                             "Freq[Hz] Amplitude Amp-1STD Amp+1STD" \
+                             .format(station, *fds.unique_coordinates[station],
+                                                    '' if f0_mean is None else f0_mean,
+                                                    '' if f0_std is None else f0_std)
                     np.savetxt(ofn, np.column_stack((hvsr_freq, master_curve,
                                                      lerr, uerr)),
-                               header='Freq[Hz] Amplitude Amp-1STD Amp+1STD')
+                               header=header)
                 # end if
             # end for
         # end if

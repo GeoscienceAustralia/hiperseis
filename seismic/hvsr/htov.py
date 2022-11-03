@@ -276,14 +276,14 @@ def calculateHVSR(stream, _intervals, window_length, method, options,
     # The stream that will be used.
     # XXX: Add option to use the raw data stream.
     # Create the matrix that will be used to store the single spectra.
-    hvsr_matrix = np.empty((length, good_length), dtype='f4')
+    hvsr_matrix = np.zeros((length, good_length), dtype='f4')
     good_freq = None
     if method == 'multitaper':
         if options['nfft']:
             good_length = options['nfft']// 2 + 1
             # Create the matrix that will be used to store the single
             # spectra.
-            hvsr_matrix = np.empty((length, good_length), dtype='f4')
+            hvsr_matrix = np.zeros((length, good_length), dtype='f4')
         # Loop over each interval
         for _i, interval in enumerate(intervals):
             if message_function:
@@ -580,7 +580,7 @@ def calculateHVSR(stream, _intervals, window_length, method, options,
                 good_length = v_freq.shape[0]
                 # Create the matrix that will be used to store the single
                 # spectra.
-                hvsr_matrix = np.empty((length, good_length), dtype='f4')
+                hvsr_matrix = np.zeros((length, good_length), dtype='f4')
             # Store it into the matrix if it has the correct length.
             hvsr_matrix[num_good_intervals, 0:hv_spec.shape[0]] = hv_spec
             num_good_intervals += 1
@@ -670,7 +670,7 @@ def calculateHVSR(stream, _intervals, window_length, method, options,
             logfreq[i] = f_min * (10.0 ** (c * i))
         # interpolate to log spacing
 
-        interp_hvsr_matrix = np.empty((length, bin_samples), dtype='f4')
+        interp_hvsr_matrix = np.zeros((length, bin_samples), dtype='f4')
         for i in range(length):
             nint = interp1d(good_freq, hvsr_matrix[i, :])
             hv_spec2 = nint(logfreq)
