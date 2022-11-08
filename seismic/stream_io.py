@@ -18,6 +18,8 @@ from os.path import splitext
 from seismic.units_utils import KM_PER_DEG
 from rf.rfstream import rfstats, obj2stats
 from rf.util import _get_stations
+from obspy.geodetics import gps2dist_azimuth
+from obspy.geodetics import kilometers2degrees
 
 # pylint: disable=invalid-name
 
@@ -92,6 +94,18 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                 continue
         else:
             stats = obj2stats(event, coords)
+
+            dist_range = kwargs.get('dist_range')
+            if(dist_range):
+                dist, baz, _ = gps2dist_azimuth(stats.station_latitude,
+                                                stats.station_longitude,
+                                                stats.event_latitude,
+                                                stats.event_longitude)
+                dist = kilometers2degrees(dist / 1e3)
+                if dist_range and not dist_range[0] <= dist <= dist_range[1]:
+                    continue
+                # end if
+            # end if
         # end if
 
         net, sta, loc, cha = seedid.split('.')
@@ -120,11 +134,31 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                  'detected for event %s, station %s.'
                  % (len(stream), event.resource_id, seedid))
             continue
+        # end if
+
         if any(isinstance(tr.data, np.ma.masked_array) for tr in stream):
-            from warnings import warn
-            warn('Gaps or overlaps detected for event %s, station %s.'
-                 % (event.resource_id, seedid))
-            continue
+            def has_masked_values(data_stream):
+                rval = False
+                for tr in data_stream:
+                    if(isinstance(tr.data, np.ma.masked_array)):
+                        if (np.any(tr.data.mask)):
+                            rval = True
+                            break
+                        # end if
+                    # end if
+                # end for
+                return rval
+            # end func
+
+            if(has_masked_values(stream)):
+                from warnings import warn
+                warn('Gaps or overlaps detected for event %s, station %s.'
+                     % (event.resource_id, seedid))
+                continue
+            else:
+                for tr in stream: tr.data = np.array(tr.data)
+            # end if
+        # end for
 
         for tr in stream:
             tr.stats.update(stats)

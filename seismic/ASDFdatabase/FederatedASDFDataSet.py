@@ -76,6 +76,15 @@ class FederatedASDFDataSet():
 
     # end func
 
+    def corrections_enabled(self):
+        """
+
+        @return: whether GPS clock-corrections have been enabled by setting
+                 the environment variable GPS_CLOCK_CORRECTION=1
+        """
+        return self.fds.corrections_enabled
+    # end func
+
     def get_closest_stations(self, lon, lat, nn=1):
         """
 

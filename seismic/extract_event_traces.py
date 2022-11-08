@@ -383,7 +383,8 @@ def sw_catalog(catalog):
 # end func
 
 def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
-                 tt_model='iasp91', wave='P', resample_hz=10, dry_run=True):
+                 tt_model='iasp91', wave='P', resample_hz=10, pad=10,
+                 dry_run=True):
 
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
 
@@ -433,7 +434,9 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     nproc = comm.Get_size()
     rank = comm.Get_rank()
 
+    #################################################
     # data extraction is parallelized over stations
+    #################################################
     nsl_dict = None
     if(rank==0):
         nsl_dict = []
@@ -486,6 +489,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,#pbar,
                                           request_window=request_window[wave],
+                                          pad=pad,
                                           dist_range=distance_range[wave]):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
@@ -634,11 +638,19 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
 
     inventory = None
     asdf_dataset = None
+    pad = 10 # nominal padding for waveforms in seconds
     waveform_db_is_web = is_url(waveform_database) or waveform_database in obspy.clients.fdsn.header.URL_MAPPINGS
     if not waveform_db_is_web:
         assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
         asdf_dataset = FederatedASDFDataSet(waveform_database)
         inventory = asdf_dataset.get_inventory()
+
+        #################################################
+        # Check if GPS clock-corrections are being applied
+        # A large padding is used to allow for time-shifts
+        # from clock-correction
+        #################################################
+        if (asdf_dataset.corrections_enabled()): pad = 3600
     else:
         assert inventory_file, 'Must provide inventory file if using a URL or an obspy client as waveform source'
         inventory = read_inventory(inventory_file)
@@ -718,7 +730,9 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         if(wave == 'SW'): curr_catalog = sw_catalog(catalog) # remove proximal events for surface-wave output
 
         extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
-                     tt_model=taup_model, wave=wave, resample_hz=resample_hz, dry_run=dry_run)
+                     tt_model=taup_model, wave=wave, resample_hz=resample_hz,
+                     pad=pad,
+                     dry_run=dry_run)
     # end for
     del asdf_dataset
     
