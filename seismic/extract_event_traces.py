@@ -392,7 +392,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     log.setLevel(logging.INFO)
 
     # descriptions
-    descs = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surace-wave'}
+    descs = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surface-wave'}
 
     # initialize event time-window dict
     request_window = defaultdict(tuple) # seconds
@@ -553,9 +553,9 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             # end for
 
             if stream_count == 0:
-                log.warning("No traces found!")
+                log.warning("{}: No traces found!".format(nsl))
             else:
-                log.info("Wrote {} {} streams to output file".format(stream_count, descs[wave]))
+                log.info("{}: Wrote {} {} streams to output file".format(nsl, stream_count, descs[wave]))
             # end if
         # end if
     # end for
