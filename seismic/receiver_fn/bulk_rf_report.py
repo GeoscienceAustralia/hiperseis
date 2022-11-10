@@ -28,6 +28,7 @@ import seismic.receiver_fn.rf_stacking as rf_stacking
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from seismic.stream_io import get_obspyh5_index
 import uuid
+from shutil import rmtree
 
 logging.basicConfig()
 
@@ -584,7 +585,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     # end if
 
     if(rank == 0):
-        os.removedirs(tempdir)
+        rmtree(tempdir)
 
         print("Finishing...")
         print("bulk_rf_report SUCCESS!")

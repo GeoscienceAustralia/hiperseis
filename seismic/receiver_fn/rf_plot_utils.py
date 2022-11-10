@@ -523,7 +523,6 @@ def pdf_merge(file_list, output_filename):
         fn, _ = os.path.splitext(os.path.basename(pdffile))
         bookmark = '.'.join(fn.split('.')[1:])
         merger.append(pdffile, bookmark)
-        os.remove(pdffile)
     # end for
     merger.write(output_filename)
     merger.close()

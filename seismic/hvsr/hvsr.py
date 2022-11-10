@@ -19,6 +19,7 @@ import uuid
 from matplotlib.backends.backend_pdf import PdfPages
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from tqdm import tqdm
+from shutil import rmtree
 
 def generate_master_curve(station:str, output_path:str,
                           sm:SpooledMatrix, hvsr_freq:np.ndarray,
@@ -495,7 +496,7 @@ def process(asdf_source, network, spec_method, output_path, win_length,
         pdf_files = [item for items in pdf_files for item in items]
         pdf_merge(pdf_files, ofn)
 
-        os.removedirs(tempdir)
+        rmtree(tempdir)
 
         print("Finishing...")
         print("HVSR:runbatch SUCCESS!")

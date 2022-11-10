@@ -33,6 +33,7 @@ from mpi4py import MPI
 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+from shutil import rmtree
 
 logging.basicConfig()
 
@@ -289,7 +290,7 @@ def main(src_h5_event_file, network, output_basename, station_list):
 
         pdf_merge(pdf_names, pdf_fn)
 
-        os.removedirs(tempdir)
+        rmtree(tempdir)
 
         logger.info("Finishing...")
         logger.info("bulk_station_orientations SUCCESS!")
