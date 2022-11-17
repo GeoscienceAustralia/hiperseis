@@ -68,7 +68,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                         min_station_weight=-1, apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
                         apply_phase_weighting=False, pw_exponent=1.,
-                        component='R', resample_freq=6.25, trim_window=(-5.0, 20.0), moveout=True):
+                        component='R', resample_freq=6.25, trim_window=(-5.0, 30.0), moveout=True):
     """Export receiver function to text format for ingestion into Fortran RF inversion code.
 
     :param input_h5_file: Input hdf5 file containing receiver function data
@@ -94,7 +94,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :type component: str, optional
     :param resample_freq: Sampling rate (Hz) of the output files, defaults to 6.25 Hz
     :type resample_freq: float, optional
-    :param trim_window: Time window to export relative to onset, defaults to (-5.0, 20.0). If data needs
+    :param trim_window: Time window to export relative to onset, defaults to (-5.0, 30.0). If data needs
         to be resampled, the samples are anchored to the start of this time window.
     :type trim_window: tuple, optional
     :param moveout: Whether to apply moveout correction prior to exporting, defaults to True
@@ -273,6 +273,9 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 exact_start_time = trace.stats.onset + trim_window[0]
                 stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
                 stack.trim2(*trim_window, reftime='onset')
+
+                # Apply a 2 s taper to the right side
+                trace.taper(max_percentage=None, max_length=2, side='right')
 
                 times = trace.times() - (trace.stats.onset - trace.stats.starttime)
                 # TODO: Remove hardwired scaling factor.

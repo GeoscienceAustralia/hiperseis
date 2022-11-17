@@ -41,7 +41,7 @@ def revert_baz(rf_stream):
     return result
 # end func
 
-def plot_rf_psd(rf_stream, ax, time_window=(-10.0, 25.0), min_slope_ratio=-1):
+def plot_rf_psd(rf_stream, ax, time_window=(-10.0, 30.0), min_slope_ratio=-1):
     if(time_window): rf_stream = rf_stream.copy().slice2(*time_window, reftime='onset')
 
     all_trace_lens = np.array([len(tr) for tr in rf_stream])
@@ -72,7 +72,7 @@ def plot_rf_psd(rf_stream, ax, time_window=(-10.0, 25.0), min_slope_ratio=-1):
     # end if
 # end func
 
-def plot_rf_stack(rf_stream, time_window=(-10.0, 25.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):
+def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):
     """Wrapper function of rf.RFStream.plot_rf() to help do RF plotting with consistent formatting and layout.
 
     :param rf_stream: RFStream to plot
