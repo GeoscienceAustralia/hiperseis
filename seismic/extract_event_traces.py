@@ -40,9 +40,7 @@ logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
-SW_MIN_MAG = 6.
 SW_MAX_DEPTH = 150 #km
-SW_RESAMPLE_HZ = 2. #Hz
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
     """Load event catalog (if available) or create event catalog from FDSN server.
@@ -337,7 +335,7 @@ class Picker():
     # end func
 # end class
 
-def sw_catalog(catalog):
+def sw_catalog(catalog, min_mag):
     # Trim catalog for surface waves, removing proximal events, as done in function catclean in:
     # https://github.com/jbrussell/DLOPy_v1.0/blob/master/pysave/locfuns.py
     def close(x1, x2):
@@ -371,7 +369,7 @@ def sw_catalog(catalog):
 
     out_cat = Catalog()
     for i, e in enumerate(catalog):
-        if(e.magnitudes[0].mag < SW_MIN_MAG): continue
+        if(e.magnitudes[0].mag < min_mag): continue
         if(e.preferred_origin().depth/1e3 > SW_MAX_DEPTH): continue
 
         if(i not in repeated):
@@ -383,7 +381,7 @@ def sw_catalog(catalog):
 # end func
 
 def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
-                 tt_model='iasp91', wave='P', resample_hz=10, pad=10,
+                 resample_hz, tt_model='iasp91', wave='P', pad=10,
                  dry_run=True):
 
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
@@ -529,8 +527,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
                 # resample after lowpass @ resample_rate / 2 Hz
                 for tr in out_stream:
-                    res_hz = SW_RESAMPLE_HZ if wave == 'SW' else resample_hz
-                    zerophase_resample(tr, res_hz)
+                    zerophase_resample(tr, resample_hz)
                    
                     tr.stats.update({'wave_type':wave})
                 # end for
@@ -599,12 +596,16 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 @click.option('--distance-range', type=(float, float), default=(0, 180.0), show_default=True,
               help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
 @click.option('--magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog.')
+              help='Range of seismic event magnitudes to sample from the event catalog for P/S arrivals.')
+@click.option('--sw-magnitude-range', type=(float, float), default=(6.0, 10.0), show_default=True,
+              help='Range of seismic event magnitudes to sample from the event catalog for surface waves.')
 @click.option('--catalog-only', is_flag=True, default=False, show_default=True,
               help='If set, only generate catalog file and exit. Used for preparing '
                    'input file on HPC systems with no internet access.')
 @click.option('--resample-hz', type=float, default=10, show_default=True,
-              help='Resampling frequency (default 10 Hz) for output traces')
+              help='Resampling frequency (default 10 Hz) for output P/S traces')
+@click.option('--sw-resample-hz', type=float, default=2, show_default=True,
+              help='Resampling frequency (default 2 Hz) for surface waves')
 @click.option('--p-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around P-arrival')
 @click.option('--s-data', is_flag=True, default=False, show_default=True,
@@ -615,8 +616,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
               help='Reports events available to each station, by wave-type and exits without outputting any data. '
                    'Has no effect on --catalog-only mode.')
 def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
-         start_time, end_time, taup_model, distance_range, magnitude_range, catalog_only, resample_hz,
-         p_data, s_data, sw_data, dry_run):
+         start_time, end_time, taup_model, distance_range, magnitude_range, sw_magnitude_range, catalog_only,
+         resample_hz, sw_resample_hz, p_data, s_data, sw_data, dry_run):
     
     # Initialize MPI
     comm = MPI.COMM_WORLD
@@ -727,10 +728,16 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         if(not flag): continue
 
         curr_catalog = catalog
-        if(wave == 'SW'): curr_catalog = sw_catalog(catalog) # remove proximal events for surface-wave output
+        curr_resample_hz = resample_hz
+
+        if(wave == 'SW'):
+            # remove proximal events for surface-wave output
+            curr_catalog = sw_catalog(catalog, sw_magnitude_range[0])
+            curr_resample_hz = sw_resample_hz
+        # end if
 
         extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
-                     tt_model=taup_model, wave=wave, resample_hz=resample_hz,
+                     resample_hz=curr_resample_hz, tt_model=taup_model, wave=wave,
                      pad=pad,
                      dry_run=dry_run)
     # end for
