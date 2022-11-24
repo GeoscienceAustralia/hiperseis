@@ -68,7 +68,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                         min_station_weight=-1, apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
                         apply_phase_weighting=False, pw_exponent=1.,
-                        component='R', resample_freq=6.25, trim_window=(-5.0, 30.0), moveout=True):
+                        component='R', resample_freq=None, trim_window=(-5.0, 30.0), moveout=True):
     """Export receiver function to text format for ingestion into Fortran RF inversion code.
 
     :param input_h5_file: Input hdf5 file containing receiver function data
@@ -92,7 +92,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     type: bool
     :param component: The channel component to export, defaults to 'R'
     :type component: str, optional
-    :param resample_freq: Sampling rate (Hz) of the output files, defaults to 6.25 Hz
+    :param resample_freq: Sampling rate (Hz) of the output files. The default (None) preserves original sampling rate
     :type resample_freq: float, optional
     :param trim_window: Time window to export relative to onset, defaults to (-5.0, 30.0). If data needs
         to be resampled, the samples are anchored to the start of this time window.
@@ -136,6 +136,17 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 print ("Amplitude filter has removed all traces for {}. "
                        "Ensure rf_quality_filter was run beforehand..".format(hdfkey))
             # end if
+        else:
+            # RF amplitudes should not exceeds 1.0 -- such traces, along with other problematic traces
+            # are filtered out when '--apply-amplitude-filter' is used. However, if
+            # '--apply-amplitude-filter' is not used, we still want to filter out traces with amplitudes > 1.0.
+            before = len(data)
+            data = rf.RFStream([tr for tr in data if np.max(tr.data) <= 1.0])
+            after = len(data)
+
+            print('{}.{}: {}/{} traces with amplitudes > 1.0 dropped ..'.format(net, sta,
+                                                                                before - after,
+                                                                                before))
         # end if
 
         # Convert data to a hierarchical format, keyed by sta, cha
@@ -270,28 +281,19 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                     stack = ch_traces.stack()
                 # end if
                 trace = stack[0]
-                exact_start_time = trace.stats.onset + trim_window[0]
-                stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
+
+                if(resample_freq is not None):
+                    exact_start_time = trace.stats.onset + trim_window[0]
+                    stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
+                # end if
+
                 stack.trim2(*trim_window, reftime='onset')
 
                 # Apply a 2 s taper to the right side
                 trace.taper(max_percentage=None, max_length=2, side='right')
 
                 times = trace.times() - (trace.stats.onset - trace.stats.starttime)
-                # TODO: Remove hardwired scaling factor.
-                # This scaling factor only applies to iterative deconvolution with default Gaussian width
-                # factor of 2.5. Once we upgrade to rf library version >= 0.9.0, we can remove this hardwired
-                # setting and instead have it determined programatically from rf processing metadata stored
-                # in the trace stats structure.
-                # The scaling factor originates in the amplitude attenuation effect of the filtering applied
-                # in iterative deconv, see table at end of this page:
-                # http://eqseis.geosc.psu.edu/~cammon/HTML/RftnDocs/seq01.html
-                # The values in this reference table are derived as the integral of the area under the
-                # Gaussian in the frequency domain. Analytically, this amounts to simply dividing by scaling
-                # factor of a/sqrt(pi), where 'a' here is the Gaussian width used in iterative deconvolution.
-    #            iterdeconv_scaling = 2.5/np.sqrt(np.pi)
-                iterdeconv_scaling = 1
-                column_data = np.array([times, trace.data/iterdeconv_scaling]).T
+                column_data = np.array([times, trace.data]).T
                 fname = os.path.join(output_folder, "_".join([network_code, sta, trace.stats.location, cha]) + "_rf.dat")
                 np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'),
                            header='{} (lon, lat): {}, {}'.format(trace.id, trace.stats.station_longitude,
@@ -335,9 +337,11 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 @click.option('--pw-exponent', type=float, default=1, show_default=True,
               help='Exponent used in instantaneous phase-weighting of RF amplitudes. This parameter '
                    'has no effect when --apply-phase-weighting is absent.')
+@click.option('--resample-rate', default=None, type=float, show_default=True,
+              help='Resampling rate (Hz) for output traces.')
 def main(input_file, output_folder, network_list, station_list, station_weights, min_station_weight,
          apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
-         dereverberate, apply_phase_weighting, pw_exponent):
+         dereverberate, apply_phase_weighting, pw_exponent, resample_rate):
 
     assert baz_range[1] > baz_range[0], 'Invalid min/max back-azimuth; Aborting..'
 
@@ -350,7 +354,8 @@ def main(input_file, output_folder, network_list, station_list, station_weights,
                         baz_range=baz_range,
                         dereverberate=dereverberate,
                         apply_phase_weighting=apply_phase_weighting,
-                        pw_exponent=pw_exponent)
+                        pw_exponent=pw_exponent,
+                        resample_freq=resample_rate)
 # end func
 
 if __name__ == "__main__":

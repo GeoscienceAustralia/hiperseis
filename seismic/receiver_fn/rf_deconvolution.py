@@ -63,7 +63,15 @@ def _gauss_filter(x, gwidth_factor, dt):
 
     omega = np.arange(n2) * d_omega
     gauss = np.exp(-omega * omega / gwidth)
-    # Note: normalization factor to correct RF amplitude for inversion is 2*df*np.sum(gauss)
+
+    # 2022-11-24
+    # Note: normalization factor to correct RF amplitude for inversion was incorrectly stated to be
+    # 2*df*np.sum(gauss) = 1.42 for a gaussian-width-factor of 2.5 here:
+    # http://eqseis.geosc.psu.edu/cammon/HTML/RftnDocs/seq01.html
+    # The correct normalization factor should be np.trapz(gauss, dx=d_omega) = 4.43.
+    # In any case, we don't apply this normalization because the final RF traces are by default
+    # normalized by the vertical component, thus cancelling out the effect of the gaussian kernel.
+
     fft_x = fft_x * gauss
 
     x_filt = np.fft.irfft(fft_x, n)  # real_array
