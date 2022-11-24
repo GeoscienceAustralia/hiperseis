@@ -126,8 +126,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'contribution of faraway values')
 @click.option('--pw-exponent', type=float, default=1, show_default=True,
               help='Exponent used in instantaneous phase-weighting of CCP amplitudes')
+@click.option('--property-name', type=str, default=None, show_default=True,
+              help='SGrid property name. With the default value (None), the property name is set to '
+                   '$output_sgrid_file$-ccp-amp')
 def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy, dz, max_depth, cell_radius,
-            idw_exponent, pw_exponent):
+            idw_exponent, pw_exponent, property_name):
     """Export SGrid file
     RF_H5_FILE: Migrated H5 volume (output of rf_3dmigrate.py)
     OUTPUT_SGRID_FILE: Name of output file
@@ -185,24 +188,20 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
     ugy = ugy.transpose(1, 0, 2)
     ugz = ugz.transpose(1, 0, 2)
 
-    if(rank == 0):
-        assert np.all(ugx[0,0,:]==xs)
-        assert np.all(ugy[0,:,0]==ys)
-        assert np.all(ugz[:,0,0]==zs)
+    if(rank == 0): log.info('Grid dimensions: nx:{}, ny:{} nz:{}..'.format(nx, ny, nz))
 
-        log.info('Grid dimensions: nx:{}, ny:{} nz:{}..'.format(nx, ny, nz))
+    assert np.all(ugx[0,0,:]==xs)
+    assert np.all(ugy[0,:,0]==ys)
+    assert np.all(ugz[:,0,0]==zs)
 
-        ggx, ggy = proj(ugx, ugy, inverse=True)
+    ggx, ggy = proj(ugx, ugy, inverse=True)
 
-        z = ugz.flatten()
-        xyz = rtp2xyz(ugz.flatten(), np.radians(90-ggy.flatten()), np.radians(ggx.flatten()))
+    z = ugz.flatten()
+    xyz = rtp2xyz(ugz.flatten(), np.radians(90-ggy.flatten()), np.radians(ggx.flatten()))
 
-        xyz = split_list(xyz, nproc)
-        z = split_list(z, nproc)
-    # end if
-
-    xyz = comm.scatter(xyz, root=0)
-    z = comm.scatter(z, root=0)
+    # allocate nodes to all ranks
+    xyz = split_list(xyz, nproc)[rank]
+    z = split_list(z, nproc)[rank]
 
     tree = vol._tree
     data = vol._data
@@ -259,9 +258,12 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
         vals = np.concatenate(vals)
 
         nodataval = -9999
-        prop_name='ccp_amp'
         fn = output_sgrid_file if (output_sgrid_file[-3:] == '.sg') else output_sgrid_file + '.sg'
         ascii_data_file = fn.replace('.sg', '')+'__ascii@@'
+
+        prop_name = ''
+        if(property_name is None): prop_name = fn.replace('.sg', '') + '-ccp-amp'
+        else: prop_name = property_name
 
         log.info('Writing Sgrid file: {}..'.format(fn))
 
