@@ -262,7 +262,7 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
         ascii_data_file = fn.replace('.sg', '')+'__ascii@@'
 
         prop_name = ''
-        if(property_name is None): prop_name = fn.replace('.sg', '') + '-ccp-amp'
+        if(property_name is None): prop_name = os.path.basename(fn).replace('.sg', '') + '-ccp-amp'
         else: prop_name = property_name
 
         log.info('Writing Sgrid file: {}..'.format(fn))
@@ -276,8 +276,8 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
                                                               '}',
                                                               'GOCAD_ORIGINAL_COORDINATE_SYSTEM',
                                                               'NAME Default',
-                                                              'PROJECTION Unknown'
-                                                              'DATUM Unknown'                                              
+                                                              'PROJECTION EPSG:{}'.format(epsg_code),
+                                                              'DATUM Unknown',
                                                               'AXIS_NAME "X" "Y" "Z"',
                                                               'AXIS_UNIT "m" "m" "m"',
                                                               'ZPOSITIVE Depth',
@@ -335,6 +335,7 @@ def process(rf_h5_file, output_sgrid_file, start, end, epsg_code, extend, dx, dy
 
         sta_fn = fn.replace('.sg', '')+'_stations.csv'
         f=open(sta_fn, 'w+')
+        f.write('# station-name X(EPSG:{}) Y(EPSG:{})\n'.format(epsg_code, epsg_code))
         log.info('Writing station-coordinates file: {}..'.format(sta_fn))
         for k in vol._meta.keys():
             sta = vol._meta[k]
