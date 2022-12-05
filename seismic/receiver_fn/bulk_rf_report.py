@@ -498,7 +498,27 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     plt.close()
                 # end if
 
+                ###############################################################################
+                # RF amplitudes should not exceed 1.0 and should peak around onset time --
+                # otherwise, such traces are deemed problematic and discarded before computing
+                # H-k stacks
+                ###############################################################################
+                before = len(rf_stream)
+                rf_stream = rf.RFStream([tr for tr in rf_stream if \
+                                    ((np.max(tr.data) <= 1.0) and \
+                                     (np.max(tr.data) > -np.min(tr.data)))
+                                    ])
+                after = len(rf_stream)
+                if(before > after):
+                    print("""{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped
+                           before computing H-k stack ..""".format(full_code,
+                           before - after,
+                           before))
+                # end if
+
+                ############################################
                 # Plot H-k stack using primary RF component
+                ############################################
                 fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
                                                    semblance_weighted=(not disable_semblance_weighting),
                                                    labelling=hk_solution_labels,

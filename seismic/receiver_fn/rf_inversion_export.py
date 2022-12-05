@@ -128,6 +128,22 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
         # Select component
         data = data.select(component=component)
 
+        # RF amplitudes should not exceed 1.0 and should peak around onset time --
+        # otherwise, such traces are deemed problematic and discarded
+        before = len(data)
+        data = rf.RFStream([tr for tr in data if \
+                            ((np.max(tr.data) <= 1.0) and \
+                             (np.max(tr.data) > -np.min(tr.data)))
+                            ])
+        after = len(data)
+        if(before > after):
+            print('{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
+                       net,
+                       sta,
+                       before - after,
+                       before))
+        # end if
+
         if apply_amplitude_filter:
             # Label and filter quality
             rf_util.label_rf_quality_simple_amplitude('ZRT', data)
@@ -136,17 +152,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 print ("Amplitude filter has removed all traces for {}. "
                        "Ensure rf_quality_filter was run beforehand..".format(hdfkey))
             # end if
-        else:
-            # RF amplitudes should not exceeds 1.0 -- such traces, along with other problematic traces
-            # are filtered out when '--apply-amplitude-filter' is used. However, if
-            # '--apply-amplitude-filter' is not used, we still want to filter out traces with amplitudes > 1.0.
-            before = len(data)
-            data = rf.RFStream([tr for tr in data if np.max(tr.data) <= 1.0])
-            after = len(data)
-
-            print('{}.{}: {}/{} traces with amplitudes > 1.0 dropped ..'.format(net, sta,
-                                                                                before - after,
-                                                                                before))
         # end if
 
         # Convert data to a hierarchical format, keyed by sta, cha
