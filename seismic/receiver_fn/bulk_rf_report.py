@@ -516,6 +516,9 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                            before))
                 # end if
 
+                if not rf_stream:
+                    continue
+
                 ############################################
                 # Plot H-k stack using primary RF component
                 ############################################
