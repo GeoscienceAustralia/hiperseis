@@ -128,22 +128,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
         # Select component
         data = data.select(component=component)
 
-        # RF amplitudes should not exceed 1.0 and should peak around onset time --
-        # otherwise, such traces are deemed problematic and discarded
-        before = len(data)
-        data = rf.RFStream([tr for tr in data if \
-                            ((np.max(tr.data) <= 1.0) and \
-                             (np.max(tr.data) > -np.min(tr.data)))
-                            ])
-        after = len(data)
-        if(before > after):
-            print('{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
-                       net,
-                       sta,
-                       before - after,
-                       before))
-        # end if
-
         if apply_amplitude_filter:
             # Label and filter quality
             rf_util.label_rf_quality_simple_amplitude('ZRT', data)
@@ -238,6 +222,18 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                                                                               before))
                 # end if
 
+                # RF amplitudes should not exceed 1.0 and should peak around onset time --
+                # otherwise, such traces are deemed problematic and discarded
+                before = len(ch_traces)
+                ch_traces = rf_util.filter_invalid_radial_component(ch_traces)
+                after = len(ch_traces)
+                if (before > after):
+                    print('{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
+                          network_code, sta,
+                          before - after,
+                          before))
+                # end if
+
                 if (len(ch_traces) == 0):
                     print('{}.{}: No traces left to stack. Moving along..'.format(network_code, sta))
                     continue
@@ -260,7 +256,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 
                 stack = None
                 if(apply_phase_weighting):
-                    print('{}.{}: Applying a phase-weighted stack..'.format(network_code, sta))
+                    print('{}.{}: Computing a phase-weighted stack..'.format(network_code, sta))
 
                     stack = phase_weighted_stack(ch_traces, phase_weight=pw_exponent)
 
@@ -282,7 +278,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                         plt.savefig(fn2)
                     # end if
                 else:
-                    print('{}.{}: Applying a linear stack..'.format(network_code, sta))
+                    print('{}.{}: Computing a linear stack..'.format(network_code, sta))
                     stack = ch_traces.stack()
                 # end if
                 trace = stack[0]

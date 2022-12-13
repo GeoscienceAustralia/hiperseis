@@ -77,7 +77,7 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
 
     :param rf_stream: RFStream to plot
     :type rf_stream: rf.RFStream
-    :param time_window: Time window to plot, defaults to (-10.0, 25.0)
+    :param time_window: Time window to plot, defaults to (-10.0, 30.0)
     :type time_window: tuple, optional
     :param trace_height: Height of a single trace (reduce to cram RFs closer together), defaults to 0.2
     :type trace_height: float, optional
@@ -102,8 +102,9 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
         logging.warning('Removed {} traces from RF plot to make it stackable!'.format(num_stackable))
     # end if
 
-    fig = stackable_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window, trace_height=trace_height,
-                                   stack_height=stack_height, fname=save_file, show_vlines=True, **kwargs)
+    fig = stackable_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window,
+                                   trace_height=trace_height, stack_height=stack_height,
+                                   fname=save_file, show_vlines=True, **kwargs)
     return fig
 # end func
 
@@ -381,7 +382,6 @@ def plot_rf_wheel(rf_stream, max_time=15.0, deg_per_unit_amplitude=45.0, plt_col
 
     return fig
 # end func
-
 
 def plot_iir_filter_response(filter_band_hz, sampling_rate_hz, corners):
     """Plot one-way bandpass filter response in the frequency domain. If filter is used as zero-phase,

@@ -387,6 +387,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 t_channel = list(channel)
                 t_channel[-1] = 'T'
                 t_channel = ''.join(t_channel)
+                transverse_data = station_db[t_channel]
 
                 rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
                 if event_mask_dict and full_code in event_mask_dict:
@@ -395,6 +396,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     rf_stream = rf.RFStream(
                         [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort(['back_azimuth'])
                 # end if
+
+                ###############################################################################
+                # Apply amplitude filter
+                ###############################################################################
                 if apply_amplitude_filter:
                     # Label and filter quality
                     rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
@@ -406,11 +411,17 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     # end if
                 # end if
 
+                ###############################################################################
+                # Apply slope-ratio filter
+                ###############################################################################
                 if(min_slope_ratio>0):
                     rf_stream = rf.RFStream([tr for tr in rf_stream \
                                              if tr.stats.slope_ratio > min_slope_ratio]).sort(['back_azimuth'])
                 # end if
 
+                ###############################################################################
+                # Apply similarity filter
+                ###############################################################################
                 if apply_similarity_filter and len(rf_stream) >= 3:
                     rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
                 # end if
@@ -418,13 +429,59 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 if not rf_stream:
                     continue
 
-                # Find matching T-component data
+                ###############################################################################
+                # Filter rf_stream if needed
+                ###############################################################################
+                if(hk_hpf_freq and hk_hpf_freq>0):
+                    rf_stream.filter(type='highpass', freq=hk_hpf_freq,
+                                     corners=1, zerophase=True)
+                # end if
+
+                rf_stream_raw = rf_stream.copy()
+                ###############################################################################
+                # Apply reverberation filter if needed
+                ###############################################################################
+                reverberations_removed = False
+                # Apply reverberation filter if needed
+                if(rf_corrections.has_reverberations(rf_stream)):
+                    rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
+                    reverberations_removed = True
+                # end if
+
+                ###############################################################################
+                # RF amplitudes should not exceed 1.0 and should peak around onset time --
+                # otherwise, such traces are deemed problematic and excluded while computing
+                # H-k stacks.
+                ###############################################################################
+                before = len(rf_stream)
+                rf_stream = rf_util.filter_invalid_radial_component(rf_stream)
+                after = len(rf_stream)
+
+                if(before > after):
+                    print("{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped "
+                          "before computing H-k stack ..".format(full_code,
+                                                                 before - after,
+                                                                 before))
+                # end if
+
+                if not rf_stream:
+                    continue
+
+                ############################################
+                # Collate streams to plot
+                ############################################
                 events = [tr.stats.event_id for tr in rf_stream]
-                transverse_data = station_db[t_channel]
+                num_traces = len(rf_stream)
+
+                rf_stream_raw = rf.RFStream(
+                    [tr for tr in rf_stream_raw if tr.stats.event_id in events]).sort(['back_azimuth'])
                 t_stream = rf.RFStream(
                     [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
+                assert len(t_stream) == num_traces or not t_stream
 
+                ############################################
                 # Plot psd
+                ############################################
                 fig, ax = plt.subplots()
                 fig.set_size_inches(paper_size_A4[1], paper_size_A4[0])
                 fig.suptitle('.'.join([nsl, channel]))
@@ -434,8 +491,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 pdf.savefig(dpi=300, orientation='landscape')
                 plt.close()
 
+                ############################################
                 # Plot pinwheel of primary and transverse components
-                fig = rf_plot_utils.plot_rf_wheel([rf_stream, t_stream], fontscaling=0.8)
+                ############################################
+                fig = rf_plot_utils.plot_rf_wheel([rf_stream_raw, t_stream], fontscaling=0.8)
                 fig.set_size_inches(*paper_size_A4)
                 plt.tight_layout()
                 plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
@@ -445,18 +504,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 pdf.savefig(dpi=300, orientation='portrait')
                 plt.close()
 
-                num_traces = len(rf_stream)
-                assert len(t_stream) == num_traces or not t_stream
-
-                # Filter rf_stream if needed
-                if(hk_hpf_freq and hk_hpf_freq>0):
-                    rf_stream.filter(type='highpass', freq=hk_hpf_freq,
-                                     corners=1, zerophase=True)
-                # end if
-
-                # Plot RF stack of primary component
+                ############################################
+                # Plot RF waveform stacks
+                ############################################
                 trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
-                fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                # Plot raw RF stack of primary component
+                fig = rf_plot_utils.plot_rf_stack(rf_stream_raw, trace_height=trace_ht,
+                                                  stack_height=fixed_stack_height_inches,
                                                   fig_width=paper_size_A4[0])
                 fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios
@@ -465,17 +519,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 pdf.savefig(dpi=300, orientation='portrait')
                 plt.close()
 
-                reverberations_removed = False
-                # Apply reverberation filter if needed
-                if(rf_corrections.has_reverberations(rf_stream)):
-                    rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
-                    reverberations_removed = True
-                # end if
-
                 if(reverberations_removed):
                     # Plot reverberation-filtered RF stack
-                    trace_ht = min(total_trace_height_inches/num_traces, max_trace_height)
-                    fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht, stack_height=fixed_stack_height_inches,
+                    fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht,
+                                                      stack_height=fixed_stack_height_inches,
                                                       fig_width=paper_size_A4[0])
                     fig.suptitle("Channel {} (Reverberations removed)".format(rf_stream[0].stats.channel))
                     # Customize layout to pack to top of page while preserving RF plots aspect ratios
@@ -497,27 +544,6 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     pdf.savefig(dpi=300, orientation='portrait')
                     plt.close()
                 # end if
-
-                ###############################################################################
-                # RF amplitudes should not exceed 1.0 and should peak around onset time --
-                # otherwise, such traces are deemed problematic and discarded before computing
-                # H-k stacks
-                ###############################################################################
-                before = len(rf_stream)
-                rf_stream = rf.RFStream([tr for tr in rf_stream if \
-                                    ((np.max(tr.data) <= 1.0) and \
-                                     (np.max(tr.data) > -np.min(tr.data)))
-                                    ])
-                after = len(rf_stream)
-                if(before > after):
-                    print("""{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped
-                           before computing H-k stack ..""".format(full_code,
-                           before - after,
-                           before))
-                # end if
-
-                if not rf_stream:
-                    continue
 
                 ############################################
                 # Plot H-k stack using primary RF component
