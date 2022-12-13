@@ -98,11 +98,9 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
     if len(ned) == 0:
         return {}
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
     # Determine limiting date range per station
     results = defaultdict(dict)
+    full_code = None
     for sta, db_evid in ned.by_station():
         start_time = end_time = None
         full_code = '.'.join([ned.network, sta])
@@ -120,6 +118,9 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
         # end for
         results[full_code]['date_range'] = [str(start_time), str(end_time)]
     # end for
+
+    logger = logging.getLogger(__name__ + ':' + full_code)
+    logger.setLevel(logging.INFO)
 
     evids_orig = set([evid for _, evid, _ in ned])
 
@@ -159,7 +160,7 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
         mask = np.isfinite(y)
         n_valid = np.sum(mask)
         if n_valid < 5:
-            logger.info('{}: Insufficient data ({} valid points)'.format(sta, n_valid))
+            logger.info('Insufficient data ({} valid points)'.format(n_valid))
             continue
         # end if
         x_valid = x[mask]
@@ -182,9 +183,7 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
         angle_max = angles_fine[np.argmax(y_fitted)]
         code = '.'.join([ned.network, sta])
         results[code]['azimuth_correction'] = angle_max
-        logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
-            sta, angle_max, ph_uncertainty, N))
-
+        logger.info('corr {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(angle_max, ph_uncertainty, N))
 
         if save_plots_path is not None:
             _f = plt.figure(figsize=(16, 9))

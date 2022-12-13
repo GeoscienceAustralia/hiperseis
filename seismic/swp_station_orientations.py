@@ -290,7 +290,7 @@ def org(T,nameconv):
     return s
 # end func
 
-def compute_phis(ned, grv_dict):
+def compute_phis(ned, grv_dict, logger=None):
     nameconv = 1
     hrs = 60 * 60 * 4
 
@@ -298,6 +298,9 @@ def compute_phis(ned, grv_dict):
     R1cc = None
     R2phi = None
     R2cc = None
+
+    discarded = 0
+    sta = None
     # Loop over stations
     for i, (sta, evts) in enumerate(ned.by_station()): # ned contains 1 station
         nevts = len(evts)
@@ -323,6 +326,7 @@ def compute_phis(ned, grv_dict):
             st = org(st.copy(), nameconv)
 
             if checklen(st, hrs):
+                discarded += 1
                 continue
             # end if
 
@@ -445,6 +449,8 @@ def compute_phis(ned, grv_dict):
             #break
         # end for
     # end for
+    if(logger):
+        logger.info("Discarded {}/{} events".format(discarded, len(ned.db_sta[sta])))
 
     return R1cc, R1phi, R2cc, R2phi
 # end func
@@ -543,11 +549,13 @@ def fcalc1(phi,cc,lim,R1cc,R2cc):
 # end func
 
 
-def summary_calculations(R1cc, R1phi, R2cc, R2phi):
+def summary_calculations(R1cc, R1phi, R2cc, R2phi, logger=None):
     """
     Final Orientation Calculation File
     A. Doran and G. Laske
     """
+
+    if(logger): logger.info('Calculating summary')
 
     #####################
     ## ANGLE CALCULATION PARAMETERS
@@ -649,9 +657,6 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
     if len(ned) == 0:
         return {}
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
     # Determine limiting date range per station
     results = defaultdict(dict)
     full_code = None
@@ -673,10 +678,13 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         results[full_code]['date_range'] = [str(start_time), str(end_time)]
     # end for
 
+    logger = logging.getLogger(__name__ + ':' + full_code)
+    logger.setLevel(logging.INFO)
+
     logger.info('Analysing arrivals')
 
-    r1cc, r1phi, r2cc, r2phi = compute_phis(ned, grv_dict)
-    corr, err, ndata, nevents = summary_calculations(r1cc, r1phi, r2cc, r2phi)
+    r1cc, r1phi, r2cc, r2phi = compute_phis(ned, grv_dict, logger)
+    corr, err, ndata, nevents = summary_calculations(r1cc, r1phi, r2cc, r2phi, logger)
 
     corr *= -1 # converting to azimuth correction
     while (corr > 180): corr -= 360
@@ -685,8 +693,7 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
     results[full_code]['azimuth_correction'] = corr
     results[full_code]['uncertainty'] = err
 
-    logger.info('{}: {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(
-        full_code, -corr, err, int(nevents)))
+    logger.info('corr {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(-corr, err, int(nevents)))
 
     CEN = corr
     c = np.matlib.repmat([40, 35, 30, 25, 20, 15, 10], r1cc.shape[0], 1)
