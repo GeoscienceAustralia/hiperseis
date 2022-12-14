@@ -70,6 +70,20 @@ fi
 
 if [ 1 -eq 1 ]
 then
+    echo "================ Building pyfftw against fftw3/3.3.8 ================"
+    mkdir -p $ENV_DIR/src
+    rm -rf $ENV_DIR/src/pyFFTW-0.12.0
+    cd $ENV_DIR/src
+    wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz
+    tar -zxvf v0.12.0.tar.gz
+    cd pyFFTW-0.12.0/
+    python setup.py build_ext --inplace
+    python setup.py install
+    cd ../../
+fi
+
+if [ 1 -eq 1 ]
+then
     echo "================ Installing standard packages ================"
 STD_PACKAGES=$(cat << EOF
 pip3.6 install scipy==1.4.1 
@@ -99,6 +113,8 @@ pip3.6 install stockwell==1.0.7
 pip3.6 install ipython==7.10.1
 pip3.6 install opencv-python==4.5.3.56
 pip3.6 install pillow==8.4.0
+pip3.6 install basemap==1.3.2
+pip3.6 install descartes==1.1.0
 EOF
 )
     echo "$STD_PACKAGES"

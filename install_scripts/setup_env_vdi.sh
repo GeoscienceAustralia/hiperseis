@@ -53,6 +53,20 @@ python3.7 -m pip install cython==0.29.22
 
 if [ 1 -eq 1 ]
 then
+    echo "================ Building pyfftw against fftw3/3.3.8 ================"
+    mkdir -p $ENV_DIR/src
+    rm -rf $ENV_DIR/src/pyFFTW-0.12.0
+    cd $ENV_DIR/src
+    wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz
+    tar -zxvf v0.12.0.tar.gz
+    cd pyFFTW-0.12.0/
+    python3.7 setup.py build_ext --inplace
+    python3.7 setup.py install
+    cd ../../
+fi
+
+if [ 1 -eq 1 ]
+then
     echo "================ Installing standard packages ================"
 STD_PACKAGES=$(cat << EOF
 python3.7 -m pip install scipy==1.4.1 
@@ -82,6 +96,8 @@ python3.7 -m pip install stockwell==1.0.7
 python3.7 -m pip install ipython==7.10.1
 python3.7 -m pip install opencv-python==4.5.3.56
 python3.7 -m pip install pillow==8.4.0
+python3.7 -m pip install basemap==1.3.2
+python3.7 -m pip install descartes==1.1.0
 EOF
 )
     echo "$STD_PACKAGES"
