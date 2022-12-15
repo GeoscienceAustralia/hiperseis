@@ -26,7 +26,7 @@ echo "==== Installing packages not available through conda ===="
 gfortran=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gfortran;
 gcc=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc
 pip3 install pip==21.1.2
-pip3 install numpy==1.19.5
+pip3 install numpy==1.18.5
 pip3 install mpi4py==3.1.3
 pip3 install cython==0.29.22
 pip3 install h5py==3.1.0
@@ -59,7 +59,7 @@ pip3 install stockwell==1.0.7
 pip3 install ipython==7.10.1
 pip3 install opencv-python==4.5.3.56
 pip3 install pillow==8.4.0
-pip3 install basemap==1.3.2
+pip3 install basemap==1.3.0
 pip3 install descartes==1.1.0
 pip3 install PyYAML
 pip3 install rasterio==1.2.10

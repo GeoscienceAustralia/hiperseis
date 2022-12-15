@@ -113,7 +113,7 @@ pip3.6 install stockwell==1.0.7
 pip3.6 install ipython==7.10.1
 pip3.6 install opencv-python==4.5.3.56
 pip3.6 install pillow==8.4.0
-pip3.6 install basemap==1.3.2
+pip3.6 install basemap==1.3.0
 pip3.6 install descartes==1.1.0
 pip3.6 install PyYAML
 pip3.6 install rasterio==1.2.10

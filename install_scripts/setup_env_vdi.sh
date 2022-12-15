@@ -46,7 +46,7 @@ echo "================ Installing pip 21.1.2 ================"
 python3.7 -m pip install pip==21.1.2
 
 echo "================ Installing numpy 1.21.6 ================"
-python3.7 -m pip install numpy==1.21.6
+python3.7 -m pip install numpy==1.18.5
 
 echo "================ Installing cython 0.29.22 ================"
 python3.7 -m pip install cython==0.29.22
@@ -99,7 +99,7 @@ python3.7 -m pip install stockwell==1.0.7
 python3.7 -m pip install ipython==7.10.1
 python3.7 -m pip install opencv-python==4.5.3.56
 python3.7 -m pip install pillow==8.4.0
-python3.7 -m pip install basemap==1.3.2
+python3.7 -m pip install basemap==1.3.0
 python3.7 -m pip install descartes==1.1.0
 python3.7 -m pip install PyYAML
 python3.7 -m pip install rasterio==1.2.10
