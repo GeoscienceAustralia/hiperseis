@@ -61,8 +61,9 @@ pip3 install opencv-python==4.5.3.56
 pip3 install pillow==8.4.0
 pip3 install basemap==1.3.2
 pip3 install descartes==1.1.0
+pip3 install PyYAML
+pip3 install rasterio==1.2.10
 
-echo "SUCCESS!"
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"
 echo "#######################################################################"

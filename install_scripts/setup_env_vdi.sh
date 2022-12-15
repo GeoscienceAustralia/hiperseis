@@ -101,6 +101,8 @@ python3.7 -m pip install opencv-python==4.5.3.56
 python3.7 -m pip install pillow==8.4.0
 python3.7 -m pip install basemap==1.3.2
 python3.7 -m pip install descartes==1.1.0
+python3.7 -m pip install PyYAML
+python3.7 -m pip install rasterio==1.2.10
 EOF
 )
     echo "$STD_PACKAGES"

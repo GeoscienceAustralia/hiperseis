@@ -115,6 +115,8 @@ pip3.6 install opencv-python==4.5.3.56
 pip3.6 install pillow==8.4.0
 pip3.6 install basemap==1.3.2
 pip3.6 install descartes==1.1.0
+pip3.6 install PyYAML
+pip3.6 install rasterio==1.2.10
 EOF
 )
     echo "$STD_PACKAGES"
