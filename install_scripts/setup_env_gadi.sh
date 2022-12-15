@@ -16,7 +16,7 @@ if [ "$VALID_ARGUMENTS" -eq 0 ]; then
     help
 fi
 
-ENV_DIR=`pwd`/$1
+ENV_DIR=$1
 
 echo "================ Loading NCI Modules ================"
 MODULES=$(cat << EOF

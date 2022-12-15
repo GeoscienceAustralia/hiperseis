@@ -24,7 +24,7 @@ conda activate $1
 
 echo "==== Installing packages not available through conda ===="
 pip3 install pip==21.1.2
-pip3 install click==7.1.2 pyasdf==0.5.1 obspyh5==0.5.0 ordered_set ujson psutil PyPDF2==1.26.0 sortedcontainers stockwell==1.0.7 pillow==8.4.0 ipython==7.10.1 basemap==1.3.2 descartes==1.1.0 PyYAML rasterio==1.2.10
+pip3 install click==7.1.2 pyasdf==0.5.1 obspyh5==0.5.0 ordered_set ujson psutil PyPDF2==1.26.0 sortedcontainers stockwell==1.0.7 pillow==8.4.0 ipython==7.10.1 basemap==1.3.2 descartes==1.1.0 PyYAML
 
 echo "==== Installing a whittled down version of the rf package ===="
 
