@@ -6,7 +6,7 @@ set -o pipefail
 help()
 {   
     echo "----------------------------"
-    echo "Usage: setup_env.sh env_name"
+    echo "Usage: setup_env_gadi.sh env_name"
     echo "----------------------------"
     exit 2
 }

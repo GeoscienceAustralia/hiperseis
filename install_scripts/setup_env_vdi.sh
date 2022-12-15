@@ -6,7 +6,7 @@ set -o pipefail
 help()
 {   
     echo "----------------------------"
-    echo "Usage: setup_env.sh env_name"
+    echo "Usage: setup_env_vdi.sh env_name"
     echo "----------------------------"
     exit 2
 }
@@ -45,11 +45,14 @@ source $ENV_DIR/bin/activate
 echo "================ Installing pip 21.1.2 ================"
 python3.7 -m pip install pip==21.1.2
 
-echo "================ Installing numpy 1.18.5 ================"
-python3.7 -m pip install numpy==1.18.5
+echo "================ Installing numpy 1.21.6 ================"
+python3.7 -m pip install numpy==1.21.6
 
 echo "================ Installing cython 0.29.22 ================"
 python3.7 -m pip install cython==0.29.22
+
+echo "================ Installing h5py 3.1.0 ================"
+python3.7 -m pip install h5py==3.1.0
 
 if [ 1 -eq 1 ]
 then

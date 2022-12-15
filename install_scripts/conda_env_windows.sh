@@ -6,7 +6,7 @@
 help()
 {
     echo "----------------------------"
-    echo "Usage: setup_env.sh env_name"
+    echo "Usage: source setup_env_windows.sh env_name"
     echo "----------------------------"
     exit 0
 }
