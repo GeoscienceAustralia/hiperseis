@@ -5,9 +5,10 @@
 
 help()
 {
-    echo "----------------------------"
-    echo "Usage: source setup_env_windows.sh env_name"
-    echo "----------------------------"
+    echo "-------------------------------------------"
+    echo "Usage: source conda_env_windows.sh env_name"
+    echo "Assumes Anaconda3-2021.11 is in PATH"
+    echo "-------------------------------------------"
     exit 0
 }
 VALID_ARGUMENTS=$#
@@ -39,3 +40,12 @@ popd
 
 echo "SUCCESS!"
 
+echo "#######################################################################"
+echo "######################### VARIABLES TO EXPORT #########################"
+echo "#######################################################################"
+echo "Add the following to your .bashrc"
+echo ""
+echo "conda activate " $1
+echo ""
+echo "export PYTHONPATH=___P_A_T_H___T_O___/hiperseis/:\$PYTHONPATH"
+echo ""
