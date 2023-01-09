@@ -17,7 +17,7 @@ if [ "$VALID_ARGUMENTS" -eq 0 ]; then
 fi
 
 echo "==== Create a conda environment with requisite packages ===="
-conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0
+conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0 gxx_linux-64==7.5.0 proj4 geos
 
 echo "==== Activating conda environment ===="
 conda activate $1
@@ -45,8 +45,8 @@ pip3 install ordered_set ujson psutil
 pip3 install obspyh5==0.5.0
 pip3 install matplotlib==3.3.4
 pip3 install PyPDF2==1.26.0
-pip3 install shapely==1.8.1.post1
-pip3 install cartopy==0.19.0.post1
+pip3 install shapely==1.8.1.post1 --no-binary shapely
+pip3 install cartopy==0.19.0.post1 --no-binary cartopy
 pip3 install PyWavelets==1.1.1
 pip3 install rf==0.8.0
 pip3 install affine==2.3.0
@@ -63,6 +63,8 @@ pip3 install basemap==1.3.0
 pip3 install descartes==1.1.0
 pip3 install PyYAML
 pip3 install rasterio==1.2.10
+pip3 install notebook
+pip3 install ipython==7.10.0
 
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"
