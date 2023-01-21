@@ -29,6 +29,7 @@ from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from seismic.stream_io import get_obspyh5_index
 import uuid
 from shutil import rmtree
+from collections import defaultdict
 
 logging.basicConfig()
 
@@ -259,9 +260,16 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--apply-similarity-filter', is_flag=True, default=False, show_default=True,
               help='Apply RF similarity filtering to the RFs.')
 @click.option('--min-slope-ratio', type=float, default=-1, show_default=True,
-              help='Apply filtering to the RFs based on the "slope_ratio" metric that indicates robustness'
-                   'of P-arrival. Typically, a minimum slope-ratio of 5 is able to pick out strong arrivals. '
-                   'The default value of -1 does not apply this filter')
+              help='Discard RFs that do not meet the specified minimum "slope_ratio" metric that indicates '
+                   'robustness of P-arrival. Typically, a minimum slope-ratio of 5 is able to pick out '
+                   'strong arrivals. The default value of -1 does not apply this filter')
+@click.option('--force-dereverberate', default=None, show_default=False,
+              help='A space-separated list of stations (within quotes) for which the de-reverberation filter '
+                   'is to be triggered by force.')
+@click.option('--filter-by-distance', default=None, type=(str, float, float), show_default=False, multiple=True,
+              help='RFs for particular stations can be restricted to a given range of angular distance. Parameters '
+                   'are specified as a space-separated triplet: station-name min-dist max-dist. Note that this '
+                   'parameter can be repeated for multiple stations')
 @click.option('--hk-vp', type=float, default=rf_stacking.DEFAULT_Vp, show_default=True,
               help='Value to use for Vp (crustal P-wave velocity [km/s]) for H-k stacking')
 @click.option('--hk-weights', type=(float, float, float), default=(0.5, 0.4, 0.1), show_default=True,
@@ -269,16 +277,17 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--hk-solution-labels', type=click.Choice(['global', 'local', 'none']), default=DEFAULT_HK_SOLN_LABEL,
               show_default=True, help='Method of labeling automatically selected solutions on H-k stack plots. '
               'global: find and label global maximum, local: find and label up to 3 local maxima after '
-              'clustering, none: do not label any solutions on H-k stack plot.')
+              'clustering, none: do not label any solutions on H-k stack plot')
 @click.option('--depth-colour-range', type=(float, float), default=(20, 70), show_default=True,
               help='The range of depth values from which to choose the maximum hk_stack value for plotting '
-                   'purposes. Note that this parameter has no effect on the computation of the hk_stack.')
+                   'purposes. Note that this parameter has no effect on the computation of the hk_stack')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
-              help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot.')
+              help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot')
 @click.option('--disable-semblance-weighting', is_flag=True, default=False, show_default=True,
-              help='Disables default semblance-weighting applied to H-k stacks.')
+              help='Disables default semblance-weighting applied to H-k stacks')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
          apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
+         force_dereverberate=None, filter_by_distance=None,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
          hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
          hk_hpf_freq=None, disable_semblance_weighting=False):
@@ -298,9 +307,45 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     proc_hdfkeys = None
 
     tempdir = None
+    fd_sta_list = []
+    filter_by_distance_dict = defaultdict(list)
     if(rank == 0):
         # retrieve all available hdf_keys
         proc_hdfkeys = get_obspyh5_index(input_file, seeds_only=True)
+
+        ###############################################################################
+        # Parse special parameters e.g. for invoking forced de-reverberation or for
+        # limiting RFs by distance for particular stations.
+        ###############################################################################
+        def match_stations(sta, sta_list):
+            matches_found = []
+            for tsta in sta_list:
+                if sta in tsta:
+                    matches_found.append(tsta)
+                # end if
+            # end for
+            return matches_found
+        # end func
+        # parse --force-dereverberate
+        if(force_dereverberate is not None):
+            fd_sta_list = re.findall('\S+', force_dereverberate)
+            assert len(fd_sta_list), 'Invalid station list for triggering forced dereverberation. Aborting..'
+            for fd_sta in fd_sta_list:
+                matches_found = match_stations(fd_sta, proc_hdfkeys)
+                if(len(matches_found) == 0): assert 0, 'Station {} not found. Aborting..'.format(fd_sta)
+            # end for
+        # end if
+        # parse --filter-by-distance
+        if(filter_by_distance is not None):
+            for row in filter_by_distance:
+                fd_sta, min_dist, max_dist = row
+                matches_found = match_stations(fd_sta, proc_hdfkeys)
+                if(len(matches_found) == 0): assert 0, 'Station {} not found. Aborting..'.format(fd_sta)
+                if(min_dist > max_dist): assert 0, 'Invalid parameters for station {}: min_dist > max_dist ' \
+                                                   'Aborting..'.format(fd_sta)
+                filter_by_distance_dict[fd_sta] = [min_dist, max_dist]
+            # end for
+        # end if
 
         # trim stations to be processed based on the user-provided network- and station-list
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
@@ -315,6 +360,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
     # broadcast workload to all procs
     proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
+    fd_sta_list = comm.bcast(fd_sta_list, root=0)
+    filter_by_distance_dict = comm.bcast(filter_by_distance_dict, root=0)
 
     pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
 
@@ -398,6 +445,18 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # end if
 
                 ###############################################################################
+                # Restrict RFs by distance if specified
+                ###############################################################################
+                if st in filter_by_distance_dict.keys():
+                    min_dist, max_dist = filter_by_distance_dict[st]
+
+                    rf_stream = rf_util.filter_by_distance(rf_stream, min_dist, max_dist)
+                    if (len(rf_stream) == 0):
+                        log.warning("Filter-by-distance has removed all traces for {}.".format(nsl))
+                    # end if
+                # end if
+
+                ###############################################################################
                 # Apply amplitude filter
                 ###############################################################################
                 if apply_amplitude_filter:
@@ -442,8 +501,9 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # Apply reverberation filter if needed
                 ###############################################################################
                 reverberations_removed = False
-                # Apply reverberation filter if needed
-                if(rf_corrections.has_reverberations(rf_stream)):
+                # Apply reverberation filter if needed (or forced)
+                if(rf_corrections.has_reverberations(rf_stream) or \
+                   st in fd_sta_list):
                     rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
                     reverberations_removed = True
                 # end if

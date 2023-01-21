@@ -592,3 +592,22 @@ def filter_invalid_radial_component(rf_stream):
 
     return rf.RFStream(rf_stream_out)
 # end func
+
+def filter_by_distance(rf_stream, min_dist, max_dist):
+    """
+    Discard RFs that fall outside the distance range(min_dist, max_dist)
+    @param rf_stream: RFStream
+    @param min_dist: minimum angular distance
+    @param max_dist: maximum angular distance
+    @return: trimmed RFStream
+    """
+
+    rf_stream_out = []
+    for trc in rf_stream:
+        if(trc.stats.distance >= min_dist and trc.stats.distance <= max_dist):
+            rf_stream_out.append(trc)
+        # end if
+    # end for
+
+    return rf.RFStream(rf_stream_out)
+# end func
