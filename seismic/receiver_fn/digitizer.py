@@ -29,7 +29,6 @@ class State:
         self._baz = None
 
         cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty(self._window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.setMouseCallback(self._window_name, State.mouse_callback, self)
     # end func
 
