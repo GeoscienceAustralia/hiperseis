@@ -717,8 +717,12 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         plt.xticks(fontsize=16)
 
         plt.title(full_code, fontsize=14)
-        plt.text(0.9, 0.9, 'N = {}'.format(int(nevents)), ha='right', va='top',
+
+        plt.text(0.9, 0.9, 'N = {}'.format(len(ned)), ha='right', va='top',
                  transform=plt.gca().transAxes)
+        plt.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents)), ha='right', va='top',
+                 transform=plt.gca().transAxes)
+
         plt.legend(framealpha=0.5)
         outfile = '_'.join([full_code, 'swp_ori.png'])
         outfile = os.path.join(str(save_plots_path), outfile)
@@ -741,8 +745,10 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         ax.set_ylim([CEN - 180, CEN + 180]);
         ax.set_xlim([0, 1])
 
-        ax.text(0.9, 0.9, 'N = {}'.format(int(nevents)), ha='right', va='top',
-                 transform=ax.transAxes)
+        ax.text(0.9, 0.9, 'N = {}'.format(len(ned)), ha='right', va='top',
+                transform=ax.transAxes)
+        ax.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents)), ha='right', va='top',
+                transform=ax.transAxes)
         ax.legend(framealpha=0.5)
     # end if
 
