@@ -153,11 +153,12 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                                         cha, st, et)
 
         pbar.update()
-        pbar.set_description(desc='{}: [{}.{}]'.format(ename, net, sta))
+        pbar.set_description(desc='{}: [{}.{}.{}.{}]'.format(ename, net, sta, loc, cha))
         if (len(stream)):
             # check instrument-response availability
             seed_id = '{}.{}.{}.{}'.format(net, sta, loc, cha)
 
+            resp = None
             try:
                 resp = inventory.get_response(seed_id, stream[0].stats.starttime)
             except Exception as e:
@@ -165,24 +166,30 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
             # end try
 
             if(resp):
-                ods.add_waveforms(stream, tag)
 
-                receivers_dict['{}.{}.{}'.format(net, sta, loc)] = \
-                    {"class_name": "salvus.flow.simple_config.receiver.seismology.SideSetPoint3D",
-                     "salvus_version": "0.12.8",
-                     "arguments": {
-                            "depth_in_m": 0.0,
-                            "radius_of_sphere_in_m": 6371000.0,
-                            "network_code": net,
-                            "location_code": loc,
-                            "side_set_name": "r1",
-                            "latitude": lat,
-                            "longitude": lon,
-                            "station_code": sta,
-                            "fields": [receiver_fields]}}
+                try:
+                    oinv = inventory.select(network=net, station=sta,
+                                            location=loc, channel=cha)
+                    ods.add_stationxml(oinv)
 
-                if(oinv in None): oinv = resp
-                else: oinv += resp
+                    ods.add_waveforms(stream, tag)
+
+                    receivers_dict['{}.{}.{}'.format(net, sta, loc)] = \
+                        {"class_name": "salvus.flow.simple_config.receiver.seismology.SideSetPoint3D",
+                         "salvus_version": "0.12.8",
+                         "arguments": {
+                             "depth_in_m": 0.0,
+                             "radius_of_sphere_in_m": 6371000.0,
+                             "network_code": net,
+                             "location_code": loc,
+                             "side_set_name": "r1",
+                             "latitude": lat,
+                             "longitude": lon,
+                             "station_code": sta,
+                             "fields": [receiver_fields]}}
+                except Exception as e:
+                    print('Failed to add inventory/waveform with error: {}. Moving along..'.format(str(e)))
+                # end try
             # end if
 
             #if (DEBUG): break
@@ -190,7 +197,6 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     # end for
     pbar.close()
 
-    ods.add_stationxml(oinv)
     json.dump(receivers_dict, open(receivers_ofn, 'w+'), indent=4)
     del ods
 # end func
@@ -268,7 +274,7 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
         extract_data_for_event(fds, dom, {ek:e}, inv, output_folder, data_name,
                                receiver_fields,
                                seconds_before, seconds_after)
-        if DEBUG: break
+        #if DEBUG: break
     # end for
 
 

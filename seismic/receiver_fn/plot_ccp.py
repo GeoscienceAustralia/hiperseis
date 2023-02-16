@@ -253,6 +253,12 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
 @click.command(name='depth', context_settings=CONTEXT_SETTINGS)
 @click.argument('ccp-h5-volume', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('profile-def', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.option('--mt-sgrid', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
+              help='MT grid in sgrid format. If provided, an additional column with resistivity values are '
+                   'added in the output text file. Note that this parameter is ignored if the output-format '
+                   'is set to png')
+@click.option('--mt-utm-zone', type=str, default=None, show_default=True,
+              help='UTM zone for mt-grid e.g. 53S. This parameter is ignored if mt-grid is not provided')
 @click.option('--dx', type=float, default=5, show_default=True,
               help='Longitudinal distance-step (km) between start and end locations')
 @click.option('--dy', type=float, default=5, show_default=True,
@@ -282,7 +288,7 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
               help='Output folder')
 @click.option('--output-format', type=click.Choice(['png', 'txt']), default='png', show_default=True,
               help='Output format')
-def depth(ccp_h5_volume, profile_def, dx, dy, dz, extend, cell_radius,
+def depth(ccp_h5_volume, profile_def, mt_sgrid, mt_utm_zone, dx, dy, dz, extend, cell_radius,
           idw_exponent, pw_exponent, amplitude_min, amplitude_max, output_folder, output_format):
     """ Plot CCP depth profile \n
     CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
@@ -295,14 +301,23 @@ def depth(ccp_h5_volume, profile_def, dx, dy, dz, extend, cell_radius,
     """
     log.setLevel(logging.DEBUG)
 
+    # sanity checks
+    if (mt_sgrid and not mt_utm_zone): assert 0, 'UTM zone for {} not specified. ' \
+                                                'See help for --mt-utm-zone'.format(mt_sgrid)
+
     log.info('Loading CCP volume {}..'.format(ccp_h5_volume))
     vol = CCPVolume(ccp_h5_volume)
 
     log.info('Loading profile definition file {}..'.format(profile_def))
     profiles = read_profile_def(profile_def, vol, 'depth')
 
-    s, e = profiles[0]
+    mt = None
+    if(mt_sgrid):
+        log.info('Loading MT SGrid {}..'.format(mt_sgrid))
+        mt = SGrid(mt_sgrid, mt_utm_zone)
+    # end if
 
+    s, e = profiles[0]
     for depth in profiles[1:]:
         log.info('Processing depth {}..'.format(depth))
 
@@ -322,7 +337,27 @@ def depth(ccp_h5_volume, profile_def, dx, dy, dz, extend, cell_radius,
             grid[:, 3] = ggy.flatten()
             grid[:, 4] = dprof._grid_vals.flatten()
 
-            np.savetxt(fname, grid, header='lon lat x(km) y(km) amplitude(arb. units)', fmt='%10.10f')
+            if(mt):
+                grid = np.hstack((grid, np.atleast_2d(np.zeros(grid.shape[0])).T))
+
+                grid[:, 5] = mt.get_values(grid[:, 0], grid[:, 1],
+                                           np.ones(len(dprof._grid))*depth*1e3, p=3)
+
+                """
+                fig, ax = plt.subplots(1)
+                fig.set_size_inches(25,10)
+                fig.set_dpi(300)
+
+                vals = np.reshape(np.array(grid[:, 5]), (dprof._gy.shape[0], dprof._gx.shape[0]))
+                ax.pcolor(np.log1p(vals), cmap='seismic_r')
+                plt.savefig(fname+'.png')
+                """
+
+                np.savetxt(fname, grid, header='lon lat x(km) y(km) amplitude(arb. units) resistivity(ohm m)',
+                           fmt='%10.10f')
+            else:
+                np.savetxt(fname, grid, header='lon lat x(km) y(km) amplitude(arb. units)', fmt='%10.10f')
+            # end if
         else:
             fig, ax = plt.subplots()
             fig.set_size_inches((10, 10))
