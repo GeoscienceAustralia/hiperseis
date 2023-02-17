@@ -16,7 +16,7 @@ import xlrd
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.units_utils import KM_PER_DEG
-from seismic.receiver_fn.legacy.plot_ccp_batch import LEAD_INOUT_DIST_KM
+from seismic.receiver_fn.plot_ccp_classic_batch import LEAD_INOUT_DIST_KM
 from seismic.receiver_fn.sandbox.conversion_helper import NETWORK_CODE_MAPPINGS, SPECIAL_CHARS
 
 

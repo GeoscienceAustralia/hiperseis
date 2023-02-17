@@ -13,7 +13,7 @@ import pandas as pd
 
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.ASDFdatabase import FederatedASDFDataSet
-from seismic.receiver_fn.legacy.plot_ccp import run
+from seismic.receiver_fn.plot_ccp_classic import run
 from seismic.units_utils import KM_PER_DEG
 
 

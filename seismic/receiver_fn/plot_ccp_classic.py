@@ -7,11 +7,11 @@ DOI https://doi.org/10.1016/j.tecto.2016.03.031*
 This code adapted from Christian Sippl's original code.
 
 Workflow:
-    extract_event_traces.py --> generate_rf.py --> rf_quality_filter.py --> plot_ccp.py (this script)
+    extract_event_traces.py --> generate_rf.py --> rf_quality_filter.py --> plot_ccp_classic.py (this script)
 
 Example usage::
 
-    python seismic/receiver_fn/plot_ccp.py --start-latlon -19.5 133.0 --end-latlon -19.5 140.0 --width 120 \
+    python seismic/receiver_fn/plot_ccp_classic.py --start-latlon -19.5 133.0 --end-latlon -19.5 140.0 --width 120 \
         --channels T --stacked-scale 0.3 --title "Network OA CCP T-stacking (profile BS24-CF24)" \
         /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-cleaned.h5 \
         /software/hiperseis/seismic/receiver_fn/DATA/OA-ZRT-T_CCP_stack_BS24-CF24_2km_spacing.png
@@ -471,7 +471,7 @@ def ccp_generate(rf_stream, startpoint, endpoint, width, spacing, max_depth, cha
         # NOTE: AK135 with Moho at 60 km
         b_lay = [0., 20., 60., 77.5, 120., 165., 210., 260.,
                  310., 360., 410., 460., 510., 560., 610., 660.]
-        model_dir = os.path.join(os.path.split(__file__)[0], '../models')
+        model_dir = os.path.join(os.path.split(__file__)[0], 'models')
         model_file = os.path.join(model_dir, 'ak135_60.tvel')
         built_file = os.path.join(model_dir, 'ak135_60.npz')
         print('Using background crustal model at {}'.format(model_file))
