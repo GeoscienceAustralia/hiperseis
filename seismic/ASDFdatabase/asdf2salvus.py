@@ -213,9 +213,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
-@click.option('--seconds-before', type=float, default=240, show_default=True,
+@click.option('--seconds-before', type=float, default=240.0, show_default=True,
               help="Start of data-window before origin-time")
-@click.option('--seconds-after', type=float, default=240, show_default=True,
+@click.option('--seconds-after', type=float, default=3600.0, show_default=True,
               help="End of data-window after origin-time")
 @click.option('--data-name', type=str, default='raw_data', show_default=True,
               help="Name of data folder within Salvus' expected folder hierarchy")
