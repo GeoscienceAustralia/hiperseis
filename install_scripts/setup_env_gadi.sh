@@ -23,7 +23,7 @@ MODULES=$(cat << EOF
 module purge
 module load pbs
 module load python3-as-python
-module load openmpi/3.1.4
+module load openmpi/4.1.4
 module load hdf5/1.10.5p
 module load geos
 module load proj/6.2.1
@@ -47,7 +47,7 @@ echo "================ Installing numpy 1.18.5 ================"
 pip3.6 install numpy==1.18.5
 
 echo "================ Building mpi4py against module openmpi-3.1.4 ================"
-MPICC=/apps/openmpi/3.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3
+MPICC=/apps/openmpi/4.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3
 
 echo "================ Installing cython 0.29.22 ================"
 pip3.6 install cython==0.29.22
@@ -91,7 +91,7 @@ pip3.6 install joblib==0.14.1
 pip3.6 install scikit-learn==0.22.2.post1 
 pip3.6 install tqdm==4.43.0 
 pip3.6 install sortedcontainers==2.3.0
-pip3.6 install obspy==1.1.0 
+pip3.6 install obspy==1.2.0
 pip3.6 install click==7.1.2 
 pip3.6 install netCDF4==1.4.0 
 pip3.6 install pyasdf==0.5.1 
