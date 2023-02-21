@@ -17,13 +17,14 @@ if [ "$VALID_ARGUMENTS" -eq 0 ]; then
 fi
 
 echo "==== Create a conda environment with requisite packages ===="
-conda create -n $1 -c conda-forge python=3.6.8 obspy=1.1.0 cartopy==0.19.0.post1 shapely==1.7.1 tqdm==4.64.1 geographiclib==1.52 cython==0.29.24 h5py==2.8.0 mpi4py==3.0.1 netCDF4==1.4.0 pyproj==3.0.1 scipy==1.3.1 scikit-learn==0.22.2.post1 rtree==0.9.7 PyWavelets==1.1.1 matplotlib==3.3.4 pandas==1.1.5
+conda create -n $1 -c conda-forge python=3.6.8 cartopy==0.19.0.post1 shapely==1.7.1 tqdm==4.64.1 geographiclib==1.52 cython==0.29.24 h5py==2.8.0 mpi4py==3.0.1 netCDF4==1.4.0 pyproj==3.0.1 scipy==1.3.1 scikit-learn==0.22.2.post1 rtree==0.9.7 PyWavelets==1.1.1 matplotlib==3.3.4 pandas==1.1.5
 
 echo "==== Activating conda environment ===="
 conda activate $1
 
 echo "==== Installing packages not available through conda ===="
 pip3 install pip==21.1.2
+pip3 install obspy==1.2.2
 pip3 install click==7.1.2 pyasdf==0.5.1 obspyh5==0.5.0 ordered_set ujson psutil PyPDF2==1.26.0 sortedcontainers stockwell==1.0.7 pillow==8.4.0 ipython==7.10.1 basemap==1.3.2 descartes==1.1.0 PyYAML==6.0 opencv-python==4.5.3.56
 
 echo "==== Installing a whittled down version of the rf package ===="
