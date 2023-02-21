@@ -117,6 +117,9 @@ pip3.6 install basemap==1.3.0
 pip3.6 install descartes==1.1.0
 pip3.6 install PyYAML
 pip3.6 install rasterio==1.2.10
+pip3.6 install notebook==6.4.10
+pip3.6 install ipython==7.10.0
+pip3.6 install jedi==0.17
 EOF
 )
     echo "$STD_PACKAGES"

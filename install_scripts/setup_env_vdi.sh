@@ -77,7 +77,7 @@ python3.7 -m pip install joblib==0.14.1
 python3.7 -m pip install scikit-learn==0.22.2.post1 
 python3.7 -m pip install tqdm==4.43.0 
 python3.7 -m pip install sortedcontainers==2.3.0
-python3.7 -m pip install obspy==1.1.0 
+python3.7 -m pip install obspy==1.2.0
 python3.7 -m pip install click==7.1.2 
 python3.7 -m pip install netCDF4==1.5.0 --only-binary netCDF4
 python3.7 -m pip install pyasdf==0.5.1 
@@ -103,6 +103,7 @@ python3.7 -m pip install basemap==1.3.0
 python3.7 -m pip install descartes==1.1.0
 python3.7 -m pip install PyYAML
 python3.7 -m pip install rasterio==1.2.10
+python3.7 -m pip install notebook==6.5.2
 EOF
 )
     echo "$STD_PACKAGES"

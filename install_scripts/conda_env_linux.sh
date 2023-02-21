@@ -25,6 +25,7 @@ conda activate $1
 echo "==== Installing packages not available through conda ===="
 gfortran=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gfortran;
 gcc=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc
+pip3 install setuptools==45.0.0
 pip3 install pip==21.1.2
 pip3 install numpy==1.18.5
 pip3 install mpi4py==3.1.3
@@ -37,7 +38,7 @@ pip3 install joblib==0.14.1
 pip3 install scikit-learn==0.22.2.post1
 pip3 install tqdm==4.43.0
 pip3 install sortedcontainers==2.3.0
-pip3 install obspy==1.1.0
+pip3 install obspy==1.2.0
 pip3 install click==7.1.2
 pip3 install netCDF4==1.4.0
 pip3 install pyasdf==0.5.1
@@ -63,8 +64,9 @@ pip3 install basemap==1.3.0
 pip3 install descartes==1.1.0
 pip3 install PyYAML
 pip3 install rasterio==1.2.10
-pip3 install notebook
+pip3 install notebook==6.4.10
 pip3 install ipython==7.10.0
+pip3 install jedi==0.17
 
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"
