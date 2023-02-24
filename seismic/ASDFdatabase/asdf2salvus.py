@@ -118,6 +118,84 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     @return:
     """
 
+    def filter_channels(rows, include_sband=False):
+        """
+        @param rows: output of FederatedASDFDataset.get_stations
+        @param include_sband:
+        @return: filtered rows
+        """
+
+        def is_preferred_component(cha: str):
+            pcomps = ['Z', 'N', 'E']  # preferred components
+
+            for pc in pcomps:
+                if (pc == cha[-1]): return True
+            # end for
+
+            return False
+
+        # end func
+
+        itype_dict = defaultdict(lambda: defaultdict( \
+            lambda: defaultdict(lambda: defaultdict(list))))
+
+        for irow, row in enumerate(rows):
+            net, sta, loc, cha, lon, lat, elev = row
+
+            if (cha[0] == 'S' and not include_sband): continue
+            if (not is_preferred_component(cha)): continue
+
+            comp = cha[-1]
+            itype_dict[net][sta][loc][comp].append([cha, irow])
+        # end for
+
+        bands = ['H', 'B', 'S'] if include_sband else ['H', 'B']
+        orows = []
+        for nk, nv in itype_dict.items():
+            for sk, sv in itype_dict[nk].items():
+                for lk, lv in itype_dict[nk][sk].items():
+                    for ck, cv in itype_dict[nk][sk][lk].items():
+
+                        # More than one band-codes found for component
+                        if (len(cv) > 1):
+                            # select H, B or S in order of preference
+                            for band in bands:
+                                found = False
+                                for item in cv:
+                                    if (band == item[0][0]):
+                                        found = True
+                                        orows.append(rows[item[1]])
+                                        break
+                                    # end if
+                                # end for
+                                if (found): break
+                            # end for
+                            # print(nk,sk,lk, ck, cv)
+                        else:
+                            orows.append(rows[cv[0][1]])
+                        # end if
+                # end for
+            # end for
+        # end for
+
+        return orows
+    # end func
+
+    def remove_comments(iinv: Inventory) -> Inventory:
+        oinv = iinv.copy()
+        for net in oinv.networks:
+            net.comments = []
+            for sta in net.stations:
+                sta.comments = []
+                for cha in sta.channels:
+                    cha.comments = []
+                # end for
+            # end for
+        # end for
+
+        return oinv
+    # end func
+
     assert len(event) == 1, 'Invalid event dict {}. Must contain a single event. Aborting..'.format(event)
 
     tag = 'raw_recording'
@@ -140,6 +218,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
 
     st, et = otime - seconds_before, otime + seconds_after
     rows = fds.get_stations(st, et)
+    rows = filter_channels(rows) # filter out unwanted channels and band-codes
 
     receivers_dict = defaultdict(dict)
     pbar = tqdm(total=len(rows), desc=ename)
@@ -170,6 +249,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                 try:
                     oinv = inventory.select(network=net, station=sta,
                                             location=loc, channel=cha)
+                    oinv = remove_comments(oinv)
                     ods.add_stationxml(oinv)
 
                     ods.add_waveforms(stream, tag)
