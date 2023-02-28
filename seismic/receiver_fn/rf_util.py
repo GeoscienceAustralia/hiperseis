@@ -26,7 +26,17 @@ def split_list(lst, npartitions):
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
-def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
+def trim_hdf_keys(hdf_key_list:[str], networks_string:str, stations_string:str) -> [str]:
+    """
+    Trims a list of hdf_keys, filtering out unwanted networks and stations.
+    @param hdf_key_list:
+    @param networks_string: a space-separated list of networks. '*' includes all.
+    @param stations_string: a space-separated list of stations or a text file
+                            with station names in each row, w/wo location codes.
+                            '*' includes all.
+    @return: trimmed list
+    """
+
     network_list = []
     station_list = []
 
@@ -40,9 +50,30 @@ def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
     if(stations_string=='*'):
         station_list = []
     else:
+        stations = []
+        if(os.path.isfile(stations_string)):
+            for iline, line in enumerate(open(stations_string, 'r').readlines()):
+                if(not line.strip()): continue
+                else: stations.append(line)
+            # end for
+
+            stations_string = ' '.join(stations)
+        # end if
+
         station_list = re.findall('\S+', stations_string)
         assert len(station_list), 'Invalid station list. Aborting..'
     # end if
+
+    # sanity checks
+    for net in network_list:
+        if net not in [hdf_key.split('.')[0] for hdf_key in hdf_key_list]:
+            assert 0, 'Network {} not found in input dataset. Aborting..'.format(net)
+    # end for
+
+    for sta in station_list:
+        if sta.split('.')[0] not in [hdf_key.split('.')[1] for hdf_key in hdf_key_list]:
+            assert 0, 'Station {} not found in input dataset. Aborting..'.format(sta)
+    # end for
 
     net_subset = [] # filter networks
     if(len(network_list)):
@@ -57,24 +88,15 @@ def trim_hdf_keys(hdf_key_list, networks_string, stations_string):
 
     sta_subset = [] # filter stations
     if(len(station_list)):
-        for hdf_key in hdf_key_list:
+        for hdf_key in net_subset:
             net, sta, loc = hdf_key.split('.')
 
-            if(sta in station_list): sta_subset.append(hdf_key)
+            if (sta in station_list): sta_subset.append(hdf_key)
+            if ('.'.join([sta, loc]) in station_list): sta_subset.append(hdf_key)
         # end for
     else:
         sta_subset = net_subset.copy()
     # end if
-
-    # sanity checks
-    for net in network_list:
-        if net not in [hdf_key.split('.')[0] for hdf_key in hdf_key_list]:
-            assert 0, 'Network {} not found in input dataset. Aborting..'.format(net)
-    # end for
-    for sta in station_list:
-        if sta not in [hdf_key.split('.')[1] for hdf_key in hdf_key_list]:
-            assert 0, 'Station {} not found in input dataset. Aborting..'.format(sta)
-    # end for
 
     return sta_subset
 # end func

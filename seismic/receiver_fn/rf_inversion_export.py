@@ -169,7 +169,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 ch_traces = rf.RFStream([tr for tr in ch_traces if len(tr) == most_common_len])
                 after = len(ch_traces)
                 if after < before:
-                    print('{}.{}: {}/{} traces dropped to make them stackable!'.format(network_code, sta,
+                    print('{}.{}.{}: {}/{} traces dropped to make them stackable!'.format(network_code, sta, loc,
                                                                                        before-after, after))
                 # end if
 
@@ -180,13 +180,13 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                              if tr.stats.slope_ratio >= min_slope_ratio])
                     after = len(ch_traces)
 
-                    print('{}.{}: {}/{} traces dropped with min-slope-ratio filter..'.format(network_code, sta,
-                                                                                             before - after,
+                    print('{}.{}.{}: {}/{} traces dropped with min-slope-ratio filter..'.format(network_code, sta,
+                                                                                             loc, before - after,
                                                                                              before))
                 # end if
 
                 if (len(ch_traces) == 0):
-                    print('{}.{}: no traces left to process..'.format(network_code, sta))
+                    print('{}.{}.{}: no traces left to process..'.format(network_code, sta, loc))
                     continue
                 # end if
 
@@ -194,7 +194,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 if(dereverberate):
                     has_reverberations = rf_corrections.has_reverberations(ch_traces)
                     if (has_reverberations):
-                        print('{}.{}: removing reverberations..'.format(network_code, sta))
+                        print('{}.{}.{}: removing reverberations..'.format(network_code, sta, loc))
                         ch_traces = rf_corrections.apply_reverberation_filter(ch_traces)
                     # end if
                 # end if
@@ -206,7 +206,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                              if((tr.stats.back_azimuth >= baz_range[0]) and
                                                 (tr.stats.back_azimuth <= baz_range[1]))])
                     after = len(ch_traces)
-                    print('{}.{}: {}/{} traces dropped with baz-range filter..'.format(network_code, sta,
+                    print('{}.{}.{}: {}/{} traces dropped with baz-range filter..'.format(network_code, sta, loc,
                                                                                        before - after,
                                                                                        before))
                 # end if
@@ -217,8 +217,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                     ch_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=trim_window,
                                                                     apply_moveout=True)
                     after = len(ch_traces)
-                    print('{}.{}: {}/{} traces dropped with trace-similarity filter..'.format(network_code, sta,
-                                                                                              before - after,
+                    print('{}.{}.{}: {}/{} traces dropped with trace-similarity filter..'.format(network_code, sta,
+                                                                                              loc, before - after,
                                                                                               before))
                 # end if
 
@@ -228,14 +228,14 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 ch_traces = rf_util.filter_invalid_radial_component(ch_traces)
                 after = len(ch_traces)
                 if (before > after):
-                    print('{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
-                          network_code, sta,
+                    print('{}.{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
+                          network_code, sta, loc,
                           before - after,
                           before))
                 # end if
 
                 if (len(ch_traces) == 0):
-                    print('{}.{}: No traces left to stack. Moving along..'.format(network_code, sta))
+                    print('{}.{}.{}: No traces left to stack. Moving along..'.format(network_code, sta, loc))
                     continue
                 # end if
 
@@ -244,7 +244,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 # end if
 
                 # report stats for traces included in stack
-                print('{}.{}: Traces included in stack ({}): '.format(network_code, sta, len(ch_traces)))
+                print('{}.{}.{}: Traces included in stack ({}): '.format(network_code, sta, loc, len(ch_traces)))
                 for strc in ch_traces:
                     print('\t Event id, time, lon, lat, baz: {}, {}, {:6.2f}, {:6.2f}, {:6.2f}'.format(
                                                                                         strc.stats.event_id,
@@ -256,7 +256,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 
                 stack = None
                 if(apply_phase_weighting):
-                    print('{}.{}: Computing a phase-weighted stack..'.format(network_code, sta))
+                    print('{}.{}.{}: Computing a phase-weighted stack..'.format(network_code, sta, loc))
 
                     stack = phase_weighted_stack(ch_traces, phase_weight=pw_exponent)
 
@@ -278,7 +278,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                         plt.savefig(fn2)
                     # end if
                 else:
-                    print('{}.{}: Computing a linear stack..'.format(network_code, sta))
+                    print('{}.{}.{}: Computing a linear stack..'.format(network_code, sta, loc))
                     stack = ch_traces.stack()
                 # end if
                 trace = stack[0]
@@ -309,7 +309,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 @click.argument('output-folder', type=click.Path(dir_okay=True), required=True)
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
+                                                  'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
 @click.option('--station-weights', type=str, default=None, show_default=True,
               help='A comma-separated text file containing network and station in the first two columns, '

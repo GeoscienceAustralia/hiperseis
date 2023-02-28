@@ -267,7 +267,8 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
+                                                  'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
 @click.option('--config-file', type=click.Path(dir_okay=False), default=None,
               show_default=True, help="Run configuration file in JSON format")

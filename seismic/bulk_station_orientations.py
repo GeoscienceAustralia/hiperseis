@@ -177,7 +177,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('network', type=str, required=True)
 @click.option('--output-basename', type=click.Path(dir_okay=False),
               help='Output file basename to store results in JSON format and plots in pdf format')
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
+                                                  'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
 def main(src_h5_event_file, network, output_basename, station_list):
     """

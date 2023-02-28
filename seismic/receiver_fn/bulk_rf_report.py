@@ -247,7 +247,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('output-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
-@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+@click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
+                                                  'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
 @click.option('--event-mask-folder', type=click.Path(dir_okay=True, exists=True, file_okay=False),
               help='Folder containing event masks to use to filter traces. Such masks are generated '
