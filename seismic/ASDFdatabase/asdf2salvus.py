@@ -118,7 +118,8 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     @return:
     """
 
-    def filter_channels(rows, include_sband=False):
+    def filter_channels_locations(rows, preferred_location_codes:list = ['00', '', '10'],
+                                  include_sband=False):
         """
         @param rows: output of FederatedASDFDataset.get_stations
         @param include_sband:
@@ -133,7 +134,6 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
             # end for
 
             return False
-
         # end func
 
         itype_dict = defaultdict(lambda: defaultdict( \
@@ -149,6 +149,44 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
             itype_dict[net][sta][loc][comp].append([cha, irow])
         # end for
 
+        #################################################
+        # Remove multiple location codes
+        #################################################
+        for nk, nv in itype_dict.items():
+            for sk, sv in itype_dict[nk].items():
+                if(len(itype_dict[nk][sk]) > 1): # multiple location codes found
+                    # first remove location codes not in preferred_location_codes
+                    for lk in list(itype_dict[nk][sk].keys()):
+                        if(lk not in preferred_location_codes):
+                            itype_dict[nk][sk].pop(lk)
+                        # end if
+                    # end for
+
+                    if(len(itype_dict[nk][sk]) > 1): # still multiple location codes found
+                        for lk in list(itype_dict[nk][sk].keys()):
+                            # remove all location codes other than the first entry in
+                            # preferred_location_codes
+                            if(lk in preferred_location_codes[1:]):
+                                itype_dict[nk][sk].pop(lk)
+                            # end if
+                        # end for
+                    # end if
+                # end if
+            # end for
+        # end for
+
+        # sanity checks
+        for nk, nv in itype_dict.items():
+            for sk, sv in itype_dict[nk].items():
+                assert len(itype_dict[nk][sk]) == 1, 'Failed to remove multiple location codes ' \
+                                                     'found for station {}.{}:{}'.format(nk, sk,
+                                                                                         itype_dict[nk][sk].keys())
+            # end for
+        # end for
+
+        #################################################
+        # Remove unwanted bands
+        #################################################
         bands = ['H', 'B', 'S'] if include_sband else ['H', 'B']
         orows = []
         for nk, nv in itype_dict.items():
@@ -218,7 +256,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
 
     st, et = otime - seconds_before, otime + seconds_after
     rows = fds.get_stations(st, et)
-    rows = filter_channels(rows) # filter out unwanted channels and band-codes
+    rows = filter_channels_locations(rows) # filter out unwanted channels and band-codes
 
     receivers_dict = defaultdict(dict)
     pbar = tqdm(total=len(rows), desc=ename)
@@ -226,7 +264,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
         net, sta, loc, cha, lon, lat, elev = row
 
         if (not domain.contains(lon, lat)): continue
-        if (DEBUG and net not in nets): continue
+        #if (DEBUG and net not in nets): continue
 
         stream = get_validated_waveform(fds, net, sta, loc,
                                         cha, st, et)
