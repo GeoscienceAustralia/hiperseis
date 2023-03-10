@@ -8,6 +8,7 @@ import os
 import numpy as np
 import click
 import rf
+from obspy.core import Stream
 from rf import RFStream
 import pandas as pd
 from seismic.receiver_fn import rf_util, rf_corrections
@@ -15,6 +16,8 @@ from collections import defaultdict
 from scipy import stats
 from seismic.stream_io import get_obspyh5_index
 from scipy.signal import hilbert
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 
 # pylint: disable=invalid-name, logging-format-interpolation
 
@@ -99,6 +102,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :type trim_window: tuple, optional
     :param moveout: Whether to apply moveout correction prior to exporting, defaults to True
     :type moveout: bool, optional
+    :@return obspy Stream of traces exported
     """
     # Process for each station:
     # 1. Load hdf5 file containing RFs
@@ -118,6 +122,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     # trim stations to be processed based on the user-provided network- and station-list
     hdfkeys = rf_util.trim_hdf_keys(hdfkeys, network_list, station_list)
 
+    outputStream = Stream()
     # Iterate over all data, grouped by (net, sta, loc)
     for hdfkey in hdfkeys:
         net, sta, loc = hdfkey.split('.')
@@ -293,6 +298,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 # Apply a 2 s taper to the right side
                 trace.taper(max_percentage=None, max_length=2, side='right')
 
+                outputStream += trace
+
                 times = trace.times() - (trace.stats.onset - trace.stats.starttime)
                 column_data = np.array([times, trace.data]).T
                 fname = os.path.join(output_folder, "_".join([network_code, sta, trace.stats.location, cha]) + "_rf.dat")
@@ -302,11 +309,93 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
             # end for
         # end for
     # end for
+    return outputStream
 # end func
 
-@click.command()
+def generate_plots(stream:Stream, ofn:str):
+    """
+    QA/QC Plotting routine (adapted from RF.Imaging)
+    @param stream:
+    @param ofn:
+    @return:
+    """
+    fig_width = 7.; trace_height = 0.5
+    stack_height = 0.5; dpi = None
+    scale = 0.9; trim = None
+
+    if len(stream) == 0:
+        return
+    if trim:
+        stream = stream.slice2(*trim, reftime='onset')
+    N = len(stream)
+    # calculate lag times
+    stats = stream[0].stats
+    times = stream[0].times() - (stats.onset - stats.starttime)
+    # calculate axes and figure dimensions
+    # big letters: inches, small letters: figure fraction
+    H = trace_height
+    HS = stack_height
+    FB = 0.5
+    FT = 0.2
+    DW = 0.1
+    FH = H * (N + 2) + HS + FB + FT + DW
+    h = H / FH
+    hs = HS / FH
+    fb = FB / FH
+    ft = FT / FH
+    FL = 0.5
+    FR = 0.2
+    FW = fig_width
+    FW3 = 0.8
+    FW2 = FW - FL - FR
+    fl = FL / FW
+    fr = FR / FW
+    fw2 = FW2 / FW
+    fw3 = FW3 / FW
+    # init figure and axes
+    fig = plt.figure(figsize=(FW, FH), dpi=dpi)
+    ax1 = fig.add_axes([fl, fb, fw2, h * (N + 2)])
+
+    def _plot(ax, t, d, i, label):
+        c1, c2 = ('#000000', '#a0a0a0')
+        ax.text(10, i + 0.2, label)
+        if c1:
+            ax.fill_between(t, d + i, i, where=d >= 0, lw=0., facecolor=c1)
+        if c2:
+            ax.fill_between(t, d + i, i, where=d < 0, lw=0., facecolor=c2)
+        ax.plot(t, d + i, 'k')
+    # end func
+
+    max_ = np.array([np.max(np.abs(tr.data)) for tr in stream])
+
+
+    for i, tr in enumerate(stream):
+        _plot(ax1, times, tr.data / max_[i] * scale, i + 1,
+              "{}.{}.{}.{}".format(tr.stats.network,
+                                   tr.stats.station,
+                                   tr.stats.location,
+                                   tr.stats.channel))
+    # end for
+
+    ymin, ymax = -0.5, N + 1.5
+    #ax1.vlines(x=0, ymin=ymin, ymax=ymax, colors='grey')
+    ax1.xaxis.grid()
+
+    # set x and y limits
+    ax1.set_xlim(times[0], times[-1])
+    ax1.set_ylim(ymin, ymax)
+    ax1.set_yticklabels('')
+    ax1.set_xlabel('time (s)')
+    ax1.xaxis.set_minor_locator(AutoMinorLocator())
+
+    plt.savefig(ofn, dpi=300)
+# end func
+
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output-folder', type=click.Path(dir_okay=True), required=True)
+@click.argument('output-plot-file', type=click.Path(dir_okay=False), required=True)
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
@@ -341,23 +430,30 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                    'has no effect when --apply-phase-weighting is absent.')
 @click.option('--resample-rate', default=None, type=float, show_default=True,
               help='Resampling rate (Hz) for output traces.')
-def main(input_file, output_folder, network_list, station_list, station_weights, min_station_weight,
-         apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
+def main(input_file, output_folder, output_plot_file, network_list, station_list, station_weights,
+         min_station_weight, apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
          dereverberate, apply_phase_weighting, pw_exponent, resample_rate):
+    """
+      INPUT_FILE : Input RFs in H5 format\n
+                   (output of generate_rf.py or rf_quality_filter.py)\n
+      OUTPUT_FOLDER: Path to folder to write output files to\n
+      OUTPUT_FILE : Output pdf file name for plots\n
+    """
 
     assert baz_range[1] > baz_range[0], 'Invalid min/max back-azimuth; Aborting..'
 
-    rf_inversion_export(input_file, output_folder, network_list, station_list,
-                        station_weights_fn=station_weights,
-                        min_station_weight=min_station_weight,
-                        apply_amplitude_filter=apply_amplitude_filter,
-                        apply_similarity_filter=apply_similarity_filter,
-                        min_slope_ratio=min_slope_ratio,
-                        baz_range=baz_range,
-                        dereverberate=dereverberate,
-                        apply_phase_weighting=apply_phase_weighting,
-                        pw_exponent=pw_exponent,
-                        resample_freq=resample_rate)
+    outputStream = rf_inversion_export(input_file, output_folder, network_list, station_list,
+                                       station_weights_fn=station_weights,
+                                       min_station_weight=min_station_weight,
+                                       apply_amplitude_filter=apply_amplitude_filter,
+                                       apply_similarity_filter=apply_similarity_filter,
+                                       min_slope_ratio=min_slope_ratio,
+                                       baz_range=baz_range,
+                                       dereverberate=dereverberate,
+                                       apply_phase_weighting=apply_phase_weighting,
+                                       pw_exponent=pw_exponent,
+                                       resample_freq=resample_rate)
+    generate_plots(outputStream, output_plot_file)
 # end func
 
 if __name__ == "__main__":

@@ -140,9 +140,11 @@ def read_profile_def(fname, ccpVolume, type):
               help='Output folder')
 @click.option('--output-format', type=click.Choice(['png', 'txt']), default='png', show_default=True,
               help='Output format')
+@click.option('--plot-aspect', type=click.Choice(['auto', 'equal']), default='auto', show_default=True,
+              help='Aspect ratio of CCP plot. Default is "auto", which applies a vertical exaggeration.')
 def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx, dz, max_depth, swath_width, ds,
              extend, cell_radius, idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist,
-             output_folder, output_format):
+             output_folder, output_format, plot_aspect):
     """ Plot CCP vertical profile \n
     CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
     PROFILE_DEF: text file containing start and end locations of each vertical profile as\n
@@ -225,6 +227,8 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
 
             fig.set_size_inches((20, 10))
             fig.set_dpi(300)
+
+            ax.set_aspect(plot_aspect)
 
             # plot profile
             vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, gravity=gravity)
