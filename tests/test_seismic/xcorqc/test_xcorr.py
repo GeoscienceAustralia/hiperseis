@@ -93,7 +93,7 @@ def test_xcorr(trace_length, sampling_rate, other_sampling_rate):
                                      'network': 'AU',
                                      'station': 'B'}))
 
-    arr, _, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
+    arr, _, _, _, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
 
     # Mean of the x-correlation function should be close to zero
     assert np.allclose(np.abs(np.mean(arr)), 0, atol=1e-2)

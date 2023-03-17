@@ -132,7 +132,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
            interval_seconds=86400, taper_length=0.05, resample_rate=None,
            flo=None, fhi=None, clip_to_2std=False, whitening=False,
            whitening_window_frequency=0, one_bit_normalize=False, envelope_normalize=False,
-           verbose=1, logger=None):
+           no_stacking=False, verbose=1, logger=None):
 
     # Length of window_buffer in seconds
     window_buffer_seconds = window_buffer_length * window_seconds
@@ -182,6 +182,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     windowsPerInterval = []  # Stores the number of windows processed per interval
     intervalStartSeconds = []
     intervalEndSeconds = []
+    windowStartSeconds = []
+    windowEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
         while (itr1s < 0) or (itr2s < 0):
             itr1s += (window_samples_1 - 2*window_buffer_seconds*sr1_orig) - \
@@ -193,7 +195,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
         itr2e = min(lentr2_all, itr2s + interval_samples_2)
 
-        if (np.fabs(itr1e - itr1s) < sr1_orig) or (np.fabs(itr2e - itr2s) < sr2_orig):
+        if (np.fabs(itr1e - itr1s) <= sr1_orig) or (np.fabs(itr2e - itr2s) <= sr2_orig):
             itr1s = itr1e
             itr2s = itr2e
             continue
@@ -202,6 +204,9 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         if (tr1.stats.starttime + itr1s / sr1_orig != tr2.stats.starttime + itr2s / sr2_orig):
             if logger:
                 logger.warning('Detected misaligned traces..')
+
+        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp,
+                               itr1e+tr1.stats.starttime.timestamp))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -390,9 +395,14 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                 if not np.isnan(rf).any():
                     intervalXcorrList.append(rf)
+                    windowStartSeconds.append(wtr1s/sr1_orig + tr1.stats.starttime.timestamp)
+                    windowEndSeconds.append(wtr1e/sr1_orig + tr1.stats.starttime.timestamp)
                     windowCount += 1
                 # end if
             # end if
+            print('\t{}: {} - {}'.format(windowCount,
+                                         wtr1s+tr1.stats.starttime.timestamp,
+                                         wtr1e+tr1.stats.starttime.timestamp))
 
             wtr1s += int((window_samples_1 - 2*window_buffer_seconds*sr1_orig) -
                          (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap)
@@ -405,57 +415,59 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end if
 
-        intervalStartSeconds.append(itr1s/sr1_orig + tr1.stats.starttime.timestamp)
-        intervalEndSeconds.append(itr1e/sr1_orig + tr1.stats.starttime.timestamp)
         itr1s = itr1e
         itr2s = itr2e
-        intervalCount += 1
 
-        # Append an array of zeros if no windows were processed for the current interval
-        if windowCount == 0:
-            intervalXcorrList.append(np.zeros(fftlen))
-            if verbose > 1:
-                if logger:
-                    logger.info('\tWarning: No windows processed due to gaps in data in current interval')
-            # end if
+        if (windowCount > 0):
+            intervalStartSeconds.append(itr1s/sr1_orig + tr1.stats.starttime.timestamp)
+            intervalEndSeconds.append(itr1e/sr1_orig + tr1.stats.starttime.timestamp)
+            intervalCount += 1
         # end if
 
         windowsPerInterval.append(windowCount)
 
-        if windowCount > 0:
-            mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) / float(windowCount)
-        else:
-            mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) 
-        # end if
-
-        if envelope_normalize:
-            step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
-            mean = mean + step * mean  # compute analytic
-        # end if
-
-        mean = ifftn(mean)
-
-        if envelope_normalize:
-            # Compute magnitude of mean
-            mean = np.abs(mean)
-            normFactor = np.max(mean)
-
-            # mean can be 0 for a null result
-            if normFactor > 0:
-                mean /= normFactor
+        if(not no_stacking):
+            if windowCount > 0:
+                mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) / float(windowCount)
+            else:
+                mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList)
             # end if
-        # end if
 
-        resultCache.append(mean[:xcorlen])
+            if envelope_normalize:
+                step = np.sign(np.fft.fftfreq(fftlen, 1.0 / sr))
+                mean = mean + step * mean  # compute analytic
+            # end if
+
+            mean = ifftn(mean)
+
+            if envelope_normalize:
+                # Compute magnitude of mean
+                mean = np.abs(mean)
+                normFactor = np.max(mean)
+
+                # mean can be 0 for a null result
+                if normFactor > 0:
+                    mean /= normFactor
+                # end if
+            # end if
+
+            resultCache.append(mean[:xcorlen])
+        else:
+            for row in intervalXcorrList:
+                resultCache.append(row[:xcorlen])
+            # end for
+        # end for
     # end while (iteration over intervals)
 
     if len(resultCache):
         return np.array(resultCache).real, np.array(windowsPerInterval), \
                np.array(intervalStartSeconds, dtype='i8'), \
                np.array(intervalEndSeconds, dtype='i8'), \
+               np.array(windowStartSeconds, dtype='i8'), \
+               np.array(windowEndSeconds, dtype='i8'), \
                sr
     else:
-        return None, None, None, None, sr
+        return None, None, None, None, None, None, sr
     # end if
 # end func
 
@@ -479,6 +491,7 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
+                       no_stacking=False,
                        outputPath='/tmp', verbose=1, tracking_tag='', scratch_folder=None):
     """
     This function rolls through two ASDF data sets, over a given time-range and cross-correlates
@@ -562,6 +575,8 @@ def IntervalStackXCorr(refds, tempds,
     :param envelope_normalize: Envelope via Hilbert transforms and normalize
     :type ensemble_stack: bool
     :param ensemble_stack: Outputs a single CC function stacked over all data for a given station-pair
+    :type no_stacking: bool
+    :param no_stacking: bypasses stacking over intervals and outputs all windows
     :type verbose: int
     :param verbose: Verbosity of printouts. Default is 1; maximum is 3.
     :type tracking_tag: str
@@ -581,11 +596,11 @@ def IntervalStackXCorr(refds, tempds,
     #######################################
     if resample_rate and fhi:
         if resample_rate < 2*fhi:
-            raise RuntimeError('Resample-rate should be >= 2*fmax')
+            raise ValueError('Resample-rate should be >= 2*fmax')
 
     if clip_to_2std and one_bit_normalize:
-        raise RuntimeError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
-                           'together is redundant')
+        raise ValueError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
+                         'together is redundant')
     # end if
 
     # setup logger
@@ -609,6 +624,8 @@ def IntervalStackXCorr(refds, tempds,
     windowCounts = []
     intervalStartTimes = []
     intervalEndTimes = []
+    windowStartTimes = []
+    windowEndTimes = []
     sr = 0
     spooledXcorr = None
     while cTime < endTime:
@@ -680,7 +697,8 @@ def IntervalStackXCorr(refds, tempds,
 
         logger.info('\tCross-correlating station-pair: %s' % stationPair)
         xcl, winsPerInterval, \
-        intervalStartSeconds, intervalEndSeconds, sr = \
+        intervalStartSeconds, intervalEndSeconds, \
+        windowStartSeconds, windowEndSeconds, sr = \
             xcorr2(refSt[0], tempSt[0], ref_sta_inv, temp_sta_inv,
                    instrument_response_output=instrument_response_output,
                    water_level=water_level,
@@ -696,6 +714,7 @@ def IntervalStackXCorr(refds, tempds,
                    whitening_window_frequency=whitening_window_frequency,
                    one_bit_normalize=one_bit_normalize,
                    envelope_normalize=envelope_normalize,
+                   no_stacking=no_stacking,
                    verbose=verbose, logger=logger)
 
         # Continue if no results were returned due to data-gaps
@@ -723,6 +742,8 @@ def IntervalStackXCorr(refds, tempds,
         windowCounts.append(winsPerInterval)
         intervalStartTimes.append(intervalStartSeconds)
         intervalEndTimes.append(intervalEndSeconds)
+        windowStartTimes.append(windowStartSeconds)
+        windowEndTimes.append(windowEndSeconds)
 
         cTime += cStep
     # wend (loop over time range)
@@ -731,6 +752,8 @@ def IntervalStackXCorr(refds, tempds,
     flattenedWindowCounts = None
     flattenedIntervalStartTimes = None
     flattenedIntervalEndTimes = None
+    flattenedWindowStartTimes = None
+    flattenedWindowEndTimes = None
     if(spooledXcorr and spooledXcorr.nrows):
         dt = 1./sr
         x = np.linspace(-window_seconds + dt, window_seconds - dt, spooledXcorr.ncols)
@@ -739,6 +762,8 @@ def IntervalStackXCorr(refds, tempds,
         flattenedWindowCounts = np.concatenate(windowCounts).ravel()
         flattenedIntervalStartTimes = np.concatenate(intervalStartTimes).ravel()
         flattenedIntervalEndTimes = np.concatenate(intervalEndTimes).ravel()
+        flattenedWindowStartTimes = np.concatenate(windowStartTimes).ravel()
+        flattenedWindowEndTimes = np.concatenate(windowEndTimes).ravel()
 
         # Save Results
         fn = os.path.join(outputPath, '%s.nc' % (stationPair if not tracking_tag else '.'.join([stationPair, tracking_tag])))
@@ -795,21 +820,39 @@ def IntervalStackXCorr(refds, tempds,
                 xc[:] = es
             # end if
         else:
-            root_grp.createDimension('interval', spooledXcorr.nrows)
+            root_grp.createDimension('interval', flattenedIntervalStartTimes.shape[0])
+            root_grp.createDimension('window', flattenedWindowStartTimes.shape[0])
+
             # Variables
             interval = root_grp.createVariable('interval', 'f4', ('interval',))
-            nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
             ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
             iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
-            xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',), 
-                                         chunksizes=(1, spooledXcorr.ncols), 
+            wst = root_grp.createVariable('WindowStartTimes', 'i8', ('window',))
+            wet = root_grp.createVariable('WindowEndTimes', 'i8', ('window',))
+
+            xc = None
+            nsw = None
+            if(not no_stacking):
+                nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
+                xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
+                                         chunksizes=(1, spooledXcorr.ncols),
                                          zlib=True)
+            else:
+                xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
+                                             chunksizes=(1, spooledXcorr.ncols),
+                                             zlib=True)
+            # end if
 
             # Populate variables
-            interval[:] = np.arange(spooledXcorr.nrows)
-            nsw[:] = flattenedWindowCounts
+            if(not no_stacking):
+                nsw[:] = flattenedWindowCounts
+            # end if
+
+            interval[:] = np.arange(flattenedIntervalStartTimes.shape[0])
             ist[:] = flattenedIntervalStartTimes
             iet[:] = flattenedIntervalEndTimes
+            wst[:] = flattenedWindowStartTimes
+            wet[:] = flattenedWindowEndTimes
 
             for irow in np.arange(spooledXcorr.nrows):
                 xc[irow, :] = spooledXcorr.read_row(irow)

@@ -66,7 +66,7 @@ def test_correlator():
                 0.05, 4, 0.05, -1, 0.002, 2, netsta1,
                 netsta2, None, start_time, end_time, None, 'vel',
                 50, False, True, 0.02, True, 1, loc_pref,
-                '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False,
+                '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False, False,
                 False, False, False, True, None)
 
 
