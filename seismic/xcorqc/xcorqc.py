@@ -205,8 +205,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             if logger:
                 logger.warning('Detected misaligned traces..')
 
-        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp,
-                               itr1e+tr1.stats.starttime.timestamp))
+        #print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp,
+        #                       itr1e+tr1.stats.starttime.timestamp))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -400,9 +400,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     windowCount += 1
                 # end if
             # end if
-            print('\t{}: {} - {}'.format(windowCount,
-                                         wtr1s+tr1.stats.starttime.timestamp,
-                                         wtr1e+tr1.stats.starttime.timestamp))
+
+            #print('\t{}: {} - {}'.format(windowCount,
+            #                             wtr1s+tr1.stats.starttime.timestamp,
+            #                             wtr1e+tr1.stats.starttime.timestamp))
 
             wtr1s += int((window_samples_1 - 2*window_buffer_seconds*sr1_orig) -
                          (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap)
@@ -614,11 +615,26 @@ def IntervalStackXCorr(refds, tempds,
     logger = setup_logger(stationPair, fn)
 
     #######################################
+    # Adjust start- and end-times with
+    # data availability
+    #######################################
+    startTime = start_time
+    endTime = end_time
+
+    ref_net, ref_sta = ref_net_sta.split('.')
+    temp_net, temp_sta = temp_net_sta.split('.')
+    grst, gret = refds.fds.get_global_time_range(ref_net, ref_sta)
+    gtst, gtet = refds.fds.get_global_time_range(temp_net, temp_sta)
+
+    maxSt = UTCDateTime(max(grst.timestamp, gtst.timestamp))
+    minEt = UTCDateTime(min(gret.timestamp, gtet.timestamp))
+
+    if(startTime < maxSt): startTime = maxSt
+    if(endTime > minEt): endTime = minEt
+
+    #######################################
     # Initialize variables for main loop
     #######################################
-    startTime = UTCDateTime(start_time)
-    endTime = UTCDateTime(end_time)
-
     cTime = startTime
 
     windowCounts = []
@@ -883,7 +899,8 @@ def IntervalStackXCorr(refds, tempds,
                   'zero_mean_1std_normalize': int(clip_to_2std is False and one_bit_normalize is False),
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
-                  'ensemble_stack': int(ensemble_stack)}
+                  'ensemble_stack': int(ensemble_stack),
+                  'no_stacking': int(no_stacking)}
 
         if whitening:
             params['whitening_window_frequency'] = whitening_window_frequency

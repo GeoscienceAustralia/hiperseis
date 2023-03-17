@@ -208,38 +208,39 @@ def process(data_source1, data_source2, output_path,
 
             f = open(fn, 'w+')
             f.write('Parameters Values:\n\n')
-            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
-            f.write('%25s\t\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
-            f.write('%25s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
-            f.write('%25s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
-            f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
-            f.write('%25s\t\t\t: %s\n\n' % ('WINDOW_OVERLAP', window_overlap))
+            f.write('%35s\t\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
+            f.write('%35s\t\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
+            f.write('%35s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
+            f.write('%35s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
+            f.write('%35s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
+            f.write('%35s\t\t\t: %s\n\n' % ('WINDOW_OVERLAP', window_overlap))
 
-            f.write('%25s\t\t\t: %s\n' % ('--window-buffer-length', window_buffer_length))
-            f.write('%25s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
-            f.write('%25s\t\t\t: %s\n' % ('--taper-length', taper_length))
-            f.write('%25s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
-            f.write('%25s\t\t\t: %s\n' % ('--fmin', fmin))
-            f.write('%25s\t\t\t: %s\n' % ('--fmax', fmax))
-            f.write('%25s\t\t\t: %s\n' % ('--station-names1', netsta_list1))
-            f.write('%25s\t\t\t: %s\n' % ('--station-names2', netsta_list2))
-            f.write('%25s\t\t\t: %s\n' % ('--start-time', start_time))
-            f.write('%25s\t\t\t: %s\n' % ('--end-time', end_time))
-            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
-            f.write('%25s\t\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
-            f.write('%25s\t\t\t: %s\n' % ('--corr-chan', corr_chan))
-            f.write('%25s\t\t\t: %s\n' % ('--water-level', water_level))
-            f.write('%25s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
-            f.write('%25s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
-            f.write('%25s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
-            f.write('%25s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
-            f.write('%25s\t\t\t: %s\n' % ('--whitening', whitening))
+            f.write('%35s\t\t\t: %s\n' % ('--window-buffer-length', window_buffer_length))
+            f.write('%35s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
+            f.write('%35s\t\t\t: %s\n' % ('--taper-length', taper_length))
+            f.write('%35s\t\t\t: %s\n' % ('--nearest-neighbours', nearest_neighbours))
+            f.write('%35s\t\t\t: %s\n' % ('--fmin', fmin))
+            f.write('%35s\t\t\t: %s\n' % ('--fmax', fmax))
+            f.write('%35s\t\t\t: %s\n' % ('--station-names1', netsta_list1))
+            f.write('%35s\t\t\t: %s\n' % ('--station-names2', netsta_list2))
+            f.write('%35s\t\t\t: %s\n' % ('--start-time', start_time))
+            f.write('%35s\t\t\t: %s\n' % ('--end-time', end_time))
+            f.write('%35s\t\t\t: %s\n' % ('--instrument-response-inventory', instrument_response_inventory))
+            f.write('%35s\t\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
+            f.write('%35s\t\t\t: %s\n' % ('--corr-chan', corr_chan))
+            f.write('%35s\t\t\t: %s\n' % ('--water-level', water_level))
+            f.write('%35s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
+            f.write('%35s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%35s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
+            f.write('%35s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
+            f.write('%35s\t\t\t: %s\n' % ('--whitening', whitening))
             if(whitening):
-                f.write('%25s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
-            f.write('%25s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
-            f.write('%25s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
-            f.write('%25s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
-            f.write('%25s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
+                f.write('%35s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
+            f.write('%35s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
+            f.write('%35s\t\t\t: %s\n' % ('--no-stacking', no_stacking))
+            f.write('%35s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
+            f.write('%35s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
+            f.write('%35s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
 
             f.close()
         # end func
@@ -438,14 +439,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
               help="Text file containing station pairs (NET.STA.NET.STA) for which cross-correlations are to be computed."
                    "Note that this parameter is intended as a way to restrict the number of computations to only the "
                    "station-pairs listed in the text-file.")
-@click.option('--start-time', default=None,
+@click.option('--start-time', default='1970-01-01',
               type=str,
-              help="Date and time (in UTC format) to start from; default is None, in which case, the earliest time for "
-                   "available data is used")
-@click.option('--end-time', default=None,
+              help="Date and time (in UTC format) to start from")
+@click.option('--end-time', default='2100-01-01',
               type=str,
-              help="Date and time (in UTC format) to stop at; default is None, in which case, the latest time for "
-                   "available data is used")
+              help="Date and time (in UTC format) to stop at")
 @click.option('--instrument-response-inventory', default=None,
               type=click.Path('r'),
               help="FDSNxml inventory containing instrument response information. Note that when this parameter is provided, "
