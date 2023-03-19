@@ -150,8 +150,10 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     tr2_d_all = tr2.data
     lentr1_all = tr1_d_all.shape[0]
     lentr2_all = tr2_d_all.shape[0]
-    window_samples_1 = (window_seconds + 2*window_buffer_seconds) * sr1
-    window_samples_2 = (window_seconds + 2*window_buffer_seconds) * sr2
+    window_samples_1 = window_seconds * sr1
+    window_samples_2 = window_seconds * sr2
+    buffered_window_samples_1 = (window_seconds + 2*window_buffer_seconds) * sr1
+    buffered_window_samples_2 = (window_seconds + 2*window_buffer_seconds) * sr2
     interval_samples_1 = interval_seconds * sr1
     interval_samples_2 = interval_seconds * sr2
     # sr = 0
@@ -185,11 +187,16 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     windowStartSeconds = []
     windowEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
+
+        # track back to avoid losing data while traversing onto the next interval
+        if(intervalCount > 0):
+            itr1s -= (2*window_buffer_seconds*sr1_orig + window_samples_1 * window_overlap)
+            itr2s -= (2*window_buffer_seconds*sr2_orig + window_samples_2 * window_overlap)
+        # end if
+
         while (itr1s < 0) or (itr2s < 0):
-            itr1s += (window_samples_1 - 2*window_buffer_seconds*sr1_orig) - \
-                     (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap
-            itr2s += (window_samples_2 - 2*window_buffer_seconds*sr2_orig) - \
-                     (window_samples_2 - 2*window_buffer_seconds*sr2_orig) * window_overlap
+            itr1s += window_samples_1 * (1. - window_overlap)
+            itr2s += window_samples_2 * (1. - window_overlap)
         # end while
 
         itr1e = min(lentr1_all, itr1s + interval_samples_1)
@@ -205,8 +212,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             if logger:
                 logger.warning('Detected misaligned traces..')
 
-        #print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp,
-        #                       itr1e+tr1.stats.starttime.timestamp))
+        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp*0,
+                               itr1e+tr1.stats.starttime.timestamp*0))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -214,12 +221,14 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         intervalXcorrList = []
 
         while wtr1s < itr1e and wtr2s < itr2e:
-            wtr1e = int(min(itr1e, wtr1s + window_samples_1))
-            wtr2e = int(min(itr2e, wtr2s + window_samples_2))
+            wtr1e = int(min(itr1e, wtr1s + buffered_window_samples_1))
+            wtr2e = int(min(itr2e, wtr2s + buffered_window_samples_2))
 
             # Discard small windows
-            if ((wtr1e - wtr1s < window_samples_1) or (wtr2e - wtr2s < window_samples_2) or
-                (wtr1e - wtr1s < sr1_orig) or (wtr2e - wtr2s < sr2_orig)):
+            if ((wtr1e - wtr1s < buffered_window_samples_1) or
+                (wtr2e - wtr2s < buffered_window_samples_2) or
+                (wtr1e - wtr1s < sr1_orig) or
+                (wtr2e - wtr2s < sr2_orig)):
                 wtr1s = int(np.ceil(itr1e))
                 wtr2s = int(np.ceil(itr2e))
                 continue
@@ -303,11 +312,11 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                     tr1_d = Trace(data=tr1_d,
                                   header=Stats(header={'sampling_rate': sr1_orig,
-                                                       'npts': window_samples_1})).resample(resample_rate,
+                                                       'npts': buffered_window_samples_1})).resample(resample_rate,
                                                                                            no_filter=True).data
                     tr2_d = Trace(data=tr2_d,
                                   header=Stats(header={'sampling_rate': sr2_orig,
-                                                       'npts': window_samples_2})).resample(resample_rate,
+                                                       'npts': buffered_window_samples_2})).resample(resample_rate,
                                                                                            no_filter=True).data
                 # end if
 
@@ -401,14 +410,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
             # end if
 
-            #print('\t{}: {} - {}'.format(windowCount,
-            #                             wtr1s+tr1.stats.starttime.timestamp,
-            #                             wtr1e+tr1.stats.starttime.timestamp))
+            print('\t{}: {} - {}'.format(windowCount,
+                                         wtr1s+tr1.stats.starttime.timestamp*0,
+                                         wtr1e+tr1.stats.starttime.timestamp*0))
 
-            wtr1s += int((window_samples_1 - 2*window_buffer_seconds*sr1_orig) -
-                         (window_samples_1 - 2*window_buffer_seconds*sr1_orig) * window_overlap)
-            wtr2s += int((window_samples_2 - 2*window_buffer_seconds*sr2_orig) -
-                         (window_samples_2 - 2*window_buffer_seconds*sr2_orig) * window_overlap)
+            wtr1s += int(window_samples_1 * (1. - window_overlap))
+            wtr2s += int(window_samples_2 * (1. - window_overlap))
         # end while (windows within interval)
 
         if verbose > 1:
@@ -416,22 +423,21 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 logger.info('\tProcessed %d windows in interval %d' % (windowCount, intervalCount))
         # end if
 
-        itr1s = itr1e
-        itr2s = itr2e
-
         if (windowCount > 0):
             intervalStartSeconds.append(itr1s/sr1_orig + tr1.stats.starttime.timestamp)
             intervalEndSeconds.append(itr1e/sr1_orig + tr1.stats.starttime.timestamp)
             intervalCount += 1
+            windowsPerInterval.append(windowCount)
         # end if
 
-        windowsPerInterval.append(windowCount)
+        itr1s = itr1e
+        itr2s = itr2e
 
         if(not no_stacking):
             if windowCount > 0:
                 mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) / float(windowCount)
             else:
-                mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList)
+                continue
             # end if
 
             if envelope_normalize:
@@ -615,19 +621,21 @@ def IntervalStackXCorr(refds, tempds,
     logger = setup_logger(stationPair, fn)
 
     #######################################
-    # Adjust start- and end-times with
-    # data availability
+    # Adjust start- and/or end-times if
+    # they extend beyond data availability
     #######################################
-    startTime = start_time
-    endTime = end_time
+    startTime = UTCDateTime(start_time)
+    endTime = UTCDateTime(end_time)
 
     ref_net, ref_sta = ref_net_sta.split('.')
     temp_net, temp_sta = temp_net_sta.split('.')
-    grst, gret = refds.fds.get_global_time_range(ref_net, ref_sta)
-    gtst, gtet = refds.fds.get_global_time_range(temp_net, temp_sta)
+    # ignoring channel since channel can be '00T
+    grst, gret = refds.fds.get_global_time_range(ref_net, ref_sta, ref_loc)
+    gtst, gtet = tempds.fds.get_global_time_range(temp_net, temp_sta, temp_loc)
 
-    maxSt = UTCDateTime(max(grst.timestamp, gtst.timestamp))
-    minEt = UTCDateTime(min(gret.timestamp, gtet.timestamp))
+    # Note that min/max times are accurate to the closest second
+    maxSt = UTCDateTime(max(grst.timestamp, gtst.timestamp)) - 1
+    minEt = UTCDateTime(min(gret.timestamp, gtet.timestamp)) + 1
 
     if(startTime < maxSt): startTime = maxSt
     if(endTime > minEt): endTime = minEt

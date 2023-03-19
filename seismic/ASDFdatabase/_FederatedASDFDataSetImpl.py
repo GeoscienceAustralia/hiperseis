@@ -446,8 +446,8 @@ class _FederatedASDFDataSetImpl():
         max = MIN_DATE
 
         if(len(row)):
-            min = UTCDateTime(row[0])
-            max = UTCDateTime(row[1])
+            if(row[0] is not None): min = UTCDateTime(row[0])
+            if(row[1] is not None): max = UTCDateTime(row[1])
         # end if
 
         return min, max
