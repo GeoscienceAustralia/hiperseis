@@ -189,7 +189,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     while itr1s < lentr1_all and itr2s < lentr2_all:
 
         # track back to avoid losing data while traversing onto the next interval
-        if(intervalCount > 0):
+        if((intervalCount > 0) and no_stacking):
             itr1s -= (2*window_buffer_seconds*sr1_orig + window_samples_1 * window_overlap)
             itr2s -= (2*window_buffer_seconds*sr2_orig + window_samples_2 * window_overlap)
         # end if
@@ -212,8 +212,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             if logger:
                 logger.warning('Detected misaligned traces..')
 
-        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp*0,
-                               itr1e+tr1.stats.starttime.timestamp*0))
+        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp*1,
+                               itr1e+tr1.stats.starttime.timestamp*1))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -411,8 +411,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             # end if
 
             print('\t{}: {} - {}'.format(windowCount,
-                                         wtr1s+tr1.stats.starttime.timestamp*0,
-                                         wtr1e+tr1.stats.starttime.timestamp*0))
+                                         wtr1s+tr1.stats.starttime.timestamp*1,
+                                         wtr1e+tr1.stats.starttime.timestamp*1))
 
             wtr1s += int(window_samples_1 * (1. - window_overlap))
             wtr2s += int(window_samples_2 * (1. - window_overlap))
@@ -653,6 +653,13 @@ def IntervalStackXCorr(refds, tempds,
     sr = 0
     spooledXcorr = None
     while cTime < endTime:
+        # track back to avoid losing data while traversing onto the next
+        # block of data
+        if((cTime > startTime) and no_stacking):
+            cTime -= (2*window_buffer_length*window_seconds +
+                      window_seconds*window_overlap)
+        # end if
+
         cStep = buffer_seconds
 
         if (cTime + cStep) > endTime:
