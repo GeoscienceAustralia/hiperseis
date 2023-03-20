@@ -156,12 +156,12 @@ def read_location_preferences(location_preferences_fn):
 
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds, window_overlap, window_buffer_length,
-            resample_rate=None, taper_length=0.05, nearest_neighbours=1,
+            read_ahead_window_seconds, resample_rate=None, taper_length=0.05, nearest_neighbours=1,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*', pairs_to_compute=None,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-            one_bit_normalize=False, read_buffer_size=1, location_preferences=None,
+            one_bit_normalize=False, location_preferences=None,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, no_stacking=False,
@@ -174,7 +174,6 @@ def process(data_source1, data_source2, output_path,
     :param window_seconds: Length of stacking window (s); e.g 3600 for an hour. interval_seconds must be a multiple of \
                     window_seconds; no stacking is performed if they are of the same size.
     """
-    read_buffer_size *= interval_seconds
     if(os.path.exists(netsta_list1)):
         netsta_list1 = ' '.join(open(netsta_list1).readlines()).replace('\n', ' ').strip()
     # end if
@@ -211,9 +210,9 @@ def process(data_source1, data_source2, output_path,
             f.write('%35s\t\t\t: %s\n' % ('DATA_SOURCE1', data_source1))
             f.write('%35s\t\t\t: %s\n' % ('DATA_SOURCE2', data_source2))
             f.write('%35s\t\t\t: %s\n' % ('OUTPUT_PATH', output_path))
-            f.write('%35s\t\t\t: %s\n' % ('INTERVAL_SECONDS', interval_seconds))
             f.write('%35s\t\t\t: %s\n\n' % ('WINDOW_SECONDS', window_seconds))
             f.write('%35s\t\t\t: %s\n\n' % ('WINDOW_OVERLAP', window_overlap))
+            f.write('%35s\t\t\t: %s\n\n' % ('READ_AHEAD_WINDOW_SECONDS', read_ahead_window_seconds))
 
             f.write('%35s\t\t\t: %s\n' % ('--window-buffer-length', window_buffer_length))
             f.write('%35s\t\t\t: %s\n' % ('--resample-rate', resample_rate))
@@ -231,7 +230,6 @@ def process(data_source1, data_source2, output_path,
             f.write('%35s\t\t\t: %s\n' % ('--water-level', water_level))
             f.write('%35s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
             f.write('%35s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
-            f.write('%35s\t\t\t: %s\n' % ('--read-buffer-size', read_buffer_size))
             f.write('%35s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
             f.write('%35s\t\t\t: %s\n' % ('--whitening', whitening))
             if(whitening):
@@ -388,11 +386,12 @@ def process(data_source1, data_source2, output_path,
                            instrument_response_output, water_level,
                            corr_chans[0], corr_chans[1],
                            baz_netsta1, baz_netsta2, location_preferences_dict,
-                           resample_rate, taper_length, read_buffer_size, interval_seconds,
-                           window_seconds, window_overlap, window_buffer_length,
-                           fmin, fmax, clip_to_2std, whitening, whitening_window_frequency,
-                           one_bit_normalize, envelope_normalize, ensemble_stack,
-                           no_stacking, output_path, 2, time_tag, scratch_folder)
+                           resample_rate, taper_length, read_ahead_window_seconds,
+                           interval_seconds, window_seconds, window_overlap,
+                           window_buffer_length, fmin, fmax, clip_to_2std, whitening,
+                           whitening_window_frequency, one_bit_normalize, envelope_normalize,
+                           ensemble_stack, no_stacking, output_path, 2, time_tag,
+                           scratch_folder)
     # end for
 # end func
 
@@ -406,12 +405,16 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                 type=click.Path('r'))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-@click.argument('interval-seconds', required=True,
-                type=int)
 @click.argument('window-seconds', required=True,
                 type=int)
 @click.argument('window-overlap', required=True,
                 type=float)
+@click.argument('read-ahead-windows', required=True,
+                type=int)
+@click.option('--stacking-interval-seconds', default=None, type=int,
+              help="Interval, in seconds, to stack data windows over; default is None, "
+                   "which outputs all cross-correlation windows, without performing any "
+                   "stacking")
 @click.option('--window-buffer-length', default=0, type=float,
               help="Length of buffer as a decimal percentage of 'window-seconds', at each end, around "
                     "actual data windows of interest. This helps exclude effects of tapering and "
@@ -472,9 +475,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('--one-bit-normalize', is_flag=True,
               help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
                    "is N(0,1), i.e. 0-mean and unit variance")
-@click.option('--read-buffer-size', default=1, type=int,
-              help="An integer factor specifying how many 'interval_seconds' worth of data are to be fetched in "
-                   "each IO call, helping improve IO efficiency")
 @click.option('--location-preferences', default=None,
               type=click.Path('r'),
               help="A space-separated two-columned text file containing location code preferences for "
@@ -514,27 +514,30 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                                                      "for a given station-pair. In other words, stacks over "
                                                      "'interval-seconds' are in turn stacked to produce a "
                                                      "single cross-correlation function")
-@click.option('--no-stacking', is_flag=True, help="Bypasses stacking over 'interval-seconds' and outputs all cross-correlation "
-                                                  "windows.")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--dry-run', default=False, is_flag=True, help='Dry run for printing out station-pairs and '
                                                              'additional stats.')
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 @click.option('--scratch-folder', default=None, help="Scratch folder for large jobs (e.g. $PBS_JOBFS on the NCI); "
                                                      "default is to use the standard temp folder")
-def main(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
-         window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
-         station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
-         water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size, location_preferences,
+def main(data_source1, data_source2, output_path, window_seconds, window_overlap, read_ahead_windows,
+         stacking_interval_seconds, window_buffer_length, resample_rate, taper_length, nearest_neighbours,
+         fmin, fmax, station_names1, station_names2, pairs_to_compute, start_time, end_time,
+         instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
+         whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, no_stacking, restart, dry_run, no_tracking_tag, scratch_folder):
+         ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
     OUTPUT_PATH: Output folder \n
-    INTERVAL_SECONDS: Rolling intervals (s) over which to compute cross-correlations; e.g. 86400 for 1 day\n
     WINDOW_SECONDS: Length of time window (s); e.g. 3600 for an hour\n
     WINDOW_OVERLAP: Window overlap as a decimal percentage of WINDOW_SECONDS; e.g. 0.1 for 10% overlap\n
+    READ_AHEAD_WINDOWS: An integer indicating the number of data windows that are to be read ahead, in
+                        order to improve IO efficiency. Typically, a couple of days worth of data read
+                        in at once has proven efficient for large runs; e.g. a value of 72 would roughly
+                        fetch 3 days worth of data for WINDOW_SECONDS=3600. Note that the actual amount of
+                        data fetched will depend on WINDOW_OVERLAP and --window-buffer-length\n
     """
 
     if(resample_rate): resample_rate = float(resample_rate)
@@ -542,37 +545,51 @@ def main(data_source1, data_source2, output_path, interval_seconds, window_secon
     if(fmax): fmax = float(fmax)
 
     # sanity checks
-    if(no_stacking):
-        if(ensemble_stack): raise ValueError('--no-stacking and --ensemble-stack are mutually exclusive. Aborting..')
-        if(envelope_normalize): raise ValueError('--no-stacking and --envelope-normalize are mutually exclusive. Aborting..')
+    if(window_seconds <= 0): raise ValueError('WINDOW_SECONDS must be > 0')
+    if(read_ahead_windows <= 0): raise ValueError('READ_AHEAD_WINDOWS must be > 0')
+    if(stacking_interval_seconds is not None):
+        if(stacking_interval_seconds < window_seconds):
+            raise ValueError('Invalid value for --stacking-interval-seconds, must be > WINDOW_SECONDS')
+        if (stacking_interval_seconds > window_seconds * read_ahead_windows):
+            raise ValueError("""Invalid value for --stacking-interval-seconds, \
+                                must be < WINDOW_SECONDS*READ_AHEAD_WINDOWS""")
+    # end if
 
-        # with no stacking, interval_seconds is promoted to a
-        # multiple of read_buffer_size
-        interval_seconds *= read_buffer_size
-        print('\nWithin no stacking enabled, INTERVAL_SECONDS is upscaled to '
-              'being a multiple of read_buffer_size.\n')
+
+    #######################################################
+    # Compute amount of data to be read in in each IO call,
+    # based on overlap and length of buffer around data
+    # windows, if specified
+    #######################################################
+    interval_seconds = None
+    read_ahead_window_seconds = None
+    no_stacking = None
+    if(stacking_interval_seconds is None):
+        if(ensemble_stack):
+            raise ValueError('--ensemble-stack is only applicable with --stacking-interval-seconds. Aborting..')
+        if(envelope_normalize):
+            raise ValueError('--envelope-normalize is only applicable with --stacking-interval-seconds. Aborting..')
+
+        read_ahead_window_seconds = window_seconds * (1 - window_overlap) * read_ahead_windows + \
+                                    window_seconds * window_buffer_length * 2 + \
+                                    window_overlap * window_seconds
+        interval_seconds = read_ahead_window_seconds
+        no_stacking = True
+    else:
+        read_ahead_window_seconds = window_seconds * read_ahead_windows
+        interval_seconds = read_ahead_window_seconds
+        no_stacking = False
     # end if
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
-            window_buffer_length, resample_rate, taper_length, nearest_neighbours, fmin, fmax, station_names1,
-            station_names2, pairs_to_compute, start_time, end_time, instrument_response_inventory, instrument_response_output,
-            water_level, clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, read_buffer_size, location_preferences,
-            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, no_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
+            window_buffer_length, read_ahead_window_seconds, resample_rate, taper_length, nearest_neighbours,
+            fmin, fmax, station_names1, station_names2, pairs_to_compute, start_time, end_time,
+            instrument_response_inventory, instrument_response_output, water_level, clip_to_2std, whitening,
+            whitening_window_frequency, one_bit_normalize, location_preferences, ds1_zchan, ds1_nchan,
+            ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack,
+            no_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
 # end func
 
 if __name__ == '__main__':
-    """
-    Example call::
-
-        process("7G.refdata.h5", "7G.refdata.h5", "7G_test", 3600 * 24, 3600,
-                nearest_neighbours=5,
-                start_time="2013-01-01T00:00:00", end_time="2016-01-01T00:00:00",
-                read_buffer_size=1,
-                ds1_dec_factor=1, ds2_dec_factor=1,
-                fmin=0.01, fmax=10.0,
-                clip_to_2std=True,
-                one_bit_normalize=True)
-    """
     main()  # pylint: disable=no-value-for-parameter
 # end if

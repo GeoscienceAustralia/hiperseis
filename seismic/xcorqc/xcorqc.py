@@ -492,7 +492,7 @@ def IntervalStackXCorr(refds, tempds,
                        location_preferences_dict=defaultdict(lambda: None),
                        resample_rate=None,
                        taper_length=0.05,
-                       buffer_seconds=864000, interval_seconds=86400,
+                       read_ahead_window_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, window_overlap=0.1, window_buffer_length=0,
                        flo=None, fhi=None,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
@@ -549,11 +549,8 @@ def IntervalStackXCorr(refds, tempds,
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type taper_length: float
     :param taper_length: Taper length as a fraction of window length
-    :type buffer_seconds: int
-    :param buffer_seconds: The amount of data to be fetched per call from the ASDFDataSets, because \
-                           we may not be able to fetch all the data (from start_time to end_time) at \
-                           once. The default is set to 10 days and should be a multiple of \
-                           interval_seconds.
+    :type read_ahead_window_seconds: int
+    :param read_ahead_window_seconds: The amount of data in seconds to be fetched per call from the ASDFDataSets \
     :type interval_seconds: int
     :param interval_seconds: The interval in seconds, over which cross-correlation windows are \
                              stacked. Default is 1 day.
@@ -660,7 +657,7 @@ def IntervalStackXCorr(refds, tempds,
                       window_seconds*window_overlap)
         # end if
 
-        cStep = buffer_seconds
+        cStep = read_ahead_window_seconds
 
         if (cTime + cStep) > endTime:
             cStep = endTime - cTime
@@ -902,7 +899,7 @@ def IntervalStackXCorr(refds, tempds,
                   'instr_corr_water_level_db': water_level,
                   'resample_rate': resample_rate if resample_rate else -999,
                   'taper_length': taper_length,
-                  'buffer_seconds': buffer_seconds,
+                  'read_ahead_window_seconds': read_ahead_window_seconds,
                   'interval_seconds': interval_seconds,
                   'window_seconds': window_seconds,
                   'window_overlap': window_overlap,
