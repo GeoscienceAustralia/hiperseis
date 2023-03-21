@@ -32,6 +32,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
+from seismic.misc import get_git_revision_hash
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
@@ -164,7 +165,7 @@ def process(data_source1, data_source2, output_path,
             one_bit_normalize=False, location_preferences=None,
             ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
             ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, no_stacking=False,
+            envelope_normalize=False, ensemble_stack=False, apply_stacking=True,
             restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None):
     """
     :param data_source1: Text file containing paths to ASDF files
@@ -191,10 +192,13 @@ def process(data_source1, data_source2, output_path,
     proc_stations = []
     location_preferences_dict = None
     time_tag = None
+    git_hash = ''
     if (rank == 0):
+        # get git-hash
+        git_hash = get_git_revision_hash()
+
         # Register time tag with high resolution, since queued jobs can readily
         # commence around the same time.
-
         if(no_tracking_tag):
             time_tag = None
         else:
@@ -235,7 +239,6 @@ def process(data_source1, data_source2, output_path,
             if(whitening):
                 f.write('%35s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
             f.write('%35s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
-            f.write('%35s\t\t\t: %s\n' % ('--no-stacking', no_stacking))
             f.write('%35s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
@@ -302,6 +305,7 @@ def process(data_source1, data_source2, output_path,
     # broadcast workload to all procs
     proc_stations = comm.bcast(proc_stations, root=0)
     time_tag = comm.bcast(time_tag, root=0)
+    git_hash = comm.bcast(git_hash, root=0)
 
     # read inventory
     inv = None
@@ -390,8 +394,8 @@ def process(data_source1, data_source2, output_path,
                            interval_seconds, window_seconds, window_overlap,
                            window_buffer_length, fmin, fmax, clip_to_2std, whitening,
                            whitening_window_frequency, one_bit_normalize, envelope_normalize,
-                           ensemble_stack, no_stacking, output_path, 2, time_tag,
-                           scratch_folder)
+                           ensemble_stack, apply_stacking, output_path, 2, time_tag,
+                           scratch_folder, git_hash)
     # end for
 # end func
 
@@ -563,7 +567,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
     #######################################################
     interval_seconds = None
     read_ahead_window_seconds = None
-    no_stacking = None
+    apply_stacking = None
     if(stacking_interval_seconds is None):
         if(ensemble_stack):
             raise ValueError('--ensemble-stack is only applicable with --stacking-interval-seconds. Aborting..')
@@ -574,11 +578,11 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
                                     window_seconds * window_buffer_length * 2 + \
                                     window_overlap * window_seconds
         interval_seconds = read_ahead_window_seconds
-        no_stacking = True
+        apply_stacking = False
     else:
         read_ahead_window_seconds = window_seconds * read_ahead_windows
         interval_seconds = read_ahead_window_seconds
-        no_stacking = False
+        apply_stacking = True
     # end if
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
@@ -587,7 +591,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
             instrument_response_inventory, instrument_response_output, water_level, clip_to_2std, whitening,
             whitening_window_frequency, one_bit_normalize, location_preferences, ds1_zchan, ds1_nchan,
             ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack,
-            no_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
+            apply_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
 # end func
 
 if __name__ == '__main__':

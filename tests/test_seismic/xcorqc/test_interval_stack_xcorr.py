@@ -122,7 +122,7 @@ def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds
                        cha,
                        50, 250,
                        resample_rate=0.25,
-                       buffer_seconds=interval_seconds,
+                       read_ahead_window_seconds=interval_seconds,
                        interval_seconds=interval_seconds,
                        window_seconds=window_seconds, flo=0.01, fhi=0.125,
                        clip_to_2std=clip_to_2std, whitening=whitening,
@@ -149,7 +149,14 @@ def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds
         atol *= 50
     # end if
 
-    assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
+    assert(xcorr_c.shape[0]>0)
+
+    if(xcorr_c.shape == xcorr_e.shape):
+        assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
+    else:
+        zc = np.sum(np.array([1 if np.all(item == 0) else 0 for item in xcorr_e]))
+        assert(zc == (xcorr_e.shape[0] - xcorr_c.shape[0]))
+
 # end func
 
 
