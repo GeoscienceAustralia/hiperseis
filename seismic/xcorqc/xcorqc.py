@@ -502,15 +502,8 @@ def IntervalStackXCorr(refds, tempds,
                        outputPath='/tmp', verbose=1, tracking_tag='',
                        scratch_folder=None, git_hash=''):
     """
-    This function rolls through two ASDF data sets, over a given time-range and cross-correlates
-    waveforms from all possible station-pairs from the two data sets. To allow efficient, random
-    data access asdf data sources, an instance of a SeisDB object, instantiated from
-    the corresponding Json database is passed in (tempds_db) -- although this parameter is not
-    mandatory, data-access from large ASDF files will be slow without it.
-
-    Station-ids to be processed from the two data-sources can be specified as lists of strings,
-    while wildcards can be used to process all stations. Data is fetched from the sources in chunks
-    to limit memory usage and data-windows with gaps are discarded.
+    This function rolls through two FederatedASDFDataSets, over a given time-range and cross-correlates
+    waveforms from all possible station-pairs from the two data sets.
 
     Cross-correlation results are written out for each station-pair, in the specified folder, as
     NETCDF4 files. Panoply (https://www.giss.nasa.gov/tools/panoply/), already installed on the
