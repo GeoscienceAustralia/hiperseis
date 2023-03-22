@@ -44,7 +44,7 @@ def plot_before_cluster(sr:SSST_Result, ng:NestedGrid, pdf:PdfPages, min_slope_r
 
     nx = np.int_(np.ceil((ex - sx) / dx)) + 1
     ny = np.int_(np.ceil((sy - ey) / dy)) + 1
-    res = int(1 / float(dx))  # per deg
+    res = 1 / float(dx)  # per deg
 
     gx, gy = np.meshgrid(np.linspace(sx, ex, nx), np.linspace(sy, ey, ny), indexing='ij')
 
@@ -286,7 +286,7 @@ def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: Ne
 
     nx = np.int_(np.ceil((ex - sx) / dx)) + 1
     ny = np.int_(np.ceil((sy - ey) / dy)) + 1
-    res = int(1 / float(dx))  # per deg
+    res = 1 / float(dx)  # per deg
 
     gx, gy = np.meshgrid(np.linspace(sx, ex, nx), np.linspace(sy, ey, ny), indexing='ij')
 
