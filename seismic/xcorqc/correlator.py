@@ -579,9 +579,10 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
                                     window_overlap * window_seconds
         interval_seconds = read_ahead_window_seconds
         apply_stacking = False
+        print(read_ahead_window_seconds)
     else:
         read_ahead_window_seconds = window_seconds * read_ahead_windows
-        interval_seconds = read_ahead_window_seconds
+        interval_seconds = stacking_interval_seconds
         apply_stacking = True
     # end if
 

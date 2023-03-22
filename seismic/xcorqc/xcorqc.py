@@ -188,19 +188,33 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
     windowEndSeconds = []
     while itr1s < lentr1_all and itr2s < lentr2_all:
 
-        # track back to avoid losing data while traversing onto the next interval
-        if((intervalCount > 0) and (not apply_stacking)):
-            itr1s -= (2*window_buffer_seconds*sr1_orig + window_samples_1 * window_overlap)
-            itr2s -= (2*window_buffer_seconds*sr2_orig + window_samples_2 * window_overlap)
-        # end if
-
         while (itr1s < 0) or (itr2s < 0):
             itr1s += window_samples_1 * (1. - window_overlap)
             itr2s += window_samples_2 * (1. - window_overlap)
         # end while
 
-        itr1e = min(lentr1_all, itr1s + interval_samples_1)
-        itr2e = min(lentr2_all, itr2s + interval_samples_2)
+        # Track back to avoid losing data while traversing onto the next interval.
+        # Note that this only applies when stacking is not applied.
+        if((intervalCount > 0) and (not apply_stacking)):
+            itr1s -= (2*window_buffer_seconds*sr1_orig + window_samples_1 * window_overlap)
+            itr2s -= (2*window_buffer_seconds*sr2_orig + window_samples_2 * window_overlap)
+        # end if
+
+        if(apply_stacking):
+            # The starting time of stacking-intervals is relative to hour 0000,
+            # and not the start-times of input traces. To maintain this consistency,
+            # when input trace start-times are not aligned to hour 0000, we stack data for a
+            # fraction of the corresponding stacking-interval.
+
+            shortening_seconds = (tr1.stats.starttime + itr1s/sr1_orig +
+                                  interval_seconds).timestamp % interval_seconds
+
+            itr1e = min(lentr1_all, itr1s + interval_samples_1 - shortening_seconds * sr1_orig)
+            itr2e = min(lentr2_all, itr2s + interval_samples_2 - shortening_seconds * sr2_orig)
+        else:
+            itr1e = min(lentr1_all, itr1s + interval_samples_1)
+            itr2e = min(lentr2_all, itr2s + interval_samples_2)
+        # end if
 
         if (np.fabs(itr1e - itr1s) <= sr1_orig) or (np.fabs(itr2e - itr2s) <= sr2_orig):
             itr1s = itr1e
@@ -209,11 +223,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         # end if
 
         if (tr1.stats.starttime + itr1s / sr1_orig != tr2.stats.starttime + itr2s / sr2_orig):
-            if logger:
-                logger.warning('Detected misaligned traces..')
+            # sanity check
+            assert 0, 'Detected misaligned traces. Trace1: \n{}\n Trace2: \n{}\n ' \
+                      '\nInterval start-times {} != {}.\n Aborting..'.format(tr1.stats, tr2.stats,
+                                                              tr1.stats.starttime + itr1s / sr1_orig,
+                                                              tr2.stats.starttime + itr2s / sr2_orig)
+        # end if
 
-        print('{} - {}'.format(itr1s+tr1.stats.starttime.timestamp*1,
-                               itr1e+tr1.stats.starttime.timestamp*1))
+        print('{} - {}'.format(UTCDateTime(itr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
+                               UTCDateTime(itr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -411,8 +429,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             # end if
 
             print('\t{}: {} - {}'.format(windowCount,
-                                         wtr1s+tr1.stats.starttime.timestamp*1,
-                                         wtr1e+tr1.stats.starttime.timestamp*1))
+                                         UTCDateTime(wtr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
+                                         UTCDateTime(wtr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
 
             wtr1s += int(window_samples_1 * (1. - window_overlap))
             wtr2s += int(window_samples_2 * (1. - window_overlap))
@@ -461,6 +479,9 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             resultCache.append(mean[:xcorlen])
         else:
             for row in intervalXcorrList:
+                # compute inverse fft
+                row = ifftn(row)
+
                 resultCache.append(row[:xcorlen])
             # end for
         # end for
@@ -594,9 +615,9 @@ def IntervalStackXCorr(refds, tempds,
                 interval_seconds period, for each station-pair. These Window-counts could be helpful \
                 in assessing robustness of results.
     """
-    #######################################
+    #########################################################################
     # check consistency of parameterization
-    #######################################
+    #########################################################################
     if resample_rate and fhi:
         if resample_rate < 2*fhi:
             raise ValueError('Resample-rate should be >= 2*fmax')
@@ -616,10 +637,13 @@ def IntervalStackXCorr(refds, tempds,
                                               '.'.join([stationPair, tracking_tag])))
     logger = setup_logger(stationPair, fn)
 
-    #######################################
-    # Adjust start- and/or end-times if
-    # they extend beyond data availability
-    #######################################
+    #########################################################################
+    # Adjust start- and/or end-times, if they extend beyond data
+    # availability. Note that start- and end-times are aligned to the
+    # nearest day, irrespective of user input -- this ensures daily
+    # cross-correlations, used in the GPS-clock-correction workflow, are
+    # aligned to day boundaries
+    #########################################################################
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
 
@@ -629,16 +653,25 @@ def IntervalStackXCorr(refds, tempds,
     grst, gret = refds.fds.get_global_time_range(ref_net, ref_sta, ref_loc)
     gtst, gtet = tempds.fds.get_global_time_range(temp_net, temp_sta, temp_loc)
 
-    # Note that min/max times are accurate to the closest second
+    # Note that min/max times from fds are accurate to the closest second
     maxSt = UTCDateTime(max(grst.timestamp, gtst.timestamp)) - 1
     minEt = UTCDateTime(min(gret.timestamp, gtet.timestamp)) + 1
 
     if(startTime < maxSt): startTime = maxSt
     if(endTime > minEt): endTime = minEt
 
-    #######################################
+    # align to the closest day
+    startTime = UTCDateTime(year=startTime.year,
+                            month=startTime.month,
+                            day=startTime.day)
+    endTime += 86400
+    endTime = UTCDateTime(year=endTime.year,
+                          month=endTime.month,
+                          day=endTime.day)
+
+    #########################################################################
     # Initialize variables for main loop
-    #######################################
+    #########################################################################
     cTime = startTime
 
     windowCounts = []
