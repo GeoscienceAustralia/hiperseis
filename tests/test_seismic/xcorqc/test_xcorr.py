@@ -15,11 +15,13 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-from obspy.core import Trace, Stats
+from obspy.core import Trace, Stats, UTCDateTime
 from seismic.xcorqc.xcorqc import taper, whiten, zeropad_ba, xcorr2
 import pytest
 import numpy as np
-
+import itertools
+import os
+import tempfile
 
 @pytest.fixture(params=[100, 500, 1000])
 def trace_length(request):
@@ -93,8 +95,117 @@ def test_xcorr(trace_length, sampling_rate, other_sampling_rate):
                                      'network': 'AU',
                                      'station': 'B'}))
 
-    arr, _, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
+    arr, _, _, _, _, _, _ = xcorr2(tr1, tr2, window_seconds=trace_length/2, interval_seconds=trace_length)
 
     # Mean of the x-correlation function should be close to zero
     assert np.allclose(np.abs(np.mean(arr)), 0, atol=1e-2)
 # end func
+
+
+def generate_test_data(data_length_seconds:int,
+                       starttime1:UTCDateTime,
+                       starttime2:UTCDateTime):
+    tr1 = Trace(data=np.random.random(data_length_seconds))
+    tr2 = Trace(data=np.random.random(data_length_seconds))
+
+    tr1.stats.starttime = starttime1
+    tr2.stats.starttime = starttime2
+
+    tr1.stats.network='AU'
+    tr1.stats.station='X'
+    tr1.stats.location=''
+    tr1.stats.channel='BHZ'
+
+    tr2.stats.network='AU'
+    tr2.stats.station='Y'
+    tr2.stats.location=''
+    tr2.stats.channel='BHZ'
+
+    return tr1, tr2
+# end func
+
+def test_stacking_window_counts():
+    """
+    Tests whether interval/window counts are as expected
+    """
+
+    def expected_lines_iter():
+        path = os.path.dirname(os.path.abspath(__file__))
+        efn = os.path.join(path, 'data/expected/window_counts.txt')
+        elines = open(efn, 'r').readlines()
+        for eline in elines:
+            yield eline
+        # end for
+    # end for
+    elines = expected_lines_iter()
+
+    DATA_LEN = [86400, 172800] # 1, 2 days
+    INTERVAL_SECONDS = [43200, 86400] # 12, 24 hrs
+    WINDOW_SECONDS = [3600, 7200] # 1, 2 hrs
+    OVERLAP = [0, 0.1, 0.75] # 0, 10, 75 %
+    WINDOW_BUFFER_LENGTH = [0.1, 0.2] # 10, 20 %, at each end
+    START_TIME_DELTAS = [[0, 0], [-200, 0], [0, -200],
+                         [100, 200]]
+
+    output_path = str(tempfile.mkdtemp(suffix='_test'))
+    #output_path = '/tmp/'
+
+    ofn = os.path.join(output_path, 'window_counts.txt')
+    ofh = open(ofn, 'w+')
+    all_output = []
+    i = 1
+    for dlen, isec, wsec, olap, wbl, delta in itertools.product(DATA_LEN,
+                                                                INTERVAL_SECONDS,
+                                                                WINDOW_SECONDS,
+                                                                OVERLAP,
+                                                                WINDOW_BUFFER_LENGTH,
+                                                                START_TIME_DELTAS):
+        olines = []
+        tr1, tr2 = generate_test_data(dlen,
+                                      UTCDateTime(0)+delta[0],
+                                      UTCDateTime(0)+delta[0])
+
+        xcorr, winPerInterval, \
+        iStart, iEnd, wStart, \
+        wEnd, sr = xcorr2(tr1,
+                          tr2,
+                          window_seconds=wsec,
+                          interval_seconds=isec,
+                          window_overlap=olap,
+                          window_buffer_length=wbl,
+                          apply_stacking=True)
+
+        olines.append("============[test: {}]============\n".format(i))
+        olines.append('Params: wsec: {}, isec: {}, olap: {}, wbl: {}\n'.format(wsec, isec, olap, wbl))
+        olines.append('X-corr shape: {}\n'.format(xcorr.shape))
+        olines.append('Windows per interval: {}\n'.format(winPerInterval))
+        olines.append("Interval start- and end-times:\n".format(i))
+        for s, e in zip(iStart, iEnd):
+            olines.append('{} - {}\n'.format(UTCDateTime(s + tr1.stats.starttime.timestamp),
+                                             UTCDateTime(e + tr1.stats.starttime.timestamp)))
+        olines.append('\n')
+        olines.append("Window start- and end-times:\n".format(i))
+        for s, e in zip(wStart, wEnd):
+            olines.append('{} - {}\n'.format(UTCDateTime(s + tr1.stats.starttime.timestamp),
+                                             UTCDateTime(e + tr1.stats.starttime.timestamp)))
+        olines.append('\n')
+
+        for oline in olines:
+            eline = next(elines)
+
+            if(oline != eline):
+                assert 0, 'Output: {} does not match expected: {}'.format(oline, eline)
+            # end if
+
+            all_output.append(oline)
+        # end for
+
+        i += 1
+    # end for
+
+    for line in all_output: ofh.write(line)
+    ofh.close()
+# end func
+
+if __name__=="__main__":
+    test_stacking_window_counts()

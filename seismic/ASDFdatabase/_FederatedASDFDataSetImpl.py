@@ -442,8 +442,14 @@ class _FederatedASDFDataSetImpl():
 
         row = self.conn.execute(query).fetchall()[0]
 
-        min = UTCDateTime(row[0]) if row[0] else MAX_DATE
-        max = UTCDateTime(row[1]) if row[1] else MIN_DATE
+        min = MAX_DATE
+        max = MIN_DATE
+
+        if(len(row)):
+            if(row[0] is not None): min = UTCDateTime(row[0])
+            if(row[1] is not None): max = UTCDateTime(row[1])
+        # end if
+
         return min, max
     # end func
 
