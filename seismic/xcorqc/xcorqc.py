@@ -230,8 +230,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                                                               tr2.stats.starttime + itr2s / sr2_orig)
         # end if
 
-        print('{} - {}'.format(UTCDateTime(itr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
-                               UTCDateTime(itr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
+        #print('{} - {}'.format(UTCDateTime(itr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
+        #                       UTCDateTime(itr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
 
         windowCount = 0
         wtr1s = int(itr1s)
@@ -428,9 +428,9 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
             # end if
 
-            print('\t{}: {} - {}'.format(windowCount,
-                                         UTCDateTime(wtr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
-                                         UTCDateTime(wtr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
+            #print('\t{}: {} - {}'.format(windowCount,
+            #                             UTCDateTime(wtr1s/sr1_orig + tr1.stats.starttime.timestamp*1),
+            #                             UTCDateTime(wtr1e/sr1_orig + tr1.stats.starttime.timestamp*1)))
 
             wtr1s += int(window_samples_1 * (1. - window_overlap))
             wtr2s += int(window_samples_2 * (1. - window_overlap))

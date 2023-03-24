@@ -64,24 +64,16 @@ def cha(request):
 def interval_seconds(request):
     return request.param
 
+@pytest.fixture(params=[0, 0.1])
+def window_overlap(request):
+    return request.param
+
 @pytest.fixture(params=[3600, 1800])
 def window_seconds(request):
     return request.param
 
 @pytest.fixture(params=[False, True])
-def envelope_normalize(request):
-    return request.param
-
-@pytest.fixture(params=[False, True])
 def ensemble_stack(request):
-    return request.param
-
-@pytest.fixture(params=[False, True])
-def clip_to_2std(request):
-    return request.param
-
-@pytest.fixture(params=[False, True])
-def one_bit_normalize(request):
     return request.param
 
 @pytest.fixture(params=[False, True])
@@ -96,20 +88,20 @@ def inv1(request):
 def inv2(request):
     return request.param
 
-def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds,
-                               clip_to_2std, whitening, one_bit_normalize,
-                               envelope_normalize, ensemble_stack):
+def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
+                               window_overlap, whitening, ensemble_stack):
+    """
+    Note that these tests exclude the application of 'stacking', 'window_buffer_length' --
+    they are tested in the test_xcorr.py
+    """
     start_time = '2011-03-11T00:00:00Z'
     end_time   = '2011-03-14T00:00:00Z'
 
-    tag = '%s.%d.%d.cs%d.w%d.obn%d.en%d.es%d.resp%d.resp%d'%(cha, interval_seconds, window_seconds,
-                                                          clip_to_2std, whitening, one_bit_normalize,
-                                                          envelope_normalize, ensemble_stack,
-                                                          1 if inv1 else 0,
-                                                          1 if inv2 else 0)
-
-    # skipping inconsistent parameterizations
-    if (one_bit_normalize and clip_to_2std): return
+    tag = '%s_is%d_ws%d_wo%.2f_w%d_es%d_resp%d_resp%d'%(
+            cha, interval_seconds, window_seconds,
+            window_overlap, whitening, ensemble_stack,
+            1 if inv1 else 0,
+            1 if inv2 else 0)
 
     IntervalStackXCorr(fds1, fds2,
                        start_time, end_time,
@@ -124,9 +116,10 @@ def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds
                        resample_rate=0.25,
                        read_ahead_window_seconds=interval_seconds,
                        interval_seconds=interval_seconds,
-                       window_seconds=window_seconds, flo=0.01, fhi=0.125,
-                       clip_to_2std=clip_to_2std, whitening=whitening,
-                       one_bit_normalize=one_bit_normalize, envelope_normalize=envelope_normalize,
+                       window_seconds=window_seconds,
+                       window_overlap=window_overlap,
+                       flo=0.01, fhi=0.125,
+                       whitening=whitening,
                        ensemble_stack=ensemble_stack,
                        outputPath=output_folder, verbose=2, tracking_tag=tag)
 
@@ -142,23 +135,11 @@ def test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds
     de = Dataset(fn)
     xcorr_e = de.variables['xcorr'][:]
 
-    rtol = 1e-2
-    atol = 1e-2
-    if(clip_to_2std or whitening or one_bit_normalize):
-        rtol *= 50
-        atol *= 50
-    # end if
+    rtol = 0
+    atol = 1e-4
 
-    assert(xcorr_c.shape[0]>0)
-
-    if(xcorr_c.shape == xcorr_e.shape):
-        assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
-    else:
-        zc = np.sum(np.array([1 if np.all(item == 0) else 0 for item in xcorr_e]))
-        #assert(zc == (xcorr_e.shape[0] - xcorr_c.shape[0]))
-
+    assert np.allclose(xcorr_c, xcorr_e, rtol=rtol, atol=atol)
 # end func
-
 
 if __name__ == '__main__':
     cha = 'BHZ'
@@ -166,12 +147,10 @@ if __name__ == '__main__':
     inv2 = inv.select(network='AU', station='QLP')
     interval_seconds = 86400
     window_seconds = 3600
-    clip_to_2std = False
+    window_overlap = 0.1
     whitening = False
-    one_bit_normalize = False
-    envelope_normalize = False
-    ensemble_stack = False
-    test_interval_stack_xcorr_(cha, inv1, inv2, interval_seconds, window_seconds,
-                               clip_to_2std, whitening, one_bit_normalize,
-                               envelope_normalize, ensemble_stack)
+    ensemble_stack = True
+
+    test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
+                              window_overlap, whitening, ensemble_stack)
 # end if

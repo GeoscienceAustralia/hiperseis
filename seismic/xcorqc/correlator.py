@@ -551,6 +551,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
     # sanity checks
     if(window_seconds <= 0): raise ValueError('WINDOW_SECONDS must be > 0')
     if(read_ahead_windows <= 0): raise ValueError('READ_AHEAD_WINDOWS must be > 0')
+    if(window_buffer_length > 0.5): raise ValueError('--window-buffer-length must be <= 0.5')
     if(stacking_interval_seconds is not None):
         if(stacking_interval_seconds < window_seconds):
             raise ValueError('Invalid value for --stacking-interval-seconds, must be > WINDOW_SECONDS')
