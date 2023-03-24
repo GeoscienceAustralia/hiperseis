@@ -147,8 +147,8 @@ def test_stacking_window_counts():
     START_TIME_DELTAS = [[0, 0], [-200, 0], [0, -200],
                          [100, 200]]
 
-    #output_path = str(tempfile.mkdtemp(suffix='_test'))
-    output_path = '/tmp/'
+    output_path = str(tempfile.mkdtemp(suffix='_test'))
+    #output_path = '/tmp/'
 
     ofn = os.path.join(output_path, 'window_counts.txt')
     ofh = open(ofn, 'w+')
