@@ -1,109 +1,92 @@
 # Cross-Correlation Workflow
 
-The cross-correlation functionality works off of a FederatedASDF_Dataset source. Users specify two subsets of stations (or * for all stations available in the ASDF files) either as command-line arguments or as separate text-files to be cross-correlated. Depending on the parameterization, a Cartesian product of two lists of station-names defines station-pairs that are to be cross-correlated -- see `correlator.py` for details.
+The cross-correlation functionality works off of a FederatedASDF_Dataset source. Users 
+specify two subsets of stations (or * for all stations available in the ASDF files) either 
+as command-line arguments or as separate text-files to be cross-correlated. 
+Depending on the parameterization, a Cartesian product of two lists of station-names defines 
+station-pairs that are to be cross-correlated -- see help for `correlator.py` for details.
 
-Cross-correlation results are written out as NetCDF-4 files for each station-pair. Interrogating cross-correlation results requires interactive visualization capabilities. [Panoply], a freely available cross-platform tool, which is also available on NCI VDIs, can be used to visualize the results interactively. A quick intro to [Panoply] is available [here].
+Cross-correlation results are written out as NetCDF-4 files for each station-pair. [Panoply], a freely available cross-platform tool, which is also available on NCI VDIs, can be used to visualize the results interactively. A quick intro to [Panoply] is available [here].
 
-## Setting up NCI Gadi environment for running cross-correlations
-
-These instructions are for users of the National Computational Infrastructure (NCI) facility at the
-Australian National University. The recommended Python environment setup process, within 
-an individual user's account, is as follows: 
-
-### Order of operations
-
-To set up the Python environment, the following high level order of operations must be observed:
-* Load modules
-* Build and install customized 3rd party Python libraries for MPI
-* Install standard 3rd party Python libraries
-
-### Library version summary
-
-* Open MPI v3.1.4
-* HDF5 v1.10.5p (parallel build)
-* mpi4py v3.1.3 (custom MPI build)
-* numpy 1.18.5
-* cython 0.29.22  
-* osbpy 1.1.0
-* click 7.0
-* netCDF4 1.4.0
-* h5py 3.1.0 (custom MPI build)
-* pyasdf 0.5.1
-* pyFFTW 0.12.0
-
-### Limitations
-
-Due to the limited number of python versions and natively-compiled versions of core libraries (MPI, HDF5, etc.) available on Gadi, the recommended approach is to use the system-provided python3.6 and install dependencies in user space (`--user` option of `pip`).
-
-
-### Setup process
-
-From a login node on Gadi:
-
-#### Load requisite modules
-  1. `module purge`
-  2. `module load pbs` 
-  3. `module load python3-as-python`
-  4. `module load openmpi/3.1.4`
-  5. `module load hdf5/1.10.5p`
-  6. `module load fftw3/3.3.8`
-
-#### Setup custom packages
-
-##### Remove old packages
-1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
-2. `rm -rf ~/.local/lib/python3.6/site-packages/mpi4py*`
-
-##### Upgrade pip
-
- 1. `pip3.6 install pip==21.1.2 --user`
-
-##### numpy
-
- 1. `pip3.6 install numpy==1.18.5 --user`
-
-##### mpi4py
-
-  1. `MPICC=/apps/openmpi/3.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3 --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
-
-##### H5PY
-
-1. `pip3.6 install cython==0.29.22 --user`
-2. `git clone --single-branch --branch 3.1.0-gadi-tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 3.1.0) from a fork of h5py, adapted for Gadi.
-3. `cd h5py`
-4. `CC=mpicc HDF5_MPI="ON" HDF5_DIR=/apps/hdf5/1.10.5p/ python setup.py install --user` Configure, build and install
-
-##### pyFFTW
-  2. `wget https://github.com/pyFFTW/pyFFTW/archive/v0.12.0.tar.gz`
-  3. `tar -zxvf v0.12.0.tar.gz`
-  4. `cd pyFFTW-0.12.0/`
-  5. `python setup.py build_ext --inplace`
-  6. `python setup.py install --user`
-
-#### Setup standard packages
-  1. `pip3.6 install obspy==1.1.0 --user`
-  2. `pip3.6 install click==7.1.2 --user `
-  3. `pip3.6 install netCDF4==1.4.0 --user`
-  4. `pip3.6 install pyasdf==0.5.1 --user`
-  5. `pip3.6 install ordered_set ujson psutil --user`
-  6. `pip3.6 install pandas==1.1.5 --user`
-  7. `pip3.6 install Rtree==0.9.7 --user`
-
-Date last validated: 18 Feb 2022
 
 ### Setup validation
 
-The Python setup can be tested for running the cross-correlation on Gadi using scripts `validate_xcorr_setup.py`
-(Python) and `validate_xcorr_runtime.sh` (shell script) in folder `hiperseis/seismic/xcorqc`. These scripts should
-be run directly from that folder, not from another folder.
+The Python setup can be tested for running cross-correlations on Gadi using `validate_xcorr_setup.py` in 
+folder `hiperseis/seismic/xcorqc`. The script should be run directly from that folder, not from elsewhere.
 
-Firstly, run `python validate_xcorr_setup.py` from the command line. Various output will appear explaining the item
+Run `python validate_xcorr_setup.py` from the command line. Various output will appear explaining the item
 being tested and the result, plus output from Python libraries. If the test succeeds, the last line of output
 should read `SUCCESS!`.
 
-Next, run at the command line run `./validate_xcorr_runtime.sh`. You should see various output, mostly warnings. To
-confirm successful completion of the test, you should see a file `validation_result/ARMA.CMSA.nc` with a current
-file time stamp. If this file is not present or not with a current time stamp, then the test was not successful.
+# Launching the Cross-Correlator
+
+The cross-correlator script is launched as follows, for detailed help on supported parameters:
+
+```python hiperseis/seismic/xcorqc/correlator.py -h```
+
+The figure below shows how keys parameters interrelate:
+
+![Fig 1](./docs/window.svg)
+
+Another key parameter, READ_AHEAD_WINDOWS, determines the amount of data being read in -- depending on 
+the window-overlap, window-buffer-length and whether interval-stacking is enabled -- in each IO 
+call. In the default mode, all cross-correlated windows are output, whereas with ```--stacking-interval-seconds``` 
+specified, stacked windows over each interval are output.
+
+Key input parameters:
+
+* WINDOW_SECONDS (WS) 
+* WINDOW_OVERLAP (OLAP)
+* --stacking-interval-seconds (SIS)
+* --window-buffer-length (WBL) 
+* READ_AHEAD_WINDOWS (RAW)
+
+The input parameters above dictate the following:
+
+* Data read in per IO call, DISK_READ_SECONDS (DRS)
+* Number of windows stacked per interval (NSW), if interval-stacking is enabled
+
+## Default Mode
+In the default mode (without interval-stacking),  
+
+DRS = WS * (1 - OLAP) * RAW + WS * WBL * 2 + OLAP * WS
+
+A table showing example parameterizations and their implications is as follows:
+
+| WS   | OLAP | WBL | RAW | DRS |
+------|------|-----|-----|-----|
+| 3600 | 0.1  | 0.2 | 3   |  11520|
+| 3600 | 0.1  | 0.1 | 24   | 78840 |
+
+Typically, on a Lustre filesystem, the value of DRS should amount to a couple of days (e.g. in 
+the second row above) to help improve IO efficiency. Note that this rule of thumb also applies 
+for the interval-stacking mode below.
+
+## Interval-stacking Mode
+With interval-stacking enabled:
+
+DRS = WS * RAW
+
+NSW = floor( (SIS - WS*(OLAP + 2*WBL)) / ((1 - OLAP)*WS) )
+
+A table showing example parameterizations and their implications is as follows:
+
+| WS   | OLAP | SIS   | WBL | RAW | DRS   | NSW |
+------|------|-------|-----|-----|-------|-----|
+| 3600 | 0.1  | 10800 | 0.2 | 3   | 10800 | 2   |
+| 3600 | 0.1  | 10800 | 0.1 | 3   | 10800 | 3   |
+
+Note that unlike in the default mode, in the interval-stacking mode it is critical to set 
+WS, OLAP, SIS, and RAW judiciously -- otherwise it can lead to loss of usable data. The first row 
+in the table above illustrates such a scenario where, even though 3 hours of data are read in, and 
+with an overlap of 10%, only 2 windows are stacked per interval. This is because WBL is too large 
+in this case, leading to the truncated third window, as shown in the figure above. A smaller 
+WBL=0.1 in the second row above rectifies the significant loss of data per stacking-interval.
+
+General rules of thumb:
+
+* WBL should be ~OLAP
+* SIS should be an integer multiple of WS
 
 
 # Visualizing Cross-Correlation Results
@@ -114,8 +97,9 @@ to a standard graphical visualization of the cross-correlation time series.
 
 The following three functions from module `xcorr_station_clock_analysis` are used as entry points
 for this purpose:
-|Function | Purpose|
-|---------|--------|
+
+|Function | Purpose |
+|---------|---------|
 |`plot_xcorr_file_clock_analysis`| For a single `.nc` file. Does not overlay runtime options. |
 |`batch_process_xcorr`| For an iterable set of `.nc` files, plot each. Adds traceability information (runtime configuration parameters).|
 |`batch_process_folder`| Run `batch_process_xcorr` on all `.nc` files in a specified folder.|
@@ -123,4 +107,3 @@ for this purpose:
 
 [Panoply]:https://www.giss.nasa.gov/tools/panoply/
 [here]:http://www.meteor.iastate.edu/classes/mt452/EdGCM/Documentation/EdGCM_Panoply.pdf
-[FDSN website]:http://www.fdsn.org/networks/detail/AU/
