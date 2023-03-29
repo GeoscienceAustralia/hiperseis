@@ -157,6 +157,18 @@ class Migrate:
                                                                                  before-after, before))
             # end if
 
+            # RF amplitudes should not exceed 1.0 and should peak around onset time --
+            # otherwise, such traces are deemed problematic and discarded
+            before = len(p_traces)
+            p_traces = rf_util.filter_invalid_radial_component(p_traces)
+            after = len(p_traces)
+            if (before > after):
+                self._logger.info('rank {}: {} ({}/{}) traces '
+                                  'with amplitudes > 1.0 or troughs around onset time dropped..'.format(
+                                    self._rank, hkey,
+                                    before-after, before))
+            # end if
+
             if(len(p_traces) == 0):
                 self._logger.warn('rank {}: {}: No traces left to process..'.format(self._rank, hkey))
                 continue
