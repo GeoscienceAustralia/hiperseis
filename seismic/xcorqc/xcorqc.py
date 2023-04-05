@@ -422,8 +422,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                 if not np.isnan(rf).any():
                     intervalXcorrList.append(rf)
-                    windowStartSeconds.append(wtr1s/sr1_orig + tr1.stats.starttime.timestamp)
-                    windowEndSeconds.append(wtr1e/sr1_orig + tr1.stats.starttime.timestamp)
+                    windowStartSeconds.append(wtr1s/sr1_orig \
+                                              + window_buffer_seconds \
+                                              + tr1.stats.starttime.timestamp)
+                    windowEndSeconds.append(wtr1e/sr1_orig \
+                                            - window_buffer_seconds
+                                            + tr1.stats.starttime.timestamp)
                     windowCount += 1
                 # end if
             # end if

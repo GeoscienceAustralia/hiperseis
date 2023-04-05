@@ -194,6 +194,7 @@ def test_stacking_window_counts():
             eline = next(elines)
 
             if(oline != eline):
+                #pass
                 assert 0, 'Output: {} does not match expected: {}'.format(oline, eline)
             # end if
 
