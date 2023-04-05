@@ -3,7 +3,55 @@ from tqdm import tqdm
 from collections import defaultdict
 import h5py
 from seismic.pick_harvester.ellipticity import Ellipticity
+from seismic.pick_harvester.travel_time import TTInterpolator
+from seismic.pick_harvester.parametric_data import EARTH_RADIUS_KM, DEG2KM
 from pyproj import Geod
+
+VS_SURF = 3.46  # Sg velocity km/s for elevation corrections
+VP_SURF = 5.8  # Pg velocity km/s for elevation corrections
+
+def compute_elevation_correction(tti:TTInterpolator, phase, vsurf, elev_km, ecdist, edepth_km):
+    """
+    Computes elevation corrections
+
+    @param tti: travel-time interpolator
+    @param phase: dim(any)
+    @param vsurf:  dim(any)
+    @param elev_km:  dim(any)
+    @param ecdist:  dim(any)
+    @param edepth_km:  dim(any)
+    @return:
+    """
+
+    dtdd = tti.get_dtdd(phase, ecdist, edepth_km)
+    elev_corr = vsurf * (dtdd / DEG2KM)
+    elev_corr = np.power(elev_corr, 2.)
+    elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
+    elev_corr = np.sqrt(1. - elev_corr)
+    elev_corr = elev_corr * elev_km / vsurf
+
+    elev_corr = np.array(elev_corr.astype('f4'))
+
+    return elev_corr
+# end func
+
+def compute_ellipticity_correction(ellipticity:Ellipticity, phase, ecdist, edepth_km, elat, azim):
+    """
+    Computes ellipticity corrections
+
+    @param ellipticity
+    @param phase:  dim(any)
+    @param ecdist:  dim(any)
+    @param edepth_km:  dim(any)
+    @param elat:  dim(any)
+    @param azim:  dim(any)
+    @return:
+    """
+    ellip_corr = ellipticity.get_correction(phase, ecdist, edepth_km, elat, azim)
+    ellip_corr = np.array(ellip_corr.astype('f4'))
+
+    return ellip_corr
+# end func
 
 def h5_to_named_array(hfn, key):
     h = h5py.File(hfn, 'r')
@@ -55,8 +103,6 @@ class SSST_Result:
         self.arrivals = h5_to_named_array(self.h5_fn, '{}/arrivals'.format(self.iter))
         self.events = h5_to_named_array(self.h5_fn, '{}/events'.format(self.iter))
         self.event_id_to_idx = h5_to_named_array(self.h5_fn, '0/events/event_id_to_idx')
-        self.residual = h5_to_named_array(self.h5_fn, '{}/arrivals/residual'.format(self.iter))
-        self.tcorr = h5_to_named_array(self.h5_fn, '{}/arrivals/tcorr'.format(self.iter))
         self.is_AUTO_arrival = h5_to_named_array(self.h5_fn, '0/arrivals/is_AUTO_arrival')
 
         self.elons = self.events['lon'][self.event_id_to_idx[self.arrivals['event_id']]]
@@ -78,18 +124,27 @@ class SSST_Result:
         self.is_S = self.phase.astype('S1') == b'S'
         self.slope_ratio = self.arrivals['quality_measure_slope']
 
-        # ===========================================================
+        self._ellipticity = Ellipticity()
+        self._tti = TTInterpolator()
+
         # Compute ellipticity-correction
-        # ===========================================================
-        self.ellipticity = Ellipticity()
+        self.ellip_corr = compute_ellipticity_correction(self._ellipticity, self.phase, self.ecdists,
+                                                         self.edepths_km, self.elats, self.azims)
 
-        self.ellip_corr = self.ellipticity.get_correction(self.phase, self.ecdists,
-                                                           self.edepths_km, self.elats, self.azims)
+        # Compute elevation-correction
+        self.vsurf = np.zeros(len(self.arrivals), dtype='f4')
+        self.vsurf[self.is_P] = VP_SURF
+        self.vsurf[self.is_S] = VS_SURF
 
-        # ===========================================================
+        self.elev_corr = compute_elevation_correction(self._tti, self.phase, self.vsurf,
+                                                      self.selevs_km, self.ecdists, self.edepths_km)
+
         # Compute observed travel-times
-        # ===========================================================
-        self.ott = self.arrival_ts - self.eorigin_ts - self.tcorr + self.ellip_corr
+        self.corrected_travel_time = self.arrival_ts - self.eorigin_ts - self.ellip_corr - self.elev_corr
+
+        # Compute residual
+        ptt = self._tti.get_tt(self.phase, self.ecdists, self.edepths_km)
+        self.residual = self.corrected_travel_time - ptt
     # end func
 
     def find_paired_S(self):

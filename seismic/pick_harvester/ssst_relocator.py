@@ -19,11 +19,14 @@ import pyproj
 from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
-from seismic.pick_harvester.parametric_data import ParametricData
+from seismic.pick_harvester.parametric_data import ParametricData, EARTH_RADIUS_KM
 import os
 from tqdm import tqdm
 from seismic.pick_harvester.travel_time import TTInterpolator
 from seismic.pick_harvester.ellipticity import Ellipticity
+from seismic.pick_harvester.ssst_utils import compute_ellipticity_correction, \
+                                                compute_elevation_correction, \
+                                                VP_SURF, VS_SURF
 import h5py
 import json
 
@@ -88,13 +91,11 @@ class SSSTRelocator(ParametricData):
 
         # initialize surface velocity array (only needs to be computed once, since
         # elevations are fixed and P/S arrivals are not interchanged)
-        vs_surf = 3.46        # Sg velocity km/s for elevation corrections
-        vp_surf = 5.8         # Pg velocity km/s for elevation corrections
         pidx = self.is_P(self.arrivals['phase'])
         sidx = self.is_S(self.arrivals['phase'])
         self.vsurf = np.zeros(len(self.arrivals), dtype='f4')
-        self.vsurf[pidx] = vp_surf
-        self.vsurf[sidx] = vs_surf
+        self.vsurf[pidx] = VP_SURF
+        self.vsurf[sidx] = VS_SURF
     # end func
 
     def is_P(self, phase):
@@ -158,8 +159,8 @@ class SSSTRelocator(ParametricData):
 
         azim, _, ecdist = self._geod.inv(elon, elat, slon, slat)
 
-        elev_corr = self.compute_elevation_correction(phase, vsurf, elev_km, ecdist, edepth_km)
-        ellip_corr = self.compute_ellipticity_correction(phase, ecdist, edepth_km, elat, azim)
+        elev_corr = compute_elevation_correction(self._tti, phase, vsurf, elev_km, ecdist, edepth_km)
+        ellip_corr = compute_ellipticity_correction(self._ellipticity, phase, ecdist, edepth_km, elat, azim)
         ptt = self._tti.get_tt(phase, ecdist, edepth_km)
 
         # compute empirical tt
@@ -230,46 +231,6 @@ class SSSTRelocator(ParametricData):
 
         self.arrivals['phase'] = self._sync_var(local_new_phase)
         self.residual = self._sync_var(local_new_residual)
-    # end func
-
-    def compute_elevation_correction(self, phase, vsurf, elev_km, ecdist, edepth_km):
-        """
-        Operates on input parameters irrespective of local/global indices
-
-        @param phase: dim(any)
-        @param vsurf:  dim(any)
-        @param elev_km:  dim(any)
-        @param ecdist:  dim(any)
-        @param edepth_km:  dim(any)
-        @return:
-        """
-        dtdd = self._tti.get_dtdd(phase, ecdist, edepth_km)
-        elev_corr = vsurf * (dtdd / self.DEG2KM)
-        elev_corr = np.power(elev_corr, 2.)
-        elev_corr[elev_corr > 1.] = 1./elev_corr[elev_corr > 1.]
-        elev_corr = np.sqrt(1. - elev_corr)
-        elev_corr = elev_corr * elev_km / vsurf
-
-        elev_corr = np.array(elev_corr.astype('f4'))
-
-        return elev_corr
-    # end func
-
-    def compute_ellipticity_correction(self, phase, ecdist, edepth_km, elat, azim):
-        """
-        Operates on input parameters irrespective of local/global indices
-
-        @param phase:  dim(any)
-        @param ecdist:  dim(any)
-        @param edepth_km:  dim(any)
-        @param elat:  dim(any)
-        @param azim:  dim(any)
-        @return:
-        """
-        ellip_corr = self._ellipticity.get_correction(phase, ecdist, edepth_km, elat, azim)
-        ellip_corr = np.array(ellip_corr.astype('f4'))
-
-        return ellip_corr
     # end func
 
     def compute_sst_correction(self, min_slope_ratio=5):
@@ -466,9 +427,10 @@ class SSSTRelocator(ParametricData):
                             edepth_km = edepth_km0 + idep * ddep
                             azim, _, ecdist = self._geod.inv(elon * ones, elat * ones, slon, slat)
 
-                            elev_corr = self.compute_elevation_correction(phase, vsurf, elev_km, ecdist, edepth_km * ones)
-                            ellip_corr = self.compute_ellipticity_correction(phase, ecdist, edepth_km * ones, elat * ones,
-                                                                           azim)
+                            elev_corr = compute_elevation_correction(self._tti, phase, vsurf,
+                                                                     elev_km, ecdist, edepth_km * ones)
+                            ellip_corr = compute_ellipticity_correction(self._ellipticity, phase, ecdist,
+                                                                        edepth_km * ones, elat * ones, azim)
                             tt = self._tti.get_tt(phase, ecdist, edepth_km * ones)
                             tt = np.ma.masked_array(tt, mask=tt == self._tti.fill_value)
 
@@ -618,7 +580,7 @@ class SSSTRelocator(ParametricData):
     def _initialize_spatial_functors(self, ellipsoidal_distance=False):
         if(self.rank == 0): print('Initializing spatial functors..')
 
-        ER = self.EARTH_RADIUS_KM * 1e3 #m
+        ER = EARTH_RADIUS_KM * 1e3 #m
 
         if(ellipsoidal_distance):
             transformer = pyproj.Transformer.from_crs(
