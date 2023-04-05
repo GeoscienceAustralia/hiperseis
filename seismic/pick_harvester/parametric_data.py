@@ -24,6 +24,9 @@ from pyproj import Geod
 from seismic.pick_harvester.utils import split_list
 import h5py
 
+EARTH_RADIUS_KM = 6371.
+DEG2KM = np.pi / 180 * EARTH_RADIUS_KM
+
 class ParametricData:
     def __init__(self, csv_catalog, auto_pick_files=[], auto_pick_phases=[],
                  events_only=False, phase_list='P Pg Pb Pn S Sg Sb Sn', temp_dir='./'):
@@ -41,8 +44,6 @@ class ParametricData:
                          Note that this temporary folder must be accessible by all MPI ranks, e.g.
                          within a project folder on the NCI.
         """
-        self.EARTH_RADIUS_KM = 6371.
-        self.DEG2KM = np.pi/180 * self.EARTH_RADIUS_KM
         self.STATION_DIST_M = 1e3 # distance in metres within which neighbouring stations are coalesced
         self.csv_catalog = csv_catalog
         self.auto_pick_files = auto_pick_files
@@ -192,7 +193,7 @@ class ParametricData:
                         lon2, lat2 = coordsdict[net2 + b'.' + sta]
 
                         _, _, dist = self._geod.inv(lon1, lat1, lon2, lat2)
-                        dist *= self.DEG2KM * 1e3 #m
+                        dist *= DEG2KM * 1e3 #m
                         if(dist < self.STATION_DIST_M):
                             swap_map[(net1, sta)] = net2
                         else:
@@ -217,7 +218,7 @@ class ParametricData:
             iter_count += 1
             if(len(swap_map) == 0): break
         # wend
-        if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
+        #if(self.rank==0): np.save('coalesced_net.npy', self.arrivals['net'])
     # end func
 
     def _make_temp_dir(self):

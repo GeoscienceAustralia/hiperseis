@@ -81,15 +81,15 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
 
         result = []
         for k, rows in tqdm(cdict.items()):
-            ott = sr.ott[rows[:, 2]]
+            ctt = sr.corrected_travel_time[rows[:, 2]]
 
-            med_idx = np.argwhere(ott == np.quantile(ott, 0.5, interpolation='nearest'))[0][0]
+            med_idx = np.argwhere(ctt == np.quantile(ctt, 0.5, interpolation='nearest'))[0][0]
 
             src_block, sta_block, g_med_idx = rows[med_idx, :]
             tup = (src_block, sta_block, sr.residual[g_med_idx], sr.eorigin_ts[g_med_idx],
                    sr.elons[g_med_idx], sr.elats[g_med_idx], sr.edepths_km[g_med_idx],
                    sr.slons[g_med_idx], sr.slats[g_med_idx], sr.selevs_km[g_med_idx],
-                   (sr.arrivals['arrival_ts'][g_med_idx] - sr.eorigin_ts[g_med_idx] - sr.tcorr[g_med_idx]),
+                   sr.corrected_travel_time[g_med_idx],
                    sr.ecdists[g_med_idx], sr.arrivals['phase'][g_med_idx],
                    1 if sr.is_P[g_med_idx] else 2)
 
@@ -126,7 +126,7 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
     # 1. arrival is part of an event marked as being of
     #    good quality
     # 2. its residual lies within cutoff value
-    # 3. if an automatic arrival, it should meed the
+    # 3. if an automatic arrival, it should meet the
     #    slope-ratio criteria
     # 4. its phase must belong to the set of phases being
     #    used for clustering
