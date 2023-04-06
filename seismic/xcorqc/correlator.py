@@ -577,7 +577,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
 
         read_ahead_window_seconds = window_seconds * (1 - window_overlap) * read_ahead_windows + \
                                     window_seconds * window_buffer_length * 2 + \
-                                    window_overlap * window_seconds
+                                    window_overlap * window_seconds * 2
         interval_seconds = read_ahead_window_seconds
         apply_stacking = False
         #print(read_ahead_window_seconds)

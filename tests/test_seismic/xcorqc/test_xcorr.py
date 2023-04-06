@@ -124,6 +124,93 @@ def generate_test_data(data_length_seconds:int,
     return tr1, tr2
 # end func
 
+def test_window_counts():
+    """
+    Tests whether interval/window counts, with stacking disabled, are as expected
+    """
+
+    def expected_lines_iter():
+        path = os.path.dirname(os.path.abspath(__file__))
+        efn = os.path.join(path, 'data/expected/window_counts.txt')
+        elines = open(efn, 'r').readlines()
+        for eline in elines:
+            yield eline
+        # end for
+    # end for
+    elines = expected_lines_iter()
+
+    DATA_LEN = [86400, 172800] # 1, 2 days
+    WINDOW_SECONDS = [3600, 7200] # 1, 2 hrs
+    READ_AHEAD_WINDOWS = [5, 10]
+    OVERLAP = [0, 0.1, 0.75] # 0, 10, 75 %
+    WINDOW_BUFFER_LENGTH = [0.1, 0.2] # 10, 20 %, at each end
+    START_TIME_DELTAS = [[0, 0], [-200, 0], [0, -200],
+                         [100, 200]]
+
+    output_path = str(tempfile.mkdtemp(suffix='_test'))
+    #output_path = '/tmp/'
+
+    ofn = os.path.join(output_path, 'window_counts.txt')
+    ofh = open(ofn, 'w+')
+    all_output = []
+    i = 1
+    for dlen, raw, wsec, olap, wbl, delta in itertools.product(DATA_LEN,
+                                                               READ_AHEAD_WINDOWS,
+                                                               WINDOW_SECONDS,
+                                                               OVERLAP,
+                                                               WINDOW_BUFFER_LENGTH,
+                                                               START_TIME_DELTAS):
+        olines = []
+        tr1, tr2 = generate_test_data(dlen,
+                                      UTCDateTime(0)+delta[0],
+                                      UTCDateTime(0)+delta[0])
+
+        isec = wsec * (1 - olap) * raw + wsec * wbl * 2 + olap * wsec * 2
+
+        xcorr, winPerInterval, \
+        iStart, iEnd, wStart, \
+        wEnd, sr = xcorr2(tr1,
+                          tr2,
+                          window_seconds=wsec,
+                          interval_seconds=isec,
+                          window_overlap=olap,
+                          window_buffer_length=wbl,
+                          apply_stacking=True)
+
+        olines.append("============[test: {}]============\n".format(i))
+        olines.append('Params: raw: {}, wsec: {}, olap: {}, wbl: {}\n'.format(raw, wsec, olap, wbl))
+        olines.append('X-corr shape: {}\n'.format(xcorr.shape))
+        olines.append('Windows per interval: {}\n'.format(winPerInterval))
+        olines.append("Interval start- and end-times:\n".format(i))
+        for s, e in zip(iStart, iEnd):
+            olines.append('{} - {}\n'.format(UTCDateTime(s + tr1.stats.starttime.timestamp),
+                                             UTCDateTime(e + tr1.stats.starttime.timestamp)))
+        olines.append('\n')
+        olines.append("Window start- and end-times:\n".format(i))
+        for s, e in zip(wStart, wEnd):
+            olines.append('{} - {}\n'.format(UTCDateTime(s + tr1.stats.starttime.timestamp),
+                                             UTCDateTime(e + tr1.stats.starttime.timestamp)))
+        olines.append('\n')
+
+        for oline in olines: all_output.append(oline)
+
+        if(1):
+            for oline in olines:
+                eline = next(elines)
+
+                if(oline != eline):
+                    assert 0, 'Output: {} does not match expected: {}'.format(oline, eline)
+                # end if
+            # end for
+        # end if
+
+        i += 1
+    # end for
+
+    for line in all_output: ofh.write(line)
+    ofh.close()
+# end func
+
 def test_stacking_window_counts():
     """
     Tests whether interval/window counts are as expected
@@ -131,7 +218,7 @@ def test_stacking_window_counts():
 
     def expected_lines_iter():
         path = os.path.dirname(os.path.abspath(__file__))
-        efn = os.path.join(path, 'data/expected/window_counts.txt')
+        efn = os.path.join(path, 'data/expected/window_counts_stacked.txt')
         elines = open(efn, 'r').readlines()
         for eline in elines:
             yield eline
@@ -150,7 +237,7 @@ def test_stacking_window_counts():
     output_path = str(tempfile.mkdtemp(suffix='_test'))
     #output_path = '/tmp/'
 
-    ofn = os.path.join(output_path, 'window_counts.txt')
+    ofn = os.path.join(output_path, 'window_counts_stacked.txt')
     ofh = open(ofn, 'w+')
     all_output = []
     i = 1
@@ -190,16 +277,17 @@ def test_stacking_window_counts():
                                              UTCDateTime(e + tr1.stats.starttime.timestamp)))
         olines.append('\n')
 
-        for oline in olines:
-            eline = next(elines)
+        for oline in olines: all_output.append(oline)
 
-            if(oline != eline):
-                #pass
-                assert 0, 'Output: {} does not match expected: {}'.format(oline, eline)
-            # end if
+        if(1):
+            for oline in olines:
+                eline = next(elines)
 
-            all_output.append(oline)
-        # end for
+                if(oline != eline):
+                    assert 0, 'Output: {} does not match expected: {}'.format(oline, eline)
+                # end if
+            # end for
+        # end if
 
         i += 1
     # end for
@@ -207,6 +295,7 @@ def test_stacking_window_counts():
     for line in all_output: ofh.write(line)
     ofh.close()
 # end func
+
 
 if __name__=="__main__":
     test_stacking_window_counts()

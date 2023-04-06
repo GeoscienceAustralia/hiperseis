@@ -49,7 +49,7 @@ The input parameters above dictate the following:
 ## Default Mode
 In the default mode (without interval-stacking),  
 
-DRS = WS * (1 - OLAP) * RAW + WS * WBL * 2 + OLAP * WS
+DRS = WS * (1 - OLAP) * RAW + WS * WBL * 2 + OLAP * WS * 2
 
 A table showing example parameterizations and their implications is as follows:
 
