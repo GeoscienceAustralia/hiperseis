@@ -53,10 +53,10 @@ DRS = WS * (1 - OLAP) * RAW + WS * WBL * 2 + OLAP * WS * 2
 
 A table showing example parameterizations and their implications is as follows:
 
-| WS   | OLAP | WBL | RAW | DRS |
-------|------|-----|-----|-----|
-| 3600 | 0.1  | 0.2 | 3   |  11520|
-| 3600 | 0.1  | 0.1 | 24   | 78840 |
+| WS   | OLAP | WBL | RAW | DRS      |
+------|------|-----|-----|----------|
+| 3600 | 0.1  | 0.2 | 3   | 11880    |
+| 3600 | 0.1  | 0.1 | 24   | 79200  |
 
 Typically, on a Lustre filesystem, the value of DRS should amount to a couple of days (e.g. in 
 the second row above) to help improve IO efficiency. Note that this rule of thumb also applies 
