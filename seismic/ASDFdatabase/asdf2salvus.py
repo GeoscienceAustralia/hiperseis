@@ -18,6 +18,7 @@ import os, shutil
 from collections import defaultdict
 import numpy as np
 from obspy import Stream, UTCDateTime, read_inventory, Inventory
+from obspy.clients.fdsn.client import Client
 import pyasdf
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 import click
@@ -140,7 +141,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
             lambda: defaultdict(lambda: defaultdict(list))))
 
         for irow, row in enumerate(rows):
-            net, sta, loc, cha, lon, lat, elev = row
+            net, sta, loc, cha, _, _, _ = row
 
             if (cha[0] == 'S' and not include_sband): continue
             if (not is_preferred_component(cha)): continue
@@ -178,7 +179,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
         # sanity checks
         for nk, nv in itype_dict.items():
             for sk, sv in itype_dict[nk].items():
-                assert len(itype_dict[nk][sk]) == 1, 'Failed to remove multiple location codes ' \
+                assert len(itype_dict[nk][sk]) <= 1, 'Failed to remove multiple location codes ' \
                                                      'found for station {}.{}:{}'.format(nk, sk,
                                                                                          itype_dict[nk][sk].keys())
             # end for
@@ -258,6 +259,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     rows = fds.get_stations(st, et)
     rows = filter_channels_locations(rows) # filter out unwanted channels and band-codes
 
+    data_added_set = set()
     receivers_dict = defaultdict(dict)
     pbar = tqdm(total=len(rows), desc=ename)
     for row in rows:
@@ -305,6 +307,8 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                              "longitude": lon,
                              "station_code": sta,
                              "fields": [receiver_fields]}}
+
+                    data_added_set.add(seed_id)
                 except Exception as e:
                     print('Failed to add inventory/waveform with error: {}. Moving along..'.format(str(e)))
                 # end try
@@ -315,8 +319,118 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     # end for
     pbar.close()
 
+    ###############################################################
+    # Now download additional data from IRIS
+    ###############################################################
+    client = Client("IRIS")
+    for net in inventory.networks:
+        for sta in net.stations:
+            netsta = '{}.{}'.format(net.code, sta.code)
+
+            already_added = False
+            for seed_id in data_added_set:
+                if (netsta in seed_id):
+                    already_added = True
+                    break
+                # end if
+            # end for
+            if(already_added): continue
+
+            stream = []
+            try:
+                stream = client.get_waveforms(net.code, sta.code, '*', 'BH?,HH?', st, et)
+            except:
+                pass
+            # end try
+
+            if (len(stream)):
+
+                rows = []
+                for tr in stream: rows.append([tr.stats.network,
+                                               tr.stats.station,
+                                               tr.stats.location,
+                                               tr.stats.channel,
+                                               None, None, None])
+                rows = filter_channels_locations(rows)
+
+                for row in rows:
+                    tr = stream.select(network=row[0],
+                                       station=row[1],
+                                       location=row[2],
+                                       channel=row[3])
+                    tr = tr[0]
+                    print('print adding trace: {}'.format(tr.id))
+
+                    resp = None
+                    try:
+                        resp = inventory.get_response(tr.id, tr.stats.starttime)
+                    except Exception as e:
+                        continue
+                    # end try
+
+                    if(resp):
+                        try:
+                            oinv = inventory.select(network=tr.stats.network,
+                                                    station=tr.stats.station,
+                                                    location=tr.stats.location,
+                                                    channel=tr.stats.channel)
+                            oinv = remove_comments(oinv)
+                            ods.add_stationxml(oinv)
+
+                            ods.add_waveforms(tr, tag)
+
+                            receivers_dict['{}.{}.{}'.format(tr.stats.network,
+                                                             tr.stats.station,
+                                                             tr.stats.location)] = \
+                                {"class_name": "salvus.flow.simple_config.receiver.seismology.SideSetPoint3D",
+                                 "salvus_version": "0.12.8",
+                                 "arguments": {
+                                     "depth_in_m": 0.0,
+                                     "radius_of_sphere_in_m": 6371000.0,
+                                     "network_code": tr.stats.network,
+                                     "location_code": tr.stats.location,
+                                     "side_set_name": "r1",
+                                     "latitude": sta.latitude,
+                                     "longitude": sta.longitude,
+                                     "station_code": tr.stats.station,
+                                     "fields": [receiver_fields]}}
+
+                            data_added_set.add(tr.id)
+                        except Exception as e:
+                            print('Failed to add inventory/waveform with error: {}. Moving along..'.format(str(e)))
+                        # end try
+                    # end if
+                # end for
+                #if (DEBUG): break
+            # end if
+        # end for
+    # end for
+
     json.dump(receivers_dict, open(receivers_ofn, 'w+'), indent=4)
     del ods
+# end func
+
+def trim_inventory(inv:Inventory, dom:Domain):
+    netsta = []
+
+    for net in inv.networks:
+        for sta in net.stations:
+            if(dom.contains(sta.longitude, sta.latitude)):
+                netsta.append([net.code, sta.code])
+            # end if
+        # end for
+    # end for
+
+    newInv = None
+    for ns in netsta:
+        if(newInv is None):
+            newInv = inv.select(network=ns[0], station=ns[1])
+        else:
+            newInv += inv.select(network=ns[0], station=ns[1])
+        # emd if
+    # end for
+
+    return newInv
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -327,7 +441,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('salvus-events-file', required=True,
                 type=click.Path(exists=True))
-@click.argument('response-stationxml', required=True,
+@click.argument('iris_inventory', required=True,
                 type=click.Path(exists=True))
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
@@ -340,13 +454,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--receiver-fields', type=str, default='displacement', show_default=True,
               help="Name of data folder within Salvus' expected folder hierarchy")
 def process(asdf_source, salvus_domain_file, salvus_events_file,
-            response_stationxml, output_folder,
+            iris_inventory, output_folder,
             seconds_before, seconds_after, data_name, receiver_fields):
     """
     ASDF_SOURCE: Path to text file containing paths to ASDF files\n
-    SALVUS_DOMAIN_FILE: Path to Salvus domain file in json format
-    SALVUS_EVENTS_FILE: Path to Salvus events file in json format
-    RESPONSE_STATIONXML: Path to stationXML file containing instrument responses
+    SALVUS_DOMAIN_FILE: Path to Salvus domain file in json format\n
+    SALVUS_EVENTS_FILE: Path to Salvus events file in json format\n
+    IRIS_INVENTORY: Path to complete channel-level IRIS inventory, containing instrument responses\n
     OUTPUT_FOLDER: Output folder \n
 
     """
@@ -380,12 +494,15 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     # end try
 
     try:
-        print('Reading inventory file with responses: {}'.format(response_stationxml))
-        inv = read_inventory(response_stationxml)
+        print('Reading inventory file with responses: {}'.format(iris_inventory))
+        inv = read_inventory(iris_inventory)
     except Exception as e:
         print(str(e))
-        assert 0, 'Failed to read inventory file: {}'.format(response_stationxml)
+        assert 0, 'Failed to read inventory file: {}'.format(iris_inventory)
     # end try
+
+    # trim inventory by Domain
+    inv = trim_inventory(inv, dom)
 
     # extract data for all events
     for ek, e in tqdm(events.items(), desc='Events: '):
@@ -394,7 +511,6 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
                                seconds_before, seconds_after)
         #if DEBUG: break
     # end for
-
 
     # copy salvus-events to output folder
     shutil.copyfile(salvus_events_file, os.path.join(output_folder, 'EVENTS/event_store.json'))
