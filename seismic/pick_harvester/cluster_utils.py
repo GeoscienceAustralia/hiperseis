@@ -49,13 +49,12 @@ class Grid:
                                       self.depth_km_list[1:]]).T
         self.nd = len(self.depth_km_list)
         self.ncells = (self.nx - 1) * (self.ny - 1) * (self.nd - 1)
-        # end func
+    # end func
 
     def _is_within_grid(self, lon, colat, depth_km):
         return (lon >= self.min_lon) & (lon <= self.max_lon) & \
                (colat >= self.min_colat) & (colat <= self.max_colat) & \
                (depth_km >= self.depth_km_list[0]) & (depth_km <= self.depth_km_list[-1])
-
     # end func
 
     def get_block_index(self, lon, colat, depth_km):
@@ -81,8 +80,8 @@ class Grid:
 
             return bidx
         # end if
-        return -1
 
+        return -1
     # end func
 
     def __str__(self):
@@ -131,7 +130,6 @@ class NestedGrid:
                                                                       traceback.format_exc()))
             raise RuntimeError
         # end try
-
     # end func
 
     def get_block_index(self, lon, colat, depth_km):
@@ -141,7 +139,10 @@ class NestedGrid:
         # end if
 
         return bidx
+    # end func
 
+    def is_inner_block(self, block_index:int):
+        return block_index <= self.og.block_index_offset
     # end func
 
     def __str__(self):

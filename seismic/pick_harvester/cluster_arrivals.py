@@ -64,7 +64,10 @@ def get_station_block_indices(ng:NestedGrid, sr:SSST_Result, imask):
 
 def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             p_residual_cutoff=5., s_residual_cutoff=10.,
-            min_slope_ratio=5, only_paired_s=False):
+            min_slope_ratio=5,
+            outer_grid_min_rays=10,
+            inner_grid_min_rays=3,
+            only_paired_s=False):
 
     def cluster_helper(c_imask):
         source_block = get_source_block_indices(ng, sr, c_imask)
@@ -72,20 +75,28 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
 
         cdict = defaultdict(list)
         indices = np.arange(len(sr.arrivals))
-        for i, j, idx in tqdm(zip(source_block, station_block, indices[c_imask])):
-            cdict[(i, j)].append([i, j, idx])
+        for i, j, idx in zip(source_block, station_block, indices[c_imask]):
+            cdict[(i, j)].append(idx)
         # end for
 
         # convert dict-entries to numpy arrays
-        for k in tqdm(cdict.keys()): cdict[k] = np.array(cdict[k])
+        for k in cdict.keys(): cdict[k] = np.array(cdict[k])
 
         result = []
-        for k, rows in tqdm(cdict.items()):
-            ctt = sr.corrected_travel_time[rows[:, 2]]
+        for k, indices in tqdm(cdict.items()):
+            src_block, sta_block = k
+            ctt = sr.corrected_travel_time[indices]
+
+            min_rays = inner_grid_min_rays
+            if((not ng.is_inner_block(src_block)) and (not ng.is_inner_block(sta_block))):
+                min_rays = outer_grid_min_rays
+            # end if
+
+            if(len(ctt) < min_rays): continue # must have at least minimum number of rays
 
             med_idx = np.argwhere(ctt == np.quantile(ctt, 0.5, interpolation='nearest'))[0][0]
 
-            src_block, sta_block, g_med_idx = rows[med_idx, :]
+            g_med_idx = indices[med_idx]
             tup = (src_block, sta_block, sr.residual[g_med_idx], sr.eorigin_ts[g_med_idx],
                    sr.elons[g_med_idx], sr.elats[g_med_idx], sr.edepths_km[g_med_idx],
                    sr.slons[g_med_idx], sr.slats[g_med_idx], sr.selevs_km[g_med_idx],
@@ -193,12 +204,22 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--inner-depth-refinement-factor', default=1, help='Depth-refinement factor for inner grid. '
                                                                  'Must be a power of 2.',
               show_default=True)
+@click.option('--outer-grid-min-rays', default=10,
+              help='Minimum number of rays that a source-station cell-pair, within the outer grid, '
+                   'must have to participate in the clustering process.',
+              show_default=True)
+@click.option('--inner-grid-min-rays', default=3,
+              help='Minimum number of rays that a source-station cell-pair, with either the source-cell '
+                   'or the station-cell within the inner grid, must have to participate in the '
+                   'clustering process.',
+              show_default=True)
 @click.option('--only-paired-s', default=False, is_flag=True, help='S arrivals not accompanied by corresponding P '
                                                                    'arrivals are dropped before clustering.',
               show_default=True)
 def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
             p_residual_cutoff, s_residual_cutoff,
-            outer_depth_refinement_factor, inner_depth_refinement_factor, only_paired_s):
+            outer_depth_refinement_factor, inner_depth_refinement_factor,
+            outer_grid_min_rays, inner_grid_min_rays, only_paired_s):
     """
     INPUT_H5: hdf5 input (output of ssst_relocate.py)
     PARAM_FN: Grid parameterization file
@@ -224,6 +245,8 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
     print('Clustering arrivals..')
     cp, cs = cluster(ng, sr, phases, p_residual_cutoff=p_residual_cutoff,
                      s_residual_cutoff=s_residual_cutoff, min_slope_ratio=min_slope_ratio,
+                     outer_grid_min_rays=outer_grid_min_rays,
+                     inner_grid_min_rays=inner_grid_min_rays,
                      only_paired_s=only_paired_s)
 
     print('Generating diagnostic plots after clustering..')
