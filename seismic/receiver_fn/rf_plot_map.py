@@ -144,7 +144,7 @@ def plot_topo(coords, topo_grid, cpt_file):
                 lon_0=lon_0, lat_0=lat_0, \
                 llcrnrlon=lon_min,llcrnrlat=lat_min, \
                 urcrnrlon=lon_max,urcrnrlat=lat_max,\
-                rsphere=6371200.,resolution='h')
+                rsphere=6371200.,resolution='i')
     
     try:
         m.drawcoastlines()
@@ -225,7 +225,7 @@ def plot_grav(coords, grav_grid, cpt_file, resolution=1):
                 lon_0=lon_0, lat_0=lat_0, \
                 llcrnrlon=lon_min,llcrnrlat=lat_min, \
                 urcrnrlon=lon_max,urcrnrlat=lat_max,\
-                rsphere=6371200.,resolution='h')
+                rsphere=6371200.,resolution='i')
 
     try:
         m.drawcoastlines()

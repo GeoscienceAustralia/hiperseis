@@ -67,7 +67,7 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             min_slope_ratio=5,
             outer_grid_min_rays=10,
             inner_grid_min_rays=3,
-            only_paired_s=False):
+            match_p_s=False):
 
     def cluster_helper(c_imask):
         source_block = get_source_block_indices(ng, sr, c_imask)
@@ -114,12 +114,6 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
         return result
     # end func
 
-    paired_S = None
-    if(only_paired_s):
-        print('Finding paired S arrivals..')
-        paired_S = sr.find_paired_S()
-    # end if
-
     cutoff = np.zeros(len(sr.arrivals))
     cutoff[sr.is_P] = p_residual_cutoff
     cutoff[sr.is_S] = s_residual_cutoff
@@ -152,8 +146,43 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
     cp = cluster_helper(imask & sr.is_P)
 
     print('Clustering S phases..')
-    s_imask = paired_S if paired_S else sr.is_S
-    cs = cluster_helper(imask & s_imask)
+    cs = cluster_helper(imask & sr.is_S)
+
+    if(match_p_s):
+        def filter_record_arrays(from_array: np.ndarray, ref_array: np.ndarray):
+            """
+            Drops entries from 'from_array' where the source-station cell-pair is
+            not found in 'ref_array'.
+            @param from_array:
+            @param ref_array:
+            @return: Trimmed version of 'from_array'
+            """
+            rset = set()
+            for i in np.arange(len(ref_array)):
+                rset.add((ref_array['source_block'][i], ref_array['station_block'][i]))
+            # end for
+
+            rows = []
+            for i in np.arange(len(from_array)):
+                if((from_array['source_block'][i], from_array['station_block'][i]) in rset):
+                    rows.append(from_array[i])
+                # end if
+            # end for
+
+            result_array = np.zeros(len(rows), dtype=from_array.dtype)
+            for i, row in enumerate(rows):
+                result_array[i] = np.array(row, dtype=from_array.dtype)
+            # end for
+
+            return result_array
+        # end func
+
+        # drop P arrivals if S arrivals are not found in corresponding source-station cell-pair
+        cp = filter_record_arrays(cp, cs)
+
+        # drop S arrivals if P arrivals are not found in corresponding source-station cell-pair
+        cs = filter_record_arrays(cs, cp)
+    # end if
 
     return cp, cs
 # end func
@@ -213,13 +242,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'or the station-cell within the inner grid, must have to participate in the '
                    'clustering process.',
               show_default=True)
-@click.option('--only-paired-s', default=False, is_flag=True, help='S arrivals not accompanied by corresponding P '
-                                                                   'arrivals are dropped before clustering.',
+@click.option('--match-p-s', default=False, is_flag=True,
+              help='After the clustering step, S arrivals not accompanied by corresponding P arrivals '
+                   '(matched by cell-ids) are dropped.',
               show_default=True)
 def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
             p_residual_cutoff, s_residual_cutoff,
             outer_depth_refinement_factor, inner_depth_refinement_factor,
-            outer_grid_min_rays, inner_grid_min_rays, only_paired_s):
+            outer_grid_min_rays, inner_grid_min_rays, match_p_s):
     """
     INPUT_H5: hdf5 input (output of ssst_relocate.py)
     PARAM_FN: Grid parameterization file
@@ -247,7 +277,7 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
                      s_residual_cutoff=s_residual_cutoff, min_slope_ratio=min_slope_ratio,
                      outer_grid_min_rays=outer_grid_min_rays,
                      inner_grid_min_rays=inner_grid_min_rays,
-                     only_paired_s=only_paired_s)
+                     match_p_s=match_p_s)
 
     print('Generating diagnostic plots after clustering..')
     plot_after_cluster(cp, cs, ng, pdf)
