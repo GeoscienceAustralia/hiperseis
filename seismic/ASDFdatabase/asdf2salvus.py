@@ -26,7 +26,7 @@ from shapely.geometry.polygon import Polygon, Point
 from tqdm import tqdm
 import json
 
-class Domain():
+class StandardDomain():
     def __init__(self, domain_json_file:str):
         dom = json.load(open(domain_json_file, 'r'))
         lat_center, lat_extent, lon_center, lon_extent = \
@@ -43,6 +43,21 @@ class Domain():
                   ((c[0] + e[0]), c[1] - e[1]),
                   ((c[0] + e[0]), c[1] + e[1]))
         self.coords = np.array(coords)
+        self.bounding_polygon = Polygon(coords)
+    # end func
+
+    def contains(self, lon:float, lat:float):
+        p = Point((lon, lat))
+
+        return self.bounding_polygon.contains(p)
+    # end func
+# end class
+
+class Domain():
+    def __init__(self, domain_json_file:str):
+        dom = json.load(open(domain_json_file, 'r'))
+
+        coords = dom['features'][0]['geometry']['coordinates'][0]
         self.bounding_polygon = Polygon(coords)
     # end func
 
@@ -73,6 +88,9 @@ def get_validated_waveform(fds: FederatedASDFDataSet,
     if (len(stream) > 1):
         stream = Stream([])
         return stream
+    elif((stream[0].stats.endtime - stream[0].stats.starttime) < (et - st)):
+        stream = Stream([])
+        return stream
     # end if
 
     if any(isinstance(tr.data, np.ma.masked_array) for tr in stream):
@@ -91,7 +109,7 @@ def get_validated_waveform(fds: FederatedASDFDataSet,
         # end func
 
         if (has_masked_values(stream)):
-            pass
+            stream = Stream([])
         else:
             for tr in stream: tr.data = np.array(tr.data)
         # end if
@@ -359,7 +377,8 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                                        location=row[2],
                                        channel=row[3])
                     tr = tr[0]
-                    print('print adding trace: {}'.format(tr.id))
+                    if((tr.stats.endtime - tr.stats.starttime) < (et - st)): continue
+                    print('Adding trace: {}'.format(tr.id))
 
                     resp = None
                     try:
