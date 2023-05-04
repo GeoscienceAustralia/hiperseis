@@ -203,10 +203,6 @@ class Migrate:
                                     has_reverberations]
         # end for
 
-        if(not len(self._p_traces)):
-            return
-        # end if
-
         # compute instantaneous phases
         self._iphase_traces = self._p_traces.copy()
         for t in self._iphase_traces:
@@ -220,7 +216,7 @@ class Migrate:
         taup_model = TauPyModel(model=model)
         vmodel = taup_model.model.s_mod.v_mod
 
-        point_data_array = None
+        point_data_array = []
         for it, (t, ipt) in enumerate(zip(self._p_traces, self._iphase_traces)):
             arrivals = taup_model.get_ray_paths_geo(source_depth_in_km=t.stats.event_depth,
                                                     source_latitude_in_deg=t.stats.event_latitude,
@@ -250,7 +246,7 @@ class Migrate:
             t2zio  = interp1d(times, xyzs[:,2])
 
             #===============================================================
-            # Create a depth-to-time interpolant as expelined here:
+            # Create a depth-to-time interpolant as explained here:
             # https://stackoverflow.com/questions/47275957/invert-interpolation-to-give-the-variable-associated-with-a-desired-interpolatio
             #===============================================================
             tck = splrep(times, depths, k=3, s=0)
@@ -297,7 +293,7 @@ class Migrate:
             t2icio = interp1d(ipt.times(), np.imag(ipt.data), bounds_error=False, fill_value=0)
 
             # array to store values for all station traces to be written to an HDF5 file
-            if(point_data_array is None):
+            if(len(point_data_array) == 0):
                 point_data_array = np.zeros((len(self._p_traces), NZ, 7))
             # end if
 
@@ -322,26 +318,25 @@ class Migrate:
         # serialize writing of rf_streams to disk
         for irank in np.arange(self._nproc):
             if(irank == self._rank):
-                    if(len(point_data_array)):
-                        point_data_array = point_data_array.reshape(-1, point_data_array.shape[-1])
+                if(len(point_data_array)):
+                    point_data_array = point_data_array.reshape(-1, point_data_array.shape[-1])
 
-                        if(self._logger): self._logger.info('rank {}: saving migrated volume.. '.format(self._rank))
+                    if(self._logger): self._logger.info('rank {}: saving migrated volume.. '.format(self._rank))
 
-                        hf = h5py.File(output_file, 'a')
-                        dset = hf.create_dataset("%d"%(irank), point_data_array.shape, dtype=point_data_array.dtype)
-                        dset[:] = point_data_array
+                    hf = h5py.File(output_file, 'a')
+                    dset = hf.create_dataset("%d"%(irank), point_data_array.shape, dtype=point_data_array.dtype)
+                    dset[:] = point_data_array
 
-                        for skey in self._stations.keys():
-                            dset.attrs[skey] = self._stations[skey]
-                        # end for
+                    for skey in self._stations.keys():
+                        dset.attrs[skey] = self._stations[skey]
+                    # end for
 
-                        # add common metadata on rank 0
-                        if(self._rank == 0):
-                            hf.attrs['earth_radius'] = self._earth_radius
-                        # end for
+                    # add common metadata on rank 0
+                    if(self._rank == 0):
+                        hf.attrs['earth_radius'] = self._earth_radius
+                    # end for
 
-                        hf.close()
-                    # end if
+                    hf.close()
                 # end if
             # end if
             self._comm.Barrier()
