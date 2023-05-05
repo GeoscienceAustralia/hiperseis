@@ -46,7 +46,10 @@ def read_profile_def(fname, ccpVolume, type):
             start, end = [item.strip() for item in line.split('-')]
             for item in [start, end]:
                 if (item not in ccpVolume._meta.keys()):
-                    raise ValueError('{} not found in {}. Aborting..'.format(item, ccpVolume._fn))
+                    raise ValueError('{} not found in {}. '
+                                     'Available stations are: {}. '
+                                     'Aborting..'.format(item, ccpVolume._fn_list,
+                                                         list(ccpVolume._meta.keys())))
                 # end if
             # end for
         except Exception as e:
@@ -146,7 +149,7 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
              extend, cell_radius, idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist,
              output_folder, output_format, plot_aspect):
     """ Plot CCP vertical profile \n
-    CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
+    CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py) or a text file containing paths to CCP volumes in H5 format. The latter is useful for generating profiles spanning multiple neighboring networks \n
     PROFILE_DEF: text file containing start and end locations of each vertical profile as\n
                  NET.STA.LOC-NET.STA.LOC in each line\n\n
 
@@ -154,6 +157,9 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
         python plot_ccp.py vertical OA_ccp_volume.h5 slice_def.txt\n
     """
     log.setLevel(logging.DEBUG)
+
+    # create output folder if necessary
+    if not os.path.exists(output_folder): os.makedirs(output_folder)
 
     # sanity checks
     if (mt_sgrid and not mt_utm_zone): assert 0, 'UTM zone for {} not specified. ' \
@@ -295,7 +301,7 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
 def depth(ccp_h5_volume, profile_def, mt_sgrid, mt_utm_zone, dx, dy, dz, extend, cell_radius,
           idw_exponent, pw_exponent, amplitude_min, amplitude_max, output_folder, output_format):
     """ Plot CCP depth profile \n
-    CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py)\n
+    CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py) or a text file containing paths to CCP volumes in H5 format. The latter is useful for generating profiles spanning multiple neighboring networks \n
     PROFILE_DEF: text file containing start and end locations, defining the rectangular region spanned by each
                  depth profile, in the first line as NET.STA.LOC-NET.STA.LOC, followed by depth(s) (km) in
                  subsequent lines \n\n
@@ -304,6 +310,9 @@ def depth(ccp_h5_volume, profile_def, mt_sgrid, mt_utm_zone, dx, dy, dz, extend,
         python plot_ccp.py depth OA_ccp_volume.h5 slice_def.txt\n
     """
     log.setLevel(logging.DEBUG)
+
+    # create output folder if necessary
+    if not os.path.exists(output_folder): os.makedirs(output_folder)
 
     # sanity checks
     if (mt_sgrid and not mt_utm_zone): assert 0, 'UTM zone for {} not specified. ' \

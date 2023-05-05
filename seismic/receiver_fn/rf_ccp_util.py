@@ -349,44 +349,63 @@ class Migrate:
 
 class CCPVolume():
     def __init__(self, fn):
-        self._fn = fn
+        def get_volume_filenames(input_string):
+            vfns = []
+            if(not h5py.is_hdf5(input_string)):
+                for iline, line in enumerate(open(input_string, 'r').readlines()):
+                    line = line.strip()
+                    if(len(line)): vfns.append(line)
+                # end for
+            else:
+                vfns.append(input_string)
+            # end if
+
+            for fn in vfns:
+                assert h5py.is_hdf5(fn), 'Invalid H5 file: {}. Aborting..'.format(fn)
+            # end for
+
+            return vfns
+        # end func
+
+        self._fn_list = get_volume_filenames(fn)
         self._meta = defaultdict(list)
         self._earth_radius = None
-        self._data = None
+        self._data = []
         self._tree = None
 
-        hf = None
-        try:
-            hf = h5py.File(self._fn, 'r')
-        except Exception as e:
-            print(str(e))
+        for fn in self._fn_list:
+            hf = None
+            try:
+                hf = h5py.File(fn, 'r')
+            except Exception as e:
+                print(str(e))
 
-            assert 0, 'Failed to load {}. Aborting..'.format(self._fn)
-        # end try
+                assert 0, 'Failed to load {}. Aborting..'.format(fn)
+            # end try
 
-        # read metadata
-        for k in hf.attrs.keys():
-            if (k == 'earth_radius'):
-                self._earth_radius = hf.attrs[k]
-        # end for
-
-        # read station metadata
-        for dk in hf.keys():
-            for sk in hf[dk].attrs.keys():
-                self._meta[sk] = hf[dk].attrs[sk] # station -> lon, lat, elevation, hasReverberations
+            # read metadata
+            for k in hf.attrs.keys():
+                if (k == 'earth_radius'):
+                    self._earth_radius = hf.attrs[k]
             # end for
+
+            # read station metadata
+            for dk in hf.keys():
+                for sk in hf[dk].attrs.keys():
+                    self._meta[sk] = hf[dk].attrs[sk] # station -> lon, lat, elevation, hasReverberations
+                # end for
+            # end for
+
+            # read ccp volume
+            for k in hf.keys():
+                self._data.append(np.array(hf[k]))
+            # end for
+
+            hf.close()
         # end for
 
-        # read ccp volume
-        self._data = []
-        for k in hf.keys():
-            self._data.append(np.array(hf[k]))
-        # end for
         self._data = np.vstack(self._data)
-
         self._tree = cKDTree(self._data[:, :3], balanced_tree=False)
-
-        hf.close()
     # end func
 # end class
 
