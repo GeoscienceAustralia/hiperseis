@@ -22,6 +22,9 @@ conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linu
 echo "==== Activating conda environment ===="
 conda activate $1
 
+echo "==== Installing gdal ===="
+conda install -n $1 gdal
+
 echo "==== Installing packages not available through conda ===="
 gfortran=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gfortran;
 gcc=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc

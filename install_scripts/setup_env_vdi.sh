@@ -51,8 +51,21 @@ python3.7 -m pip install numpy==1.18.5
 echo "================ Installing cython 0.29.22 ================"
 python3.7 -m pip install cython==0.29.22
 
-echo "================ Installing h5py 3.1.0 ================"
-python3.7 -m pip install h5py==3.1.0
+if [ 1 -eq 1 ]
+then
+    echo "================ Building parallel h5py against module hdf5/1.10.5p ================"
+    echo "=== Fetching a version of h5py, tweaked for Gadi ==="
+    # create src folder, remove 'h5py' if it exists and cd into src
+    mkdir -p $ENV_DIR/src
+    rm -rf $ENV_DIR/src/h5py
+    cd $ENV_DIR/src
+
+    git clone --single-branch --branch 3.1.0-gadi-tweaks https://github.com/rh-downunder/h5py.git
+    cd h5py
+    echo "=== Compile and install h5py ==="
+    CC=mpicc HDF5_MPI="ON" HDF5_DIR=/apps/hdf5/1.10.5p/ python3 setup.py install
+    cd ../../
+fi
 
 if [ 1 -eq 1 ]
 then
