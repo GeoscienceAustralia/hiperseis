@@ -20,11 +20,14 @@ import numpy as np
 from obspy import Stream, UTCDateTime, read_inventory, Inventory
 from obspy.clients.fdsn.client import Client
 import pyasdf
+from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.ASDFdatabase._FederatedASDFDataSetImpl import split_list
 import click
 from shapely.geometry.polygon import Polygon, Point
 from tqdm import tqdm
 import json
+import tempfile
 
 class StandardDomain():
     def __init__(self, domain_json_file:str):
@@ -83,7 +86,13 @@ def get_validated_waveform(fds: FederatedASDFDataSet,
     # end if
 
     stream.trim(st, et)
-    stream.merge()
+
+    try:
+        stream.merge()
+    except:
+        stream = Stream([])
+        return stream
+    # end try
 
     if (len(stream) > 1):
         stream = Stream([])
@@ -268,7 +277,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     h5_ofn = os.path.join(h5_dir, 'receivers.h5')
     receivers_ofn = os.path.join(output_folder, 'EVENTS/{}/receivers.json'.format(ename))
 
-    ods = pyasdf.ASDFDataSet(h5_ofn, mode='w')
+    ods = pyasdf.ASDFDataSet(h5_ofn, mode='w', mpi=False)
 
     oinv = None
     otime = UTCDateTime(edict[0]['arguments']['reference_time_utc_string'])
@@ -356,7 +365,9 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
 
             stream = []
             try:
-                stream = client.get_waveforms(net.code, sta.code, '*', 'BH?,HH?', st, et)
+                stream = client.get_waveforms(net.code, sta.code, '*', 'BH?,HH?',
+                                              st-1, et+1)
+                stream.trim(st, et)
             except:
                 pass
             # end try
@@ -489,6 +500,10 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     events = None
     inv = None
 
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+
     try:
         fds = FederatedASDFDataSet(asdf_source)
     except Exception as e:
@@ -497,7 +512,7 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     # end try
 
     try:
-        print('Reading Salvus domain file: {}'.format(salvus_domain_file))
+        if(rank == 0): print('Reading Salvus domain file: {}'.format(salvus_domain_file))
         dom = Domain(salvus_domain_file)
     except Exception as e:
         print(str(e))
@@ -505,34 +520,54 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     # end try
 
     try:
-        print('Reading Salvus events file: {}'.format(salvus_events_file))
+        if(rank == 0): print('Reading Salvus events file: {}'.format(salvus_events_file))
         events = json.load(open(salvus_events_file, 'r'))
     except Exception as e:
         print(str(e))
         assert 0, 'Failed to load Salvus events file: {}'.format(salvus_events_file)
     # end try
 
-    try:
-        print('Reading inventory file with responses: {}'.format(iris_inventory))
-        inv = read_inventory(iris_inventory)
-    except Exception as e:
-        print(str(e))
-        assert 0, 'Failed to read inventory file: {}'.format(iris_inventory)
-    # end try
+    tempdir = None
+    trimmed_inventory_fn = None
+    if(rank == 0):
+        try:
+            print('Reading inventory file with responses: {}'.format(iris_inventory))
+            inv = read_inventory(iris_inventory)
+        except Exception as e:
+            print(str(e))
+            assert 0, 'Failed to read inventory file: {}'.format(iris_inventory)
+        # end try
 
-    # trim inventory by Domain
-    inv = trim_inventory(inv, dom)
+        # trim inventory by Domain
+        inv = trim_inventory(inv, dom)
+
+        # save trimmed inventory to a temp folder, so other ranks can load it
+        tempdir = tempfile.mkdtemp()
+
+        trimmed_inventory_fn = os.path.join(tempdir, 'trimmed_inventory.xml')
+        inv.write(trimmed_inventory_fn, format="STATIONXML")
+        print(trimmed_inventory_fn)
+    # end if
+    comm.barrier()
+
+    # Load trimmed inventory on all ranks
+    trimmed_inventory_fn = comm.bcast(trimmed_inventory_fn, root=0)
+    inv = read_inventory(trimmed_inventory_fn)
 
     # extract data for all events
-    for ek, e in tqdm(events.items(), desc='Events: '):
-        extract_data_for_event(fds, dom, {ek:e}, inv, output_folder, data_name,
+    proc_ekeys = split_list(list(events.keys()), nproc)[rank]
+    for ek in tqdm(proc_ekeys, desc='Rank: {}: Events: '.format(rank)):
+        extract_data_for_event(fds, dom, {ek:events[ek]}, inv, output_folder, data_name,
                                receiver_fields,
                                seconds_before, seconds_after)
         #if DEBUG: break
     # end for
 
-    # copy salvus-events to output folder
-    shutil.copyfile(salvus_events_file, os.path.join(output_folder, 'EVENTS/event_store.json'))
+    if(rank == 0):
+        # copy salvus-events to output folder
+        shutil.copyfile(salvus_events_file, os.path.join(output_folder, 'EVENTS/event_store.json'))
+        shutil.rmtree(tempdir)
+    # end if
 # end func
 
 if (__name__ == '__main__'):
