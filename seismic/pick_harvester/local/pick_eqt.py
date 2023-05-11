@@ -40,10 +40,11 @@ import matplotlib.pyplot as plt
 import keras
 from keras import backend as K
 from keras.models import load_model
-from keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 from EQTransformer.core.EqT_utils import f1, SeqSelfAttention, FeedForward, LayerNormalization
 from EQTransformer.core.mseed_predictor import _picker
+from collections import defaultdict
 
 logging.basicConfig()
 def setup_logger(name, log_file, level=logging.INFO):
@@ -352,14 +353,17 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             # end if
 
             # get streams
+            loc_pref_dict = defaultdict(lambda: None)
             nc, sc = netsta.split('.')
             stz, stn, ste = [], [], []
-            stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, logger=logger)
-            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, logger=logger)
-            if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, logger=logger)
+            stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
 
             if(len(ste)): # we have data in all three streams
                 processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args, output_path)
+            else:
+                print('No data found')
             # end if
 
             cTime += step
