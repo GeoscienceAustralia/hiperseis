@@ -191,5 +191,19 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
         tr.stats.update(metadata)
     # end for
 
+    # If traces are just one sample longer or shorter than the expected length
+    # pad with a zero at the end or remove last sample
+    # If lengths are wildly differnt than expected, trace will be dropped in rf_quality_filter.py
+    expected_length = (trim_end_time_sec - trim_start_time_sec) * resample_rate_hz
+    for tr in stream3c:
+        if tr.data.size == expected_length - 1:
+            tr.data = np.concatenate((tr.data, np.zeros(1)))
+        elif tr.data.size == expected_length + 1:
+            tr.data = tr.data[:-1]
+        elif tr.data.size == expected_length:
+            continue
+        else:
+            logger.warning("Unexpected length of trace {}".format(ev_id))
+
     return stream3c
 # end func
