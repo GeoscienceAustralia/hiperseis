@@ -471,7 +471,7 @@ def main(input_file, output_file, temp_dir=None, parallel=True):
         for station_id, station_stream3c in IterRfH5StationEvents(input_file):
             try:
                 rf_quality_metrics_queue(write_queue, station_id, station_stream3c, similarity_eps)
-            except (ValueError, AssertionError) as e:
+            except (ValueError, AssertionError, IndexError) as e:
                 traceback.print_exc()
                 logger.error("Unhandled exception occurred in rf_quality_metrics_queue for station {}. "
                              "Data will be omitted for this station!\nError:\n{}".format(station_id, str(e)))
