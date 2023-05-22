@@ -222,8 +222,15 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
             continue
         # end if
 
-        if (tr1.stats.starttime + itr1s / sr1_orig != tr2.stats.starttime + itr2s / sr2_orig):
-            # sanity check
+        # Sanity check
+        # Start-timestamps should be within 10% of the smaller sampling interval.
+        # The 'delta' allowance handles cases where start-times are not multiples
+        # of sampling intervals.
+        itr1_start_ts = (tr1.stats.starttime + itr1s / sr1_orig).timestamp
+        itr2_start_ts = (tr2.stats.starttime + itr2s / sr2_orig).timestamp
+        delta = min(1./sr1_orig, 1./sr2_orig) / 10.
+        is_equal = np.allclose(itr1_start_ts, itr2_start_ts, atol=delta, rtol=0)
+        if(not is_equal):
             assert 0, 'Detected misaligned traces. Trace1: \n{}\n Trace2: \n{}\n ' \
                       '\nInterval start-times {} != {}.\n Aborting..'.format(tr1.stats, tr2.stats,
                                                               tr1.stats.starttime + itr1s / sr1_orig,
