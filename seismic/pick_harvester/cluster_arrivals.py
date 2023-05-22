@@ -26,7 +26,7 @@ import click
 def get_source_block_indices(ng:NestedGrid, sr:SSST_Result, imask):
     source_block = np.zeros(np.sum(imask), dtype='i4')
     bidx_dict = defaultdict(lambda: -1)
-    for i, (elon, elat, edepth_km)  in enumerate(tqdm(zip(sr.elons[imask], sr.elats[imask],
+    for i, (elon, elat, edepth_km) in enumerate(tqdm(zip(sr.elons[imask], sr.elats[imask],
                                                           sr.edepths_km[imask]),
                                                       desc='Finding source-block IDs')):
         if(elon < 0): elon += 360 # convert to being within [0, 360]
@@ -46,7 +46,7 @@ def get_source_block_indices(ng:NestedGrid, sr:SSST_Result, imask):
 def get_station_block_indices(ng:NestedGrid, sr:SSST_Result, imask):
     station_block = np.zeros(np.sum(imask), dtype='i4')
     bidx_dict = defaultdict(lambda: -1)
-    for i, (slon, slat)  in enumerate(tqdm(zip(sr.slons[imask], sr.slats[imask]),
+    for i, (slon, slat) in enumerate(tqdm(zip(sr.slons[imask], sr.slats[imask]),
                                            desc='Finding station-block IDs')):
         if(slon < 0): slon += 360 # convert to being within [0, 360]
         scolat = 90 - slat
@@ -67,15 +67,16 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
             min_slope_ratio=5,
             outer_grid_min_rays=10,
             inner_grid_min_rays=3,
+            cluster_only_automatic=False,
             match_p_s=False):
 
     def cluster_helper(c_imask):
-        source_block = get_source_block_indices(ng, sr, c_imask)
-        station_block = get_station_block_indices(ng, sr, c_imask)
+        source_blocks = get_source_block_indices(ng, sr, c_imask)
+        station_blocks = get_station_block_indices(ng, sr, c_imask)
 
         cdict = defaultdict(list)
         indices = np.arange(len(sr.arrivals))
-        for i, j, idx in zip(source_block, station_block, indices[c_imask]):
+        for i, j, idx in zip(source_blocks, station_blocks, indices[c_imask]):
             cdict[(i, j)].append(idx)
         # end for
 
@@ -83,33 +84,79 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
         for k in cdict.keys(): cdict[k] = np.array(cdict[k])
 
         result = []
+        both_inner = 0
+        one_inner = 0
+        both_outer = 0
         for k, indices in tqdm(cdict.items()):
             src_block, sta_block = k
             ctt = sr.corrected_travel_time[indices]
 
+            is_src_block_inner = ng.is_inner_block(src_block)
+            is_sta_block_inner = ng.is_inner_block(sta_block)
+
+            if(is_src_block_inner and is_sta_block_inner): both_inner += 1
+            elif(is_src_block_inner or is_sta_block_inner): one_inner += 1
+            else: both_outer += 1
+
             min_rays = inner_grid_min_rays
-            if((not ng.is_inner_block(src_block)) and (not ng.is_inner_block(sta_block))):
+            if((not is_src_block_inner) and (not is_sta_block_inner)):
                 min_rays = outer_grid_min_rays
             # end if
 
-            if(len(ctt) < min_rays): continue # must have at least minimum number of rays
+            a_imask = None
+            if(cluster_only_automatic and (is_src_block_inner or is_sta_block_inner)):
+                # only these arrivals are to be clustered
+                a_imask = sr.is_AUTO_arrival[indices]
 
-            med_idx = np.argwhere(ctt == np.quantile(ctt, 0.5, interpolation='nearest'))[0][0]
+                # gather preexisting arrivals that are not to be clustered
+                for idx in indices[~a_imask]:
+                    tup = (src_block, sta_block, sr.residual[idx], sr.eorigin_ts[idx],
+                           sr.elons[idx], sr.elats[idx], sr.edepths_km[idx],
+                           sr.slons[idx], sr.slats[idx], sr.selevs_km[idx],
+                           sr.corrected_travel_time[idx],
+                           sr.ecdists[idx], sr.arrivals['phase'][idx],
+                           1 if sr.is_P[idx] else 2,
+                           sr.arrivals['event_id'][idx],
+                           sr.arrivals['net'][idx],
+                           sr.arrivals['sta'][idx],
+                           sr.is_AUTO_arrival[idx])
+                    result.append(tup)
+                # end for
+            else:
+                a_imask = np.bool_(np.ones(len(indices)))
+            # end if
 
-            g_med_idx = indices[med_idx]
-            tup = (src_block, sta_block, sr.residual[g_med_idx], sr.eorigin_ts[g_med_idx],
-                   sr.elons[g_med_idx], sr.elats[g_med_idx], sr.edepths_km[g_med_idx],
-                   sr.slons[g_med_idx], sr.slats[g_med_idx], sr.selevs_km[g_med_idx],
-                   sr.corrected_travel_time[g_med_idx],
-                   sr.ecdists[g_med_idx], sr.arrivals['phase'][g_med_idx],
-                   1 if sr.is_P[g_med_idx] else 2)
+            if(len(ctt[a_imask])):
+                if (len(ctt[a_imask]) < min_rays): continue  # must have at least minimum number of rays
 
-            result.append(tup)
+                med_idx = np.argwhere(ctt[a_imask] == np.quantile(ctt[a_imask], 0.5,
+                                                                  interpolation='nearest'))[0][0]
+
+                g_med_idx = indices[a_imask][med_idx]
+                tup = (src_block, sta_block, sr.residual[g_med_idx], sr.eorigin_ts[g_med_idx],
+                       sr.elons[g_med_idx], sr.elats[g_med_idx], sr.edepths_km[g_med_idx],
+                       sr.slons[g_med_idx], sr.slats[g_med_idx], sr.selevs_km[g_med_idx],
+                       sr.corrected_travel_time[g_med_idx],
+                       sr.ecdists[g_med_idx], sr.arrivals['phase'][g_med_idx],
+                       1 if sr.is_P[g_med_idx] else 2,
+                       sr.arrivals['event_id'][g_med_idx],
+                       sr.arrivals['net'][g_med_idx],
+                       sr.arrivals['sta'][g_med_idx],
+                       sr.is_AUTO_arrival[g_med_idx])
+                result.append(tup)
+            # end if
+
         # end for
 
+        print('\n **both inner: {}, one inner: {}, both outer: {} **\n'.format(both_inner,
+                                                                               one_inner,
+                                                                               both_outer))
+
         fields = {'names': ['source_block', 'station_block', 'residual', 'eorigin_ts', 'elon', 'elat', 'edepth_km',
-                            'slon', 'slat', 'selev_km', 'observed_tt', 'ecdist', 'phase', 'phase_type'],
-                  'formats': ['i4', 'i4', 'f4', 'f8', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'U10', 'i4']}
+                            'slon', 'slat', 'selev_km', 'observed_tt', 'ecdist', 'phase', 'phase_type', 'event_id',
+                            'net', 'sta', 'is_automatic'],
+                  'formats': ['i4', 'i4', 'f4', 'f8', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4',
+                              'f4', 'f4', 'U10', 'i4', 'i4', 'U10', 'U10', 'i4']}
         result = np.array(result, dtype=fields)
         return result
     # end func
@@ -234,13 +281,22 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                                                                  'Must be a power of 2.',
               show_default=True)
 @click.option('--outer-grid-min-rays', default=10,
-              help='Minimum number of rays that a source-station cell-pair, within the outer grid, '
+              help='Minimum number of rays that a source-receiver cell-pair, within the outer grid, '
                    'must have to participate in the clustering process.',
               show_default=True)
 @click.option('--inner-grid-min-rays', default=3,
-              help='Minimum number of rays that a source-station cell-pair, with either the source-cell '
-                   'or the station-cell within the inner grid, must have to participate in the '
+              help='Minimum number of rays that a source-receiver cell-pair, with either the source '
+                   'or the receiver or both within the inner grid, must have to participate in the '
                    'clustering process.',
+              show_default=True)
+@click.option('--cluster-only-automatic', default=False, is_flag=True,
+              help='Generates summary rays for only automatically picked arrivals, when (1) either the '
+                   'source or the receiver or both are within the inner grid -- all preexisting '
+                   'arrivals are included in such cases, which helps increase ray-path coverage '
+                   'within the inner grid. When both source and receiver are in the outer grid (2), all '
+                   'arrivals associated with such source-receiver cell pairs are clustered.'
+                   'Note that with this option, for cases in (1), the value of parameter '
+                   '--inner-grid-min-rays will apply to automatically picked arrivals only.',
               show_default=True)
 @click.option('--match-p-s', default=False, is_flag=True,
               help='After the clustering step, S arrivals not accompanied by corresponding P arrivals '
@@ -249,7 +305,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
             p_residual_cutoff, s_residual_cutoff,
             outer_depth_refinement_factor, inner_depth_refinement_factor,
-            outer_grid_min_rays, inner_grid_min_rays, match_p_s):
+            outer_grid_min_rays, inner_grid_min_rays,
+            cluster_only_automatic, match_p_s):
     """
     INPUT_H5: hdf5 input (output of ssst_relocate.py)
     PARAM_FN: Grid parameterization file
@@ -277,10 +334,11 @@ def process(input_h5, param_fn, output_file_name, phases, min_slope_ratio,
                      s_residual_cutoff=s_residual_cutoff, min_slope_ratio=min_slope_ratio,
                      outer_grid_min_rays=outer_grid_min_rays,
                      inner_grid_min_rays=inner_grid_min_rays,
+                     cluster_only_automatic=cluster_only_automatic,
                      match_p_s=match_p_s)
 
     print('Generating diagnostic plots after clustering..')
-    plot_after_cluster(cp, cs, ng, pdf)
+    plot_after_cluster(cp, cs, ng, phases, pdf)
 
     pdf.close()
 

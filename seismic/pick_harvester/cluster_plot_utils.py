@@ -10,7 +10,7 @@ from tqdm import tqdm
 from cycler import cycler
 from seismic.pick_harvester.ssst_utils import SSST_Result
 from seismic.pick_harvester.cluster_utils import NestedGrid
-
+from collections import defaultdict
 P_CUTOFF = 5
 S_CUTOFF = 10
 
@@ -278,175 +278,190 @@ def plot_before_cluster(sr:SSST_Result, ng:NestedGrid, pdf:PdfPages, min_slope_r
     plt.close()
 # end func
 
-def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: NestedGrid, pdf: PdfPages):
+def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: NestedGrid,
+                       phases:str, pdf: PdfPages):
     cover_page(pdf, "After Clustering")
 
-    geod = Geod(a=180 / np.pi, f=0)
+    if(0):
+        geod = Geod(a=180 / np.pi, f=0)
 
-    # define 2D grid
-    sx, ex, dx = -180, 180, ng.ig.dx
-    sy, ey, dy = 90, -90, ng.ig.dy
+        # define 2D grid
+        sx, ex, dx = -180, 180, ng.ig.dx
+        sy, ey, dy = 90, -90, ng.ig.dy
 
-    nx = np.int_(np.ceil((ex - sx) / dx)) + 1
-    ny = np.int_(np.ceil((sy - ey) / dy)) + 1
-    res = 1 / float(dx)  # per deg
+        nx = np.int_(np.ceil((ex - sx) / dx)) + 1
+        ny = np.int_(np.ceil((sy - ey) / dy)) + 1
+        res = 1 / float(dx)  # per deg
 
-    gx, gy = np.meshgrid(np.linspace(sx, ex, nx), np.linspace(sy, ey, ny), indexing='ij')
+        gx, gy = np.meshgrid(np.linspace(sx, ex, nx), np.linspace(sy, ey, ny), indexing='ij')
 
-    gzp = np.zeros(gx.shape)
-    gzs = np.zeros(gx.shape)
+        gzp = np.zeros(gx.shape)
+        gzs = np.zeros(gx.shape)
 
-    # ===========================================================
-    # Process clustered P arrivals
-    # ===========================================================
-    p_ig_orig_dest = 0
-    p_ig_outside = 0
-    p_ig_intersecting = 0
-    for i in tqdm(np.arange(0, len(p_clustered), 1), desc='P-arrivals'):
-        elon, elat, slon, slat, ecdist, edepth_km = p_clustered['elon'][i], p_clustered['elat'][i], \
-                                                    p_clustered['slon'][i], p_clustered['slat'][i], \
-                                                    p_clustered['ecdist'][i], p_clustered['edepth_km'][i]
+        # ===========================================================
+        # Process clustered P arrivals
+        # ===========================================================
+        p_ig_orig_dest = 0
+        p_ig_outside = 0
+        p_ig_intersecting = 0
+        for i in tqdm(np.arange(0, len(p_clustered), 1), desc='P-arrivals'):
+            elon, elat, slon, slat, ecdist, edepth_km = p_clustered['elon'][i], p_clustered['elat'][i], \
+                                                        p_clustered['slon'][i], p_clustered['slat'][i], \
+                                                        p_clustered['ecdist'][i], p_clustered['edepth_km'][i]
 
-        npts = int(np.ceil(ecdist * res))
-        xy = np.vstack([np.array([elon, elat]),
-                        np.array(geod.npts(elon, elat, slon, slat, npts)),
-                        np.array([slon, slat])])
-        cxi = np.int_((xy[:, 0] - sx) / dx)
-        cyi = np.int_((sy - xy[:, 1]) / dy)
-        gzp[cxi, cyi] += 1
+            npts = int(np.ceil(ecdist * res))
+            xy = np.vstack([np.array([elon, elat]),
+                            np.array(geod.npts(elon, elat, slon, slat, npts)),
+                            np.array([slon, slat])])
+            cxi = np.int_((xy[:, 0] - sx) / dx)
+            cyi = np.int_((sy - xy[:, 1]) / dy)
+            gzp[cxi, cyi] += 1
 
-        # gather statistics on ray-geometry
-        contains_orig = ng.ig._is_within_grid(elon, 90 - elat, edepth_km)
-        contains_dest = ng.ig._is_within_grid(slon, 90 - slat, 0)
+            # gather statistics on ray-geometry
+            if(elon < 0): elon += 360
+            if(slon < 0): slon += 360
+            contains_orig = ng.ig._is_within_grid(elon, 90 - elat, edepth_km)
+            contains_dest = ng.ig._is_within_grid(slon, 90 - slat, 0)
 
-        if(contains_orig or contains_dest):
-            p_ig_orig_dest += 1
-            continue
-        # end if
+            if(contains_orig or contains_dest):
+                p_ig_orig_dest += 1
+                continue
+            # end if
 
-        intersects = False
-        for cxy in xy:
-            if(ng.ig._is_within_grid(cxy[0], 90 - cxy[1], 0)):
-                intersects = True
-                break
+            intersects = False
+            for cxy in xy:
+                lon = cxy[0]
+                colat = 90 - cxy[1]
+                if(lon < 0): lon += 360
+
+                if(ng.ig._is_within_grid(lon, colat, 0)):
+                    intersects = True
+                    break
+                # end if
+            # end for
+
+            if(intersects):
+                p_ig_intersecting += 1
+            else:
+                p_ig_outside += 1
             # end if
         # end for
 
-        if(intersects):
-            p_ig_intersecting += 1
-        else:
-            p_ig_outside += 1
-        # end if
-    # end for
+        # ===========================================================
+        # Process clustered S arrivals
+        # ===========================================================
+        s_ig_orig_dest = 0
+        s_ig_outside = 0
+        s_ig_intersecting = 0
+        for i in tqdm(np.arange(0, len(s_clustered), 1), desc='S-arrivals'):
+            elon, elat, slon, slat, ecdist, edepth_km = s_clustered['elon'][i], s_clustered['elat'][i], \
+                                                        s_clustered['slon'][i], s_clustered['slat'][i], \
+                                                        s_clustered['ecdist'][i], s_clustered['edepth_km'][i]
 
-    # ===========================================================
-    # Process clustered S arrivals
-    # ===========================================================
-    s_ig_orig_dest = 0
-    s_ig_outside = 0
-    s_ig_intersecting = 0
-    for i in tqdm(np.arange(0, len(s_clustered), 1), desc='S-arrivals'):
-        elon, elat, slon, slat, ecdist, edepth_km = s_clustered['elon'][i], s_clustered['elat'][i], \
-                                                    s_clustered['slon'][i], s_clustered['slat'][i], \
-                                                    s_clustered['ecdist'][i], s_clustered['edepth_km'][i]
+            npts = int(np.ceil(ecdist * res))
+            xy = np.vstack([np.array([elon, elat]),
+                            np.array(geod.npts(elon, elat, slon, slat, npts)),
+                            np.array([slon, slat])])
+            cxi = np.int_((xy[:, 0] - sx) / dx)
+            cyi = np.int_((sy - xy[:, 1]) / dy)
+            gzs[cxi, cyi] += 1
 
-        npts = int(np.ceil(ecdist * res))
-        xy = np.vstack([np.array([elon, elat]),
-                        np.array(geod.npts(elon, elat, slon, slat, npts)),
-                        np.array([slon, slat])])
-        cxi = np.int_((xy[:, 0] - sx) / dx)
-        cyi = np.int_((sy - xy[:, 1]) / dy)
-        gzs[cxi, cyi] += 1
+            # gather statistics on ray-geometry
+            if(elon < 0): elon += 360
+            if(slon < 0): slon += 360
+            contains_orig = ng.ig._is_within_grid(elon, 90 - elat, edepth_km)
+            contains_dest = ng.ig._is_within_grid(slon, 90 - slat, 0)
 
-        # gather statistics on ray-geometry
-        contains_orig = ng.ig._is_within_grid(elon, 90 - elat, edepth_km)
-        contains_dest = ng.ig._is_within_grid(slon, 90 - slat, 0)
+            if(contains_orig or contains_dest):
+                s_ig_orig_dest += 1
+                continue
+            # end if
 
-        if(contains_orig or contains_dest):
-            s_ig_orig_dest += 1
-            continue
-        # end if
+            intersects = False
+            for cxy in xy:
+                lon = cxy[0]
+                colat = 90 - cxy[1]
+                if(lon < 0): lon += 360
 
-        intersects = False
-        for cxy in xy:
-            if(ng.ig._is_within_grid(cxy[0], 90 - cxy[1], 0)):
-                intersects = True
-                break
+                if(ng.ig._is_within_grid(lon, colat, 0)):
+                    intersects = True
+                    break
+                # end if
+            # end for
+
+            if(intersects):
+                s_ig_intersecting += 1
+            else:
+                s_ig_outside += 1
             # end if
         # end for
 
-        if(intersects):
-            s_ig_intersecting += 1
-        else:
-            s_ig_outside += 1
-        # end if
-    # end for
+        # ===========================================================
+        # Plot results
+        # ===========================================================
+        # Plot p-coverage
+        fig = plt.figure()
 
-    # ===========================================================
-    # Plot results
-    # ===========================================================
-    # Plot p-coverage
-    fig = plt.figure()
+        fig.set_size_inches(20, 10)
+        cax1 = fig.add_axes([0.1, 0.1, 0.4, 0.1])
+        cax2 = fig.add_axes([0.5, 0.1, 0.4, 0.1])
+        cax1.set_visible(False)
+        cax2.set_visible(False)
 
-    fig.set_size_inches(20, 10)
-    cax1 = fig.add_axes([0.1, 0.1, 0.4, 0.1])
-    cax2 = fig.add_axes([0.5, 0.1, 0.4, 0.1])
-    cax1.set_visible(False)
-    cax2.set_visible(False)
+        llcrnrlat = -54
+        urcrnrlat = 0
+        llcrnrlon = 100
+        urcrnrlon = 180
+        vmin = 1
 
-    llcrnrlat = -54
-    urcrnrlat = 0
-    llcrnrlon = 100
-    urcrnrlon = 180
-    vmin = 1
+        ax1 = fig.add_subplot(1, 2, 1, projection=ccrs.PlateCarree())
+        ax1.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
+        ax1.coastlines('50m')
 
-    ax1 = fig.add_subplot(1, 2, 1, projection=ccrs.PlateCarree())
-    ax1.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
-    ax1.coastlines('50m')
+        cbi = ax1.pcolormesh(gx, gy, gzp, vmin=vmin, vmax=np.max(gzp), cmap=plt.get_cmap('gist_heat_r', 50))
 
-    cbi = ax1.pcolormesh(gx, gy, gzp, vmin=vmin, vmax=np.max(gzp), cmap=plt.get_cmap('gist_heat_r', 50))
+        cbi.cmap.set_under('green')
+        cbar = fig.colorbar(cbi, ax=cax1, format='%d', extend='min',
+                            orientation='horizontal')
+        cbar.set_label("Hitcount")
+        ticks = list(cbar.get_ticks())
+        cbar.set_ticks([vmin] + ticks)
+        cbar.ax.tick_params(labelsize=6)
+        ax1.set_title('P-arrivals')
 
-    cbi.cmap.set_under('green')
-    cbar = fig.colorbar(cbi, ax=cax1, format='%d', extend='min',
-                        orientation='horizontal')
-    cbar.set_label("Hitcount")
-    ticks = list(cbar.get_ticks())
-    cbar.set_ticks([vmin] + ticks)
-    cbar.ax.tick_params(labelsize=6)
-    ax1.set_title('P-arrivals')
+        ax1.text(0, -0.05, '1. Rays with event origin or station within inner grid: {}'.format(p_ig_orig_dest),
+                 fontsize=10, transform=ax1.transAxes)
+        ax1.text(0, -0.1, '2. Rays with both event origin and station outside inner grid: {}'.format(p_ig_outside),
+                 fontsize=10, transform=ax1.transAxes)
+        ax1.text(0, -0.15, '3. Rays in 2. intersecting inner grid: {}'.format(p_ig_intersecting),
+                 fontsize=10, transform=ax1.transAxes)
 
-    ax1.text(0, -0.05, 'Rays with origin or destination within inner grid: {}'.format(p_ig_orig_dest),
-             fontsize=10, transform=ax1.transAxes)
-    ax1.text(0, -0.1, 'Rays intersecting inner grid: {}'.format(p_ig_intersecting),
-             fontsize=10, transform=ax1.transAxes)
-    ax1.text(0, -0.15, 'Rays outside inner grid: {}'.format(p_ig_outside),
-             fontsize=10, transform=ax1.transAxes)
+        # Plot s-coverage
+        ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.PlateCarree())
+        ax2.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
+        ax2.coastlines('50m')
 
-    # Plot s-coverage
-    ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.PlateCarree())
-    ax2.set_extent([llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat], crs=ccrs.PlateCarree())
-    ax2.coastlines('50m')
+        cbi = ax2.pcolormesh(gx, gy, gzs, vmin=vmin, vmax=np.max(gzs), cmap=plt.get_cmap('gist_heat_r', 50))
 
-    cbi = ax2.pcolormesh(gx, gy, gzs, vmin=vmin, vmax=np.max(gzs), cmap=plt.get_cmap('gist_heat_r', 50))
+        cbi.cmap.set_under('green')
+        cbar = fig.colorbar(cbi, ax=cax2, format='%d', extend='min',
+                            orientation='horizontal')
+        cbar.set_label("Hitcount")
+        ticks = list(cbar.get_ticks())
+        cbar.set_ticks([vmin] + ticks)
+        cbar.ax.tick_params(labelsize=6)
+        ax2.set_title('S-arrivals')
 
-    cbi.cmap.set_under('green')
-    cbar = fig.colorbar(cbi, ax=cax2, format='%d', extend='min',
-                        orientation='horizontal')
-    cbar.set_label("Hitcount")
-    ticks = list(cbar.get_ticks())
-    cbar.set_ticks([vmin] + ticks)
-    cbar.ax.tick_params(labelsize=6)
-    ax2.set_title('S-arrivals')
+        ax2.text(0, -0.05, '1. Rays with event origin or station within inner grid: {}'.format(s_ig_orig_dest),
+                 fontsize=10, transform=ax2.transAxes)
+        ax2.text(0, -0.1, '2. Rays with both event origin and station outside inner grid: {}'.format(s_ig_outside),
+                 fontsize=10, transform=ax2.transAxes)
+        ax2.text(0, -0.15, '3. Rays in 2. intersecting inner grid: {}'.format(s_ig_intersecting),
+                 fontsize=10, transform=ax2.transAxes)
 
-    ax2.text(0, -0.05, 'Rays with origin or destination within inner grid: {}'.format(s_ig_orig_dest),
-             fontsize=10, transform=ax2.transAxes)
-    ax2.text(0, -0.1, 'Rays intersecting inner grid: {}'.format(s_ig_intersecting),
-             fontsize=10, transform=ax2.transAxes)
-    ax2.text(0, -0.15, 'Rays outside inner grid: {}'.format(s_ig_outside),
-             fontsize=10, transform=ax2.transAxes)
-
-    fig.suptitle('Surface-projected Clustered Raypath Coverage in the Australasian Region', size=18)
-    pdf.savefig(dpi=300)
+        fig.suptitle('Surface-projected Clustered Raypath Coverage in the Australasian Region', size=18)
+        pdf.savefig(dpi=300)
+    # end if
 
     # ===========================================================
     # Plot distributions of residuals for clustered arrivals
@@ -466,7 +481,21 @@ def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: Ne
     axes[1].text(0.7, 0.7, 'N: {}'.format(len(s_clustered)), transform=axes[1].transAxes)
     axes[1].text(0.7, 0.65, 'std: {:0.3f}'.format(np.std(s_clustered['residual'])), transform=axes[1].transAxes)
 
-    fig.suptitle('Clustered Arrivals', fontsize=18)
+    p_phases = [phase for phase in phases.split(' ') if 'P' in phase]
+    s_phases = [phase for phase in phases.split(' ') if 'S' in phase]
+
+    phc = {}
+    for p in p_phases: phc[p] = np.sum(p.encode() == p_clustered['phase'].astype('S10'))
+    axes[0].set_title('Phase counts P: {}\n'.format(phc), fontdict={'fontsize': 8},
+                      pad=30)
+
+    phc = {}
+    for p in s_phases: phc[p] = np.sum(p.encode() == s_clustered['phase'].astype('S10'))
+    axes[1].set_title('Phase counts S: {}\n'.format(phc), fontdict={'fontsize': 8},
+                      pad=30)
+
+    fig.suptitle('Distributions of residuals for clustered arrivals', fontsize=18)
+    plt.tight_layout()
     pdf.savefig(dpi=300)
 
     plt.close()
