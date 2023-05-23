@@ -148,9 +148,9 @@ def cluster(ng:NestedGrid, sr:SSST_Result, phases,
 
         # end for
 
-        print('\n **both inner: {}, one inner: {}, both outer: {} **\n'.format(both_inner,
-                                                                               one_inner,
-                                                                               both_outer))
+        #print('\n **both inner: {}, one inner: {}, both outer: {} **\n'.format(both_inner,
+        #                                                                       one_inner,
+        #                                                                       both_outer))
 
         fields = {'names': ['source_block', 'station_block', 'residual', 'eorigin_ts', 'elon', 'elat', 'edepth_km',
                             'slon', 'slat', 'selev_km', 'observed_tt', 'ecdist', 'phase', 'phase_type', 'event_id',

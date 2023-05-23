@@ -498,5 +498,117 @@ def plot_after_cluster(p_clustered:np.ndarray, s_clustered:numpy.ndarray, ng: Ne
     plt.tight_layout()
     pdf.savefig(dpi=300)
 
+    # ===========================================================
+    # Plot distribution of clustered P arrivals
+    # ===========================================================
+    fig, axes = plt.subplots(1, 2)
+    fig.set_size_inches(10, 5)
+
+    count_dict_regional = defaultdict(int)
+    count_dict_global = defaultdict(int)
+    for i, j in zip(p_clustered['source_block'], p_clustered['station_block']):
+        if (ng.is_inner_block(i) or ng.is_inner_block(j)):
+            count_dict_regional[(i, j)] += 1
+        else:
+            count_dict_global[(i, j)] += 1
+        # end if
+    # end for
+
+    counts_regional = []
+    counts_global = []
+    for k, c in count_dict_regional.items():
+        counts_regional.append(c)
+    # end for
+    for k, c in count_dict_global.items():
+        counts_global.append(c)
+    # end for
+
+    counts_regional = np.array(counts_regional)
+    counts_global = np.array(counts_global)
+
+    bins = np.histogram_bin_edges(counts_regional)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    axes[0].hist(counts_regional, bins=logbins)
+    axes[0].set_xscale('log')
+    axes[0].set_xlim(1, np.max(logbins))
+    axes[0].set_title('Regional Grid')
+    axes[0].set_xlabel('Number of rays in cluster')
+    axes[0].set_ylabel('Frequency')
+    axes[0].text(0.7, 0.7, 'N: {}\nmin: {}\nmax: {}\nmean: {:.3f}\nstd: {:.3f}\n'.format(
+        len(counts_regional), np.min(counts_regional),
+        np.max(counts_regional), np.mean(counts_regional),
+        np.std(counts_regional)), transform=axes[0].transAxes)
+
+    bins = np.histogram_bin_edges(counts_global)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    axes[1].hist(counts_global, bins=logbins)
+    axes[1].set_xscale('log')
+    axes[1].set_xlim(1, np.max(logbins))
+    axes[1].set_title('Global Grid')
+    axes[1].set_xlabel('Number of rays in cluster')
+    axes[1].text(0.7, 0.7, 'N: {}\nmin: {}\nmax: {}\nmean: {:.3f}\nstd: {:.3f}\n'.format(
+        len(counts_global), np.min(counts_global),
+        np.max(counts_global), np.mean(counts_global),
+        np.std(counts_global)), transform=axes[1].transAxes)
+
+    fig.suptitle('Clustered P-arrivals')
+    pdf.savefig(dpi=300)
+
+    # ===========================================================
+    # Plot distribution of clustered S arrivals
+    # ===========================================================
+    fig, axes = plt.subplots(1, 2)
+    fig.set_size_inches(10, 5)
+
+    count_dict_regional = defaultdict(int)
+    count_dict_global = defaultdict(int)
+    for i, j in zip(s_clustered['source_block'], s_clustered['station_block']):
+        if (ng.is_inner_block(i) or ng.is_inner_block(j)):
+            count_dict_regional[(i, j)] += 1
+        else:
+            count_dict_global[(i, j)] += 1
+        # end if
+    # end for
+
+    counts_regional = []
+    counts_global = []
+    for k, c in count_dict_regional.items():
+        counts_regional.append(c)
+    # end for
+    for k, c in count_dict_global.items():
+        counts_global.append(c)
+    # end for
+
+    counts_regional = np.array(counts_regional)
+    counts_global = np.array(counts_global)
+
+    bins = np.histogram_bin_edges(counts_regional)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    axes[0].hist(counts_regional, bins=logbins)
+    axes[0].set_xscale('log')
+    axes[0].set_xlim(1, np.max(logbins))
+    axes[0].set_title('Regional Grid')
+    axes[0].set_xlabel('Number of rays in cluster')
+    axes[0].set_ylabel('Frequency')
+    axes[0].text(0.7, 0.7, 'N: {}\nmin: {}\nmax: {}\nmean: {:.3f}\nstd: {:.3f}\n'.format(
+        len(counts_regional), np.min(counts_regional),
+        np.max(counts_regional), np.mean(counts_regional),
+        np.std(counts_regional)), transform=axes[0].transAxes)
+
+    bins = np.histogram_bin_edges(counts_global)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    axes[1].hist(counts_global, bins=logbins)
+    axes[1].set_xscale('log')
+    axes[1].set_xlim(1, np.max(logbins))
+    axes[1].set_title('Global Grid')
+    axes[1].set_xlabel('Number of rays in cluster')
+    axes[1].text(0.7, 0.7, 'N: {}\nmin: {}\nmax: {}\nmean: {:.3f}\nstd: {:.3f}\n'.format(
+        len(counts_global), np.min(counts_global),
+        np.max(counts_global), np.mean(counts_global),
+        np.std(counts_global)), transform=axes[1].transAxes)
+
+    fig.suptitle('Clustered S-arrivals')
+    pdf.savefig(dpi=300)
+
     plt.close()
 # end func
