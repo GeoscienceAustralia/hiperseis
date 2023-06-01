@@ -88,9 +88,29 @@ def stationsToProcess(fds, netsta_list):
     return netsta_list_result
 # end func
 
-def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_seconds=60, buffer_seconds=10, overlap=0.5):
-    assert(ztrc.stats.sampling_rate == ntrc.stats.sampling_rate == etrc.stats.sampling_rate)
+def processData(ztrc, ntrc, etrc, model, picking_args,
+                output_path, ofh_p, ofh_s, window_seconds=60,
+                buffer_seconds=10, overlap=0.5):
+    """
+    @param ztrc: z-trace
+    @param ntrc: n-trace
+    @param etrc: e-trace
+    @param model: ML-model
+    @param picking_args: picking arguments
+    @param output_path: output path
+    @param p_ofh: file handle for outputting p-arrivals
+    @param s_ofh: file handle for outputting s-arrivals
+    @param window_seconds: length of window in seconds
+    @param buffer_seconds: data buffer length around data windows to be able to
+                           exclude preprocessing artefacts
+    @param overlap: window overlap
+    """
 
+    assert (ztrc.stats.sampling_rate == ntrc.stats.sampling_rate == etrc.stats.sampling_rate), \
+           "Discrepant sampling rates found among channel data. Aborting.."
+
+    REQ_SAMPLING_RATE = 100
+    NSAMPLES = 6000
     sr = ztrc.stats.sampling_rate
 
     max_st = UTCDateTime(0)
@@ -100,7 +120,9 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
         if(trc.stats.endtime < min_et): min_et = trc.stats.endtime
     # end for
 
-    ml_input = np.zeros((1, 6000, 3))
+    net, sta = ztrc.stats.network, ztrc.stats.station
+
+    ml_input = np.zeros((1, NSAMPLES, 3))
     stime = max_st
     etime = min_et
     ctime = stime
@@ -125,9 +147,9 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                type(ndata)==np.ndarray and \
                type(edata)==np.ndarray):
 
-                if(np.sum(zdata)!=0 and
-                   np.sum(ndata)!=0 and
-                   np.sum(edata)!=0): # traces cannot be all zeros
+                if(np.sum(zdata) != 0 and
+                   np.sum(ndata) != 0 and
+                   np.sum(edata) != 0): # traces cannot be all zeros
 
                     for i, data in enumerate([edata, ndata, zdata]):
                         data = signal.detrend(data)
@@ -135,11 +157,13 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                         taper(data, int(buffer_seconds * sr / 2.))
                         data = bandpass(data, 1.0, 45, sr, corners=2, zerophase=True)
 
-                        if(sr != 100):
-                            data = signal.resample(data, (window_seconds + buffer_seconds) * 100)
+                        if(sr != REQ_SAMPLING_RATE):
+                            data = signal.resample(data,
+                                                   (window_seconds + buffer_seconds) * REQ_SAMPLING_RATE)
                         # end if
 
-                        ml_input[0, :, i] = data[int(buffer_seconds/2.*100) : int(buffer_seconds/2.*100)+6000]
+                        ml_input[0, :, i] = data[int(buffer_seconds/2.*REQ_SAMPLING_RATE) :
+                                                 int(buffer_seconds/2.*REQ_SAMPLING_RATE)+NSAMPLES]
                     # end for
 
                     eprob, pprob, sprob = model(ml_input)
@@ -147,27 +171,55 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                                                           np.squeeze(eprob),
                                                           np.squeeze(pprob),
                                                           np.squeeze(sprob))
+
+                    #=============================================================
+                    # matches: { detection start-time:[ 0 detection-end-time,
+                    #                                   1 detection-probability,
+                    #                                   2 detection-uncertainty,
+                    #                                   3 P-arrival,
+                    #                                   4 P-probability,
+                    #                                   5 P-uncertainty,
+                    #                                   6 S-arrival,
+                    #                                   7 S-probability,
+                    #                                   8 S-uncertainty] }
+                    #=============================================================
+
                     if(len(matches)):
                         fig, axes = plt.subplots(3,1)
 
                         for k, v in matches.items():
-                            if(v[3]): axes[0].axvline(v[3], c='blue', alpha=0.75)
-                            if(v[6]): axes[0].axvline(v[6], c='red', alpha=0.75)
+                            if(v[3]):
+                                # output p-arrivals
+                                ts = ctime.timestamp + v[3] / REQ_SAMPLING_RATE
+                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[4])
+                                ofh_p.write(line)
+
+                                axes[0].axvline(v[3], c='blue', alpha=0.75)
+                            # end if
+
+                            if(v[6]):
+                                # output s-arrivals
+                                ts = ctime.timestamp + v[6] / REQ_SAMPLING_RATE
+                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[7])
+                                ofh_s.write(line)
+
+                                axes[0].axvline(v[6], c='red', alpha=0.75)
+                            # end if
                         # end for
                         axes[0].plot(ml_input[0, :, 0], c='k', lw=0.3)
-                        axes[0].set_xlim(0, 6000)
+                        axes[0].set_xlim(0, NSAMPLES)
                         axes[0].grid()
 
                         axes[1].plot(np.squeeze(eprob), '--', c='g', label='Event')
                         axes[1].plot(np.squeeze(pprob), '--', c='blue', label='P')
                         axes[1].plot(np.squeeze(sprob), '--', c='red', label='S')
-                        axes[1].set_xlim(0, 6000)
+                        axes[1].set_xlim(0, NSAMPLES)
                         axes[1].grid()
                         axes[1].set_xlabel('Samples')
                         axes[1].set_ylabel('Probability')
                         axes[1].legend()
 
-                        f, t, ps = signal.stft(ml_input[0, :, 2], fs=100, nperseg=80)
+                        f, t, ps = signal.stft(ml_input[0, :, 2], fs=REQ_SAMPLING_RATE, nperseg=80)
                         ps = np.abs(ps)
                         ps[ps<np.std(ps)/2.] = 1
                         axes[2].pcolormesh(t, f, ps, cmap='jet', rasterized=True)
@@ -227,8 +279,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               type=str,
               help="Name of e-channel")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
-@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
-def process(asdf_source, ml_model_path, output_path, station_names, start_time, end_time, zchan, nchan, echan, restart, save_quality_plots):
+def process(asdf_source, ml_model_path, output_path, station_names, start_time, end_time, zchan, nchan, echan, restart):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     ML_MODEL_PATH: Path to EQT Model in H5 format
@@ -272,25 +323,11 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             f.write('%25s\t\t: %s\n' % ('ML_MODEL', ml_model_path))
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
             f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
-            f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
 
         # end func
 
         outputConfigParameters()
-    # end if
-
-    # ==================================================
-    # Create output-folder for snr-plots
-    # ==================================================
-    plot_output_folder = None
-    if (save_quality_plots):
-        plot_output_folder = os.path.join(output_path, 'plots')
-        if (rank == 0):
-            if (not os.path.exists(plot_output_folder)):
-                os.mkdir(plot_output_folder)
-        # end if
-        comm.Barrier()
     # end if
 
     fds = FederatedASDFDataSet(asdf_source, logger=None)
@@ -307,20 +344,19 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    #header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
-    header = 'net sta cha pickTimestamp stationLon stationLat\n'
+    header = '#net, sta, timestamp, probability \n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
-    ofp = None
-    ofs = None
+    ofhp = None
+    ofhs = None
     if (restart == False):
-        ofp = open(ofnp, 'w+')
-        ofs = open(ofns, 'w+')
-        ofp.write(header)
-        ofs.write(header)
+        ofhp = open(ofnp, 'w+')
+        ofhs = open(ofns, 'w+')
+        ofhp.write(header)
+        ofhs.write(header)
     else:
-        ofp = open(ofnp, 'a+')
-        ofs = open(ofns, 'a+')
+        ofhp = open(ofnp, 'a+')
+        ofhs = open(ofns, 'a+')
     # end if
 
     # Progress tracker
@@ -361,7 +397,8 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
 
             if(len(ste)): # we have data in all three streams
-                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args, output_path)
+                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
+                            output_path, ofhp, ofhs)
             else:
                 print('No data found')
             # end if
@@ -370,8 +407,8 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
         # wend
     # end for
 
-    ofp.close()
-    ofs.close()
+    ofhp.close()
+    ofhs.close()
     print(('Processing complete on rank %d' % (rank)))
 
     del fds
