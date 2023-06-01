@@ -24,6 +24,9 @@ from netCDF4 import Dataset
 import click
 import os.path as path
 from seismic.xcorqc.utils import rtp2xyz
+from pyproj import Proj
+
+DEFAULT_PROJ = 3577  # AU Albers
 
 # define utility functions
 def rtp2xyz(r, theta, phi):
@@ -54,7 +57,7 @@ class Resample:
         self._zf = zf
 
         # file format [lon, lat, z(depth km), perturbation]
-        data = np.loadtxt(self._fname)
+        data = np.loadtxt(self._fname, delimiter=',')
         self._gridLLZ = data[:, :3]
         self._values = data[:, -1]
 
@@ -84,15 +87,17 @@ class Resample:
         lato = self._gridLLZ[:self._nx*self._ny:self._nx, 1] # original lats
         zo = self._gridLLZ[::self._nx*self._ny, 2] # original zs
 
+        lono[lono < 0] += 360
         # preserve distribution of nodes, especially for z nodes,
         # which become sparser as we go deeper
         lonio = interp1d(np.linspace(0, len(lono), len(lono)), lono)
         latio = interp1d(np.linspace(0, len(lato), len(lato)), lato)
         zio = interp1d(np.linspace(0, len(zo), len(zo)), zo)
 
-        lonr = lonio(np.linspace(0, len(lono), len(lono) * self._lonf))
-        latr = latio(np.linspace(0, len(lato), len(lato) * self._latf))
-        zr = zio(np.linspace(0, len(zo), len(zo) * self._zf))
+        lonr = lonio(np.linspace(0, len(lono), int(len(lono) * self._lonf)))
+        latr = latio(np.linspace(0, len(lato), int(len(lato) * self._latf)))
+        zr = zio(np.linspace(0, len(zo), int(len(zo) * self._zf)))
+        lonr[lonr > 180] -= 360
 
         self._rgridLon, self._rgridLat, self._rgridZ = np.meshgrid(lonr, latr, zr, indexing='ij')
 
@@ -216,14 +221,14 @@ class Resample:
     # end func
 
     def WriteSGrid(self, fnamestem):
-        def write_header(hfn, dfn, mname):
+        def write_header(hfn, dfn, pname):
             hlines = [  'GOCAD SGrid 1',
                         'HEADER {',
-                        'name:%s'%(mname),
+                        'name:%s'%(pname),
                         '*volume:true',
                         'ascii:on',
                         '*painted:on',
-                        '*painted*variable:p',
+                        '*painted*variable:{}'.format(pname),
                         'last_selected_folder:Volumes',
                         '*volume*grid:true',
                         '*volume*solid:true',
@@ -231,12 +236,20 @@ class Resample:
                         '*cube*grid:false',
                         '*volume*points:false',
                         '}',
+                        'GOCAD_ORIGINAL_COORDINATE_SYSTEM',
+                        'NAME Default',
+                        'PROJECTION Unknown',
+                        'DATUM Unknown',
+                        'AXIS_NAME "X" "Y" "Z"',
+                        'AXIS_UNIT "m" "m" "m"',
+                        'ZPOSITIVE Depth',
+                        'END_ORIGINAL_COORDINATE_SYSTEM',
                         'AXIS_N %d %d %d' % (self._rnx, self._rny, self._rnz),
                         'PROP_ALIGNMENT POINTS',
                         'ASCII_DATA_FILE %s' % path.basename(dfn),
-                        'PROPERTY 1 "p"',
-                        'PROPERTY_CLASS 1 "p"',
-                        'END]' ]
+                        'PROPERTY 1 "{}"'.format(pname),
+                        'PROPERTY_CLASS 1 "{}"'.format(pname),
+                        'END' ]
 
             fo = open(hfn, 'w+')
             for l in hlines: fo.write(l+'\n')
@@ -244,13 +257,18 @@ class Resample:
         # end func
 
         def write_data(dfn):
+            p = Proj(DEFAULT_PROJ)  # AU Albers
+
+
             lons, lats, ds = self._rgridLon.flatten(), self._rgridLat.flatten(), \
                              self.RADIUS - self._rgridZ.flatten()
 
             kxyz, jxyz, ixyz = np.meshgrid(np.arange(self._rnz), np.arange(self._rny),
                                            np.arange(self._rnx), indexing='ij')
 
-            np.savetxt(dfn, np.array([lons, lats, -ds*1e3, self._img,
+            px, py = p(lons, lats)
+
+            np.savetxt(dfn, np.array([px, py, ds*1e3, self._img,
                                       ixyz.flatten(), jxyz.flatten(),
                                       kxyz.flatten()]).T, fmt='%4.4f %4.4f %4.4f %5.7f %d %d %d')
         # end func
@@ -259,7 +277,7 @@ class Resample:
         dfn = fnamestem + '.ascii.txt'
         modelname = path.basename(fnamestem)
 
-        write_header(hfn, dfn, modelname)
+        write_header(hfn, dfn, 'p')
         write_data(dfn)
     # end func
 # end class
@@ -286,7 +304,7 @@ def process(input, output_file_stem, output_type, resampling_factors,
     """
     Script for super- or sub-sampling a 3D volume using inverse-distance-weighted interpolation.
 
-    INPUT: Path to xyz file, with nodal values on a regular 3D grid\n
+    INPUT: Path to four-columned (lon, lat, depth(km), perturbation) csv file\n
 
     Example Usage: python resample_volume.py P-wave_1x1.it3.xyz --resampling-factors 2x2x2 --output-file-stem /tmp/tomo
     """
