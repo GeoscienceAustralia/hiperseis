@@ -32,7 +32,7 @@ from PhasePApy.phasepapy.phasepicker import aicdpicker
 
 from seismic.pick_harvester.utils import recursive_glob
 from seismic.pick_harvester.parametric_data import ParametricData
-from seismic.misc import ProgressTracker
+from seismic.misc_p import ProgressTracker
 import psutil
 import gc
 

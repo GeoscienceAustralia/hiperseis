@@ -30,7 +30,7 @@ from obspy.signal.filter import bandpass, highpass, lowpass
 from seismic.pick_harvester.utils import recursive_glob, split_list
 from seismic.xcorqc.utils import get_stream
 from seismic.xcorqc.xcorqc import taper
-from seismic.misc import ProgressTracker
+from seismic.misc_p import ProgressTracker
 import matplotlib.pyplot as plt
 
 from keras.models import load_model

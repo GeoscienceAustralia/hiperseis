@@ -27,14 +27,7 @@ from obspy.core.inventory import read_inventory
 from obspy.core import Stream
 from ordered_set import OrderedSet as set
 from tqdm import tqdm
-
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-
-
-# end func
+from seismic.misc import split_list
 
 def make_ASDF_tag(tr, tag):
     # def make_ASDF_tag(ri, tag):
@@ -47,8 +40,6 @@ def make_ASDF_tag(tr, tag):
         end=tr.stats.endtime.strftime("%Y-%m-%dT%H:%M:%S"),
         tag=tag)
     return data_name
-
-
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])

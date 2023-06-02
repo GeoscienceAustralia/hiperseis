@@ -14,25 +14,7 @@ from obspy import UTCDateTime
 from tqdm.auto import tqdm
 
 from seismic.inventory.dataio.event_attrs import Origin, Event, Magnitude, Arrival
-
-
-def recursive_glob(treeroot, pattern):
-    """
-    Generate a complete list of files matching pattern under the root of a directory hierarchy.
-
-    :param treeroot: Path to the root of the directory tree.
-    :type treeroot: str or pathlib.Path
-    :param pattern: File name pattern to match, e.g. "\*.csv"
-    :type pattern: str
-    :return: List of paths to the files matching the pattern, qualified relative to treeroot
-    :rtype: list(str)
-    """
-    results = []
-    for base, dirs, files in os.walk(treeroot):
-        goodfiles = fnmatch.filter(files, pattern)
-        results.extend(os.path.join(base, f) for f in goodfiles)
-    return results
-
+from seismic.misc import recursive_glob
 
 class CatalogCSV:
     """

@@ -34,27 +34,7 @@ from osgeo.gdalconst import *
 from affine import Affine
 import struct
 from seismic.stream_io import get_obspyh5_index
-
-# define utility functions
-def rtp2xyz(r, theta, phi):
-    """Convert spherical to cartesian coordinates
-
-    :param r: [description]
-    :type r: [type]
-    :param theta: [description]
-    :type theta: [type]
-    :param phi: [description]
-    :type phi: [type]
-    :return: [description]
-    :rtype: [type]
-    """
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta)
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
+from seismic.misc import rtp2xyz
 
 class Gravity:
     def __init__(self, gravity_grid_fn):

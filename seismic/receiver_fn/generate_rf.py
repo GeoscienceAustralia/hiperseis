@@ -20,6 +20,7 @@ from seismic.stream_processing import zne_order, negate_channel, swap_ne_channel
 from seismic.stream_io import remove_group, get_obspyh5_index
 from rf import RFStream
 from collections import defaultdict
+from seismic.misc import split_list
 
 # pylint: disable=invalid-name, logging-format-interpolationa
 
@@ -125,7 +126,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     corrections = Corrections(config_correction, proc_hdfkeys)
 
     # split stations over all ranks
-    proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
+    proc_hdfkeys = split_list(proc_hdfkeys, nproc)
 
     pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
     proc_rf_stream = RFStream()

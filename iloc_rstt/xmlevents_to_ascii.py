@@ -28,19 +28,7 @@ import os, glob, fnmatch, sys
 from obspy import read_events, read_inventory
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 import os
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(npartitions)]
-# end func
-
-def recursive_glob(treeroot, pattern):
-    results = []
-    for base, dirs, files in os.walk(treeroot):
-        goodfiles = fnmatch.filter(files, pattern)
-        results.extend(os.path.join(base, f) for f in goodfiles)
-    return results
-# end func
+from seismic.misc import split_list, recursive_glob
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -179,7 +167,7 @@ def process(data_path, inventory_file, scratch_path, output_file_stem):
             lineout = ' '.join(line[1::2]).format(*line[::2])
             sprocfile.write(lineout + '\n')
         # end for
-        if (len(notFound)): print 'Rank: %d'%(rank), notFound
+        if (len(notFound)): print('Rank: %d'%(rank), notFound)
     # end for
 
     pprocfile.close()

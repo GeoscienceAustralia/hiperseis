@@ -30,6 +30,7 @@ import sqlite3
 import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
+from seismic.misc import split_list
 import pickle as cPickle
 import pandas as pd
 from rtree import index
@@ -49,11 +50,6 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.setLevel(level)
     logger.addHandler(handler)
     return logger
-# end func
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 def split_list_by_timespan(l, n):

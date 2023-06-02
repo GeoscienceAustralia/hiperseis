@@ -13,9 +13,8 @@ Revision History:
 """
 
 import subprocess
-import os
-
-from mpi4py import MPI
+import os, glob, fnmatch, sys
+import numpy as np
 
 def get_git_revision_hash() -> str:
     """
@@ -35,39 +34,30 @@ def get_git_revision_hash() -> str:
     return result
 # end func
 
-class ProgressTracker:
-    def __init__(self, output_folder, restart_mode=False):
-        self.output_folder = output_folder
-        self.restart_mode = restart_mode
+def recursive_glob(treeroot, pattern):
+    results = []
+    for base, dirs, files in os.walk(treeroot):
+        goodfiles = fnmatch.filter(files, pattern)
+        results.extend(os.path.join(base, f) for f in goodfiles)
+    return results
+# end func
 
-        self.comm = MPI.COMM_WORLD
-        self.nproc = self.comm.Get_size()
-        self.rank = self.comm.Get_rank()
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+# end func
 
-        self.prev_progress = 0 # progress from a previous run
-        self.progress = 0
-        self.proc_fn = os.path.join(output_folder, 'prog.%d.txt' % (self.rank))
-
-        if(self.restart_mode):
-            if(os.path.exists(self.proc_fn)):
-                self.prev_progress = int(open(self.proc_fn).read())
-            # end if
-        # end if
-    # end func
-
-    def increment(self):
-        self.progress += 1
-        if(self.restart_mode and (self.prev_progress > 0) and (self.progress < self.prev_progress)):
-            return False
-        else:
-            tmpfn = self.proc_fn + '.tmp'
-            f = open(tmpfn, 'w+')
-            f.write(str(self.progress))
-            f.close()
-            os.rename(tmpfn, self.proc_fn)
-
-            return True
-        # end if
-    # end func
-# end class
-
+def rtp2xyz(r, theta, phi):
+    """
+    @param r: radius
+    @param theta: colat in radians
+    @param phi: lon in radians
+    @return: x,y,z coordinates on a sphere of radius r
+    """
+    xout = np.zeros((r.shape[0], 3))
+    rst = r * np.sin(theta)
+    xout[:, 0] = rst * np.cos(phi)
+    xout[:, 1] = rst * np.sin(phi)
+    xout[:, 2] = r * np.cos(theta)
+    return xout
+# end func

@@ -20,6 +20,7 @@ from collections import defaultdict
 from seismic.pick_harvester.utils import split_list
 
 from seismic.pick_harvester.parametric_data import ParametricData, EARTH_RADIUS_KM
+from seismic.misc import rtp2xyz
 import os
 from tqdm import tqdm
 from seismic.pick_harvester.travel_time import TTInterpolator
@@ -589,15 +590,6 @@ class SSSTRelocator(ParametricData):
             self._lonlatalt2xyz = lambda lon, lat, alt: np.vstack(transformer.transform(lon, lat, alt,
                                                                                         radians=False)).T
         else:
-            def rtp2xyz(r, theta, phi):
-                xout = np.zeros((r.shape[0], 3))
-                rst = r * np.sin(theta)
-                xout[:, 0] = rst * np.cos(phi)
-                xout[:, 1] = rst * np.sin(phi)
-                xout[:, 2] = r * np.cos(theta)
-                return xout
-            # end func
-
             self._lonlatalt2xyz = lambda lon, lat, alt: rtp2xyz(np.atleast_1d(ER + alt),
                                                                 np.atleast_1d(np.radians(90 - lat)),
                                                                 np.atleast_1d(np.radians(lon)))

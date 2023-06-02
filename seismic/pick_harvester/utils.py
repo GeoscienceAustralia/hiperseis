@@ -1,26 +1,13 @@
 from mpi4py import MPI
 from lxml import etree as ET
-import os, fnmatch
+import os
 import re
 from collections import defaultdict
 from obspy import UTCDateTime
 
 import numpy as np
 from random import shuffle
-
-
-def recursive_glob(treeroot, pattern):
-    results = []
-    for base, dirs, files in os.walk(treeroot):
-        goodfiles = fnmatch.filter(files, pattern)
-        results.extend(os.path.join(base, f) for f in goodfiles)
-    return results
-# end func
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-# end func
+from seismic.misc import recursive_glob, split_list
 
 class Origin:
     __slots__ = ['utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list']

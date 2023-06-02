@@ -29,11 +29,7 @@ from collections import defaultdict
 from obspy.core.util.misc import get_window_times
 import gc
 from obspy.core.util.misc import limit_numpy_fft_cache
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-# end func
+from seismic.misc import split_list
 
 def getStationInventory(master_inventory, inventory_cache, netsta):
     netstaInv = None

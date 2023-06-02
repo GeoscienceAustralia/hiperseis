@@ -9,25 +9,12 @@ from obspy.core import Stream, Trace
 import os
 from tqdm import tqdm
 from ordered_set import OrderedSet as set
+from seismic.misc import split_list
 
 MAX_DATE = UTCDateTime(4102444800.0)
 MIN_DATE = UTCDateTime(-2208988800.0)
 
-def rtp2xyz(r, theta, phi):
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta)
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
-
 class MseedIndex:
-    def split_list(lst, npartitions):
-        k, m = divmod(len(lst), npartitions)
-        return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-    # end func
-
     def __init__(self, mseed_folder, pattern):
         self.mseed_folder = mseed_folder
         self.comm = MPI.COMM_WORLD
@@ -42,7 +29,7 @@ class MseedIndex:
 
             #self.mseed_files = self.mseed_files[:1000]
 
-            work_load = MseedIndex.split_list(self.mseed_files, self.nproc)
+            work_load = split_list(self.mseed_files, self.nproc)
             counts = np.array([len(item) for item in work_load])
             offsets = np.append(0, np.cumsum(counts[:-1]))
         # end if

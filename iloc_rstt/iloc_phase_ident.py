@@ -25,25 +25,7 @@ from random import shuffle
 #import subprocess
 import subprocess32 as subprocess
 import psutil
-
-def split_list(lst, npartitions):
-    result = []
-    for i in np.arange(npartitions):
-        result.append([])
-    # end for
-    count = 0
-    for iproc in np.arange(npartitions):
-        for i in np.arange(np.divide(len(lst), npartitions)):
-            result[iproc].append(lst[count])
-            count += 1
-    # end for
-    for iproc in np.arange(np.mod(len(lst), npartitions)):
-        result[iproc].append(lst[count])
-        count += 1
-    # end for
-
-    return result
-# end func
+from seismic.misc import split_list
 
 def kill(proc_pid):
     process = psutil.Process(proc_pid)

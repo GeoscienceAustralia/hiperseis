@@ -8,26 +8,6 @@ from obspy.geodetics.base import gps2dist_azimuth
 from tempfile import SpooledTemporaryFile
 from scipy.interpolate import interp1d
 
-# define utility functions
-def rtp2xyz(r, theta, phi):
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta)
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
-
-def xyz2rtp(x, y, z):
-    rout = np.zeros((x.shape[0], 3))
-    tmp1 = x * x + y * y
-    tmp2 = tmp1 + z * z
-    rout[0] = np.sqrt(tmp2)
-    rout[1] = np.arctan2(np.sqrt(tmp1), z)
-    rout[2] = np.arctan2(y, x)
-    return rout
-# end func
-
 def getStationInventory(master_inventory, inventory_cache, netsta, location_preferences_dict):
     netstaInv = None
     if (master_inventory):
@@ -46,11 +26,6 @@ def getStationInventory(master_inventory, inventory_cache, netsta, location_pref
     # end if
 
     return netstaInv, inventory_cache
-# end func
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
 # end func
 
 def drop_bogus_traces(st, sampling_rate_cutoff=1):

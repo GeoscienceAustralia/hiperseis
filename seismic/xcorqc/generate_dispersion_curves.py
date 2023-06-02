@@ -24,11 +24,7 @@ import subprocess
 
 import click
 import psutil
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-# end func
+from seismic.misc import split_list
 
 def kill(proc_pid):
     process = psutil.Process(proc_pid)

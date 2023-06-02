@@ -20,6 +20,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from tqdm import tqdm
 from shutil import rmtree
+from seismic.misc import split_list
 
 def generate_master_curve(station:str, output_path:str,
                           sm:SpooledMatrix, hvsr_freq:np.ndarray,
@@ -359,11 +360,6 @@ def process(asdf_source, network, spec_method, output_path, win_length,
         print('Stations to process:')
         print(stations)
         print("")
-
-        def split_list(lst, npartitions):
-            k, m = divmod(len(lst), npartitions)
-            return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-        # end func
 
         proc_stations = split_list(stations, nproc)
     # end if
