@@ -31,8 +31,9 @@ from obspy import UTCDateTime, read_inventory, Inventory
 from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
-from seismic.xcorqc.utils import ProgressTracker, getStationInventory, rtp2xyz, split_list
+from seismic.xcorqc.utils import getStationInventory, rtp2xyz, split_list
 from seismic.misc import get_git_revision_hash
+from seismic.misc import ProgressTracker
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
