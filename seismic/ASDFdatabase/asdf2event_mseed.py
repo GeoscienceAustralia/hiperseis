@@ -17,15 +17,11 @@ from mpi4py import MPI
 import os, sys
 import re
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.misc import split_list
 from obspy import Stream, UTCDateTime, read_events
 from obspy.geodetics.base import locations2degrees
 from obspy.taup import TauPyModel
 import click
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-# end func
 
 def dump_traces(fds, events_xml, sn_list, start_date, end_date, min_dist, max_dist,
                 time_before_p, time_after_p, output_folder):

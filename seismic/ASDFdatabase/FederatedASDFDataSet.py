@@ -19,8 +19,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSetImpl
-from seismic.ASDFdatabase.utils import rtp2xyz
-
+from seismic.misc import rtp2xyz
 
 class FederatedASDFDataSet():
     def __init__(self, asdf_source, logger=None, single_item_read_limit_in_mb=1024):

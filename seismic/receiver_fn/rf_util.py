@@ -21,11 +21,6 @@ from seismic.receiver_fn.rf_network_dict import NetworkRFDict
 
 logging.basicConfig()
 
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-# end func
-
 def trim_hdf_keys(hdf_key_list:[str], networks_string:str, stations_string:str) -> [str]:
     """
     Trims a list of hdf_keys, filtering out unwanted networks and stations.

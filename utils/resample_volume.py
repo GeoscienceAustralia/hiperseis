@@ -23,20 +23,10 @@ from pyevtk.hl import gridToVTK
 from netCDF4 import Dataset
 import click
 import os.path as path
-from seismic.xcorqc.utils import rtp2xyz
 from pyproj import Proj
+from seismic.misc import rtp2xyz
 
 DEFAULT_PROJ = 3577  # AU Albers
-
-# define utility functions
-def rtp2xyz(r, theta, phi):
-    xout = np.zeros((r.shape[0], 3))
-    rst = r * np.sin(theta);
-    xout[:, 0] = rst * np.cos(phi)
-    xout[:, 1] = rst * np.sin(phi)
-    xout[:, 2] = r * np.cos(theta)
-    return xout
-# end func
 
 class Resample:
     def __init__(self, fname, lonf, latf, zf, nn=1, p=4):

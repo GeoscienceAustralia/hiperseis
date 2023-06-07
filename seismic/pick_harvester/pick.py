@@ -30,8 +30,9 @@ from obspy.signal.rotate import rotate_ne_rt
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 from PhasePApy.phasepapy.phasepicker import aicdpicker
 
-from seismic.pick_harvester.utils import ProgressTracker, recursive_glob
+from seismic.pick_harvester.utils import recursive_glob
 from seismic.pick_harvester.parametric_data import ParametricData
+from seismic.misc_p import ProgressTracker
 import psutil
 import gc
 

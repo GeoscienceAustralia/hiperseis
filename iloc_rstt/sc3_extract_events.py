@@ -30,35 +30,9 @@ from obspy.core.event import read_events
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 import MySQLdb
 import os
+from seismic.misc import split_list, recursive_glob
 
 DEVNULL = open(os.devnull, 'wb')
-
-def split_list(lst, npartitions):
-    result = []
-    for i in np.arange(npartitions):
-        result.append([])
-    # end for
-    count = 0
-    for iproc in np.arange(npartitions):
-        for i in np.arange(np.divide(len(lst), npartitions)):
-            result[iproc].append(lst[count])
-            count += 1
-    # end for
-    for iproc in np.arange(np.mod(len(lst), npartitions)):
-        result[iproc].append(lst[count])
-        count += 1
-    # end for
-
-    return result
-# end func
-
-def recursive_glob(treeroot, pattern):
-    results = []
-    for base, dirs, files in os.walk(treeroot):
-        goodfiles = fnmatch.filter(files, pattern)
-        results.extend(os.path.join(base, f) for f in goodfiles)
-    return results
-# end func
 
 def runprocess(cmd, get_results=False):
     results = []

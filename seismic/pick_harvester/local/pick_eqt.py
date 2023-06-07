@@ -19,31 +19,25 @@ import logging
 
 from ordered_set import OrderedSet as set
 import numpy as np
-from obspy import Trace
 from datetime import datetime
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
 import click
-from obspy.signal.rotate import rotate_ne_rt
-from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 from obspy.core import UTCDateTime, Stats
 from scipy import signal
 from obspy.signal.filter import bandpass, highpass, lowpass
 
-from seismic.pick_harvester.utils import CatalogCSV, ProgressTracker, recursive_glob, split_list
+from seismic.pick_harvester.utils import recursive_glob, split_list
 from seismic.xcorqc.utils import get_stream
 from seismic.xcorqc.xcorqc import taper
-import pywt
-
+from seismic.misc_p import ProgressTracker
 import matplotlib.pyplot as plt
 
-import keras
-from keras import backend as K
 from keras.models import load_model
-from keras.optimizers import Adam
-import tensorflow as tf
+from tensorflow.keras.optimizers import Adam
 from EQTransformer.core.EqT_utils import f1, SeqSelfAttention, FeedForward, LayerNormalization
 from EQTransformer.core.mseed_predictor import _picker
+from collections import defaultdict
 
 logging.basicConfig()
 def setup_logger(name, log_file, level=logging.INFO):
@@ -87,9 +81,31 @@ def stationsToProcess(fds, netsta_list):
     return netsta_list_result
 # end func
 
-def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_seconds=60, buffer_seconds=10, overlap=0.5):
-    assert(ztrc.stats.sampling_rate == ntrc.stats.sampling_rate == etrc.stats.sampling_rate)
+def processData(ztrc, ntrc, etrc, model, picking_args,
+                output_path, ofh_p, ofh_s, save_plots,
+                logger=None, window_seconds=60,
+                buffer_seconds=10, overlap=0.3):
+    """
+    @param ztrc: z-trace
+    @param ntrc: n-trace
+    @param etrc: e-trace
+    @param model: ML-model
+    @param picking_args: picking arguments
+    @param output_path: output path
+    @param p_ofh: file handle for outputting p-arrivals
+    @param s_ofh: file handle for outputting s-arrivals
+    @param save_plots flag for saving plots
+    @param window_seconds: length of window in seconds
+    @param buffer_seconds: data buffer length around data windows to be able to
+                           exclude preprocessing artefacts
+    @param overlap: window overlap
+    """
 
+    assert (ztrc.stats.sampling_rate == ntrc.stats.sampling_rate == etrc.stats.sampling_rate), \
+           "Discrepant sampling rates found among channel data. Aborting.."
+
+    REQ_SAMPLING_RATE = 100
+    NSAMPLES = 6000
     sr = ztrc.stats.sampling_rate
 
     max_st = UTCDateTime(0)
@@ -99,7 +115,9 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
         if(trc.stats.endtime < min_et): min_et = trc.stats.endtime
     # end for
 
-    ml_input = np.zeros((1, 6000, 3))
+    net, sta = ztrc.stats.network, ztrc.stats.station
+
+    ml_input = np.zeros((1, NSAMPLES, 3))
     stime = max_st
     etime = min_et
     ctime = stime
@@ -124,9 +142,12 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                type(ndata)==np.ndarray and \
                type(edata)==np.ndarray):
 
-                if(np.sum(zdata)!=0 and
-                   np.sum(ndata)!=0 and
-                   np.sum(edata)!=0): # traces cannot be all zeros
+                if(np.sum(zdata) != 0 and
+                   np.sum(ndata) != 0 and
+                   np.sum(edata) != 0): # traces cannot be all zeros
+
+                    logger.info('Time window: %s - %s' % (ctime.strftime('%Y-%m-%dT%H:%M:%S.%f'),
+                                ((ctime + window_seconds).strftime('%Y-%m-%dT%H:%M:%S.%f'))))
 
                     for i, data in enumerate([edata, ndata, zdata]):
                         data = signal.detrend(data)
@@ -134,11 +155,13 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                         taper(data, int(buffer_seconds * sr / 2.))
                         data = bandpass(data, 1.0, 45, sr, corners=2, zerophase=True)
 
-                        if(sr != 100):
-                            data = signal.resample(data, (window_seconds + buffer_seconds) * 100)
+                        if(sr != REQ_SAMPLING_RATE):
+                            data = signal.resample(data,
+                                                   (window_seconds + buffer_seconds) * REQ_SAMPLING_RATE)
                         # end if
 
-                        ml_input[0, :, i] = data[int(buffer_seconds/2.*100) : int(buffer_seconds/2.*100)+6000]
+                        ml_input[0, :, i] = data[int(buffer_seconds/2.*REQ_SAMPLING_RATE) :
+                                                 int(buffer_seconds/2.*REQ_SAMPLING_RATE)+NSAMPLES]
                     # end for
 
                     eprob, pprob, sprob = model(ml_input)
@@ -146,27 +169,48 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                                                           np.squeeze(eprob),
                                                           np.squeeze(pprob),
                                                           np.squeeze(sprob))
-                    if(len(matches)):
+
+                    #=============================================================
+                    # matches: { detection start-time:[ 0 detection-end-time,
+                    #                                   1 detection-probability,
+                    #                                   2 detection-uncertainty,
+                    #                                   3 P-arrival,
+                    #                                   4 P-probability,
+                    #                                   5 P-uncertainty,
+                    #                                   6 S-arrival,
+                    #                                   7 S-probability,
+                    #                                   8 S-uncertainty] }
+                    #=============================================================
+
+                    def generate_plots():
+                        """
+                        Note that file names are reused, across ranks.
+                        """
                         fig, axes = plt.subplots(3,1)
 
-                        for k, v in matches.items():
-                            if(v[3]): axes[0].axvline(v[3], c='blue', alpha=0.75)
-                            if(v[6]): axes[0].axvline(v[6], c='red', alpha=0.75)
-                        # end for
                         axes[0].plot(ml_input[0, :, 0], c='k', lw=0.3)
-                        axes[0].set_xlim(0, 6000)
+                        axes[0].set_xlim(0, NSAMPLES)
                         axes[0].grid()
+
+                        for k, v in matches.items():
+                            if(v[3]):
+                                axes[0].axvline(v[3], c='blue', alpha=0.75)
+                                axes[0].text(v[3], 0, '{}'.format(v[3]), c='b', fontsize=6, zorder=10)
+                            if(v[6]):
+                                axes[0].axvline(v[6], c='red', alpha=0.75)
+                                axes[0].text(v[6], 0, '{}'.format(v[6]), c='r', fontsize=6, zorder=10)
+                        # end for
 
                         axes[1].plot(np.squeeze(eprob), '--', c='g', label='Event')
                         axes[1].plot(np.squeeze(pprob), '--', c='blue', label='P')
                         axes[1].plot(np.squeeze(sprob), '--', c='red', label='S')
-                        axes[1].set_xlim(0, 6000)
+                        axes[1].set_xlim(0, NSAMPLES)
                         axes[1].grid()
                         axes[1].set_xlabel('Samples')
                         axes[1].set_ylabel('Probability')
                         axes[1].legend()
 
-                        f, t, ps = signal.stft(ml_input[0, :, 2], fs=100, nperseg=80)
+                        f, t, ps = signal.stft(ml_input[0, :, 2], fs=REQ_SAMPLING_RATE, nperseg=80)
                         ps = np.abs(ps)
                         ps[ps<np.std(ps)/2.] = 1
                         axes[2].pcolormesh(t, f, ps, cmap='jet', rasterized=True)
@@ -178,18 +222,33 @@ def processData(ztrc, ntrc, etrc, model, picking_args, output_path, window_secon
                                      y=1.0)
 
                         plt.tight_layout()
-                        plt.savefig('%s/%s.%d.png'%(output_path, ztrc.stats.station, wcount), dpi=300)
+                        plt.savefig('%s/plots/%s.%d.png'%(output_path, ztrc.stats.station, wcount), dpi=300)
                         plt.close(fig)
-                        print((ctime, ztrc.stats.station, matches))
+                    # end func
 
-                        #exit(0)
+                    if(len(matches)):
+                        if(save_plots): generate_plots()
+
+                        for k, v in matches.items():
+                            if(v[3]):
+                                # output p-arrivals
+                                ts = ctime.timestamp + v[3] / REQ_SAMPLING_RATE
+                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[4])
+                                ofh_p.write(line)
+                            # end if
+
+                            if(v[6]):
+                                # output s-arrivals
+                                ts = ctime.timestamp + v[6] / REQ_SAMPLING_RATE
+                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[7])
+                                ofh_s.write(line)
+                            # end if
+                        # end for
                     # end if
                 # end if
             # end if
         # end if
 
-        print('%s - %s' % (ctime.strftime('%Y-%m-%dT%H:%M:%S.%f'),
-                           ((ctime + window_seconds).strftime('%Y-%m-%dT%H:%M:%S.%f'))))
 
         ctime += step
         wcount += 1
@@ -226,8 +285,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               type=str,
               help="Name of e-channel")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
-@click.option('--save-quality-plots', default=False, is_flag=True, help='Save plots of quality estimates')
-def process(asdf_source, ml_model_path, output_path, station_names, start_time, end_time, zchan, nchan, echan, restart, save_quality_plots):
+@click.option('--save-plots', default=False, is_flag=True,
+              help='Save plots in output folder. Note that file-names are recycled and '
+                   'pertain to the latest block of 24 hr data being processed.')
+def process(asdf_source, ml_model_path, output_path, station_names, start_time, end_time,
+            zchan, nchan, echan, restart, save_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     ML_MODEL_PATH: Path to EQT Model in H5 format
@@ -238,6 +300,16 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     nproc = comm.Get_size()
     rank = comm.Get_rank()
     proc_workload = None
+
+    plot_output_folder = None
+    if (save_plots):
+        plot_output_folder = os.path.join(output_path, 'plots')
+        if (rank == 0):
+            if (not os.path.exists(plot_output_folder)):
+                os.mkdir(plot_output_folder)
+        # end if
+        comm.Barrier()
+    # end if
 
     # load ML model
     loss_weights=[0.03, 0.40, 0.58],
@@ -262,7 +334,7 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     if (rank == 0):
         def outputConfigParameters():
             # output config parameters
-            fn = 'pick_eqt.%s.cfg' % (datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+            fn = 'pick_eqt.cfg'
             fn = os.path.join(output_path, fn)
 
             f = open(fn, 'w+')
@@ -271,25 +343,11 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             f.write('%25s\t\t: %s\n' % ('ML_MODEL', ml_model_path))
             f.write('%25s\t\t: %s\n' % ('OUTPUT_PATH', output_path))
             f.write('%25s\t\t: %s\n' % ('RESTART_MODE', 'TRUE' if restart else 'FALSE'))
-            f.write('%25s\t\t: %s\n' % ('SAVE_PLOTS', 'TRUE' if save_quality_plots else 'FALSE'))
             f.close()
 
         # end func
 
         outputConfigParameters()
-    # end if
-
-    # ==================================================
-    # Create output-folder for snr-plots
-    # ==================================================
-    plot_output_folder = None
-    if (save_quality_plots):
-        plot_output_folder = os.path.join(output_path, 'plots')
-        if (rank == 0):
-            if (not os.path.exists(plot_output_folder)):
-                os.mkdir(plot_output_folder)
-        # end if
-        comm.Barrier()
     # end if
 
     fds = FederatedASDFDataSet(asdf_source, logger=None)
@@ -306,20 +364,19 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    #header = '#eventID originTimestamp mag originLon originLat originDepthKm net sta cha pickTimestamp stationLon stationLat az baz distance ttResidual snr qualityMeasureCWT domFreq qualityMeasureSlope bandIndex nSigma\n'
-    header = 'net sta cha pickTimestamp stationLon stationLat\n'
+    header = '#net, sta, timestamp, probability \n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
-    ofp = None
-    ofs = None
+    ofhp = None
+    ofhs = None
     if (restart == False):
-        ofp = open(ofnp, 'w+')
-        ofs = open(ofns, 'w+')
-        ofp.write(header)
-        ofs.write(header)
+        ofhp = open(ofnp, 'w+')
+        ofhs = open(ofns, 'w+')
+        ofhp.write(header)
+        ofhs.write(header)
     else:
-        ofp = open(ofnp, 'a+')
-        ofs = open(ofns, 'a+')
+        ofhp = open(ofnp, 'a+')
+        ofhs = open(ofns, 'a+')
     # end if
 
     # Progress tracker
@@ -348,26 +405,31 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             if (progTracker.increment()):
                 pass
             else:
+                cTime += step
                 continue
             # end if
 
             # get streams
+            loc_pref_dict = defaultdict(lambda: None)
             nc, sc = netsta.split('.')
             stz, stn, ste = [], [], []
-            stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, logger=logger)
-            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, logger=logger)
-            if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, logger=logger)
+            stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
 
             if(len(ste)): # we have data in all three streams
-                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args, output_path)
+                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
+                            output_path, ofhp, ofhs, save_plots, logger=logger)
+            else:
+                logger.warning('No data found. Moving along..')
             # end if
 
             cTime += step
         # wend
     # end for
 
-    ofp.close()
-    ofs.close()
+    ofhp.close()
+    ofhs.close()
     print(('Processing complete on rank %d' % (rank)))
 
     del fds

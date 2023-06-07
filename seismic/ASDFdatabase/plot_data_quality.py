@@ -46,17 +46,9 @@ from ordered_set import OrderedSet as set
 from tqdm import tqdm
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.misc import split_list
 
 logging.basicConfig()
-
-
-def split_list(lst, npartitions):
-    k, m = divmod(len(lst), npartitions)
-    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
-
-
-# end func
-
 
 def setup_logger(name, log_file, level=logging.INFO):
     """

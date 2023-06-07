@@ -13,7 +13,7 @@ import os
 import numpy as np
 from scipy.spatial import cKDTree
 from pyproj import Proj
-from seismic.xcorqc.utils import rtp2xyz
+from seismic.misc import rtp2xyz
 
 class SGrid:
     def __init__(self, filename, utm_zone):

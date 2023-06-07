@@ -13,7 +13,8 @@ Revision History:
 """
 
 import subprocess
-import os
+import os, glob, fnmatch, sys
+import numpy as np
 
 def get_git_revision_hash() -> str:
     """
@@ -31,4 +32,32 @@ def get_git_revision_hash() -> str:
 
     os.chdir(prev_path)
     return result
+# end func
+
+def recursive_glob(treeroot, pattern):
+    results = []
+    for base, dirs, files in os.walk(treeroot):
+        goodfiles = fnmatch.filter(files, pattern)
+        results.extend(os.path.join(base, f) for f in goodfiles)
+    return results
+# end func
+
+def split_list(lst, npartitions):
+    k, m = divmod(len(lst), npartitions)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(npartitions)]
+# end func
+
+def rtp2xyz(r, theta, phi):
+    """
+    @param r: radius
+    @param theta: colat in radians
+    @param phi: lon in radians
+    @return: x,y,z coordinates on a sphere of radius r
+    """
+    xout = np.zeros((r.shape[0], 3))
+    rst = r * np.sin(theta)
+    xout[:, 0] = rst * np.cos(phi)
+    xout[:, 1] = rst * np.sin(phi)
+    xout[:, 2] = r * np.cos(theta)
+    return xout
 # end func
