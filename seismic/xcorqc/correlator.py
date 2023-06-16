@@ -99,22 +99,22 @@ class Dataset:
 
     def get_unique_station_pairs(self, other_dataset, nn=1):
         pairs = set()
-        for st1 in self.netsta_list:
-            st2list = None
+        for ns1 in self.netsta_list:
+            ns2list = None
             if (nn != -1):
                 if self == other_dataset:
-                    st2list = set(self.get_closest_stations(st1, other_dataset, nn=nn + 1))
-                    if st1 in st2list:
-                        st2list.remove(st1)
-                    st2list = list(st2list)
+                    ns2list = set(self.get_closest_stations(ns1, other_dataset, nn=nn + 1))
+                    if ns1 in ns2list:
+                        ns2list.remove(ns1)
+                    ns2list = list(ns2list)
                 else:
-                    st2list = self.get_closest_stations(st1, other_dataset, nn=nn)
+                    ns2list = self.get_closest_stations(ns1, other_dataset, nn=nn)
             else:
-                st2list = other_dataset.netsta_list
+                ns2list = other_dataset.netsta_list
             # end if
 
-            for st2 in st2list:
-                pairs.add((st1, st2))
+            for ns2 in ns2list:
+                pairs.add((ns1, ns2))
             # end for
         # end for
 
@@ -128,7 +128,35 @@ class Dataset:
             # end if
         # end if
 
-        return list(pairs_subset)
+        # cull pairs based on temporal overlap (note: gaps are not considered)
+        result_pairs = set()
+        range_cache = defaultdict(tuple)
+        for ns1, ns2 in pairs_subset:
+            st1 = et1 = st2 = et2 = None
+
+            if(ns1 in range_cache.keys()):
+                st1, et1 = range_cache[ns1]
+            else:
+                net1, sta1 = ns1.split('.')
+                st1, et1 = self.fds.get_global_time_range(net1, sta1)
+                range_cache[ns1] = (st1, et1)
+            # end if
+
+            if(ns2 in range_cache.keys()):
+                st2, et2 = range_cache[ns2]
+            else:
+                net2, sta2 = ns2.split('.')
+                st2, et2 = other_dataset.fds.get_global_time_range(net2, sta2)
+                range_cache[ns2] = (st2, et2)
+            # end if
+
+            # check for temporal overlap
+            if((st1 <= et2) and (st2 <= et1)):
+                result_pairs.add((ns1, ns2))
+            # end if
+        # end for
+
+        return list(result_pairs)
     # end func
 # end class
 
