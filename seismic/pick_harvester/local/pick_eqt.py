@@ -115,7 +115,8 @@ def processData(ztrc, ntrc, etrc, model, picking_args,
         if(trc.stats.endtime < min_et): min_et = trc.stats.endtime
     # end for
 
-    net, sta = ztrc.stats.network, ztrc.stats.station
+    net, sta, loc, cha = ztrc.stats.network, ztrc.stats.station, \
+                         ztrc.stats.location, ztrc.stats.channel
 
     ml_input = np.zeros((1, NSAMPLES, 3))
     stime = max_st
@@ -145,9 +146,6 @@ def processData(ztrc, ntrc, etrc, model, picking_args,
                 if(np.sum(zdata) != 0 and
                    np.sum(ndata) != 0 and
                    np.sum(edata) != 0): # traces cannot be all zeros
-
-                    logger.info('Time window: %s - %s' % (ctime.strftime('%Y-%m-%dT%H:%M:%S.%f'),
-                                ((ctime + window_seconds).strftime('%Y-%m-%dT%H:%M:%S.%f'))))
 
                     for i, data in enumerate([edata, ndata, zdata]):
                         data = signal.detrend(data)
@@ -227,20 +225,24 @@ def processData(ztrc, ntrc, etrc, model, picking_args,
                     # end func
 
                     if(len(matches)):
+                        logger.info('Time window: %s - %s: found %d arrivals..' %
+                                    (ctime.strftime('%Y-%m-%dT%H:%M:%S.%f'),
+                                     ((ctime + window_seconds).strftime('%Y-%m-%dT%H:%M:%S.%f')),
+                                     len(matches)))
                         if(save_plots): generate_plots()
 
                         for k, v in matches.items():
                             if(v[3]):
                                 # output p-arrivals
                                 ts = ctime.timestamp + v[3] / REQ_SAMPLING_RATE
-                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[4])
+                                line = '{}, {}, {}, {}, {}, {}\n'.format(net, sta, loc, cha, ts, v[4])
                                 ofh_p.write(line)
                             # end if
 
                             if(v[6]):
                                 # output s-arrivals
                                 ts = ctime.timestamp + v[6] / REQ_SAMPLING_RATE
-                                line = '{}, {}, {}, {}\n'.format(net, sta, ts, v[7])
+                                line = '{}, {}, {}, {}, {}, {}\n'.format(net, sta, loc, cha, ts, v[7])
                                 ofh_s.write(line)
                             # end if
                         # end for
@@ -264,32 +266,47 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
+@click.option('--picking-params', type=(float, float, float),
+              default=(0.3, 0.3, 0.5),
+              show_default=True,
+              help="Detection threshold, P-threshold and S-threshold, specified as three "
+                   "space-separated floating point values. The default is (0.3, 0.3, 0.5), "
+                   "which are the recommended values for the original EQTransformer model. "
+                   "The corresponding recommended values for the conservative EQTransformer "
+                   "model are: (0.03, 0.03, 0.5)")
 @click.option('--station-names', default='*', type=str,
+              show_default=True,
               help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
                    "process; default is '*', which processes all available stations.")
 @click.option('--start-time', default='1970-01-01T00:00:00',
               type=str,
+              show_default=True,
               help="Date and time (in UTC format) to start from; default is year 1900.")
 @click.option('--end-time', default='2100-01-01T00:00:00',
               type=str,
+              show_default=True,
               help="Date and time (in UTC format) to stop at; default is year 2100.")
 @click.option('--zchan', default='BHZ',
               type=str,
+              show_default=True,
               help="Name of z-channel. This parameter and the three following are required to "
                    "specify channel names for the stations being processed. Simple wildcards, e.g. '*Z', are "
                    "also supported.")
 @click.option('--nchan', default='BHN',
               type=str,
+              show_default=True,
               help="Name of n-channel")
 @click.option('--echan', default='BHE',
               type=str,
+              show_default=True,
               help="Name of e-channel")
-@click.option('--restart', default=False, is_flag=True, help='Restart job')
+@click.option('--restart', default=False, is_flag=True,
+              help='Restart job')
 @click.option('--save-plots', default=False, is_flag=True,
               help='Save plots in output folder. Note that file-names are recycled and '
                    'pertain to the latest block of 24 hr data being processed.')
-def process(asdf_source, ml_model_path, output_path, station_names, start_time, end_time,
-            zchan, nchan, echan, restart, save_plots):
+def process(asdf_source, ml_model_path, output_path, picking_params, station_names,
+            start_time, end_time, zchan, nchan, echan, restart, save_plots):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files
     ML_MODEL_PATH: Path to EQT Model in H5 format
@@ -326,9 +343,9 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
                   metrics = [f1])
     # define picking parameters
     picking_args = {
-        "detection_threshold": 0.5,
-        "P_threshold": 0.5,
-        "S_threshold": 0.5,
+        "detection_threshold": picking_params[0],
+        "P_threshold": picking_params[1],
+        "S_threshold": picking_params[2],
     }
 
     if (rank == 0):
@@ -364,7 +381,7 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     # Define output header and open output files
     # depending on the mode of operation (fresh/restart)
     # ==================================================
-    header = '#net, sta, timestamp, probability \n'
+    header = '#net, sta, loc, cha, timestamp, probability \n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofhp = None
@@ -387,12 +404,19 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
     endTime = UTCDateTime(end_time)
     step = 24 * 3600 # day
     for netsta in proc_workload[rank]:
+        loc_pref_dict = defaultdict(lambda: None) # ignoring location codes
+        nc, sc = netsta.split('.')
+
         # set up logger for current station
         fn = os.path.join(output_path, '%s.log' % (netsta))
         logger = setup_logger('%s' % (netsta), fn)
 
         startTime = UTCDateTime(start_time)
         endTime = UTCDateTime(end_time)
+
+        minSt, maxEt = fds.get_global_time_range(nc, sc)
+        if(startTime < minSt): startTime = minSt
+        if(endTime > maxEt): endTime = maxEt
 
         cTime = startTime
         while cTime < endTime:
@@ -410,8 +434,6 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
             # end if
 
             # get streams
-            loc_pref_dict = defaultdict(lambda: None)
-            nc, sc = netsta.split('.')
             stz, stn, ste = [], [], []
             stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
             if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
@@ -421,7 +443,8 @@ def process(asdf_source, ml_model_path, output_path, station_names, start_time, 
                 processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
                             output_path, ofhp, ofhs, save_plots, logger=logger)
             else:
-                logger.warning('No data found. Moving along..')
+                logger.warning('No data found for {}: {} - {}. Moving along..'.format(netsta, cTime,
+                                                                                      cTime+step))
             # end if
 
             cTime += step
