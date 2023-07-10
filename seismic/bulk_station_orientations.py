@@ -18,7 +18,7 @@ import tqdm.auto as tqdm
 import seismic.receiver_fn.rf_util as rf_util
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from seismic.stream_io import get_obspyh5_index
-
+from seismic.misc import split_list
 from seismic.network_event_dataset import NetworkEventDataset
 from seismic.swp_station_orientations import analyze_station_orientations as swp_station_orientations, load_grv
 from seismic.rf_station_orientations import analyze_station_orientations as rf_station_orientations
@@ -208,7 +208,7 @@ def main(src_h5_event_file, network, output_basename, station_list):
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network, station_list)
 
         # split work-load over all procs
-        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
+        proc_hdfkeys = split_list(proc_hdfkeys, nproc)
         tempdir = os.path.join(os.path.dirname(output_basename), str(uuid.uuid4()))
         os.makedirs(tempdir, exist_ok=True)
     # end if
