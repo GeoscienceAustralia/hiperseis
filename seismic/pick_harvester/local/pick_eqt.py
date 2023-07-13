@@ -435,9 +435,14 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
 
             # get streams
             stz, stn, ste = [], [], []
-            stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
-            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
-            if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            try:
+                stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+                if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+                if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
+            except Exception as e:
+                logger.error('\t' + str(e))
+                logger.warning('\tError encountered while fetching data. Skipping along..')
+            # end try
 
             if(len(ste)): # we have data in all three streams
                 processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
