@@ -23,7 +23,9 @@ class DepthMigratedSegy:
                  max_depth_km,
                  coords_file=None,
                  epsg_code=28353,
-                 pick_every=1):
+                 pick_every=1,
+                 filter_coordinates=True,
+                 filter_coordinates_factor=0.1):
         '''
         Class for reading 2D segy files. This class assumes that the traces are
         CDP-ordered.
@@ -36,6 +38,10 @@ class DepthMigratedSegy:
         :param epsg_code: epsg code for projection used (default is GDA94 / MGA zone 53)
         :param pick_every: by default, every trace is read from the segy file, but
                            pick_every>1 allows skipping traces.
+        :param filter_coordinates: drop bad coordinates where station spacing exceeds
+               filter_coordinates_factor * median_station_spacing
+        :param filter_coordinates_factor: factor applied to median station spacing, while
+               identifying problematic station-coordinates
         '''
         self.sfn = segy_fn
         self.coords_file = coords_file
@@ -44,6 +50,8 @@ class DepthMigratedSegy:
         self.epsg_code = epsg_code
         self.sf = segy._read_segy(self.sfn)
         self.pick_every = pick_every
+        self.filter_coordinates = filter_coordinates
+        self.filter_coordinates_factor = filter_coordinates_factor
         # transformer to go from segy projection to wgs84
         self.transformer = pyproj.Transformer.from_crs(self.epsg_code, 4326)
 
@@ -85,11 +93,15 @@ class DepthMigratedSegy:
         self.station_spacing = np.concatenate([[0], self.station_spacing])
 
         # use station-spacing to weed out traces with incorrect coordinates
-        median_spacing = np.median(self.station_spacing)
-        bad_indices = np.fabs(self.station_spacing - median_spacing) > 0.1*median_spacing
-        print('Warning: removing {} traces (~{:.3f}%) with '
-              'bad coordinates..'.format(np.sum(bad_indices),
+        bad_indices = np.zeros(self.station_spacing.shape, dtype='?')
+        if(self.filter_coordinates):
+            median_spacing = np.median(self.station_spacing)
+            bad_indices = np.fabs(self.station_spacing - median_spacing) > \
+                          self.filter_coordinates_factor * median_spacing
+            print('Warning: removing {} traces (~{:.3f}%) with '
+                  'bad coordinates..'.format(np.sum(bad_indices),
                                          np.sum(bad_indices)/self.ntraces*100))
+        # end if
 
         self.ns = self.ns[~bad_indices]
         self.si = self.si[~bad_indices]
