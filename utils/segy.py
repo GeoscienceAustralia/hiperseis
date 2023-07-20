@@ -14,7 +14,6 @@ Revision History:
 from scipy.interpolate import interp1d
 import numpy as np
 import pyproj
-
 from obspy.io.segy import segy
 
 class DepthMigratedSegy:
@@ -25,7 +24,8 @@ class DepthMigratedSegy:
                  epsg_code=28353,
                  pick_every=1,
                  filter_coordinates=True,
-                 filter_coordinates_factor=0.1):
+                 filter_coordinates_factor=0.1,
+                 flip=False):
         '''
         Class for reading 2D segy files. This class assumes that the traces are
         CDP-ordered.
@@ -42,6 +42,7 @@ class DepthMigratedSegy:
                filter_coordinates_factor * median_station_spacing
         :param filter_coordinates_factor: factor applied to median station spacing, while
                identifying problematic station-coordinates
+        :param flip: Flip horizontally
         '''
         self.sfn = segy_fn
         self.coords_file = coords_file
@@ -52,6 +53,7 @@ class DepthMigratedSegy:
         self.pick_every = pick_every
         self.filter_coordinates = filter_coordinates
         self.filter_coordinates_factor = filter_coordinates_factor
+        self.flip = flip
         # transformer to go from segy projection to wgs84
         self.transformer = pyproj.Transformer.from_crs(self.epsg_code, 4326)
 
@@ -76,11 +78,21 @@ class DepthMigratedSegy:
 
         if(self.coords_file):
             coords = np.loadtxt(self.coords_file, delimiter=',')
-            self.xs[:] = coords[:, 0]
-            self.ys[:] = coords[:, 1]
+            assert len(coords) == len(self.xs), 'Unexpected number of coordinates in {}. ' \
+                                                'Aborting..'.format(self.coords_file)
+            self.xs = coords[:, 0]
+            self.ys = coords[:, 1]
         # end if
 
         self.samples = np.array(self.samples).T  # shape (nz, nt)
+
+        # flip horizontally if required
+        if(self.flip):
+            self.xs = self.xs[::-1]
+            self.ys = self.ys[::-1]
+            self.samples = self.samples[:, ::-1]
+        # end if
+
         self.ns = np.array(self.ns)
         assert np.min(self.ns) == np.max(self.ns), \
             'Sample-count mismatch found. Aborting..'
@@ -115,7 +127,6 @@ class DepthMigratedSegy:
         # compute euclidean distance along profile
         self.ds = np.array([np.sum(self.station_spacing[:i])
                             for i in range(len(self.station_spacing))]) / 1e3  # km
-        self.ds -= np.min(self.ds)  # distance along profile starts from 0
 
         self.times = np.linspace(0, (np.max(self.ns) - 1) * np.max(self.si),
                                  np.max(self.ns))
@@ -210,5 +221,62 @@ class DepthMigratedSegy:
         # end for
 
         return lons, lats, zs, ds, result_samples
+    # end func
+
+    def augment(self, other, prepend=False):
+        """
+        @param other: another segy line to append/prepend to this object
+        @param prepend: prepend line, instead of appending it by default
+        """
+        # check compatibility
+        if ((np.median(self.si) != np.median(other.si)) or
+                (self.depth_zero_km != other.depth_zero_km) or
+                (self.max_depth_km != other.max_depth_km)):
+            print('DepthMigratedSegy intances are not compatible. '
+                  'Aborting prepend operation..')
+            return
+        else:
+            this_max, other_max = np.median(np.fabs(self.samples)), \
+                                    np.median(np.fabs(other.samples))
+            scale = this_max / other_max
+
+            # append/prepend coordinates and data in place
+            if (prepend):
+                self.xs = np.hstack([other.xs, self.xs])
+                self.ys = np.hstack([other.ys, self.ys])
+                self.station_spacing = np.hstack([other.station_spacing, self.station_spacing])
+
+                result = np.zeros((self.samples.shape[0],
+                                   self.samples.shape[1] + other.samples.shape[1]))
+
+                result[:, other.samples.shape[1]:] = self.samples[:, :]
+                for i in np.arange(other.samples.shape[0]):
+                    if (i >= self.samples.shape[0]): break
+                    result[i, :other.samples.shape[1]] = other.samples[i, :] * scale
+                # end for
+                self.samples = result
+            else:
+                self.xs = np.hstack([self.xs, other.xs])
+                self.ys = np.hstack([self.ys, other.ys])
+                self.station_spacing = np.hstack([self.station_spacing, other.station_spacing])
+
+                result = np.zeros((self.samples.shape[0],
+                                   self.samples.shape[1] + other.samples.shape[1]))
+
+                result[:, :self.samples.shape[1]] = self.samples[:, :]
+                for i in np.arange(other.samples.shape[0]):
+                    if (i >= self.samples.shape[0]): break
+                    result[i, self.samples.shape[1]:] = other.samples[i, :] * scale
+                # end for
+                self.samples = result
+            # end if
+
+            # recompute euclidean distance along profile
+            self.ds = np.array([np.sum(self.station_spacing[:i])
+                                for i in range(len(self.station_spacing))]) / 1e3  # km
+
+            # convert x and y coordinates to lons and lats
+            self.lats, self.lons = self.transformer.transform(self.xs, self.ys)
+        # end if
     # end func
 # end class
