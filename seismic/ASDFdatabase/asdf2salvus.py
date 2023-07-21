@@ -22,7 +22,7 @@ from obspy.clients.fdsn.client import Client
 import pyasdf
 from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.ASDFdatabase._FederatedASDFDataSetImpl import split_list
+from seismic.misc import split_list
 import click
 from shapely.geometry.polygon import Polygon, Point
 from tqdm import tqdm

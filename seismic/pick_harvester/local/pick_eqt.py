@@ -267,13 +267,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
 @click.option('--picking-params', type=(float, float, float),
-              default=(0.3, 0.3, 0.5),
+              default=(0.5, 0.3, 0.3),
               show_default=True,
               help="Detection threshold, P-threshold and S-threshold, specified as three "
-                   "space-separated floating point values. The default is (0.3, 0.3, 0.5), "
+                   "space-separated floating point values. The default is (0.5, 0.3, 0.3), "
                    "which are the recommended values for the original EQTransformer model. "
                    "The corresponding recommended values for the conservative EQTransformer "
-                   "model are: (0.03, 0.03, 0.5)")
+                   "model are: (0.2, 0.03, 0.03)")
 @click.option('--station-names', default='*', type=str,
               show_default=True,
               help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
