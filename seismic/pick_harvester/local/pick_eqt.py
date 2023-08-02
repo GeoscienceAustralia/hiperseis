@@ -40,6 +40,8 @@ from EQTransformer.core.mseed_predictor import _picker
 from collections import defaultdict
 
 logging.basicConfig()
+DAY_SECONDS = 24 * 3600
+
 def setup_logger(name, log_file, level=logging.INFO):
     """
     Function to setup a logger; adapted from stackoverflow
@@ -61,24 +63,60 @@ def dropBogusTraces(st, sampling_rate_cutoff=5):
     for tr in badTraces: st.remove(tr)
 # end func
 
-def stationsToProcess(fds, netsta_list):
+def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
+                start_time:UTCDateTime, end_time:UTCDateTime):
+    """
+    @param fds:
+    @param netsta_list:
+    @param start_time:
+    @param end_time:
+    @return: list with each row containing:
+             network.station, start_time and end_time for each <=24 hr period
+             with data available
+    """
     if(os.path.exists(netsta_list)):
         netsta_list = ' '.join(open(netsta_list).readlines()).replace('\n', ' ').strip()
     # end if
 
     # Gather station metadata
     netsta_list_subset = set(netsta_list.split(' ')) if netsta_list != '*' else netsta_list
-    netsta_list_result = []
+    netsta_list = []
 
     for netsta in list(fds.unique_coordinates.keys()):
         if(netsta_list_subset != '*'):
             if netsta not in netsta_list_subset:
                 continue
 
-        netsta_list_result.append(netsta)
+        netsta_list.append(netsta)
     # end for
 
-    return netsta_list_result
+    result_list = []
+    for netsta in netsta_list:
+        st = start_time
+        et = end_time
+
+        nc, sc = netsta.split('.')
+        minSt, maxEt = fds.get_global_time_range(nc, sc)
+
+        if(st < minSt): st = minSt
+        if(et > maxEt): et = maxEt
+
+        cTime = st
+        while(cTime < et):
+            cStep = DAY_SECONDS
+            if (cTime + cStep) > et:
+                cStep = et - cTime
+            # end if
+
+            r = fds.get_stations(cTime, cTime + cStep, network=nc, station=sc)
+            if(len(r)): # has data
+                result_list.append([netsta, cTime, cTime + cStep])
+            # end if
+            cTime += cStep
+        # wend
+    # end for
+
+    return result_list
 # end func
 
 def processData(ztrc, ntrc, etrc, model, picking_args,
@@ -367,11 +405,13 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
         outputConfigParameters()
     # end if
 
+    startTime = UTCDateTime(start_time)
+    endTime = UTCDateTime(end_time)
     fds = FederatedASDFDataSet(asdf_source, logger=None)
 
     if(rank == 0):
-        station_list = stationsToProcess(fds, station_names)
-        proc_workload = split_list(station_list, npartitions=nproc)
+        workload = getWorkLoad(fds, station_names, startTime, endTime)
+        proc_workload = split_list(workload, npartitions=nproc)
     # end if
 
     # broadcast workload to all procs
@@ -399,61 +439,44 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
     # Progress tracker
     progTracker = ProgressTracker(output_folder=output_path, restart_mode=restart)
 
+    loggerCache = defaultdict(list)
     # main loop
-    startTime = UTCDateTime(start_time)
-    endTime = UTCDateTime(end_time)
-    step = 24 * 3600 # day
-    for netsta in proc_workload[rank]:
-        loc_pref_dict = defaultdict(lambda: None) # ignoring location codes
+    for netsta, st, et in proc_workload[rank]:
         nc, sc = netsta.split('.')
+        loc_pref_dict = defaultdict(lambda: None) # ignoring location codes
 
-        # set up logger for current station
-        fn = os.path.join(output_path, '%s.log' % (netsta))
-        logger = setup_logger('%s' % (netsta), fn)
+        print('Rank: {}, Processing: {} - {}'.format(rank, st, et))
+        if (progTracker.increment()):
+            pass
+        else:
+            print('Moving along')
+            continue
+        # end if
 
-        startTime = UTCDateTime(start_time)
-        endTime = UTCDateTime(end_time)
+        if(netsta in loggerCache.keys()):
+            logger = loggerCache[netsta]
+        else:
+            # set up logger for current station
+            fn = os.path.join(output_path, '%s.log' % (netsta))
+            logger = setup_logger('%s' % (netsta), fn)
+            loggerCache[netsta] = logger
+        # end if
 
-        minSt, maxEt = fds.get_global_time_range(nc, sc)
-        if(startTime < minSt): startTime = minSt
-        if(endTime > maxEt): endTime = maxEt
+        # get streams
+        stz, stn, ste = [], [], []
+        try:
+            stz = get_stream(fds, nc, sc, zchan, st, et, loc_pref_dict, logger=logger)
+            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, st, et, loc_pref_dict, logger=logger)
+            if(len(stn)): ste = get_stream(fds, nc, sc, echan, st, et, loc_pref_dict, logger=logger)
+        except Exception as e:
+            logger.error('\t' + str(e))
+            logger.warning('\tError encountered while fetching data. Skipping along..')
+        # end try
 
-        cTime = startTime
-        while cTime < endTime:
-            cStep = step
-
-            if (cTime + cStep) > endTime:
-                cStep = endTime - cTime
-            # end if
-
-            if (progTracker.increment()):
-                pass
-            else:
-                cTime += step
-                continue
-            # end if
-
-            # get streams
-            stz, stn, ste = [], [], []
-            try:
-                stz = get_stream(fds, nc, sc, zchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
-                if(len(stz)): stn = get_stream(fds, nc, sc, nchan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
-                if(len(stn)): ste = get_stream(fds, nc, sc, echan, cTime, cTime + cStep, loc_pref_dict, logger=logger)
-            except Exception as e:
-                logger.error('\t' + str(e))
-                logger.warning('\tError encountered while fetching data. Skipping along..')
-            # end try
-
-            if(len(ste)): # we have data in all three streams
-                processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
-                            output_path, ofhp, ofhs, save_plots, logger=logger)
-            else:
-                logger.warning('No data found for {}: {} - {}. Moving along..'.format(netsta, cTime,
-                                                                                      cTime+step))
-            # end if
-
-            cTime += step
-        # wend
+        if(len(ste)): # we have data in all three streams
+            processData(stz.traces[0], stn.traces[0], ste.traces[0], model, picking_args,
+                        output_path, ofhp, ofhs, save_plots, logger=logger)
+        # end if
     # end for
 
     ofhp.close()
