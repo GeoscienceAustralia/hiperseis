@@ -22,13 +22,19 @@ from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSet
 from seismic.misc import rtp2xyz
 
 class FederatedASDFDataSet():
-    def __init__(self, asdf_source, logger=None, single_item_read_limit_in_mb=1024):
+    def __init__(self, asdf_source, logger=None,
+                 single_item_read_limit_in_mb=1024,
+                 single_threaded_access=True):
         """
         Initializer for FederatedASDFDataSet.
 
         :param asdf_source: Path to a text file containing a list of ASDF files. \
                Entries can be commented out with '#'
         :param logger: logger instance
+        :param single_item_read_limit_in_mb: buffer size for Obspy reads
+        :param single_threaded_access: By default, data are read via unthreaded MPI-processes.
+               This can be relaxed for threaded GUI applications, though data access will still
+               remain single-threaded.
         """
         self.logger = logger
         self.asdf_source = asdf_source
@@ -37,7 +43,8 @@ class FederatedASDFDataSet():
 
         # Instantiate implementation class
         self.fds = _FederatedASDFDataSetImpl(asdf_source, logger=logger,
-                                             single_item_read_limit_in_mb=single_item_read_limit_in_mb)
+                                             single_item_read_limit_in_mb=single_item_read_limit_in_mb,
+                                             single_threaded_access=single_threaded_access)
 
         # Populate coordinates
         self._unique_coordinates = defaultdict(list)
@@ -62,7 +69,6 @@ class FederatedASDFDataSet():
 
         self._tree = cKDTree(xyzs)
         self._key_list = np.array(list(rtps_dict.keys()))
-
     # end func
 
     @property

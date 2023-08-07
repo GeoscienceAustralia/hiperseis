@@ -73,11 +73,17 @@ def split_list_by_timespan(l, n):
 # end func
 
 class _FederatedASDFDataSetImpl():
-    def __init__(self, asdf_source, logger=None, single_item_read_limit_in_mb=1024):
+    def __init__(self, asdf_source, logger=None,
+                 single_item_read_limit_in_mb=1024,
+                 single_threaded_access=True):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
         :param logger: logger instance
+        :param single_item_read_limit_in_mb: buffer size for Obspy reads
+        :param single_threaded_access: By default, data are read via unthreaded MPI-processes.
+               This can be relaxed for threaded GUI applications, though data access will still
+               remain single-threaded.
         """
 
         self.comm = MPI.COMM_WORLD
@@ -85,6 +91,7 @@ class _FederatedASDFDataSetImpl():
         self.rank = self.comm.Get_rank()
 
         self.logger = logger
+        self.single_threaded_access = single_threaded_access
         self.asdf_source = None
         self.asdf_file_names = []
         self.asdf_station_coordinates = []
@@ -320,10 +327,12 @@ class _FederatedASDFDataSetImpl():
 
         if(dbFound):
             print(('Found database: %s'%(self.db_fn)))
-            self.conn = sqlite3.connect(self.db_fn)
+            self.conn = sqlite3.connect(self.db_fn,
+                                        check_same_thread=self.single_threaded_access)
         else:
             if(self.rank==0):
-                self.conn = sqlite3.connect(self.db_fn)
+                self.conn = sqlite3.connect(self.db_fn,
+                                            check_same_thread=self.single_threaded_access)
                 self.conn.execute('create table wdb(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
                 self.conn.execute('create table netsta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
@@ -388,7 +397,8 @@ class _FederatedASDFDataSetImpl():
                 for irank in np.arange(self.nproc):
                     if(irank == self.rank):
                         if(len(data)):
-                            self.conn = sqlite3.connect(self.db_fn)
+                            self.conn = sqlite3.connect(self.db_fn,
+                                                        check_same_thread=self.single_threaded_access)
                             self.conn.executemany('insert into wdb(ds_id, net, sta, loc, cha, st, et, tag) values '
                                                   '(?, ?, ?, ?, ?, ?, ?, ?)', data)
                             print(('\tInserted %d entries on rank %d'%(len(data),
@@ -405,7 +415,8 @@ class _FederatedASDFDataSetImpl():
 
             if(self.rank==0):
                 print('Creating table indices..')
-                self.conn = sqlite3.connect(self.db_fn)
+                self.conn = sqlite3.connect(self.db_fn,
+                                            check_same_thread=self.single_threaded_access)
                 self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
                 self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
                 self.conn.commit()
@@ -413,7 +424,8 @@ class _FederatedASDFDataSetImpl():
                 print('Done..')
             # end if
             self.comm.Barrier()
-            self.conn = sqlite3.connect(self.db_fn)
+            self.conn = sqlite3.connect(self.db_fn,
+                                        check_same_thread=self.single_threaded_access)
         # end if
 
         # Load metadata
@@ -431,9 +443,9 @@ class _FederatedASDFDataSetImpl():
     def get_global_time_range(self, network, station, location=None, channel=None):
         query = "select min(st), max(et) from wdb where net='%s' and sta='%s' "%(network, station)
 
-        if (location):
+        if (location is not None):
             query += "and loc='%s' "%(location)
-        if (channel):
+        if (channel is not None):
             query += "and cha='%s' "%(channel)
 
         row = self.conn.execute(query).fetchall()[0]

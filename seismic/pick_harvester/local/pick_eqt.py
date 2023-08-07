@@ -57,12 +57,6 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger
 # end func
 
-def dropBogusTraces(st, sampling_rate_cutoff=5):
-    badTraces = [tr for tr in st if tr.stats.sampling_rate < sampling_rate_cutoff]
-
-    for tr in badTraces: st.remove(tr)
-# end func
-
 def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
                 start_time:UTCDateTime, end_time:UTCDateTime):
     """
@@ -90,16 +84,18 @@ def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
         netsta_list.append(netsta)
     # end for
 
+    if(len(netsta_list) == 0): print('Warning: no stations found to process..')
+
     result_list = []
     for netsta in netsta_list:
-        st = start_time
-        et = end_time
+        st = UTCDateTime(start_time)
+        et = UTCDateTime(end_time)
 
         nc, sc = netsta.split('.')
-        minSt, maxEt = fds.get_global_time_range(nc, sc)
+        gSt, gEt = fds.get_global_time_range(nc, sc)
 
-        if(st < minSt): st = minSt
-        if(et > maxEt): et = maxEt
+        if(st < gSt): st = gSt
+        if(et > gEt): et = gEt
 
         cTime = st
         while(cTime < et):
@@ -418,10 +414,9 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
     proc_workload = comm.bcast(proc_workload, root=0)
 
     # ==================================================
-    # Define output header and open output files
-    # depending on the mode of operation (fresh/restart)
+    # Open output files depending on the mode of
+    # operation (fresh/restart)
     # ==================================================
-    header = '#net, sta, loc, cha, timestamp, probability \n'
     ofnp = os.path.join(output_path, 'p_arrivals.%d.txt' % (rank))
     ofns = os.path.join(output_path, 's_arrivals.%d.txt' % (rank))
     ofhp = None
@@ -429,8 +424,6 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
     if (restart == False):
         ofhp = open(ofnp, 'w+')
         ofhs = open(ofns, 'w+')
-        ofhp.write(header)
-        ofhs.write(header)
     else:
         ofhp = open(ofnp, 'a+')
         ofhs = open(ofns, 'a+')
@@ -445,11 +438,9 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
         nc, sc = netsta.split('.')
         loc_pref_dict = defaultdict(lambda: None) # ignoring location codes
 
-        print('Rank: {}, Processing: {} - {}'.format(rank, st, et))
         if (progTracker.increment()):
             pass
         else:
-            print('Moving along')
             continue
         # end if
 
@@ -490,27 +481,25 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
 
     # Merge results on proc 0
     if (rank == 0):
-        merge_results(output_path)
+        header = '#net, sta, loc, cha, timestamp, probability \n'
+        merge_results(output_path, header)
     # end if
 # end func
 
-def merge_results(output_path):
+def merge_results(output_path, header):
     search_strings = ['p_arrivals*', 's_arrivals*']
     output_fns = ['p_combined.txt', 's_combined.txt']
 
     for ss, ofn in zip(search_strings, output_fns):
         files = recursive_glob(output_path, ss)
         ofn = open('%s/%s' % (output_path, ofn), 'w+')
+        ofn.write(header)
 
         data = set()
         for i, fn in enumerate(files):
             lines = open(fn, 'r').readlines()
 
-            if (i == 0):
-                ofn.write(lines[0])
-            # end if
-
-            for j in range(1, len(lines)):
+            for j in np.arange(len(lines)):
                 data.add(lines[j])
             # end for
 
