@@ -589,6 +589,28 @@ class _FederatedASDFDataSetImpl():
         return s
     # end func
 
+    def get_location_codes(self, network, station, starttime=None, endtime=None):
+        st, et = self.get_global_time_range(network, station)
+
+        if(starttime):
+            starttime = UTCDateTime(starttime)
+            if(starttime > st): st = starttime
+        # end if
+
+        if(endtime):
+            endtime = UTCDateTime(endtime)
+            if(endtime < et): et = endtime
+        # end if
+
+        rows = self.get_stations(st, et, network=network, station=station)
+        uniqueLocCodes = set()
+        for row in rows:
+            uniqueLocCodes.add(row[2])
+        # end for
+
+        return sorted(list(uniqueLocCodes))
+    # end func
+
     def stations_iterator(self, network_list=[], station_list=[]):
         workload = None
         if(self.rank==0):

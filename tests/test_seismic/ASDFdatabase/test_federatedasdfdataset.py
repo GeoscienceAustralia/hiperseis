@@ -84,6 +84,21 @@ def test_get_stations():
     assert len(station_set) == 8
 # end func
 
+def test_get_locaiton_codes():
+    fds = FederatedASDFDataSet(asdf_file_list)
+
+    rows = np.array(fds.get_stations('1900-01-01T00:00:00', '2100-01-01T00:00:00'))
+
+    location_set = set()
+    for n, s in rows[:, 0:2]: 
+        locs = fds.get_location_codes(n, s)
+        for loc in locs: location_set.add(loc)
+    # end for
+
+    # There is 1 unique locaiton code in the h5 file
+    assert len(location_set) == 1
+# end func
+
 def test_get_coordinates():
     fds = FederatedASDFDataSet(asdf_file_list)
 
@@ -121,7 +136,7 @@ def test_get_global_time_range():
 # end func
 
 
-def test_get_stations():
+def test_stations_iterator():
     fds = FederatedASDFDataSet(asdf_file_list)
 
     local_netsta_list = list(fds.stations_iterator())

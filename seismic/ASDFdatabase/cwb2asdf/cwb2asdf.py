@@ -51,6 +51,8 @@ BUFFER_LENGTH = 1000
 @click.argument('inventory', required=True,
                 type=click.Path(exists=True))
 @click.argument('output-file-name', required=True)
+@click.option('--file-pattern', type=str, default='*.mseed',
+              help="File pattern to be used while looking for data files")
 @click.option('--channels-to-extract', type=str, default=None, help="Channels to extract, within quotes and space- "
                                                                    "separated.")
 @click.option('--min-length-sec', type=int, default=None, help="Minimum length in seconds")
@@ -58,7 +60,8 @@ BUFFER_LENGTH = 1000
                                                                 "interval exceeds this threshold")
 @click.option('--ntraces-per-file', type=int, default=3600, help="Maximum number of traces per file; if exceeded, the "
                                                                  "file is ignored.")
-def process(input_folder, inventory, output_file_name, channels_to_extract, min_length_sec, merge_threshold,
+def process(input_folder, inventory, output_file_name, file_pattern,
+            channels_to_extract, min_length_sec, merge_threshold,
             ntraces_per_file):
     """
     INPUT_FOLDER: Path to input folder containing miniseed files \n
@@ -109,11 +112,12 @@ def process(input_folder, inventory, output_file_name, channels_to_extract, min_
 
         # generate a list of files
         paths = [i for i in os.listdir(input_folder) if os.path.isfile(os.path.join(input_folder, i))]
-        expr = re.compile(fnmatch.translate('*.mseed'), re.IGNORECASE)
+        expr = re.compile(fnmatch.translate(file_pattern), re.IGNORECASE)
         files = [os.path.join(input_folder, j) for j in paths if re.match(expr, j)]
 
         files = np.array(files)
         random.Random(nproc).shuffle(files)
+        #print(files); exit(0)
         #files = files[370:380]
 
         ustations = set()

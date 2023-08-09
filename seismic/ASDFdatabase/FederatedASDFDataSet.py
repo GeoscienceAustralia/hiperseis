@@ -191,6 +191,20 @@ class FederatedASDFDataSet():
 
     # end func
 
+    def get_location_codes(self, network, station, starttime=None, endtime=None):
+        """
+        :param network: network code
+        :param station: station code
+        :param starttime: start time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
+        :param endtime: end time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
+
+        :return: a list containing unique location codes within the timeframe specified
+        """
+
+        return self.fds.get_location_codes(network, station, starttime=starttime, endtime=endtime)
+
+    # end func
+
     def stations_iterator(self, network_list=[], station_list=[]):
         """
         This function provides an iterator over the entire data volume contained in all the ASDF files listed in the

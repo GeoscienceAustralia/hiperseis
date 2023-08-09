@@ -638,14 +638,17 @@ def IntervalStackXCorr(refds, tempds,
                          'together is redundant')
     # end if
 
-    # setup logger
+    # get preferred location codes, or use the first available
     ref_loc = location_preferences_dict[ref_net_sta]
     temp_loc = location_preferences_dict[temp_net_sta]
-    if(ref_loc is None): ref_loc = ''
-    if(temp_loc is None): temp_loc = ''
+    if(ref_loc is None): ref_loc = refds.get_location_codes(*ref_net_sta.split('.'))[0]
+    if(temp_loc is None): temp_loc = tempds.get_location_codes(*temp_net_sta.split('.'))[0]
+
     stationPair = '%s.%s.%s.%s.%s.%s' % (ref_net_sta, ref_loc, ref_cha, temp_net_sta, temp_loc, temp_cha)
     fn = os.path.join(outputPath, '%s.log' % (stationPair if not tracking_tag else
                                               '.'.join([stationPair, tracking_tag])))
+
+    # setup logger
     logger = setup_logger(stationPair, fn)
 
     #########################################################################
