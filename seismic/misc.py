@@ -15,6 +15,23 @@ Revision History:
 import subprocess
 import os, glob, fnmatch, sys
 import numpy as np
+import logging
+logging.basicConfig()
+
+def setup_logger(name, log_file, level=logging.INFO, propagate=False):
+    """
+    Function to setup a logger; adapted from stackoverflow
+    """
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler(log_file, mode='w')
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name+log_file)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    logger.propagate = propagate
+    return logger
+# end func
 
 def get_git_revision_hash() -> str:
     """

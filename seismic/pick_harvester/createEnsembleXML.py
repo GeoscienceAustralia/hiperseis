@@ -46,20 +46,7 @@ from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 from seismic.pick_harvester.utils import recursive_glob, split_list
 import logging
 from tqdm import tqdm
-
-def setup_logger(name, log_file, level=logging.INFO):
-    """
-    Function to setup a logger; adapted from stackoverflow
-    """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name+log_file)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    return logger
-# end func
+from seismic.misc import setup_logger
 
 class Origin:
     __slots__ = ['utctime', 'lat', 'lon', 'depthkm', 'magnitude_list', 'arrival_list']

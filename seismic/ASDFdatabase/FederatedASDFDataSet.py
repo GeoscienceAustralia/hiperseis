@@ -19,7 +19,8 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSetImpl
-from seismic.misc import rtp2xyz
+from seismic.misc import rtp2xyz, setup_logger
+from obspy.core import UTCDateTime
 
 class FederatedASDFDataSet():
     def __init__(self, asdf_source, logger=None,
@@ -272,6 +273,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("******** USAGE: python3 %s %s **********"% (sys.argv[0], "asdf_file_list_txt"))
         sys.exit(1)
+    # end if
 
     asdf_file_list = sys.argv[1]
-    ds = FederatedASDFDataSet(asdf_file_list)
+    ts = UTCDateTime().strftime("%Y-%m-%d.T%H.%M.%S")
+    ofn = 'FederatedASDFDataSet.Indexer.{}.log'.format(ts)
+    logger = setup_logger('', ofn)
+    ds = FederatedASDFDataSet(asdf_file_list, logger=logger)

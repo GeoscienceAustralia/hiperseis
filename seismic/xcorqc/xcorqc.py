@@ -38,24 +38,7 @@ from seismic.xcorqc.utils import get_stream, fill_gaps
 from netCDF4 import Dataset
 from functools import reduce
 from seismic.xcorqc.utils import SpooledMatrix
-logging.basicConfig()
-
-
-def setup_logger(name, log_file, level=logging.INFO):
-    """
-    Function to setup a logger; adapted from stackoverflow
-    """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name+log_file)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    logger.propagate = False
-    return logger
-# end func
-
+from seismic.misc import setup_logger
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)

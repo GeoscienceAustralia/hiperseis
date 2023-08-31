@@ -46,26 +46,7 @@ from ordered_set import OrderedSet as set
 from tqdm import tqdm
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.misc import split_list
-
-logging.basicConfig()
-
-def setup_logger(name, log_file, level=logging.INFO):
-    """
-    Function to setup a logger; adapted from stackoverflow
-    """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name + log_file)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    return logger
-
-
-# end func
-
+from seismic.misc import split_list, setup_logger
 
 def process_data(rank, fds, stations, start_time, end_time):
     """

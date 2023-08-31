@@ -30,27 +30,11 @@ import sqlite3
 import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
-from seismic.misc import split_list
+from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
 from rtree import index
 import traceback
-
-logging.basicConfig()
-
-def setup_logger(name, log_file, level=logging.INFO):
-    """
-    Function to setup a logger; adapted from stackoverflow
-    """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    return logger
-# end func
 
 def split_list_by_timespan(l, n):
     lmin = np.min(l[:, 1])
@@ -304,20 +288,30 @@ class _FederatedASDFDataSetImpl():
 
     def create_database(self):
         def decode_tag(tag, type='raw_recording'):
+            """
+            Tags are expected in the form: {NET}.{STA}.{LOC}.{CHA}__{ST}__{ET}__{TAG}, where
+            ST and ET are expected as YYYY-MM-DDThh:mm:ss.s.
+
+            @param tag: tag
+            @param type: str
+            @return: network, station, location, channel, starttime, endtime
+            """
             if (type not in tag): return None
             try:
-                tokens = tag.split('.')
-                nc, sc, lc = tokens[0], tokens[1], tokens[2]
+                nslc, st, et, _ = tag.split('__')
+                nc, sc, lc, cc = nslc.split('.')
 
-                tokens = tokens[3].split('__')
-                cc = tokens[0]
-                starttime = UTCDateTime(tokens[1]).timestamp
-                endtime  = UTCDateTime(tokens[2]).timestamp
+                starttime = UTCDateTime(st).timestamp
+                endtime  = UTCDateTime(et).timestamp
 
-                return nc, sc, lc, cc, starttime, endtime
+                if((endtime - starttime) == 0):
+                    return None
+                else:
+                    return nc, sc, lc, cc, starttime, endtime
+                # end if
             except Exception:
                 if self.logger:
-                    self.logger.error("Failed to decode tag {}".format(tag))
+                    self.logger.warning("Failed to decode tag {}".format(tag))
                 return None
             # end try
         # end func

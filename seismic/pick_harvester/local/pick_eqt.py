@@ -15,7 +15,6 @@ Revision History:
 
 from mpi4py import MPI
 import os
-import logging
 
 from ordered_set import OrderedSet as set
 import numpy as np
@@ -31,6 +30,7 @@ from seismic.pick_harvester.utils import recursive_glob, split_list
 from seismic.xcorqc.utils import get_stream
 from seismic.xcorqc.xcorqc import taper
 from seismic.misc_p import ProgressTracker
+from seismic.misc import setup_logger
 import matplotlib.pyplot as plt
 
 from keras.models import load_model
@@ -39,23 +39,7 @@ from EQTransformer.core.EqT_utils import f1, SeqSelfAttention, FeedForward, Laye
 from EQTransformer.core.mseed_predictor import _picker
 from collections import defaultdict
 
-logging.basicConfig()
 DAY_SECONDS = 24 * 3600
-
-def setup_logger(name, log_file, level=logging.INFO):
-    """
-    Function to setup a logger; adapted from stackoverflow
-    """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name+log_file)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    logger.propagate = False
-    return logger
-# end func
 
 def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
                 start_time:UTCDateTime, end_time:UTCDateTime):
