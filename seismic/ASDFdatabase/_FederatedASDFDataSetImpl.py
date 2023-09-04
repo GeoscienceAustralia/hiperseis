@@ -434,9 +434,11 @@ class _FederatedASDFDataSetImpl():
         self.masterinv = cPickle.loads(row[0][0])
     # end func
 
-    def get_global_time_range(self, network, station, location=None, channel=None):
-        query = "select min(st), max(et) from wdb where net='%s' and sta='%s' "%(network, station)
+    def get_global_time_range(self, network, station=None, location=None, channel=None):
+        query = "select min(st), max(et) from wdb where net='%s' "%(network)
 
+        if (station is not None):
+            query += "and sta='%s' "%(station)
         if (location is not None):
             query += "and loc='%s' "%(location)
         if (channel is not None):

@@ -122,7 +122,7 @@ class FederatedASDFDataSet():
 
     # end func
 
-    def get_global_time_range(self, network, station, location=None, channel=None):
+    def get_global_time_range(self, network, station=None, location=None, channel=None):
         """
         :param network: network code
         :param station: station code
@@ -132,7 +132,7 @@ class FederatedASDFDataSet():
                  min is set to 2100-01-01T00:00:00.000000Z and max is set to 1900-01-01T00:00:00.000000Z
         """
 
-        return self.fds.get_global_time_range(network, station, location=location, channel=channel)
+        return self.fds.get_global_time_range(network, station=station, location=location, channel=channel)
 
     # end func
 
