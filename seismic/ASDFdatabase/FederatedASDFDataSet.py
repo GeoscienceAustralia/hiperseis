@@ -21,9 +21,10 @@ from scipy.spatial import cKDTree
 from seismic.ASDFdatabase._FederatedASDFDataSetImpl import _FederatedASDFDataSetImpl
 from seismic.misc import rtp2xyz, setup_logger
 from obspy.core import UTCDateTime
+import click
 
 class FederatedASDFDataSet():
-    def __init__(self, asdf_source, logger=None,
+    def __init__(self, asdf_source, force_reindex=False, logger=None,
                  single_item_read_limit_in_mb=1024,
                  single_threaded_access=True):
         """
@@ -31,6 +32,7 @@ class FederatedASDFDataSet():
 
         :param asdf_source: Path to a text file containing a list of ASDF files. \
                Entries can be commented out with '#'
+        :param force_reindex: Force reindex even if a preexisting db file is found
         :param logger: logger instance
         :param single_item_read_limit_in_mb: buffer size for Obspy reads
         :param single_threaded_access: By default, data are read via unthreaded MPI-processes.
@@ -43,7 +45,7 @@ class FederatedASDFDataSet():
         self._earth_radius = 6371  # km
 
         # Instantiate implementation class
-        self.fds = _FederatedASDFDataSetImpl(asdf_source, logger=logger,
+        self.fds = _FederatedASDFDataSetImpl(asdf_source, force_reindex=force_reindex, logger=logger,
                                              single_item_read_limit_in_mb=single_item_read_limit_in_mb,
                                              single_threaded_access=single_threaded_access)
 
@@ -257,26 +259,64 @@ class FederatedASDFDataSet():
         """
         return self.fds.find_gaps(network, station, location, channel, start_date_ts, end_date_ts, min_gap_length)
     # end func
+
+    def get_coverage(self, network=None):
+        """
+        Generates coverage for the entire data holdings for a selected network.
+        @param network: network code
+        @return: Numpy record array with columns: net, sta, loc, cha,
+                 start_timestamp, end_timestamp
+        """
+
+        rows = self.fds.get_coverage(network=network)
+        return rows
+    # end func
 # end class
 
-if __name__ == "__main__":
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('asdf-source', required=True,
+                type=click.Path(exists=True))
+@click.option('--force-reindex', default=False, is_flag=True,
+              help='Force reindex, even if a preexisting database is found')
+@click.option('--generate-summary', default=False, is_flag=True,
+              help='Generate coverage and data availability summaries')
+def process(asdf_source, force_reindex, generate_summary):
     """
-    How to Run Example::
-
-        python ASDFdatabase/FederatedASDFDataSet.py /Datasets/asdf_file_index.txt
-
-    Upon success, a db file will be created: /Datasets/f374ca9e7dd8abd2a1d58575e0d55520f30ffc23.db
+    ASDF_SOURCE: Text file containing a list of paths to ASDF files
     """
-    import sys
-    from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
-    if len(sys.argv) < 2:
-        print("******** USAGE: python3 %s %s **********"% (sys.argv[0], "asdf_file_list_txt"))
-        sys.exit(1)
-    # end if
-
-    asdf_file_list = sys.argv[1]
-    ts = UTCDateTime().strftime("%Y-%m-%d.T%H.%M.%S")
-    ofn = 'FederatedASDFDataSet.Indexer.{}.log'.format(ts)
+    ofn = 'FederatedASDFDataSet.Indexer.log'
     logger = setup_logger('', ofn)
-    ds = FederatedASDFDataSet(asdf_file_list, logger=logger)
+    ds = FederatedASDFDataSet(asdf_source, force_reindex=force_reindex, logger=logger)
+
+    if(generate_summary):
+        if(ds.fds.rank == 0):
+            ts = UTCDateTime().strftime("%Y-%m-%dT%H.%M.%S")
+            logger.info('Generating coverage summary..')
+            ofn = 'FederatedASDFDataSet.Summary.{}.txt'.format(ts)
+
+            with open(ofn, 'w') as fh:
+                fh.write('# net, sta, loc, cha, lon, lat, min_starttime, max_endtime, duration_months\n')
+
+                rows = ds.get_coverage()
+                for row in rows:
+                    net, sta, loc, cha, lon, lat, min_st, max_et = row
+                    duration_months = (max_et - min_st) / (86400 * 30)
+
+                    line = '{},{},{},{},{:3.4f},{:3.4f},{},{},{:5.3f}\n'.\
+                           format(net, sta, loc, cha, lon, lat,
+                                  UTCDateTime(min_st).strftime('%Y-%m-%dT%H:%M:%S'),
+                                  UTCDateTime(max_et).strftime('%Y-%m-%dT%H:%M:%S'),
+                                  duration_months)
+                    fh.write(line)
+                # end for
+            # end with
+        # end if
+    # end if
+    logger.info('Done..')
+# end func
+
+if __name__ == "__main__":
+    process()
+# end func

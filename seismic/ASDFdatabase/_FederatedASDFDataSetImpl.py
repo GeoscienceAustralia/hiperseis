@@ -57,12 +57,13 @@ def split_list_by_timespan(l, n):
 # end func
 
 class _FederatedASDFDataSetImpl():
-    def __init__(self, asdf_source, logger=None,
+    def __init__(self, asdf_source, force_reindex=False, logger=None,
                  single_item_read_limit_in_mb=1024,
                  single_threaded_access=True):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
+        :param force_reindex: Force reindex even if a preexisting db file is found
         :param logger: logger instance
         :param single_item_read_limit_in_mb: buffer size for Obspy reads
         :param single_threaded_access: By default, data are read via unthreaded MPI-processes.
@@ -83,6 +84,8 @@ class _FederatedASDFDataSetImpl():
         if isinstance(asdf_source, str):
             self.asdf_source = asdf_source
             self.source_sha1 = hashlib.sha1(open(self.asdf_source).read().encode('utf-8')).hexdigest()
+            self.db_fn = os.path.join(os.path.dirname(self.asdf_source), self.source_sha1 + '.db')
+
             fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
 
             # collate file names
@@ -110,9 +113,18 @@ class _FederatedASDFDataSetImpl():
             # end if
         # end func
 
+        # Remove preexisting db if force_reindex is True
+        if (force_reindex):
+            if(self.rank == 0):
+                if(os.path.exists(self.db_fn)):
+                    os.remove(self.db_fn)
+                # end if
+            # end if
+        # end if
+        self.comm.Barrier()
+
         # Create database
         self.conn = None
-        self.db_fn = os.path.join(os.path.dirname(self.asdf_source),  self.source_sha1 + '.db')
         self.masterinv = None
         self.create_database()
         self._load_corrections()
@@ -305,6 +317,7 @@ class _FederatedASDFDataSetImpl():
                 endtime  = UTCDateTime(et).timestamp
 
                 if((endtime - starttime) == 0):
+                    # Filtering out zero-length traces
                     return None
                 else:
                     return nc, sc, lc, cc, starttime, endtime
@@ -781,6 +794,28 @@ class _FederatedASDFDataSetImpl():
         return result
     # end func
 
+    def get_coverage(self, network=None):
+        query = """ 
+                select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
+                from wdb as w, netsta as n where w.net=n.net and w.sta=n.sta and 
+                w.net in (select distinct net from netsta) and 
+                w.sta in (select distinct sta from netsta) and 
+                w.loc in (select distinct loc from wdb) and 
+                w.cha in (select distinct cha from wdb) 
+                """
+        if(network): query += ' and w.net="{}"'.format(network)
+        query += " group by w.net, w.sta, w.loc, w.cha; "
+
+        rows = self.conn.execute(query).fetchall()
+        array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                       ('loc', 'U10'), ('cha', 'U10'),
+                       ('lon', 'float'), ('lat', 'float'),
+                       ('min_st', 'float'), ('max_et', 'float')]
+        rows = np.array(rows, dtype=array_dtype)
+
+        return rows
+    # end func
+
     def cleanup(self):
         for i, ds in enumerate(self.asdf_datasets):
             # if self.logger:
@@ -791,18 +826,3 @@ class _FederatedASDFDataSetImpl():
         self.conn.close()
     # end func
 # end class
-
-if __name__=="__main__":
-    fn = os.path.join('/tmp', 'test.log')
-    logger = setup_logger('main', fn)
-
-    # fds = _FederatedASDFDataSetImpl('/g/data/ha3/rakib/tmp/a.txt', logger)
-    fds = _FederatedASDFDataSetImpl("/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt", logger)
-    s = fds.get_waveforms('AU', 'QIS', '', 'BHZ', '2015-06-01T00:00:00', '2015-06-02T00:06:00')  # cannot use wildcard *
-    print(s)
-    # select * from wdb where net='AU' and sta='QIS' and loc='' and cha='BHZ' and et>=1433116800.000000 and st<=1433203560.000000
-    # 2 Trace(s) in Stream:
-    # AU.QIS..BHZ | 2015-05-31T23:59:59.994500Z - 2015-06-01T23:59:59.994500Z | 40.0 Hz, 3456001 samples
-    # AU.QIS..BHZ | 2015-06-01T23:59:55.769500Z - 2015-06-02T00:05:59.994500Z | 40.0 Hz, 14570 samples
-
-    print(s)
