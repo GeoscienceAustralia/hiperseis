@@ -2,7 +2,7 @@
 
 1. Setup scripts provided for Linux, OSX and Windows (conda_env_*.sh) are based on
 [Anaconda3-2021.11](https://repo.anaconda.com/archive/).
-Refer to Conda installation instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+Refer to Anaconda installation instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 
 2. After installing Anaconda (v 2021.11), launch the setup shell script for your OS, e.g. for Linux:
 
