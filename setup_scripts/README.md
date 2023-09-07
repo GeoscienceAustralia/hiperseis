@@ -16,6 +16,9 @@ Refer to Anaconda installation instructions [here](https://conda.io/projects/con
 
 ``conda activate env_name``
 
+Note that the setup script for Windows is a whittled down version compared to the Linux and OSX versions. While most of the dependecies 
+are covered, some that require code compilation are excluded, specifically to cater to institutional Windows machines with strict security controlls in place. ``conda_env_windows.sh`` should be launched from Git BASH -- refer to its installation instructions [here](https://gitforwindows.org/).
+
 # GADI
 
 1. The setup script for GADI is launched as:
