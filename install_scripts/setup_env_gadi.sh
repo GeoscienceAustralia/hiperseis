@@ -46,7 +46,7 @@ pip3.6 install pip==21.1.2
 echo "================ Installing numpy 1.18.5 ================"
 pip3.6 install numpy==1.18.5
 
-echo "================ Building mpi4py against module openmpi-3.1.4 ================"
+echo "================ Building mpi4py against module openmpi-4.1.4 ================"
 MPICC=/apps/openmpi/4.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3
 
 echo "================ Installing cython 0.29.22 ================"
@@ -120,6 +120,7 @@ pip3.6 install rasterio==1.2.10
 pip3.6 install notebook==6.4.10
 pip3.6 install ipython==7.10.0
 pip3.6 install jedi==0.17
+pip3.6 install remi==2022.7.27
 EOF
 )
     echo "$STD_PACKAGES"
