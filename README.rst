@@ -25,10 +25,7 @@ Overview
 Current Contacts
 ================
 
-- Fei Zhang: fei.zhang@ga.gov.au
-
 - Rakib Hassan: rakib.hassan@ga.gov.au 
-
 
 - Alexei Gorbatov: alexei.gorbatov@ga.gov.au
 
@@ -38,41 +35,27 @@ Current Contacts
 System Requirements
 ==========================
 
-- Linux OS, including Ubuntu and CentOS
-- Python 3.6 or higher (recommended)
-- Python 2.7 (deprecated, no longer supported)
+- Python 3.6 (recommended)
 
-Third Party Library Dependencies
-================================
-
-Certain modules require specific third party (non-Python) libraries to be installed
-on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
-installed and to be visible in the PATH. In most cases, Python libraries that depend on third party
-libraries will indicate their dependencies either during attempted installation, or when used at
-runtime. Note that the following list includes indirect dependencies, i.e. dependencies that come
-from Python libraries used by HiPerSeis.
-
-Current third party dependencies (actual requirements may vary by platform or Python distribution):
-
-- `HDF5 <http://hdfgroup.org/>`_
-- MPI, for example `Open MPI <https://www.open-mpi.org/>`_
-- `PROJ <https://proj.org/>`_
-- `GEOS <https://trac.osgeo.org/geos>`_
-
-
-Installation Guide for Developers
+Setup Guide
 =================================
 
 1. First, obtain the source code from `Github repository <https://github.com/GeoscienceAustralia/hiperseis>`_
 
 -  ``git clone https://github.com/GeoscienceAustralia/hiperseis.git``
 - ``cd hiperseis``
-- ``git submodule init``
-- ``git submodule update``
+- ``git submodule update --init --recursive``
 
-2. Install Python environment and dependency packages. See `Wiki Pages <https://github.com/GeoscienceAustralia/hiperseis/wiki>`_
+2. HiPerSeis does not provide an installation script due to the number of dependencies involved, some of which require low-level libraries to be available on the host machine. Instead, shell scripts are provided in ``hiperseis/setup_scripts`` for Linux, OSX and Windows for installing dependencies through a combination of Conda and Pip. A shell script is provided for NCI GADI, tailored exclusively for the current list of low-level HPC libraries e.g. MPI, HDF5, etc. available on the system.
 
-3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to the folder `dev/hiperseis` relative to your home directory, then in a `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session.
+3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to the folder `dev/hiperseis` relative to your home directory, then in a `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session, or added to ``.bashrc`` or its equivalent.
+
+Third Party Library Dependencies
+================================
+
+Certain modules require specific third party (non-Python) libraries to be installed
+on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
+installed and to be visible in the PATH.
 
 License
 ===============
