@@ -37,14 +37,6 @@ System Requirements
 
 - Python 3.6 (recommended)
 
-Third Party Library Dependencies
-================================
-
-Certain modules require specific third party (non-Python) libraries to be installed
-on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
-installed and to be visible in the PATH.
-
-
 Setup Guide
 =================================
 
@@ -57,6 +49,13 @@ Setup Guide
 2. HiPerSeis does not provide an installation script due to the number of dependencies involved, some of which require low-level libraries to be available on the host machine. Instead, shell scripts are provided in ``hiperseis/setup_scripts`` for Linux, OSX and Windows for installing dependencies through a combination of Conda and Pip. A shell script is provided for NCI GADI, tailored exclusively for the current list of low-level HPC libraries e.g. MPI, HDF5, etc. on the system.
 
 3. To use HiPerSeis in the checked out location, you will need to add the root HiPerSeis folder to your PYTHONPATH variable. For example, if you checked out HiPerSeis to the folder `dev/hiperseis` relative to your home directory, then in a `bash` shell you need to execute the following shell command: ``export PYTHONPATH=$HOME/dev/hiperseis``.  This needs to be done for each command shell session, or added to ``.bashrc`` or its equivalent.
+
+Third Party Library Dependencies
+================================
+
+Certain modules require specific third party (non-Python) libraries to be installed
+on the host system. For example, scripts that convert to sc3ml format also require Seiscomp3 to be
+installed and to be visible in the PATH.
 
 License
 ===============
