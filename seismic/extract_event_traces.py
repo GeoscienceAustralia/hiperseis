@@ -170,7 +170,9 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
         ch_matcher = re.compile(channel)
         for net, sta, loc, cha, _, _, _ in matching_stations:
             if ch_matcher.match(cha):
-                st += asdf_dataset.get_waveforms(net, sta, loc, cha, starttime, endtime)
+                st += asdf_dataset.get_waveforms(net, sta, loc, cha, starttime, endtime,
+                                                 trace_count_threshold=50)
+            # end if
         # end for
     # end if
     if st:
