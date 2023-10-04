@@ -11,15 +11,13 @@ def export_clock_corrections(inv: Inventory, ofn: str):
     for net in inv.networks:
         for sta in net.stations:
             if(hasattr(sta.extra, 'clock_corrections')):
-                loc_corr_dicts = ast.literal_eval(sta.extra.clock_corrections.value)
-                for loc_corr_dict in loc_corr_dicts:
-                    for loc, corr_list in loc_corr_dict.items():
-                        for corr in corr_list:
-                            for date_range, corr_val in corr.items():
-                                start_time, end_time = date_range.split(' - ')
-                                result.append([net.code, sta.code, loc,
-                                               start_time, end_time, corr_val])
-                            # end for
+                loc_corr_dict = ast.literal_eval(sta.extra.clock_corrections.value)
+                for loc, corr_list in loc_corr_dict.items():
+                    for corr in corr_list:
+                        for date_range, corr_val in corr.items():
+                            start_time, end_time = date_range.split(' - ')
+                            result.append([net.code, sta.code, loc,
+                                           start_time, end_time, corr_val])
                         # end for
                     # end for
                 # end for
@@ -29,7 +27,7 @@ def export_clock_corrections(inv: Inventory, ofn: str):
     ds = pd.DataFrame(result, columns=['Network', 'Station', 'Location',
                                        'Start-time', 'End-time',
                                        'Correction_in_seconds'])
-
+    ds = ds.drop_duplicates()
     with open(ofn, 'w') as f:
         f.write('# GPS clock-corrections grouped by network, station and location\n')
     # end with
@@ -41,16 +39,12 @@ def export_orientation_corrections(inv: Inventory, ofn:str):
     for net in inv.networks:
         for sta in net.stations:
             if(hasattr(sta.extra, 'rf_orientation_corrections')):
-                loc_corr_dicts = ast.literal_eval(sta.extra.rf_orientation_corrections.value)
-                for loc_corr_dict in loc_corr_dicts:
-                    for loc, corr_list in loc_corr_dict.items():
-                        for corr in corr_list:
-                            for date_range, corr_val in corr.items():
-                                start_time, end_time = date_range.split(' - ')
-                                result.append([net.code, sta.code, loc, 'RF',
-                                               start_time, end_time, corr_val, ''])
-                            # end for
-                        # end for
+                loc_corr_dict = ast.literal_eval(sta.extra.rf_orientation_corrections.value)
+                for loc, corr in loc_corr_dict.items():
+                    for date_range, corr_val in corr.items():
+                        start_time, end_time = date_range.split(' - ')
+                        result.append([net.code, sta.code, loc, 'RF',
+                                       start_time, end_time, corr_val, ''])
                     # end for
                 # end for
             # end if
@@ -60,18 +54,14 @@ def export_orientation_corrections(inv: Inventory, ofn:str):
     for net in inv.networks:
         for sta in net.stations:
             if(hasattr(sta.extra, 'swp_orientation_corrections')):
-                loc_corr_dicts = ast.literal_eval(sta.extra.swp_orientation_corrections.value)
-                for loc_corr_dict in loc_corr_dicts:
-                    for loc, corr_list in loc_corr_dict.items():
-                        for corr in corr_list:
-                            for date_range, corr in corr.items():
-                                start_time, end_time = date_range.split(' - ')
-                                corr_val, corr_uncert = corr
-                                result.append([net.code, sta.code, loc, 'SWP',
-                                               start_time, end_time,
-                                               corr_val, corr_uncert])
-                            # end for
-                        # end for
+                loc_corr_dict = ast.literal_eval(sta.extra.swp_orientation_corrections.value)
+                for loc, corr in loc_corr_dict.items():
+                    for date_range, corr in corr.items():
+                        start_time, end_time = date_range.split(' - ')
+                        corr_val, corr_uncert = corr
+                        result.append([net.code, sta.code, loc, 'SWP',
+                                       start_time, end_time,
+                                       corr_val, corr_uncert])
                     # end for
                 # end for
             # end if
@@ -82,6 +72,7 @@ def export_orientation_corrections(inv: Inventory, ofn:str):
                                        'Start-time', 'End-time',
                                        'Azimuth_correction_in_degrees',
                                        'Uncertainty±'])
+    ds = ds.drop_duplicates()
     with open(ofn, 'w') as f:
         f.write('# Orientation corrections are derived from two separate methods: (i) Receiver Function (RF) '
                 '(ii) Surface-wave Polarization (SWP). Only the latter method provides uncertainty estimates.\n')

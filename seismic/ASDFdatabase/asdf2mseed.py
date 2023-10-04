@@ -38,6 +38,18 @@ def dump_traces(ds, sn_list, start_date, end_date, length, min_length_sec, outpu
     :param output_folder: output folder
     """
 
+    def make_tag(tr):
+        # def make_ASDF_tag(ri, tag):
+        data_name = "{net}.{sta}.{loc}.{cha}__{start}__{end}".format(
+            net=tr.stats.network,
+            sta=tr.stats.station,
+            loc=tr.stats.location,
+            cha=tr.stats.channel,
+            start=tr.stats.starttime.strftime("%Y-%m-%dT%H:%M:%S"),
+            end=tr.stats.endtime.strftime("%Y-%m-%dT%H:%M:%S"))
+        return data_name
+    # end func
+
     for sn in sn_list:
         logf = open(os.path.join(output_folder, '%s.log.txt'%(sn)), "w+")
 
@@ -67,27 +79,28 @@ def dump_traces(ds, sn_list, start_date, end_date, length, min_length_sec, outpu
                     continue
                 # end if
 
-                fsName = '%s.%s-%s.MSEED'%(sn, current_time.timestamp, (current_time+length).timestamp)
+                if(min_length_sec):
+                    ost = Stream()
 
-                try:
-                    if(min_length_sec):
-                        ost = Stream()
+                    for tr in st:
+                        if (tr.stats.npts * tr.stats.delta > min_length_sec):
+                            ost += tr
+                        # end if
+                    # end for
 
-                        for tr in st:
-                            if (tr.stats.npts * tr.stats.delta > min_length_sec):
-                                ost += tr
-                            # end if
-                        # end for
+                    st = ost
+                # end if
 
-                        st = ost
-                    # end if
-
-                    st.write(os.path.join(output_folder, fsName), format="MSEED")
-                    trCounts += len(st)
-                except:
-                    logf.write('Failed to write stream: %s\n'%(fsName))
-                    logf.flush()
-                # end try
+                for tr in st:
+                    fsName = '{}.MSEED'.format(make_tag(tr))
+                    try:
+                        tr.write(os.path.join(output_folder, fsName), format="MSEED")
+                    except:
+                        logf.write('Failed to write stream: %s\n'%(fsName))
+                        logf.flush()
+                    # end try
+                    trCounts += 1
+                # end for
 
                 #break
                 current_time += length
@@ -134,17 +147,15 @@ def dump_traces(ds, sn_list, start_date, end_date, length, min_length_sec, outpu
                         st = ost
                     # end if
 
-                    for t in st:
-                        if(not isinstance(t, Trace)): continue
+                    for tr in st:
+                        if(not isinstance(tr, Trace)): continue
 
-                        fsName = '%s.%s-%s.MSEED'%(t.id,
-                                                   t.stats.starttime.strftime("%y-%m-%d.T%H:%M:%S"),
-                                                   t.stats.endtime.strftime("%y-%m-%d.T%H:%M:%S"))
+                        fsName = '{}.MSEED'.format(make_tag(tr))
                         try:
-                            t.write(os.path.join(output_folder, fsName),
-                                    format="MSEED")
-                            trCounts += len(st)
-                            logf.write('Wrote waveform with tag: %s\n' % (tag))
+                            tr.write(os.path.join(output_folder, fsName),
+                                     format="MSEED")
+                            trCounts += 1
+                            logf.write('Wrote waveform : %s\n' % (fsName))
                         except Exception as e:
                             logf.write('Failed to write trace: %s\n'%(fsName))
                             logf.flush()
@@ -159,7 +170,6 @@ def dump_traces(ds, sn_list, start_date, end_date, length, min_length_sec, outpu
         logf.close()
     # end for
 # end func
-
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
