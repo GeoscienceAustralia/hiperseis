@@ -22,6 +22,7 @@ from obspy.clients.fdsn.client import Client
 import pyasdf
 from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.ASDFdatabase.utils import remove_comments
 from seismic.misc import split_list
 import click
 from shapely.geometry.polygon import Polygon, Point
@@ -245,21 +246,6 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
         # end for
 
         return orows
-    # end func
-
-    def remove_comments(iinv: Inventory) -> Inventory:
-        oinv = iinv.copy()
-        for net in oinv.networks:
-            net.comments = []
-            for sta in net.stations:
-                sta.comments = []
-                for cha in sta.channels:
-                    cha.comments = []
-                # end for
-            # end for
-        # end for
-
-        return oinv
     # end func
 
     assert len(event) == 1, 'Invalid event dict {}. Must contain a single event. Aborting..'.format(event)

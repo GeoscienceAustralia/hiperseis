@@ -98,16 +98,13 @@ int main(int argc, char **argv)
         {
             tc[msr->network][msr->station] = mst_initgroup (NULL);
         }
-        else
-        {
-            /********************************************************
-            * Add record to trace-group that lives inside a nested
-            * map keyed by network-code and then by station-code
-            ********************************************************/
 
-            MSTraceGroup *tg = tc[msr->network][msr->station];
-            mst_addmsrtogroup(tg, msr, 0, timetol, sampratetol);
-        }
+        /********************************************************
+        * Add record to trace-group that lives inside a nested
+        * map keyed by network-code and then by station-code
+        ********************************************************/
+        MSTraceGroup *tg = tc[msr->network][msr->station];
+        mst_addmsrtogroup(tg, msr, 0, timetol, sampratetol);
     }
     cout << "Read all data.." << endl;
 

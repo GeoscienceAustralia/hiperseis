@@ -10,9 +10,25 @@ import os
 from tqdm import tqdm
 from ordered_set import OrderedSet as set
 from seismic.misc import split_list
+from obspy import Inventory
 
 MAX_DATE = UTCDateTime(4102444800.0)
 MIN_DATE = UTCDateTime(-2208988800.0)
+
+def remove_comments(iinv: Inventory) -> Inventory:
+    oinv = iinv.copy()
+    for net in oinv.networks:
+        net.comments = []
+        for sta in net.stations:
+            sta.comments = []
+            for cha in sta.channels:
+                cha.comments = []
+            # end for
+        # end for
+    # end for
+
+    return oinv
+# end func
 
 class MseedIndex:
     def __init__(self, mseed_folder, pattern):

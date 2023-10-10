@@ -28,6 +28,8 @@ from obspy.core import Stream
 from ordered_set import OrderedSet as set
 from tqdm import tqdm
 from seismic.misc import split_list
+from seismic.misc import recursive_glob
+from seismic.ASDFdatabase.utils import remove_comments
 
 def make_ASDF_tag(tr, tag):
     # def make_ASDF_tag(ri, tag):
@@ -48,7 +50,7 @@ BUFFER_LENGTH = 1000
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-folder', required=True,
                 type=click.Path(exists=True))
-@click.argument('inventory', required=True,
+@click.argument('inventory-folder', required=True,
                 type=click.Path(exists=True))
 @click.argument('output-file-name', required=True)
 @click.option('--file-pattern', type=str, default='*.mseed',
@@ -60,14 +62,36 @@ BUFFER_LENGTH = 1000
                                                                 "interval exceeds this threshold")
 @click.option('--ntraces-per-file', type=int, default=3600, help="Maximum number of traces per file; if exceeded, the "
                                                                  "file is ignored.")
-def process(input_folder, inventory, output_file_name, file_pattern,
+@click.option('--dry-run', default=False, is_flag=True, show_default=True,
+              help="Dry run only reports stations that were not found in the stationXML files, for "
+                   "which waveform data exists")
+def process(input_folder, inventory_folder, output_file_name, file_pattern,
             channels_to_extract, min_length_sec, merge_threshold,
-            ntraces_per_file):
+            ntraces_per_file, dry_run):
     """
     INPUT_FOLDER: Path to input folder containing miniseed files \n
-    INVENTORY: Path to FDSNStationXML inventory containing channel-level metadata for all stations \n
+    INVENTORY_FOLDER: Path to folder containing FDSNStationXML inventories containing
+               station-level metadata for all stations \n
     OUTPUT_FILE_NAME: Name of output ASDF file \n
     """
+
+    def _read_inventories(inventory_folder):
+        inv_files = recursive_glob(inventory_folder, '*.xml')
+
+        # Read inventories
+        inv = None
+        for inv_file in inv_files:
+            try:
+                print('Reading inventory file: {}'.format(inv_file))
+                if(inv is None): inv = read_inventory(inv_file)
+                else: inv += read_inventory(inv_file)
+            except Exception as e:
+                print(e)
+                assert 0, 'Failed to read inventory file: {}'.format(inv_file)
+            # end try
+        # end for
+        return inv
+    # end func
 
     def _write(ds, ostream, inventory_dict, netsta_set):
         try:
@@ -102,13 +126,7 @@ def process(input_folder, inventory, output_file_name, file_pattern,
     my_files = None
     ustationInv = defaultdict(list)
     if(rank == 0):
-        # Read inventory
-        inv = None
-        try:
-            inv = read_inventory(inventory)
-        except Exception as e:
-            print(e)
-        # end try
+        inv = _read_inventories(inventory_folder)
 
         # generate a list of files
         paths = [i for i in os.listdir(input_folder) if os.path.isfile(os.path.join(input_folder, i))]
@@ -124,12 +142,18 @@ def process(input_folder, inventory, output_file_name, file_pattern,
         networklist = []
         stationlist = []
         filtered_files = []
-        for file in files:
+        for file in tqdm(files, desc='Reading trace headers: '):
             #_, _, net, sta, _ = file.split('.')
             #tokens = os.path.basename(file).split('.')
             #net, sta = tokens[0], tokens[1]
 
-            st = read(file, headonly=True)
+            st = []
+            try:
+                st = read(file, headonly=True)
+            except Exception as e:
+                print(e)
+                continue
+            # end try
             if(len(st) == 0): continue
 
             net = st[0].meta.network
@@ -157,9 +181,15 @@ def process(input_folder, inventory, output_file_name, file_pattern,
                 print(('Missing station: %s.%s' % (net, sta)))
                 ustationInv[ustation] = None
             else:
-                ustationInv[ustation] = sinv
+                # remove comments from inventory
+                ustationInv[ustation] = remove_comments(sinv)
             # end if
         # end for
+    # end if
+
+    if(dry_run):
+        # nothing more to do
+        return
     # end if
 
     myfiles = comm.scatter(my_files, root=0)
@@ -218,6 +248,7 @@ def process(input_folder, inventory, output_file_name, file_pattern,
                 netsta = st[0].stats.network + '.' + st[0].stats.station
 
                 if (ustationInv[netsta]):
+                    # process data only if corresponding metadata exists
                     if (merge_threshold):
                         ntraces = len(st)
                         if (ntraces > merge_threshold):
@@ -230,27 +261,27 @@ def process(input_folder, inventory, output_file_name, file_pattern,
                             print(('Merging stream with %d traces' % (ntraces)))
                         # end if
                     # end if
-                # end if
 
-                if(len(ostream) < BUFFER_LENGTH):
-                    for tr in st:
-                        if (channels_to_extract):
-                            if (tr.meta.channel not in channels_to_extract): continue
-                        # end if
+                    if(len(ostream) < BUFFER_LENGTH):
+                        for tr in st:
+                            if (channels_to_extract):
+                                if (tr.meta.channel not in channels_to_extract): continue
+                            # end if
 
-                        if (tr.stats.npts == 0): continue
-                        if (min_length_sec):
-                            if (tr.stats.npts * tr.stats.delta < min_length_sec): continue
-                        # end if
+                            if (tr.stats.npts == 0): continue
+                            if (min_length_sec):
+                                if (tr.stats.npts * tr.stats.delta < min_length_sec): continue
+                            # end if
 
-                        ostream += tr
-                    # end for
+                            ostream += tr
+                        # end for
 
-                    netsta_set.add(netsta)
-                else:
-                    _write(ds, ostream, ustationInv, netsta_set)
-                    ostream = Stream()
-                    netsta_set = set()
+                        netsta_set.add(netsta)
+                    else:
+                        _write(ds, ostream, ustationInv, netsta_set)
+                        ostream = Stream()
+                        netsta_set = set()
+                    # end if
                 # end if
             # end if
         # end for
