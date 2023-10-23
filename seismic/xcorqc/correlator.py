@@ -37,6 +37,7 @@ from seismic.misc_p import ProgressTracker
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds, window_overlap, window_buffer_length,
             read_ahead_window_seconds, resample_rate=None, taper_length=0.05, nearest_neighbours=1,
+            pair_min_dist=None, pair_max_dist=None,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*', pairs_to_compute=None,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
@@ -156,7 +157,9 @@ def process(data_source1, data_source2, output_path,
 
         outputConfigParameters()
 
-        pairs = ds1.get_unique_station_pairs(ds2, nn=nearest_neighbours)
+        pairs = ds1.get_unique_station_pairs(ds2, nn=nearest_neighbours,
+                                             min_distance_km=pair_min_dist,
+                                             max_distance_km=pair_max_dist)
         if(pairs_to_compute):
             # only keep pairs provided in the text file, given they exist in the data-sets
             pairs = cull_pairs(pairs, pairs_to_compute)
@@ -312,6 +315,12 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                    " set to -1, correlations for a cartesian product of all stations"
                    " in both data-sets are produced -- note, this is computationally"
                    " expensive.")
+@click.option('--pair-min-dist', default=None, type=float, help="Minimum distance between station-pairs (km); "
+                                                                "default is None. Station-pairs with a smaller "
+                                                                "separation are dropped.")
+@click.option('--pair-max-dist', default=None, type=float, help="Maximum distance between station-pairs (km); "
+                                                                "default is None. Station-pairs with a larger "
+                                                                "separation are dropped.")
 @click.option('--fmin', default=None, type=float, help="Lowest frequency for bandpass filter; default is None")
 @click.option('--fmax', default=None, type=float, help="Highest frequency for bandpass filter; default is None")
 @click.option('--station-names1', default='*', type=str,
@@ -404,9 +413,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                                                      "default is to use the standard temp folder")
 def main(data_source1, data_source2, output_path, window_seconds, window_overlap, read_ahead_windows,
          stacking_interval_seconds, window_buffer_length, resample_rate, taper_length, nearest_neighbours,
-         fmin, fmax, station_names1, station_names2, pairs_to_compute, start_time, end_time,
-         instrument_response_inventory, instrument_response_output, water_level, clip_to_2std,
-         whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
+         pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
+         start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
+         clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
@@ -467,11 +476,11 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
             window_buffer_length, read_ahead_window_seconds, resample_rate, taper_length, nearest_neighbours,
-            fmin, fmax, station_names1, station_names2, pairs_to_compute, start_time, end_time,
-            instrument_response_inventory, instrument_response_output, water_level, clip_to_2std, whitening,
-            whitening_window_frequency, one_bit_normalize, location_preferences, ds1_zchan, ds1_nchan,
-            ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize, ensemble_stack,
-            apply_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
+            pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
+            start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
+            clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
+            ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
+            ensemble_stack, apply_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
 # end func
 
 if __name__ == '__main__':

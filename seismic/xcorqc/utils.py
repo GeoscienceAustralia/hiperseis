@@ -73,7 +73,8 @@ class Dataset:
         return list(np.array(other_dataset.netsta_list)[l])
     # end func
 
-    def get_unique_station_pairs(self, other_dataset, nn=1, require_overlap=True):
+    def get_unique_station_pairs(self, other_dataset, nn=1, require_overlap=True,
+                                 min_distance_km=None, max_distance_km=None):
         pairs = set()
         for ns1 in self.netsta_list:
             ns2list = None
@@ -104,10 +105,12 @@ class Dataset:
             # end if
         # end if
 
+        result_pairs = pairs_subset
+
         # cull pairs based on temporal overlap if specified
         # (note: gaps are not considered)
-        result_pairs = set()
         if(require_overlap):
+            overlapped_pairs = set()
             range_cache = defaultdict(tuple)
             for ns1, ns2 in pairs_subset:
                 st1 = et1 = st2 = et2 = None
@@ -130,11 +133,34 @@ class Dataset:
 
                 # check for temporal overlap
                 if((st1 <= et2) and (st2 <= et1)):
-                    result_pairs.add((ns1, ns2))
+                    overlapped_pairs.add((ns1, ns2))
                 # end if
             # end for
-        else:
-            result_pairs = pairs_subset
+            #for k,v in range_cache.items(): print(k, v)
+
+            result_pairs = overlapped_pairs
+        # end if
+
+        # filter by distance between pairs
+        if((min_distance_km is not None) or (max_distance_km is not None)):
+            dist_filtered_pairs = set()
+            for ns1, ns2 in result_pairs:
+                lon1, lat1 = self.metadata[ns1]
+                lon2, lat2 = other_dataset.metadata[ns2]
+
+                dist, _, _ = gps2dist_azimuth(lat1, lon1, lat2, lon2)
+                dist /= 1e3 # km
+
+                if(min_distance_km is not None):
+                    if(dist < min_distance_km): continue
+                if(max_distance_km is not None):
+                    if(dist > max_distance_km): continue
+
+                dist_filtered_pairs.add((ns1, ns2))
+                #print('.'.join([ns1, ns2]), lon1, lat1, lon2, lat2, dist)
+            # end for
+
+            result_pairs = dist_filtered_pairs
         # end if
 
         return list(result_pairs)

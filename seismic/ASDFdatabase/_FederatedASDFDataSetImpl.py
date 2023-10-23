@@ -731,12 +731,22 @@ class _FederatedASDFDataSetImpl():
             clause_added += 1
         # end if
 
-        if (start_date_ts and end_date_ts):
+        if (start_date_ts):
             if (clause_added):
-                query += ' and st>={} and et<={}'.format(start_date_ts, end_date_ts)
+                query += ' and st>={} '.format(start_date_ts)
             else:
-                query += ' st>={} and et<={}'.format(start_date_ts, end_date_ts)
+                query += ' st>={} '.format(start_date_ts)
+            clause_added += 1
         # end if
+
+        if (end_date_ts):
+            if (clause_added):
+                query += ' and et<={}'.format(end_date_ts)
+            else:
+                query += ' et<={} '.format(end_date_ts)
+            clause_added += 1
+        # end if
+
         query += ' order by st, et'
 
         rows = self.conn.execute(query).fetchall()
