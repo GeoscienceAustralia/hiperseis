@@ -452,7 +452,8 @@ def compute_phis(ned, grv_dict, logger=None):
     if(logger):
         logger.info("Discarded {}/{} events".format(discarded, len(ned.db_sta[sta])))
 
-    return R1cc, R1phi, R2cc, R2phi
+    nevents = len(ned.db_sta[sta]) - discarded
+    return R1cc, R1phi, R2cc, R2phi, nevents
 # end func
 
 # keep eqs above certain cc limit
@@ -683,8 +684,8 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
 
     logger.info('Analysing arrivals')
 
-    r1cc, r1phi, r2cc, r2phi = compute_phis(ned, grv_dict, logger)
-    corr, err, ndata, nevents = summary_calculations(r1cc, r1phi, r2cc, r2phi, logger)
+    r1cc, r1phi, r2cc, r2phi, nevents = compute_phis(ned, grv_dict, logger)
+    corr, err, ndata, nevents_c = summary_calculations(r1cc, r1phi, r2cc, r2phi, logger)
 
     corr *= -1 # converting to azimuth correction
     while (corr > 180): corr -= 360
@@ -693,7 +694,7 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
     results[full_code]['azimuth_correction'] = corr
     results[full_code]['uncertainty'] = err
 
-    logger.info('corr {:2.3f}°, stddev {:2.3f}° (N = {:3d})'.format(-corr, err, int(nevents)))
+    logger.info('corr {:2.3f}°, stddev {:2.3f}° (Nc = {:3d})'.format(-corr, err, int(nevents_c)))
 
     CEN = corr
     c = np.matlib.repmat([40, 35, 30, 25, 20, 15, 10], r1cc.shape[0], 1)
@@ -718,9 +719,9 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
 
         plt.title(full_code, fontsize=14)
 
-        plt.text(0.9, 0.9, 'N = {}'.format(len(ned)), ha='right', va='top',
+        plt.text(0.9, 0.9, 'N = {}'.format(nevents), ha='right', va='top',
                  transform=plt.gca().transAxes)
-        plt.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents)), ha='right', va='top',
+        plt.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents_c)), ha='right', va='top',
                  transform=plt.gca().transAxes)
 
         plt.legend(framealpha=0.5)
@@ -745,9 +746,9 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
         ax.set_ylim([CEN - 180, CEN + 180]);
         ax.set_xlim([0, 1])
 
-        ax.text(0.9, 0.9, 'N = {}'.format(len(ned)), ha='right', va='top',
+        ax.text(0.9, 0.9, 'N = {}'.format(nevents), ha='right', va='top',
                 transform=ax.transAxes)
-        ax.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents)), ha='right', va='top',
+        ax.text(0.9, 0.8, 'N$_c$ = {}'.format(int(nevents_c)), ha='right', va='top',
                 transform=ax.transAxes)
         ax.legend(framealpha=0.5)
     # end if

@@ -282,6 +282,14 @@ def main(src_h5_event_file, network, output_basename, station_list):
         # flatten list and merge pdfs
         pdf_fn = output_basename + '.pdf'
         pdf_names = [item for items in pdf_names for item in items]
+        if(len(pdf_names)):
+            slist = []
+
+            items = [os.path.basename(item) for item in pdf_names]
+            sindices = np.argsort(items)
+            for i in sindices: slist.append(pdf_names[i])
+            pdf_names = slist
+        # end if
 
         # plot summary
         logger.info('Plotting summary..')
