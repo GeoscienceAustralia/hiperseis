@@ -19,7 +19,6 @@ Revision History:
 """
 
 import os
-import logging
 import math
 from collections import defaultdict
 
@@ -34,11 +33,13 @@ from scipy import signal
 
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.xcorqc.utils import get_stream, fill_gaps
+from seismic.xcorqc.utils import get_stream, fill_gaps, MemoryTracker
 from netCDF4 import Dataset
 from functools import reduce
 from seismic.xcorqc.utils import SpooledMatrix
 from seismic.misc import setup_logger
+
+DEBUG_MODE = np.bool_(np.int_(os.environ['DEBUG_XCORQC'])) if 'DEBUG_XCORQC' in os.environ.keys() else 0
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -634,6 +635,10 @@ def IntervalStackXCorr(refds, tempds,
     # setup logger
     logger = setup_logger(stationPair, fn)
 
+    # setup memory-tracker for debug mode
+    memoryTracker = None
+    if(DEBUG_MODE): memoryTracker = MemoryTracker(logger=logger)
+
     #########################################################################
     # Adjust start- and/or end-times, if they extend beyond data
     # availability. Note that start- and end-times are aligned to the
@@ -803,6 +808,7 @@ def IntervalStackXCorr(refds, tempds,
         windowEndTimes.append(windowEndSeconds)
 
         cTime += cStep
+        if(memoryTracker): memoryTracker.update()
     # wend (loop over time range)
 
     x = None

@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.misc import rtp2xyz
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
+import os, psutil
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
@@ -411,3 +412,41 @@ class SpooledMatrix:
     # end func
 # end class
 
+class MemoryTracker:
+    def __init__(self, burnin_steps=7, outlier_factor=10, logger=None):
+        assert burnin_steps > 1, 'Burnin-steps must be > 1'
+
+        self.burnin_steps = burnin_steps
+        self.outlier_factor = outlier_factor
+        self.logger = logger
+
+        self.usage_mb = np.zeros(self.burnin_steps)
+        self.usage_mb[-1] = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+    # end func
+
+    def update(self):
+        self.usage_mb[:-1] = self.usage_mb[1:]
+        self.usage_mb[-1] = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+
+        if(np.sum(self.usage_mb > 0) < self.burnin_steps): return
+
+        # track outliers based on scaled median-absolute-deviations
+        med = np.median(self.usage_mb)
+        d = np.abs(self.usage_mb - med)
+        s = d / med if med else np.zeros(len(d))
+
+        outlier_indices = np.where(s >= self.outlier_factor)[0]
+        for oi in outlier_indices:
+            # only report anomalously large outliers
+            if(self.usage_mb[oi] > med):
+                msg = 'Anomalous memory usage detected: median({:3.2f} MB), current({:3.2f} MB)'.\
+                    format(med, self.usage_mb[oi])
+                if(self.logger):
+                    self.logger.warning(msg)
+                else:
+                    print('Warning: {}'.format(msg))
+                # end if
+            # end if
+        # end for
+    # end func
+# end class
