@@ -383,7 +383,7 @@ def sw_catalog(catalog, min_mag):
 # end func
 
 def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
-                 resample_hz, tt_model='iasp91', wave='P', pad=10,
+                 wave, request_window, distance_range, resample_hz, tt_model='iasp91', pad=10,
                  dry_run=True):
 
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
@@ -394,12 +394,6 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     # descriptions
     descs = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surface-wave'}
 
-    # initialize event time-window dict
-    request_window = defaultdict(tuple) # seconds
-    request_window['P'] = (-70, 150)
-    request_window['S'] = (-100, 150)
-    request_window['SW'] = (-70, 4*60*60)
-
     # initialize phase-map dict
     phase_map = defaultdict(str) # seconds
     phase_map['P'] = 'P'
@@ -407,12 +401,6 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
     # for surface-waves we use the default phase (P), but internally, safe_iter_event_data
     # extracts data around event origin time
     phase_map['SW'] = 'P'
-
-    # initialize event distance-range dict
-    distance_range = defaultdict(tuple) # arc degrees
-    distance_range['P'] = (30, 90)
-    distance_range['S'] = (30, 90)
-    distance_range['SW'] = (5, 175)
 
     # initialize dict that indicates whether rfstats should be generated
     rfstats_map = defaultdict(bool) # seconds
@@ -478,7 +466,11 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             coord = curr_inv.get_coordinates(nsl + '.' + cha)
             sta_lon, sta_lat = coord['longitude'], coord['latitude']
 
-            if(dry_run): continue
+            if(dry_run):
+                log.info('{}: Extract {}-data between {} - {} s and distance range {} - {} deg'. \
+                         format(nsl, wave, *request_window, *distance_range))
+                continue
+            # end if
 
             stream_count = 0
             sta_stream = Stream()
@@ -488,9 +480,9 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                                           use_rfstats=rfstats_map[wave],
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,#pbar,
-                                          request_window=request_window[wave],
+                                          request_window=request_window,
                                           pad=pad,
-                                          dist_range=distance_range[wave]):
+                                          dist_range=distance_range):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
                 # be overwritten rather than duplicated.
@@ -595,8 +587,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 @click.option('--taup-model', type=str, default='iasp91', show_default=True,
               help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
                    'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
-@click.option('--distance-range', type=(float, float), default=(0, 180.0), show_default=True,
-              help='Range of teleseismic distances (in degrees) to sample relative to the mean lat,lon location')
+@click.option('--event-distance-range', type=(float, float), default=(0, 180.0), show_default=True,
+              help='Range of teleseismic distances (in degrees) to download events for')
 @click.option('--magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
               help='Range of seismic event magnitudes to sample from the event catalog for P/S arrivals.')
 @click.option('--sw-magnitude-range', type=(float, float), default=(6.0, 10.0), show_default=True,
@@ -614,12 +606,31 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
               help='Extracts waveform data around S-arrival')
 @click.option('--sw-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around surface-wave arrival')
+@click.option('--p-data-window', type=(int, int), default=(-70, 150), show_default=True,
+              help='Time window for waveform data around P-arrivals to extract. Has no effect without '
+                   '--p-data')
+@click.option('--s-data-window', type=(int, int), default=(-100, 150), show_default=True,
+              help='Time window for waveform data around S-arrivals to extract. Has no effect without '
+                   '--s-data')
+@click.option('--sw-data-window', type=(int, int), default=(-70, 4*60*60), show_default=True,
+              help='Time window for waveform data around SW-arrivals to extract. Has no effect without '
+                   '--sw-data')
+@click.option('--p-distance-range', type=(int, int), default=(30, 90), show_default=True,
+              help='Range of epicentral distances (in degrees) for which P-arrival data at a given station '
+                   'are to be fetched. Has no effect without --p-data')
+@click.option('--s-distance-range', type=(int, int), default=(30, 90), show_default=True,
+              help='Range of epicentral distances (in degrees) for which S-arrival data at a given station '
+                   'are to be fetched. Has no effect without --s-data')
+@click.option('--sw-distance-range', type=(int, int), default=(5, 175), show_default=True,
+              help='Range of epicentral distances (in degrees) for which SW-arrival data at a given station '
+                   'are to be fetched. Has no effect without --sw-data')
 @click.option('--dry-run', is_flag=True, default=False, show_default=True,
               help='Reports events available to each station, by wave-type and exits without outputting any data. '
                    'Has no effect on --catalog-only mode.')
 def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
-         start_time, end_time, taup_model, distance_range, magnitude_range, sw_magnitude_range, catalog_only,
-         resample_hz, sw_resample_hz, p_data, s_data, sw_data, dry_run):
+         start_time, end_time, taup_model, event_distance_range, magnitude_range, sw_magnitude_range, catalog_only,
+         resample_hz, sw_resample_hz, p_data, s_data, sw_data, p_data_window, s_data_window, sw_data_window,
+         p_distance_range, s_distance_range, sw_distance_range, dry_run):
     
     # Initialize MPI
     comm = MPI.COMM_WORLD
@@ -638,6 +649,18 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         owave_types['S'] = s_data
         owave_types['SW'] = sw_data
     # end if
+
+    # initialize event time-window dict
+    request_window = defaultdict(tuple) # seconds
+    request_window['P'] = p_data_window
+    request_window['S'] = s_data_window
+    request_window['SW'] = sw_data_window
+
+    # initialize event distance-range dict
+    distance_range = defaultdict(tuple) # arc degrees
+    distance_range['P'] = p_distance_range
+    distance_range['S'] = s_distance_range
+    distance_range['SW'] = sw_distance_range
 
     inventory = None
     asdf_dataset = None
@@ -664,11 +687,6 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
 
     if(rank == 0): log.info("Using waveform data source: {}".format(waveform_database))
 
-    min_dist_deg = distance_range[0]
-    max_dist_deg = distance_range[1]
-    min_mag = magnitude_range[0]
-    max_mag = magnitude_range[1]
-    
     lonlat = None
     if(rank == 0):
         # Compute reference lonlat from the inventory.
@@ -712,8 +730,8 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
     event_trace_datafile = comm.bcast(event_trace_datafile, root=0)
 
     exit_after_catalog = catalog_only
-    catalog = get_events(lonlat, start_time, end_time, event_catalog_file, (min_dist_deg, max_dist_deg),
-                         (min_mag, max_mag), exit_after_catalog)
+    catalog = get_events(lonlat, start_time, end_time, event_catalog_file, event_distance_range,
+                         magnitude_range, exit_after_catalog)
 
     if waveform_db_is_web:
         log.info("Use fresh query results from web")
@@ -739,9 +757,8 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         # end if
 
         extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
-                     resample_hz=curr_resample_hz, tt_model=taup_model, wave=wave,
-                     pad=pad,
-                     dry_run=dry_run)
+                     wave, request_window[wave], distance_range[wave], curr_resample_hz,
+                     tt_model=taup_model, pad=pad, dry_run=dry_run)
     # end for
     del asdf_dataset
     
