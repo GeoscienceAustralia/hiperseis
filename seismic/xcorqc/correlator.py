@@ -33,6 +33,7 @@ from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import getStationInventory, read_location_preferences, Dataset
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 from seismic.misc_p import ProgressTracker
+from itertools import product
 
 def process(data_source1, data_source2, output_path,
             interval_seconds, window_seconds, window_overlap, window_buffer_length,
@@ -165,22 +166,9 @@ def process(data_source1, data_source2, output_path,
             pairs = cull_pairs(pairs, pairs_to_compute)
         # end if
 
-        # print out station-pairs for dry runs
-        if(dry_run):
-            print('Computing %d station-pairs: '%(len(pairs)))
-            for pair in pairs:
-                print('.'.join(pair))
-            # end for
-        # end if
-
         random.Random(nproc).shuffle(pairs) # using nproc as seed so that shuffle produces the same
                                             # ordering when jobs are restarted.
         proc_stations = split_list(pairs, npartitions=nproc)
-    # end if
-
-    if(dry_run):
-        # nothing more to do for dry runs
-        return
     # end if
 
     location_preferences_dict = read_location_preferences(location_preferences)
@@ -215,23 +203,51 @@ def process(data_source1, data_source2, output_path,
             continue
         # end if
 
-        netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1, location_preferences_dict)
-        netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2, location_preferences_dict)
-
-        def evaluate_channels(cha1, cha2):
-            result = []
-            for netsta, cha, ds in zip((netsta1, netsta2), (cha1, cha2), (ds1, ds2)):
-                if('*' not in cha1):
-                    result.append(cha)
-                else:
+        def get_loccha(cha1, cha2):
+            """
+            @param cha1: channel name or regex pattern for station1
+            @param cha2: channel name or regex pattern for station2
+            @return: a tuple of lists with location.channel combinations found for
+                     cha1 and cha2 -- e.g. ['.SHZ', '00.BHZ'], ['01.HHZ']
+            """
+            result = [[], []]
+            for chidx, (netsta, cha, ds) in enumerate(zip((netsta1, netsta2), (cha1, cha2), (ds1, ds2))):
+                if('*' in cha1):
                     cha = cha.replace('*', '.*')  # hack to capture simple regex comparisons
+                # end if
 
-                    net, sta = netsta.split('.')
-                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
-                    for item in stations:
+                try:
+                    re.compile(cha)
+                except Exception as e:
+                    raise RuntimeError('Invalid channel pattern: {}'.format(cha))
+                # end try
+
+                net, sta = netsta.split('.')
+                stations = ds.fds.get_stations(start_time, end_time, net, sta)
+                loc_pref = location_preferences_dict[netsta]
+                ulocs = set()
+                for item in stations:
+                    if(corr_chan is not 't'):
                         if(re.match(cha, item[3])):
-                            result.append(item[3])
-                            break
+                            if(loc_pref is None):
+                                result[chidx].append('{}.{}'.format(item[2], item[3]))
+                            else:
+                                if(loc_pref == item[2]):
+                                    result[chidx].append('{}.{}'.format(item[2], item[3]))
+                                # end if
+                            # end if
+                        # end if
+                    else:
+                        if(item[2] not in ulocs):
+                            if(loc_pref is None):
+                                result[chidx].append('{}.{}'.format(item[2], cha))
+                                ulocs.add(item[2])
+                            else:
+                                if(loc_pref == item[2]):
+                                    result[chidx].append('{}.{}'.format(item[2], cha))
+                                    ulocs.add(item[2])
+                                # end if
+                            # end if
                         # end if
                     # end if
                 # end if
@@ -240,14 +256,13 @@ def process(data_source1, data_source2, output_path,
             return result
         # end func
 
-        corr_chans = []
-        if   (corr_chan == 'z'): corr_chans = evaluate_channels(ds1_zchan, ds2_zchan)
-        elif (corr_chan == 'n'): corr_chans = evaluate_channels(ds1_nchan, ds2_nchan)
-        elif (corr_chan == 'e'): corr_chans = evaluate_channels(ds1_echan, ds2_echan)
-        elif (corr_chan == 't'): corr_chans = ['00T', '00T']
+        if   (corr_chan == 'z'): loccha1_list, loccha2_list = get_loccha(ds1_zchan, ds2_zchan)
+        elif (corr_chan == 'n'): loccha1_list, loccha2_list = get_loccha(ds1_nchan, ds2_nchan)
+        elif (corr_chan == 'e'): loccha1_list, loccha2_list = get_loccha(ds1_echan, ds2_echan)
+        elif (corr_chan == 't'): loccha1_list, loccha2_list = get_loccha('00T', '00T')
         else: raise ValueError('Invalid corr-chan')
 
-        if(len(corr_chans)<2):
+        if(len(loccha1_list)<1 or len(loccha2_list)<1):
             print(('Either required channels are not found for station %s or %s, '
                    'or no overlapping data exists..')%(netsta1, netsta2))
             continue
@@ -267,17 +282,27 @@ def process(data_source1, data_source2, output_path,
             # end try
         # end if
 
-        IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
-                           endTime, netsta1, netsta2, netsta1inv, netsta2inv,
-                           instrument_response_output, water_level,
-                           corr_chans[0], corr_chans[1],
-                           baz_netsta1, baz_netsta2, location_preferences_dict,
-                           resample_rate, taper_length, read_ahead_window_seconds,
-                           interval_seconds, window_seconds, window_overlap,
-                           window_buffer_length, fmin, fmax, clip_to_2std, whitening,
-                           whitening_window_frequency, one_bit_normalize, envelope_normalize,
-                           ensemble_stack, apply_stacking, output_path, 2, time_tag,
-                           scratch_folder, git_hash)
+        netsta1inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta1)
+        netsta2inv, stationInvCache = getStationInventory(inv, stationInvCache, netsta2)
+        for loccha1, loccha2 in product(loccha1_list, loccha2_list):
+            # print out station-pairs for dry runs
+            if (dry_run):
+                print('.'.join([netsta1, loccha1, netsta2, loccha2]))
+                continue # nothing more to do
+            # end if
+
+            IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
+                               endTime, netsta1, netsta2, netsta1inv, netsta2inv,
+                               instrument_response_output, water_level,
+                               loccha1, loccha2,
+                               baz_netsta1, baz_netsta2,
+                               resample_rate, taper_length, read_ahead_window_seconds,
+                               interval_seconds, window_seconds, window_overlap,
+                               window_buffer_length, fmin, fmax, clip_to_2std, whitening,
+                               whitening_window_frequency, one_bit_normalize, envelope_normalize,
+                               ensemble_stack, apply_stacking, output_path, 2, time_tag,
+                               scratch_folder, git_hash)
+        # end for
     # end for
 # end func
 
@@ -368,11 +393,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                    "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--location-preferences', default=None,
               type=click.Path('r'),
-              help="A space-separated two-columned text file containing location code preferences for "
-                   "stations in the form: 'NET.STA LOC'. Note that location code preferences need not "
-                   "be provided for all stations -- the default is None. This approach allows "
+              help="A comma-separated two-columned text file containing location code preferences for "
+                   "stations in the form: 'NET.STA, LOC'. Note that location code preferences need not "
+                   "be provided for all stations -- the default is None. This approach allows for "
                    "preferential selection of data from particular location codes for stations that "
-                   "feature data from multiple location codes")
+                   "feature data under multiple location codes")
 @click.option('--ds1-zchan', default='BHZ',
               type=str,
               help="Name of z-channel for data-source-1. This parameter and the five following are required to "

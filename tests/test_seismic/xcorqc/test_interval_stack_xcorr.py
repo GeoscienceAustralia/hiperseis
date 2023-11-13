@@ -56,8 +56,8 @@ cmd = 'tar -zxvf %s -C %s'%('%s/data/expected/expected.tar.gz'%path, expected_fo
 os.system(cmd)
 output_folder = str(tempfile.mkdtemp())
 
-@pytest.fixture(params=['BHZ', '00T'])
-def cha(request):
+@pytest.fixture(params=['.BHZ', '.00T'])
+def loccha(request):
     return request.param
 
 @pytest.fixture(params=[86400, 3600])
@@ -88,7 +88,7 @@ def inv1(request):
 def inv2(request):
     return request.param
 
-def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
+def test_interval_stack_xcorr(loccha, inv1, inv2, interval_seconds, window_seconds,
                                window_overlap, whitening, ensemble_stack):
     """
     Note that these tests exclude the application of 'stacking', 'window_buffer_length' --
@@ -96,6 +96,8 @@ def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
     """
     start_time = '2011-03-11T00:00:00Z'
     end_time   = '2011-03-14T00:00:00Z'
+
+    loc, cha = loccha.split('.')
 
     tag = '%s_is%d_ws%d_wo%.2f_w%d_es%d_resp%d_resp%d'%(
             cha, interval_seconds, window_seconds,
@@ -110,8 +112,8 @@ def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
                        inv2,
                        'vel',
                        50,
-                       cha,
-                       cha,
+                       loccha,
+                       loccha,
                        50, 250,
                        resample_rate=0.25,
                        read_ahead_window_seconds=interval_seconds,
@@ -124,14 +126,14 @@ def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
                        outputPath=output_folder, verbose=2, tracking_tag=tag)
 
     # Read result
-    fn = os.path.join(output_folder, '%s.%s.%s.%s.%s.%s.%s.nc'%(netsta1, location_code, cha,
-                                                                netsta2, location_code, cha, tag))
+    fn = os.path.join(output_folder, '%s.%s.%s.%s.%s.%s.%s.nc'%(netsta1, loc, cha,
+                                                                netsta2, loc, cha, tag))
     dc = Dataset(fn)
     xcorr_c = dc.variables['xcorr'][:]
 
     # Read expected
-    fn = '%s/%s.%s.%s.%s.%s.%s.%s.nc'%(expected_folder, netsta1, location_code, cha,
-                                       netsta2, location_code, cha, tag)
+    fn = '%s/%s.%s.%s.%s.%s.%s.%s.nc'%(expected_folder, netsta1, loc, cha,
+                                       netsta2, loc, cha, tag)
     de = Dataset(fn)
     xcorr_e = de.variables['xcorr'][:]
 
@@ -142,7 +144,6 @@ def test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
 # end func
 
 if __name__ == '__main__':
-    cha = 'BHZ'
     inv1 = inv.select(network='AU', station='ARMA')
     inv2 = inv.select(network='AU', station='QLP')
     interval_seconds = 86400
@@ -151,6 +152,6 @@ if __name__ == '__main__':
     whitening = False
     ensemble_stack = True
 
-    test_interval_stack_xcorr(cha, inv1, inv2, interval_seconds, window_seconds,
+    test_interval_stack_xcorr(loccha, inv1, inv2, interval_seconds, window_seconds,
                               window_overlap, whitening, ensemble_stack)
 # end if

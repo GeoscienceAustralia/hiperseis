@@ -501,11 +501,10 @@ def IntervalStackXCorr(refds, tempds,
                        ref_sta_inv, temp_sta_inv,
                        instrument_response_output,
                        water_level,
-                       ref_cha,
-                       temp_cha,
+                       ref_loc_cha,
+                       temp_loc_cha,
                        baz_ref_net_sta,
                        baz_temp_net_sta,
-                       location_preferences_dict=defaultdict(lambda: None),
                        resample_rate=None,
                        taper_length=0.05,
                        read_ahead_window_seconds=864000, interval_seconds=86400,
@@ -545,16 +544,14 @@ def IntervalStackXCorr(refds, tempds,
     :param instrument_response_output: Output of instrument response correction; can be either 'vel' or 'disp'
     :type water_level: float
     :param water_level: Water-level used during instrument response correction
-    :type ref_cha: str
-    :param ref_cha: Channel name for the reference Dataset
-    :type temp_cha: str
-    :param temp_cha: Channel name for the temporary Dataset
+    :type ref_loc_cha: str
+    :param ref_loc_cha: Location.Channel for the reference Dataset
+    :type temp_loc_cha: str
+    :param temp_loc_cha: Location.Channel name for the temporary Dataset
     :type baz_ref_net_sta: float
     :param baz_ref_net_sta: Back-azimuth of ref station from temp station in degrees
     :type baz_temp_net_sta: float
     :param baz_temp_net_sta: Back-azimuth of temp station from ref station in degrees
-    :type location_preferences_dict: defaultdict
-    :param location_preferences_dict: A defaultdict containing location code preferences, keyed by NET.STA
     :type resample_rate: float
     :param resample_rate: Resampling rate (Hz). Applies to both data-sets
     :type taper_length: float
@@ -623,10 +620,8 @@ def IntervalStackXCorr(refds, tempds,
     # end if
 
     # get preferred location codes, or use the first available
-    ref_loc = location_preferences_dict[ref_net_sta]
-    temp_loc = location_preferences_dict[temp_net_sta]
-    if(ref_loc is None): ref_loc = refds.get_location_codes(*ref_net_sta.split('.'))[0]
-    if(temp_loc is None): temp_loc = tempds.get_location_codes(*temp_net_sta.split('.'))[0]
+    ref_loc, ref_cha = ref_loc_cha.split('.')
+    temp_loc, temp_cha = temp_loc_cha.split('.')
 
     stationPair = '%s.%s.%s.%s.%s.%s' % (ref_net_sta, ref_loc, ref_cha, temp_net_sta, temp_loc, temp_cha)
     fn = os.path.join(outputPath, '%s.log' % (stationPair if not tracking_tag else
@@ -703,8 +698,7 @@ def IntervalStackXCorr(refds, tempds,
         try:
             rnc, rsc = ref_net_sta.split('.')
             refSt = get_stream(refds, rnc, rsc,
-                               ref_cha, cTime, cTime + cStep,
-                               location_preferences_dict,
+                               ref_loc, ref_cha, cTime, cTime + cStep,
                                baz=baz_ref_net_sta,
                                logger=logger, verbose=verbose)
         except Exception as e:
@@ -730,8 +724,7 @@ def IntervalStackXCorr(refds, tempds,
         try:
             tnc, tsc = temp_net_sta.split('.')
             tempSt = get_stream(tempds, tnc, tsc,
-                                temp_cha, cTime, cTime + cStep,
-                                location_preferences_dict,
+                                temp_loc, temp_cha, cTime, cTime + cStep,
                                 baz=baz_temp_net_sta,
                                 logger=logger, verbose=verbose)
         except Exception as e:

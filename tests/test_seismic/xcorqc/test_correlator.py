@@ -45,8 +45,8 @@ f2.close()
 
 f3 = open(pref_file1, 'w+')
 f4 = open(pref_file2, 'w+')
-f3.write('%s %s\n'%(netsta1, location_code1))
-f4.write('%s %s\n'%(netsta1, location_code2))
+f3.write('%s, %s\n'%(netsta1, location_code1))
+f4.write('%s, %s\n'%(netsta1, location_code2))
 f3.close()
 f4.close()
 
