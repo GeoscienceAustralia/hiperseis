@@ -34,7 +34,7 @@ from osgeo.gdalconst import *
 from affine import Affine
 import struct
 from seismic.stream_io import get_obspyh5_index
-from seismic.misc import rtp2xyz
+from seismic.misc import rtp2xyz, split_list
 
 class Gravity:
     def __init__(self, gravity_grid_fn):
@@ -87,9 +87,11 @@ class Gravity:
     # end func
 # end class
 
-class Migrate:
-    def __init__(self, rf_filename, min_slope_ratio=-1, earth_radius=6371, logger=None):
+class Migrator:
+    def __init__(self, rf_filename, dz, max_depth, min_slope_ratio=-1, earth_radius=6371, logger=None):
         self._rf_filename = rf_filename
+        self._dz = dz
+        self._max_depth = max_depth
         self._min_slope_ratio = min_slope_ratio
         self._earth_radius = earth_radius #km
         self._logger = logger
@@ -110,7 +112,7 @@ class Migrate:
             assert len(hkeys), 'No hdf5-groups found in file {}. Aborting..'.format(self._rf_filename)
 
             # split workload
-            proc_hkeys = rf_util.split_list(hkeys, self._nproc)
+            proc_hkeys = split_list(hkeys, self._nproc)
         # end if
         # broadcast workload to all procs
         proc_hkeys = self._comm.bcast(proc_hkeys, root=0)
@@ -231,8 +233,8 @@ class Migrate:
             #===============================================================
             tck = splrep(times, depths, k=3, s=0)
 
-            NZ = 1500
-            ZMAX = 150 # km
+            ZMAX = self._max_depth # km
+            NZ = np.int_(np.ceil(ZMAX/self._dz)) + 1
             dnew = np.linspace(1e-5, ZMAX, NZ)
             tnew = np.zeros(dnew.shape)
             for idx in np.arange(dnew.shape[0]):
@@ -645,10 +647,10 @@ class CCP_VerticalProfile():
         # end if
 
         tickstep_x = 50
-        tickstep_y = 5
+        tickstep_y = 10
 
-        ax.set_xlabel('Distance [km]', fontsize=12)
-        ax.set_ylabel('Depth [km]', fontsize=12)
+        ax.set_xlabel('Distance [km]', fontsize=10)
+        ax.set_ylabel('Depth [km]', fontsize=10)
         ax.tick_params(direction="in", labelleft=True, labelright=True)
 
         ax.set_xticks(np.arange(0, np.max(self._gx) * 1.0001, tickstep_x))

@@ -109,7 +109,7 @@ def read_profile_def(fname, ccpVolume, type):
               help='Horizontal distance-step (km) between start and end locations of a profile')
 @click.option('--dz', type=float, default=0.5, show_default=True,
               help='Depth-step (km)')
-@click.option('--max-depth', type=click.FloatRange(0, 150), default=100, show_default=True,
+@click.option('--max-depth', type=click.FloatRange(0, 750), default=100, show_default=True,
               help='Maximum depth (km) of profile')
 @click.option('--swath-width', type=float, default=40, show_default=True,
               help='CCP amplitudes are averaged over grid elements across a swath defined by '

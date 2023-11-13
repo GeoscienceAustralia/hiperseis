@@ -30,6 +30,7 @@ from seismic.stream_io import get_obspyh5_index
 import uuid
 from shutil import rmtree
 from collections import defaultdict
+from seismic.misc import split_list
 
 logging.basicConfig()
 
@@ -352,7 +353,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
 
         # split work-load over all procs
-        proc_hdfkeys = rf_util.split_list(proc_hdfkeys, nproc)
+        proc_hdfkeys = split_list(proc_hdfkeys, nproc)
 
         tempdir = os.path.join(os.path.dirname(output_file), str(uuid.uuid4()))
         os.makedirs(tempdir, exist_ok=True)
