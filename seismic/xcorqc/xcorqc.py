@@ -316,8 +316,17 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
                 # STEPS 4, 5: resample after lowpass @ resample_rate/2 Hz
                 if resample_rate:
-                    tr1_d = lowpass(tr1_d, resample_rate/2., sr1_orig, corners=2, zerophase=True)
-                    tr2_d = lowpass(tr2_d, resample_rate/2., sr2_orig, corners=2, zerophase=True)
+                    try:
+                        if(resample_rate/2. < sr1_orig):
+                            tr1_d = lowpass(tr1_d, resample_rate/2., sr1_orig, corners=2, zerophase=True)
+                        # end if
+
+                        if(resample_rate/2. < sr2_orig):
+                            tr2_d = lowpass(tr2_d, resample_rate/2., sr2_orig, corners=2, zerophase=True)
+                        # end if
+                    except Exception as e:
+                        logger.error(str(e))
+                    # end try
 
                     tr1_d = Trace(data=tr1_d,
                                   header=Stats(header={'sampling_rate': sr1_orig,

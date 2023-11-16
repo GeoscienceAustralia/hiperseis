@@ -291,6 +291,15 @@ def process(data_source1, data_source2, output_path,
                 continue # nothing more to do
             # end if
 
+            station_pair = '%s.%s.%s.%s' % (netsta1, loccha1, netsta2, loccha2)
+            fn = os.path.join(output_path,
+                              '%s.nc' % (station_pair if not time_tag else '.'.join([station_pair, time_tag])))
+
+            if(os.path.exists(fn)):
+                print('Cross-correlation output found for station pair {}. Moving along..'.format(station_pair))
+                continue
+            # end if
+
             IntervalStackXCorr(ds1.fds, ds2.fds, startTime,
                                endTime, netsta1, netsta2, netsta1inv, netsta2inv,
                                instrument_response_output, water_level,
