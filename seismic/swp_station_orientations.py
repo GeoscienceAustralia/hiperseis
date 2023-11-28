@@ -682,6 +682,11 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
     logger = logging.getLogger(__name__ + ':' + full_code)
     logger.setLevel(logging.INFO)
 
+    # check if ned has valid data
+    if not np.any(np.array([len(stream[0].data) for _, _, stream in ned])):
+        return results
+    # end if
+
     logger.info('Analysing arrivals')
 
     r1cc, r1phi, r2cc, r2phi, nevents = compute_phis(ned, grv_dict, logger)

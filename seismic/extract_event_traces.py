@@ -17,7 +17,7 @@ import obspy
 from obspy import read_inventory, read_events, UTCDateTime as UTC
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
-from obspy.core import Stream
+from obspy.core import Stream, Trace, UTCDateTime
 from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
 from rf import iter_event_data
 from tqdm import tqdm
@@ -538,13 +538,21 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 if(irank == rank):
                     if(len(sta_stream)):
                         write_h5_event_stream(event_trace_datafile, sta_stream, index=h5_index, mode='a')
+                    else:
+                        t = Trace(data=np.array([]),
+                                  header={'network': net, 'station': sta,
+                                          'location': loc, 'wave_type': wave,
+                                          'station_longitude': sta_lon,
+                                          'station_latitude': sta_lat,
+                                          'event_time': UTCDateTime.now()})
+                        write_h5_event_stream(event_trace_datafile, Stream([t]), index=h5_index, mode='a')
                     # end if
                 # end if
                 comm.Barrier()
             # end for
 
             if stream_count == 0:
-                log.warning("{}: No traces found!".format(nsl))
+                log.warning("{}: No {} traces found! Added a null trace.".format(nsl, descs[wave]))
             else:
                 log.info("{}: Wrote {} {} streams to output file".format(nsl, stream_count, descs[wave]))
             # end if

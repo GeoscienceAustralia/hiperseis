@@ -84,8 +84,6 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
     :type config_filtering: dict
     :param config_processing: Seismogram RF processing options.
         Safe default to use is `DEFAULT_CONFIG_PROCESSING`.
-    :param parallel: Activates parallel processing through joblib
-    type: boolean
     :type config_processing: dict
     :param save_plots_path: Optional folder in which to save plot per station of mean
         arrival RF amplitude as function of correction angle
@@ -121,6 +119,11 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
 
     logger = logging.getLogger(__name__ + ':' + full_code)
     logger.setLevel(logging.INFO)
+
+    # check if ned has valid data
+    if not np.any(np.array([len(stream[0].data) for _, _, stream in ned])):
+        return results
+    # end if
 
     evids_orig = set([evid for _, evid, _ in ned])
 
