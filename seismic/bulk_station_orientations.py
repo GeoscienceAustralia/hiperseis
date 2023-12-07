@@ -87,7 +87,8 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
     for ax, ttext in zip([ax1, ax2], ['Azimuth corrections (RF)', 'Azimuth corrections (Surface-wave Polarization)']):
         # draw coastlines.
         ax.coastlines('50m')
-        #ax.set_extent([minLon, maxLon, minLat, maxLat], crs)
+        ax.set_extent([minLon, maxLon, minLat, maxLat], crs=ccrs.PlateCarree())
+
         gl = ax.gridlines(draw_labels=True,
                           linewidth=1, color='gray',
                           alpha=0.5, linestyle='--')
@@ -114,6 +115,7 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
             while (corr_swp < -180): corr_swp += 360
 
         except:
+            diffs.append(np.nan)
             continue
         # end try
         diffs.append(np.fabs(corr_rf - corr_swp))
@@ -121,7 +123,7 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
 
     if(len(diffs)):
         cmap = matplotlib.cm.jet
-        norm = matplotlib.colors.Normalize(0, np.max(diffs))
+        norm = matplotlib.colors.Normalize(0, np.nanmax(diffs))
 
         # plot stations
         for nsl in coords.keys():
@@ -141,24 +143,27 @@ def plot_summary(station_coords_dict, corrections_dict, output_fn):
                 while (corr_swp < -180): corr_swp += 360
 
             except:
-                continue
+                corr_rf = np.nan
+                corr_swp = np.nan
             # end try
 
             for ax, corr in zip([ax1, ax2], [corr_rf, corr_swp]):
                 # print (np.fabs(corr_rf-corr_swp))
-                color = cmap(norm(np.fabs(corr_rf - corr_swp)))
                 px, py = lon-clon, lat
                 pxl, pyl = lon-clon + 0.02, lat - 0.1
                 ax.scatter(px, py, 2, transform=crs, marker='o', c='g', edgecolor='none', zorder=10)
                 ax.annotate(sta, xy=(pxl, pyl), fontsize=3)
 
-                ux = np.cos(np.radians(corr))
-                uy = np.sin(np.radians(corr))
+                if(not np.any(np.isnan(np.array([corr_rf, corr_swp])))):
+                    ux = np.cos(np.radians(corr))
+                    uy = np.sin(np.radians(corr))
 
-                # print(netsta, corr, ux, uy)
+                    # print(netsta, corr, ux, uy)
 
-                ax.quiver(px, py, -uy, ux, transform=crs, scale_units='inches',
-                          color=color, scale=5, width=0.002, pivot='middle')
+                    color = cmap(norm(np.fabs(corr_rf - corr_swp)))
+                    ax.quiver(px, py, -uy, ux, transform=crs, scale_units='inches',
+                              color=color, scale=5, width=0.002, pivot='middle')
+                # end if
             # end for
         # end for
         cbax = fig.add_axes([0.35, 0.5, 0.3, 0.01])
@@ -232,8 +237,8 @@ def main(src_h5_event_file, network, output_basename, station_list):
 
         curr_output_file = os.path.join(tempdir, '{}.pdf'.format(nsl))
 
-        results_rf = None
-        results_swp = None
+        results_rf = defaultdict(dict)
+        results_swp = defaultdict(dict)
         with PdfPages(curr_output_file) as pdf:
             fig, (ax1, ax2) = plt.subplots(2, 1)
             fig.set_size_inches(paper_size_A4[1], paper_size_A4[0]) #landscape

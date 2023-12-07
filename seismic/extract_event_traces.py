@@ -541,7 +541,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                     else:
                         t = Trace(data=np.array([]),
                                   header={'network': net, 'station': sta,
-                                          'location': loc, 'wave_type': wave,
+                                          'location': loc, 'channel': 'XXX',
+                                          'wave_type': wave,
                                           'station_longitude': sta_lon,
                                           'station_latitude': sta_lat,
                                           'event_time': UTCDateTime.now()})
