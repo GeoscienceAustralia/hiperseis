@@ -446,23 +446,39 @@ def compute_rf_snr(rf_stream):
     # end if
 # end func
 
-
-def choose_rf_source_channel(rf_type, db_station):
+def choose_rf_source_channel(db_station):
     """Choose source channel for RF analysis.
 
-    :param rf_type: The RF rotation type, should be either 'ZRT' or 'LQT'
-    :type rf_type: str
     :param db_station: Dict of traces for a given station keyed by channel code.
     :type db_station: dict(str, list(rf.RFTrace))
     :return: Channel code of the primary RF source channel
     :rtype: str
     """
-    if rf_type[0:3].upper() == 'ZRT':
+
+    if(len(db_station) == 0): return None
+
+    # get phase
+    phase = list(db_station.values())[0][0].stats.phase
+
+    # determine rotation
+    rot = None
+    comps = ''.join([cha[-1] for cha in db_station.keys()])
+    if(np.all([cha in comps for cha in 'ZRT'])): rot = 'ZRT'
+    elif(np.all([cha in comps for cha in 'LQT'])): rot = 'LQT'
+    else: assert 0, 'Invalid rotation detection: {}. Aborting..'.format(comps)
+
+    prospective_channels = None
+    if rot == 'ZRT':
         prospective_channels = ['HHR', 'BHR', 'EHR', 'SHR', '**R']
         fallback = 'R'
-    elif rf_type[0:3].upper() == 'LQT':
-        prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ', '**Q']
-        fallback = 'Q'
+    elif rot == 'LQT':
+        if (phase == 'P'):
+            prospective_channels = ['HHQ', 'BHQ', 'EHQ', 'SHQ', '**Q']
+            fallback = 'Q'
+        elif (phase == 'S'):
+            prospective_channels = ['HHL', 'BHL', 'EHL', 'SHL', '**L']
+            fallback = 'L'
+        # end if
     else:
         prospective_channels = []
         fallback = None
@@ -486,12 +502,12 @@ def choose_rf_source_channel(rf_type, db_station):
 # end func
 
 
-def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
+def label_rf_quality_simple_amplitude(rf_rot, traces, snr_cutoff=2.0, rms_amp_cutoff=0.2, max_amp_cutoff=1.0):
     """Add RF quality label for a collection of RFs based on simple amplitude criteria computed by
     quality filter script.  Adds quality label in-place.
 
-    :param rf_type: The RF rotation type, should be either 'ZRT' or 'LQT'
-    :type rf_type: str
+    :param rf_rot: The RF rotation type, should be either 'ZRT' or 'LQT'
+    :type rf_rot: str
     :param traces: Iterable collection of rf.RFTrace
     :type traces: Iterable collection of rf.RFTrace
     :param snr_cutoff: Minimum signal SNR, defaults to 2.0
@@ -512,7 +528,7 @@ def label_rf_quality_simple_amplitude(rf_type, traces, snr_cutoff=2.0, rms_amp_c
     # Simple SNR and amplitude based filtering criteria matching formula from Babak in Matlab code, PLUS
     # additional requirement in the case of ZRT rotation that the peak occurs nearby to onset time.
     peak_location_tolerance_sec = 2.0
-    if rf_type[0:3].upper() == 'ZRT':
+    if rf_rot[0:3].upper() == 'ZRT':
         for tr in traces:
             times_rel = tr.times() - (tr.stats.onset - tr.stats.starttime)
             if (_amplitude_metric_good(tr) and

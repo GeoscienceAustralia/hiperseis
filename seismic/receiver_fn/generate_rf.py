@@ -5,18 +5,18 @@ import copy
 
 from mpi4py import MPI
 import logging
-import json
 
 import numpy as np
 import click
-import os
+import os, json
 import tqdm.auto as tqdm
-from seismic.receiver_fn.rf_corrections import Corrections
 from seismic.receiver_fn import rf_util
+from seismic.receiver_fn.rf_config import RFConfig, Corrections
 from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
 from seismic.rf_station_orientations import analyze_station_orientations
 from seismic.network_event_dataset import NetworkEventDataset
-from seismic.stream_processing import zne_order, negate_channel, swap_ne_channels, correct_back_azimuth
+from seismic.stream_processing import zne_order, negate_channel, \
+    swap_ne_channels, correct_back_azimuth, recompute_inclinations
 from seismic.stream_io import remove_group, get_obspyh5_index
 from rf import RFStream
 from collections import defaultdict
@@ -26,55 +26,10 @@ from seismic.misc import split_list
 
 logging.basicConfig()
 
-def event_waveforms_to_rf(input_file, output_file, config, network_list='*', station_list='*', only_corrections=False):
+def event_waveforms_to_rf(input_file: str, output_file: str, config: RFConfig,
+                          network_list='*', station_list='*', only_corrections=False):
     """
     Main entry point for generating RFs from event traces.
-
-    Config file consists of 3 sub-dictionaries. One named "filtering" for
-    input stream filtering settings, one named "processing" for RF processing
-    settings, and one named "correction" for rotating/swapping/negating channel
-    data for one or more named stations with potential orientation discrepancies.
-    Each of these sub-dicts is described below::
-
-        "filtering":  # Filtering settings
-        {
-          "resample_rate": float # Resampling rate in Hz
-          "taper_limit": float   # Fraction of signal to taper at end, between 0 and 0.5
-          "filter_band": (float, float) # Filter pass band (Hz). Not required for freq-domain deconvolution.
-          "channel_pattern": # Ordered list of preferred channels, e.g. 'HH*,BH*',
-                             # where channel selection is ambiguous.
-          "baz_range": (float, float) or [(float, float), ...] # Discrete ranges of source back azimuth to use (degrees).
-              # Each value must be between 0 and 360. May be a pair or a list of pairs for multiple ranges.
-        }
-
-        "processing":  # RF processing settings
-        {
-          "custom_preproc":
-          {
-            "import": 'import custom symbols',  # statement to import required symbols
-            "func": 'preproc functor'  # expression to get handle to custom preprocessing functor
-            "args": {}  # additional kwargs to pass to func
-          }
-          "trim_start_time": float # Trace trim start time in sec, relative to onset
-          "trim_end_time": float # Trace trim end time in sec, relative to onset
-          "rotation_type": str # Choice of ['zrt', 'lqt']. Rotational coordinate system
-                               # for aligning ZNE trace components with incident wave direction
-          "deconv_domain": str # Choice of ['time', 'freq', 'iter']. Whether to perform deconvolution
-                               # in time or freq domain, or iterative technique
-          "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
-          "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
-          "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
-          "normalize": bool # Whether to normalize RF amplitude
-        }
-
-        "correction": # corrections to be applied to data for named stations prior to RF computation
-        {
-          "plot_dir": str # path to folder where plots related to orientation corrections are to be saved
-          "swap_ne": list # list of NET.STA.LOC for which N and E channels are to be swapped, e.g ["OA.BL27."],
-          "rotate": list # list of NET.STA.LOC that are to be rotated to maximize P-arrival energy on \
-                           the primary RF component, e.g ["OA.BL27."]
-          "negate": list # list of NET.STA.LOC.CHA that are to be negated, e.g ["OA.BL27..HHZ"]
-        }
 
     :param input_file: Event waveform source file for seismograms, generated using extract_event_traces.py script
     :type input_file: str or pathlib.Path
@@ -91,30 +46,40 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     proc_hdfkeys = None
     corrections = None
 
-    config_filtering = config.setdefault("filtering", {})
-    channel_pattern = config_filtering.get("channel_pattern")
-    config_processing = config.setdefault("processing", {})
-    config_correction = config.setdefault("correction", {})
+    config_filtering = config.config_filtering
+    config_processing = config.config_processing
+    config_correction = config.config_correction
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    if channel_pattern is not None:
-        channel_pattern = channel_pattern.strip()
-        logger.info("Using channel matching pattern {}".format(channel_pattern))
+    # set h5 root to appropriate waveform path
+    h5_root = None
+    rf_type = config.config_processing['rf_type']
+    if(rf_type == 'prf'):
+        h5_root = 'waveforms/P'
+    else:
+        h5_root = 'waveforms/S'
     # end if
 
     if(rank == 0):
         logger.info("Processing source file {}".format(input_file))
 
         # retrieve all available hdf_keys
-        proc_hdfkeys = get_obspyh5_index(input_file, seeds_only=True)
+        proc_hdfkeys = None
+        try:
+            proc_hdfkeys = get_obspyh5_index(input_file, seeds_only=True, root=h5_root)
+        except Exception as e:
+            print('Failed to read {} with error {}. '
+                  'Ensure file has data at key "{}". Aborting..'.format(input_file,
+                                                                        e, h5_root))
+        # ene try
 
         # trim stations to be processed based on the user-provided network- and station-list
         proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
 
         if(only_corrections): # trim the hdf_keys if processing only corrections
-            corrections = Corrections(config_correction, proc_hdfkeys)
+            corrections = Corrections(config, proc_hdfkeys)
             proc_hdfkeys = [item for item in proc_hdfkeys if corrections.needsCorrections(item)]
         # end if
     # end if
@@ -123,7 +88,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     proc_hdfkeys = comm.bcast(proc_hdfkeys, root=0)
 
     # load corrections-config
-    corrections = Corrections(config_correction, proc_hdfkeys)
+    corrections = Corrections(config, proc_hdfkeys)
 
     # split stations over all ranks
     proc_hdfkeys = split_list(proc_hdfkeys, nproc)
@@ -137,7 +102,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
 
         net, sta, loc = nsl.split('.')
         # note that ned contains a single station
-        ned = NetworkEventDataset(input_file, network=net, station=sta, location=loc)
+        ned = NetworkEventDataset(input_file, network=net, station=sta, location=loc, root=h5_root)
 
         # corrections
         if (corrections.needsCorrections(proc_hdfkey)):
@@ -156,8 +121,9 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                 ned.apply(lambda st: swap_ne_channels(None, st))
             # end if
 
-            # channel rotations through baz correction
-            if(corrections.needsRotation(proc_hdfkey)):
+            # channel rotations through baz correction. Note that this is only
+            # applicable for P-RFs
+            if (corrections.needsRotation(proc_hdfkey) and rf_type == 'prf'):
                 # TODO : expose the following parameters
                 bazcorr_curation_opts = {"min_slope_ratio": 5,
                                          "min_snr": 2.0,
@@ -183,6 +149,12 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                     logger.warning('Channel rotation failed for {}. Moving along..'.format(nsl))
                 # end try
             # end if
+
+            # recompute inclinations. Note that this is only applicable for S-RFs
+            if (corrections.needsInclinationRecomputed(proc_hdfkey) and rf_type == 'srf'):
+                logger.info('Rank {}: {}: Recomputing inclinations'.format(rank, nsl))
+                ned.apply(lambda st: recompute_inclinations(None, st))
+            # end if
         # end if
 
         status_list = []
@@ -198,8 +170,7 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
                     assert stream.traces[1].stats.channel[-1] == 'N'
                     assert stream.traces[2].stats.channel[-1] == 'E'
 
-                    rf_3ch = transform_stream_to_rf(evid, stream, config_filtering,
-                                                    config_processing)
+                    rf_3ch = transform_stream_to_rf(evid, stream, config)
                 except Exception as e:
                     print(str(e) + ' in station {}, event {}'.format(nsl, evid))
                     status_list.append(False)
@@ -223,16 +194,18 @@ def event_waveforms_to_rf(input_file, output_file, config, network_list='*', sta
     # end for
     pbar.close()
 
-    # gather and output baz corrections
-    baz_corrections = comm.gather(baz_corrections, root=0)
-    if(rank == 0):
-        if(len(baz_corrections) and corrections.plot_dir):
-            output_dict = {}
-            for d in baz_corrections:
-                if(len(d)): output_dict.update(d)
-            # end for
-            json.dump(output_dict, open(os.path.join(corrections.plot_dir,
-                                                     'azimuth_corrections.json'), 'w'))
+    # gather and output baz corrections if any for P RFs
+    if(rf_type == 'prf'):
+        baz_corrections = comm.gather(baz_corrections, root=0)
+        if(rank == 0):
+            if(len(baz_corrections) and corrections.plot_dir):
+                output_dict = {}
+                for d in baz_corrections:
+                    if(len(d)): output_dict.update(d)
+                # end for
+                json.dump(output_dict, open(os.path.join(corrections.plot_dir,
+                                                         'azimuth_corrections.json'), 'w'))
+            # end if
         # end if
     # end if
 
@@ -284,18 +257,10 @@ def _main(input_file, output_file, network_list, station_list, config_file, only
                  (output of extract_event_traces.py)\n
     OUTPUT_FILE : Output H5 file name
     """
-    if config_file is not None:
-        with open(config_file, 'r') as cf:
-            config = json.load(cf)
-        # end with
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
 
-        config_correction = config.setdefault("correction", {})
-        if(not len(config_correction) and only_corrections):
-            assert 0, 'A correction block is required in the config file for --only-corrections'
-        # end if
-    else:
-        config = {}  # all default settings
-    # end if
+    config = RFConfig(config_file)
 
     # Dispatch call to worker function. See worker function for documentation.
     event_waveforms_to_rf(input_file, output_file, config, network_list=network_list, station_list=station_list,

@@ -1,29 +1,20 @@
 import numpy as np
 from seismic.receiver_fn.rf_util import compute_vertical_snr
 from seismic.receiver_fn.rf_deconvolution import rf_iter_deconv
+from seismic.receiver_fn.rf_config import RFConfig
 from seismic.stream_quality_filter import curate_stream3c
-from seismic.stream_processing import back_azimuth_filter
-from obspy.signal.rotate import rotate_rt_ne
+import traceback
 
 import logging
 
 logging.basicConfig()
 
-DEFAULT_RESAMPLE_RATE_HZ = 10.0
-DEFAULT_FILTER_BAND_HZ = (0.02, 1.00)
-DEFAULT_TAPER_LIMIT = 0.05
-DEFAULT_TRIM_START_TIME_SEC = -50.0
-DEFAULT_TRIM_END_TIME_SEC = 150.0
-DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
-DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
-DEFAULT_GAUSS_WIDTH = 1.0
-DEFAULT_WATER_LEVEL = 0.01
-DEFAULT_SPIKING = 0.5
 RAW_RESAMPLE_RATE_HZ = 10.0
 BANDPASS_FILTER_ORDER = 2
+ITER_GWIDTH_PRF = 2.5 # gaussian filter width for iterative deconvolution of P RFs
+ITER_GWIDTH_SRF = 3.5 # gaussian filter width for iterative deconvolution of S RFs
 
-def transform_stream_to_rf(ev_id, stream3c, config_filtering,
-                           config_processing, **kwargs):
+def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
     See documentation for function event_waveforms_to_rf for details of
     config dictionary contents.
@@ -32,30 +23,28 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
     :type ev_id: int or str
     :param stream3c: Stream with 3 components of trace data
     :type stream3c: rf.RFStream
-    :param config_filtering: Dictionary containing stream filtering settings
-    :type config_filtering: dict
-    :param config_processing: Dictionary containing RF processing settings
-    :type config_processing: dict
+    :param rf_config: RF parameters
+    :type rf_config: RFConfig
     :param kwargs: Keyword arguments that will be passed to filtering and deconvolution functions.
     :type kwargs: dict
     :return: RFstream containing receiver function if successful, None otherwise
     :rtype: rf.RFStream or NoneType
     """
 
-    resample_rate_hz = config_filtering.get("resample_rate", DEFAULT_RESAMPLE_RATE_HZ)
-    filter_band_hz = config_filtering.get("filter_band", DEFAULT_FILTER_BAND_HZ)
+    config_filtering = rf_config.config_filtering
+    config_processing = rf_config.config_processing
+    resample_rate_hz = config_filtering.get("resample_rate")
+    filter_band_hz = config_filtering.get("filter_band")
     assert resample_rate_hz >= 2.0*filter_band_hz[1], "Too low sample rate will alias signal"
-    taper_limit = config_filtering.get("taper_limit", DEFAULT_TAPER_LIMIT)
-    baz_range = config_filtering.get("baz_range")
+    taper_limit = config_filtering.get("taper_limit")
 
-    trim_start_time_sec = config_processing.get("trim_start_time", DEFAULT_TRIM_START_TIME_SEC)
-    trim_end_time_sec = config_processing.get("trim_end_time", DEFAULT_TRIM_END_TIME_SEC)
-    rotation_type = config_processing.get("rotation_type", DEFAULT_ROTATION_TYPE)
-    deconv_domain = config_processing.get("deconv_domain", DEFAULT_DECONV_DOMAIN)
+    rf_type = config_processing.get('rf_type')
+    trim_start_time_sec = config_processing.get("trim_start_time")
+    trim_end_time_sec = config_processing.get("trim_end_time")
+    rotation_type = config_processing.get("rotation_type")
+    deconv_domain = config_processing.get("deconv_domain")
 
     logger = logging.getLogger(__name__)
-
-    assert deconv_domain.lower() in ['time', 'freq', 'iter']
 
     # Apply any custom preprocessing step
     custom_preproc = config_processing.get("custom_preproc")
@@ -78,13 +67,6 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
 
     if not curate_stream3c(ev_id, stream3c, logger):
         return None
-
-    if baz_range is not None:
-        if not isinstance(baz_range[0], list):
-            baz_range = [baz_range]
-        baz = stream3c[0].stats.back_azimuth
-        if not any([back_azimuth_filter(baz, tuple(b)) for b in baz_range]):
-            return None
     # end if
 
     # Compute SNR of prior z-component after some low pass filtering.
@@ -117,7 +99,7 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
             # ZRT receiver functions must be specified
             stream3c.filter('bandpass', freqmin=filter_band_hz[0], freqmax=filter_band_hz[1],
                             corners=BANDPASS_FILTER_ORDER, zerophase=True, **kwargs).interpolate(resample_rate_hz)
-            spiking = config_processing.get("spiking", DEFAULT_SPIKING)
+            spiking = config_processing.get("spiking")
             kwargs.update({'spiking': spiking})
             if not normalize:
                 # No normalization. The "normalize" argument must be set to None.
@@ -131,9 +113,11 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
                 # No normalization. The "normalize" argument must be set to None.
                 kwargs['normalize'] = None
             # end if
-            gauss_width = config_processing.get("gauss_width", DEFAULT_GAUSS_WIDTH)
-            water_level = config_processing.get("water_level", DEFAULT_WATER_LEVEL)
-            stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width, waterlevel=water_level, **kwargs)
+            gauss_width = config_processing.get("gauss_width")
+            water_level = config_processing.get("water_level")
+            stream3c.rf(rotate=rf_rotation, deconvolve='freq', gauss=gauss_width,
+                        winsrc=(trim_start_time_sec, trim_end_time_sec, 5),
+                        waterlevel=water_level, **kwargs)
             # Interpolate to requested sampling rate.
             stream3c.interpolate(resample_rate_hz)
         elif deconv_domain == 'iter':
@@ -145,15 +129,29 @@ def transform_stream_to_rf(ev_id, stream3c, config_filtering,
                 # No normalization. The "normalize" argument must be set to None.
                 normalize = None
             else:
-                normalize = 0  # Use Z-component for normalization
+                if(rf_type == 'prf'):
+                    normalize = 0 # Use Z/L-component for normalization
+                elif(rf_type == 'srf'):
+                    normalize = 1 # Use Q-component for normalization
+                # end if
             # end if
-            stream3c.rf(rotate=rf_rotation, trim=(trim_start_time_sec, trim_end_time_sec), deconvolve='func',
-                        func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0)
+
+            ignore_time_shift = False
+            iter_gwidth = ITER_GWIDTH_PRF if rf_type == 'prf' else ITER_GWIDTH_SRF
+            if(rf_type == 'srf'): ignore_time_shift = True
+
+            stream3c.rf(rotate=rf_rotation,
+                        trim=(trim_start_time_sec, trim_end_time_sec),
+                        deconvolve='func',
+                        winsrc=(trim_start_time_sec, trim_end_time_sec, 5),
+                        func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0,
+                        ignore_time_shift=ignore_time_shift,
+                        gwidth=iter_gwidth)
         else:
             assert False, "Not yet supported deconvolution technique '{}'".format(deconv_domain)
         # end if
     except (IndexError, ValueError) as e:
-        logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, str(e)))
+        logger.error("Failed on stream {}:\n{}\nwith error:\n{}".format(ev_id, stream3c, e))
         return None
     # end try
 

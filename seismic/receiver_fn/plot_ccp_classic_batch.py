@@ -53,10 +53,10 @@ def run_batch(transect_file, rf_waveform_file, fed_db_file, amplitude_filter=Fal
     print("Reading HDF5 file...")
     rf_stream = rf.read_rf(rf_waveform_file, 'H5').select(component=channel)
 
-    rf_type = rf_stream[0].stats.rotation
+    rf_rot = rf_stream[0].stats.rotation
     if amplitude_filter:
         # Label and filter quality
-        rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
+        rf_util.label_rf_quality_simple_amplitude(rf_rot, rf_stream)
         rf_stream = rf.RFStream([tr for tr in rf_stream if tr.stats.predicted_quality == 'a'])
     # end if
 
