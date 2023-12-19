@@ -137,13 +137,16 @@ def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
             # end if
 
             ignore_time_shift = False
+            winsrc = 'P'
             iter_gwidth = ITER_GWIDTH_PRF if rf_type == 'prf' else ITER_GWIDTH_SRF
-            if(rf_type == 'srf'): ignore_time_shift = True
-
+            if(rf_type == 'srf'):
+                ignore_time_shift = True
+                winsrc = (trim_start_time_sec, trim_end_time_sec, 5)
+            # end if
             stream3c.rf(rotate=rf_rotation,
                         trim=(trim_start_time_sec, trim_end_time_sec),
                         deconvolve='func',
-                        winsrc=(trim_start_time_sec, trim_end_time_sec, 5),
+                        winsrc=winsrc,
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0,
                         ignore_time_shift=ignore_time_shift,
                         gwidth=iter_gwidth)

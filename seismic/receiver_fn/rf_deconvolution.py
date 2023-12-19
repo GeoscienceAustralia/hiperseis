@@ -310,7 +310,7 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, ignore_time_shift=Fal
     :rtype: list of numpy.array(float)
     """
     sampling_rate = sr
-    time_shift = tshift * np.int_(not ignore_time_shift)
+    time_shift = 0 if ignore_time_shift else tshift
     denominator = source_data
     receiver_fns = []
     log = logging.getLogger(__name__)
