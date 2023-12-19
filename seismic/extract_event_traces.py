@@ -627,7 +627,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 @click.option('--p-distance-range', type=(int, int), default=(30, 90), show_default=True,
               help='Range of epicentral distances (in degrees) for which P-arrival data at a given station '
                    'are to be fetched. Has no effect without --p-data')
-@click.option('--s-distance-range', type=(int, int), default=(30, 90), show_default=True,
+@click.option('--s-distance-range', type=(int, int), default=(55, 85), show_default=True,
               help='Range of epicentral distances (in degrees) for which S-arrival data at a given station '
                    'are to be fetched. Has no effect without --s-data')
 @click.option('--sw-distance-range', type=(int, int), default=(5, 175), show_default=True,
