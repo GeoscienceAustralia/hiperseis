@@ -27,7 +27,7 @@ from collections import defaultdict
 from seismic.stream_quality_filter import curate_seismograms
 from rf import RFStream
 from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
-
+from seismic.receiver_fn.rf_config import RFConfig
 from seismic.network_event_dataset import NetworkEventDataset
 from scipy import optimize, interpolate
 import seismic.receiver_fn.rf_util as rf_util
@@ -251,8 +251,10 @@ def _run_single_station(db_evid, angles, config_filtering, config_processing):
                     tr.stats.back_azimuth -= 360
             # end for
 
+            config = RFConfig({'filtering': config_filtering,
+                               'processing': config_processing})
             rf_3ch = transform_stream_to_rf(evid, RFStream(stream_rot),
-                                            config_filtering, config_processing)
+                                            config)
             if rf_3ch is None:
                 continue
 

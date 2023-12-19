@@ -15,6 +15,7 @@ Revision History:
 from collections import defaultdict
 import copy
 import json
+from typing import Union
 
 DEFAULT_RF_TYPE = 'prf'  # from ['prf', 'srf']
 DEFAULT_RESAMPLE_RATE_HZ = 10.0
@@ -31,9 +32,9 @@ DEFAULT_NORMALIZE = False
 DEFAULT_PLOT_DIR = None
 
 class RFConfig:
-    def __init__(self, config_file: str):
+    def __init__(self, config_source: Union[str, dict]):
         """
-        Config file consists of 3 sub-dictionaries. One named "filtering" for
+        Config consists of 3 sub-dictionaries. One named "filtering" for
         input stream filtering settings, one named "processing" for RF processing
         settings, and one named "correction" for rotating/swapping/negating channel
         data for one or more named stations with potential orientation discrepancies.
@@ -79,7 +80,7 @@ class RFConfig:
                                       Note that this parameter is only applicable for S-RFs.
         }
 
-        @param config_file: name of config file
+        @param config_source: Either path to a config file or a dict
         """
         # define default config
         self.default_config = \
@@ -115,15 +116,20 @@ class RFConfig:
             }
 
         # load user config
-        self.config_file = config_file
-        if(self.config_file is not None):
-            try:
-                with open(self.config_file, 'r') as cf:
-                    self.config = json.load(cf)
-                # end with
-            except Exception as e:
-                raise RuntimeError('Failed to read config file: {}. Aborting..'.format(self.config_file))
-            # end try
+        self.config_source = config_source
+        if(self.config_source is not None):
+            if(type(self.config_source) == dict):
+                self.config = dict(self.config_source)
+            else:
+                try:
+                    with open(self.config_source, 'r') as cf:
+                        self.config = json.load(cf)
+                    # end with
+                except Exception as e:
+                    raise RuntimeError('Failed to read config file: {}. '
+                                       'Aborting..'.format(self.config_source))
+                # end try
+            # end if
         else:
             self.config = {}
         # end if

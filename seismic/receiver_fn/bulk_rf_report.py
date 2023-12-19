@@ -561,8 +561,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 ############################################
                 max_time = None
                 if(rf_type == 'prf'): max_time = 15
-                elif(rf_type == 'srf'): maxtime = 25
-                fig = rf_plot_utils.plot_rf_wheel([rf_stream_raw, t_stream], max_time=maxtime,
+                elif(rf_type == 'srf'): max_time = 25
+                fig = rf_plot_utils.plot_rf_wheel([rf_stream_raw, t_stream], max_time=max_time,
                                                   fontscaling=0.8)
                 fig.set_size_inches(*paper_size_A4)
                 plt.tight_layout()

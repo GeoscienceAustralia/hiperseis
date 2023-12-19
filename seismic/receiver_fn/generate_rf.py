@@ -57,7 +57,7 @@ def event_waveforms_to_rf(input_file: str, output_file: str, config: RFConfig,
     h5_root = None
     rf_type = config.config_processing['rf_type']
     if(rf_type == 'prf'):
-        h5_root = 'waveforms/P'
+        h5_root = 'waveforms' # default is P for backward compatibility
     else:
         h5_root = 'waveforms/S'
     # end if
