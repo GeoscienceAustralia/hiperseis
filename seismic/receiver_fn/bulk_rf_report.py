@@ -421,12 +421,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
             # Would like to use Tex, but lack desktop PC privileges to update packages to what is required
             plt.rc('text', usetex=False)
             network = data_dict.network
-            rf_type = data_dict.rotation
+            rf_rot = data_dict.rotation
+            rf_type = 'prf' if data_dict.phase == 'P' else 'srf' if data_dict.phase == 'S' else None
             for st in sorted(data_dict.keys()):
                 station_db = data_dict[st]
 
                 # Choose RF channel
-                channel = rf_util.choose_rf_source_channel(rf_type, station_db)
+                channel = rf_util.choose_rf_source_channel(station_db)
                 channel_data = station_db[channel]
                 if not channel_data:
                     continue
@@ -463,7 +464,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 ###############################################################################
                 if apply_amplitude_filter:
                     # Label and filter quality
-                    rf_util.label_rf_quality_simple_amplitude(rf_type, rf_stream)
+                    rf_util.label_rf_quality_simple_amplitude(rf_rot, rf_stream)
                     rf_stream = rf.RFStream(
                         [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
                     if(len(rf_stream) == 0):
@@ -500,12 +501,12 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
                 rf_stream_raw = rf_stream.copy()
                 ###############################################################################
-                # Apply reverberation filter if needed
+                # Apply reverberation filter for P RFs if needed
                 ###############################################################################
                 reverberations_removed = False
-                # Apply reverberation filter if needed (or forced)
-                if(rf_corrections.has_reverberations(rf_stream) or \
-                   st in fd_sta_list):
+                # Apply reverberation filter if needed (or forced). Only applies for P RFs
+                if((rf_corrections.has_reverberations(rf_stream) or st in fd_sta_list) and
+                   (rf_type == 'prf')):
                     rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
                     reverberations_removed = True
                 # end if
@@ -513,17 +514,19 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 ###############################################################################
                 # RF amplitudes should not exceed 1.0 and should peak around onset time --
                 # otherwise, such traces are deemed problematic and excluded while computing
-                # H-k stacks.
+                # H-k stacks. Only applies for P RFs.
                 ###############################################################################
-                before = len(rf_stream)
-                rf_stream = rf_util.filter_invalid_radial_component(rf_stream)
-                after = len(rf_stream)
+                if(rf_type == 'prf'):
+                    before = len(rf_stream)
+                    rf_stream = rf_util.filter_invalid_radial_component(rf_stream)
+                    after = len(rf_stream)
 
-                if(before > after):
-                    print("{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped "
-                          "before computing H-k stack ..".format(full_code,
-                                                                 before - after,
-                                                                 before))
+                    if(before > after):
+                        print("{}: {}/{} RF traces with amplitudes > 1.0 or troughs around "
+                              "onset time dropped before computing H-k stack ..".format(full_code,
+                                                                                        before - after,
+                                                                                        before))
+                    # end if
                 # end if
 
                 if not rf_stream:
@@ -556,7 +559,11 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 ############################################
                 # Plot pinwheel of primary and transverse components
                 ############################################
-                fig = rf_plot_utils.plot_rf_wheel([rf_stream_raw, t_stream], fontscaling=0.8)
+                max_time = None
+                if(rf_type == 'prf'): max_time = 15
+                elif(rf_type == 'srf'): max_time = 25
+                fig = rf_plot_utils.plot_rf_wheel([rf_stream_raw, t_stream], max_time=max_time,
+                                                  fontscaling=0.8)
                 fig.set_size_inches(*paper_size_A4)
                 plt.tight_layout()
                 plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
@@ -594,8 +601,9 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     plt.close()
                 # end if
 
-                # Plot RF stack of transverse component
-                if t_stream:
+                # Plot RF stack of transverse component. Not particularly useful for S RFs
+                # and hence excluded
+                if t_stream and rf_type == 'prf':
                     fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
                                                       stack_height=fixed_stack_height_inches,
                                                       fig_width=paper_size_A4[0])
@@ -607,40 +615,41 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     plt.close()
                 # end if
 
-                ############################################
-                # Plot H-k stack using primary RF component
-                ############################################
-                fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
-                                                   semblance_weighted=(not disable_semblance_weighting),
-                                                   labelling=hk_solution_labels,
-                                                   depth_colour_range=depth_colour_range)
-                hk_soln[nsl] = maxima
-                station_coords[nsl] = (channel_data[0].stats.station_longitude, channel_data[0].stats.station_latitude)
+                ######################################################################
+                # Plot H-k stack using primary RF component. Only applicable for P RFs
+                ######################################################################
+                if(rf_type == 'prf'):
+                    fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
+                                                       semblance_weighted=(not disable_semblance_weighting),
+                                                       labelling=hk_solution_labels,
+                                                       depth_colour_range=depth_colour_range)
+                    hk_soln[nsl] = maxima
+                    station_coords[nsl] = (channel_data[0].stats.station_longitude, channel_data[0].stats.station_latitude)
 
-                paper_landscape = (paper_size_A4[1], paper_size_A4[0])
-                fig.set_size_inches(*paper_landscape)
-                # plt.tight_layout()
-                # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
-                pdf.savefig(dpi=300, orientation='landscape')
-                plt.close()
+                    paper_landscape = (paper_size_A4[1], paper_size_A4[0])
+                    fig.set_size_inches(*paper_landscape)
+                    # plt.tight_layout()
+                    # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
+                    pdf.savefig(dpi=300, orientation='landscape')
+                    plt.close()
 
-                if reverberations_removed:
-                    if(len(hk_soln[nsl])):
-                        H_c = hk_soln[nsl][0][0]
-                        k_c = hk_soln[nsl][0][1]
-                        fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp)
-                        sediment_hk_soln[nsl] = maxima
+                    if reverberations_removed:
+                        if(len(hk_soln[nsl])):
+                            H_c = hk_soln[nsl][0][0]
+                            k_c = hk_soln[nsl][0][1]
+                            fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp)
+                            sediment_hk_soln[nsl] = maxima
 
-                        sediment_station_coords[nsl] = (channel_data[0].stats.station_longitude,
-                                                        channel_data[0].stats.station_latitude)
-                        fig.set_size_inches(*paper_landscape)
-                        pdf.savefig(dpi=300, orientation='landscape')
-                        plt.close()
-                    else:
-                        log.warning("Sediment H-K stacking for {} failed. Moving along..".format(nsl))
+                            sediment_station_coords[nsl] = (channel_data[0].stats.station_longitude,
+                                                            channel_data[0].stats.station_latitude)
+                            fig.set_size_inches(*paper_landscape)
+                            pdf.savefig(dpi=300, orientation='landscape')
+                            plt.close()
+                        else:
+                            log.warning("Sediment H-K stacking for {} failed. Moving along..".format(nsl))
+                        # end if
                     # end if
                 # end if
-
                 plt.close('all')
             # end for
         # end with

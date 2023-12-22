@@ -102,20 +102,20 @@ def main():
     stations = sorted(list(data_dict.keys()))
 
     # Assuming same rotation type for all RFs. This is consistent with the existing workflow.
-    rf_type = data_all[0].stats.rotation
+    rf_rot = data_all[0].stats.rotation
 
     for st in stations:
         station_db = data_dict[st]
 
         # Choose RF channel
-        channel = rf_util.choose_rf_source_channel(rf_type, station_db)
+        channel = rf_util.choose_rf_source_channel(station_db)
         channel_data = station_db[channel]
         # Check assumption
         for tr in channel_data:
-            assert tr.stats.rotation == rf_type, 'Mismatching RF rotation type'
+            assert tr.stats.rotation == rf_rot, 'Mismatching RF rotation type'
 
         # Label and filter quality
-        rf_util.label_rf_quality_simple_amplitude(rf_type, channel_data)
+        rf_util.label_rf_quality_simple_amplitude(rf_rot, channel_data)
         rf_stream = rf.RFStream([tr for tr in channel_data if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
         if not rf_stream:
             log.info("No data survived filtering for %s, skipping", st)

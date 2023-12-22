@@ -22,6 +22,7 @@ class NetworkRFDict:
         self.db = defaultdict(lambda: defaultdict(list))
         self.network = None
         self.rotation = None
+        self.phase = None
         for tr in rf_stream:
             net, sta, _, cha = tr.id.split('.')
             self.db[sta][cha].append(tr)
@@ -31,11 +32,12 @@ class NetworkRFDict:
                 self.network = net
             # end if
             rotation = tr.stats.rotation
-            if self.rotation is not None:
-                assert rotation == self.rotation
-            else:
-                self.rotation = rotation
-            # end if
+            phase = tr.stats.phase
+            if self.rotation is not None: assert rotation == self.rotation
+            else: self.rotation = rotation
+
+            if self.phase is not None: assert phase == self.phase
+            else: self.phase = phase
         # end for
     # end func
 

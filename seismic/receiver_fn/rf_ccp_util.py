@@ -105,7 +105,7 @@ class Migrator:
         self._stations = defaultdict(list)
     # end func
 
-    def process_streams(self, output_file, fmin=None, fmax=None, primary_component='R', model='iasp91', phase='P'):
+    def process_streams(self, output_file, fmin=None, fmax=None, model='iasp91'):
         proc_hkeys = None
         if(self._rank == 0):
             hkeys = get_obspyh5_index(self._rf_filename, seeds_only=True)
@@ -120,9 +120,17 @@ class Migrator:
         # read local traces
         self._p_traces = RFStream()
         for hkey in proc_hkeys[self._rank]:
+            net, sta, loc = hkey.split('.')
+
             if(self._logger): self._logger.info('rank {}: loading {}..'.format(self._rank, hkey))
 
             traces = read_rf(self._rf_filename, format='h5', group='waveforms/%s'%(hkey))
+            phase = traces.method
+            assert phase == 'P', 'Migration of S RFs is not yet supported. Aborting..'
+
+            # Convert rfstream to a hierarchical format, keyed by sta, cha
+            data_dict = rf_util.rf_to_dict(traces)
+            primary_component = rf_util.choose_rf_source_channel(data_dict[sta])[-1]
 
             # select primary component only
             p_traces = traces.select(component=primary_component)

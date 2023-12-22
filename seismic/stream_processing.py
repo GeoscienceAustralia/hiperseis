@@ -201,6 +201,42 @@ def _(filename, stats):
     return scalarize(db, stats)
 # end func
 
+def recompute_inclinations(_event_id, stream):
+    """
+    :param _event_id: ignored
+    :param stream: obspy.Stream or rf.RFSTream
+
+    Rotates a copy of the input stream (ZNE) to ZRT and recomputes incidence angles
+    by minimizing the energy on the L component through a grid search. The recomputed
+    incidence angles are assigned to those in the input stream.
+    @param stream:
+    @return:
+    """
+    if(len(stream) == 0): return stream
+
+    assert stream.traces[0].stats.phase == 'S', \
+        'Expecting S waveforms, but found {}. Aborting..'.format(stream.traces[0].stats.phase)
+
+    zrt = stream.copy().rotate('NE->RT')
+
+    zrt_trimmed = zrt.copy().trim2(-10, 10)
+    zr = np.array([zrt_trimmed[0].data,
+                   zrt_trimmed[1].data])
+    angles = np.linspace(0, np.pi / 2, 91)
+    lq_ratios = []
+    for a in angles:
+        rot2D = np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]])
+        lq = np.dot(rot2D, zr)
+        power = np.sum(np.power(lq, 2.), axis=1)
+        lq_ratios.append(power[0] / power[1])
+    # end for
+    lq_ratios = np.array(lq_ratios)
+    inc = np.degrees(angles[np.argmin(lq_ratios)])
+
+    for t in stream: t.stats.inclination = inc
+    return
+# end func
+
 
 def correct_back_azimuth(_event_id, stream, baz_correction):
     """

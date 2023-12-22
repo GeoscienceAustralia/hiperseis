@@ -282,7 +282,8 @@ def iter_deconv_pulsetrain(numerator, denominator, sampling_rate, time_shift, ma
 # end func
 
 
-def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.0, normalize=0, **kwargs):
+def rf_iter_deconv(response_data, source_data, sr, tshift, ignore_time_shift=False,
+                   min_fit_threshold=80.0, normalize=0, **kwargs):
     """Adapter function to rf library.  To use, add arguments `deconvolve='func', func=rf_iter_deconv` to
     `rf.RFStream.rf()` function call.
 
@@ -294,6 +295,11 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.
     :type sampling_rate: float
     :param time_shift: Time shift (seconds) from start of signal to onset
     :type time_shift: float
+    :param ignore_time_shift: The current implementation of iterative deconvolution skips
+                              non-causal signal altogether, which is problematic in the case
+                              of S RFs. This flag is used to disable the application of a time
+                              shift.
+    :type ignore_time_shift: bool
     :param min_fit_threshold: Minimum percentage of fit to include trace in results,
         otherwise will be returned as empty numpy array.
     :type min_fit_threshold: float
@@ -304,7 +310,7 @@ def rf_iter_deconv(response_data, source_data, sr, tshift, min_fit_threshold=80.
     :rtype: list of numpy.array(float)
     """
     sampling_rate = sr
-    time_shift = tshift
+    time_shift = 0 if ignore_time_shift else tshift
     denominator = source_data
     receiver_fns = []
     log = logging.getLogger(__name__)
