@@ -18,17 +18,23 @@ import numpy as np
 import logging
 logging.basicConfig()
 
-def setup_logger(name, log_file, level=logging.INFO, propagate=False):
+def setup_logger(name, log_file=None, level=logging.INFO, propagate=False):
     """
     Function to setup a logger; adapted from stackoverflow
     """
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler = logging.FileHandler(log_file, mode='w')
-    handler.setFormatter(formatter)
+    handler = None
+    if(log_file):
+        handler = logging.FileHandler(log_file, mode='w')
+    # end if
 
-    logger = logging.getLogger(name+log_file)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
+    logger = logging.getLogger(name+log_file if log_file else '')
     logger.setLevel(level)
-    logger.addHandler(handler)
+    if (handler is not None):
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    # end if
     logger.propagate = propagate
     return logger
 # end func
