@@ -48,7 +48,7 @@ from tqdm import tqdm
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.misc import split_list, setup_logger
 
-def process_data(rank, fds, stations, start_time, end_time):
+def process_data(rank, fds, stations, start_time, end_time, resolution):
     """
 
     :param rank: processor rank in parallel runs
@@ -60,11 +60,11 @@ def process_data(rank, fds, stations, start_time, end_time):
              and their corresponding means in each row
     """
     results = []
+    step = 3600 * 24 if (resolution == 'day') else 3600
 
-    day = 3600 * 24
     # Discard aux channels not in the following list
     chaSet = {'BH1', 'BH2', 'BHE', 'BHN', 'BHZ', 'BNZ', 'EHE', 'EHN', 'EHZ', 'HHE', 'HHN',
-              'HHZ', 'LHE', 'LHN', 'LHZ', 'SHE', 'SHN', 'SHZ'}
+              'HHZ', 'LHE', 'LHN', 'LHZ', 'SHE', 'SHN', 'SHZ', 'CHE', 'CHN', 'CHZ'}
     for s in tqdm(stations, desc='Rank: %d' % (rank)):
         # discard aux channels
         if (s[3] not in chaSet):
@@ -89,7 +89,7 @@ def process_data(rank, fds, stations, start_time, end_time):
             debug = False
             if not debug:
                 stream = fds.get_waveforms(s[0], s[1], s[2], s[3],
-                                           ct, ct + day,
+                                           ct, ct + step,
                                            trace_count_threshold=200)
                 if len(stream):
                     try:
@@ -110,19 +110,17 @@ def process_data(rank, fds, stations, start_time, end_time):
                 # end if
             # end if
 
-            ct += day
+            ct += step
         # end while
 
         results.append([times, means])
     # end for
 
     return results
-
-
 # end func
 
 
-def plot_results(stations, results, output_basename):
+def plot_results(stations, results, output_basename, resolution):
     # collate indices for each channel for each station
     assert len(stations) == len(results)
     groupIndices = defaultdict(list)
@@ -131,23 +129,24 @@ def plot_results(stations, results, output_basename):
     # end for
 
     # gather number of days of usable data for each station
-    usableStationDays = defaultdict(int)
-    maxUsableDays = -1e32
-    minUsableDays = 1e32
+    usableStationSteps = defaultdict(int)
+    maxUsableSteps = -1e32
+    minUsableSteps = 1e32
     for k, v in groupIndices.items():
         for i, index in enumerate(v):
             x, means = results[index]
 
             means = np.array(means)
             days = np.sum(~np.isnan(means) & np.bool_(means != 0))
-            if usableStationDays[k] < days:
-                usableStationDays[k] = days
-                maxUsableDays = max(maxUsableDays, days)
-                minUsableDays = min(minUsableDays, days)
+            if usableStationSteps[k] < days:
+                usableStationSteps[k] = days
+                maxUsableSteps = max(maxUsableSteps, days)
+                minUsableSteps = min(minUsableSteps, days)
             # end if
         # end for
     # end for
 
+    stepLabel = resolution.upper() + 'S' # days or hours
     # Plot station map
     pdf = PdfPages('%s.pdf' % output_basename)
 
@@ -184,7 +183,7 @@ def plot_results(stations, results, output_basename):
                   alpha=0.5, linestyle='--')
 
     # plot stations
-    norm = matplotlib.colors.Normalize(vmin=minUsableDays, vmax=maxUsableDays, clip=True)
+    norm = matplotlib.colors.Normalize(vmin=minUsableSteps, vmax=maxUsableSteps, clip=True)
     mapper = cm.ScalarMappable(norm=norm, cmap=cm.jet_r)
     plotted = set()
     for s in stations:
@@ -196,7 +195,7 @@ def plot_results(stations, results, output_basename):
 
         lon, lat = s[4], s[5]
 
-        days = usableStationDays['%s.%s' % (s[0], s[1])]
+        days = usableStationSteps['%s.%s' % (s[0], s[1])]
         ax1.scatter(lon, lat, s=400, transform=ccrs.PlateCarree(), marker='v', c=mapper.to_rgba(days),
                     edgecolor='none', label='%s: %d' % (s[1], days))
         ax1.annotate(s[1], xy=(lon + 0.05, lat + 0.05),
@@ -206,9 +205,9 @@ def plot_results(stations, results, output_basename):
 
     ax1.set_title("Network Name: %s" % s[0], fontsize=30, y=1.05)
     ax1.legend(prop={'size': 16}, loc=(0.2, 1.3),
-               ncol=5, fancybox=True, title='No. of Usable Days',
+               ncol=5, fancybox=True, title='No. of Usable {}'.format(stepLabel),
                title_fontsize=16)
-    #fig.colorbar(mapper, orientation='horizontal', label='Days')
+    #fig.colorbar(mapper, orientation='horizontal', label=stepLabel)
     plt.tight_layout()
     pdf.savefig()
     plt.close()
@@ -262,7 +261,7 @@ def plot_results(stations, results, output_basename):
                                                    color='b', alpha=0.5, label='No Data')
 
                         axes[axesIdx].xaxis.set_major_locator(AutoDateLocator())
-                        axes[axesIdx].xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
+                        axes[axesIdx].xaxis.set_major_formatter(DateFormatter('%Y-%m-%d:%H'))
 
                         for tick in axes[axesIdx].get_xticklabels():
                             tick.set_rotation(45)
@@ -283,15 +282,14 @@ def plot_results(stations, results, output_basename):
                     logging.warning('Plotting failed on station %s' % k)
                 # end try
             # end for
-            axes[-1].set_xlabel('Days', fontsize=16)
+            axes[-1].set_xlabel(stepLabel, fontsize=16)
         # end if
 
-        plt.suptitle('%s Data Availability (~%d days)' % (k, usableStationDays[k]),
+        plt.suptitle('%s Data Availability (~%d %s)' % (k, usableStationSteps[k], stepLabel),
                      y=0.96, fontsize=20)
         pdf.savefig()
         plt.close()
         gc.collect()
-
     # end for
 
     pdf.close()
@@ -299,8 +297,6 @@ def plot_results(stations, results, output_basename):
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-
-
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('asdf-source', required=True,
                 type=click.Path(exists=True))
@@ -316,7 +312,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=str)
 @click.argument('output-basename', required=True,
                 type=str)
-def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
+@click.option('--resolution',
+              type=click.Choice(['day', 'hour']),
+              default='day', help="Temporal resolution for assessing data quality -- 'hour' or 'day'")
+def process(asdf_source, start_time, end_time, net, sta, cha, output_basename, resolution):
     """
     ASDF_SOURCE: Text file containing a list of paths to ASDF files\n
     START_TIME: Start time in UTCDateTime format\n
@@ -350,16 +349,14 @@ def process(asdf_source, start_time, end_time, net, sta, cha, output_basename):
     # end if
 
     stations = comm.bcast(stations, root=0)
-    results = process_data(rank, fds, sorted(stations[rank]), start_time, end_time)
+    results = process_data(rank, fds, sorted(stations[rank]), start_time, end_time, resolution)
 
     results = comm.gather(results, root=0)
     if rank == 0:
         results = [item for sublist in results for item in sublist]  # flatten sublists for each proc
         stations = [item for sublist in stations for item in sublist]  # flatten sublists for each proc
-        plot_results(stations, results, output_basename)
+        plot_results(stations, results, output_basename, resolution)
     # end if
-
-
 # end func
 
 
