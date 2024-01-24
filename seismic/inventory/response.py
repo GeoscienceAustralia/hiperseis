@@ -59,6 +59,7 @@ class ResponseFactory:
             :type source_inventory: obspy.core.inventory.inventory.Inventory
             """
             self.m_inventory = source_inventory
+            self.m_response = None
             self._get_response_from_inventory()
         #end func
 
@@ -81,15 +82,14 @@ class ResponseFactory:
                 # end if
             # end if
 
-            if (found < 3):
+            if (found < 1):
                 msg = 'Network, station or channel information missing in RESP file.'
                 raise RuntimeError(msg)
+            else:
+                seedid = self.m_inventory.get_contents()['channels'][0]
+                self.m_response = self.m_inventory.get_response(seedid, c.start_date)
             # end if
-
-            seed_id = '%s.%s..%s' % (n.code, s.code, c.code)
-            self.m_response = self.m_inventory.get_response(seed_id, s.start_date)
         #end func
-
     # end class
 
     class ResponseFromStationXML(ResponseFromInventory):
