@@ -19,7 +19,7 @@ import click
 import os
 import sys
 import math
-import getopt, os, string, sys, math, time, commands
+import getopt, os, string, sys, math, time
 import datetime
 import pprint
 import numpy as np
@@ -88,7 +88,7 @@ def processFile(shpFileName, outputFileStem=None,
                 if (lon > max_lon or lon < min_lon): continue
                 if (lat > max_lat or lat < min_lat): continue
             # end if
-            r = 6371 # Earth radius in km
+            r = 6371e3 # Earth radius in km
             t = np.radians(90-lat)
             p = np.radians(lon)
 
@@ -171,7 +171,7 @@ def processFile(shpFileName, outputFileStem=None,
     o = masterVTKPolygons.GetOutput()
 
     writer.SetInputData(o)
-    print ('Writing %s..') % (outFileName)
+    print ('Writing %s..' % (outFileName))
     writer.Write()
 #end function
 

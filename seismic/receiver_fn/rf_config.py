@@ -37,7 +37,8 @@ class RFConfig:
         Config consists of 3 sub-dictionaries. One named "filtering" for
         input stream filtering settings, one named "processing" for RF processing
         settings, and one named "correction" for rotating/swapping/negating channel
-        data for one or more named stations with potential orientation discrepancies.
+        data with potential orientation discrepancies, and for recomputing inclinations
+        for S-RFs for one or more named stations.
         Each of these sub-dicts is described below::
 
         "filtering":  # Filtering settings
