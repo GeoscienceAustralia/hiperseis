@@ -9,7 +9,7 @@ import numpy as np
 from scipy import signal
 
 from seismic.receiver_fn.rf_synthetic import synthesize_rf_dataset
-from seismic.receiver_fn.rf_deconvolution import iter_deconv_pulsetrain, rf_iter_deconv
+from seismic.receiver_fn.rf_deconvolution import p_iter_deconv_pulsetrain, rf_iter_deconv
 
 # pylint: disable=invalid-name, missing-docstring, too-many-locals, too-many-statements
 
@@ -83,8 +83,8 @@ def test_ammon_iter_deconv():
     assert F_s == rf_radial.stats.sampling_rate
     sampling_rate = F_s
     max_pulses = 50
-    rf_trace, pulses, f_hat, response_trace, fit = iter_deconv_pulsetrain(numerator, denominator, sampling_rate,
-                                                                          time_shift, max_pulses)
+    rf_trace, pulses, f_hat, response_trace, fit = p_iter_deconv_pulsetrain(numerator, denominator, sampling_rate,
+                                                                            time_shift, max_pulses)
     assert np.isclose(np.sum(rf_trace), 1.0)
     assert times[np.nonzero(rf_trace == np.max(rf_trace))][0] == 0.0
 
@@ -94,8 +94,8 @@ def test_ammon_iter_deconv():
     # Apply iterative deconvolution
     numerator = f
     denominator = g
-    rf_trace, pulses, f_hat, response_trace, fit = iter_deconv_pulsetrain(numerator, denominator, sampling_rate,
-                                                                          time_shift, max_pulses)
+    rf_trace, pulses, f_hat, response_trace, fit = p_iter_deconv_pulsetrain(numerator, denominator, sampling_rate,
+                                                                            time_shift, max_pulses)
     # Check that predicted response is very close to filtered observation
     assert np.allclose(f_hat, response_trace, rtol=2.0e-3, atol=1.0e-3)
     # Check that we have the exact number of delta function pulses that we synthesized
@@ -169,7 +169,7 @@ def test_rf_integration():
 
     # Perform deconv directly and compare with rf_iter to check that rf calls used our custom function.
     for i, (f, g) in enumerate(zip(f_funcs, g_funcs)):
-        x, _, _, _, fit = iter_deconv_pulsetrain(f, g, F_s, time_shift)
+        x, _, _, _, fit = p_iter_deconv_pulsetrain(f, g, F_s, time_shift)
         assert np.isclose(100.0, fit, rtol=1e-2)
         # Infer scaling factor due to normalization from max point, and use it to normalize x.
         norm_factor = np.nanmax(x)/np.nanmax(rf_iter[i].data)

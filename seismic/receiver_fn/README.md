@@ -56,26 +56,24 @@ Options:
   --help               Show this message and exit.
 ```
 
-Run configuration files consist of 3 sub-dictionaries. One named `filtering` for
+Run configurations consist of 3 sub-dictionaries. One named `filtering` for
 input stream filtering settings, one named `processing` for RF processing
 settings, and one named `correction` for rotating / swapping / negating channel
-data for one or more named stations with potential orientation discrepancies.
+data with potential orientation discrepancies, and for recomputing inclinations
+for S-RFs for one or more named stations.
 Each of these sub-dicts is described below:
 
 ```
         "filtering":  # Filtering settings
         {
           "resample_rate": float # Resampling rate in Hz
-          "taper_limit": float   # Fraction of signal to taper at end, between 0 and 0.5
+          "taper_limit": float   # Fraction of signal to taper at each end, between 0 and 0.5
           "filter_band": (float, float) # Filter pass band (Hz). Not required for freq-domain deconvolution.
-          "channel_pattern": # Ordered list of preferred channels, e.g. 'HH*,BH*',
-                             # where channel selection is ambiguous.
-          "baz_range": (float, float) or [(float, float), ...] # Discrete ranges of source back azimuth to use (degrees).
-              # Each value must be between 0 and 360. May be a pair or a list of pairs for multiple ranges.
         }
 
         "processing":  # RF processing settings
         {
+          "rf_type": str # Choice of ['prf, srf']
           "custom_preproc":
           {
             "import": 'import custom symbols',  # statement to import required symbols
@@ -96,17 +94,21 @@ Each of these sub-dicts is described below:
 
         "correction": # corrections to be applied to data for named stations prior to RF computation
         {
-          "plot_dir": str # path to folder where plots related to cahnnel rotations are to be saved
+          "plot_dir": str # path to folder where plots related to orientation corrections are to be saved
           "swap_ne": list # list of NET.STA.LOC for which N and E channels are to be swapped, e.g ["OA.BL27."],
           "rotate": list # list of NET.STA.LOC that are to be rotated to maximize P-arrival energy on \
                            the primary RF component, e.g ["OA.BL27."]
           "negate": list # list of NET.STA.LOC.CHA that are to be negated, e.g ["OA.BL27..HHZ"]
-        }       
+          "recompute_inclinations": # list of NET.STA.LOC for which the inclination angles in the LQT reference
+                                      frame are to be recomputed by minimizing the energy in the L component.
+                                      Note that this parameter is only applicable for S-RFs.
+        }
 ```
 Default values for parameters in "filtering" and "processing", above, are drawn from the list below:
 
 ```
-     DEFAULT_RESAMPLE_RATE_HZ = 20.0
+     DEFAULT_RF_TYPE = 'prf'  # from ['prf', 'srf']
+     DEFAULT_RESAMPLE_RATE_HZ = 10.0
      DEFAULT_FILTER_BAND_HZ = (0.02, 1.00)
      DEFAULT_TAPER_LIMIT = 0.05
      DEFAULT_TRIM_START_TIME_SEC = -50.0
@@ -116,11 +118,10 @@ Default values for parameters in "filtering" and "processing", above, are drawn 
      DEFAULT_GAUSS_WIDTH = 1.0
      DEFAULT_WATER_LEVEL = 0.01
      DEFAULT_SPIKING = 0.5
-     RAW_RESAMPLE_RATE_HZ = 20.0
-     BANDPASS_FILTER_ORDER = 2        
+     DEFAULT_NORMALIZE = False
 ```
 
-The default parameters are somewhat tuned to BH* instrument response waveforms, and should be 
+The default parameters are somewhat tuned to BH* instrument waveforms, and should be 
 explored during a RF study. 
 
 During RF generation, some problematic traces are removed that would be
@@ -148,12 +149,15 @@ config_rfs.json:
   "filtering": {
     "resample_rate": 10.0,
     "taper_limit": 0.05,
-    "filter_band": [0.02, 1.0]
+    "filter_band": [0.05, 1.0]
   },
   "processing": {
-      "rotation_type": "ZRT",
-      "deconv_domain": "iter",
-      "normalize": true
+    "rf_type": "prf",
+    "trim_start_time": -50,
+    "trim_end_time": 150,
+    "rotation_type": "ZRT",
+    "deconv_domain": "iter",
+    "normalize": true
   }
 }
 ```
@@ -166,7 +170,8 @@ or swapping (N/E). Typically, one would generate the RFs and visualize them as d
 [Visualization of RFs](#4-analyses-and-visualization-of-rfs) -- note that the
 [RF Quality Filtering](#3-rf-quality-filtering) step can be skipped for the corrections and 
 completed afterwards. A pdf report generated as described in
-[Visualization of RFs](#4-analyses-and-visualization-of-rfs) helps identify stations with orientation problems.
+[Visualization of RFs](#4-analyses-and-visualization-of-rfs) helps identify stations with 
+potential orientation discrepancies.
 Once a list of problematic stations is compiled, users need to run `generate_rf.py` with the same
 input/output parameters, but with a `correction` block added to the json configuration file, as 
 follows:
@@ -180,6 +185,9 @@ config_rfs.json:
     "filter_band": [0.02, 1.0]
   },
   "processing": {
+      "rf_type": "prf",
+      "trim_start_time": -50,
+      "trim_end_time": 150,
       "rotation_type": "ZRT",
       "deconv_domain": "time",
       "normalize": true
@@ -203,18 +211,25 @@ showing effects of channel rotation (if specified) are saved in the `path/to/plo
 along with a json file listing corrections to back-azimuths. Note that when back-azimuths 
 are updated, the original back-azimuths are stored in the trace-header as `orig_back_azimuth`.
 
-Correcting orientation problems is an iterative process that may require different combinations 
+Correcting orientation discrepancies is an iterative process that may require different combinations 
 of rotation, channel swapping and negation for problematic stations -- consequently, the 
 `correction` block may need to be updated, RFs generated and visualized, iteratively, to correct 
 all problematic stations. To speed up the correction process, one can use time-domain
 deconvolution, which is much faster than iterative deconvolution -- once optimal corrections 
 are found for all problematic stations, one can then revert to iterative deconvolution 
 to regenerate RFs for problematic stations.
+In addition to the correction clauses for addressing orientation discrepancies shown above, one 
+can also recompute inclinations for S-RFs by adding a `recompute_inclinations` clause in 
+the `corrections` block as follows:
+
+```
+"recompute_inclinations":["OA.CA21.", "OA.CB31."]
+```
 
 ## 3. RF Quality Filtering
 
 Usually the RFs produced by component rotation and deconvolution are not all useful for stacking,
-and further quality metrics and quality filtering must be considered. The are a family of approaches
+and further quality metrics and quality filtering must be considered. There are a family of approaches
 available and this is an area of active research. Consequently, rather than applying a fixed set of
 RF quality filters, the approach taken here is to directly apply only the most simple and trusted
 of filters to remove some RFS (such as when a signal is all zero), and then compute a range of
@@ -265,11 +280,12 @@ This script needs to be provided with an input H5 file containing RFs generated 
 [RF Quality Filtering](#3-rf-quality-filtering) and an output file name -- it then generates 
 a PDF report containing a standard set of visualisations of the RFs:
 
+
 * Pinwheel diagram showing RFs source directions around the full azimuthal range
 * Stacked RFs for R-component
-* Stacked RFs for T-component
-* H-k stacking plot based on the stacked R-components
-* Estimates of sediment thickness if de-reverberation was applied on a given station
+* Stacked RFs for T-component (only for P-RFs)
+* H-k stacking plot based on the stacked R-components (only for P-RFs)
+* Estimates of sediment thickness if de-reverberation was applied on a given station (only for P-RFs)
 
 Quality filters can be used to filter out spurious RFs, as described in usage details from 
 `bulk_rf_report.py --help`.
@@ -277,8 +293,10 @@ Quality filters can be used to filter out spurious RFs, as described in usage de
 Note that, if `bulk_rf_report.py` is run on RFs produced in 
 [Receiver Function Calculation](#2-receiver-function-calculation-and-correction), `--min-slope-ratio` is 
 the only quality-filter available. Otherwise, if run on the output generated in 
-[RF Quality Filtering](#3-rf-quality-filtering), all quality-filters described above 
-are available for use. Use of at least one of these options is highly recommended to 
+[RF Quality Filtering](#3-rf-quality-filtering), another quality-filter namely `--apply-amplitude-filter` 
+ is also available.
+
+Use of at least one of these options is highly recommended to 
 remove spurious RFs.
 
 ### Typical Usage
@@ -296,8 +314,8 @@ distribution can indicate if they are direct conversions, such as Pms, or its mu
 Recommended reading about the application of vespagrams is *Tian et al. GRL 2005 VOL. 32, L08301, doi:10.1029/2004GL021885*.
 
 The tool to plot vespagrams is `rf_plot_vespagram.py` which takes as input a set of RFs stored in H5 format.
-See `rf_plot_vespagram.py --help`. Currently the plotting is set from -5 to 20 seconds time window and
-5 to 9 s/degrees in slowness. The filtering is bandpass from 0.03 to 0.5 Hz. The parameters of the data processing
+See `rf_plot_vespagram.py --help`. Currently, the plotting is set from -5 to 20 seconds time window and
+5 to 9 s/degrees in slowness. The filtering applied is a bandpass from 0.03 to 0.5 Hz. The parameters of the data processing
 are saved within the PDF file _document properties_.
 
 
@@ -315,7 +333,7 @@ Note that general network and station plotting can be found in the `seismic.inve
 RFs can be exported from H5 file to special format for RF inversion using the `rf_inversion_export.py` script.
 This script takes an input H5 file (which may contain RFs prior to quality filtering since `rf_inversion_export.py`
 has some filtering support) and a specified output folder. In the output folder, the script outputs one `.dat`
-file per channel per station containing the RF trace amplitude, with moveout, as a function of time at specific
+file per channel per station containing the RF trace amplitude, with moveout, as a function of time at a specific
 sampling rate of 6.25 Hz.  These `.dat` files are then ready for ingestion into RF inversion Fortran code.
 
 

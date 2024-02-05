@@ -136,11 +136,11 @@ def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
                 # end if
             # end if
 
-            ignore_time_shift = False
+            both_sided = False
             winsrc = 'P'
             iter_gwidth = ITER_GWIDTH_PRF if rf_type == 'prf' else ITER_GWIDTH_SRF
             if(rf_type == 'srf'):
-                ignore_time_shift = True
+                both_sided = True
                 winsrc = (trim_start_time_sec, trim_end_time_sec, 5)
             # end if
             stream3c.rf(rotate=rf_rotation,
@@ -148,7 +148,7 @@ def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
                         deconvolve='func',
                         winsrc=winsrc,
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0,
-                        ignore_time_shift=ignore_time_shift,
+                        both_sided=both_sided,
                         gwidth=iter_gwidth)
         else:
             assert False, "Not yet supported deconvolution technique '{}'".format(deconv_domain)
