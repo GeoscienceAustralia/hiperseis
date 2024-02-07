@@ -119,7 +119,7 @@ class MseedIndex:
             # if (i > 0): break
         # end for
 
-        print('\nCreating metadata index for {} traces..'.format(len(self.meta_list)))
+        print('\nCreating metadata index for {} mseed files..'.format(len(self.meta_list)))
 
         for row in tqdm(self.meta_list):
             idx, nc, sc, lc, cc, st, et = row

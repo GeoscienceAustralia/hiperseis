@@ -1,7 +1,7 @@
 #!/bin/env python
 """
 Description:
-    Generate QAQC report on raw data in mseed format
+    Generate QAQC report on raw data in mseed or asdf format
 
 References:
 
@@ -13,21 +13,20 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-import os, sys
+import os
 import numpy as np
 from obspy import UTCDateTime
 import click
-
+from typing import Callable
 import matplotlib.pyplot as plt
 import matplotlib
 from collections import defaultdict
-from matplotlib.backends.backend_pdf import PdfPages
-from obspy.core.inventory import Inventory, Network, Station, Channel, Site
 from obspy.core.inventory.response import Response
 from matplotlib import mlab
 from obspy.signal.invsim import cosine_taper
 from obspy.signal.spectral_estimation import get_nlnm, get_nhnm
 from obspy import read_inventory
+from obspy.core import Stream
 from seismic.misc import split_list
 from seismic.ASDFdatabase.utils import MseedIndex
 from seismic.ASDFdatabase.utils import MAX_DATE, MIN_DATE
@@ -37,6 +36,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from multiprocessing import Manager
 from matplotlib.backends.backend_pdf import PdfPages
 from joblib import Parallel, delayed
+import psutil
 
 os.sched_setaffinity(0, range(64))
 
@@ -71,7 +71,9 @@ class ProgressTracker(object):
 
 class StationAnalytics():
     def __init__(self,
-                 mseed_index: MseedIndex,
+                 get_time_range_func: Callable[[str, str, str, str], tuple],
+                 get_waveforms_func: Callable[[str, str, str, str, UTCDateTime, UTCDateTime],
+                                     Stream],
                  prog_tracker: ProgressTracker,
                  network: str,
                  station: str,
@@ -84,7 +86,8 @@ class StationAnalytics():
                  end_time: UTCDateTime = None,
                  nproc=1):
 
-        self.mseed_index = mseed_index
+        self.get_time_range_func = get_time_range_func
+        self.get_waveforms_func = get_waveforms_func
         self.progress_tracker = prog_tracker
         self.network = network
         self.station = station
@@ -141,10 +144,10 @@ class StationAnalytics():
 
         # collate timespans to be allocated to each parallel process
         day_seconds = 86400
-        st, et = self.mseed_index.get_time_range(self.network,
-                                                 self.station,
-                                                 self.location,
-                                                 self.channel)
+        st, et = self.get_time_range_func(self.network,
+                                          self.station,
+                                          self.location,
+                                          self.channel)
         if (self.start_time and self.start_time > st): st = self.start_time
         if (self.end_time and self.end_time < et): et = self.end_time
 
@@ -227,17 +230,28 @@ class StationAnalytics():
 
         for start_time, end_time in zip(start_time_list, end_time_list):
             # print(start_time, end_time)
-            stream = self.mseed_index.get_waveforms(self.network,
-                                                    self.station,
-                                                    self.location,
-                                                    self.channel,
-                                                    start_time,
-                                                    end_time)
+            stream = self.get_waveforms_func(self.network,
+                                             self.station,
+                                             self.location,
+                                             self.channel,
+                                             start_time,
+                                             end_time)
 
             stream_len = len(stream)
             if (stream_len == 0):
                 self.progress_tracker.increment()
                 continue
+            else:
+                sr = stream[0].stats.sampling_rate
+                if(sr != self.sampling_rate):
+                    print('Warning: discrepant sampling rate found. Expected {}, but found {} '
+                          'in trace {} ({} - {}). Moving along..'.format(self.sampling_rate, sr,
+                                                                         stream[0].get_id(),
+                                                                         stream[0].stats.starttime,
+                                                                         stream[0].stats.endtime))
+                    self.progress_tracker.increment()
+                    continue
+                # end if
             # end if
 
             samples_processed = 0
@@ -353,7 +367,6 @@ class StationAnalytics():
         # end for
 
         return None
-
     # end func
 
     def process_results(self, output_fn):
@@ -394,6 +407,12 @@ class StationAnalytics():
                 # end if
             # end if
         # end for
+
+        # check if any data was processed at all
+        if(total_coverage is None):
+            print('Warning: No results found..')
+            return
+        # end if
 
         # compute mean spectrum and deviation over all days
         if (spec_count):
@@ -554,7 +573,35 @@ def get_response(resp_file):
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.group(context_settings=CONTEXT_SETTINGS)
+def groups():
+  pass
+# end func
+
+def get_cpu_count(nproc):
+    result = nproc
+    cpu_count = psutil.cpu_count()
+    if (nproc > cpu_count or nproc == -1):
+        result = cpu_count
+    # end if
+    return result
+# end func
+
+def select_channel(meta_list):
+    answer_list = [str(i + 1) for i in np.arange(len(meta_list))]
+    answer = None
+    print('\n############################')
+    print('# Multiple channels found: #')
+    print('############################\n')
+    for i in np.arange(len(meta_list)): print('{}) {}'.format(answer_list[i],
+                                                              '.'.join(meta_list[i][:4])))
+    while (answer not in answer_list):
+        answer = input('Please select desired channel: ')
+    # wend
+    return meta_list[int(answer) - 1][:4]
+# end func
+
+@click.command(name='mseed', context_settings=CONTEXT_SETTINGS)
 @click.argument('mseed-folder', required=True,
                 type=click.Path(exists=True))
 @click.argument('mseed-pattern', required=True,
@@ -569,8 +616,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Start date in UTC format for processing data")
 @click.option('--end-date', type=str, default=None, show_default=True,
               help="End date in UTC format for processing data")
-def process(mseed_folder, mseed_pattern, instrument_response,
-            sampling_rate, output_folder, start_date, end_date):
+@click.option('--nproc', type=int, default=-1, show_default=True,
+              help="Number of parallel processes use. Default is to use all available cores.")
+def process_mseed(mseed_folder, mseed_pattern, instrument_response,
+                  sampling_rate, output_folder, start_date, end_date,
+                  nproc):
     """
     MSEDD_FOLDER: Path to folder containing mseed files\n
     MSEED_PATTERN: File pattern to be used to capture files pertaining to specific channels.
@@ -579,20 +629,6 @@ def process(mseed_folder, mseed_pattern, instrument_response,
     SAMPLING_RATE: Sampling rate used to record the mssed files
     OUTPUT_FOLDER: Path to output folder\n
     """
-    def select_channel(meta_list):
-        answer_list = [str(i+1) for i in np.arange(len(meta_list))]
-        answer = None
-        print('\n############################')
-        print('# Multiple channels found: #')
-        print('############################\n')
-        for i in np.arange(len(meta_list)): print('{}) {}'.format(answer_list[i],
-                                                                  '.'.join(meta_list[i])))
-        while(answer not in answer_list):
-            answer = input('Please select desired channel: ')
-        # wend
-        return meta_list[int(answer)-1]
-    # end func
-
     try:
         start_date = UTCDateTime(start_date) if start_date else None
         end_date   = UTCDateTime(end_date) if end_date else None
@@ -621,33 +657,117 @@ def process(mseed_folder, mseed_pattern, instrument_response,
     else:
         meta = meta_list[0]
     # end if
+    net, sta, loc, cha = meta
 
     # instantiate progress tracker
     manager = Manager()
     prog_tracker = ProgressTracker(manager)
 
-    net, sta, loc, cha = meta
-    sa = StationAnalytics(mseed_index, prog_tracker, net, sta, loc, cha, sampling_rate, resp,
-                          output_folder, sd, ed, 10)
+    def get_waveforms_func(net, sta, loc, cha, st, et):
+        return mseed_index.get_waveforms(net, sta, loc, cha, st, et)
+    # end func
+
+    def get_time_range_func(net, sta, loc, cha):
+        return mseed_index.get_time_range(net, sta, loc, cha)
+    # end func
+
+    nproc = get_cpu_count(nproc)
+    sa = StationAnalytics(get_time_range_func, get_waveforms_func,
+                          prog_tracker, net, sta, loc, cha, sampling_rate, resp,
+                          output_folder, sd, ed, nproc)
 
     report_fn = os.path.join(output_folder, '.'.join(meta) + '.pdf')
     sa.process_results(report_fn)
+    print('Done..')
 # end func
 
-if __name__=='__main__':
-    process()
+@click.command(name='asdf', context_settings=CONTEXT_SETTINGS)
+@click.argument('asdf-source', required=True,
+                type=click.Path(exists=True))
+@click.argument('network', required=True,
+                type=str)
+@click.argument('station', required=True,
+                type=str)
+@click.argument('location', required=True,
+                type=str)
+@click.argument('channel', required=True,
+                type=str)
+@click.argument('instrument-response', required=True,
+                type=click.Path(exists=True))
+@click.argument('sampling-rate', required=True,
+                type=int)
+@click.argument('output-folder', required=True,
+                type=click.Path(exists=True))
+@click.option('--start-date', type=str, default=None, show_default=True,
+              help="Start date in UTC format for processing data")
+@click.option('--end-date', type=str, default=None, show_default=True,
+              help="End date in UTC format for processing data")
+def process_asdf(asdf_source, network, station, location, channel, instrument_response,
+                 sampling_rate, output_folder, start_date, end_date):
     """
-    mseed_index = MseedIndex('/g/data/ha3/Passive/_AusArray/OA/raw_DATA/AusArray_year2_service_1_May19/OA_BW28/all_miniSEED_files_are_in_here/',
-                             '*ZS*mseed')
+    ASDF_SOURCE: Path to text file containing paths to ASDF files\n
+    NETWORK: network code
+    STATION: station code
+    CHANNEL: channel code
+    INSTRUMENT_RESPONSE: Path to instrument response in .resp format\n
+    SAMPLING_RATE: Sampling rate used to record the mssed files
+    OUTPUT_FOLDER: Path to output folder\n
+    """
+    # import FederatedASDFDataSet locally to limit dependencies
+    from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 
+    try:
+        start_date = UTCDateTime(start_date) if start_date else None
+        end_date   = UTCDateTime(end_date) if end_date else None
+    except Exception as e:
+        print(str(e))
+        raise RuntimeError('Invalid start- or end-dates')
+    # end try
+
+    print('Loading response..')
+    resp = get_response(instrument_response)
+    if(resp is not None): print('Found response: {}'.format(resp))
+    else: raise(RuntimeError('No instrument response found. Aborting..'))
+
+    # instantiate FederatedASDFDataSet
+    fds = FederatedASDFDataSet(asdf_source)
+
+    sd = MIN_DATE if start_date is None else start_date
+    ed = MAX_DATE if end_date is None else end_date
+    meta_list = fds.get_stations(sd, ed, network=network, station=station, channel=channel)
+
+    nslc = '{}.{}.{}.{}'.format(network, station, location, channel)
+    if(len(meta_list) == 0):
+        raise RuntimeError('No data found for {} between {} -- {}. Aborting..'.format(nslc, sd, ed))
+    else:
+        meta = meta_list[0]
+    # end if
+    net, sta, loc, cha = meta[:4]
+
+    # instantiate progress tracker
     manager = Manager()
     prog_tracker = ProgressTracker(manager)
 
-    net, sta, loc, cha = ('OA', 'BW28', '0M', 'HHZ')
-    sa = StationAnalytics(mseed_index, prog_tracker, net, sta, loc, cha, sampling_rate, resp,
-                          output_folder, sd, ed, 10)
+    def get_waveforms_func(net, sta, loc, cha, st, et):
+        return fds.get_waveforms(net, sta, loc, cha, st, et)
+    # end func
 
-    report_fn = os.path.join(output_folder, '.'.join(meta) + '.pdf')
+    def get_time_range_func(net, sta, loc, cha):
+        return fds.get_global_time_range(net, sta, loc, cha)
+    # end func
+
+    sa = StationAnalytics(get_time_range_func, get_waveforms_func,
+                          prog_tracker, net, sta, loc, cha, sampling_rate, resp,
+                          output_folder, sd, ed, nproc=1)
+
+    report_fn = os.path.join(output_folder, '.'.join(meta[:4]) + '.pdf')
     sa.process_results(report_fn)
-    """
+    print('Done..')
+# end func
+
+groups.add_command(process_mseed)
+groups.add_command(process_asdf)
+
+if __name__ == "__main__":
+    groups()
 # end func

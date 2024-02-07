@@ -538,6 +538,12 @@ class DataViewer(App):
                                         show_noise_models=False, show=False)
                         fig.set_size_inches(TRACE_FIG_WIDTH, TRACE_FIG_HEIGHT)
                     # end if
+                    fig.axes[0].text(0.01, 0.01,
+                                     'SR: {} Hz'.format(stream[0].stats.sampling_rate),
+                                     bbox=dict(facecolor='white', linewidth=0, alpha=0.7),
+                                     color='k',
+                                     fontsize=7, weight='bold',
+                                     transform=fig.axes[0].transAxes)
                 # end if
 
                 ti = FigureImage(fig=fig)
