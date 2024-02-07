@@ -646,7 +646,7 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
                   sampling_rate, output_folder, start_date, end_date,
                   nproc):
     """
-    MSEDD_FOLDER: Path to folder containing mseed files\n
+    MSEED_FOLDER: Path to folder containing mseed files\n
     MSEED_PATTERN: File pattern to be used to capture files pertaining to specific channels.
                    Note that pattern must be specified within quotes. \n
     INSTRUMENT_RESPONSE: Path to inventory containing instrument response in
