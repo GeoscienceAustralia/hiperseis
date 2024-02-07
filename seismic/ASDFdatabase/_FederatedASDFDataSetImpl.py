@@ -584,11 +584,8 @@ class _FederatedASDFDataSetImpl():
             # end if
         # end for
 
-        # Trim traces
-        for t in s:
-            t.trim(starttime=starttime,
-                   endtime=endtime)
-        # end for
+        # Trim stream
+        s.trim(starttime=starttime, endtime=endtime, nearest_sample=True)
 
         # apply corrections if available
         if(self.corrections_enabled):
