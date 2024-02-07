@@ -556,20 +556,44 @@ class StationAnalytics():
     # end func
 # end class
 
-def get_response(resp_file):
-    resp_name = 'resp'
-    # read resp file
-    resp_inv = None
-    try:
-        resp_inv = read_inventory(resp_file, format='RESP')
-    except Exception as e:
-        print('Failed to read RESP file {} with error: {}'.format(resp_file, e))
-    # end try
+def get_response(input_file, network=None, station=None, location=None, channel=None):
+    result = None
+    if('xml' in input_file.lower()):
+        inv = None
+        try:
+            inv = read_inventory(input_file)
+        except Exception as e:
+            print('Failed to read inventory file {} with error: {}'.format(input_file, e))
+        # end try
 
-    rf = ResponseFactory()
-    rf.CreateFromInventory(resp_name, resp_inv)
+        if(inv is not None):
+            inv = inv.select(network=network, station=station, location=location,
+                             channel=channel)
+            if(inv is not None):
+                seedid = inv.get_contents()['channels'][0]
+                resp_obj = inv.get_response(seedid,
+                                            inv.networks[0].stations[0].channels[0].start_date)
+                result = resp_obj
+        # end if
+    else:
+        resp_name = 'resp'
+        # read resp file
+        resp_inv = None
+        try:
+            resp_inv = read_inventory(input_file, format='RESP')
+        except Exception as e:
+            print('Failed to read RESP file {} with error: {}'.format(input_file, e))
+        # end try
 
-    return rf.getResponse(resp_name)
+        if(resp_inv is not None):
+            rf = ResponseFactory()
+            rf.CreateFromInventory(resp_name, resp_inv)
+
+            result = rf.getResponse(resp_name)
+        # end if
+    # end if
+
+    return result
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -625,7 +649,8 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
     MSEDD_FOLDER: Path to folder containing mseed files\n
     MSEED_PATTERN: File pattern to be used to capture files pertaining to specific channels.
                    Note that pattern must be specified within quotes. \n
-    INSTRUMENT_RESPONSE: Path to instrument response in .resp format\n
+    INSTRUMENT_RESPONSE: Path to inventory containing instrument response in
+                         StationXML or .resp format\n
     SAMPLING_RATE: Sampling rate used to record the mssed files
     OUTPUT_FOLDER: Path to output folder\n
     """
@@ -636,11 +661,6 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
         print(str(e))
         raise RuntimeError('Invalid start- or end-dates')
     # end try
-
-    print('Loading response..')
-    resp = get_response(instrument_response)
-    if(resp is not None): print('Found response: {}'.format(resp))
-    else: raise(RuntimeError('No instrument response found. Aborting..'))
 
     # instantiate MseedIndex
     print('Inspecting mseed files in {}..'.format(mseed_folder))
@@ -658,6 +678,11 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
         meta = meta_list[0]
     # end if
     net, sta, loc, cha = meta
+
+    print('Loading response..')
+    resp = get_response(instrument_response, net, sta, loc, cha)
+    if(resp is not None): print('Found response: {}'.format(resp))
+    else: raise(RuntimeError('No instrument response found. Aborting..'))
 
     # instantiate progress tracker
     manager = Manager()
@@ -709,7 +734,8 @@ def process_asdf(asdf_source, network, station, location, channel, instrument_re
     NETWORK: network code
     STATION: station code
     CHANNEL: channel code
-    INSTRUMENT_RESPONSE: Path to instrument response in .resp format\n
+    INSTRUMENT_RESPONSE: Path to inventory containing instrument response in
+                         StationXML or .resp format\n
     SAMPLING_RATE: Sampling rate used to record the mssed files
     OUTPUT_FOLDER: Path to output folder\n
     """
@@ -723,11 +749,6 @@ def process_asdf(asdf_source, network, station, location, channel, instrument_re
         print(str(e))
         raise RuntimeError('Invalid start- or end-dates')
     # end try
-
-    print('Loading response..')
-    resp = get_response(instrument_response)
-    if(resp is not None): print('Found response: {}'.format(resp))
-    else: raise(RuntimeError('No instrument response found. Aborting..'))
 
     # instantiate FederatedASDFDataSet
     fds = FederatedASDFDataSet(asdf_source)
@@ -743,6 +764,11 @@ def process_asdf(asdf_source, network, station, location, channel, instrument_re
         meta = meta_list[0]
     # end if
     net, sta, loc, cha = meta[:4]
+
+    print('Loading response..')
+    resp = get_response(instrument_response, net, sta, loc, cha)
+    if(resp is not None): print('Found response: {}'.format(resp))
+    else: raise(RuntimeError('No instrument response found. Aborting..'))
 
     # instantiate progress tracker
     manager = Manager()
