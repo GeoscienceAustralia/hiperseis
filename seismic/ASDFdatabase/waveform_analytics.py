@@ -39,7 +39,6 @@ from joblib import Parallel, delayed
 import psutil
 
 is_windows = sys.platform.startswith('win')
-if(not is_windows): os.sched_setaffinity(0, range(64))
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
