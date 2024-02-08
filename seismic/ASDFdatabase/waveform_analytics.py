@@ -13,7 +13,7 @@ Revision History:
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
 
-import os
+import os, sys
 import numpy as np
 from obspy import UTCDateTime
 import click
@@ -38,7 +38,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from joblib import Parallel, delayed
 import psutil
 
-os.sched_setaffinity(0, range(64))
+is_windows = sys.platform.startswith('win')
+if(not is_windows): os.sched_setaffinity(0, range(64))
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
@@ -306,15 +307,16 @@ class StationAnalytics():
                                                         self.channel,
                                                         start_time,
                                                         end_time)
+            if(is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
             output_fn_png = os.path.join(self.output_folder, output_fn_stem + '.png')
             output_fn_npz = os.path.join(self.output_folder, output_fn_stem + '.npz')
 
             # save to npz
-            np.savez_compressed(output_fn_npz, bounds=[start_time.timestamp, end_time.timestamp],
-                                coverage_fraction=coverage_fraction,
-                                sparse_periods=self.sparse_periods,
-                                sparse_spec=sparse_spec,
-                                deviation_fraction=deviation_fraction)
+            np.savez(output_fn_npz, bounds=[start_time.timestamp, end_time.timestamp],
+                     coverage_fraction=coverage_fraction,
+                     sparse_periods=self.sparse_periods,
+                     sparse_spec=sparse_spec,
+                     deviation_fraction=deviation_fraction)
 
             face_color = ((1 - deviation_fraction) + coverage_fraction) / 2.
             # plot results
@@ -364,6 +366,7 @@ class StationAnalytics():
             self.progress_tracker.increment()
             cv, mv = self.progress_tracker.now()
             print('Progress: [{}/{}] {:2.1f}%'.format(cv, mv, cv / mv * 100), end='\r')
+            sys.stdout.flush()
         # end for
 
         return None
@@ -385,6 +388,7 @@ class StationAnalytics():
                                                         self.channel,
                                                         start_time,
                                                         end_time)
+            if(is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
             output_fn_png = os.path.join(self.output_folder, output_fn_stem + '.png')
             output_fn_npz = os.path.join(self.output_folder, output_fn_stem + '.npz')
 
@@ -604,7 +608,7 @@ def groups():
 
 def get_cpu_count(nproc):
     result = nproc
-    cpu_count = psutil.cpu_count()
+    cpu_count = psutil.cpu_count(logical=False)
     if (nproc > cpu_count or nproc == -1):
         result = cpu_count
     # end if
@@ -681,8 +685,12 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
 
     print('Loading response..')
     resp = get_response(instrument_response, net, sta, loc, cha)
-    if(resp is not None): print('Found response: {}'.format(resp))
-    else: raise(RuntimeError('No instrument response found. Aborting..'))
+    if(resp is not None): 
+        print('Found response: {}'.format(resp))
+        sys.stdout.flush()
+    else: 
+        raise(RuntimeError('No instrument response found. Aborting..'))
+    # end if
 
     # instantiate progress tracker
     manager = Manager()
