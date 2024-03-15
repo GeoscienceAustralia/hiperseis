@@ -40,7 +40,8 @@ def rtp2xyz(r, theta, phi):
 
 def processFile(shpFileName, outputFileStem=None,
                 min_lon=None, min_lat=None,
-                max_lon=None, max_lat=None):
+                max_lon=None, max_lat=None,
+                salvus_domain=None):
     # Open the extracted islands
     r = shapefile.Reader(shpFileName)
     # Setup the world to pixels conversion
@@ -74,7 +75,13 @@ def processFile(shpFileName, outputFileStem=None,
             polygons.append(pixels)
         #end for
     #end for
-    
+
+    dom = None
+    if(salvus_domain is not None):
+        from seismic.ASDFdatabase.asdf2salvus import Domain
+        dom = Domain(salvus_domain)
+    # end if
+
     #process points
     xyzPolygons=[]
 
@@ -87,6 +94,8 @@ def processFile(shpFileName, outputFileStem=None,
             if(min_lon!=None and min_lat!=None and max_lon!=None and max_lat!=None):
                 if (lon > max_lon or lon < min_lon): continue
                 if (lat > max_lat or lat < min_lat): continue
+            elif(dom is not None):
+                if(not dom.contains(lon, lat)): continue
             # end if
             r = 6371e3 # Earth radius in km
             t = np.radians(90-lat)
@@ -189,7 +198,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help="Minimum longitude for clipping shape file")
 @click.option('--max-lon', default=None, type=float,
               help="Maximum longitude for clipping shape file")
-def process(input, output_file_stem, min_lat, max_lat, min_lon, max_lon):
+@click.option('--salvus-domain', default=None, type=click.Path(exists=True),
+              help="Clip shapefile based on Salvus chunk domain in json format")
+def process(input, output_file_stem, min_lat, max_lat, min_lon, max_lon, salvus_domain):
     """
     Script for converting a shapefile to VTK format
 
@@ -201,12 +212,18 @@ def process(input, output_file_stem, min_lat, max_lat, min_lon, max_lon):
         python shapefile_to_vtk.py sample.shp --min-lon 100.5 --min-lat -53.5 --max-lon 189.5 --max-lat -0.5
     """
     clip = np.array([min_lon, min_lat, max_lon, max_lat])
+
+    if(np.any(clip) and salvus_domain is not None):
+        raise RuntimeError('Clipping is performed using either --min/max[lon/lat] or --salvus-domain, '
+                           'but not both simultaneously. Aborting..')
+    # end if
+
     if(np.sum(clip==None)>0 and np.sum(clip==None)!=4):
         raise RuntimeError('To clip geometry, all four parameters '
                            '(minlon, minlat, maxlon, maxlat) must be passed in')
     # end if
 
-    processFile(input, output_file_stem, min_lon, min_lat, max_lon, max_lat)
+    processFile(input, output_file_stem, min_lon, min_lat, max_lon, max_lat, salvus_domain)
 # end func
 
 if __name__=="__main__":
