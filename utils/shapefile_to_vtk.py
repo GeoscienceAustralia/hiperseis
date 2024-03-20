@@ -78,7 +78,7 @@ def processFile(shpFileName, outputFileStem=None,
 
     dom = None
     if(salvus_domain is not None):
-        from seismic.ASDFdatabase.asdf2salvus import Domain
+        from seismic.ASDFdatabase.domain import Domain
         dom = Domain(salvus_domain)
     # end if
 
