@@ -1,3 +1,0 @@
-requests-mock
-pytest>=4.6.5
-pyyaml

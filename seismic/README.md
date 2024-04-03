@@ -1,75 +1,7 @@
 # Dependencies
-The workflow requires MPI (mpi4py) and parallel HDF5 (h5py) capabilities on the NCI.
-Installation instructions for the NCI (Gadi), to be executed from a login node, are as follows:
-
-### Load system modules:
-  1. `module purge`
-  2. `module load pbs` 
-  3. `module load python3-as-python`
-  4. `module load openmpi/3.1.4`
-  5. `module load hdf5/1.10.5p`
-  6. `module load geos`
-  7. `module load proj/6.2.1`
-  8. `module load gdal/3.0.2/`
-
-### Remove old packages
-1. `rm -rf ~/.local/lib/python3.6/site-packages/h5py*`
-2. `rm -rf ~/.local/lib/python3.6/site-packages/mpi4py*`
-3. `rm -rf ~/.local/lib/python3.6/site-packages/cartopy`
-4. `rm -rf ~/.local/lib/python3.6/site-packages/Cartopy*`
-5. `rm -rf ~/.local/lib/python3.6/site-packages/shapely`
-6. `rm -rf ~/.local/lib/python3.6/site-packages/Shapely*`
-7. `rm -rf ~/.local/lib/python3.6/site-packages/*geos*`
-8. `rm -rf ~/.local/lib/python3.6/site-packages/gdal*`
-9. `rm -rf ~/.local/lib/python3.6/site-packages/pygdal`
-
-### Upgrade pip
-
- 1. `pip3.6 install pip==21.1.2 --user`
-
-### numpy
-
- 1. `pip3.6 install numpy==1.18.5 --user`
-
-### Install mpi4py that uses the correct OpenMPI libs
-
-  1. `MPICC=/apps/openmpi/3.1.4/bin/mpicc pip3.6 install --no-binary=mpi4py mpi4py==3.1.3 --user` Note that we use `pip3.6`, the system-provided pip for python 3.6
-
-### Build Parallel H5PY
-
-1. `pip3.6 install cython==0.29.22 --user`
-2. `git clone --single-branch --branch 3.1.0-gadi-tweaks https://github.com/rh-downunder/h5py.git` Pull a branch (based on version 3.1.0) from a fork of h5py, adapted for Gadi.
-3. `cd h5py`
-4. `CC=mpicc HDF5_MPI="ON" HDF5_DIR=/apps/hdf5/1.10.5p/ python setup.py install --user` Configure, build and install
-
-### Setup standard packages
-
-  1. `pip3.6 install obspy==1.1.0 --user`
-  2. `pip3.6 install click==7.1.2 --user `
-  3. `pip3.6 install netCDF4==1.4.0 --user`
-  4. `pip3.6 install pyasdf==0.5.1 --user`
-  5. `pip3.6 install ordered_set ujson psutil --user`
-  6. `pip3.6 install obspyh5==0.5.0 --user`  
-  7. `pip3.6 install matplotlib==3.3.4 --user`
-  8. `pip3.6 install sortedcontainers --user`
-  9. `pip3.6 install PyPDF2==1.26.0 --user`
-  10. `pip3.6 install shapely==1.8.1.post1 --no-binary shapely --user`
-  11. `pip3.6 install cartopy==0.19.0.post1 --no-binary cartopy --user`
-  12. `python -c "import cartopy.crs as ccrs; import matplotlib.pyplot as plt; crs = ccrs.PlateCarree(); fig = plt.figure(); ax = plt.subplot(projection=crs); ax.coastlines('50m'); plt.savefig('"/tmp/cartopy_$USER.pdf"'); print('\nSUCCESS');"`  
-  13. `pip3.6 install PyWavelets==1.1.1 --user`
-  14. `pip3.6 install rf==0.8.0 --user`
-  15. `pip3.6 install affine==2.3.0 --user`
-  16. `pip3.6 install future==0.18.2 --user`
-  17. `pip3.6 install joblib==0.14.1 --user`
-  18. `pip3.6 install pandas==1.1.5 --user`
-  19. `pip3.6 install pyproj==3.0.1 --user`
-  20. `pip3.6 install scipy==1.4.1 --user`
-  21. `pip3.6 install tqdm==4.43.0 --user`
-  22. `pip3.6 install scikit-learn==0.22.2.post1 --user`
-  23. `pip3.6 install rtree==0.9.7 --user`
-
-Step 12 ensures coastline shapefiles used by Cartopy are downloaded and available for use before 
-jobs are launched on NCI compute nodes that do not allow internet access.
+The orientation analysis workflow requires MPI (mpi4py) and parallel HDF5 (h5py) libraries.
+Installation instructions for Linux, OSX, and the NCI (Gadi), 
+are provided in [setup_scripts/README.md](../setup_scripts/README.md)
 
 ### Initialize PhasePapy
 Additionally, the workflow requires the PhasePapy package (a submodule of this repository) to be

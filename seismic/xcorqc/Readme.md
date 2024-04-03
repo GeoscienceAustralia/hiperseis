@@ -24,7 +24,7 @@ The cross-correlator script is launched as follows, for detailed help on support
 
 ```python hiperseis/seismic/xcorqc/correlator.py -h```
 
-The figure below shows how keys parameters interrelate:
+The figure below shows how key parameters interrelate:
 
 ![Fig 1](./docs/window.svg)
 
