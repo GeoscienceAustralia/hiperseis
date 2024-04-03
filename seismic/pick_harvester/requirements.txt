@@ -1,5 +1,0 @@
-https://github.com/austinholland/PhasePApy
-pykml
-tqdm
-obspy
-PyWavelets
