@@ -37,8 +37,11 @@ class Domain():
     # end func
 
     def contains(self, lon:float, lat:float):
-        if(lon < 0): lon += 360 # temporary hack to cater for dateline crossings
-        p = Point((lon, lat))
+        flon = float(lon)
+        flat = float(lat)
+
+        if(flon < 0): flon += 360 # temporary hack to cater for dateline crossings
+        p = Point((flon, flat))
 
         return self.bounding_polygon.contains(p)
     # end func
