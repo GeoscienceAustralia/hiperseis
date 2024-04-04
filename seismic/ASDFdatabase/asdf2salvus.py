@@ -90,7 +90,8 @@ DEBUG = False
 def extract_data_for_event(fds:FederatedASDFDataSet,
                            domain:Domain, event:dict,
                            inventory:Inventory,
-                           output_folder, data_name='raw_data',
+                           output_folder:str, blacklist:set,
+                           data_name='raw_data',
                            receiver_fields='displacement',
                            seconds_before=240, seconds_after=3600):
     """
@@ -99,6 +100,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     @param event:
     @param inventory:
     @param output_folder:
+    @param blacklist:
     @param data_name:
     @param seconds_before:
     @param seconds_after:
@@ -235,8 +237,11 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
     pbar = tqdm(total=len(rows), desc=ename)
     for row in rows:
         net, sta, loc, cha, lon, lat, elev = row
+        netsta = '{}.{}'.format(net, sta)
 
         if (not domain.contains(lon, lat)): continue
+        if (netsta in blacklist): continue
+
         #if (DEBUG and net not in nets): continue
 
         stream = get_validated_waveform(fds, net, sta, loc,
@@ -312,6 +317,8 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
             #if (DEBUG and net.code not in nets): continue
             for sta in net.stations:
                 netsta = '{}.{}'.format(net.code, sta.code)
+
+                if (netsta in blacklist): continue
 
                 already_added = False
                 for seed_id in data_added_set:
@@ -436,6 +443,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path(exists=True))
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
+@click.option('--blacklisted-stations', type=click.Path(exists=True),
+              default=None, help="Text file containing blacklisted stations that are "
+                                 "to be excluded from the output. Each row in the file "
+                                 "must contain network and station code as NET.STA")
 @click.option('--seconds-before', type=float, default=240.0, show_default=True,
               help="Start of data-window before origin-time")
 @click.option('--seconds-after', type=float, default=3600.0, show_default=True,
@@ -445,7 +456,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--receiver-fields', type=str, default='displacement', show_default=True,
               help="Name of data folder within Salvus' expected folder hierarchy")
 def process(asdf_source, salvus_domain_file, salvus_events_file,
-            inventory_folder, output_folder,
+            inventory_folder, output_folder, blacklisted_stations,
             seconds_before, seconds_after, data_name, receiver_fields):
     """
     ASDF_SOURCE: Path to text file containing paths to ASDF files\n
@@ -475,6 +486,29 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
         return inv
     # end func
 
+    def read_blacklist(blacklist_fn: str) -> set:
+        result = set()
+
+        if(blacklist_fn is not None):
+            netsta_list = open(blacklist_fn, 'r').readlines()
+
+            for netsta in netsta_list:
+                netsta = netsta.strip()
+                if (len(netsta)):
+                    try:
+                        net, sta = netsta.split('.')
+
+                        result.add(netsta)
+                    except Exception as e:
+                        print(str(e))
+                        assert 0, 'Error parsing: {}'.format(netsta)
+                    # end try
+                # end if
+            # end for
+        # end if
+        return result
+    # end func
+
     fds = None
     dom = None
     events = None
@@ -483,6 +517,9 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
     rank = comm.Get_rank()
+
+    # load blacklisted stations
+    blacklist = read_blacklist(blacklisted_stations)
 
     try:
         fds = FederatedASDFDataSet(asdf_source)
@@ -531,8 +568,8 @@ def process(asdf_source, salvus_domain_file, salvus_events_file,
     # extract data for all events
     proc_ekeys = split_list(list(events.keys()), nproc)[rank]
     for ek in tqdm(proc_ekeys, desc='Rank: {}: Events: '.format(rank)):
-        extract_data_for_event(fds, dom, {ek:events[ek]}, inv, output_folder, data_name,
-                               receiver_fields,
+        extract_data_for_event(fds, dom, {ek:events[ek]}, inv, output_folder,
+                               blacklist, data_name, receiver_fields,
                                seconds_before, seconds_after)
         #if DEBUG: break
     # end for
