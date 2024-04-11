@@ -113,7 +113,7 @@ class ResponseFactory:
                      stageGainFreq=1e-2,
                      poles=[0 + 0j],
                      zeros=[0 + 0j]):
-            self.m_base = u'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            self.m_base = '''<?xml version="1.0" standalone="yes"?>
             <FDSNStationXML
                 xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1">
                 <Source>-i</Source>
@@ -205,7 +205,6 @@ class ResponseFactory:
                 </Network>
             </FDSNStationXML>
             '''
-
             self.m_response = None
             self.m_pzTransferFunctionType = pzTransferFunctionType
             self.m_normFactor = normFactor
@@ -223,7 +222,6 @@ class ResponseFactory:
             # Fetch the response object and adapt its parameters based on user-input.
             self.m_response = inv.get_response('IU.ANMO.00.BHZ', datetime)
 
-            self.m_response.instrument_sensitivity = None  # Get rid of redundant information
             self.m_response.response_stages[0].pz_transfer_function_type = self.m_pzTransferFunctionType
             self.m_response.response_stages[0].normalization_factor = self.m_normFactor
             self.m_response.response_stages[0].normalization_frequency = self.m_normFreq
