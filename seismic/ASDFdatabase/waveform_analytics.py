@@ -262,7 +262,7 @@ class StationAnalytics():
                     _spec, _ = mlab.psd(stream[i].data.astype('float32'), NFFT=self.NFFT,
                                         Fs=self.sampling_rate,
                                         detrend=mlab.detrend_linear, window=fft_taper,
-                                        noverlap=0., sides='onesided',
+                                        noverlap=0, sides='onesided',
                                         scale_by_freq=True)
                     if (spec is None):
                         spec = _spec

@@ -32,6 +32,7 @@ import cartopy.crs as ccrs
 from scipy.stats import circmean as cmean
 from collections import defaultdict
 from shapely import geometry
+import traceback
 
 class CustomPPSD(PPSD):
     def __init__(self, stats, skip_on_gaps=False,
@@ -137,6 +138,7 @@ def printException(e: Exception):
     exc_type, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
     print(exc_type, e, fname, exc_tb.tb_lineno)
+    print(traceback.format_exc())
 # end func
 
 class FigureImage(gui.Image):
@@ -251,7 +253,7 @@ class DataViewer(App):
                     # end for
                     lons = np.array(lons)
                     lats = np.array(lats)
-                    
+
                     boundsProvided = False
                     if(minLon is None and  minLat is None and maxLon is None and  maxLat is None):
                         minLon = np.min(lons)
@@ -283,7 +285,7 @@ class DataViewer(App):
                     if(len(lons)>0):
                         clon = cmean(lons, high=180, low=-180)
                     # end if
-                    
+
                     crs = ccrs.PlateCarree(central_longitude=clon)
                     left = 0.05
                     bottom = 0.05
@@ -312,8 +314,9 @@ class DataViewer(App):
                         ax.annotate(sc, xy=(pxl, pyl), fontsize=7, zorder=2)
                     # end for
                     
-                    # set extents only when bounds have been provided
-                    if(boundsProvided):
+                    # set extents only when bounds have been provided or if there's a single
+                    # station to be plotted
+                    if(boundsProvided or len(lons)==1):
                         ax.set_extent([minLon, maxLon, minLat, maxLat], crs=ccrs.PlateCarree())
                     # end if
                     
