@@ -351,6 +351,15 @@ class _FederatedASDFDataSetImpl():
                 for ids, ds in enumerate(self.asdf_datasets):
                     coords_dict = ds.get_all_coordinates()
 
+                    # report any missing metadata
+                    wsta = set(list(ds.waveforms.list()))
+                    msta = set(list(coords_dict.keys()))
+                    if (len(wsta) != len(msta)):
+                        missing = set(wsta) - set(msta)
+                        print('WARNING: {} stations with missing metadata found in {}..'.\
+                              format(len(missing), self.asdf_file_names[ids]))
+                    # end if
+
                     for k in coords_dict.keys():
                         if(not masterinv):
                             masterinv = ds.waveforms[k].StationXML
