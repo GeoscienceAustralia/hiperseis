@@ -32,7 +32,7 @@ import cartopy.crs as ccrs
 from scipy.stats import circmean as cmean
 from collections import defaultdict
 from shapely import geometry
-import traceback
+from seismic.misc import print_exception
 
 class CustomPPSD(PPSD):
     def __init__(self, stats, skip_on_gaps=False,
@@ -133,13 +133,6 @@ class CustomPPSD(PPSD):
                 plt.draw()
         return fig    
 # end class
-
-def printException(e: Exception):
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-    print(exc_type, e, fname, exc_tb.tb_lineno)
-    print(traceback.format_exc())
-# end func
 
 class FigureImage(gui.Image):
     def __init__(self, **kwargs):
@@ -340,7 +333,7 @@ class DataViewer(App):
                     children['latBoundsBox'].children['max'].set_value(maxLat)
 
             except Exception as e:
-                printException(e)
+                print_exception(e)
             # end try
         # end func
 
@@ -552,7 +545,7 @@ class DataViewer(App):
                 ti = FigureImage(fig=fig)
                 self.rowContainer.children[key].children['rightContainer'].children['plot'] = ti
             except Exception as e:
-                printException(e)
+                print_exception(e)
             # end try
         # end func
 
@@ -612,7 +605,7 @@ class DataViewer(App):
                                      args=(nc, sc, lc, cc, st, et))
                 t.start()
             except Exception as e:
-                printException(e)
+                print_exception(e)
             # end try
         # end func
 
@@ -627,7 +620,7 @@ class DataViewer(App):
                                                    self.rowWidgetCount * ROW_WIDGET_HEIGHT * PADDING_FACTOR +
                                                    MAP_WIDGET_PADDING)
                 except Exception as e:
-                    printException(e)
+                    print_exception(e)
                 # end try
             # end if
         # end func

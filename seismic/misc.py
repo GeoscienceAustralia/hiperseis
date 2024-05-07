@@ -16,6 +16,7 @@ import subprocess
 import os, glob, fnmatch, sys
 import numpy as np
 import logging
+import traceback
 logging.basicConfig()
 
 def setup_logger(name, log_file=None, level=logging.INFO, propagate=False):
@@ -83,4 +84,11 @@ def rtp2xyz(r, theta, phi):
     xout[:, 1] = rst * np.sin(phi)
     xout[:, 2] = r * np.cos(theta)
     return xout
+# end func
+
+def print_exception(e: Exception):
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+    print(exc_type, e, fname, exc_tb.tb_lineno)
+    print(traceback.format_exc())
 # end func
