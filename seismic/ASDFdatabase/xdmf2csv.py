@@ -73,7 +73,7 @@ def process(input_file, output_folder):
         valsDict[key] = data.PointData[key]
     # end for
 
-    # tranform coordinates from geocentric xyz to geographic (both in wgs84)
+    # transform coordinates from geocentric xyz to geographic (both in wgs84)
     print('Transforming coordinates..')
     lons, lats, depths = tranforms_coords(xyz[:, 0], xyz[:, 1], xyz[:, 2])
 
@@ -83,9 +83,9 @@ def process(input_file, output_folder):
 
     df = pd.DataFrame()
 
-    df['lons'] = lons
-    df['lats'] = lats
-    df['depths_km'] = depths
+    df['lon'] = lons
+    df['lat'] = lats
+    df['depth_km'] = depths
     for key in rkeys:
         df[key] = valsDict[key]
     # end for
