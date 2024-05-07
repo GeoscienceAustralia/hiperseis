@@ -101,8 +101,9 @@ pip3.6 install matplotlib==3.3.4
 pip3.6 install PyPDF2==1.26.0 
 pip3.6 install shapely==1.8.1.post1 --no-binary shapely 
 pip3.6 install cartopy==0.19.0.post1 --no-binary cartopy 
-pip3.6 install PyWavelets==1.1.1 
-pip3.6 install rf==0.8.0 
+pip3.6 install PyWavelets==1.1.1
+pip3.6 install toeplitz==0.3.4
+pip3.6 install rf==0.8.0
 pip3.6 install affine==2.3.0 
 pip3.6 install future==0.18.2 
 pip3.6 install pandas==1.1.5 
@@ -121,6 +122,7 @@ pip3.6 install notebook==6.4.10
 pip3.6 install ipython==7.10.0
 pip3.6 install jedi==0.17
 pip3.6 install remi==2022.7.27
+pip3.6 install vtk==9.3.0
 EOF
 )
     echo "$STD_PACKAGES"
