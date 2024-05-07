@@ -29,7 +29,7 @@ from ordered_set import OrderedSet as set
 from tqdm import tqdm
 from seismic.misc import split_list
 from seismic.misc import recursive_glob
-from seismic.ASDFdatabase.utils import remove_comments
+from seismic.ASDFdatabase.utils import cleanse_inventory
 
 def make_ASDF_tag(tr, tag):
     # def make_ASDF_tag(ri, tag):
@@ -182,7 +182,7 @@ def process(input_folder, inventory_folder, output_file_name, file_pattern,
                 ustationInv[ustation] = None
             else:
                 # remove comments from inventory
-                ustationInv[ustation] = remove_comments(sinv)
+                ustationInv[ustation] = cleanse_inventory(sinv)
             # end if
         # end for
     # end if

@@ -22,7 +22,7 @@ from obspy.clients.fdsn.client import Client
 import pyasdf
 from mpi4py import MPI
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.ASDFdatabase.utils import remove_comments
+from seismic.ASDFdatabase.utils import cleanse_inventory
 from seismic.misc import split_list, recursive_glob
 import click
 from tqdm import tqdm
@@ -265,7 +265,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                 try:
                     oinv = inventory.select(network=net, station=sta,
                                             location=loc, channel=cha)
-                    oinv = remove_comments(oinv)
+                    oinv = cleanse_inventory(oinv)
                     ods.add_stationxml(oinv)
 
                     ods.add_waveforms(stream, tag)
@@ -370,7 +370,7 @@ def extract_data_for_event(fds:FederatedASDFDataSet,
                                                         station=tr.stats.station,
                                                         location=tr.stats.location,
                                                         channel=tr.stats.channel)
-                                oinv = remove_comments(oinv)
+                                oinv = cleanse_inventory(oinv)
                                 ods.add_stationxml(oinv)
 
                                 ods.add_waveforms(tr, tag)

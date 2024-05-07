@@ -29,12 +29,13 @@ from collections import defaultdict
 import sqlite3
 import hashlib
 from functools import partial
-from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory
 from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
 from rtree import index
 import traceback
+import gc
 
 def split_list_by_timespan(l, n):
     lmin = np.min(l[:, 1])
@@ -355,7 +356,7 @@ class _FederatedASDFDataSetImpl():
                     wsta = set(list(ds.waveforms.list()))
                     msta = set(list(coords_dict.keys()))
                     if (len(wsta) != len(msta)):
-                        missing = set(wsta) - set(msta)
+                        missing = wsta - msta
                         print('WARNING: {} stations with missing metadata found in {}..'.\
                               format(len(missing), self.asdf_file_names[ids]))
                     # end if
@@ -365,7 +366,7 @@ class _FederatedASDFDataSetImpl():
                             masterinv = ds.waveforms[k].StationXML
                         else:
                             try:
-                                masterinv += ds.waveforms[k].StationXML
+                                masterinv += cleanse_inventory(ds.waveforms[k].StationXML)
                             except Exception as e:
                                 print(e)
                             # end try
@@ -384,6 +385,10 @@ class _FederatedASDFDataSetImpl():
                                       '(?, ?, ?, ?, ?, ?)', metadatalist)
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
+
+                # clean up memory bloat caused by aggregated inventory
+                del masterinv
+                gc.collect()
                 self.conn.commit()
                 self.conn.close()
             # end if
