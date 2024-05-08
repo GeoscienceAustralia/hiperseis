@@ -17,9 +17,6 @@ MIN_DATE = UTCDateTime(-2208988800.0)
 def cleanse_inventory(iinv: Inventory) -> Inventory:
     oinv = iinv.copy()
 
-    # drop networks with no meaningful data
-    oinv = Inventory(networks=[net for net in oinv.networks
-                               if net.total_number_of_stations is not None])
     for net in oinv.networks:
         net.comments = []
         for sta in net.stations:
