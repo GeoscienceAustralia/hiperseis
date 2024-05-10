@@ -447,12 +447,15 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             nsl_dict[cproc][k] = v
             cproc = (cproc + 1)%nproc
         # end for
+
+        log.info('Processing {} events..'.format(descs[wave]))
     # end if
 
     nsl_dict = comm.scatter(nsl_dict, root=0)
 
     for nsl, cha in nsl_dict.items():
         if(cha == '-1'):
+            if(dry_run): continue
             # Nothing to do for made up entries, which exist for the sole purpose of balancing
             # MPI-barrier calls across all processors
             for irank in np.arange(nproc):
@@ -475,13 +478,14 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             stream_count = 0
             sta_stream = Stream()
 
-            pbar=tqdm(desc=descs[wave], total=len(catalog) * len(curr_inv))
+            status = defaultdict(int)
             for s in safe_iter_event_data(catalog, curr_inv, waveform_getter,
                                           use_rfstats=rfstats_map[wave],
                                           phase=phase_map[wave],
-                                          tt_model=tt_model, pbar=None,#pbar,
+                                          tt_model=tt_model, pbar=None,
                                           request_window=request_window,
                                           pad=pad,
+                                          status=status,
                                           dist_range=distance_range):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
@@ -529,10 +533,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 sta_stream += out_stream
                 stream_count += 1
 
-                pbar.set_description("[{}] {} | {}".format(descs[wave], grp_id, event_time))
-                pbar.update()
+                log.info("[{}] {} | {}".format(descs[wave], grp_id, event_time))
             # end for
-            pbar.close()
 
             for irank in np.arange(nproc):
                 if(irank == rank):
@@ -552,10 +554,24 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 comm.Barrier()
             # end for
 
+            summary_str = \
+            """
+            Station: {}
+            Recording time: {} - {}
+            Matching events: {} 
+            Events with no data: {} 
+            Discarded event data: {} 
+            {} streams written: {} 
+            """.format(nsl, curr_inv.networks[0].start_date, curr_inv.networks[0].end_date,
+                       status['events_processed'], status['no_data'],
+                       status['data_discarded'], descs[wave], stream_count)
+            warn_str = \
+            """
+            No {} traces found for {}! Added a null trace.
+            """.format(descs[wave], nsl)
+            log.info(summary_str)
             if stream_count == 0:
-                log.warning("{}: No {} traces found! Added a null trace.".format(nsl, descs[wave]))
-            else:
-                log.info("{}: Wrote {} {} streams to output file".format(nsl, stream_count, descs[wave]))
+                log.warning(warn_str)
             # end if
         # end if
     # end for

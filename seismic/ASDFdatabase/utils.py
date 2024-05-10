@@ -11,8 +11,8 @@ from ordered_set import OrderedSet as set
 from seismic.misc import split_list
 from obspy import Inventory
 
-MAX_DATE = UTCDateTime(4102444800.0)
-MIN_DATE = UTCDateTime(-2208988800.0)
+MAX_DATE = UTCDateTime(4102444800.0) #2100-01-01
+MIN_DATE = UTCDateTime(-2208988800.0) #1900-01-01
 
 def cleanse_inventory(iinv: Inventory) -> Inventory:
     oinv = iinv.copy()

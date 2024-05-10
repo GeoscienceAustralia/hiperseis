@@ -20,7 +20,7 @@ from rf.rfstream import rfstats, obj2stats
 from rf.util import _get_stations
 from obspy.geodetics import gps2dist_azimuth
 from obspy.geodetics import kilometers2degrees
-
+from collections import defaultdict
 # pylint: disable=invalid-name
 
 
@@ -35,7 +35,8 @@ EVENTIO_H5INDEX = (
     )
 
 def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, phase='P',
-                    request_window=None, pad=10, pbar=None, **kwargs):
+                         request_window=None, pad=10, pbar=None,
+                         status:defaultdict(int)=None, **kwargs):
     """
     Return iterator yielding three component streams per station and event.
 
@@ -50,6 +51,9 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
     :param float pad: add specified time in seconds to request window and
        trim afterwards again
     :param pbar: tqdm_ instance for displaying a progressbar
+    :param status: a dictionary containing running statistics, updated every
+                   iteration, for keys: ['events_processed', 'no_data',
+                   'data_discarded']
     :param kwargs: all other kwargs are passed to `~rf.rfstream.rfstats()`
 
     :return: three component streams with raw data
@@ -71,6 +75,10 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
     stations = _get_stations(inventory)
     if pbar is not None:
         pbar.total = len(events) * len(stations)
+
+    events_processed = 0
+    no_data = 0
+    data_discarded = 0
     for event, seedid in itertools.product(events, stations):
         if pbar is not None:
             pbar.update(1)
@@ -108,6 +116,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             # end if
         # end if
 
+        events_processed += 1
         net, sta, loc, cha = seedid.split('.')
 
         if(use_rfstats):
@@ -126,6 +135,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             stream.trim(starttime, endtime)
             stream.merge()
         except Exception:  # no data available
+            no_data += 1
             continue
 
         if len(stream) != 3:
@@ -133,6 +143,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             warn('Need 3 component seismograms. %d components '
                  'detected for event %s, station %s.'
                  % (len(stream), event.resource_id, seedid))
+            no_data += 1
             continue
         # end if
 
@@ -154,6 +165,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                 from warnings import warn
                 warn('Gaps or overlaps detected for event %s, station %s.'
                      % (event.resource_id, seedid))
+                data_discarded += 1
                 continue
             else:
                 for tr in stream: tr.data = np.array(tr.data)
@@ -163,6 +175,12 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
         for tr in stream:
             tr.stats.update(stats)
         # end for
+
+        if(status is not None):
+            status['events_processed'] = events_processed
+            status['no_data'] = no_data
+            status['data_discarded'] = data_discarded
+        # end if
 
         yield RFStream(stream)
 # end func
