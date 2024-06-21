@@ -57,7 +57,7 @@ def test_db_integrity():
 
     # get number of waveforms from the db directly
     conn = sqlite3.connect(fds.fds.db_fn)
-    query = 'select count(*) from wdb;'
+    query = 'select count(*) from wtag;'
     db_waveform_count = conn.execute(query).fetchall()[0][0]
 
     # fetch waveform counts for each unique combination of net, sta, loc, cha

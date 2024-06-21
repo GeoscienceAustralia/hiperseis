@@ -343,14 +343,18 @@ class _FederatedASDFDataSetImpl():
 
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                self.conn.execute('create table wdb(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
+                self.conn.execute('create table ds(ds_id smallint, path text)')
+                self.conn.execute('create table wtag(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
-                self.conn.execute('create table netsta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
+                self.conn.execute('create table meta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
                                   'lat double, elev_m double)')
                 self.conn.execute('create table masterinv(inv blob)')
 
                 metadatalist = []
                 for ids, ds in enumerate(self.asdf_datasets):
+                    self.conn.execute('insert into ds(ds_id, path) values(?, ?)',
+                                      [ids, self.asdf_file_names[ids]])
+
                     coords_dict = ds.get_all_coordinates()
 
                     # report any missing metadata
@@ -378,7 +382,7 @@ class _FederatedASDFDataSetImpl():
                 # end for
 
                 masterinv = ia.summarize()
-                self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat, elev_m) values '
+                self.conn.executemany('insert into meta(ds_id, net, sta, lon, lat, elev_m) values '
                                       '(?, ?, ?, ?, ?, ?)', metadatalist)
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
@@ -418,7 +422,7 @@ class _FederatedASDFDataSetImpl():
                         if(len(data)):
                             self.conn = sqlite3.connect(self.db_fn,
                                                         check_same_thread=self.single_threaded_access)
-                            self.conn.executemany('insert into wdb(ds_id, net, sta, loc, cha, st, et, tag) values '
+                            self.conn.executemany('insert into wtag(ds_id, net, sta, loc, cha, st, et, tag) values '
                                                   '(?, ?, ?, ?, ?, ?, ?, ?)', data)
                             print('\tInserted %d entries on rank %d'%(len(data),
                                                                       self.rank))
@@ -436,8 +440,8 @@ class _FederatedASDFDataSetImpl():
                 print('Creating table indices..')
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                self.conn.execute('create index allindex on wdb(ds_id, net, sta, loc, cha, st, et)')
-                self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
+                self.conn.execute('create index allindex on wtag(ds_id, net, sta, loc, cha, st, et)')
+                self.conn.execute('create index metaindex on meta(ds_id, net, sta)')
                 self.conn.commit()
                 self.conn.close()
                 print('Done..')
@@ -448,7 +452,7 @@ class _FederatedASDFDataSetImpl():
         # end if
 
         # Load metadata
-        rows = self.conn.execute('select * from netsta').fetchall()
+        rows = self.conn.execute('select * from meta').fetchall()
         for row in rows:
             ds_id, net, sta, lon, lat, elev_m = row
             self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat, elev_m]
@@ -460,7 +464,7 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_global_time_range(self, network, station=None, location=None, channel=None):
-        query = "select min(st), max(et) from wdb where net='%s' "%(network)
+        query = "select min(st), max(et) from wtag where net='%s' "%(network)
 
         if (station is not None):
             query += "and sta='%s' "%(station)
@@ -486,7 +490,7 @@ class _FederatedASDFDataSetImpl():
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
 
-        query = 'select * from wdb where '
+        query = 'select * from wtag where '
         if (network): query += " net='%s' "%(network)
         if (station):
             if(network): query += "and sta='%s' "%(station)
@@ -520,7 +524,7 @@ class _FederatedASDFDataSetImpl():
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
 
-        query = "select count(*) from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
+        query = "select count(*) from wtag where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
                 %(network, station, location, channel) + \
                 "and et>=%f and st<=%f" \
                  % (starttime, endtime)
@@ -536,7 +540,7 @@ class _FederatedASDFDataSetImpl():
         starttime = UTCDateTime(starttime)
         endtime = UTCDateTime(endtime)
 
-        query = "select * from wdb where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
+        query = "select * from wtag where net='%s' and sta='%s' and loc='%s' and cha='%s' " \
                 %(network, station, location, channel) + \
                 "and et>=%f and st<=%f" \
                  % (starttime.timestamp, endtime.timestamp)
@@ -637,14 +641,14 @@ class _FederatedASDFDataSetImpl():
                 workload.append(defaultdict(partial(defaultdict, list)))
             # end for
 
-            nets = self.conn.execute('select distinct net from wdb').fetchall()
+            nets = self.conn.execute('select distinct net from wtag').fetchall()
             if(len(network_list)): # filter networks
                 nets = [net for net in nets if net[0] in network_list]
             # end if
 
             for net in nets:
                 net = net[0]
-                stas = self.conn.execute("select distinct sta from wdb where net='%s'"%(net)).fetchall()
+                stas = self.conn.execute("select distinct sta from wtag where net='%s'"%(net)).fetchall()
 
                 if (len(station_list)):  # filter stations
                     stas = [sta for sta in stas if sta[0] in station_list]
@@ -654,7 +658,7 @@ class _FederatedASDFDataSetImpl():
                     sta = sta[0]
 
                     # trace-count, min(st), max(et)
-                    attribs = self.conn.execute("select count(st), min(st), max(et) from wdb where net='%s' and sta='%s'"
+                    attribs = self.conn.execute("select count(st), min(st), max(et) from wtag where net='%s' and sta='%s'"
                                                 %(net, sta)).fetchall()
 
                     if(len(attribs)==0): continue
@@ -708,7 +712,7 @@ class _FederatedASDFDataSetImpl():
                   min_gap_length=86400):
 
         clause_added = 0
-        query = 'select net, sta, loc, cha, st, et from wdb '
+        query = 'select net, sta, loc, cha, st, et from wtag '
         if (network or station or location or channel or (start_date_ts and end_date_ts)): query += " where "
 
         if (network):
@@ -816,11 +820,11 @@ class _FederatedASDFDataSetImpl():
     def get_coverage(self, network=None):
         query = """ 
                 select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
-                from wdb as w, netsta as n where w.net=n.net and w.sta=n.sta and 
-                w.net in (select distinct net from netsta) and 
-                w.sta in (select distinct sta from netsta) and 
-                w.loc in (select distinct loc from wdb) and 
-                w.cha in (select distinct cha from wdb) 
+                from wtag as w, meta as n where w.net=n.net and w.sta=n.sta and 
+                w.net in (select distinct net from meta) and 
+                w.sta in (select distinct sta from meta) and 
+                w.loc in (select distinct loc from wtag) and 
+                w.cha in (select distinct cha from wtag) 
                 """
         if(network): query += ' and w.net="{}"'.format(network)
         query += " group by w.net, w.sta, w.loc, w.cha; "
