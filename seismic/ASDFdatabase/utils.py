@@ -8,8 +8,9 @@ from obspy.core import Stream, Trace
 import os
 from tqdm import tqdm
 from ordered_set import OrderedSet as set
-from seismic.misc import split_list
 from obspy import Inventory
+import obspy
+import copy
 
 MAX_DATE = UTCDateTime(4102444800.0) #2100-01-01
 MIN_DATE = UTCDateTime(-2208988800.0) #1900-01-01
@@ -29,6 +30,78 @@ def cleanse_inventory(iinv: Inventory) -> Inventory:
 
     return oinv
 # end func
+
+class InventoryAggregator:
+    def __init__(self):
+        tree = lambda: defaultdict(tree)
+        self.net_dict = tree()
+        self.sta_dict = tree()
+        self.cha_dict = tree()
+    # end func
+
+    def append(self, inv: Inventory):
+        for net in inv.networks:
+            nc = net.code
+
+            if (type(self.net_dict[nc]) == defaultdict):
+                onet = copy.deepcopy(net)
+                onet.stations = []
+                self.net_dict[nc] = onet
+            # end if
+
+            for sta in net.stations:
+                sc = sta.code
+
+                if (type(self.sta_dict[nc][sc]) == defaultdict):
+                    osta = copy.deepcopy(sta)
+                    osta.channels = []
+                    self.sta_dict[nc][sc] = osta
+                # end if
+
+                for cha in sta.channels:
+                    cc = cha.code
+                    lc = cha.location_code
+
+                    # set responses to None
+                    try:
+                        cc.response = None
+                    except:
+                        pass
+
+                    if (type(self.cha_dict[nc][sc][lc][cc]) == defaultdict):
+                        self.cha_dict[nc][sc][lc][cc] = cha
+                    # end if
+                # end for
+            # end for
+        # end for
+    # end func
+
+    def summarize(self):
+        oinv = Inventory(networks=[],
+                         source=obspy.core.util.version.read_release_version())
+
+        for nc in self.net_dict.keys():
+            net = self.net_dict[nc]
+
+            for sc in self.sta_dict[nc].keys():
+                sta = self.sta_dict[nc][sc]
+
+                for lc in self.cha_dict[nc][sc].keys():
+                    for cc in self.cha_dict[nc][sc][lc].keys():
+                        cha = self.cha_dict[nc][sc][lc][cc]
+
+                        sta.channels.append(cha)
+                    # end for
+                # end for
+                net.stations.append(sta)
+            # end for
+
+            oinv.networks.append(net)
+        # end for
+
+        return oinv
+    # end func
+# end class
 
 class MseedIndex:
     class StreamCache:

@@ -29,7 +29,7 @@ from collections import defaultdict
 import sqlite3
 import hashlib
 from functools import partial
-from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, InventoryAggregator
 from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
@@ -339,6 +339,8 @@ class _FederatedASDFDataSetImpl():
                                         check_same_thread=self.single_threaded_access)
         else:
             if(self.rank==0):
+                ia = InventoryAggregator()
+
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
                 self.conn.execute('create table wdb(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
@@ -348,7 +350,6 @@ class _FederatedASDFDataSetImpl():
                 self.conn.execute('create table masterinv(inv blob)')
 
                 metadatalist = []
-                masterinv = None
                 for ids, ds in enumerate(self.asdf_datasets):
                     coords_dict = ds.get_all_coordinates()
 
@@ -362,25 +363,21 @@ class _FederatedASDFDataSetImpl():
                     # end if
 
                     for k in coords_dict.keys():
-                        if(not masterinv):
-                            masterinv = ds.waveforms[k].StationXML
-                        else:
-                            try:
-                                masterinv += cleanse_inventory(ds.waveforms[k].StationXML)
-                            except Exception as e:
-                                print(e)
-                            # end try
-                        # end if
-                    # end for
-
-                    for k in list(coords_dict.keys()):
+                        # we keep coordinates from all ASDF files to be able to track
+                        # potential discrepancies
                         lon = coords_dict[k]['longitude']
                         lat = coords_dict[k]['latitude']
                         elev_m = coords_dict[k]['elevation_in_m']
                         nc, sc = k.split('.')
                         metadatalist.append([ids, nc, sc, lon, lat, elev_m])
+
+                        # aggregate inventories
+                        inv = cleanse_inventory(ds.waveforms[k].StationXML)
+                        ia.append(inv)
                     # end for
                 # end for
+
+                masterinv = ia.summarize()
                 self.conn.executemany('insert into netsta(ds_id, net, sta, lon, lat, elev_m) values '
                                       '(?, ?, ?, ?, ?, ?)', metadatalist)
                 self.conn.execute('insert into masterinv(inv) values(?)',
@@ -392,6 +389,7 @@ class _FederatedASDFDataSetImpl():
                 self.conn.commit()
                 self.conn.close()
             # end if
+            self.comm.Barrier()
 
             tagsCount = 0
             for ids, ds in enumerate(self.asdf_datasets):
@@ -438,7 +436,7 @@ class _FederatedASDFDataSetImpl():
                 print('Creating table indices..')
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                self.conn.execute('create index allindex on wdb(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index allindex on wdb(ds_id, net, sta, loc, cha, st, et)')
                 self.conn.execute('create index netstaindex on netsta(ds_id, net, sta)')
                 self.conn.commit()
                 self.conn.close()
