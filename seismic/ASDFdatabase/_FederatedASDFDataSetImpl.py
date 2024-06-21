@@ -334,7 +334,7 @@ class _FederatedASDFDataSetImpl():
         self.comm.Barrier()
 
         if(dbFound):
-            print(('Found database: %s'%(self.db_fn)))
+            print('Found database: %s'%(self.db_fn))
             self.conn = sqlite3.connect(self.db_fn,
                                         check_same_thread=self.single_threaded_access)
         else:
@@ -393,7 +393,7 @@ class _FederatedASDFDataSetImpl():
 
             tagsCount = 0
             for ids, ds in enumerate(self.asdf_datasets):
-                if(self.rank==0): print(('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids]))))
+                if(self.rank==0): print('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids])))
 
                 keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
@@ -420,8 +420,8 @@ class _FederatedASDFDataSetImpl():
                                                         check_same_thread=self.single_threaded_access)
                             self.conn.executemany('insert into wdb(ds_id, net, sta, loc, cha, st, et, tag) values '
                                                   '(?, ?, ?, ?, ?, ?, ?, ?)', data)
-                            print(('\tInserted %d entries on rank %d'%(len(data),
-                                                                       self.rank)))
+                            print('\tInserted %d entries on rank %d'%(len(data),
+                                                                      self.rank))
                             tagsCount += len(data)
                             self.conn.commit()
                             self.conn.close()
