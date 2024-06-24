@@ -85,10 +85,19 @@ def process(input_file, output_folder):
 
     df['lon'] = lons
     df['lat'] = lats
-    df['depth_km'] = depths
+    df['depth_m'] = depths
+    #df['x'] = xyz[:, 0]
+    #df['y'] = xyz[:, 1]
+    #df['z'] = xyz[:, 2]
+
     for key in rkeys:
         df[key] = valsDict[key]
     # end for
+
+    # drop duplicates
+    #df.drop_duplicates(inplace=True)
+    # drop nodes from shadow cells, as well as those from coarser mesh
+    df.drop_duplicates(subset=['lon', 'lat', 'depth_m'], inplace=True)
 
     print('Writing output file: {}'.format(ofn))
     df.to_csv(ofn, header=True, index=False)
