@@ -89,8 +89,8 @@ def process(asdf_source, output_filename, output_format, network, station, locat
 
     ds = FederatedASDFDataSet(asdf_source)
 
-    query = 'select ns.net, ns.sta, ns.lon, ns.lat from netsta as ns, wdb as wdb ' \
-            'where ns.net=wdb.net and ns.sta=wdb.sta '
+    query = 'select ns.net, ns.sta, ns.lon, ns.lat from meta as ns, wtag as wt ' \
+            'where ns.net=wt.net and ns.sta=wt.sta '
 
     if (network):
         query += ' and ns.net="{}" '.format(network)
@@ -101,15 +101,15 @@ def process(asdf_source, output_filename, output_format, network, station, locat
     # end if
 
     if (location):
-        query += ' and wdb.loc="{}" '.format(location)
+        query += ' and wt.loc="{}" '.format(location)
     # end if
 
     if (channel):
-        query += ' and wdb.cha="{}" '.format(channel)
+        query += ' and wt.cha="{}" '.format(channel)
     # end if
 
     if (start_date_ts and end_date_ts):
-        query += ' and wdb.st>={} and wdb.et<={}'.format(start_date_ts, end_date_ts)
+        query += ' and wt.st>={} and wt.et<={}'.format(start_date_ts, end_date_ts)
     # end if
 
     query += ' group by ns.net, ns.sta'

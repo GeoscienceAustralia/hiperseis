@@ -167,6 +167,7 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
     matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
                                                   location=location)
     if matching_stations:
+        channel = channel.replace('?', '.') # replace greedy matching by single-character matching
         ch_matcher = re.compile(channel)
         for net, sta, loc, cha, _, _, _ in matching_stations:
             if ch_matcher.match(cha):
