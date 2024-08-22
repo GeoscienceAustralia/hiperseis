@@ -491,17 +491,23 @@ class _FederatedASDFDataSetImpl():
         endtime = UTCDateTime(endtime).timestamp
 
         query = 'select * from wtag where '
-        if (network): query += " net='%s' "%(network)
-        if (station):
-            if(network): query += "and sta='%s' "%(station)
+        if (network is not None): query += " net='%s' "%(network)
+        if (station is not None):
+            if(network is not None): query += "and sta='%s' "%(station)
             else: query += "sta='%s' "%(station)
-        if (location):
-            if(network or station): query += "and loc='%s' "%(location)
+        if (location is not None):
+            if((network is not None) or
+               (station is not None)): query += "and loc='%s' "%(location)
             else: query += "loc='%s' "%(location)
-        if (channel):
-            if(network or station or location): query += "and cha='%s' "%(channel)
+        if (channel is not None):
+            if((network is not None) or
+               (station is not None) or
+               (location is not None)): query += "and cha='%s' "%(channel)
             else: query += "cha='%s' "%(channel)
-        if (network or station or location or channel): query += ' and '
+        if ((network is not None) or
+            (station is not None) or
+            (location is not None) or
+            (channel is not None)): query += ' and '
         query += ' et>=%f and st<=%f' \
                  % (starttime, endtime)
         query += ' group by net, sta, loc, cha'

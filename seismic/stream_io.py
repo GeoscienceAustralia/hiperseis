@@ -84,7 +84,10 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             pbar.update(1)
         origin_time = (event.preferred_origin() or event.origins[0])['time']
         try:
-            args = (seedid[:-1] + stations[seedid], origin_time)
+            # exclude datetime from call to get_coordinates to ensure incorrect
+            # recording periods in the inventory do not lead to loss of usable
+            # data
+            args = (seedid[:-1] + stations[seedid], None)
             coords = inventory.get_coordinates(*args)
         except Exception:  # station not available at that time
             continue
