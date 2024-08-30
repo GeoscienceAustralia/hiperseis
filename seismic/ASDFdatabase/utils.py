@@ -47,6 +47,19 @@ class InventoryAggregator:
                 onet = copy.deepcopy(net)
                 onet.stations = []
                 self.net_dict[nc] = onet
+            else:
+                # update start/end dates for existing networks
+                onet = self.net_dict[nc]
+
+                if(onet.start_date and net.start_date):
+                    if (onet.start_date > net.start_date): onet.start_date = net.start_date
+                elif(onet.start_date is None and net.start_date):
+                    onet.start_date = net.start_date
+                # end if
+
+                if(onet.end_date and net.end_date):
+                    if(onet.end_date < net.end_date): onet.end_date = net.end_date
+                # end if
             # end if
 
             for sta in net.stations:
@@ -56,6 +69,19 @@ class InventoryAggregator:
                     osta = copy.deepcopy(sta)
                     osta.channels = []
                     self.sta_dict[nc][sc] = osta
+                else:
+                    # update start/end dates for existing stations
+                    osta = self.sta_dict[nc][sc]
+
+                    if(osta.start_date and sta.start_date):
+                        if (osta.start_date > sta.start_date): osta.start_date = sta.start_date
+                    elif(osta.start_date is None and sta.start_date):
+                        osta.start_date = sta.start_date
+                    # end if
+
+                    if(osta.end_date and sta.end_date):
+                        if(osta.end_date < sta.end_date): osta.end_date = sta.end_date
+                    # end if
                 # end if
 
                 for cha in sta.channels:
@@ -96,6 +122,8 @@ class InventoryAggregator:
                 net.stations.append(sta)
             # end for
 
+            # ensure network has a failsafe start-date
+            if(net.start_date is None): net.start_date = UTCDateTime('1970-01-01')
             oinv.networks.append(net)
         # end for
 
