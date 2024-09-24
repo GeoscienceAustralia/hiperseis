@@ -8,7 +8,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 from tempfile import SpooledTemporaryFile
 from scipy.interpolate import interp1d
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.misc import rtp2xyz
+from seismic.misc import rtp2xyz, read_key_value_pairs
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 import os, psutil
 
@@ -167,6 +167,25 @@ class Dataset:
         return list(result_pairs)
     # end func
 # end class
+
+def read_subset_stacker_config()->dict:
+    keys = ["CMT_CATALOG_PATH",
+            "SW_VMIN",
+            "SW_VMAX",
+            "DIST_MIN",
+            "DIST_MAX",
+            "EMAG_MIN",
+            "EMAG_MAX",
+            "AZ_TOL"]
+    fn = os.path.join(os.getcwd(), 'subset_stack.conf')
+    try:
+        d = read_key_value_pairs(fn, keys, strict=True)
+    except Exception as e:
+        print(e)
+    # end try
+
+    return d
+# end func
 
 def read_location_preferences(location_preferences_fn):
     result = defaultdict(lambda: None)

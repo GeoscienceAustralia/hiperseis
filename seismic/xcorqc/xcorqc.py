@@ -116,7 +116,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
            interval_seconds=86400, taper_length=0.05, resample_rate=None,
            flo=None, fhi=None, clip_to_2std=False, whitening=False,
            whitening_window_frequency=0, one_bit_normalize=False, envelope_normalize=False,
-           apply_stacking=True, verbose=1, logger=None):
+           apply_simple_stacking=True, verbose=1, logger=None):
 
     # Length of window_buffer in seconds
     window_buffer_seconds = window_buffer_length * window_seconds
@@ -179,12 +179,12 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
 
         # Track back to avoid losing data while traversing onto the next interval.
         # Note that this only applies when stacking is not applied.
-        if((intervalCount > 0) and (not apply_stacking)):
+        if((intervalCount > 0) and (not apply_simple_stacking)):
             itr1s -= (2*window_buffer_seconds*sr1_orig + window_samples_1 * window_overlap)
             itr2s -= (2*window_buffer_seconds*sr2_orig + window_samples_2 * window_overlap)
         # end if
 
-        if(apply_stacking):
+        if(apply_simple_stacking):
             # The starting time of stacking-intervals is relative to hour 0000,
             # and not the start-times of input traces. To maintain this consistency,
             # when input trace start-times are not aligned to hour 0000, we stack data for a
@@ -455,7 +455,7 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
         itr1s = itr1e
         itr2s = itr2e
 
-        if(apply_stacking):
+        if(apply_simple_stacking):
             if windowCount > 0:
                 mean = reduce((lambda tx, ty: tx + ty), intervalXcorrList) / float(windowCount)
             else:
@@ -522,7 +522,8 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
-                       apply_stacking=True,
+                       subset_stack=False,
+                       apply_simple_stacking=True,
                        outputPath='/tmp', verbose=1, tracking_tag='',
                        scratch_folder=None, git_hash=''):
     """
@@ -595,8 +596,11 @@ def IntervalStackXCorr(refds, tempds,
     :param envelope_normalize: Envelope via Hilbert transforms and normalize
     :type ensemble_stack: bool
     :param ensemble_stack: Outputs a single CC function stacked over all data for a given station-pair
-    :type apply_stacking: bool
-    :param apply_stacking: stacks cross-correlation windows over intervals
+    :type subset_stack: bool
+    :param subset_stack: Outputs stacks over subsets of CC windows, identified based on the presence/absence
+                         of azimuthal earthquake energy
+    :type apply_simple_stacking: bool
+    :param apply_simple_stacking: stacks cross-correlation windows over intervals
     :type outputPath: str
     :param outputPath: Folder to write results to
     :type verbose: int
@@ -690,7 +694,7 @@ def IntervalStackXCorr(refds, tempds,
     while cTime < endTime:
         # track back to avoid losing data while traversing onto the next
         # block of data
-        if((cTime > startTime) and (not apply_stacking)):
+        if((cTime > startTime) and (not apply_simple_stacking)):
             cTime -= (2*window_buffer_length*window_seconds +
                       window_seconds*window_overlap)
         # end if
@@ -778,7 +782,7 @@ def IntervalStackXCorr(refds, tempds,
                    whitening_window_frequency=whitening_window_frequency,
                    one_bit_normalize=one_bit_normalize,
                    envelope_normalize=envelope_normalize,
-                   apply_stacking=apply_stacking,
+                   apply_simple_stacking=apply_simple_stacking,
                    verbose=verbose, logger=logger)
 
         # Continue if no results were returned due to data-gaps
@@ -883,6 +887,8 @@ def IntervalStackXCorr(refds, tempds,
             else:
                 xc[:] = es
             # end if
+        elif subset_stack:
+            pass
         else:
             root_grp.createDimension('interval', flattenedIntervalStartTimes.shape[0])
             root_grp.createDimension('window', flattenedWindowStartTimes.shape[0])
@@ -896,7 +902,7 @@ def IntervalStackXCorr(refds, tempds,
 
             xc = None
             nsw = None
-            if(apply_stacking):
+            if(apply_simple_stacking):
                 nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
                 xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
                                          chunksizes=(1, spooledXcorr.ncols),
@@ -908,7 +914,7 @@ def IntervalStackXCorr(refds, tempds,
             # end if
 
             # Populate variables
-            if(apply_stacking):
+            if(apply_simple_stacking):
                 nsw[:] = flattenedWindowCounts
             # end if
 
