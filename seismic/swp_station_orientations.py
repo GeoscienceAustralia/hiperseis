@@ -312,6 +312,10 @@ def compute_phis(ned, grv_dict, logger=None):
         R2phi = np.zeros([nevts, numsurfcalcs]);
         R2cc = np.zeros([nevts, numsurfcalcs]);
 
+        # Initialize event array
+        e_fields = {'names': ['eotime', 'elon', 'elat', 'edepth_km'], 'formats': ['f8', 'f8', 'f8', 'f8']}
+        e_array = np.zeros(nevts, dtype=e_fields)
+
         # load group velocity maps
         map10 = grv_dict['10']
         map15 = grv_dict['15']
@@ -338,6 +342,12 @@ def compute_phis(ned, grv_dict, logger=None):
             sta_lat = st[0].stats.station_latitude
             evt_lon = st[0].stats.event_longitude
             evt_lat = st[0].stats.event_latitude
+
+            # populate e_array
+            e_array['eotime'][j] = st[0].stats.event_time.timestamp
+            e_array['elon'][j] = evt_lon
+            e_array['elat'][j] = evt_lat
+            e_array['edepth_km'][j] = st[0].stats.event_depth
 
             # get some additional parameters
             daz1 = gps2dist_azimuth(sta_lat, sta_lon, evt_lat, evt_lon)
@@ -453,7 +463,7 @@ def compute_phis(ned, grv_dict, logger=None):
         logger.info("Discarded {}/{} events".format(discarded, len(ned.db_sta[sta])))
 
     nevents = len(ned.db_sta[sta]) - discarded
-    return R1cc, R1phi, R2cc, R2phi, nevents
+    return R1cc, R1phi, R2cc, R2phi, e_array, nevents
 # end func
 
 # keep eqs above certain cc limit
@@ -652,11 +662,39 @@ def summary_calculations(R1cc, R1phi, R2cc, R2phi, logger=None):
     return finval[-1], finerr[-1], phases[-1], max(LN)
 # end func
 
-def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
+def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_file_name=None, ax=None):
+    def dump_swp_data(r1phi, r1cc, r2phi, r2cc, e_array):
+        freqs = [40, 35, 30, 25, 20, 15, 10]
+        col_names = list(e_array.dtype.names) + \
+                    ['R1Phi_{}'.format(item) for item in freqs] + \
+                    ['R1CC_{}'.format(item) for item in freqs] + \
+                    ['R2Phi_{}'.format(item) for item in freqs] + \
+                    ['R2CC_{}'.format(item) for item in freqs]
+        with open(data_dump_file_name, 'w') as fh:
+            fh.write(', '.join(col_names) + '\n')
+            fs = ('%f, '*32)[:-2] # 32 floats per line (4 event-related and 4x7 polarization values)
+
+            for i in np.arange(len(e_array)):
+                if(np.sum(r1phi[i, :]) == np.sum(r2phi[i, :])):
+                    # skip null entry
+                    continue
+                # end if
+
+                line = fs % (*e_array[i], \
+                             *r1phi[i, :], \
+                             *r1cc[i, :], \
+                             *r2phi[i, :], \
+                             *r2cc[i, :])
+                fh.write(line + '\n')
+            # end for
+        # end with
+    # end func
+
     assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
 
     if len(ned) == 0:
         return {}
+    # end if
 
     # Determine limiting date range per station
     results = defaultdict(dict)
@@ -689,7 +727,15 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, ax=None):
 
     logger.info('Analysing arrivals')
 
-    r1cc, r1phi, r2cc, r2phi, nevents = compute_phis(ned, grv_dict, logger)
+    r1cc, r1phi, r2cc, r2phi, e_array, nevents = compute_phis(ned, grv_dict, logger)
+    if(data_dump_file_name is not None):
+        try:
+            dump_swp_data(r1phi, r1cc, r2phi, r2cc, e_array)
+        except Exception as e:
+            logger.error('Failed to dump SWP values into {} with error: '.format(data_dump_file_name) + \
+                                                                                  str(e))
+        # end try
+    #end if
     corr, err, ndata, nevents_c = summary_calculations(r1cc, r1phi, r2cc, r2phi, logger)
 
     corr *= -1 # converting to azimuth correction

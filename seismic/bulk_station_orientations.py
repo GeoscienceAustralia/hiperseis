@@ -185,7 +185,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
                                                   'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
-def main(src_h5_event_file, network, output_basename, station_list):
+@click.option('--dump-swp-data', is_flag=True, help='Dumps surface-wave polarization data into NET.STA.LOC.csv '
+                                                    'files.')
+def main(src_h5_event_file, network, output_basename, station_list, dump_swp_data):
     """
     Run station orientation checks.
 
@@ -236,7 +238,9 @@ def main(src_h5_event_file, network, output_basename, station_list):
         ned_swp = NetworkEventDataset(src_h5_event_file, network=net, station=sta, location=loc, root=sw_h5_root)
 
         curr_output_file = os.path.join(tempdir, '{}.pdf'.format(nsl))
-
+        curr_swp_dump_file = None
+        if(dump_swp_data): curr_swp_dump_file = os.path.join(os.path.dirname(output_basename),
+                                                             '{}.SWP.csv'.format(nsl))
         results_rf = defaultdict(dict)
         results_swp = defaultdict(dict)
         with PdfPages(curr_output_file) as pdf:
@@ -248,7 +252,8 @@ def main(src_h5_event_file, network, output_basename, station_list):
             ax2.set_title('Surface-wave Polarization')
 
             results_rf = rf_station_orientations(ned_rf, ax=ax1)
-            results_swp = swp_station_orientations(ned_swp, grv_dict, ax=ax2)
+            results_swp = swp_station_orientations(ned_swp, grv_dict, ax=ax2,
+                                                   data_dump_file_name=curr_swp_dump_file)
 
             plt.tight_layout()
             pdf.savefig(dpi=300, orientation='portrait')
