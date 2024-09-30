@@ -11,6 +11,7 @@ from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.misc import rtp2xyz, read_key_value_pairs
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 import os, psutil
+from netCDF4 import Dataset as ncDataset
 
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
@@ -180,8 +181,11 @@ def read_subset_stacker_config()->dict:
     fn = os.path.join(os.getcwd(), 'subset_stack.conf')
     try:
         d = read_key_value_pairs(fn, keys, strict=True)
+        for k in keys[1:]:
+            d[k] = float(d[k])
+        # end for
     except Exception as e:
-        print(e)
+        print('Reading {} failed with error: {}'.format(fn, e))
     # end try
 
     return d
@@ -385,6 +389,38 @@ class SpooledMatrix:
         self._max_size_mb = max_size_mb
 
         self._file = SpooledTemporaryFile(prefix = self._prefix, mode = 'w+b', max_size = max_size_mb * 1024**2, dir=dir)
+    # end func
+
+    @classmethod
+    def from_nc(cls, nc_file):
+        """
+        Alternative instantiation for testing purposes
+        @param nc_file:
+        @return:
+        """
+        try:
+            ds = ncDataset(nc_file)
+            xcorr = np.array(ds.variables['xcorr'])
+            shp = xcorr.shape
+            ncols = 0
+
+            if(len(shp) == 1): ncols = shp[0]
+            elif(len(shp) == 2): ncols = shp[1]
+
+            sm = cls(ncols, dtype=xcorr.dtype)
+
+            if(len(shp) == 1):
+                sm.write_row(xcorr)
+            elif(len(shp) == 2):
+                for i in np.arange(shp[0]):
+                    sm.write_row(xcorr[i, :])
+                # end for
+            # end if
+
+            return sm
+        except Exception as e:
+            print('Failed to load {} with error: {}'.format(nc_file, str(e)))
+        # end try
     # end func
 
     @property

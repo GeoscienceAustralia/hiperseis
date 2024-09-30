@@ -31,6 +31,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import getStationInventory, read_location_preferences, Dataset
+from seismic.xcorqc.subset_stacker import SubsetStacker
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 from seismic.misc_p import ProgressTracker
 from itertools import product
@@ -45,7 +46,7 @@ def process(data_source1, data_source2, output_path,
             clip_to_2std=False, whitening=False, whitening_window_frequency=0,
             one_bit_normalize=False, location_preferences=None, ds1_zchan=None, ds1_nchan=None,
             ds1_echan=None, ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, subset_stack=False, apply_simple_stacking=True,
+            envelope_normalize=False, ensemble_stack=False, subset_stacker=None, apply_simple_stacking=True,
             restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None):
     """
     :param data_source1: Text file containing paths to ASDF files
@@ -119,7 +120,7 @@ def process(data_source1, data_source2, output_path,
             if(whitening):
                 f.write('%35s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
             f.write('%35s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
-            f.write('%35s\t\t\t: %s\n' % ('--subset-stack', subset_stack))
+            f.write('%35s\t\t\t: %s\n' % ('--subset-stack', subset_stacker is not None))
             f.write('%35s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
@@ -309,7 +310,7 @@ def process(data_source1, data_source2, output_path,
                                interval_seconds, window_seconds, window_overlap,
                                window_buffer_length, fmin, fmax, clip_to_2std, whitening,
                                whitening_window_frequency, one_bit_normalize, envelope_normalize,
-                               ensemble_stack, subset_stack, apply_simple_stacking, output_path, 2,
+                               ensemble_stack, subset_stacker, apply_simple_stacking, output_path, 2,
                                time_tag, scratch_folder, git_hash)
         # end for
     # end for
@@ -528,13 +529,17 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
         apply_simple_stacking = True
     # end if
 
+    # instantiate subset-stacker if requested
+    subset_stacker = None
+    if(subset_stack): subset_stacker = SubsetStacker()
+
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
             window_buffer_length, read_ahead_window_seconds, resample_rate, taper_length, nearest_neighbours,
             pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
             start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
             clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, subset_stack, apply_simple_stacking, restart, dry_run, no_tracking_tag,
+            ensemble_stack, subset_stacker, apply_simple_stacking, restart, dry_run, no_tracking_tag,
             scratch_folder)
 # end func
 

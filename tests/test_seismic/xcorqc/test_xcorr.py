@@ -175,7 +175,7 @@ def test_window_counts():
                           interval_seconds=isec,
                           window_overlap=olap,
                           window_buffer_length=wbl,
-                          apply_stacking=True)
+                          apply_simple_stacking=True)
 
         olines.append("============[test: {}]============\n".format(i))
         olines.append('Params: raw: {}, wsec: {}, olap: {}, wbl: {}\n'.format(raw, wsec, olap, wbl))
@@ -260,7 +260,7 @@ def test_stacking_window_counts():
                           interval_seconds=isec,
                           window_overlap=olap,
                           window_buffer_length=wbl,
-                          apply_stacking=True)
+                          apply_simple_stacking=True)
 
         olines.append("============[test: {}]============\n".format(i))
         olines.append('Params: wsec: {}, isec: {}, olap: {}, wbl: {}\n'.format(wsec, isec, olap, wbl))

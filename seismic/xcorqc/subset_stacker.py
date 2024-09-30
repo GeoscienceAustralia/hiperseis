@@ -138,6 +138,7 @@ class SubsetStacker():
         p2 = [slon2, slat2]
         az, baz, dist = self.gc.geod.inv(p1[0], p1[1], p2[0], p2[1])
 
+        #print(az, baz)
         eaz1, ebaz1, edist1 = self.gc.geod.inv(np.ones(len(cat)) * p1[0],
                                                np.ones(len(cat)) * p1[1],
                                                cat['lon'], cat['lat'])
@@ -154,7 +155,6 @@ class SubsetStacker():
         # compute P and SW arrival times for relevant events at the two stations
         edepth_km = np.array(cat['dep'])
         otime = np.array(cat['EventOrigintim'])
-        mag = np.array(cat['MwG'])
 
         ptt1 = self.tti.get_tt('P', edistdeg1, edepth_km)
         ptt2 = self.tti.get_tt('P', edistdeg2, edepth_km)
@@ -196,9 +196,15 @@ class SubsetStacker():
         ccids2_inside_az = get_affected_indices(eids2_inside_az, pat2, swat2, swet2)
         ccids_inside_az = ccids1_inside_az | ccids2_inside_az
 
+        #print('ccs inside azimuth for station 1: {}'.format(np.sum(ccids1_inside_az)))
+        #print('ccs inside azimuth for station 2: {}'.format(np.sum(ccids2_inside_az)))
+
         ccids1_outside_az = get_affected_indices(eids_outside_az, pat1, swat1, swet1)
         ccids2_outside_az = get_affected_indices(eids_outside_az, pat2, swat2, swet2)
         ccids_outside_az = ccids1_outside_az | ccids2_outside_az
+
+        #print('ccs outside azimuth for station 1: {}'.format(np.sum(ccids1_outside_az)))
+        #print('ccs outside azimuth for station 2: {}'.format(np.sum(ccids2_outside_az)))
 
         # aliases to indices as named in the manuscript
         idsXei = ccids_inside_az  # inside az
@@ -207,6 +213,7 @@ class SubsetStacker():
         idsXeo = ccids_outside_az
 
         # compute means
+        mean = mean_Xei = mean_Xec = mean_XeiUXec = mean_Xeo = None
         mean = np.zeros(spooled_matrix.ncols)
         mean_Xei = np.zeros(spooled_matrix.ncols)
         mean_Xec = np.zeros(spooled_matrix.ncols)
@@ -228,6 +235,14 @@ class SubsetStacker():
         mean_Xec /= float(np.sum(idsXec))
         mean_XeiUXec /= float(np.sum(idsXeiUXec))
         mean_Xeo /= float(np.sum(idsXeo))
+
+        """
+        np.savez('stack3outputs.npz', xcf=mean,
+                 xcf1=mean_Xei, xcf2=mean_Xec, xcf3=mean_XeiUXec,
+                 xcf4=mean_Xeo, idsXei=idsXei, idsXec=idsXec,
+                 idsXeiUXec=idsXeiUXec, idsXeo=idsXeo)
+        """
+# end if
 
         return mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo
     # end func

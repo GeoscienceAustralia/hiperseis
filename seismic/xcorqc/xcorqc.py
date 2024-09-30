@@ -34,6 +34,7 @@ from scipy import signal
 from seismic.xcorqc.fft import *
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.xcorqc.utils import get_stream, fill_gaps, MemoryTracker
+from seismic.xcorqc.subset_stacker import SubsetStacker
 from netCDF4 import Dataset
 from functools import reduce
 from seismic.xcorqc.utils import SpooledMatrix
@@ -522,7 +523,7 @@ def IntervalStackXCorr(refds, tempds,
                        clip_to_2std=False, whitening=False, whitening_window_frequency=0,
                        one_bit_normalize=False, envelope_normalize=False,
                        ensemble_stack=False,
-                       subset_stack=False,
+                       subset_stacker: SubsetStacker=None,
                        apply_simple_stacking=True,
                        outputPath='/tmp', verbose=1, tracking_tag='',
                        scratch_folder=None, git_hash=''):
@@ -596,9 +597,9 @@ def IntervalStackXCorr(refds, tempds,
     :param envelope_normalize: Envelope via Hilbert transforms and normalize
     :type ensemble_stack: bool
     :param ensemble_stack: Outputs a single CC function stacked over all data for a given station-pair
-    :type subset_stack: bool
-    :param subset_stack: Outputs stacks over subsets of CC windows, identified based on the presence/absence
-                         of azimuthal earthquake energy
+    :type subset_stacker: SubsetStacker
+    :param subset_stacker: Custom stacker to stack over subsets of CC windows, identified based on the
+                           presence/absence of azimuthal earthquake energy
     :type apply_simple_stacking: bool
     :param apply_simple_stacking: stacks cross-correlation windows over intervals
     :type outputPath: str
@@ -887,36 +888,16 @@ def IntervalStackXCorr(refds, tempds,
             else:
                 xc[:] = es
             # end if
-        elif subset_stack:
-            pass
         else:
             root_grp.createDimension('interval', flattenedIntervalStartTimes.shape[0])
             root_grp.createDimension('window', flattenedWindowStartTimes.shape[0])
 
-            # Variables
+            # create and polulate variables
             interval = root_grp.createVariable('interval', 'f4', ('interval',))
             ist = root_grp.createVariable('IntervalStartTimes', 'i8', ('interval',))
             iet = root_grp.createVariable('IntervalEndTimes', 'i8', ('interval',))
             wst = root_grp.createVariable('WindowStartTimes', 'i8', ('window',))
             wet = root_grp.createVariable('WindowEndTimes', 'i8', ('window',))
-
-            xc = None
-            nsw = None
-            if(apply_simple_stacking):
-                nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
-                xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
-                                         chunksizes=(1, spooledXcorr.ncols),
-                                         zlib=True)
-            else:
-                xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
-                                             chunksizes=(1, spooledXcorr.ncols),
-                                             zlib=True)
-            # end if
-
-            # Populate variables
-            if(apply_simple_stacking):
-                nsw[:] = flattenedWindowCounts
-            # end if
 
             interval[:] = np.arange(flattenedIntervalStartTimes.shape[0])
             ist[:] = flattenedIntervalStartTimes
@@ -924,9 +905,41 @@ def IntervalStackXCorr(refds, tempds,
             wst[:] = flattenedWindowStartTimes
             wet[:] = flattenedWindowEndTimes
 
-            for irow in np.arange(spooledXcorr.nrows):
-                xc[irow, :] = spooledXcorr.read_row(irow)
-            # end for
+            if(apply_simple_stacking):
+                nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
+                xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
+                                         chunksizes=(1, spooledXcorr.ncols),
+                                         zlib=True)
+                nsw[:] = flattenedWindowCounts
+                for irow in np.arange(spooledXcorr.nrows):
+                    xc[irow, :] = spooledXcorr.read_row(irow)
+                # end for
+            elif subset_stacker is not None:
+                xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
+                xc_Xei = root_grp.createVariable('xcorr_Xei', 'f4', ('lag',))
+                xc_Xec = root_grp.createVariable('xcorr_Xec', 'f4', ('lag',))
+                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', 'f4', ('lag',))
+                xc_Xeo = root_grp.createVariable('xcorr_Xeo', 'f4', ('lag',))
+
+                slon1, slat1 = refds.unique_coordinates[ref_net_sta]
+                slon2, slat2 = tempds.unique_coordinates[temp_net_sta]
+                mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo = \
+                    subset_stacker.stack(spooledXcorr, flattenedWindowStartTimes,
+                                         flattenedWindowEndTimes,
+                                         slon1, slat1, slon2, slat2)
+                xc[:] = mean
+                xc_Xei[:] = mean_Xei
+                xc_Xec[:] = mean_Xec
+                xc_XeiUXec[:] = mean_XeiUXec
+                xc_Xeo[:] = mean_Xeo
+            else:
+                xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
+                                             chunksizes=(1, spooledXcorr.ncols),
+                                             zlib=True)
+                for irow in np.arange(spooledXcorr.nrows):
+                    xc[irow, :] = spooledXcorr.read_row(irow)
+                # end for
+            # end if
         # end if
 
         lag[:] = x
