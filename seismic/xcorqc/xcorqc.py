@@ -921,9 +921,16 @@ def IntervalStackXCorr(refds, tempds,
                 xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', 'f4', ('lag',))
                 xc_Xeo = root_grp.createVariable('xcorr_Xeo', 'f4', ('lag',))
 
+                xc_wc = root_grp.createVariable('xcorr_NumStackedWindows', 'i8')
+                xc_Xei_wc = root_grp.createVariable('xcorr_Xei_NumStackedWindows', 'i8')
+                xc_Xec_wc = root_grp.createVariable('xcorr_Xec_NumStackedWindows', 'i8')
+                xc_XeiUXec_wc = root_grp.createVariable('xcorr_XeiUXec_NumStackedWindows', 'i8')
+                xc_Xeo_wc = root_grp.createVariable('xcorr_Xeo_NumStackedWindows', 'i8')
+
                 slon1, slat1 = refds.unique_coordinates[ref_net_sta]
                 slon2, slat2 = tempds.unique_coordinates[temp_net_sta]
-                mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo = \
+                mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo, \
+                wc, wc_Xei, wc_Xec, wc_XeiUXec, wc_Xeo = \
                     subset_stacker.stack(spooledXcorr, flattenedWindowStartTimes,
                                          flattenedWindowEndTimes,
                                          slon1, slat1, slon2, slat2)
@@ -932,6 +939,13 @@ def IntervalStackXCorr(refds, tempds,
                 xc_Xec[:] = mean_Xec
                 xc_XeiUXec[:] = mean_XeiUXec
                 xc_Xeo[:] = mean_Xeo
+
+                # add window counts
+                xc_wc[:] = wc
+                xc_Xei_wc[:] = wc_Xei
+                xc_Xec_wc[:] = wc_Xec
+                xc_XeiUXec_wc[:] = wc_XeiUXec
+                xc_Xeo_wc[:] = wc_Xeo
             else:
                 xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
                                              chunksizes=(1, spooledXcorr.ncols),
@@ -966,7 +980,9 @@ def IntervalStackXCorr(refds, tempds,
                   'zero_mean_1std_normalize': int(clip_to_2std is False and one_bit_normalize is False),
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
-                  'ensemble_stack': int(ensemble_stack)}
+                  'ensemble_stack': int(ensemble_stack),
+                  'simple_stack': int(apply_simple_stacking),
+                  'subset_stack': int(subset_stacker is not None)}
 
         if whitening:
             params['whitening_window_frequency'] = whitening_window_frequency

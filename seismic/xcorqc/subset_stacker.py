@@ -230,21 +230,27 @@ class SubsetStacker():
             if (idsXeo[i]): mean_Xeo += row
         # end for
 
-        mean /= float(spooled_matrix.nrows)
-        mean_Xei /= float(np.sum(idsXei))
-        mean_Xec /= float(np.sum(idsXec))
-        mean_XeiUXec /= float(np.sum(idsXeiUXec))
-        mean_Xeo /= float(np.sum(idsXeo))
+        wc = spooled_matrix.nrows
+        wc_Xei = np.sum(idsXei)
+        wc_Xec = np.sum(idsXec)
+        wc_XeiUXec = np.sum(idsXeiUXec)
+        wc_Xeo = np.sum(idsXeo)
 
-        """
+        mean /= float(wc)
+        mean_Xei /= float(wc_Xei)
+        mean_Xec /= float(wc_Xec)
+        mean_XeiUXec /= float(wc_XeiUXec)
+        mean_Xeo /= float(wc_Xeo)
+
+        #"""
         np.savez('stack3outputs.npz', xcf=mean,
                  xcf1=mean_Xei, xcf2=mean_Xec, xcf3=mean_XeiUXec,
                  xcf4=mean_Xeo, idsXei=idsXei, idsXec=idsXec,
                  idsXeiUXec=idsXeiUXec, idsXeo=idsXeo)
-        """
-# end if
+        #"""
 
-        return mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo
+        return mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo, \
+               wc, wc_Xei, wc_Xec, wc_XeiUXec, wc_Xeo
     # end func
 # end class
 
