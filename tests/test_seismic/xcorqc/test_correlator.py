@@ -55,9 +55,9 @@ fds2 = FederatedASDFDataSet(asdf_file_list2)
 
 expected_folder = '%s/data/expected/'%(path)
 output_folder = str(tempfile.mkdtemp())
+#output_folder = '/tmp'
 os.mkdir(os.path.join(output_folder, 'stacked'))
 os.mkdir(os.path.join(output_folder, 'unstacked'))
-#output_folder = '/tmp'
 
 def test_correlator():
     start_time = '2006-11-03T00:00:00'
@@ -76,7 +76,7 @@ def test_correlator():
                 netsta2, None, start_time, end_time, None, 'vel',
                 50, False, True, 0.02, True, loc_pref,
                 '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False, False,
-                True, False, False, True, None)
+                None, True, False, False, True, None)
 
 
         # Read result
@@ -109,7 +109,7 @@ def test_correlator():
                 netsta2, None, start_time, end_time, None, 'vel',
                 50, False, True, 0.02, True, loc_pref,
                 '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False, False,
-                False, False, False, True, None)
+                None, False, False, False, True, None)
 
 
         # Read result

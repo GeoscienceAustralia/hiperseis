@@ -31,6 +31,7 @@ from obspy.geodetics.base import gps2dist_azimuth
 
 from seismic.xcorqc.xcorqc import IntervalStackXCorr
 from seismic.xcorqc.utils import getStationInventory, read_location_preferences, Dataset
+from seismic.xcorqc.subset_stacker import SubsetStacker
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 from seismic.misc_p import ProgressTracker
 from itertools import product
@@ -43,10 +44,9 @@ def process(data_source1, data_source2, output_path,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
             clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-            one_bit_normalize=False, location_preferences=None,
-            ds1_zchan=None, ds1_nchan=None, ds1_echan=None,
-            ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
-            envelope_normalize=False, ensemble_stack=False, apply_stacking=True,
+            one_bit_normalize=False, location_preferences=None, ds1_zchan=None, ds1_nchan=None,
+            ds1_echan=None, ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
+            envelope_normalize=False, ensemble_stack=False, subset_stacker=None, apply_simple_stacking=True,
             restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None):
     """
     :param data_source1: Text file containing paths to ASDF files
@@ -120,6 +120,7 @@ def process(data_source1, data_source2, output_path,
             if(whitening):
                 f.write('%35s\t\t\t: %s\n' % ('--whitening-window-frequency', whitening_window_frequency))
             f.write('%35s\t\t\t: %s\n' % ('--ensemble-stack', ensemble_stack))
+            f.write('%35s\t\t\t: %s\n' % ('--subset-stack', subset_stacker is not None))
             f.write('%35s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
@@ -309,8 +310,8 @@ def process(data_source1, data_source2, output_path,
                                interval_seconds, window_seconds, window_overlap,
                                window_buffer_length, fmin, fmax, clip_to_2std, whitening,
                                whitening_window_frequency, one_bit_normalize, envelope_normalize,
-                               ensemble_stack, apply_stacking, output_path, 2, time_tag,
-                               scratch_folder, git_hash)
+                               ensemble_stack, subset_stacker, apply_simple_stacking, output_path, 2,
+                               time_tag, scratch_folder, git_hash)
         # end for
     # end for
 # end func
@@ -319,9 +320,9 @@ def process(data_source1, data_source2, output_path,
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('data-source1',
-                type=click.Path('r'))
+                type=click.Path(exists=True))
 @click.argument('data-source2',
-                type=click.Path('r'))
+                type=click.Path(exists=True))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
 @click.argument('window-seconds', required=True,
@@ -363,7 +364,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('--station-names2', default='*', type=str,
               help="Either station name(s) (space-delimited) or a text file containing NET.STA entries in each line to "
                    "process in data-source-2; default is '*', which processes all available stations.")
-@click.option('--pairs-to-compute', default=None, type=click.Path('r'),
+@click.option('--pairs-to-compute', default=None, type=click.Path(exists=True),
               help="Text file containing station pairs (NET.STA.NET.STA) for which cross-correlations are to be computed."
                    "Note that this parameter is intended as a way to restrict the number of computations to only the "
                    "station-pairs listed in the text-file.")
@@ -374,7 +375,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
               type=str,
               help="Date and time (in UTC format) to stop at")
 @click.option('--instrument-response-inventory', default=None,
-              type=click.Path('r'),
+              type=click.Path(exists=True),
               help="FDSNxml inventory containing instrument response information. Note that when this parameter is provided, "
                    "instrument response corrections are automatically applied for matching stations with response "
                    "information.")
@@ -401,7 +402,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
               help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
                    "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--location-preferences', default=None,
-              type=click.Path('r'),
+              type=click.Path(exists=True),
               help="A comma-separated two-columned text file containing location code preferences for "
                    "stations in the form: 'NET.STA, LOC'. Note that location code preferences need not "
                    "be provided for all stations -- the default is None. This approach allows for "
@@ -439,6 +440,20 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                                                      "for a given station-pair. In other words, stacks over "
                                                      "'interval-seconds' are in turn stacked to produce a "
                                                      "single cross-correlation function")
+@click.option('--subset-stack', is_flag=True,
+              help="Outputs a number of stacks of cross-correlation subsets as identified based on the presence "
+                   "or absence of azimuthal earthquake energy within cross-correlation windows, as outlined in "
+                   "Hejrani et al. (in prep.). Note that this option is not compatible with --ensemble-stack and "
+                   "--stacking-interval-seconds. A file named subset_stack.conf is expected in the current working "
+                   "folder, with appropriate colon-separated values for the keys below: "
+                   "CMT_CATALOG_PATH: 'path/to/CMT/catalog'"
+                   "SW_VMIN: 2"
+                   "SW_VMAX: 5.5"
+                   "DIST_MIN: 0"
+                   "DIST_MAX: 999"
+                   "EMAG_MIN: 6"
+                   "EMAG_MAX: 999"
+                   "AZ_TOL: 30")
 @click.option('--restart', default=False, is_flag=True, help='Restart job')
 @click.option('--dry-run', default=False, is_flag=True, help='Dry run for printing out station-pairs and '
                                                              'additional stats.')
@@ -451,7 +466,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
          start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
          clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, restart, dry_run, no_tracking_tag, scratch_folder):
+         ensemble_stack, subset_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -476,11 +491,16 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
     if(stacking_interval_seconds is not None):
         if(stacking_interval_seconds < window_seconds):
             raise ValueError('Invalid value for --stacking-interval-seconds, must be > WINDOW_SECONDS')
-        if (stacking_interval_seconds > window_seconds * read_ahead_windows):
+        if(stacking_interval_seconds > window_seconds * read_ahead_windows):
             raise ValueError("""Invalid value for --stacking-interval-seconds, \
                                 must be < WINDOW_SECONDS*READ_AHEAD_WINDOWS""")
-    # end if
 
+        if(subset_stack): raise ValueError('Subset-stacking based on a GCMT catalog is incompatible with stacking over '
+                                           'fixed intervals, e.g. over 24 hrs, as done through --stacking-interval-seconds')
+    # end if
+    if(ensemble_stack and subset_stack):
+        raise ValueError('Ensemble-stacking and subset-stacking are mutually exclusive options')
+    # end if
 
     #######################################################
     # Compute amount of data to be read in in each IO call,
@@ -489,7 +509,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
     #######################################################
     interval_seconds = None
     read_ahead_window_seconds = None
-    apply_stacking = None
+    apply_simple_stacking = False
     if(stacking_interval_seconds is None):
         if(ensemble_stack):
             raise ValueError('--ensemble-stack is only applicable with --stacking-interval-seconds. Aborting..')
@@ -500,13 +520,18 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
                                     window_seconds * window_buffer_length * 2 + \
                                     window_overlap * window_seconds * 2
         interval_seconds = read_ahead_window_seconds
-        apply_stacking = False
+        apply_simple_stacking = False
+
         #print(read_ahead_window_seconds)
     else:
         read_ahead_window_seconds = window_seconds * read_ahead_windows
         interval_seconds = stacking_interval_seconds
-        apply_stacking = True
+        apply_simple_stacking = True
     # end if
+
+    # instantiate subset-stacker if requested
+    subset_stacker = None
+    if(subset_stack): subset_stacker = SubsetStacker()
 
     process(data_source1, data_source2, output_path, interval_seconds, window_seconds, window_overlap,
             window_buffer_length, read_ahead_window_seconds, resample_rate, taper_length, nearest_neighbours,
@@ -514,7 +539,8 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
             start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
             clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-            ensemble_stack, apply_stacking, restart, dry_run, no_tracking_tag, scratch_folder)
+            ensemble_stack, subset_stacker, apply_simple_stacking, restart, dry_run, no_tracking_tag,
+            scratch_folder)
 # end func
 
 if __name__ == '__main__':
