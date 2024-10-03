@@ -240,6 +240,7 @@ def process(data_source1, data_source2, output_path,
                         # end if
                     else:
                         if(item[2] not in ulocs):
+                            cha = item[3][:-1] + 'T' # transverse channel e.g. BHT
                             if(loc_pref is None):
                                 result[chidx].append('{}.{}'.format(item[2], cha))
                                 ulocs.add(item[2])
@@ -260,7 +261,7 @@ def process(data_source1, data_source2, output_path,
         if   (corr_chan == 'z'): loccha1_list, loccha2_list = get_loccha(ds1_zchan, ds2_zchan)
         elif (corr_chan == 'n'): loccha1_list, loccha2_list = get_loccha(ds1_nchan, ds2_nchan)
         elif (corr_chan == 'e'): loccha1_list, loccha2_list = get_loccha(ds1_echan, ds2_echan)
-        elif (corr_chan == 't'): loccha1_list, loccha2_list = get_loccha('00T', '00T')
+        elif (corr_chan == 't'): loccha1_list, loccha2_list = get_loccha('', '')
         else: raise ValueError('Invalid corr-chan')
 
         if(len(loccha1_list)<1 or len(loccha2_list)<1):

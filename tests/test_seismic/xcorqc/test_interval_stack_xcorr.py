@@ -56,7 +56,7 @@ cmd = 'tar -zxvf %s -C %s'%('%s/data/expected/expected.tar.gz'%path, expected_fo
 os.system(cmd)
 output_folder = str(tempfile.mkdtemp())
 
-@pytest.fixture(params=['.BHZ', '.00T'])
+@pytest.fixture(params=['.BHZ', '.BHT'])
 def loccha(request):
     return request.param
 

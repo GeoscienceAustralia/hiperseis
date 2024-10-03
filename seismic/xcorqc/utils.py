@@ -341,9 +341,9 @@ def get_stream(fds, net, sta, loc, cha, start_time, end_time,
                baz=None, trace_count_threshold=200,
                logger=None, verbose=1):
 
-    if (cha == '00T'): return _get_stream_00T(fds, net, sta, loc, start_time, end_time,
-                                              baz=baz, trace_count_threshold=trace_count_threshold,
-                                              logger=logger, verbose=verbose)
+    if (cha[-1] == 'T'): return _get_stream_00T(fds, net, sta, loc, start_time, end_time,
+                                                baz=baz, trace_count_threshold=trace_count_threshold,
+                                                logger=logger, verbose=verbose)
     st = Stream()
     if(loc is None):
         stations = fds.get_stations(start_time, end_time, network=net, station=sta,
