@@ -34,6 +34,7 @@ from mpi4py import MPI
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from shutil import rmtree
+from seismic.misc_p import parallel_abort
 
 logging.basicConfig()
 
@@ -212,7 +213,11 @@ def main(src_h5_event_file, network, output_basename, station_list, dump_swp_dat
         proc_hdfkeys = list(proc_hdfkeys)
 
         # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network, station_list)
+        try:
+            proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network, station_list)
+        except Exception as e:
+            parallel_abort(str(e), logger)
+        # end try
 
         # split work-load over all procs
         proc_hdfkeys = split_list(proc_hdfkeys, nproc)

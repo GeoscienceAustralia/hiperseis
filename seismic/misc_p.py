@@ -14,6 +14,7 @@ Revision History:
 
 import os
 from mpi4py import MPI
+from logging import Logger
 
 class ProgressTracker:
     def __init__(self, output_folder, restart_mode=False):
@@ -51,3 +52,11 @@ class ProgressTracker:
     # end func
 # end class
 
+def parallel_abort(msg: str, logger:Logger=None):
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+
+    if(logger is not None): logger.error('Aborting job from rank {}: {}'.format(rank, msg))
+    comm.Abort()
+# end func
