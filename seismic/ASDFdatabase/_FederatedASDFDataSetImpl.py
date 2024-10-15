@@ -437,11 +437,15 @@ class _FederatedASDFDataSetImpl():
             # end for
 
             if(self.rank==0):
-                print('Creating table indices..')
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
+                # create a convenience table with all combinations of net, sta, loc, cha
+                self.conn.execute('create table nslc as select net, sta, loc, cha, min(st) as st, max(et) as et from wtag group by net, sta, loc, cha')
+
+                print('Creating table indices..')
                 self.conn.execute('create index allindex on wtag(ds_id, net, sta, loc, cha, st, et)')
                 self.conn.execute('create index metaindex on meta(ds_id, net, sta)')
+                self.conn.execute('create index nslcindex on nslc(net, sta, loc, cha, st, et)')
                 self.conn.commit()
                 self.conn.close()
                 print('Done..')
@@ -464,33 +468,40 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_global_time_range(self, network, station=None, location=None, channel=None):
-        query = "select min(st), max(et) from wtag where net='%s' "%(network)
+        query = "select min(st), max(et) from nslc where net='%s' " % (network)
 
         if (station is not None):
-            query += "and sta='%s' "%(station)
+            query += "and sta='%s' " % (station)
         if (location is not None):
-            query += "and loc='%s' "%(location)
+            query += "and loc='%s' " % (location)
         if (channel is not None):
-            query += "and cha='%s' "%(channel)
+            query += "and cha='%s' " % (channel)
 
         row = self.conn.execute(query).fetchall()[0]
 
         min = MAX_DATE
         max = MIN_DATE
 
-        if(len(row)):
-            if(row[0] is not None): min = UTCDateTime(row[0])
-            if(row[1] is not None): max = UTCDateTime(row[1])
+        if (len(row)):
+            if (row[0] is not None): min = UTCDateTime(row[0])
+            if (row[1] is not None): max = UTCDateTime(row[1])
         # end if
 
         return min, max
     # end func
 
+    def get_nslc_list(self):
+        query = "select net, sta, loc, cha from nslc"
+        rows = self.conn.execute(query).fetchall()
+
+        return rows
+    # end if
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
 
-        query = 'select * from wtag where '
+        query = 'select ds_id, net, sta, loc, cha from wtag where '
         if (network is not None): query += " net='%s' "%(network)
         if (station is not None):
             if(network is not None): query += "and sta='%s' "%(station)
@@ -515,7 +526,7 @@ class _FederatedASDFDataSetImpl():
         rows = self.conn.execute(query).fetchall()
         results = set()
         for row in rows:
-            ds_id, net, sta, loc, cha, st, et, tag = row
+            ds_id, net, sta, loc, cha = row
 
             # [net, sta, loc, cha, lon, lat, elev_m]
             rv = (net, sta, loc, cha, *self.asdf_station_coordinates[ds_id]['%s.%s' % (net, sta)])

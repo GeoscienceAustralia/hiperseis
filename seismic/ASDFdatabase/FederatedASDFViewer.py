@@ -34,6 +34,9 @@ from collections import defaultdict
 from shapely import geometry
 from seismic.misc import print_exception
 
+NULL_CHANNEL_CODE = 'XXX'
+NULL_AVAILABILITY = 'Availability: 2100-01-01 - 1900-01-01'
+
 class CustomPPSD(PPSD):
     def __init__(self, stats, skip_on_gaps=False,
                  db_bins=(-150, 50, 1.), ppsd_length=3600.0, overlap=0.5,
@@ -194,35 +197,26 @@ class DataViewer(App):
     # end func
 
     def getNetworks(self):
-        result = set([item.split('.')[0] for item in self.fds.unique_coordinates.keys()])
+        result = self.nslc_dict.keys()
         return sorted(list(result))
     # end func
 
     def getStations(self, net):
-        result = set()
-        for item in self.fds.unique_coordinates.keys():
-            nc, sc = item.split('.')
-            if(nc == net): result.add(sc)
-        # end for
+        result = self.nslc_dict[net].keys()
         return sorted(list(result))
     # end func
 
     def getLocations(self, net, sta):
-        rows = self.fds.get_stations(UTCDateTime('1900-01-01'), UTCDateTime('2100-01-01'),
-                                     network=net, station=sta)
-        locs = set()
-        for row in rows: locs.add(row[2])
-
-        return sorted(list(locs))
+        result = self.nslc_dict[net][sta].keys()
+        return sorted(list(result))
     # end func
 
     def getChannels(self, net, sta, loc):
-        rows = self.fds.get_stations(UTCDateTime('1900-01-01'), UTCDateTime('2100-01-01'),
-                                     network=net, station=sta, location=loc)
-        comps = set()
-        for row in rows: comps.add(row[3])
-
-        return sorted(list(comps))
+        result = self.nslc_dict[net][sta][loc]
+        # add a null entry to users get a chance to select the channel
+        # which channel they want to see data for
+        result.append(NULL_CHANNEL_CODE)
+        return sorted(list(result))
     # end func
 
     def mapWidget(self):
@@ -497,15 +491,23 @@ class DataViewer(App):
 
         def getMeta(nc, sc, lc, cc):
             lon, lat = self.fds.unique_coordinates['{}.{}'.format(nc, sc)]
-            st, et = self.fds.get_global_time_range(nc, sc, lc, cc)
             #print(nc, sc, lc, cc, st, et)
             locStr = "Lon: {:.2f}, Lat: {:.2f}".format(lon, lat)
-            availStr = "Availability: {} - {}".format(st.strftime('%Y-%m-%d'), et.strftime('%Y-%m-%d'))
+
+            availStr = None
+            if(cc == NULL_CHANNEL_CODE):
+                availStr = NULL_AVAILABILITY
+            else:
+                st, et = self.fds.get_global_time_range(nc, sc, lc, cc)
+                availStr = "Availability: {} - {}".format(st.strftime('%Y-%m-%d'), et.strftime('%Y-%m-%d'))
+            # end if
 
             return locStr, availStr
         # end func
 
         def setTraceImage(nc, sc, lc, cc, st=None, et=None):
+            if(cc == NULL_CHANNEL_CODE): return # nothing to do for null channel-code
+
             try:
                 if(st is None and et is None):
                     st, et = self.fds.get_global_time_range(nc, sc, lc, cc)
@@ -521,7 +523,7 @@ class DataViewer(App):
 
                 fig = Figure(figsize=(TRACE_FIG_WIDTH, TRACE_FIG_HEIGHT))
                 stream = self.fds.get_waveforms(nc, sc, lc, cc, st, st + step)
-                
+
                 if(len(stream)):                     
                     if(not isPPSD):
                         fig = stream.plot(fig=fig, handle=True, type='relative')
@@ -555,6 +557,8 @@ class DataViewer(App):
             lc = self.rowContainer.children[key].children['leftContainer'].children['nslcBox'].children['loc'].get_value()
             cc = self.rowContainer.children[key].children['leftContainer'].children['nslcBox'].children['cha'].get_value()
 
+            #print('chaChanged')
+
             # update metadata
             locStr, availStr = getMeta(nc, sc, lc, cc)
             self.rowContainer.children[key].children['leftContainer'].\
@@ -562,12 +566,14 @@ class DataViewer(App):
             self.rowContainer.children[key].children['leftContainer'].\
                 children['availLabel'].set_text(availStr)
 
+            if(cc == NULL_CHANNEL_CODE): return
+
             # update plot
+            self.rowContainer.children[key].children['rightContainer'].set_enabled(True)
             self.rowContainer.children[key].children['rightContainer'].children['plot'] = gui.Label('Loading..')
             t = threading.Thread(target=setTraceImage,
                                  args=(nc, sc, lc, cc))
             t.start()
-            #print('chaChanged')
         # end func
 
         def startStepChanged(emitter, value=None):
@@ -600,6 +606,7 @@ class DataViewer(App):
                 # end if
 
                 # update plot
+                self.rowContainer.children[key].children['rightContainer'].set_enabled(True)
                 self.rowContainer.children[key].children['rightContainer'].children['plot'] = gui.Label('Loading..')
                 t = threading.Thread(target=setTraceImage,
                                      args=(nc, sc, lc, cc, st, et))
@@ -691,7 +698,8 @@ class DataViewer(App):
         ppsd.onchange.do(startStepChanged)
 
         rightContainer.append({'startStepLabelBox': startStepLabelBox, 'startStepBox': startStepBox,
-                               'plot': gui.Label('Loading..')})
+                               'plot': gui.Label('')})
+        rightContainer.set_enabled(False)
 
         t = threading.Thread(target=setTraceImage,
                              args=(net.get_value(), sta.get_value(), loc.get_value(), cha.get_value()))
@@ -715,6 +723,15 @@ class DataViewer(App):
         # end func
 
         self.fds = fds
+        # populate net, sta, loc, cha dict
+        self.nslc_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
+        nslc_list = self.fds.get_nslc_list()
+        for row in nslc_list:
+            net, sta, loc, cha = row
+            self.nslc_dict[net][sta][loc].append(cha)
+        # end for
+
         # create master container
         self.rowContainer = gui.VBox(width=ROW_WIDGET_WIDTH * PADDING_FACTOR,
                                         height=ROW_WIDGET_HEIGHT * PADDING_FACTOR,
@@ -786,7 +803,7 @@ def process(asdf_source):
 
     # starts the webserver
     start(DataViewer, address='0.0.0.0', port=1122, start_browser=False,
-          update_interval=0.1, userdata=(fds,))
+          update_interval=0, userdata=(fds,))
 # end func
 
 if (__name__ == '__main__'):

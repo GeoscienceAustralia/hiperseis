@@ -138,6 +138,16 @@ class FederatedASDFDataSet():
 
     # end func
 
+    def get_nslc_list(self):
+        """
+        Get a list of all net, sta, loc, cha combinations featured in the database
+        @return:
+        """
+
+        results = self.fds.get_nslc_list()
+        return results
+    # end if
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         """
         :param starttime: start time string in UTCDateTime format; can also be an instance of obspy.UTCDateTime
