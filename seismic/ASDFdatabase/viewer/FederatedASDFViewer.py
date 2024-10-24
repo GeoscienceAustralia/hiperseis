@@ -5,13 +5,14 @@ Description:
 
 References:
 
-CreationDate:   12/12/18
+CreationDate:   07/02/23
 Developer:      rakib.hassan@ga.gov.au
 
 Revision History:
     LastUpdate:     08/09/23   RH
 """
 
+import remi
 import remi.gui as gui
 from remi import start, App
 import os, sys
@@ -19,159 +20,21 @@ import numpy as np
 from obspy import UTCDateTime
 import click
 import uuid
-from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-import io
-import time
 import threading
-import matplotlib
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-from obspy.core import Trace, Stream
-from obspy.signal import PPSD
 import cartopy.crs as ccrs
 from scipy.stats import circmean as cmean
 from collections import defaultdict
 from shapely import geometry
 from seismic.misc import print_exception
+import plotly.express as px
+import plotly.offline as plyo
+from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+from seismic.ASDFdatabase.viewer.custom_ppsd import CustomPPSD
+from seismic.ASDFdatabase.viewer.gui_components import FigureImage, PlotlyGraph
 
 NULL_CHANNEL_CODE = 'XXX'
 NULL_AVAILABILITY = 'Availability: 2100-01-01 - 1900-01-01'
-
-class CustomPPSD(PPSD):
-    def __init__(self, stats, skip_on_gaps=False,
-                 db_bins=(-150, 50, 1.), ppsd_length=3600.0, overlap=0.5,
-                 special_handling=None, period_smoothing_width_octaves=1.0,
-                 period_step_octaves=0.125, period_limits=None,
-                 **kwargs):
-        
-        # flat response
-        metadata = paz={'sensitivity': 1.0,
-                        'gain': 1.0,
-                        'poles': [0 + 1j],
-                        'zeros': [0 + 1j]}
-        
-        super(CustomPPSD, self).__init__(stats, metadata, skip_on_gaps=skip_on_gaps,
-                 db_bins=db_bins, ppsd_length=ppsd_length, overlap=overlap,
-                 special_handling=special_handling, 
-                 period_smoothing_width_octaves=period_smoothing_width_octaves,
-                 period_step_octaves=period_step_octaves, 
-                 period_limits=period_limits,
-                 **kwargs)
-    # end func
-    
-    def add(self, stream, verbose=False):
-        if isinstance(stream, Trace):
-            stream = Stream([stream])
-        # end if
-        
-        # normalize streams
-        stream = stream.copy()
-        for tr in stream:
-            if(tr.stats.npts > 0):
-                tr.data = tr.data / np.max(np.fabs(tr.data))
-            # end if
-        # end for
-        
-        super(CustomPPSD, self).add(stream, verbose=verbose)
-    # end func
-    
-    def _plot_histogram(self, fig, draw=False, filename=None):
-        """
-        Reuse a previously created figure returned by `plot(show=False)`
-        and plot the current histogram stack (pre-computed using
-        :meth:`calculate_histogram()`) into the figure. If a filename is
-        provided, the figure will be saved to a local file.
-        Note that many aspects of the plot are statically set during the first
-        :meth:`plot()` call, so this routine can only be used to update with
-        data from a new stack.
-        """
-        import matplotlib.pyplot as plt
-        ax = fig.axes[0]
-        xlim = ax.get_xlim()
-        if "quadmesh" in fig.ppsd:
-            fig.ppsd.pop("quadmesh").remove()
-
-        if fig.ppsd.cumulative:
-            data = self.current_histogram_cumulative * 100.0
-        else:
-            # avoid divison with zero in case of empty stack
-            data = (
-                self.current_histogram * 100.0 /
-                (self.current_histogram_count or 1))
-
-        xedges = self.period_xedges
-        if fig.ppsd.xaxis_frequency:
-            xedges = 1.0 / xedges
-
-        if "meshgrid" not in fig.ppsd:
-            fig.ppsd.meshgrid = np.meshgrid(xedges, self.db_bin_edges)
-        ppsd = ax.pcolormesh(
-            fig.ppsd.meshgrid[0], fig.ppsd.meshgrid[1], data.T,
-            cmap=fig.ppsd.cmap, zorder=-1)
-        fig.ppsd.quadmesh = ppsd
-
-        if "colorbar" not in fig.ppsd:
-            cb = plt.colorbar(ppsd, ax=ax)
-            cb.mappable.set_clim(*fig.ppsd.color_limits)
-            cb.set_label(fig.ppsd.label)
-            fig.ppsd.colorbar = cb
-
-        if fig.ppsd.max_percentage is not None:
-            ppsd.set_clim(*fig.ppsd.color_limits)
-
-        if fig.ppsd.grid:
-            if fig.ppsd.cmap.name == "jet":
-                color = {"color": "0.7"}
-            else:
-                color = {}
-            ax.grid(True, which="major", **color)
-            ax.grid(True, which="minor", **color)
-
-        ax.set_xlim(*xlim)
-
-        if filename is not None:
-            plt.savefig(filename)
-        elif draw:
-            with np.errstate(under="ignore"):
-                plt.draw()
-        return fig    
-# end class
-
-class FigureImage(gui.Image):
-    def __init__(self, **kwargs):
-        super(FigureImage, self).__init__("/%s/get_image_data?update_index=0" % id(self), **kwargs)
-        self._buf = None
-        #self._buflock = threading.Lock()
-
-        self._fig = kwargs.pop('fig')
-        self.redraw()
-    # end func
-
-    def redraw(self):
-        canv = FigureCanvasAgg(self._fig)
-        buf = io.BytesIO()
-        canv.print_figure(buf, format='png')
-        #with self._buflock:
-        if self._buf is not None:
-            self._buf.close()
-        self._buf = buf
-
-        i = int(time.time() * 1e6)
-        self.attributes['src'] = "/%s/get_image_data?update_index=%d" % (id(self), i)
-
-        super(FigureImage, self).redraw()
-    # end func
-
-    def get_image_data(self, update_index):
-        #with self._buflock:
-        if self._buf is None:
-            return None
-        self._buf.seek(0)
-        data = self._buf.read()
-
-        return [data, {'Content-type': 'image/png'}]
-    # end func
-# end class
 
 ROW_WIDGET_WIDTH = 1000
 ROW_WIDGET_HEIGHT = 500
@@ -181,19 +44,14 @@ MAP_WIDGET_PADDING = 700
 PADDING_FACTOR = 1.1
 TRACE_FIG_WIDTH = 7
 TRACE_FIG_HEIGHT = 3.5
-MAP_FIG_WIDTH = 7
-MAP_FIG_HEIGHT = 3.5
+MAP_FIG_WIDTH = 750
+MAP_FIG_HEIGHT = 500
 DEFAULT_TRC_LENGTH = '600'
-font = {'family' : 'normal',
-        'size'   : 8}
-
-matplotlib.rc('font', **font)
-matplotlib.rc('xtick', labelsize=8) 
-matplotlib.rc('ytick', labelsize=8) 
 
 class DataViewer(App):
-    def __int__(self, *args, **kwargs):
-        super().__int__(*args, **kwargs)
+    def __init__(self, *args):
+        self.widgets_that_requires_javascript_after_update=[]
+        super(DataViewer, self).__init__(*args)
     # end func
 
     def getNetworks(self):
@@ -212,19 +70,20 @@ class DataViewer(App):
     # end func
 
     def getChannels(self, net, sta, loc):
-        result = self.nslc_dict[net][sta][loc]
+        result = list(self.nslc_dict[net][sta][loc])
         # add a null entry to users get a chance to select the channel
         # which channel they want to see data for
         result.append(NULL_CHANNEL_CODE)
-        return sorted(list(result))
+        return sorted(result)
     # end func
 
     def mapWidget(self):
-        def setMapImage(nc, minLon=None, minLat=None, maxLon=None, maxLat=None):
-            try:
-                fig = Figure(figsize=(MAP_FIG_WIDTH, MAP_FIG_HEIGHT))
+        def setMapImage(nc):
+            def get_plotly_html():
                 stations = np.array(self.getStations(nc))
 
+                lons = []
+                lats = []
                 if(len(stations)):
                     nstart, nend = self.fds.get_global_time_range(nc)
 
@@ -238,97 +97,29 @@ class DataViewer(App):
                         lons.append(lon)
                         lats.append(lat)
                     # end for
-                    lons = np.array(lons)
-                    lats = np.array(lats)
-
-                    boundsProvided = False
-                    if(minLon is None and  minLat is None and maxLon is None and  maxLat is None):
-                        minLon = np.min(lons)
-                        maxLon = np.max(lons)
-                        minLat = np.min(lats)
-                        maxLat = np.max(lats)
-                        minLon -= 0.5
-                        maxLon += 0.5
-                        minLat -= 0.5
-                        maxLat += 0.5
-                    else:
-                        boundsProvided = True
-                        polygon = [(minLon,minLat), (maxLon, minLat), (maxLon, maxLat), (minLon, maxLat)]
-                        polygon = geometry.Polygon(polygon)
-                        
-                        imask = np.zeros(stations.shape, dtype='?')
-                        for i in np.arange(len(stations)):
-                            p = geometry.Point(lons[i], lats[i])
-                            if (polygon.contains(p)): imask[i] = 1
-                        # end for
-                        
-                        stations = stations[imask]
-                        lons = lons[imask]
-                        lats = lats[imask]
-                    # end if
-                    #print('Bounds: [{}, {}] - [{}, {}]'.format(minLon, minLat, maxLon, maxLat))
-                    
-                    clon = np.mean(np.array([minLon, maxLon]))
-                    if(len(lons)>0):
-                        clon = cmean(lons, high=180, low=-180)
-                    # end if
-
-                    crs = ccrs.PlateCarree(central_longitude=clon)
-                    left = 0.05
-                    bottom = 0.05
-                    width = 0.9
-                    height = 0.8
-                    ax = fig.add_axes([left, bottom, width, height], projection=crs)
-                    # draw coastlines.
-                    ax.coastlines('50m')
-                    gl = ax.gridlines(crs=crs, draw_labels=True,
-                                      dms=False,
-                                      linewidth=1, color='gray',
-                                      alpha=0.5, linestyle='--')
-
-                    ax.xaxis.set_major_formatter(gl.xformatter)
-
-                    gl.xlabel_style = {'size':6, 'color': 'k'}
-                    gl.ylabel_style = {'size':6, 'color': 'k'}
-                    
-                    # plot stations
-                    for i, sc in enumerate(stations):
-                        lon, lat = lons[i], lats[i]
-
-                        px, py = lon - clon, lat
-                        pxl, pyl = lon - clon + 0.02, lat - 0.1
-                        ax.scatter(px, py, 20, transform=crs, marker='v', c='r', edgecolor='none', zorder=1)
-                        ax.annotate(sc, xy=(pxl, pyl), fontsize=7, zorder=2)
-                    # end for
-                    
-                    # set extents only when bounds have been provided or if there's a single
-                    # station to be plotted
-                    if(boundsProvided or len(lons)==1):
-                        ax.set_extent([minLon, maxLon, minLat, maxLat], crs=ccrs.PlateCarree())
-                    # end if
-                    
-                    title = 'Availability: {} - {}'.format(nstart.strftime('%Y-%m-%d'),
-                                                           nend.strftime('%Y-%m-%d'))
-                    fig.suptitle(title)
-                    fig.tight_layout()
                 # end if
+                lons = np.array(lons)
+                lats = np.array(lats)
 
-                mi = FigureImage(fig=fig)
+                data = {'Lon': lons, 'Lat': lats, 'Station': stations}
+                fig = px.scatter_geo(data, lat='Lat', lon='Lon',
+                                     text='Station',
+                                     projection='equirectangular',
+                                     color_discrete_sequence=['red'], width=MAP_FIG_WIDTH,
+                                     height=MAP_FIG_HEIGHT)
+                fig.update_traces(textposition="top center",
+                                  mode='markers+text',
+                                  marker={'size': 5, 'symbol': 'triangle-down'})
+                fig.update_layout(font=dict(family="Tahoma",
+                                            size=10,  # Set the font size here
+                                            color="Black"))
 
-                # update widgets
-                self.wrapperContainer.children[key].children['rightContainer'].children['plot'] = mi
-                self.wrapperContainer.children[key].children['leftContainer']. \
-                    children['lonBoundsBox'].children['min'].set_value(minLon)
-                self.wrapperContainer.children[key].children['leftContainer']. \
-                    children['lonBoundsBox'].children['max'].set_value(maxLon)
-                self.wrapperContainer.children[key].children['leftContainer']. \
-                    children['latBoundsBox'].children['min'].set_value(minLat)
-                self.wrapperContainer.children[key].children['leftContainer']. \
-                    children['latBoundsBox'].children['max'].set_value(maxLat)
+                output = plyo.plot(fig, output_type="div", include_plotlyjs=False)
+                return output
+            # end func
 
-            except Exception as e:
-                print_exception(e)
-            # end try
+            pg = PlotlyGraph(self, get_plotly_html())
+            self.wrapperContainer.children[key].children['rightContainer'].children['plot'] = pg
         # end func
 
         def mapNetChanged(emitter, value=None):
@@ -336,22 +127,9 @@ class DataViewer(App):
             
             # update plot
             self.wrapperContainer.children[key].children['rightContainer'].children['plot'] = gui.Label('Loading..')
+
             t = threading.Thread(target=setMapImage,
                                  args=(nc,))
-            t.start()
-        # end func
-
-        def boundsChanged(emitter, value):
-            nc = self.wrapperContainer.children[key].children['leftContainer'].children['nBox'].children['net'].get_value()
-            minLon = float(self.wrapperContainer.children[key].children['leftContainer'].children['lonBoundsBox'].children['min'].get_value())
-            maxLon = float(self.wrapperContainer.children[key].children['leftContainer'].children['lonBoundsBox'].children['max'].get_value())
-            minLat = float(self.wrapperContainer.children[key].children['leftContainer'].children['latBoundsBox'].children['min'].get_value())
-            maxLat = float(self.wrapperContainer.children[key].children['leftContainer'].children['latBoundsBox'].children['max'].get_value())
-
-            # update plot
-            self.wrapperContainer.children[key].children['rightContainer'].children['plot'] = gui.Label('Loading..')
-            t = threading.Thread(target=setMapImage,
-                                 args=(nc, minLon, minLat, maxLon, maxLat,))
             t.start()
         # end func
 
@@ -375,6 +153,8 @@ class DataViewer(App):
                 except Exception as e:
                     print('Failed to write coordinates to {}, with error {}'.format(pv, e))
                 # end try
+
+                mapNetChanged(emitter, value)
             # end func
             
             nc = self.wrapperContainer.children[key].children['leftContainer'].children['nBox'].children['net'].get_value()
@@ -398,9 +178,6 @@ class DataViewer(App):
         #############################################################
         nBox = gui.HBox(width=MAP_WIDGET_WIDTH*0.1, height=MAP_WIDGET_HEIGHT*0.1, style={'margin': '0px auto'})
         nLabelBox = gui.HBox(width=MAP_WIDGET_WIDTH*0.1, height=MAP_WIDGET_HEIGHT*0.1, style={'margin': '0px auto'})
-        boundsLabelBox = gui.HBox(width=MAP_WIDGET_WIDTH*0.2, height=MAP_WIDGET_HEIGHT*0.1, style={'margin': '0px auto'})
-        lonBoundsBox = gui.HBox(width=MAP_WIDGET_WIDTH*0.2, height=MAP_WIDGET_HEIGHT*0.1, style={'margin': '0px auto'})
-        latBoundsBox = gui.HBox(width=MAP_WIDGET_WIDTH*0.2, height=MAP_WIDGET_HEIGHT*0.1, style={'margin': '0px auto'})
 
         # network selection
         net = gui.DropDown.new_from_list(self.getNetworks())
@@ -408,35 +185,10 @@ class DataViewer(App):
         nBox.append({'net':net})
         nLabelBox.append(gui.Label('Network'))
 
-        # map-controls
-        minLon = gui.Input(width=MAP_WIDGET_WIDTH*0.05)
-        maxLon = gui.Input(width=MAP_WIDGET_WIDTH*0.05)
-        minLat = gui.Input(width=MAP_WIDGET_WIDTH*0.05)
-        maxLat = gui.Input(width=MAP_WIDGET_WIDTH*0.05)
-
-        minLon.onchange.do(boundsChanged)
-        maxLon.onchange.do(boundsChanged)
-        minLat.onchange.do(boundsChanged)
-        maxLat.onchange.do(boundsChanged)
-
-        resetBounds = gui.Button('Reset Bounds', height=30, margin='1px auto')
-        resetBounds.onclick.do(mapNetChanged)
         exportCoordinates = gui.Button('Export Coordinates', height=30, margin='1px auto')
         exportCoordinates.onclick.do(writeCoordinates)
 
-        lonBoundsBox.append({'lonBoundsLabel': gui.Label('Lon: '),
-                             'min':minLon, 'max': maxLon})
-        latBoundsBox.append({'latBoundsLabel': gui.Label('Lat: '),
-                             'min': minLat,
-                             'max': maxLat})
-        boundsLabelBox.append({'d1':gui.Label(''), 'minLabel': gui.Label('Min'),
-                               'd2':gui.Label(''),'maxLabel': gui.Label('Max')})
-
         leftContainer.append({'nLabelBox': nLabelBox, 'nBox':nBox,
-                              'boundsLabelBox':boundsLabelBox,
-                              'lonBoundsBox': lonBoundsBox,
-                              'latBoundsBox': latBoundsBox,
-                              'resetBounds': resetBounds,
                               'exportCoordinates': exportCoordinates})
 
         #############################################################
@@ -447,6 +199,7 @@ class DataViewer(App):
         t = threading.Thread(target=setMapImage,
                              args=(net.get_value(),))
         t.start()
+
         container.append({'leftContainer': leftContainer, 'rightContainer': rightContainer})
 
         return container, key
@@ -712,6 +465,9 @@ class DataViewer(App):
     # end func
 
     def main(self, fds:FederatedASDFDataSet):
+        # import plotly library:
+        self.page.children['head'].add_child("plotly_import",
+                                             '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>\n')
         def addWidget(emitter):
             row, key = self.rowWidget()
             self.rowContainer.append(row, key)
@@ -776,6 +532,39 @@ class DataViewer(App):
         self.wrapperContainer = container
 
         return container
+    # end func
+    def do_gui_update(self):
+        """ This method gets called also by Timer, a new thread, and so needs to lock the update
+        """
+        with self.update_lock:
+            changed_widget_dict = {}
+            self.root.repr(changed_widget_dict)
+            for widget in changed_widget_dict.keys():
+                html = changed_widget_dict[widget]
+                __id = str(widget.identifier)
+                self._send_spontaneous_websocket_message(
+                    remi.server._MSG_UPDATE + __id + ',' + remi.server.to_websocket(html))
+            # end for
+        # end with
+
+        self._need_update_flag = False
+
+        for wu in self.widgets_that_requires_javascript_after_update:
+            for cw_html in changed_widget_dict.values():
+                if wu.attributes['id'] in cw_html:
+                    self.execute_javascript(wu.javascript)
+                # end if
+            # end for
+        # end for
+
+    # end func
+
+    def onpageshow(self, *args):
+        """ WebPage Event that occurs on webpage gets shown """
+        super(DataViewer, self).onpageshow(*args)
+        for wu in self.widgets_that_requires_javascript_after_update:
+            wu.refresh()
+        # end for
     # end func
 # end class
 
