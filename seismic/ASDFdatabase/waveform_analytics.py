@@ -424,8 +424,7 @@ class StationAnalytics():
         # end if
 
         # compute total coverage fraction
-        total_coverage_fraction = total_coverage * 86400 / \
-                                  (self.et_list[-1] - self.st_list[0])
+        total_coverage_fraction = total_coverage / float(spec_count)
 
         # compute health for summary plot
         health = (((1 - mean_deviation) + total_coverage_fraction) / 2.) * 100
@@ -516,7 +515,8 @@ class StationAnalytics():
             # generate grids of daily plots
             nrows = 11
             ncols = 4
-            nplots = (self.et_list[-1] - self.st_list[0]) / 86400
+            nplots = np.sum([len(img) > 0 for _, img in png_dict.items()])
+            sorted_keys = sorted(list(png_dict.keys()))
             plots_per_page = nrows * ncols
 
             done = False
@@ -543,9 +543,8 @@ class StationAnalytics():
 
                         ax = axes[irow, icol]
 
-                        key = self.st_list[iplot].timestamp
-                        img = png_dict[key]
-                        if (img is not None):
+                        img = png_dict[sorted_keys[iplot]]
+                        if (len(img) > 0):
                             add_image(ax, img)
                         # end if
                     # end for
