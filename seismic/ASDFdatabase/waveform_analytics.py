@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from collections import defaultdict
 from obspy.core.inventory.response import Response
+import matplotlib
 from matplotlib import mlab
 from obspy.signal.invsim import cosine_taper
 from obspy.signal.spectral_estimation import get_nlnm, get_nhnm
@@ -33,10 +34,13 @@ from seismic.ASDFdatabase.utils import MAX_DATE, MIN_DATE
 from seismic.inventory.response import ResponseFactory
 from tqdm import tqdm
 from matplotlib.colors import LinearSegmentedColormap
-from multiprocessing import Manager
 from matplotlib.backends.backend_pdf import PdfPages
-from joblib import Parallel, delayed
 import psutil
+
+from pathos.multiprocessing import ProcessingPool as Pool
+from multiprocess import Manager, freeze_support
+
+matplotlib.use('TKAgg')
 
 is_windows = sys.platform.startswith('win')
 
@@ -165,11 +169,9 @@ class StationAnalytics():
 
         # launch parallel computations
         if (1):
-            Parallel(n_jobs=self.nproc) \
-                (delayed(self._generate_psds)(cst_list, cet_list) \
-                 for cst_list, cet_list in zip(proc_st_list, proc_et_list))
+            p = Pool(ncpus=self.nproc)
+            p.map(self._generate_psds, proc_st_list, proc_et_list)
         # end if
-
     # end func
 
     def _setup_period_bins(self):
@@ -225,7 +227,6 @@ class StationAnalytics():
             """
             data *= cosine_taper(len(data), 0.2)
             return data
-
         # end func
 
         for start_time, end_time in zip(start_time_list, end_time_list):
@@ -801,5 +802,8 @@ groups.add_command(process_mseed)
 groups.add_command(process_asdf)
 
 if __name__ == "__main__":
+    # add support for process-based multiprocessing for a Windows .exe
+    if(is_windows): freeze_support()
+    
     groups()
 # end func
