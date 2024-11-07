@@ -14,6 +14,14 @@ Revision History:
 """
 
 import os, sys
+
+is_windows = sys.platform.startswith('win')
+if(is_windows): # suppress warnings on windows
+    import warnings
+    warnings.filterwarnings('ignore', \
+        message='Valid PROJ data directory not found')
+# end if
+
 import numpy as np
 from obspy import UTCDateTime
 import click
@@ -41,8 +49,6 @@ from pathos.multiprocessing import ProcessingPool as Pool
 from multiprocess import Manager, freeze_support
 
 matplotlib.use('TKAgg')
-
-is_windows = sys.platform.startswith('win')
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
@@ -365,7 +371,7 @@ class StationAnalytics():
 
             self.progress_tracker.increment()
             cv, mv = self.progress_tracker.now()
-            print('Progress: [{}/{}] {:2.1f}%'.format(cv, mv, cv / mv * 100), end='\r')
+            print('Processing data: [{}/{} days] {:2.1f}%'.format(cv, mv, cv / mv * 100), end='\r')
             sys.stdout.flush()
         # end for
 
