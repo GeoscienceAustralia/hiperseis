@@ -49,6 +49,9 @@ GRV_FN = os.path.join(os.path.dirname(__file__), 'data/grv.h5')
 def checklen(st, hrs):
     # checks to see if there is enough downloaded data to run program
     L=len(st)
+
+    if(L != 3): return True
+
     for i in np.arange((L)):
         if (UTCDateTime(st[i].stats.endtime)-UTCDateTime(st[i].stats.starttime))+100 < hrs:
             return True

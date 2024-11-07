@@ -414,7 +414,7 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
     # initialize trace-data organization scheme
     # P-waveforms are stored under root group 'waveforms' for backward compatibility
-    tf = '.datetime:%Y-%m-%dT%H:%M:%S'
+    tf = '.datetime:%Y-%m-%dT%H:%M:%S.%f'
     h5_index = 'waveforms/{wave_type}/{network}.{station}.{location}/{event_time%s}/' % tf + \
                          '{channel}_{starttime%s}_{endtime%s}' % (tf, tf)
 
