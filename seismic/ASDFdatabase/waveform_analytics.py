@@ -17,6 +17,7 @@ import os, sys
 
 is_windows = sys.platform.startswith('win')
 is_osx = sys.platform.startswith('darwin')
+is_linux = sys.platform.startswith('linux')
 
 if(is_windows): # suppress warnings on windows
     import warnings
@@ -51,7 +52,8 @@ from pathos.multiprocessing import ProcessingPool as Pool
 import multiprocess
 from multiprocess import Manager, freeze_support
 
-matplotlib.use('TKAgg')
+if(is_windows | is_osx): matplotlib.use('TKAgg')
+else: matplotlib.use('Agg')
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
