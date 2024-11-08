@@ -70,6 +70,7 @@ pip3 install rasterio==1.2.10
 pip3 install notebook==6.4.10
 pip3 install ipython==7.10.0
 pip3 install jedi==0.17
+pip3 install pathos==0.2.8
 
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"

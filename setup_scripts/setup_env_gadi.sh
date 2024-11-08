@@ -124,6 +124,7 @@ pip3.6 install jedi==0.17
 pip3.6 install remi==2022.7.27
 pip3.6 install vtk==9.3.0
 pip3.6 install plotly==5.18.0
+pip3.6 install pathos==0.2.8
 EOF
 )
     echo "$STD_PACKAGES"
