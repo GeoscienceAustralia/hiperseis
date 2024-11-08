@@ -16,6 +16,8 @@ Revision History:
 import os, sys
 
 is_windows = sys.platform.startswith('win')
+is_osx = sys.platform.startswith('darwin')
+
 if(is_windows): # suppress warnings on windows
     import warnings
     warnings.filterwarnings('ignore', \
@@ -46,6 +48,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import psutil
 
 from pathos.multiprocessing import ProcessingPool as Pool
+import multiprocess
 from multiprocess import Manager, freeze_support
 
 matplotlib.use('TKAgg')
@@ -810,6 +813,7 @@ groups.add_command(process_asdf)
 if __name__ == "__main__":
     # add support for process-based multiprocessing for a Windows .exe
     if(is_windows): freeze_support()
-    
+    if(is_osx): multiprocess.set_start_method('spawn')
+
     groups()
 # end func
