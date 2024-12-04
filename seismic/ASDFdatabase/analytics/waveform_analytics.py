@@ -46,14 +46,25 @@ from seismic.inventory.response import ResponseFactory
 from tqdm import tqdm
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.dates as md
+from matplotlib import ticker
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import datetime
 import psutil
-
 from pathos.multiprocessing import ProcessingPool as Pool
 import multiprocess
 from multiprocess import Manager, freeze_support
+from seismic.ASDFdatabase.analytics.sun import day_night_coverage, DAY_NIGHT_SECONDS
 
 if(is_windows | is_osx): matplotlib.use('TKAgg')
 else: matplotlib.use('Agg')
+
+# Sunrise/sunset times at Alice Springs are used for daytime and nighttime coverage analyses of
+# waveform data. Coverage statistics computed as such will be off by +/- 1 hr at most for stations
+# within continental Australia. This is an acceptable tradeoff for enhanced usability where users
+# are not required to manually input station coordinates.
+ALICE_SPRINGS_LON = 133.88
+ALICE_SPRINGS_LAT = -23.70
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
@@ -88,7 +99,7 @@ class StationAnalytics():
     def __init__(self,
                  get_time_range_func: Callable[[str, str, str, str], tuple],
                  get_waveforms_func: Callable[[str, str, str, str, UTCDateTime, UTCDateTime],
-                                     Stream],
+                 Stream],
                  prog_tracker: ProgressTracker,
                  network: str,
                  station: str,
@@ -126,6 +137,9 @@ class StationAnalytics():
         self.sparse_period_indices = None
         self.nm_periods, self.lnm = get_nlnm()
         _, self.hnm = get_nhnm()
+        self.AMP_DB_MIN = -200
+        self.AMP_DB_MAX = -50
+        self.PER_MIN = 1e-2
         # Red, Orange, Yellow, Green
         self.cmap = LinearSegmentedColormap.from_list('royg',
                                                       [(1, 0, 0),
@@ -158,7 +172,6 @@ class StationAnalytics():
         self.resp_amplitudes = np.absolute(resp_amplitudes * np.conjugate(resp_amplitudes))
 
         # collate timespans to be allocated to each parallel process
-        day_seconds = 86400
         st, et = self.get_time_range_func(self.network,
                                           self.station,
                                           self.location,
@@ -167,10 +180,10 @@ class StationAnalytics():
         if (self.end_time and self.end_time < et): et = self.end_time
 
         day_st = UTCDateTime(year=st.year, month=st.month, day=st.day)
-        day_et = UTCDateTime(year=et.year, month=et.month, day=et.day) + day_seconds
+        day_et = UTCDateTime(year=et.year, month=et.month, day=et.day) + DAY_NIGHT_SECONDS
 
-        self.st_list = [cst for cst in np.arange(day_st, day_et, day_seconds)]
-        self.et_list = [cst + day_seconds for cst in np.arange(day_st, day_et, day_seconds)]
+        self.st_list = [cst for cst in np.arange(day_st, day_et, DAY_NIGHT_SECONDS)]
+        self.et_list = [cst + DAY_NIGHT_SECONDS for cst in np.arange(day_st, day_et, DAY_NIGHT_SECONDS)]
 
         proc_st_list = split_list(self.st_list, self.nproc)
         proc_et_list = split_list(self.et_list, self.nproc)
@@ -179,10 +192,13 @@ class StationAnalytics():
         self.progress_tracker.initialize(len(self.st_list))
 
         # launch parallel computations
-        if (1):
+        if (0):
             p = Pool(ncpus=self.nproc)
             p.map(self._generate_psds, proc_st_list, proc_et_list)
+        else:
+            self._generate_psds(proc_st_list[0], proc_et_list[0])
         # end if
+
     # end func
 
     def _setup_period_bins(self):
@@ -225,7 +241,6 @@ class StationAnalytics():
         self.overlap_denominator = self.sparse_periods[
             np.where((self.sparse_periods >= self.nm_periods[0]) & \
                      (self.sparse_periods <= self.nm_periods[-1]))].shape[0]
-
     # end func
 
     def _generate_psds(self, start_time_list, end_time_list):
@@ -255,7 +270,7 @@ class StationAnalytics():
                 continue
             else:
                 sr = stream[0].stats.sampling_rate
-                if(sr != self.sampling_rate):
+                if (sr != self.sampling_rate):
                     print('Warning: discrepant sampling rate found. Expected {}, but found {} '
                           'in trace {} ({} - {}). Moving along..'.format(self.sampling_rate, sr,
                                                                          stream[0].get_id(),
@@ -267,6 +282,7 @@ class StationAnalytics():
             # end if
 
             samples_processed = 0
+            day_coverage_fraction = night_coverage_fraction = 0
             spec = None
             if (stream_len > 0):
                 for i in np.arange(stream_len):
@@ -276,12 +292,19 @@ class StationAnalytics():
                                         detrend=mlab.detrend_linear, window=fft_taper,
                                         noverlap=0, sides='onesided',
                                         scale_by_freq=True)
+
                     if (spec is None):
                         spec = _spec
                     else:
                         spec += _spec
                     # end if
                 # end for
+
+                day_stream = stream.slice(endtime=end_time - 1e-5, nearest_sample=False)
+                day_coverage_fraction, night_coverage_fraction = day_night_coverage(day_stream,
+                                                                                    ALICE_SPRINGS_LON,
+                                                                                    ALICE_SPRINGS_LAT)
+                # print(start_time, day_coverage_fraction, night_coverage_fraction)
             # end for
             spec /= stream_len
 
@@ -318,7 +341,7 @@ class StationAnalytics():
                                                         self.channel,
                                                         start_time,
                                                         end_time)
-            if(is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
+            if (is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
             output_fn_png = os.path.join(self.output_folder, output_fn_stem + '.png')
             output_fn_npz = os.path.join(self.output_folder, output_fn_stem + '.npz')
 
@@ -327,7 +350,9 @@ class StationAnalytics():
                      coverage_fraction=coverage_fraction,
                      sparse_periods=self.sparse_periods,
                      sparse_spec=sparse_spec,
-                     deviation_fraction=deviation_fraction)
+                     deviation_fraction=deviation_fraction,
+                     day_coverage_fraction=day_coverage_fraction,
+                     night_coverage_fraction=night_coverage_fraction)
 
             face_color = ((1 - deviation_fraction) + coverage_fraction) / 2.
             # plot results
@@ -346,8 +371,8 @@ class StationAnalytics():
                     #            sparse_spec[sparse_spec_deviation], 'b',
                     #            linestyle=None, marker='+')
 
-                    ax.set_ylim(-200, -50)
-                    ax.set_xlim(1e-2, np.max(self.periods))
+                    ax.set_ylim(self.AMP_DB_MIN, self.AMP_DB_MAX)
+                    ax.set_xlim(self.PER_MIN, np.max(self.periods))
                     ax.grid(True, which="both", ls="-", lw=0.2)
                     ax.tick_params(labelsize=6)
                     # ax.set_xlabel("Period [s]", fontsize=5)
@@ -390,7 +415,14 @@ class StationAnalytics():
         total_coverage = None
         spec_count = 0
 
+        nper = namp = self.sparse_periods.shape[0]
+        amp_bins = np.linspace(self.AMP_DB_MIN, self.AMP_DB_MAX, namp)
+        ppsd = np.zeros((nper, namp))
+        days = []
+        day_coverage_fractions = []
+        night_coverage_fractions = []
         # load png files and results
+        per_ids = np.arange(nper)
         for start_time, end_time in tqdm(zip(self.st_list, self.et_list),
                                          desc='Loading results: '):
             output_fn_stem = '{}.{}.{}.{}.{}.{}'.format(self.network,
@@ -399,7 +431,7 @@ class StationAnalytics():
                                                         self.channel,
                                                         start_time,
                                                         end_time)
-            if(is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
+            if (is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
             output_fn_png = os.path.join(self.output_folder, output_fn_stem + '.png')
             output_fn_npz = os.path.join(self.output_folder, output_fn_stem + '.npz')
 
@@ -411,6 +443,10 @@ class StationAnalytics():
                 results = np.load(output_fn_npz)
                 spec_count += 1
 
+                amp_ids = np.digitize(results['sparse_spec'], amp_bins)
+                amp_ids[amp_ids == namp] = namp - 1
+                ppsd[per_ids, amp_ids] += 1
+
                 if (mean_spec is None):
                     mean_spec = results['sparse_spec']
                     total_coverage = results['coverage_fraction']
@@ -420,11 +456,18 @@ class StationAnalytics():
                     total_coverage += results['coverage_fraction']
                     mean_deviation += results['deviation_fraction']
                 # end if
+
+                days.append(results['bounds'][0])
+                day_coverage_fractions.append(results['day_coverage_fraction'])
+                night_coverage_fractions.append(results['night_coverage_fraction'])
             # end if
         # end for
+        days = np.array(days)
+        day_coverage_fractions = np.array(day_coverage_fractions)
+        night_coverage_fractions = np.array(night_coverage_fractions)
 
         # check if any data was processed at all
-        if(total_coverage is None):
+        if (total_coverage is None):
             print('Warning: No results found..')
             return
         # end if
@@ -449,123 +492,169 @@ class StationAnalytics():
         with PdfPages(output_fn) as pdf:
             if (1):
                 # title and summary
-                fig, axes = plt.subplots(2, 1)
+                fig, axes = plt.subplots(3, 1)
                 fig.set_size_inches(8, 11)
 
-                ax1, ax2 = axes
-                ax1.set_axis_off()
+                ax1, ax2, ax3 = axes
+
+                # remove axes
+                ax1.get_xaxis().set_visible(False)
+                ax1.get_yaxis().set_visible(False)
+                # Set report heading and overall assessment
                 title = 'Analytics Report for {}.{}.{}.{}'.format(self.network,
                                                                   self.station,
                                                                   self.location,
                                                                   self.channel)
-                ax1.text(0.5, 0.7, title, ha='center', va='center', fontsize=15)
+                ax1.text(0.5, 0.7, title, ha='center', va='center', fontsize=18)
+                ax1.text(0.5, 0.6, 'Report generated on: {} (UTC)'. \
+                         format(UTCDateTime.now().strftime("%Y-%m-%dT%H:%M:%S")),
+                         ha='center', va='center', fontsize=8)
+
+                ax1.set_facecolor(self.cmap(self.cmap_norm(health)))
+                ax1.text(0.015, 0.45,
+                         'Data Coverage: {:.2f} %'.format(
+                             total_coverage_fraction * 100),
+                         fontsize=12, ha='left', c='k')
+                ax1.text(0.015, 0.35,
+                         'Spectral Conformity: {:.2f} %'.format(
+                             ((1 - mean_deviation) * 100)),
+                         fontsize=12, ha='left', c='k')
+                ax1.text(0.015, 0.25,
+                         'Recording Interval: {} - {} ({:.2f} DAYS)'.format(self.st_list[0].strftime("%Y-%m-%d"),
+                                                                            self.et_list[-1].strftime("%Y-%m-%d"),
+                                                                            (self.et_list[-1] - self.st_list[
+                                                                                0]) / DAY_NIGHT_SECONDS),
+                         fontsize=12, ha='left', c='k')
+                ax1.text(0.015, 0.15,
+                         """Data Processed: {:.2f} DAYS""".format(total_coverage),
+                         fontsize=12, ha='left', c='k')
+
+                ax1.text(0.015, 0.05,
+                         """Health = {:.2f} %""".format(health),
+                         fontsize=12, ha='left', c='k', weight='bold')
+
+                ax1.text(0.3, 0.05,
+                         '(data_cov. + spec_conformity)/2',
+                         fontsize=12, ha='left', c='k')
+
+                # health colorbar
+                divider = make_axes_locatable(ax1)
+                cbax = divider.append_axes('right', size='2.5%', pad=0.1)
+                sm = plt.cm.ScalarMappable(cmap=self.cmap, norm=self.cmap_norm)
+                sm.set_array([])
+                cbar = fig.colorbar(sm, cax=cbax, orientation='vertical')
+                cbar.ax.set_ylabel('Health [%]')
 
                 # generate summary plot
                 try:
-                    ax2.set_facecolor(self.cmap(self.cmap_norm(health)))
-                    ax2.semilogx(self.sparse_periods, mean_spec, 'b', lw=2, label='PSD')
+                    # plot PPSD
+                    ax2.semilogx(self.sparse_periods, mean_spec, 'b', lw=2, label='Mean PSD')
+
+                    sm = ax2.pcolormesh(self.sparse_periods, amp_bins, ppsd.T, rasterized=True)
+
                     ax2.semilogx(self.nm_periods, self.lnm, 'k', lw=2,
                                  label='Noise Model')
                     ax2.semilogx(self.nm_periods, self.hnm, 'k', lw=2)
 
                     ax2.set_ylim(-200, -50)
                     ax2.set_xlim(1e-2, np.max(self.periods))
-                    ax2.grid(True, which="both", ls="-")
+                    ax2.grid(True, which="both", ls="-", lw=0.2, c='grey')
                     ax2.tick_params(labelsize=10)
                     ax2.set_xlabel("Period [s]", fontsize=10)
                     ax2.set_ylabel("Amp. [m2/s4][dB]", fontsize=10)
                     ax2.legend(loc='upper right')
+                    ax2.set_title('PPSD')
 
-                    summary_text = \
-                        """Summary PSD\nTime range: {} - {} ({:.2f} DAYS)\nData Processed: {:.2f} HOURS' or {:.2f} DAYS' worth in total""". \
-                            format(self.st_list[0].strftime("%Y-%m-%d"),
-                                   self.et_list[-1].strftime("%Y-%m-%d"),
-                                   (self.et_list[-1] - self.st_list[0]) / 86400,
-                                   total_coverage * 24, total_coverage)
+                    divider = make_axes_locatable(ax2)
+                    cbax = divider.append_axes('right', size='2.5%', pad=0.1)
 
-                    ax2.text(0.015, -180,
-                             'Coverage: {:.2f} %'.format(
-                                 total_coverage_fraction * 100),
-                             fontsize=15, ha='left')
-                    ax2.text(0.015, -192,
-                             'Spectral conformity: {:.2f} %'.format(
-                                 ((1 - mean_deviation) * 100)),
-                             fontsize=15, ha='left')
+                    cbar = fig.colorbar(sm, cax=cbax, orientation='vertical')
+                    cbar.ax.set_ylabel('[%]')
 
-                    ax2.set_title(summary_text)
+                    # plot daily data coverage over day/night
+                    days = [datetime.datetime.fromtimestamp(ts) for ts in days]
 
-                    cbax = fig.add_axes([0.125, 0.05, 0.775, 0.015])
-                    sm = plt.cm.ScalarMappable(cmap=self.cmap, norm=self.cmap_norm)
-                    sm.set_array([])
-                    cbar = fig.colorbar(sm, cax=cbax, orientation='horizontal')
-                    cbar.ax.set_xlabel('Health: (coverage + spectral_conformity)/2')
+                    ax3.stem(days, 100 * day_coverage_fractions, 'salmon', linefmt='salmon', markerfmt='None',
+                             basefmt='none', label='Daytime')
+                    ax3.stem(days, -100 * night_coverage_fractions, 'deepskyblue', linefmt='deepskyblue',
+                             markerfmt='None', basefmt='none', label='Nighttime')
+
+                    leg = ax3.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=2)
+                    for ht, color in zip(leg.get_texts(), ['salmon', 'deepskyblue']): ht.set_color(color)
+                    ax3.set_ylabel("Coverage [%]", fontsize=10)
+
+                    xfmt = md.DateFormatter('%Y-%m-%d')
+                    ax3.xaxis.set_major_formatter(xfmt)
+                    ax3.tick_params(axis='x', labelrotation=45)
+                    ax3.tick_params(axis="x", direction="in")
+                    ax3.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: str(abs(x))))
+                    ax3.set_title('Data Coverage')
+
                 except Exception as e:
                     print(e)
                 # end try
 
-                ax1.set_axis_off()
-                ax1.text(0.05, 0.05, 'Report generated on: {}'. \
-                         format(UTCDateTime.now().strftime("%Y-%m-%dT%H:%M:%S")),
-                         fontsize=7, ha='left')
+                fig.tight_layout()
                 pdf.savefig(dpi=300, bbox_inches="tight")
                 plt.close()
-                # end if
-
-            def add_image(ax, img):
-                im = OffsetImage(img, zoom=0.4)
-                im.image.axes = ax
-                ab = AnnotationBbox(im, (0, 0),
-                                    xybox=(30, 0.0),
-                                    frameon=False,
-                                    xycoords='data',
-                                    boxcoords="offset points",
-                                    pad=0)
-                ax.add_artist(ab)
-
             # end if
 
-            # generate grids of daily plots
-            nrows = 11
-            ncols = 4
-            nplots = np.sum([len(img) > 0 for _, img in png_dict.items()])
-            sorted_keys = sorted(list(png_dict.keys()))
-            plots_per_page = nrows * ncols
+            if (1):
+                def add_image(ax, img):
+                    im = OffsetImage(img, zoom=0.4)
+                    im.image.axes = ax
+                    ab = AnnotationBbox(im, (0, 0),
+                                        xybox=(30, 0.0),
+                                        frameon=False,
+                                        xycoords='data',
+                                        boxcoords="offset points",
+                                        pad=0)
+                    ax.add_artist(ab)
+                # end func
 
-            done = False
-            from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+                # generate grids of daily plots
+                nrows = 11
+                ncols = 4
+                nplots = np.sum([len(img) > 0 for _, img in png_dict.items()])
+                sorted_keys = sorted(list(png_dict.keys()))
+                plots_per_page = nrows * ncols
 
-            for ipage in np.arange(0, nplots, plots_per_page):
-                fig, axes = plt.subplots(nrows, ncols)
-                fig.set_size_inches(8, 11)
+                done = False
+                from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
-                for irow in np.arange(nrows):
-                    for icol in np.arange(ncols):
-                        axes[irow, icol].set_axis_off()
+                for ipage in np.arange(0, nplots, plots_per_page):
+                    fig, axes = plt.subplots(nrows, ncols)
+                    fig.set_size_inches(8, 11)
+
+                    for irow in np.arange(nrows):
+                        for icol in np.arange(ncols):
+                            axes[irow, icol].set_axis_off()
+                        # end for
                     # end for
-                # end for
 
-                for irow in np.arange(nrows):
-                    for icol in np.arange(ncols):
-                        iplot = int(ipage + irow * ncols + icol)
+                    for irow in np.arange(nrows):
+                        for icol in np.arange(ncols):
+                            iplot = int(ipage + irow * ncols + icol)
 
-                        if ((iplot) >= nplots):
-                            done = True
-                            break;
-                        # end if
+                            if ((iplot) >= nplots):
+                                done = True
+                                break;
+                            # end if
 
-                        ax = axes[irow, icol]
+                            ax = axes[irow, icol]
 
-                        img = png_dict[sorted_keys[iplot]]
-                        if (len(img) > 0):
-                            add_image(ax, img)
-                        # end if
+                            img = png_dict[sorted_keys[iplot]]
+                            if (len(img) > 0):
+                                add_image(ax, img)
+                            # end if
+                        # end for
+                        if (done): break
                     # end for
+                    pdf.savefig(dpi=300, bbox_inches='tight')
+                    plt.close()
                     if (done): break
                 # end for
-                pdf.savefig(dpi=300, bbox_inches='tight')
-                plt.close()
-                if (done): break
-                # end for
+            # end if
         # end with
     # end func
 # end class
