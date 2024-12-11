@@ -178,6 +178,6 @@ def day_night_coverage(day_st: Stream, lon, lat):
             # end if
     # end for
 
-    return day_coverage_seconds / day_length_seconds, \
-           night_coverage_seconds / night_length_seconds
+    return day_coverage_seconds / day_length_seconds if day_coverage_seconds > 0 else 0, \
+           night_coverage_seconds / night_length_seconds if night_length_seconds > 0 else 0
 # end func

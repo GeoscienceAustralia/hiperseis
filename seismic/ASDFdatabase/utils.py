@@ -186,6 +186,8 @@ class MseedIndex:
         self.tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
         self.stream_cache = MseedIndex.StreamCache()
         self.mseed_files = np.array(sorted(glob(os.path.join(self.mseed_folder, pattern))))
+        self.sr_coverage_dict = defaultdict(float) # dict keyed by unique sampling rates found, with coverage as values
+        self.ch_coverage_dict = defaultdict(float) # dict keyed by unique channels found, with coverage as values
 
         fc = len(self.mseed_files)
         if(fc > 0):
@@ -209,14 +211,19 @@ class MseedIndex:
             # end try
 
             for tr in st:
-                nc, sc, lc, cc, st, et = \
+                nc, sc, lc, cc, st, et, sr = \
                     tr.stats.network, tr.stats.station, tr.stats.location, \
                         tr.stats.channel, tr.stats.starttime.timestamp, \
-                        tr.stats.endtime.timestamp
+                        tr.stats.endtime.timestamp, tr.stats.sampling_rate
 
                 # skip bogus traces
                 if(nc == sc == lc == cc == ''): continue
                 self.meta_list.append([i, nc, sc, lc, cc, st, et])
+
+                # store coverage for unique channels and sampling rates
+                cov = float(et - st) # coverage in seconds
+                self.sr_coverage_dict[sr] += cov
+                self.ch_coverage_dict[cc] += cov
             # end for
             # if (i > 0): break
         # end for
@@ -231,6 +238,14 @@ class MseedIndex:
             # end if
             self.tree[nc][sc][lc][cc].insert(idx, (st, 1, et, 1))
             # end for
+    # end func
+
+    def get_sampling_rate_coverage(self) -> defaultdict:
+        return self.sr_coverage_dict
+    # end func
+
+    def get_channel_coverage(self) -> defaultdict:
+        return self.ch_coverage_dict
     # end func
 
     def __getstate__(self):

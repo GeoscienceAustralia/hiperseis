@@ -134,7 +134,6 @@ class StationAnalytics():
         self.freqs[0] *= -1
         self.periods = 1. / self.freqs
         self.sparse_periods = None
-        self.sparse_period_indices = None
         self.nm_periods, self.lnm = get_nlnm()
         _, self.hnm = get_nhnm()
         self.AMP_DB_MIN = -200
@@ -147,7 +146,6 @@ class StationAnalytics():
                                                        (1, 1, 0),
                                                        (0, 1, 0)], N=5)
         self.cmap_norm = matplotlib.colors.Normalize(vmin=0, vmax=100)
-        self.overlap_denominator = None
 
         # flip noise-model values and restrict them to data range
         self.nm_periods = self.nm_periods[::-1]
@@ -192,7 +190,7 @@ class StationAnalytics():
         self.progress_tracker.initialize(len(self.st_list))
 
         # launch parallel computations
-        if (0):
+        if (1):
             p = Pool(ncpus=self.nproc)
             p.map(self._generate_psds, proc_st_list, proc_et_list)
         else:
@@ -233,14 +231,14 @@ class StationAnalytics():
 
         # initialize nearest-neighbour indices for mapping:
         # i) raw PSD periods to sparse-periods
-        # ii) sparse-periods to noise-model periods
+        # ii) noise-model periods to sparse-periods
         self.dense_to_sparse_indices = np.fabs(self.sparse_periods[:, None] -
                                                self.periods[None, :]).argmin(axis=-1)
-        self.sparse_to_nm_indices = np.fabs(self.nm_periods[None, :] -
-                                            self.sparse_periods[:, None]).argmin(axis=-1)
-        self.overlap_denominator = self.sparse_periods[
-            np.where((self.sparse_periods >= self.nm_periods[0]) & \
-                     (self.sparse_periods <= self.nm_periods[-1]))].shape[0]
+        self.nm_to_sparse_indices = np.fabs(self.sparse_periods[:, None] -
+                                            self.nm_periods[None, :]).argmin(axis=-1)
+
+        self.sparse_nm_overlap_indices = np.where((self.sparse_periods >= self.nm_periods[0]) &
+                                                  (self.sparse_periods <= self.nm_periods[-1]))[0]
     # end func
 
     def _generate_psds(self, start_time_list, end_time_list):
@@ -327,14 +325,20 @@ class StationAnalytics():
             # compare spec to low- and high-noise-model
             sparse_spec = spec[self.dense_to_sparse_indices]
 
-            sparse_spec_deviation = np.where((self.lnm[self.sparse_to_nm_indices] > sparse_spec) | \
-                                             (self.hnm[self.sparse_to_nm_indices] < sparse_spec))[0]
+            sparse_spec_deviation_indices = np.where(
+                (self.lnm[self.nm_to_sparse_indices] > sparse_spec) | \
+                (self.hnm[self.nm_to_sparse_indices] < sparse_spec))[0]
+
+            # Only include overlapping periods between nm and sparse_spec while calculating
+            # spectral deviation
+            overlap_deviation_indices = np.intersect1d(sparse_spec_deviation_indices,
+                                                       self.sparse_nm_overlap_indices)
+            deviation_fraction = overlap_deviation_indices.shape[0] /\
+                                 self.sparse_nm_overlap_indices.shape[0]
 
             ############################################
             # Plot results and write output npz
             ############################################
-            deviation_fraction = len(sparse_spec_deviation) / self.overlap_denominator
-
             output_fn_stem = '{}.{}.{}.{}.{}.{}'.format(self.network,
                                                         self.station,
                                                         self.location,
@@ -367,18 +371,10 @@ class StationAnalytics():
                     ax.semilogx(self.nm_periods, self.lnm, 'k', lw=1)
                     ax.semilogx(self.nm_periods, self.hnm, 'k', lw=1)
 
-                    # ax.semilogx(self.sparse_periods[sparse_spec_deviation],
-                    #            sparse_spec[sparse_spec_deviation], 'b',
-                    #            linestyle=None, marker='+')
-
                     ax.set_ylim(self.AMP_DB_MIN, self.AMP_DB_MAX)
                     ax.set_xlim(self.PER_MIN, np.max(self.periods))
                     ax.grid(True, which="both", ls="-", lw=0.2)
                     ax.tick_params(labelsize=6)
-                    # ax.set_xlabel("Period [s]", fontsize=5)
-                    # ax.set_ylabel("Amp. [m2/s4][dB]", fontsize=5)
-                    # ax.xaxis.set_label_coords(0.5, -0.04)
-                    # ax.yaxis.set_label_coords(1.05, 0.5)
 
                     ax.text(0.015, -180,
                             'Coverage: {:.2f} %'.format(

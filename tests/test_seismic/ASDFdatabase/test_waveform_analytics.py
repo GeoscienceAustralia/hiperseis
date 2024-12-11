@@ -14,17 +14,13 @@ Revision History:
 """
 
 import os
-import pytest
-from ordered_set import OrderedSet as set
-import numpy as np
 import tempfile
-import sqlite3
 import numpy as np
 from obspy.core import Trace, Stream
 from obspy.signal.spectral_estimation import PPSD
 from obspy import UTCDateTime
 from multiprocessing import Manager
-from seismic.ASDFdatabase.waveform_analytics import ProgressTracker, StationAnalytics
+from seismic.ASDFdatabase.analytics.waveform_analytics import ProgressTracker, StationAnalytics
 from seismic.inventory.response import ResponseFactory
 from shutil import rmtree
 from scipy.interpolate import interp1d
@@ -44,7 +40,7 @@ def test_fast_psd():
     scaling_factor = 1
 
     def get_time_range_func(net, sta, loc, cha):
-        return UTCDateTime(0), UTCDateTime(0)
+        return UTCDateTime('2007-01-01'), UTCDateTime('2007-01-02')
     # end func
 
     def get_waveforms_func(net, sta, loc, cha, st, et):
