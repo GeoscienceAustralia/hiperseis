@@ -186,8 +186,8 @@ class MseedIndex:
         self.tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
         self.stream_cache = MseedIndex.StreamCache()
         self.mseed_files = np.array(sorted(glob(os.path.join(self.mseed_folder, pattern))))
-        self.sr_coverage_dict = defaultdict(float) # dict keyed by unique sampling rates found, with coverage as values
-        self.ch_coverage_dict = defaultdict(float) # dict keyed by unique channels found, with coverage as values
+        self.sr_dict = defaultdict(list) # sampling rates for each nslc combination
+        self.coverage_dict = defaultdict(float) # dict keyed by nslc, with coverage as values
 
         fc = len(self.mseed_files)
         if(fc > 0):
@@ -220,12 +220,26 @@ class MseedIndex:
                 if(nc == sc == lc == cc == ''): continue
                 self.meta_list.append([i, nc, sc, lc, cc, st, et])
 
+                nslc = '.'.join((nc, sc, lc, cc))
                 # store coverage for unique channels and sampling rates
                 cov = float(et - st) # coverage in seconds
-                self.sr_coverage_dict[sr] += cov
-                self.ch_coverage_dict[cc] += cov
+                self.sr_dict[nslc].append(sr)
+                self.coverage_dict[nslc] += cov
             # end for
             # if (i > 0): break
+        # end for
+
+        # take median of sampling rates found
+        for k, v in self.sr_dict.items():
+            vals = np.array(self.sr_dict[k])
+
+            unique_sr = set(vals)
+            chosen_sr = np.median(vals)
+            if(len(unique_sr) > 1):
+                print('Multiple sampling rates ({}) found under {}. '
+                      'Selecting median sampling rate ({}).'.format(unique_sr, k, chosen_sr))
+            # end if
+            self.sr_dict[k] = chosen_sr
         # end for
 
         print('\nCreating metadata index for a total of {} traces found..'.format(len(self.meta_list)))
@@ -237,15 +251,15 @@ class MseedIndex:
                 self.tree[nc][sc][lc][cc] = index.Index()
             # end if
             self.tree[nc][sc][lc][cc].insert(idx, (st, 1, et, 1))
-            # end for
+        # end for
     # end func
 
-    def get_sampling_rate_coverage(self) -> defaultdict:
-        return self.sr_coverage_dict
+    def get_channel_sampling_rates(self) -> defaultdict:
+        return self.sr_dict
     # end func
 
-    def get_channel_coverage(self) -> defaultdict:
-        return self.ch_coverage_dict
+    def get_channel_coverages(self) -> defaultdict:
+        return self.coverage_dict
     # end func
 
     def __getstate__(self):
