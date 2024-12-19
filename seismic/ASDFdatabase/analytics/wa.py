@@ -12,7 +12,7 @@ Revision History:
     LastUpdate:     07/02/23   RH
     LastUpdate:     dd/mm/yyyy  Who     Optional description
 """
-
+import atexit
 import os, sys
 
 is_windows = sys.platform.startswith('win')
@@ -30,7 +30,6 @@ from obspy import UTCDateTime
 import click
 from typing import Callable
 import matplotlib.pyplot as plt
-import matplotlib
 from collections import defaultdict
 from obspy.core.inventory.response import Response
 import matplotlib
@@ -58,6 +57,7 @@ from seismic.ASDFdatabase.analytics.sun import day_night_coverage, DAY_NIGHT_SEC
 import uuid
 from functools import partial
 from glob import glob
+import shutil
 
 if(is_windows | is_osx): matplotlib.use('TKAgg')
 else: matplotlib.use('Agg')
@@ -143,6 +143,7 @@ class StationAnalytics():
         # create temp-folder
         self.temp_folder = os.path.join(self.output_folder, str(uuid.uuid4()))
         os.makedirs(self.temp_folder, exist_ok=True)
+        atexit.register(lambda: shutil.rmtree(self.temp_folder))
     # end func
 
     def analyse_data(self,
@@ -401,7 +402,7 @@ class StationAnalytics():
                     fig.suptitle(start_time.strftime("%Y-%m-%d"), fontsize=7,
                                  y=0.85)
 
-                    fig.savefig(output_fn_png, dpi=150, bbox_inches="tight", pad_inches=0)
+                    fig.savefig(output_fn_png, dpi=140, bbox_inches="tight", pad_inches=0)
                     plt.close()
                 except Exception as e:
                     print(e)
@@ -727,7 +728,7 @@ def get_cpu_count(nproc):
     return result
 # end func
 
-def select_channel(mi:MseedIndex, sd:UTCDateTime, ed:UTCDateTime)->list([]):
+def select_channel(mi:MseedIndex, sd:UTCDateTime, ed:UTCDateTime)->dict(list([])):
     meta_list = mi.get_stations(sd, ed)
     cov_dict = mi.get_channel_coverages()
     channel_meta_dict = defaultdict(list)
@@ -743,10 +744,10 @@ def select_channel(mi:MseedIndex, sd:UTCDateTime, ed:UTCDateTime)->list([]):
     if(len(meta_list) == 0):
         raise RuntimeError('No stations found between {} -- {}. Aborting..'.format(sd, ed))
     elif(len(meta_list) == 1):
-        return channel_meta_dict[list(channel_meta_dict.keys())[0]]
+        return channel_meta_dict
     else:
-        answer_list = [str(i + 1) for i in np.arange(len(channel_meta_dict))]
-        answer = None
+        answer_list = [i + 1 for i in np.arange(len(channel_meta_dict))]
+        selection = []
         print('\n############################')
         print('# Multiple channels found: #')
         print('############################\n')
@@ -756,20 +757,37 @@ def select_channel(mi:MseedIndex, sd:UTCDateTime, ed:UTCDateTime)->list([]):
                                                 cha, channel_cov_dict[cha]/DAY_NIGHT_SECONDS))
         # end for
 
-        while (answer not in answer_list):
-            answer = input('Please select desired channel: ')
+        while (not (np.all([s in answer_list for s in selection]) if len(selection) else False)):
+            try:
+                selection = list(input("""\n*** Please select desired channel *** \n(select multiple channels with entries separated by commas) \n(-1 to quit): """).split(','))
+                selection = [int(s.strip()) for s in selection]
+
+                if (-1 in selection): break
+                if (not np.all([s in answer_list for s in selection])): print('Unexpected input(s) found.')
+            except:
+                print('Invalid selection. ')
+                selection = []
+            # end try
         # wend
 
-        channel_meta_list = channel_meta_dict[sorted_channels[int(answer)-1]]
+        if(-1 in selection): exit(0)
 
-        print('\nData found under the following NSLC list will be analysed:\n')
-        for channel_meta in channel_meta_list:
-            nslc = '.'.join(channel_meta)
-            print('{} ({:2.3f} days)'.format(nslc, cov_dict[nslc]/DAY_NIGHT_SECONDS))
+        result = dict()
+        for s in selection:
+            channel = sorted_channels[s-1]
+            channel_meta_list = channel_meta_dict[channel]
+
+            print('\nData found under the following Network-Station-Location list will be analysed for channel {}:\n'.format(channel))
+            for channel_meta in channel_meta_list:
+                nslc = '.'.join(channel_meta)
+                nsl = '.'.join(channel_meta[:3])
+                print('{} ({:2.3f} days)'.format(nsl, cov_dict[nslc]/DAY_NIGHT_SECONDS))
+            # end for
+
+            result[channel] = channel_meta_list
         # end for
-        print('\n')
 
-        return channel_meta_list
+        return result
     # end if
 # end func
 
@@ -841,7 +859,7 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
     # net, sta, loc, cha combinations that share the same channel code. We also
     # account for the possibility of each combination of net, sta, loc, cha to have
     # recordings under different sampling rates
-    meta_list = select_channel(mseed_index, sd, ed)
+    meta_dict = select_channel(mseed_index, sd, ed)
     sr_dict = mseed_index.get_channel_sampling_rates()
 
     # instantiate progress tracker
@@ -849,19 +867,26 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
     prog_tracker = ProgressTracker(manager)
     sa = StationAnalytics(get_time_range_func, get_waveforms_func,
                           resp, output_folder, prog_tracker, sd, ed, nproc)
-    cha = None
-    for meta in meta_list:
-        net, sta, loc, cha = meta
 
-        nslc = '.'.join(meta)
-        sampling_rate = sr_dict[nslc]
+    for cha, meta_list in meta_dict.items():
 
-        sa.analyse_data(net, sta, loc, cha, sampling_rate)
+        print("""
+        \n*** Processing data for channel {} ***\n
+        """.format(cha))
+        for meta in meta_list:
+            net, sta, loc, cha = meta
+
+            nslc = '.'.join(meta)
+            sampling_rate = sr_dict[nslc]
+
+            sa.analyse_data(net, sta, loc, cha, sampling_rate)
+        # end for
+
+        ofn = os.path.join(output_folder, '{}.pdf'.format(cha))
+        sa.process_results(cha, ofn)
+        print('\nDone..')
     # end for
 
-    if(cha is not None): sa.process_results(cha, '')
-
-    print('\nDone..')
 # end func
 
 @click.command(name='asdf', context_settings=CONTEXT_SETTINGS)
