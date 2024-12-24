@@ -19,8 +19,7 @@ import numpy as np
 from obspy.core import Trace, Stream
 from obspy.signal.spectral_estimation import PPSD
 from obspy import UTCDateTime
-from multiprocessing import Manager
-from seismic.ASDFdatabase.analytics.waveform_analytics import ProgressTracker, StationAnalytics
+from seismic.ASDFdatabase.analytics.station_analytics import StationAnalytics
 from seismic.inventory.response import ResponseFactory
 from shutil import rmtree
 from scipy.interpolate import interp1d
@@ -63,36 +62,28 @@ def test_fast_psd():
     resp = rf.getResponse('flat_response')
 
     # generate spectrum for fast_ppsd
-    manager = Manager()
-    prog_tracker = ProgressTracker(manager)
     sa = StationAnalytics(get_time_range_func,
                           get_waveforms_func,
-                          prog_tracker,
-                          network,
-                          station,
-                          location,
-                          channel,
-                          sampling_rate,
                           resp,
-                          output_folder = tempdir,
+                          tempdir,
+                          None,
                           start_time = None,
                           end_time = None,
                           nproc=1)
 
-    is_windows = sys.platform.startswith('win')
-
+    sa.analyse_data(network, station, location, channel, sampling_rate)
     # create an interpolation object for the spectrum from fast_ppsd
     fast_ppsd_io = None
     for start_time, end_time in zip(sa.st_list, sa.et_list):
-        output_fn_stem = '{}.{}.{}.{}.{}.{}'.format(sa.network,
-                                                    sa.station,
-                                                    sa.location,
-                                                    sa.channel,
+        output_fn_stem = '{}.{}.{}.{}.{}.{}'.format(network,
+                                                    station,
+                                                    location,
+                                                    channel,
                                                     start_time,
                                                     end_time)
 
-        if(is_windows): output_fn_stem = output_fn_stem.replace(':', '__')
-        output_fn_npz = os.path.join(sa.output_folder, output_fn_stem + '.npz')
+        output_fn_stem = output_fn_stem.replace(':', '__')
+        output_fn_npz = os.path.join(sa.temp_folder, output_fn_stem + '.npz')
 
         results = np.load(output_fn_npz)
         spec = results['sparse_spec']
@@ -118,6 +109,4 @@ def test_fast_psd():
 
     corr = np.corrcoef(fast_ppsd_io(common_periods), ppsd_io(common_periods))[0,1]
     assert corr > 0.9
-
-    rmtree(tempdir)
 # end func
