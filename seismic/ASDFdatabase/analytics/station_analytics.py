@@ -144,7 +144,7 @@ class StationAnalytics():
         if(self.progress_tracker): self.progress_tracker.initialize(len(self.st_list))
 
         # launch parallel computations
-        if (0):
+        if (1):
             p = Pool(ncpus=self.nproc)
             p.map(partial(self._generate_psds, network, station, location, channel, sampling_rate),
                   proc_st_list, proc_et_list)

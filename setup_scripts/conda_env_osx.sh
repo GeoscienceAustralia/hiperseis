@@ -25,7 +25,7 @@ conda activate $1
 echo "==== Installing packages not available through conda ===="
 pip3 install pip==21.1.2
 pip3 install obspy==1.2.2
-pip3 install click==7.1.2 pyasdf==0.5.1 obspyh5==0.5.0 ordered_set ujson psutil PyPDF2==1.26.0 sortedcontainers stockwell==1.0.7 pillow==8.4.0 ipython==7.10.1 basemap==1.3.2 descartes==1.1.0 PyYAML==6.0 opencv-python==4.5.3.56 pathos==0.2.8
+pip3 install click==7.1.2 pyasdf==0.5.1 obspyh5==0.5.0 ordered_set ujson psutil PyPDF2==1.26.0 sortedcontainers stockwell==1.0.7 pillow==8.4.0 ipython==7.10.1 basemap==1.3.2 descartes==1.1.0 PyYAML==6.0 opencv-python==4.5.3.56 multiprocess==0.70.12.2 pathos==0.2.8
 
 echo "==== Installing a whittled down version of the rf package ===="
 
