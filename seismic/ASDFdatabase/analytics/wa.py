@@ -115,7 +115,7 @@ def select_channel(mi:MseedIndex, sd:UTCDateTime, ed:UTCDateTime)->dict(list([])
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(name='mseed', context_settings=CONTEXT_SETTINGS)
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('mseed-folder', required=True,
                 type=click.Path(exists=True))
 @click.argument('mseed-pattern', required=True,
