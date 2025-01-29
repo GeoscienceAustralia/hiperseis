@@ -20,32 +20,63 @@ from io import StringIO
 
 from obspy.core import UTCDateTime
 from obspy import read_inventory
-
+import sqlite3
+import atexit
+from io import BytesIO
+from types import SimpleNamespace
 
 class ResponseFactory:
     """
-    The ResponseFactory class encapsulates the generation of a collection of named Instrument Response Objects from a
-    variety of sources. Currently it provides the facility to create Response objects from two sources, namely,
-    Poles and Zeroes supplied by the user and from StationXML files generated from RESP files using the PDCC tool
-    (link below). The conversion of RESP files into a corresponding StationXML file, at this stage, must take place
-    externally, because ObsPy lacks that functionality.
-    The intended usage of this class during the creation of an ASDF dataset is as follows::
-
-      1. User creates a number of uniquely named Response objects (see associated tests as well) pertaining to different
-         channels in a given survey.
-      2. User fetches these Response objects from an instance of ResponseFactory as needed, while creating ObsPy Channel
-         objects, during which Response objects can be passed in as an argument.
-      3. User builds a hierarchy of channel->station->network inventories, with the appropriate instrument response
-         information embedded
-      4. The master FDSN StaionXML file output after step 3 can then be converted into an SC3ML file (which can be
-         ingested by SeisComp3) using the fdsnxml2inv tool.
-
-    PDCC tool: https://ds.iris.edu/ds/nodes/dmc/software/downloads/pdcc/
+    The ResponseFactory class encapsulates the loading and retrieval of Instrument Response Objects from a
+    variety of sources:
+    i) from a stationXML file or obspy.core.Inventory containing a single Response Object
+    ii) from Poles and Zeros
+    iii) from a database, in which each row identified by net, sta, cha contains a response-level inventory
     """
 
     def __init__(self):
-        self.m_responseInventory = defaultdict(list)
+        self.response_cache = defaultdict(list)
+        self.db_source = None
     # end func
+
+    class ResponseFromDB(object):
+        def __init__(self, db_fn):
+            try:
+                # Connect to SQLite database
+                self.conn = sqlite3.connect(db_fn)
+                self.cursor = self.conn.cursor()
+
+            except sqlite3.Error as e:
+                print("An error occurred: {}".format(e))
+            # end try
+
+            atexit.register(lambda: self.conn.close())
+        # end func
+
+        def getResponse(self, net, sta, loc, cha):
+            try:
+                q = "select sta_xml from responses where net='{}' and sta='{}' and cha='{}';".format(net, sta, cha)
+                self.cursor.execute(q)
+
+                row = self.cursor.fetchall()
+                sta_xml = row[0][0]
+                inv = read_inventory(BytesIO(sta_xml))
+
+                # select desired location
+                inv = inv.select(network=net, station=sta, location=loc, channel=cha)
+                if(len(inv)):
+                    try:
+                        return inv.networks[0].stations[0].channels[0].response
+                    except:
+                        return None
+                    # end try
+                # end func
+            except sqlite3.Error as e:
+                print("An error occurred: {}".format(e))
+            # end try
+            return None
+        # end func
+    # end class
 
     class ResponseFromInventory(object):
         """Helper class to get Obspy Response object from an Inventory
@@ -58,8 +89,8 @@ class ResponseFactory:
             :param source_inventory: Inventory from which to extract response
             :type source_inventory: obspy.core.inventory.inventory.Inventory
             """
-            self.m_inventory = source_inventory
-            self.m_response = None
+            self.inventory = source_inventory
+            self.response = None
             self._get_response_from_inventory()
         #end func
 
@@ -69,8 +100,8 @@ class ResponseFactory:
             c = None
             found = 0
             # Extract network, station and channel codes
-            if self.m_inventory.networks:
-                n = self.m_inventory.networks[0]
+            if self.inventory.networks:
+                n = self.inventory.networks[0]
                 found += 1
                 if n.stations:
                     s = n.stations[0]
@@ -86,8 +117,8 @@ class ResponseFactory:
                 msg = 'Network, station or channel information missing in RESP file.'
                 raise RuntimeError(msg)
             else:
-                seedid = self.m_inventory.get_contents()['channels'][0]
-                self.m_response = self.m_inventory.get_response(seedid, c.start_date)
+                seedid = self.inventory.get_contents()['channels'][0]
+                self.response = self.inventory.get_response(seedid, c.start_date)
             # end if
         #end func
     # end class
@@ -105,6 +136,19 @@ class ResponseFactory:
             super(ResponseFactory.ResponseFromStationXML, self).__init__(xml_inventory)
     # end class
 
+    class ResponseFromResp(ResponseFromInventory):
+        """Helper class to get Obspy Response object from a station xml file
+        """
+        def __init__(self, respFileName):
+            """Constructor
+
+            :param respFileName: XML file to load
+            :type respFileName: str
+            """
+            resp_inventory = read_inventory(respFileName)
+            super(ResponseFactory.ResponseFromResp, self).__init__(resp_inventory)
+    # end class
+
     class ResponseFromPAZ:
         def __init__(self, pzTransferFunctionType='LAPLACE (RADIANS/SECOND)',
                      normFactor=8e4,
@@ -113,7 +157,7 @@ class ResponseFactory:
                      stageGainFreq=1e-2,
                      poles=[0 + 0j],
                      zeros=[0 + 0j]):
-            self.m_base = '''<?xml version="1.0" standalone="yes"?>
+            self.base = '''<?xml version="1.0" standalone="yes"?>
             <FDSNStationXML
                 xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1">
                 <Source>-i</Source>
@@ -205,34 +249,34 @@ class ResponseFactory:
                 </Network>
             </FDSNStationXML>
             '''
-            self.m_response = None
-            self.m_pzTransferFunctionType = pzTransferFunctionType
-            self.m_normFactor = normFactor
-            self.m_normFreq = normFreq
-            self.m_stageGain = stageGain
-            self.m_stageGainFreq = stageGainFreq
-            self.m_poles = poles
-            self.m_zeros = zeros
+            self.response = None
+            self.pzTransferFunctionType = pzTransferFunctionType
+            self.normFactor = normFactor
+            self.normFreq = normFreq
+            self.stageGain = stageGain
+            self.stageGainFreq = stageGainFreq
+            self.poles = poles
+            self.zeros = zeros
 
             # Generate a valid response inventory based on the fdsnstationxml file, which
             # was downloaded from IRIS as an example.
-            inv = read_inventory(StringIO(self.m_base))
+            inv = read_inventory(StringIO(self.base))
             datetime = UTCDateTime("2002-11-19T21:07:00.000")
 
             # Fetch the response object and adapt its parameters based on user-input.
-            self.m_response = inv.get_response('IU.ANMO.00.BHZ', datetime)
+            self.response = inv.get_response('IU.ANMO.00.BHZ', datetime)
 
-            self.m_response.response_stages[0].pz_transfer_function_type = self.m_pzTransferFunctionType
-            self.m_response.response_stages[0].normalization_factor = self.m_normFactor
-            self.m_response.response_stages[0].normalization_frequency = self.m_normFreq
-            self.m_response.response_stages[0].stage_gain = self.m_stageGain
-            self.m_response.response_stages[0].stage_gain_frequency = self.m_stageGainFreq
-            self.m_response.response_stages[0].poles = poles
-            self.m_response.response_stages[0].zeros = zeros
+            self.response.response_stages[0].pz_transfer_function_type = self.pzTransferFunctionType
+            self.response.response_stages[0].normalization_factor = self.normFactor
+            self.response.response_stages[0].normalization_frequency = self.normFreq
+            self.response.response_stages[0].stage_gain = self.stageGain
+            self.response.response_stages[0].stage_gain_frequency = self.stageGainFreq
+            self.response.response_stages[0].poles = poles
+            self.response.response_stages[0].zeros = zeros
         # end func
     # end class
 
-    def CreateFromInventory(self, name, obspy_inventory):
+    def createFromInventory(self, name, obspy_inventory):
         """Create response from an Inventory
 
         :param name: Name of the response for later retrieval
@@ -240,21 +284,32 @@ class ResponseFactory:
         :param obspy_inventory: Inventory from which to extract response
         :type obspy_inventory: obspy.core.inventory.inventory.Inventory
         """
-        self.m_responseInventory[name] = ResponseFactory.ResponseFromInventory(obspy_inventory)
+        self.response_cache[name] = ResponseFactory.ResponseFromInventory(obspy_inventory)
     # end func
 
-    def CreateFromStationXML(self, name, respFileName):
+    def createFromStationXML(self, name, staionXMLFileName):
         """Create response from an XML file
 
         :param name: Name of the response for later retrieval
         :type name: str
-        :param respFileName: XML file to load
-        :type respFileName: str
+        :param staionXMLFileName: XML file to load
+        :type staionXMLFileName: str
         """
-        self.m_responseInventory[name] = ResponseFactory.ResponseFromStationXML(respFileName)
+        self.response_cache[name] = ResponseFactory.ResponseFromStationXML(staionXMLFileName)
     # end func
 
-    def CreateFromPAZ(self, name, pzTransferFunctionType,
+    def createFromRespFile(self, name, respFileName):
+        """Create response from an Resp file
+
+        :param name: Name of the response for later retrieval
+        :type name: str
+        :param respFileName: Resp file to load
+        :type respFileName: str
+        """
+        self.response_cache[name] = ResponseFactory.ResponseFromStationXML(respFileName)
+    # end func
+
+    def createFromPAZ(self, name, pzTransferFunctionType,
                       normFactor,
                       normFreq,
                       stageGain,
@@ -262,27 +317,39 @@ class ResponseFactory:
                       poles,
                       zeros):
 
-        self.m_responseInventory[name] = ResponseFactory.ResponseFromPAZ(pzTransferFunctionType,
-                                                                         normFactor,
-                                                                         normFreq,
-                                                                         stageGain,
-                                                                         stageGainFreq,
-                                                                         poles,
-                                                                         zeros)
-
+        self.response_cache[name] = ResponseFactory.ResponseFromPAZ(pzTransferFunctionType,
+                                                                    normFactor,
+                                                                    normFreq,
+                                                                    stageGain,
+                                                                    stageGainFreq,
+                                                                    poles,
+                                                                    zeros)
     #end func
+
+    def createFromDB(self, db_fn):
+        self.db_source = self.ResponseFromDB(db_fn)
+    # end func
 
     def getResponse(self, name):
         """Retrieve response by name
 
-        :param name: Name given to response at creation time
+        :param name: Name given to response at creation time, or a string containing
+                     'network.station.location.channel' to query a database source, if it exists
         :type name: str
         :raises RuntimeError: Raises error if name is not recognized
         :return: The requested response
         :rtype: obspy.core.inventory.response.Response
         """
-        if (name in self.m_responseInventory.keys()):
-            return self.m_responseInventory[name].m_response
+        if (name in self.response_cache.keys()):
+            return self.response_cache[name].response
+        elif(self.db_source):
+            # try breaking down name into net, sta, loc, cha
+            net, sta, loc, cha = name.split('.')
+            resp = self.db_source.getResponse(net, sta, loc, cha)
+
+            if(resp): self.response_cache[name] = SimpleNamespace(**{'response': resp})
+
+            return resp
         else:
             msg = "Response with name: %s not found.." % (name)
             raise RuntimeError(msg)

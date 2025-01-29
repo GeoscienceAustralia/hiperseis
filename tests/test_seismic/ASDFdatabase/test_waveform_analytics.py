@@ -19,7 +19,7 @@ import numpy as np
 from obspy.core import Trace, Stream
 from obspy.signal.spectral_estimation import PPSD
 from obspy import UTCDateTime
-from seismic.ASDFdatabase.analytics.station_analytics import StationAnalytics
+from seismic.ASDFdatabase.analytics.station_analytics import StationAnalytics, PeriodDetailsCache
 from seismic.inventory.response import ResponseFactory
 from shutil import rmtree
 from scipy.interpolate import interp1d
@@ -53,14 +53,16 @@ def test_fast_psd():
 
     # create a flat response
     rf = ResponseFactory()
-    rf.CreateFromPAZ('flat_response', 'LAPLACE (RADIANS/SECOND)', normFactor=1,
-                      normFreq=1,
-                      stageGain=1,
-                      stageGainFreq=1,
-                      poles=[0 + 1j],
-                      zeros=[0 + 1j])
+    rf.createFromPAZ('flat_response', 'LAPLACE (RADIANS/SECOND)', normFactor=1,
+                     normFreq=1,
+                     stageGain=1,
+                     stageGainFreq=1,
+                     poles=[0 + 1j],
+                     zeros=[0 + 1j])
     resp = rf.getResponse('flat_response')
 
+    pdc = PeriodDetailsCache()
+    pd = pdc.get_period_details(sampling_rate)
     # generate spectrum for fast_ppsd
     sa = StationAnalytics(get_time_range_func,
                           get_waveforms_func,
@@ -71,14 +73,15 @@ def test_fast_psd():
                           end_time = None,
                           nproc=1)
 
-    sa.analyse_data(network, station, location, channel, sampling_rate)
+    sa.analyse_data(network, station, location, channel)
     # create an interpolation object for the spectrum from fast_ppsd
     fast_ppsd_io = None
     for start_time, end_time in zip(sa.st_list, sa.et_list):
-        output_fn_stem = '{}.{}.{}.{}.{}.{}'.format(network,
+        output_fn_stem = '{}.{}.{}.{}.{}.{}.{}'.format(network,
                                                     station,
                                                     location,
                                                     channel,
+                                                    sampling_rate,
                                                     start_time,
                                                     end_time)
 
@@ -88,7 +91,7 @@ def test_fast_psd():
         results = np.load(output_fn_npz)
         spec = results['sparse_spec']
 
-        fast_ppsd_io = interp1d(sa.sparse_periods, spec)
+        fast_ppsd_io = interp1d(pd.sparse_periods, spec)
     # end for
 
     # generate spectrum using obspy ppsdf, with a flat response
@@ -104,8 +107,8 @@ def test_fast_psd():
     ppsd_io = interp1d(periods, spec)
 
     # check conformity of spectra
-    common_periods = np.linspace(np.max([sa.sparse_periods[0], periods[0]]),
-                             np.min([sa.sparse_periods[-1], periods[-1]]), 100)
+    common_periods = np.linspace(np.max([pd.sparse_periods[0], periods[0]]),
+                             np.min([pd.sparse_periods[-1], periods[-1]]), 100)
 
     corr = np.corrcoef(fast_ppsd_io(common_periods), ppsd_io(common_periods))[0,1]
     assert corr > 0.9

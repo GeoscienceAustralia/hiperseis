@@ -76,7 +76,7 @@ def get_response(input_file, network=None, station=None, location=None, channel=
 
         if(resp_inv is not None):
             rf = ResponseFactory()
-            rf.CreateFromInventory(resp_name, resp_inv)
+            rf.createFromInventory(resp_name, resp_inv)
 
             result = rf.getResponse(resp_name)
         # end if

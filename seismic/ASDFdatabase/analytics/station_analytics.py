@@ -140,7 +140,7 @@ class PeriodDetailsCache():
 
 class ResponseAmplitudesCache():
     class ResponseAmplitudes():
-        def __init__(self, sampling_rate:float, response:Response):
+        def __init__(self, sampling_rate: float, response: Response):
             self.response = response
             self.sampling_rate = sampling_rate
 
@@ -208,8 +208,7 @@ class StationAnalytics():
                      network: str,
                      station: str,
                      location: str,
-                     channel: str,
-                     sampling_rate: int):
+                     channel: str):
 
         # collate timespans to be allocated to each parallel process
         st, et = self.get_time_range_func(network,

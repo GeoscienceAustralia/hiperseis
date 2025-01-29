@@ -186,7 +186,6 @@ class MseedIndex:
         self.tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
         self.stream_cache = MseedIndex.StreamCache()
         self.mseed_files = np.array(sorted(glob(os.path.join(self.mseed_folder, pattern))))
-        self.sr_dict = defaultdict(list) # sampling rates for each nslc combination
         self.coverage_dict = defaultdict(float) # dict keyed by nslc, with coverage as values
 
         fc = len(self.mseed_files)
@@ -211,10 +210,10 @@ class MseedIndex:
             # end try
 
             for tr in st:
-                nc, sc, lc, cc, st, et, sr = \
+                nc, sc, lc, cc, st, et = \
                     tr.stats.network, tr.stats.station, tr.stats.location, \
                         tr.stats.channel, tr.stats.starttime.timestamp, \
-                        tr.stats.endtime.timestamp, tr.stats.sampling_rate
+                        tr.stats.endtime.timestamp
 
                 # skip bogus traces
                 if(nc == sc == lc == cc == ''): continue
@@ -223,23 +222,9 @@ class MseedIndex:
                 nslc = '.'.join((nc, sc, lc, cc))
                 # store coverage for unique channels and sampling rates
                 cov = float(et - st) # coverage in seconds
-                self.sr_dict[nslc].append(sr)
                 self.coverage_dict[nslc] += cov
             # end for
             # if (i > 0): break
-        # end for
-
-        # take median of sampling rates found
-        for k, v in self.sr_dict.items():
-            vals = np.array(self.sr_dict[k])
-
-            unique_sr = set(vals)
-            chosen_sr = np.median(vals)
-            if(len(unique_sr) > 1):
-                print('Multiple sampling rates ({}) found under {}. '
-                      'Selecting median sampling rate ({}).'.format(unique_sr, k, chosen_sr))
-            # end if
-            self.sr_dict[k] = chosen_sr
         # end for
 
         print('\nCreating metadata index for a total of {} traces found..'.format(len(self.meta_list)))
@@ -252,10 +237,6 @@ class MseedIndex:
             # end if
             self.tree[nc][sc][lc][cc].insert(idx, (st, 1, et, 1))
         # end for
-    # end func
-
-    def get_channel_sampling_rates(self) -> defaultdict:
-        return self.sr_dict
     # end func
 
     def get_channel_coverages(self) -> defaultdict:

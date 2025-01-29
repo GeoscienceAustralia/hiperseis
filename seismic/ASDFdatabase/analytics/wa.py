@@ -184,7 +184,6 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
     # account for the possibility of each combination of net, sta, loc, cha to have
     # recordings under different sampling rates
     meta_dict = select_channel(mseed_index, sd, ed)
-    sr_dict = mseed_index.get_channel_sampling_rates()
 
     # instantiate progress tracker
     manager = Manager()
@@ -199,11 +198,7 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
         """.format(cha))
         for meta in meta_list:
             net, sta, loc, cha = meta
-
-            nslc = '.'.join(meta)
-            sampling_rate = sr_dict[nslc]
-
-            sa.analyse_data(net, sta, loc, cha, sampling_rate)
+            sa.analyse_data(net, sta, loc, cha)
         # end for
 
         ofn = os.path.join(output_folder, '{}.pdf'.format(cha))

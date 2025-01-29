@@ -30,22 +30,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=str)
 @click.argument('station', required=True,
                 type=str)
-@click.argument('location', required=True,
-                type=str)
 @click.argument('channel', required=True,
                 type=str)
-@click.argument('instrument-response', required=True,
+@click.argument('response-database', required=True,
                 type=click.Path(exists=True))
-@click.argument('sampling-rate', required=True,
-                type=int)
 @click.argument('output-folder', required=True,
                 type=click.Path(exists=True))
 @click.option('--start-date', type=str, default=None, show_default=True,
               help="Start date in UTC format for processing data")
 @click.option('--end-date', type=str, default=None, show_default=True,
               help="End date in UTC format for processing data")
-def process_asdf(asdf_source, network, station, location, channel, instrument_response,
-                 sampling_rate, output_folder, start_date, end_date):
+def process_asdf(asdf_source, network, station, channel, response_database,
+                 output_folder, start_date, end_date):
     """
     ASDF_SOURCE: Path to text file containing paths to ASDF files\n
     NETWORK: network code

@@ -52,7 +52,7 @@ def toSc3ml(src_path, dst_path, response_fdsnxml=None):
     response = None
     if response_fdsnxml is not None:
         rf = ResponseFactory()
-        rf.CreateFromStationXML('resp', response_fdsnxml)
+        rf.createFromStationXML('resp', response_fdsnxml)
         response = rf.getResponse('resp')
 
     if os.path.isfile(src_path):
