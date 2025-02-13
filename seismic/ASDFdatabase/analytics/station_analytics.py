@@ -425,7 +425,16 @@ class StationAnalytics():
         return None
     # end func
 
-    def process_results(self, channel, output_fn):
+    def process_results(self, output_fn, network=None, station=None, location=None, channel=None):
+        """
+        Processes results by grouping them based on sampling rate and network, station, location and channel
+        names provided.
+        @param output_fn: output file name
+        @param network:
+        @param station:
+        @param location:
+        @param channel:
+        """
         # load png files and results
         npz_files = glob(os.path.join(self.temp_folder, '*.npz'))
         npz_files_dict = defaultdict(lambda: defaultdict(list)) # keyed by [sampling_rate][start_time]
@@ -434,7 +443,12 @@ class StationAnalytics():
             toks = os.path.basename(npz_file).split('.')
             net, sta, loc, cha, sr, start_time = toks[:6]
             sr = float(sr)
-            if(cha != channel): continue # process only required channel
+
+            if(network is not None and network != net): continue # process only required network
+            if(station is not None and station != sta): continue # process only required station
+            if(location is not None and location != loc): continue # process only required location
+            if(channel is not None and channel != cha): continue # process only required channel
+
             start_time = UTCDateTime(start_time).timestamp
             npz_files_dict[sr][start_time].append(npz_file)
 

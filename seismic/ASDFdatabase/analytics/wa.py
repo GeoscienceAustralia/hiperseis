@@ -202,7 +202,7 @@ def process_mseed(mseed_folder, mseed_pattern, instrument_response,
         # end for
 
         ofn = os.path.join(output_folder, '{}.pdf'.format(cha))
-        sa.process_results(cha, ofn)
+        sa.process_results(ofn, channel=cha) # group all results by channel only
         print('\nDone..')
     # end for
 

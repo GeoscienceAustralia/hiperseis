@@ -15,6 +15,7 @@ Revision History:
 from obspy import read_inventory
 from seismic.inventory.response import ResponseFactory
 from multiprocess import Manager, freeze_support
+import os
 
 class ProgressTracker(object):
     def __init__(self, manager: Manager):
@@ -46,6 +47,19 @@ class ProgressTracker(object):
 # end class
 
 def get_response(input_file, network=None, station=None, location=None, channel=None):
+    def is_sqlite_db(db_fn):
+        """Check if a file is a valid SQLite db"""
+        if not os.path.isfile(db_fn):
+            return False
+        try:
+            with open(db_fn, "rb") as f:
+                header = f.read(16)
+            return header == b"SQLite format 3\000"
+        except Exception:
+            return False
+        # end try
+    # end func
+
     result = None
     if('xml' in input_file.lower()):
         inv = None
@@ -63,6 +77,19 @@ def get_response(input_file, network=None, station=None, location=None, channel=
                 resp_obj = inv.get_response(seedid,
                                             inv.networks[0].stations[0].channels[0].start_date)
                 result = resp_obj
+        # end if
+    elif(is_sqlite_db(input_file)):
+        nslc = None
+        if( (network is not None and len(network) > 0) and
+            (station is not None and len(station) > 0) and
+            (location is not None) and
+            (channel is not None and len(channel) > 0) ):
+
+            nslc = '.'.join((network, station, location, channel))
+
+            rf = ResponseFactory()
+            rf.createFromDB(input_file)
+            result = rf.getResponse(nslc)
         # end if
     else:
         resp_name = 'resp'

@@ -21,6 +21,10 @@ from seismic.ASDFdatabase.utils import MAX_DATE, MIN_DATE
 from seismic.ASDFdatabase.analytics.station_analytics import StationAnalytics
 from seismic.ASDFdatabase.analytics.utils import get_response
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
+import logging
+from mpi4py import MPI
+
+logging.basicConfig()
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -44,14 +48,18 @@ def process_asdf(asdf_source, network, station, channel, response_database,
                  output_folder, start_date, end_date):
     """
     ASDF_SOURCE: Path to text file containing paths to ASDF files\n
-    NETWORK: network code
-    STATION: station code
-    CHANNEL: channel code
-    INSTRUMENT_RESPONSE: Path to inventory containing instrument response in
-                         StationXML or .resp format\n
-    SAMPLING_RATE: Sampling rate used to record the mssed files
+    NETWORK: network code\n
+    STATION: station code\n
+    CHANNEL: channel code\n
+    RESPONSE_DATABASE: Path to database containing response xmls \n
     OUTPUT_FOLDER: Path to output folder\n
     """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
 
     try:
         start_date = UTCDateTime(start_date) if start_date else None
@@ -72,25 +80,16 @@ def process_asdf(asdf_source, network, station, channel, response_database,
     ed = MAX_DATE if end_date is None else end_date
     meta_list = fds.get_stations(sd, ed, network=network, station=station, channel=channel)
 
-    nslc = '{}.{}.{}.{}'.format(network, station, location, channel)
-    if(len(meta_list) == 0):
-        raise RuntimeError('No data found for {} between {} -- {}. Aborting..'.format(nslc, sd, ed))
-    else:
-        meta = meta_list[0]
-    # end if
-    net, sta, loc, cha = meta[:4]
+    print(meta_list)
+    net, sta, loc, cha = meta_list[0][:4]
 
-    print('Loading response..')
-    resp = get_response(instrument_response, net, sta, loc, cha)
+    print('Loading response database..')
+    resp = get_response(response_database, net, sta, loc, cha)
     if(resp is not None): print('Found response: {}'.format(resp))
     else: raise(RuntimeError('No instrument response found. Aborting..'))
 
-    # instantiate progress tracker
-    manager = Manager()
-    prog_tracker = ProgressTracker(manager)
-
     def get_waveforms_func(net, sta, loc, cha, st, et):
-        return fds.get_waveforms(net, sta, loc, cha, st, et)
+        return fds.get_waveforms(net, sta, loc, cha, st, et, nearest_sample=False)
     # end func
 
     def get_time_range_func(net, sta, loc, cha):
@@ -98,11 +97,14 @@ def process_asdf(asdf_source, network, station, channel, response_database,
     # end func
 
     sa = StationAnalytics(get_time_range_func, get_waveforms_func,
-                          prog_tracker, net, sta, loc, cha, sampling_rate, resp,
-                          output_folder, sd, ed, nproc=1)
+                          resp, output_folder,
+                          None, sd, ed, nproc=1)
 
-    report_fn = os.path.join(output_folder, '.'.join(meta[:4]) + '.pdf')
-    sa.process_results(report_fn)
+    sa.analyse_data(net, sta, loc, cha)
+    # end for
+
+    ofn = os.path.join(output_folder, '{}.{}.{}.{}.pdf'.format(net, sta, loc, cha))
+    sa.process_results(ofn, net, sta, loc, cha)
     print('Done..')
 # end func
 
