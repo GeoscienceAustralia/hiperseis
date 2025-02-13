@@ -552,7 +552,7 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, trace_count_threshold=200):
+                      endtime, trace_count_threshold=200, nearest_sample=True):
 
         starttime = UTCDateTime(starttime)
         endtime = UTCDateTime(endtime)
@@ -618,7 +618,7 @@ class _FederatedASDFDataSetImpl():
         # end for
 
         # Trim stream
-        s.trim(starttime=starttime, endtime=endtime, nearest_sample=True)
+        s.trim(starttime=starttime, endtime=endtime, nearest_sample=nearest_sample)
 
         # apply corrections if available
         if(self.corrections_enabled):
