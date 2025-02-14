@@ -40,7 +40,8 @@ from functools import reduce
 from seismic.xcorqc.utils import SpooledMatrix
 from seismic.misc import setup_logger
 
-DEBUG_MODE = np.bool_(np.int_(os.environ['DEBUG_XCORQC'])) if 'DEBUG_XCORQC' in os.environ.keys() else 0
+DEBUG_MODE = np.bool_(np.int_(os.environ['DEBUG_XCORR'])) if 'DEBUG_XCORR' in os.environ.keys() else 0
+XCORR_FORMAT = str(os.environ['XCORR_FORMAT']) if 'XCORR_FORMAT' in os.environ.keys() else 'f4'
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -262,8 +263,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # logger.info('%s, %s' % (tr1.stats.starttime + wtr1s / 200., tr1.stats.starttime + wtr1e / sr1_orig))
                 # logger.info('%s, %s' % (tr2.stats.starttime + wtr2s / 200., tr2.stats.starttime + wtr2e / sr2_orig))
 
-                tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
-                tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
+                tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=XCORR_FORMAT)
+                tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=XCORR_FORMAT)
 
                 # STEP 1: detrend
                 tr1_d = signal.detrend(tr1_d)
@@ -859,7 +860,7 @@ def IntervalStackXCorr(refds, tempds,
             avgnsw = root_grp.createVariable('AvgNumStackedWindowsPerInterval', 'f4')
             ist = root_grp.createVariable('IntervalStartTime', 'i8')
             iet = root_grp.createVariable('IntervalEndTime', 'i8')
-            xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
+            xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
 
             totalIntervalCount = int(np.sum(flattenedWindowCounts > 0))
             totalWindowCount = int(np.sum(flattenedWindowCounts))
@@ -897,7 +898,7 @@ def IntervalStackXCorr(refds, tempds,
 
             if(apply_simple_stacking):
                 nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
-                xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('interval', 'lag',),
                                          chunksizes=(1, spooledXcorr.ncols),
                                          zlib=True)
                 nsw[:] = flattenedWindowCounts
@@ -905,11 +906,11 @@ def IntervalStackXCorr(refds, tempds,
                     xc[irow, :] = spooledXcorr.read_row(irow)
                 # end for
             elif subset_stacker is not None:
-                xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
-                xc_Xei = root_grp.createVariable('xcorr_Xei', 'f4', ('lag',))
-                xc_Xec = root_grp.createVariable('xcorr_Xec', 'f4', ('lag',))
-                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', 'f4', ('lag',))
-                xc_Xeo = root_grp.createVariable('xcorr_Xeo', 'f4', ('lag',))
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
+                xc_Xei = root_grp.createVariable('xcorr_Xei', XCORR_FORMAT, ('lag',))
+                xc_Xec = root_grp.createVariable('xcorr_Xec', XCORR_FORMAT, ('lag',))
+                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', XCORR_FORMAT, ('lag',))
+                xc_Xeo = root_grp.createVariable('xcorr_Xeo', XCORR_FORMAT, ('lag',))
 
                 xc_wc = root_grp.createVariable('xcorr_NumStackedWindows', 'i8')
                 xc_Xei_wc = root_grp.createVariable('xcorr_Xei_NumStackedWindows', 'i8')
@@ -937,7 +938,7 @@ def IntervalStackXCorr(refds, tempds,
                 xc_XeiUXec_wc[:] = wc_XeiUXec
                 xc_Xeo_wc[:] = wc_Xeo
             else:
-                xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('window', 'lag',),
                                              chunksizes=(1, spooledXcorr.ncols),
                                              zlib=True)
                 for irow in np.arange(spooledXcorr.nrows):
