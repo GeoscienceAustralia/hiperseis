@@ -20,6 +20,7 @@ from rf.rfstream import rfstats, obj2stats
 from rf.util import _get_stations
 from obspy.geodetics import gps2dist_azimuth
 from obspy.geodetics import kilometers2degrees
+from obspy.core import Stream
 from collections import defaultdict
 # pylint: disable=invalid-name
 
@@ -68,6 +69,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
 
     .. _tqdm: https://pypi.python.org/pypi/tqdm
     """
+
     from rf.rfstream import rfstats, RFStream
     method = phase[-1].upper()
     if request_window is None:
@@ -140,6 +142,9 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
         except Exception:  # no data available
             no_data += 1
             continue
+
+        # drop unwanted channels
+        stream = stream.select(component='N') + stream.select(component='E') + stream.select(component='Z')
 
         if len(stream) != 3:
             from warnings import warn
