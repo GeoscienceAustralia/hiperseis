@@ -193,6 +193,7 @@ def process(data_source1, data_source2, output_path,
 
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
+    stationsCache = defaultdict(list)
     for pair in proc_stations[rank]:
         netsta1, netsta2 = pair
 
@@ -223,7 +224,14 @@ def process(data_source1, data_source2, output_path,
                 # end try
 
                 net, sta = netsta.split('.')
-                stations = ds.fds.get_stations(start_time, end_time, net, sta)
+
+                if((start_time, end_time, net, sta) in stationsCache):
+                    stations = stationsCache[(start_time, end_time, net, sta)]
+                else:
+                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
+                    stationsCache[(start_time, end_time, net, sta)] = stations
+                # end if
+
                 loc_pref = location_preferences_dict[netsta]
                 ulocs = set()
                 for item in stations:
@@ -268,7 +276,7 @@ def process(data_source1, data_source2, output_path,
                    'or no overlapping data exists..')%(netsta1, netsta2))
             continue
         # end if
-
+        
         baz_netsta1 = None
         baz_netsta2 = None
         if(corr_chan == 't'):

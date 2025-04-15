@@ -837,11 +837,7 @@ class _FederatedASDFDataSetImpl():
     def get_coverage(self, network=None):
         query = """ 
                 select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
-                from wtag as w, meta as n where w.net=n.net and w.sta=n.sta and 
-                w.net in (select distinct net from meta) and 
-                w.sta in (select distinct sta from meta) and 
-                w.loc in (select distinct loc from wtag) and 
-                w.cha in (select distinct cha from wtag) 
+                from wtag as w, meta as n where w.net=n.net and w.sta=n.sta 
                 """
         if(network): query += ' and w.net="{}"'.format(network)
         query += " group by w.net, w.sta, w.loc, w.cha; "
