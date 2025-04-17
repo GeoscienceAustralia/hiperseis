@@ -40,7 +40,8 @@ from functools import reduce
 from seismic.xcorqc.utils import SpooledMatrix
 from seismic.misc import setup_logger
 
-DEBUG_MODE = np.bool_(np.int_(os.environ['DEBUG_XCORQC'])) if 'DEBUG_XCORQC' in os.environ.keys() else 0
+DEBUG_MODE = np.bool_(np.int_(os.environ['DEBUG_XCORR'])) if 'DEBUG_XCORR' in os.environ.keys() else 0
+XCORR_FORMAT = str(os.environ['XCORR_FORMAT']) if 'XCORR_FORMAT' in os.environ.keys() else 'f4'
 
 def zeropad(tr, padlen):
     assert (tr.shape[0] < padlen)
@@ -115,8 +116,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
            instrument_response_output='vel', water_level=50.,
            window_seconds=3600, window_overlap=0.1, window_buffer_length=0,
            interval_seconds=86400, taper_length=0.05, resample_rate=None,
-           flo=None, fhi=None, clip_to_2std=False, whitening=False,
-           whitening_window_frequency=0, one_bit_normalize=False, envelope_normalize=False,
+           flo=None, fhi=None, time_domain_norm='zero_mean_one_std', whitening=False,
+           whitening_window_frequency=0, envelope_normalize=False,
            apply_simple_stacking=True, verbose=1, logger=None):
 
     # Length of window_buffer in seconds
@@ -262,8 +263,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # logger.info('%s, %s' % (tr1.stats.starttime + wtr1s / 200., tr1.stats.starttime + wtr1e / sr1_orig))
                 # logger.info('%s, %s' % (tr2.stats.starttime + wtr2s / 200., tr2.stats.starttime + wtr2e / sr2_orig))
 
-                tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=np.float32)
-                tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=np.float32)
+                tr1_d = np.array(tr1_d_all[wtr1s:wtr1e], dtype=XCORR_FORMAT)
+                tr2_d = np.array(tr2_d_all[wtr2s:wtr2e], dtype=XCORR_FORMAT)
 
                 # STEP 1: detrend
                 tr1_d = signal.detrend(tr1_d)
@@ -346,25 +347,8 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                 # end if
 
                 # STEP 7: time-domain normalization
-                # clip to +/- 2*std
-                if clip_to_2std:
-                    std_tr1 = np.std(tr1_d)
-                    std_tr2 = np.std(tr2_d)
-                    clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
-                    clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
-
-                    tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
-                    tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
-                # end if
-
-                # 1-bit normalization
-                if one_bit_normalize:
-                    tr1_d = np.sign(tr1_d)
-                    tr2_d = np.sign(tr2_d)
-                # end if
-
                 # Apply Rhys Hawkins-style default time domain normalization
-                if (clip_to_2std == 0) and (one_bit_normalize == 0):
+                if (time_domain_norm == 'zero_mean_one_std'):
                     # 0-mean
                     tr1_d -= np.mean(tr1_d)
                     tr2_d -= np.mean(tr2_d)
@@ -372,6 +356,19 @@ def xcorr2(tr1, tr2, sta1_inv=None, sta2_inv=None,
                     # unit-std
                     tr1_d /= np.std(tr1_d)
                     tr2_d /= np.std(tr2_d)
+                # clip to +/- 2*std
+                elif time_domain_norm == 'clip_to_two_std':
+                    std_tr1 = np.std(tr1_d)
+                    std_tr2 = np.std(tr2_d)
+                    clip_indices_tr1 = np.fabs(tr1_d) > 2 * std_tr1
+                    clip_indices_tr2 = np.fabs(tr2_d) > 2 * std_tr2
+
+                    tr1_d[clip_indices_tr1] = 2 * std_tr1 * np.sign(tr1_d[clip_indices_tr1])
+                    tr2_d[clip_indices_tr2] = 2 * std_tr2 * np.sign(tr2_d[clip_indices_tr2])
+                # 1-bit normalization
+                elif time_domain_norm == 'one_bit_norm':
+                    tr1_d = np.sign(tr1_d)
+                    tr2_d = np.sign(tr2_d)
                 # end if
 
                 # STEP 8: taper
@@ -520,8 +517,9 @@ def IntervalStackXCorr(refds, tempds,
                        read_ahead_window_seconds=864000, interval_seconds=86400,
                        window_seconds=3600, window_overlap=0.1, window_buffer_length=0,
                        flo=None, fhi=None,
-                       clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-                       one_bit_normalize=False, envelope_normalize=False,
+                       time_domain_norm='zero_mean_one_std',
+                       whitening=False, whitening_window_frequency=0,
+                       envelope_normalize=False,
                        ensemble_stack=False,
                        subset_stacker: SubsetStacker=None,
                        apply_simple_stacking=True,
@@ -584,15 +582,14 @@ def IntervalStackXCorr(refds, tempds,
     :param flo: Lower frequency for Butterworth bandpass filter
     :type fhi: float
     :param fhi: Upper frequency for Butterworth bandpass filter
-    :type clip_to_2std: bool
-    :param clip_to_2std: Clip data in each window to +/- 2 standard deviations
+    :type time_domain_norm: str
+    :param time_domain_norm: type of time domain normalization: 'zero_mean_one_std', 'clip_to_two_std',
+                             'one_bit_norm', 'none'
     :type whitening: bool
     :param whitening: Apply spectral whitening
     :type whitening_window_frequency: float
     :param whitening_window_frequency: Window frequency (Hz) used to determine length of averaging window \
                                        for smoothing spectral amplitude
-    :type one_bit_normalize: bool
-    :param one_bit_normalize: Apply one-bit normalization to data in each window
     :type envelope_normalize: bool
     :param envelope_normalize: Envelope via Hilbert transforms and normalize
     :type ensemble_stack: bool
@@ -627,11 +624,6 @@ def IntervalStackXCorr(refds, tempds,
     if resample_rate and fhi:
         if resample_rate < 2*fhi:
             raise ValueError('Resample-rate should be >= 2*fmax')
-
-    if clip_to_2std and one_bit_normalize:
-        raise ValueError('Mutually exclusive parameterization: clip_to_2std and one-bit-normalizations'
-                         'together is redundant')
-    # end if
 
     # get preferred location codes, or use the first available
     ref_loc, ref_cha = ref_loc_cha.split('.')
@@ -778,10 +770,9 @@ def IntervalStackXCorr(refds, tempds,
                    resample_rate=resample_rate,
                    taper_length=taper_length,
                    flo=flo, fhi=fhi,
-                   clip_to_2std=clip_to_2std,
+                   time_domain_norm=time_domain_norm,
                    whitening=whitening,
                    whitening_window_frequency=whitening_window_frequency,
-                   one_bit_normalize=one_bit_normalize,
                    envelope_normalize=envelope_normalize,
                    apply_simple_stacking=apply_simple_stacking,
                    verbose=verbose, logger=logger)
@@ -869,7 +860,7 @@ def IntervalStackXCorr(refds, tempds,
             avgnsw = root_grp.createVariable('AvgNumStackedWindowsPerInterval', 'f4')
             ist = root_grp.createVariable('IntervalStartTime', 'i8')
             iet = root_grp.createVariable('IntervalEndTime', 'i8')
-            xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
+            xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
 
             totalIntervalCount = int(np.sum(flattenedWindowCounts > 0))
             totalWindowCount = int(np.sum(flattenedWindowCounts))
@@ -907,7 +898,7 @@ def IntervalStackXCorr(refds, tempds,
 
             if(apply_simple_stacking):
                 nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
-                xc = root_grp.createVariable('xcorr', 'f4', ('interval', 'lag',),
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('interval', 'lag',),
                                          chunksizes=(1, spooledXcorr.ncols),
                                          zlib=True)
                 nsw[:] = flattenedWindowCounts
@@ -915,11 +906,11 @@ def IntervalStackXCorr(refds, tempds,
                     xc[irow, :] = spooledXcorr.read_row(irow)
                 # end for
             elif subset_stacker is not None:
-                xc = root_grp.createVariable('xcorr', 'f4', ('lag',))
-                xc_Xei = root_grp.createVariable('xcorr_Xei', 'f4', ('lag',))
-                xc_Xec = root_grp.createVariable('xcorr_Xec', 'f4', ('lag',))
-                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', 'f4', ('lag',))
-                xc_Xeo = root_grp.createVariable('xcorr_Xeo', 'f4', ('lag',))
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
+                xc_Xei = root_grp.createVariable('xcorr_Xei', XCORR_FORMAT, ('lag',))
+                xc_Xec = root_grp.createVariable('xcorr_Xec', XCORR_FORMAT, ('lag',))
+                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', XCORR_FORMAT, ('lag',))
+                xc_Xeo = root_grp.createVariable('xcorr_Xeo', XCORR_FORMAT, ('lag',))
 
                 xc_wc = root_grp.createVariable('xcorr_NumStackedWindows', 'i8')
                 xc_Xei_wc = root_grp.createVariable('xcorr_Xei_NumStackedWindows', 'i8')
@@ -947,7 +938,7 @@ def IntervalStackXCorr(refds, tempds,
                 xc_XeiUXec_wc[:] = wc_XeiUXec
                 xc_Xeo_wc[:] = wc_Xeo
             else:
-                xc = root_grp.createVariable('xcorr', 'f4', ('window', 'lag',),
+                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('window', 'lag',),
                                              chunksizes=(1, spooledXcorr.ncols),
                                              zlib=True)
                 for irow in np.arange(spooledXcorr.nrows):
@@ -975,9 +966,7 @@ def IntervalStackXCorr(refds, tempds,
                   'window_buffer_length': window_buffer_length,
                   'bandpass_fmin': flo if flo else -999,
                   'bandpass_fmax': fhi if fhi else -999,
-                  'clip_to_2std': int(clip_to_2std),
-                  'one_bit_normalize': int(one_bit_normalize),
-                  'zero_mean_1std_normalize': int(clip_to_2std is False and one_bit_normalize is False),
+                  'time_domain_norm': time_domain_norm,
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
                   'ensemble_stack': int(ensemble_stack),

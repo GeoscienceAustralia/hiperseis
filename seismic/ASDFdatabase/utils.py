@@ -186,6 +186,7 @@ class MseedIndex:
         self.tree = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
         self.stream_cache = MseedIndex.StreamCache()
         self.mseed_files = np.array(sorted(glob(os.path.join(self.mseed_folder, pattern))))
+        self.coverage_dict = defaultdict(float) # dict keyed by nslc, with coverage as values
 
         fc = len(self.mseed_files)
         if(fc > 0):
@@ -217,6 +218,11 @@ class MseedIndex:
                 # skip bogus traces
                 if(nc == sc == lc == cc == ''): continue
                 self.meta_list.append([i, nc, sc, lc, cc, st, et])
+
+                nslc = '.'.join((nc, sc, lc, cc))
+                # store coverage for unique channels and sampling rates
+                cov = float(et - st) # coverage in seconds
+                self.coverage_dict[nslc] += cov
             # end for
             # if (i > 0): break
         # end for
@@ -230,7 +236,11 @@ class MseedIndex:
                 self.tree[nc][sc][lc][cc] = index.Index()
             # end if
             self.tree[nc][sc][lc][cc].insert(idx, (st, 1, et, 1))
-            # end for
+        # end for
+    # end func
+
+    def get_channel_coverages(self) -> defaultdict:
+        return self.coverage_dict
     # end func
 
     def __getstate__(self):

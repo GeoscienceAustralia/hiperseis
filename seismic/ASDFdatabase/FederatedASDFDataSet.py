@@ -185,7 +185,7 @@ class FederatedASDFDataSet():
     # end func
 
     def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, trace_count_threshold=200):
+                      endtime, trace_count_threshold=200, nearest_sample=True):
         """
         :param network: network code
         :param station: station code
@@ -196,10 +196,11 @@ class FederatedASDFDataSet():
         :param trace_count_threshold: returns an empty Stream if the number of traces within the time-range provided
                                       exceeds the threshold (default 200). This is particularly useful for filtering
                                       out data from bad stations, e.g. those from the AU.Schools network
+        :param nearest_sample: fetches nearest sample if True
         :return: an obspy.Stream containing waveform data over the time-rage provided
         """
         s = self.fds.get_waveforms(network, station, location, channel, starttime,
-                                   endtime, trace_count_threshold)
+                                   endtime, trace_count_threshold, nearest_sample)
         return s
 
     # end func

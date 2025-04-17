@@ -74,9 +74,9 @@ def test_correlator():
                 86400, 3600, 0.1,
                 0.05, 86400, 4, 0.05, -1, None, None, 0.002, 2, netsta1,
                 netsta2, None, start_time, end_time, None, 'vel',
-                50, False, True, 0.02, True, loc_pref,
+                50, 'one_bit_norm', True, 0.02, loc_pref,
                 '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False, False,
-                None, True, False, False, True, None)
+                None, True, False, False, True)
 
 
         # Read result
@@ -107,7 +107,7 @@ def test_correlator():
                 86400, 3600, 0.1,
                 0.05, 86400, 4, 0.05, -1, None, None, 0.002, 2, netsta1,
                 netsta2, None, start_time, end_time, None, 'vel',
-                50, False, True, 0.02, True, loc_pref,
+                50, 'one_bit_norm', True, 0.02, loc_pref,
                 '*Z', '*N', '*E', '*Z', '*N', '*E', 'z', False, False,
                 None, False, False, False, True, None)
 

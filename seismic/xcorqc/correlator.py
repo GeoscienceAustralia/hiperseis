@@ -43,8 +43,8 @@ def process(data_source1, data_source2, output_path,
             fmin=None, fmax=None, netsta_list1='*', netsta_list2='*', pairs_to_compute=None,
             start_time='1970-01-01T00:00:00', end_time='2100-01-01T00:00:00',
             instrument_response_inventory=None, instrument_response_output='vel', water_level=50,
-            clip_to_2std=False, whitening=False, whitening_window_frequency=0,
-            one_bit_normalize=False, location_preferences=None, ds1_zchan=None, ds1_nchan=None,
+            time_domain_norm='zero_mean_one_std', whitening=False, whitening_window_frequency=0,
+            location_preferences=None, ds1_zchan=None, ds1_nchan=None,
             ds1_echan=None, ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, subset_stacker=None, apply_simple_stacking=True,
             restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None):
@@ -113,8 +113,7 @@ def process(data_source1, data_source2, output_path,
             f.write('%35s\t\t\t: %s\n' % ('--instrument-response-output', instrument_response_output))
             f.write('%35s\t\t\t: %s\n' % ('--corr-chan', corr_chan))
             f.write('%35s\t\t\t: %s\n' % ('--water-level', water_level))
-            f.write('%35s\t\t\t: %s\n' % ('--clip-to-2std', clip_to_2std))
-            f.write('%35s\t\t\t: %s\n' % ('--one-bit-normalize', one_bit_normalize))
+            f.write('%35s\t\t\t: %s\n' % ('--time-domain-norm', time_domain_norm))
             f.write('%35s\t\t\t: %s\n' % ('--envelope-normalize', envelope_normalize))
             f.write('%35s\t\t\t: %s\n' % ('--whitening', whitening))
             if(whitening):
@@ -194,6 +193,7 @@ def process(data_source1, data_source2, output_path,
 
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
+    stationsCache = defaultdict(list)
     for pair in proc_stations[rank]:
         netsta1, netsta2 = pair
 
@@ -224,7 +224,14 @@ def process(data_source1, data_source2, output_path,
                 # end try
 
                 net, sta = netsta.split('.')
-                stations = ds.fds.get_stations(start_time, end_time, net, sta)
+
+                if((start_time, end_time, net, sta) in stationsCache):
+                    stations = stationsCache[(start_time, end_time, net, sta)]
+                else:
+                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
+                    stationsCache[(start_time, end_time, net, sta)] = stations
+                # end if
+
                 loc_pref = location_preferences_dict[netsta]
                 ulocs = set()
                 for item in stations:
@@ -269,7 +276,7 @@ def process(data_source1, data_source2, output_path,
                    'or no overlapping data exists..')%(netsta1, netsta2))
             continue
         # end if
-
+        
         baz_netsta1 = None
         baz_netsta2 = None
         if(corr_chan == 't'):
@@ -309,8 +316,8 @@ def process(data_source1, data_source2, output_path,
                                baz_netsta1, baz_netsta2,
                                resample_rate, taper_length, read_ahead_window_seconds,
                                interval_seconds, window_seconds, window_overlap,
-                               window_buffer_length, fmin, fmax, clip_to_2std, whitening,
-                               whitening_window_frequency, one_bit_normalize, envelope_normalize,
+                               window_buffer_length, fmin, fmax, time_domain_norm, whitening,
+                               whitening_window_frequency, envelope_normalize,
                                ensemble_stack, subset_stacker, apply_simple_stacking, output_path, 2,
                                time_tag, scratch_folder, git_hash)
         # end for
@@ -389,9 +396,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
               help="Water-level in dB to limit amplification during instrument response correction "
                    "to a certain cut-off value. Note, this parameter has no effect if instrument "
                    "response correction is not performed.")
-@click.option('--clip-to-2std', is_flag=True,
-              help="Clip data in each window to +/- 2 standard deviations. Note that the default time-domain normalization "
-                   "is N(0,1), i.e. 0-mean and unit variance")
+@click.option('--time-domain-norm', type=click.Choice(['zero_mean_one_std', 'clip_to_two_std',
+                                                       'one_bit_norm', 'none']),
+              default='zero_mean_one_std',
+              help="Time domain normalization: "
+                   "zero_mean_one_std: the default time-domain normalization, N(0,1), i.e. 0-mean and unit variance"
+                   "clip_to_two_std: clips data in each window to +/- 2 standard deviations. "
+                   "one_bit_norm: apply one-bit normalization to data in each window"
+                   "none: no time domain normalization")
 @click.option('--whitening', is_flag=True,
               help="Apply spectral whitening")
 @click.option('--whitening-window-frequency', type=float, default=0,
@@ -399,9 +411,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                    "that scale the spectral amplitudes of the waveform being spectrally whitened. The default value of 0 "
                    "implies no smoothing of weights. Note that this parameter has no effect unless whitening is activated with "
                    "'--whitening'")
-@click.option('--one-bit-normalize', is_flag=True,
-              help="Apply one-bit normalization to data in each window.  Note that the default time-domain normalization "
-                   "is N(0,1), i.e. 0-mean and unit variance")
 @click.option('--location-preferences', default=None,
               type=click.Path(exists=True),
               help="A comma-separated two-columned text file containing location code preferences for "
@@ -465,7 +474,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
          stacking_interval_seconds, window_buffer_length, resample_rate, taper_length, nearest_neighbours,
          pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
          start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
-         clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
+         time_domain_norm, whitening, whitening_window_frequency, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
          ensemble_stack, subset_stack, restart, dry_run, no_tracking_tag, scratch_folder):
     """
@@ -538,7 +547,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
             window_buffer_length, read_ahead_window_seconds, resample_rate, taper_length, nearest_neighbours,
             pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
             start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
-            clip_to_2std, whitening, whitening_window_frequency, one_bit_normalize, location_preferences,
+            time_domain_norm, whitening, whitening_window_frequency, location_preferences,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
             ensemble_stack, subset_stacker, apply_simple_stacking, restart, dry_run, no_tracking_tag,
             scratch_folder)
