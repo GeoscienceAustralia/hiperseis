@@ -2,9 +2,10 @@ import os
 import pytest
 from obspy.core import read as obspy_read, Stream
 # from obspy.core.event import Event, read_events
-from legacy.pickers_integration.pickers import pickermaps
+import sys
 
-algos = list(pickermaps.keys())
+is_windows = sys.platform.startswith('win')
+algos = ['aicdpicker', 'fbpicker', 'ktpicker']
 
 
 @pytest.fixture(params=algos)
@@ -21,8 +22,9 @@ def algorithm(request):
 #     for s in st[:1]:
 #         picker.picks(s)
 
-
+@pytest.mark.skipif(is_windows, reason='Availability of compilers cannot be guaranteed')
 def test_pick_amplitude_assocs(miniseed_conf, algorithm, mseed):
+    from legacy.pickers_integration.pickers import pickermaps
     picker = pickermaps[algorithm]()
     st = obspy_read(mseed)
     st2 = Stream(st[0:1])

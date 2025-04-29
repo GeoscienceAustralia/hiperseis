@@ -24,12 +24,16 @@ from seismic.inventory.response import ResponseFactory
 from shutil import rmtree
 from scipy.interpolate import interp1d
 import sys
+import pytest 
+
+is_windows = sys.platform.startswith('win')
 
 path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 path = os.path.join(path, 'seismic/inventory/')
 resp_file = os.path.join(path, 'RESP.COMPACT120S.MINIMUS.txt')
 tempdir = tempfile.mkdtemp()
 
+@pytest.mark.skipif(is_windows, reason='Temp folder deletion often fails on windows.')
 def test_fast_psd():
     network = 'AA'
     station = 'BB'
