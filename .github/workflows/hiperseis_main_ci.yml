@@ -1,4 +1,4 @@
-# This workflow is setup by Fei Zhang to use Github Actions 202-09-14
+# This workflow is setup by Fei Zhang to use Github Actions 2020-09-14
 
 name: hiperseis_main_ci
 
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: ['3.8']
 
     steps:
     - uses: actions/checkout@v2
@@ -48,5 +48,8 @@ jobs:
 #         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Running pytest
       run: |
-        python -m pytest ./tests
+        coverage -m pytest ./tests
+
+    - name: Coveralls GitHub Action
+      uses: coverallsapp/github-action@v2.3.6
 

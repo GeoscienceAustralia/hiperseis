@@ -89,3 +89,5 @@ seismic/xcorqc/**/*.pbs
 **/junk.*
 **/LOG_CODE_DUPES_*.txt
 **/LOG_LOCATION_DUPES_*.txt
+AU_strict/
+tests/AU_strict/
