@@ -11,38 +11,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-    - name: Install dependencies
+    - name: Setup environment
       run: |
-        git submodule update --init --recursive
-        sudo apt-get install libhdf5-dev
-        sudo apt-get install libmpich-dev
-        sudo apt-get install libproj-dev proj-bin
-        sudo apt-get install libgeos-dev
-        sudo apt-get install libnetcdf-dev
-
-        python -m pip install --upgrade pip
-
-        pip install numpy
-        pip install Cython --config-settings="NO_CYTHON_COMPILE=true"
-        pip install flake8
-
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -r tests/requirements.txt
-        pip list
-#     - name: Lint with flake8
-#       run: |
-#         # stop the build if there are Python syntax errors or undefined names
-#         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        curl -O https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh && bash ~/Anaconda3-2024.10-1-Linux-x86_64.sh
+        source ~/.bashrc
+        source conda_env_linux.sh hiperseis
     - name: Running pytest
       run: |
         coverage run -m pytest ./tests
-
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2.3.6
 
