@@ -34,6 +34,7 @@ jobs:
         pip install flake8 pytest
         pip install pytest-cov
         pip install coveralls
+        pip install pyyaml
 
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip list
