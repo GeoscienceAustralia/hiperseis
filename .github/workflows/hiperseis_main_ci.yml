@@ -8,16 +8,13 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.8']
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.8'
     - name: Install dependencies
       run: |
         git submodule update --init --recursive
@@ -31,12 +28,10 @@ jobs:
 
         pip install numpy
         pip install Cython --config-settings="NO_CYTHON_COMPILE=true"
-        pip install flake8 pytest
-        pip install pytest-cov
-        pip install coveralls
-        pip install pyyaml
+        pip install flake8
 
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r tests/requirements.txt
         pip list
 #     - name: Lint with flake8
 #       run: |
