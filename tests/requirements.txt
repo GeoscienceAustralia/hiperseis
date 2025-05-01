@@ -1,0 +1,4 @@
+pytest
+coveralls
+coverage
+requests_mock

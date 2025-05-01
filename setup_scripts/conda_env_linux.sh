@@ -2,6 +2,7 @@
 
 #set -e
 #set -o pipefail
+eval "$(conda shell.bash hook)"
 
 help()
 {
