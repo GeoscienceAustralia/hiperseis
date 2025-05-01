@@ -30,15 +30,14 @@ jobs:
         python -m pip install --upgrade pip
 
         pip install numpy
-        pip install Cython --install-option="--no-cython-compile"
+        pip install Cython --config-settings="NO_CYTHON_COMPILE=true"
         pip install flake8 pytest
         pip install pytest-cov
         pip install coveralls
         pip install pip-tools
-        pip-compile --upgrade
 
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -r tests/requirements.txt
+        pip-compile --upgrade
         pip list
 #     - name: Lint with flake8
 #       run: |
