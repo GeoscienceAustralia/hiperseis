@@ -16,6 +16,15 @@ jobs:
       with:
         auto-update-conda: true
         python-version: 3.6.8
+    - name: Installing dependencies
+      shell: bash -el {0}
+      run: |
+        sudo apt-get install libproj-dev proj-data proj-bin
+        sudo apt-get install libgeos-dev
+        conda install conda-forge::cartopy=0.19.0.post1
+        conda install conda-forge::obspy
+        pip install Cython --install-option="--no-cython-compile"
+        pip install -r tests/requirements.txt
     - name: Running pytest
       shell: bash -el {0}
       run: |

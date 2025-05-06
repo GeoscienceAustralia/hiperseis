@@ -1,4 +1,9 @@
 pytest
 coveralls
+coverage
 pyyaml
-obspy
+numpy
+sortedcontainers
+h5py
+obspyh5
+rf==0.8.0
