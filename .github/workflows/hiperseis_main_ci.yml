@@ -23,6 +23,7 @@ jobs:
         sudo apt-get install libgeos-dev
         sudo apt-get install libmpich-dev
         conda install conda-forge::proj4
+        conda install conda-forge::openmpi=4.1.4
         conda install conda-forge::mpi4py=3.0.3
         conda install conda-forge::cartopy=0.19.0.post1
         conda install conda-forge::obspy
