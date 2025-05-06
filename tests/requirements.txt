@@ -18,3 +18,4 @@ pyasdf==0.5.1
 rtree==0.9.7
 psutil
 netCDF4==1.4.0
+pyproj==3.0.1
