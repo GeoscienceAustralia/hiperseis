@@ -7,3 +7,8 @@ sortedcontainers
 h5py
 obspyh5
 rf==0.8.0
+pandas
+requests_mock
+scikit-learn==0.22.2.post1
+click
+pathos
