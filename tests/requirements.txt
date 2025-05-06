@@ -12,3 +12,4 @@ requests_mock
 scikit-learn==0.22.2.post1
 click
 pathos
+ordered_set
