@@ -16,3 +16,4 @@ ordered_set
 PyPDF2==1.26.0
 pyasdf==0.5.1
 rtree==0.9.7
+psutil
