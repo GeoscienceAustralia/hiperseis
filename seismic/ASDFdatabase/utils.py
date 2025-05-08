@@ -96,6 +96,18 @@ class InventoryAggregator:
 
                     if (type(self.cha_dict[nc][sc][lc][cc]) == defaultdict):
                         self.cha_dict[nc][sc][lc][cc] = cha
+                    else:
+                        # update start/end dates for existing channels
+                        ocha = self.cha_dict[nc][sc][lc][cc]
+                        if(ocha.start_date and cha.start_date):
+                            if (ocha.start_date > cha.start_date): ocha.start_date = cha.start_date
+                        elif(ocha.start_date is None and cha.start_date):
+                            ocha.start_date = cha.start_date
+                        # end if
+
+                        if(ocha.end_date and cha.end_date):
+                            if(ocha.end_date < cha.end_date): ocha.end_date = cha.end_date
+                        # end if
                     # end if
                 # end for
             # end for
