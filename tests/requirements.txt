@@ -1,5 +1,6 @@
 pytest
 coveralls
+pytest-cov
 coverage
 pyyaml
 numpy
