@@ -17,7 +17,6 @@ from os.path import splitext
 
 from seismic.units_utils import KM_PER_DEG
 from rf.rfstream import rfstats, obj2stats
-from rf.util import _get_stations
 from obspy.geodetics import gps2dist_azimuth
 from obspy.geodetics import kilometers2degrees
 from obspy.core import Stream
@@ -69,14 +68,24 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
 
     .. _tqdm: https://pypi.python.org/pypi/tqdm
     """
+    def _get_stations(inventory):
+        valid_patterns = {'HH', 'BH', 'SH', 'EH'}
+        channels = inventory.get_contents()['channels']
+        stations = {ch[:-1] + '?': ch[-1] for ch in channels if ch.split('.')[3][:-1] in valid_patterns}
+        return stations
+    # end func
 
     from rf.rfstream import rfstats, RFStream
     method = phase[-1].upper()
+
     if request_window is None:
         request_window = (-50, 150) if method == 'P' else (-100, 50)
+    # end if
+
     stations = _get_stations(inventory)
     if pbar is not None:
         pbar.total = len(events) * len(stations)
+    # end if
 
     events_processed = 0
     no_data = 0
@@ -144,7 +153,23 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             continue
 
         # drop unwanted channels
-        stream = stream.select(component='N') + stream.select(component='E') + stream.select(component='Z')
+        if(len(stream) > 3):
+            # attempt to select a ZNE triplet as the first preference
+            temp = stream.select(component='N') + \
+                   stream.select(component='E') + \
+                   stream.select(component='Z')
+            if(len(temp) == 3):
+                stream = temp
+            else:
+                # attempt to select a 12Z triplet as the second preference
+                temp = stream.select(component='1') + \
+                       stream.select(component='2') + \
+                       stream.select(component='Z')
+                if(len(temp) == 3):
+                    stream = temp
+                # end if
+            # end if
+        # end if
 
         if len(stream) != 3:
             from warnings import warn
