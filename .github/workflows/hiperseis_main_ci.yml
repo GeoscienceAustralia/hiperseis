@@ -39,6 +39,5 @@ jobs:
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@main
       with:
-        debug: true
         format: cobertura
 
