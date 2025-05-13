@@ -34,8 +34,8 @@ jobs:
     - name: Running pytest
       shell: bash -el {0}
       run: |
-        coverage run -m pytest ./tests/test_pickers.py
-        coverage report -m
+        coverage run -m pytest ./tests/test_convert_logs.py
+        coverage report
     - name: Coveralls
       run: coveralls
 
