@@ -28,6 +28,7 @@ jobs:
         conda install conda-forge::mpi4py=3.0.3
         conda install conda-forge::cartopy=0.19.0.post1
         conda install conda-forge::obspy
+        conda install conda-forge::gcc_linux-64==7.5.0
         pip install Cython --install-option="--no-cython-compile"
         pip install -r tests/requirements.txt
     - name: Running pytest
