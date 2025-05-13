@@ -35,6 +35,7 @@ jobs:
       shell: bash -el {0}
       run: |
         coverage run -m pytest ./tests
+        coverage report -m
     - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@v2.3.6
+      uses: coverallsapp/github-action@main
 
