@@ -34,7 +34,7 @@ jobs:
     - name: Running pytest
       shell: bash -el {0}
       run: |
-        coverage run -m pytest ./tests/test_convert_logs.py
+        coverage run -m pytest ./tests
         coverage xml
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@main
