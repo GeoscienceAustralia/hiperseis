@@ -36,6 +36,6 @@ jobs:
       run: |
         coverage run -m pytest ./tests/test_convert_logs.py
         coverage report
-    - name: Coveralls
-      run: coveralls
+    - name: Coveralls GitHub Action
+      uses: coverallsapp/github-action@main
 
