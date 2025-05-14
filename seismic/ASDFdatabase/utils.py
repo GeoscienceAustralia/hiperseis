@@ -95,19 +95,17 @@ class InventoryAggregator:
                         pass
 
                     if (type(self.cha_dict[nc][sc][lc][cc]) == defaultdict):
-                        self.cha_dict[nc][sc][lc][cc] = cha
-                    else:
-                        # update start/end dates for existing channels
-                        ocha = self.cha_dict[nc][sc][lc][cc]
-                        if(ocha.start_date and cha.start_date):
-                            if (ocha.start_date > cha.start_date): ocha.start_date = cha.start_date
-                        elif(ocha.start_date is None and cha.start_date):
-                            ocha.start_date = cha.start_date
-                        # end if
+                        cha_copy = copy.deepcopy(cha)
 
-                        if(ocha.end_date and cha.end_date):
-                            if(ocha.end_date < cha.end_date): ocha.end_date = cha.end_date
-                        # end if
+                        """
+                        Channel start- and end-dates in the inventory do not reflect actual waveform
+                        data holdings. We therefore set the start- and end-times to None, so usable 
+                        data is not lost e.g. when rotating waveform data for which corresponding 
+                        metadata for the correct timeframes do not exist.
+                        """
+                        cha_copy.start_date = None
+                        cha_copy.end_date = None
+                        self.cha_dict[nc][sc][lc][cc] = cha_copy
                     # end if
                 # end for
             # end for
