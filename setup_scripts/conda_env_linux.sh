@@ -17,7 +17,7 @@ if [ "$VALID_ARGUMENTS" -eq 0 ]; then
 fi
 
 echo "==== Create a conda environment with requisite packages ===="
-conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0 gxx_linux-64==7.5.0 proj4 geos
+conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0 gxx_linux-64==7.5.0 proj4 geos libxcrypt
 
 echo "==== Activating conda environment ===="
 conda activate $1
@@ -52,6 +52,7 @@ pip3 install PyPDF2==1.26.0
 pip3 install shapely==1.8.1.post1 --no-binary shapely
 pip3 install cartopy==0.19.0.post1 --no-binary cartopy
 pip3 install PyWavelets==1.1.1
+pip3 install toeplitz==0.3.2
 pip3 install rf==0.8.0
 pip3 install affine==2.3.0
 pip3 install future==0.18.2
