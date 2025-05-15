@@ -18,6 +18,8 @@ jobs:
         export PATH="$HOME/anaconda3/bin:$PATH"
         conda init bash
         source ~/.bashrc
+        sudo apt-get install openmpi-bin libopenmpi-dev
+        sudo apt-get install libhdf5-dev
     - name: Install dependencies
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
