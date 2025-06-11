@@ -28,6 +28,7 @@ jobs:
         source ~/.bashrc
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
+        dpkg -L openmpi-bin
     - name: Install dependencies
       run: |
         git submodule update --init --recursive
