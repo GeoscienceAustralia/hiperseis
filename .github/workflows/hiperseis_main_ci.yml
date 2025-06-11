@@ -32,16 +32,14 @@ jobs:
         key: anaconda
         path: |
           /home/runner
-          /usr
-          /etc
+          /usr/share/miniconda/envs/hiperseis
     - name: Restore dependencies
       id: cache-dependencies
       uses: actions/cache/restore@main
       with:
         path: |
           /home/runner
-          /usr
-          /etc
+          /usr/share/miniconda/envs/hiperseis
         key: anaconda
     - name: Running pytest
       shell: bash -el {0}
@@ -49,6 +47,8 @@ jobs:
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
+        sudo apt-get install openmpi-bin libopenmpi-dev
+        sudo apt-get install libhdf5-dev
         pip install -r tests/requirements.txt
         coverage run -m pytest ./tests
         coverage xml
