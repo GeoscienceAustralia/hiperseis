@@ -24,7 +24,7 @@ jobs:
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
         pwd
-        ls /home/runner/anaconda3/envs
+        ls /usr/share/miniconda/envs
         conda info --envs
     - name: Running pytest
       shell: bash -el {0}
