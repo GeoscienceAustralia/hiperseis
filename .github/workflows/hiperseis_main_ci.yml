@@ -32,6 +32,7 @@ jobs:
     - name: Install dependencies
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
+        git submodule update --init --recursive
         source setup_scripts/conda_env_linux.sh hiperseis
         conda info --envs
     - name: Always save cache
