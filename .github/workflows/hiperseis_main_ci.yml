@@ -15,7 +15,7 @@ jobs:
       id: cache-dependencies
       uses: actions/cache@main
       with:
-        path: ~
+        path: "$HOME/.cache/conda"
         key: anaconda
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
