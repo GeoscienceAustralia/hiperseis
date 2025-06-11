@@ -30,11 +30,11 @@ jobs:
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
     - name: Install dependencies
-      if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         git submodule update --init --recursive
         source setup_scripts/conda_env_linux.sh hiperseis
-        conda info --envs
+        pip list -v
+        pip show obspy
     - name: Always save cache
       id: cache-dependencies-save
       if: always() && steps.cache-dependencies.outputs.cache-hit != 'true'
