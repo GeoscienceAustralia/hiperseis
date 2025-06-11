@@ -15,7 +15,7 @@ jobs:
       id: cache-dependencies
       uses: actions/cache/restore@main
       with:
-        path: /usr/share/anaconda3/envs
+        path: /home/runner
         key: anaconda
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
@@ -44,7 +44,7 @@ jobs:
       uses: actions/cache/save@main
       with:
         key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
-        path: /usr/share/anaconda3/envs
+        path: /home/runner
     - name: Running pytest
       shell: bash -el {0}
       run: |
