@@ -20,20 +20,20 @@ jobs:
         source ~/.bashrc
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
-        dpkg -L openmpi-bin
     - name: Install dependencies
       run: |
         git submodule update --init --recursive
         source setup_scripts/conda_env_linux.sh hiperseis
     - name: Always save cache
       id: cache-dependencies-save
-      if: always() && steps.cache-dependencies.outputs.cache-hit != 'true'
+      if: always()
       uses: actions/cache/save@main
       with:
-        key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
+        key: anaconda
         path: |
           /home/runner
-          /usr/share/miniconda/envs/hiperseis
+          /usr
+          /etc
     - name: Running pytest
       shell: bash -el {0}
       run: |
