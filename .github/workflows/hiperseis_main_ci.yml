@@ -41,6 +41,7 @@ jobs:
     - name: Running pytest
       shell: bash -el {0}
       run: |
+        conda activate hiperseis
         pip install -r tests/requirements.txt
         coverage run -m pytest ./tests
         coverage xml
