@@ -24,6 +24,7 @@ jobs:
         export PATH="$HOME/anaconda3/bin:$PATH"
         conda init bash
         source ~/.bashrc
+        git submodule update --init --recursive
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
     - name: Install dependencies
