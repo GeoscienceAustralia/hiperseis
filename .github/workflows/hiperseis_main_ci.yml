@@ -38,10 +38,10 @@ jobs:
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
-        pip install -r tests/requirements.txt
     - name: Running pytest
       shell: bash -el {0}
       run: |
+        pip install -r tests/requirements.txt
         coverage run -m pytest ./tests
         coverage xml
     - name: Coveralls GitHub Action
