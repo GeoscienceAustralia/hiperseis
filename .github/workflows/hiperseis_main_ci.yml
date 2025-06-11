@@ -11,12 +11,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
-    - name: Cache dependencies
-      id: cache-dependencies
-      uses: actions/cache/restore@main
-      with:
-        path: /home/runner
-        key: anaconda
     - name: Setting up environment
       run: |
         wget -q https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O anaconda.sh
@@ -24,23 +18,13 @@ jobs:
         export PATH="$HOME/anaconda3/bin:$PATH"
         conda init bash
         source ~/.bashrc
-        git submodule update --init --recursive
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
     - name: Install dependencies
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
-        cd /home/runner/anaconda3
-        ls
         cd /home/runner/anaconda3/envs
         ls
-    - name: Always save cache
-      id: cache-dependencies-save
-      if: always() && steps.cache-dependencies.outputs.cache-hit != 'true'
-      uses: actions/cache/save@main
-      with:
-        key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
-        path: /home/runner
     - name: Running pytest
       shell: bash -el {0}
       run: |
