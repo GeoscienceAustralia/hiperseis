@@ -15,7 +15,7 @@ jobs:
       id: cache-dependencies
       uses: actions/cache/restore@main
       with:
-        path: "$HOME/anaconda3"
+        path: ~/anaconda3
         key: anaconda
     - name: Always save cache
       id: cache-dependencies-save
@@ -23,7 +23,7 @@ jobs:
       uses: actions/cache/save@main
       with:
         key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
-        path: "$HOME/anaconda3"
+        path: ~/anaconda3
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
