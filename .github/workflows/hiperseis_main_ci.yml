@@ -15,8 +15,8 @@ jobs:
       id: cache-dependencies
       uses: actions/cache@main
       with:
-        path: $HOME/anaconda3
-        key: ${{ runner.os }}-anaconda
+        path: ~
+        key: anaconda
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
