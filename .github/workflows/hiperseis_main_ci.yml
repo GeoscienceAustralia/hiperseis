@@ -11,7 +11,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
+    - name: Restore dependencies
+      id: cache-dependencies
+      uses: actions/cache/restore@main
+      with:
+        path: |
+          /home/runner
+          /usr/share/miniconda/envs/hiperseis
+        key: anaconda-1
     - name: Setting up environment
+      if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         wget -q https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O anaconda.sh
         bash anaconda.sh -b -p $HOME/anaconda3 > /dev/null 2>&1
@@ -21,6 +30,7 @@ jobs:
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
     - name: Install dependencies
+      if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         git submodule update --init --recursive
         source setup_scripts/conda_env_linux.sh hiperseis
@@ -33,14 +43,6 @@ jobs:
         path: |
           /home/runner/work/hiperseis
           /usr/share/miniconda/envs/hiperseis
-    - name: Restore dependencies
-      id: cache-dependencies
-      uses: actions/cache/restore@main
-      with:
-        path: |
-          /home/runner
-          /usr/share/miniconda/envs/hiperseis
-        key: anaconda
     - name: Running pytest
       shell: bash -el {0}
       run: |
