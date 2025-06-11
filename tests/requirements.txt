@@ -3,3 +3,4 @@ coveralls
 coverage
 requests_mock
 pyyaml
+tables
