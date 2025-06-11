@@ -1,0 +1,57 @@
+# .coveragerc to control coverage.py
+[run]
+branch = True
+source =
+    seismic
+    utils
+omit =
+    */sandbox/*
+    */legacy/*
+    # Data harvester folder lacking requirements information and not Py3 compliant
+    seismic/ml_classifier/data_harvester/*
+    # Exclude file that requires seiscomp3, not supported in testing runtime environment:
+    seismic/inventory/fdsnxml_convert.py
+    # Exclude selected scripts which are exclusively for bespoke reporting or report plotting
+    seismic/inversion/mcmc/bulk_inversion_report.py
+    seismic/receiver_fn/bulk_rf_report.py
+    seismic/plot_*.py
+    seismic/*/plot_*.py
+    # Exclude examples of usage as these will never be unit tested
+    */example_*.py
+concurrency = multiprocessing
+
+parallel = True
+
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    def __str__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+    raise ValueError
+    raise RuntimeError
+    raise IOError
+    except OSError
+    except ValueError
+    except IndexError
+    raise ImportError
+    except ImportError
+    except Exception
+    raise ConfigException
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+ignore_errors = True
+
+[html]
+directory = coverage_html_report
