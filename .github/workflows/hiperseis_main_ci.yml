@@ -18,7 +18,7 @@ jobs:
         path: |
           /home/runner
           /usr/share/miniconda/envs/hiperseis
-        key: anaconda-2
+        key: anaconda-1
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
