@@ -18,7 +18,7 @@ jobs:
         path: |
           /home/runner
           /usr/share/miniconda/envs/hiperseis
-        key: anaconda-1
+        key: anaconda-2
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
@@ -39,7 +39,7 @@ jobs:
       if: always()
       uses: actions/cache/save@main
       with:
-        key: anaconda-1
+        key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
         path: |
           /home/runner/work/hiperseis
           /usr/share/miniconda/envs/hiperseis
