@@ -11,16 +11,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
-    - name: Cache dependencies
-      id: cache-dependencies
-      uses: actions/cache/restore@main
-      with:
-        path: |
-          /home/runner
-          /usr/share/miniconda/envs/hiperseis
-        key: anaconda
     - name: Setting up environment
-      if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         wget -q https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O anaconda.sh
         bash anaconda.sh -b -p $HOME/anaconda3 > /dev/null 2>&1
@@ -35,15 +26,6 @@ jobs:
         source setup_scripts/conda_env_linux.sh hiperseis
         pip list -v
         pip show obspy
-    - name: Always save cache
-      id: cache-dependencies-save
-      if: always() && steps.cache-dependencies.outputs.cache-hit != 'true'
-      uses: actions/cache/save@main
-      with:
-        key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
-        path: |
-          /home/runner
-          /usr/share/miniconda/envs/hiperseis
     - name: Running pytest
       shell: bash -el {0}
       run: |
