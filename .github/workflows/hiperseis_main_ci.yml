@@ -31,10 +31,11 @@ jobs:
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
-        python -m pip install -r tests/requirements.txt
+        pip install -r tests/requirements.txt
     - name: Running pytest
+      shell: bash -el {0}
       run: |
-        pytest ./tests
+        coverage run -m pytest ./tests
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2.3.6
 
