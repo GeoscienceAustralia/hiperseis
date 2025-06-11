@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@main
     - name: Cache dependencies
       id: cache-dependencies
-      uses: actions/cache@main
+      uses: actions/cache/restore@main
       with:
         path: "$HOME/anaconda3"
         key: anaconda
