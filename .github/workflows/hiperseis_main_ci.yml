@@ -16,7 +16,7 @@ jobs:
       uses: actions/cache/restore@main
       with:
         path: |
-          /home/runner/anaconda3
+          /home/runner
           /usr/share/miniconda/envs/hiperseis
         key: anaconda
     - name: Setting up environment
@@ -42,7 +42,7 @@ jobs:
       with:
         key: ${{ steps.cache-dependencies.outputs.cache-primary-key }}
         path: |
-          /home/runner/anaconda3
+          /home/runner
           /usr/share/miniconda/envs/hiperseis
     - name: Running pytest
       shell: bash -el {0}
