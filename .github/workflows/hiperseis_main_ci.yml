@@ -31,6 +31,13 @@ jobs:
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         source setup_scripts/conda_env_linux.sh hiperseis
+        pwd
+        cd /home/runner
+        ls
+        cd /home/runner/work
+        ls
+        cd /home/runner/work/hiperseis
+        ls
     - name: Always save cache
       id: cache-dependencies-save
       if: always() && steps.cache-dependencies.outputs.cache-hit != 'true'
