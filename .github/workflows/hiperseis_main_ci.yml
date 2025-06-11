@@ -34,7 +34,7 @@ jobs:
         python -m pip install -r tests/requirements.txt
     - name: Running pytest
       run: |
-        coverage run -m pytest ./tests
+        pytest ./tests
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2.3.6
 
