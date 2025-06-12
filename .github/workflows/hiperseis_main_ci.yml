@@ -11,6 +11,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: openmpi-bin libopenmpi-dev libhdf5-dev
+        version: 1.0
     - name: Cache dependencies
       id: cache-dependencies
       uses: actions/cache@main
@@ -27,8 +31,6 @@ jobs:
         export PATH="$HOME/anaconda3/bin:$PATH"
         conda init bash
         source ~/.bashrc
-        sudo apt-get install openmpi-bin libopenmpi-dev
-        sudo apt-get install libhdf5-dev
     - name: Install dependencies
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
