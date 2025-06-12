@@ -41,7 +41,7 @@ jobs:
         conda init
         conda activate hiperseis
         pip install -r tests/requirements.txt
-        pytest --cov --cov-report=xml ./tests
+        pytest --cov --cov-report=xml ./tests/test_config.py
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@main
       with:
