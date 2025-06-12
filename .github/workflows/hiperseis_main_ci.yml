@@ -1,5 +1,5 @@
 # This workflow is setup by Fei Zhang to use Github Actions 2020-09-14
-# Updated by Melyn Roberts 2025 June to run tests on Python 3.6.8 as designated in linux startup script
+# Updated by Melyn Roberts 2025 June to run tests using Anaconda3-2021.11 and Python and package versions designated in linux startup script
 
 name: hiperseis_main_ci
 
@@ -39,6 +39,9 @@ jobs:
         source setup_scripts/conda_env_linux.sh hiperseis
     - name: Running pytest
       run: |
+        eval "$(conda shell.bash hook)"
+        conda init
+        conda activate hiperseis
         pip install -r tests/requirements.txt
         pytest --cov --cov-report=xml ./tests
     - name: Upload coverage reports to Codecov
