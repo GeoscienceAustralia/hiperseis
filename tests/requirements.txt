@@ -1,5 +1,5 @@
 pytest
-coveralls
+pytest-cov
 coverage
 requests_mock
 pyyaml

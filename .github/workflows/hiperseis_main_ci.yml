@@ -42,9 +42,8 @@ jobs:
         sudo apt-get install openmpi-bin libopenmpi-dev
         sudo apt-get install libhdf5-dev
         pip install -r tests/requirements.txt
-        coverage run -m pytest ./tests
-        coverage xml
-    - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@main
+        pytest --cov --cov-branch --cov-report=xml
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@main
       with:
-        format: cobertura
+        token: ${{ secrets.CODECOV_TOKEN }}
