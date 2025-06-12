@@ -11,14 +11,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
-    - name: Restore dependencies
+    - name: Cache dependencies
       id: cache-dependencies
-      uses: actions/cache/restore@main
+      uses: actions/cache@main
       with:
         path: |
           /home/runner
           /usr/share/miniconda/envs/hiperseis
-        key: anaconda-3
+        key: anaconda
     - name: Setting up environment
       if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
@@ -34,15 +34,6 @@ jobs:
       run: |
         git submodule update --init --recursive
         source setup_scripts/conda_env_linux.sh hiperseis
-    - name: Always save cache
-      id: cache-dependencies-save
-      if: always()
-      uses: actions/cache/save@main
-      with:
-        key: anaconda-3
-        path: |
-          /home/runner/work/hiperseis
-          /usr/share/miniconda/envs/hiperseis
     - name: Running pytest
       shell: bash -el {0}
       run: |
