@@ -2,6 +2,7 @@
 
 #set -e
 #set -o pipefail
+eval "$(conda shell.bash hook)"
 
 help()
 {
@@ -18,6 +19,7 @@ fi
 
 echo "==== Create a conda environment with requisite packages ===="
 conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0 gxx_linux-64==7.5.0 proj4 geos libxcrypt
+export CPATH=/opt/conda/include/
 
 echo "==== Activating conda environment ===="
 conda activate $1
@@ -73,6 +75,12 @@ pip3 install ipython==7.10.0
 pip3 install jedi==0.17
 pip3 install multiprocess==0.70.12.2
 pip3 install pathos==0.2.8
+pip3 install pytest
+pip3 install pytest-cov
+pip3 install coverage
+pip3 install requests_mock
+pip3 install pyyaml
+pip3 install tables
 
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"

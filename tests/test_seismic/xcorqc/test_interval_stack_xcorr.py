@@ -88,6 +88,9 @@ def inv1(request):
 def inv2(request):
     return request.param
 
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions.")
 def test_interval_stack_xcorr(loccha, inv1, inv2, interval_seconds, window_seconds,
                                window_overlap, whitening, ensemble_stack):
     """

@@ -1,4 +1,5 @@
-# This workflow is setup by Fei Zhang to use Github Actions 202-09-14
+# This workflow is setup by Fei Zhang to use Github Actions 2020-09-14
+# Updated by Melyn Roberts 2025 June to run tests using Anaconda3-2021.11 and Python and package versions designated in linux startup script
 
 name: hiperseis_main_ci
 
@@ -8,45 +9,41 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.6, 3.7, 3.8]
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@main
+    - uses: awalsh128/cache-apt-pkgs-action@latest
       with:
-        python-version: ${{ matrix.python-version }}
+        packages: openmpi-bin libopenmpi-dev libhdf5-dev
+        version: 1.0
+    - name: Cache dependencies
+      id: cache-dependencies
+      uses: actions/cache@main
+      with:
+        path: |
+          /home/runner
+          /usr/share/miniconda/envs/hiperseis
+        key: anaconda
+    - name: Setting up environment
+      if: steps.cache-dependencies.outputs.cache-hit != 'true'
+      run: |
+        wget -q https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O anaconda.sh
+        bash anaconda.sh -b -p $HOME/anaconda3 > /dev/null 2>&1
+        export PATH="$HOME/anaconda3/bin:$PATH"
+        conda init bash
+        source ~/.bashrc
     - name: Install dependencies
+      if: steps.cache-dependencies.outputs.cache-hit != 'true'
       run: |
         git submodule update --init --recursive
-        sudo apt-get install libhdf5-dev
-        sudo apt-get install libmpich-dev
-        sudo apt-get install libproj-dev proj-bin
-        sudo apt-get install libgeos-dev
-        sudo apt-get install libnetcdf-dev
-
-        python -m pip install --upgrade pip
-
-        pip install numpy
-        pip install Cython --install-option="--no-cython-compile"
-        pip install flake8 pytest
-        pip install pytest-cov
-        pip install coveralls
-        pip install pip-tools
-        pip-compile --upgrade
-
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -r tests/requirements.txt
-        pip list
-#     - name: Lint with flake8
-#       run: |
-#         # stop the build if there are Python syntax errors or undefined names
-#         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        source setup_scripts/conda_env_linux.sh hiperseis
     - name: Running pytest
       run: |
-        python -m pytest ./tests
-
+        eval "$(conda shell.bash hook)"
+        conda init
+        conda activate hiperseis
+        pytest --cov --cov-report=xml ./tests
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@main
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
