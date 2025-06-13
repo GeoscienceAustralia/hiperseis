@@ -129,13 +129,13 @@ def test_interval_stack_xcorr(loccha, inv1, inv2, interval_seconds, window_secon
     fn = os.path.join(output_folder, '%s.%s.%s.%s.%s.%s.%s.nc'%(netsta1, loc, cha,
                                                                 netsta2, loc, cha, tag))
     dc = Dataset(fn)
-    xcorr_c = dc.variables['xcorr'][:]
+    xcorr_c = dc.variables['X'][:]
 
     # Read expected
     fn = '%s/%s.%s.%s.%s.%s.%s.%s.nc'%(expected_folder, netsta1, loc, cha,
                                        netsta2, loc, cha, tag)
     de = Dataset(fn)
-    xcorr_e = de.variables['xcorr'][:]
+    xcorr_e = de.variables['X'][:]
 
     rtol = 1e-3
     atol = 1e-3
