@@ -19,6 +19,7 @@ fi
 
 echo "==== Create a conda environment with requisite packages ===="
 conda create -n $1 -c conda-forge python=3.6.8 gfortran_linux-64==7.5.0 gcc_linux-64==7.5.0 gxx_linux-64==7.5.0 proj4 geos libxcrypt
+export CPATH=/opt/conda/include/
 
 echo "==== Activating conda environment ===="
 conda activate $1
