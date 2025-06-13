@@ -63,8 +63,8 @@ License
 HiPerSeis is licensed under the GPL version 3
 
 
-.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg
-   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis
+.. |Coverage Status| image:: https://codecov.io/gh/GeoscienceAustralia/hiperseis/branch/main/graph/badge.svg
+   :target: https://codecov.io/gh/GeoscienceAustralia/hiperseis
 
 .. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
    :target: http://hiperseis.readthedocs.io/en/develop/

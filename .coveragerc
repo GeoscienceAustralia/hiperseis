@@ -1,0 +1,4 @@
+source =
+    seismic
+    utils
+    tests
