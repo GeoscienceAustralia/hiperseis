@@ -75,6 +75,12 @@ pip3 install ipython==7.10.0
 pip3 install jedi==0.17
 pip3 install multiprocess==0.70.12.2
 pip3 install pathos==0.2.8
+pip3 install pytest
+pip3 install pytest-cov
+pip3 install coverage
+pip3 install requests_mock
+pip3 install pyyaml
+pip3 install tables
 
 echo "#######################################################################"
 echo "######################### VARIABLES TO EXPORT #########################"
