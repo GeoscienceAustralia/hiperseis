@@ -56,4 +56,6 @@ def test_zerophase_resampling_success(obspy_stats):
 
 if __name__ == "__main__":
     test_trace_ordering()
+    test_zerophase_resampling_with_invalid_types()
+    test_zerophase_resampling_success()
 # end if
