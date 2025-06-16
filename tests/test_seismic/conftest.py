@@ -5,6 +5,7 @@ Configuration of pytest
 
 import os
 import copy
+import obspy
 import pytest
 
 from seismic.network_event_dataset import NetworkEventDataset
@@ -54,3 +55,9 @@ def ned_rotation_error(_master_event_dataset, request):
     ned.apply(lambda stream: correct_back_azimuth(None, stream, baz_correction=request.param))
     ned.param = request.param
     return ned
+
+@pytest.fixture(scope='session')
+def obspy_stats():
+    starttime = obspy.UTCDateTime('2020-02-05T15:00:00')
+    return obspy.core.Stats({'sampling_rate': 10, 'npts': 300, 'inclination': 22,
+                              'starttime': starttime, 'onset': starttime + 5})

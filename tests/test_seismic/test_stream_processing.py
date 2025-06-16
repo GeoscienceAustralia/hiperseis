@@ -6,8 +6,9 @@ import itertools
 
 import numpy as np
 import obspy
+from unittest.mock import MagicMock
 
-from seismic.stream_processing import zne_order, zrt_order
+from seismic.stream_processing import zne_order, zrt_order, zerophase_resample
 
 
 def test_trace_ordering():
@@ -35,6 +36,23 @@ def test_trace_ordering():
 
 # end func
 
+def test_zerophase_resampling_with_invalid_types():
+    # Test invalid item, not Stream or Trace
+    try:
+        zerophase_resample(123, 10)
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("Expected TypeError for invalid item type")
+
+def test_zerophase_resampling_success(obspy_stats):
+    # Test resampling trace
+    mocked_resample = MagicMock(spec=obspy.Trace.resample)
+    mock_trace = MagicMock(spec=obspy.Trace, data=np.arange(4), stats=obspy_stats, resample=mocked_resample)
+
+    zerophase_resample(mock_trace, 10)
+
+    mocked_resample.assert_called()
 
 if __name__ == "__main__":
     test_trace_ordering()

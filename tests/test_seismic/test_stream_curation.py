@@ -8,16 +8,12 @@ import obspy
 from seismic.stream_quality_filter import curate_stream3c
 
 
-def test_curate_stream():
-    npts = 300
-    starttime = obspy.UTCDateTime('2020-02-05T15:00:00')
-    stats = obspy.core.Stats({'sampling_rate': 10, 'npts': npts, 'inclination': 22,
-                              'starttime': starttime, 'onset': starttime + 5})
+def test_curate_stream(obspy_stats):
     clean_stream = obspy.Stream()
     for channel in ['BHZ', 'BHN', 'BHE']:
-        stats.update({'channel': channel})
-        data = np.random.rand(npts)
-        trace = obspy.Trace(data, stats)
+        obspy_stats.update({'channel': channel})
+        data = np.random.rand(300)
+        trace = obspy.Trace(data, obspy_stats)
         assert trace.stats.endtime > trace.stats.starttime
         clean_stream += trace
     # end for
