@@ -53,9 +53,3 @@ def test_zerophase_resampling_success(obspy_stats):
     zerophase_resample(mock_trace, 10)
 
     mocked_resample.assert_called()
-
-if __name__ == "__main__":
-    test_trace_ordering()
-    test_zerophase_resampling_with_invalid_types()
-    test_zerophase_resampling_success()
-# end if
