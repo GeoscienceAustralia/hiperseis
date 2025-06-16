@@ -3,3 +3,4 @@ source =
     seismic
     utils
     tests
+branch = True

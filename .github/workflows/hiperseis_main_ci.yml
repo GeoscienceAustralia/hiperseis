@@ -42,7 +42,7 @@ jobs:
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
-        pytest --cov --cov-report=xml ./tests/test_seismic/test_stream_processing.py
+        pytest --cov --cov-report=xml tests/test_seismic/test_stream_processing.py
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@main
       with:
