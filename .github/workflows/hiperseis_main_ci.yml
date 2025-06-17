@@ -10,9 +10,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-      NODE_COVERALLS_DEBUG: 1
-
     steps:
     - uses: actions/checkout@main
     - uses: awalsh128/cache-apt-pkgs-action@latest
@@ -60,3 +57,4 @@ jobs:
       uses: coverallsapp/github-action@main
       with:
         format: cobertura
+        debug: true
