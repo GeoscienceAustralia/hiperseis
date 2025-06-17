@@ -48,4 +48,3 @@ jobs:
       uses: codecov/codecov-action@main
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: coverage.xml
