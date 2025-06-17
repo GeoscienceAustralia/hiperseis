@@ -12,10 +12,10 @@ from seismic.stream_processing import zne_order, zrt_order, zerophase_resample
 
 
 def test_trace_ordering():
-    test_stream = obspy.Stream([obspy.Trace(np.random.rand(20)) for _ in range(3)])
+    test_stream = obspy.Stream([obspy.Trace(np.random.rand(20)) for _ in range(4)])
 
     # Test ZNE ordering
-    ordered = ('BHZ', 'BHN', 'BHE')
+    ordered = ('BHZ', 'BHN', 'BHE', 'BHY')
     for perm in itertools.permutations(ordered):
         for i, tr in enumerate(test_stream):
             tr.stats.channel = perm[i]
@@ -24,8 +24,10 @@ def test_trace_ordering():
         assert tuple(tr.stats.channel for tr in test_stream) == ordered
     # end for
 
+
+
     # Test ZRT ordering
-    ordered = ('BHZ', 'BHR', 'BHT')
+    ordered = ('BHZ', 'BHR', 'BHT', 'BHY')
     for perm in itertools.permutations(ordered):
         for i, tr in enumerate(test_stream):
             tr.stats.channel = perm[i]
