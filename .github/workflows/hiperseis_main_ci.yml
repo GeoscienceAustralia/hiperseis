@@ -43,7 +43,7 @@ jobs:
         conda init
         conda activate hiperseis
         coverage run -m pytest tests/test_seismic/test_stream_processing.py
-        coverage report
+        coverage xml
         # pytest --cov --cov-report=xml tests/test_seismic/test_stream_processing.py
         # pip install coveralls
     - name: Upload coverage reports to Codecov
