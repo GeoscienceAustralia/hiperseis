@@ -24,8 +24,6 @@ def test_trace_ordering():
         assert tuple(tr.stats.channel for tr in test_stream) == ordered
     # end for
 
-
-
     # Test ZRT ordering
     ordered = ('BHZ', 'BHR', 'BHT', 'BHY')
     for perm in itertools.permutations(ordered):
