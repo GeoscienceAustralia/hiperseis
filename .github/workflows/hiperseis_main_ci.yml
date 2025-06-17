@@ -39,14 +39,11 @@ jobs:
         source setup_scripts/conda_env_linux.sh hiperseis
     - name: Running pytest
       run: |
-        pwd
-        cd /home/runner/work/hiperseis/hiperseis
-        ls -al
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
-        pytest --cov --cov-report=xml tests/test_seismic/test_stream_processing.py
-        pip install coveralls
+        coverage run -m pytest tests/test_seismic/test_stream_processing.py
+        coverage xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@main
       with:
