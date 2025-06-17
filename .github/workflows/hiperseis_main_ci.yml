@@ -42,18 +42,10 @@ jobs:
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
-        coverage run -m pytest tests/test_seismic/test_stream_processing.py
+        coverage run -m pytest tests
         coverage xml
-        # pytest --cov --cov-report=xml tests/test_seismic/test_stream_processing.py
-        # pip install coveralls
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@main
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.xml
-        verbose: true
-    - name: Upload coverage reports to Coveralls
-      uses: coverallsapp/github-action@main
-      with:
-        format: cobertura
-        debug: true
