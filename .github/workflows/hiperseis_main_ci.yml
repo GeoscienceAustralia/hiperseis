@@ -39,6 +39,9 @@ jobs:
         source setup_scripts/conda_env_linux.sh hiperseis
     - name: Running pytest
       run: |
+        pwd
+        cd /home/runner/work/hiperseis/hiperseis
+        ls -al
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
