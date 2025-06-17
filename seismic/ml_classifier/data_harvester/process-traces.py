@@ -105,7 +105,7 @@ for ch in allpickdict:
             stime=UTCDateTime(*(stimeint+[smsec]))
         #get a waveform to train against
         wf=genTS(net,st,chan,loc,ptime,stime)
-    if not(wf is None) and len(wf)>100:#discard bad or short waveforms extracted from the database
+        if not(wf is None) and len(wf)>100:#discard bad or short waveforms extracted from the database
             wfctr+=1
             #resample the waveforms to 1000 points, detrend and normalise. The extra 0.01 ensures that the resulting trace
             #does in fact have 1000 points

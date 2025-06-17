@@ -7,6 +7,7 @@ import itertools
 import numpy as np
 import obspy
 from unittest.mock import MagicMock, patch
+import pytest
 
 from seismic.stream_processing import zne_order, zrt_order, zerophase_resample
 
@@ -38,12 +39,8 @@ def test_trace_ordering():
 
 def test_zerophase_resampling_with_invalid_types():
     # Test invalid item, not Stream or Trace
-    try:
+    with pytest.raises(TypeError):
         zerophase_resample(123, 10)
-    except TypeError:
-        pass
-    else:
-        raise AssertionError("Expected TypeError for invalid item type")
 
 @patch('seismic.stream_processing.lowpass')
 def test_zerophase_resampling_success(mocked_lowpass, obspy_stats):
