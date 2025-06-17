@@ -44,6 +44,7 @@ jobs:
         conda activate hiperseis
         ls -al /home/runner/work/hiperseis/hiperseis
         rm /home/runner/work/hiperseis/hiperseis/coverage.xml
+        ls -al /home/runner/work/hiperseis/hiperseis
         coverage run -m pytest tests/test_seismic/test_stream_processing.py
         coverage xml
     - name: Upload coverage reports to Codecov
