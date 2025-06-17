@@ -4,3 +4,5 @@ source =
     utils
     tests
 branch = True
+exclude_lines =
+    import .*
