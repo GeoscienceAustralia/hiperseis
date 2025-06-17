@@ -25,7 +25,7 @@ def _genTS(fdsnclient,st,ch,starttime,endtime,loc=None,net=None):
             loc=statinfo[2]
         waveforms=fdsnclient.get_waveforms(net,st,loc,ch,starttime,endtime)
         if len(waveforms)>0:
-            print "Got an IRIS waveform!"
+            print("Got an IRIS waveform!")
             ret=waveforms[0]
         else:
             ret=None
@@ -34,7 +34,7 @@ def _genTS(fdsnclient,st,ch,starttime,endtime,loc=None,net=None):
     
 
     if not ret:
-        print "No waveform found."
+        print("No waveform found.")
 
     return ret
 
@@ -46,7 +46,7 @@ def _genTS(fdsnclient,st,ch,starttime,endtime,loc=None,net=None):
 
 def getWave(webclient,st,chloc,starttime,endtime,saveDir="/g/data/ha3/rlt118/neural-datasets/categoriser-teleseismic/",phase='S',ISC=True,network=None):
     global wfctr
-    print starttime
+    print(starttime)
     st=st.strip()
     if '?' in chloc:
         return False

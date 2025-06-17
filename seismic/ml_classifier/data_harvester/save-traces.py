@@ -41,7 +41,7 @@ def genTS(net,st,ch,loc,ptime,stime):
 simulctr=0
 allpickdict={}
 
-print len(GA['events'])
+print(len(GA['events']))
 
 for picki in range(len(GA['picks']['at'])):
     pickarr=np.asarray([GA['picks']['ne'][picki],GA['picks']['st'][picki],GA['picks']['ch'][picki],GA['picks']['ph'][picki]]).T

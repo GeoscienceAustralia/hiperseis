@@ -61,7 +61,7 @@ for event,phases in enumerate(GApicks['ph']):
                     
                     break
 
-print simulctr
+print(simulctr)
             
 """
 

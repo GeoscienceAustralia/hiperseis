@@ -105,24 +105,19 @@ for ch in allpickdict:
             stime=UTCDateTime(*(stimeint+[smsec]))
         #get a waveform to train against
         wf=genTS(net,st,chan,loc,ptime,stime)
-	if not(wf is None) and len(wf)>100:#discard bad or short waveforms extracted from the database
+    if not(wf is None) and len(wf)>100:#discard bad or short waveforms extracted from the database
             wfctr+=1
             #resample the waveforms to 1000 points, detrend and normalise. The extra 0.01 ensures that the resulting trace
             #does in fact have 1000 points
             wf.resample(1000.01/wf.stats.npts*wf.stats.sampling_rate)
             wf.detrend()
             wf.normalize()
-	    #generate the pick distributions and normalise them
-	    pdist=np.exp(-np.power(wf.times()-(ptime-wf.times("utcdatetime")[0]),2)/(0.02))#sigma is 0.1
-	    sdist=np.exp(-np.power(wf.times()-(stime-wf.times("utcdatetime")[0]),2)/(0.02))
-	    pdist=pdist/np.sum(pdist)
-	    sdist=sdist/np.sum(sdist)
-	    #plot the resulting final waveform to a file
-	    outfname='wftestplot/'+'_'.join((net,st,chan,loc,ptime.ctime(),stime.ctime()))+'.png'
-	    wf.plot(outfile=outfname)
-	    #pickle the data and save it to a file 
-	    
-
-
-
-
+            #generate the pick distributions and normalise them
+            pdist=np.exp(-np.power(wf.times()-(ptime-wf.times("utcdatetime")[0]),2)/(0.02))#sigma is 0.1
+            sdist=np.exp(-np.power(wf.times()-(stime-wf.times("utcdatetime")[0]),2)/(0.02))
+            pdist=pdist/np.sum(pdist)
+            sdist=sdist/np.sum(sdist)
+            #plot the resulting final waveform to a file
+            outfname='wftestplot/'+'_'.join((net,st,chan,loc,ptime.ctime(),stime.ctime()))+'.png'
+            wf.plot(outfile=outfname)
+            #pickle the data and save it to a file
