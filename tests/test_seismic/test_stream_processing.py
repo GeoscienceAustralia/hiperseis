@@ -6,7 +6,7 @@ import itertools
 
 import numpy as np
 import obspy
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from seismic.stream_processing import zne_order, zrt_order, zerophase_resample
 
@@ -45,11 +45,13 @@ def test_zerophase_resampling_with_invalid_types():
     else:
         raise AssertionError("Expected TypeError for invalid item type")
 
-def test_zerophase_resampling_success(obspy_stats):
-    # Test resampling trace
+@patch('seismic.stream_processing.lowpass')
+def test_zerophase_resampling_success(mocked_lowpass, obspy_stats):
+    # Test trace gets resampled and lowpass is called if resample_hz < sampling_rate
     mocked_resample = MagicMock(spec=obspy.Trace.resample)
-    mock_trace = MagicMock(spec=obspy.Trace, data=np.arange(4), stats=obspy_stats, resample=mocked_resample)
+    mock_trace = MagicMock(spec=obspy.Trace, data=np.array([1,2,3,4]), stats=obspy_stats, resample=mocked_resample)
 
-    zerophase_resample(mock_trace, 10)
+    zerophase_resample(mock_trace, 1)
 
     mocked_resample.assert_called()
+    mocked_lowpass.assert_called()

@@ -4,11 +4,8 @@
 
 import copy
 import functools
-import logging
 import numbers
 import json
-import os
-from collections import defaultdict
 from obspy.signal.filter import lowpass
 from obspy.core import Stream, Trace
 
