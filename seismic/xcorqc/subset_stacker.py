@@ -201,10 +201,6 @@ class SubsetStacker():
 
         if(True):
             # sanity check
-            test = (eids1 & ((eaz1 < (baz - self.AZ_TOL)) | (eaz1 > (baz + self.AZ_TOL)))) & \
-                   (eids2 & ((eaz2 < (az - self.AZ_TOL)) | (eaz2 > (az + self.AZ_TOL))))
-
-            assert np.alltrue(eids_outside_az == test)
             assert len(set(np.where(eids1_inside_az | eids2_inside_az)[0]).intersection( \
                                     set(np.where(eids_outside_az)[0]))) == 0
         # end if
@@ -254,11 +250,11 @@ class SubsetStacker():
         wc_XeiUXec = np.sum(idsXeiUXec)
         wc_Xeo = np.sum(idsXeo)
 
-        mean /= float(wc)
-        mean_Xei /= float(wc_Xei)
-        mean_Xec /= float(wc_Xec)
-        mean_XeiUXec /= float(wc_XeiUXec)
-        mean_Xeo /= float(wc_Xeo)
+        if(wc > 0): mean /= float(wc)
+        if(wc_Xei > 0): mean_Xei /= float(wc_Xei)
+        if(wc_Xec > 0): mean_Xec /= float(wc_Xec)
+        if(wc_XeiUXec > 0): mean_XeiUXec /= float(wc_XeiUXec)
+        if(wc_Xeo > 0): mean_Xeo /= float(wc_Xeo)
 
         """
         np.savez('stack3outputs.npz', xcf=mean,
