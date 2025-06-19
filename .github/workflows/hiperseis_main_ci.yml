@@ -41,13 +41,9 @@ jobs:
         eval "$(conda shell.bash hook)"
         conda init
         conda activate hiperseis
-        ls -al /home/runner/work/hiperseis/hiperseis
-        coverage run --rcfile=/home/runner/work/hiperseis/hiperseis/.coveragerc -m pytest tests/test_seismic/test_stream_processing.py
+        coverage run -m pytest tests
         coverage xml
-        ls -al /home/runner/work/hiperseis/hiperseis
-        grep -A 75 -m 1 stream_processing.py /home/runner/work/hiperseis/hiperseis/coverage.xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@main
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        verbose: true
