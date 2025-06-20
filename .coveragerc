@@ -1,0 +1,10 @@
+[run]
+source =
+    seismic
+    utils
+    tests
+branch = True
+[report]
+exclude_lines =
+    import
+    from

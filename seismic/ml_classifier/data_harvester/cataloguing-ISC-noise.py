@@ -44,7 +44,7 @@ with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
         dist=float(pick[-1].strip())
         #get all S picks
         if ph=='S' and dist > 10:
-            print ph
+            print(ph)
             Sctr+=1
             ch=pick[1].strip()
 
@@ -103,12 +103,12 @@ with open('/g/data/ha3/Passive/Events/BabakHejrani/ISC.csv') as ISCpicks:
                         wf.write(saveDir+str(wfctr)+'_N.pkl',format="PICKLE")
                         np.save(saveDir+str(wfctr)+'_N.npy',wf.data)
                         succ=True
-                        print "Got a rotated horizontal waveform"
+                        print("Got a rotated horizontal waveform")
                         
                         
                 except Exception as e:
                     #handle data missing
-                    print >> sys.stderr, e
+                    print(sys.stderr, e)
                     stream=None
             else:
                 wf=getWave(irisclient,st,ch,starttime,endtime,saveDir=saveDir)

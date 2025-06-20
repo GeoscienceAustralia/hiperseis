@@ -4,4 +4,4 @@ from mat4py import *
 
 GA=loadmat("GA.mat")['GA']
 
-print GA['picks'].keys()
+print(GA['picks'].keys())

@@ -69,11 +69,11 @@ for event,phases in enumerate(GApicks['ph']):
                 wf.normalize()
                 Sctr+=1
                 os.system('clear')
-                print len(wf)
+                print(len(wf))
                 wf.write(saveDir+str(Sctr)+'_S.pkl',format="PICKLE")
                 np.save(saveDir+str(Sctr)+'_S.npy',wf.data)
 
-            print str(Sctr)+'/'+str(pSctr)
+            print(str(Sctr)+'/'+str(pSctr))
                     
 
-print str(Sctr)+'/'+str(pSctr),"waveforms harvested"
+print(str(Sctr)+'/'+str(pSctr),"waveforms harvested")

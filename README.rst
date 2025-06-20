@@ -1,7 +1,17 @@
 HiPerSeis: High Performance Software Package for Seismology Data/Metadata Processing and Analysis
 =================================================================================================
 
-|Build Status| |Coverage Status| |Documentation Status|
+.. image:: https://github.com/GeoscienceAustralia/hiperseis/actions/workflows/hiperseis_main_ci.yml/badge.svg
+   :target: https://github.com/GeoscienceAustralia/hiperseis/actions/workflows/hiperseis_main_ci.yml
+   :alt: Github Actions
+
+.. image:: https://codecov.io/gh/GeoscienceAustralia/hiperseis/branch/develop/graph/badge.svg
+   :target: https://codecov.io/gh/GeoscienceAustralia/hiperseis
+   :alt: codecov
+
+.. image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
+   :target: http://hiperseis.readthedocs.io/en/develop/
+   :alt: readthedocs
 
 How to Cite
 ===========
@@ -61,11 +71,4 @@ License
 ===============
 
 HiPerSeis is licensed under the GPL version 3
-
-
-.. |Coverage Status| image:: https://coveralls.io/repos/github/GeoscienceAustralia/hiperseis/badge.svg
-   :target: https://coveralls.io/github/GeoscienceAustralia/hiperseis
-
-.. |Documentation Status| image:: https://readthedocs.org/projects/hiperseis/badge/?version=develop
-   :target: http://hiperseis.readthedocs.io/en/develop/
 

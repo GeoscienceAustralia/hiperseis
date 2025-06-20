@@ -21,7 +21,7 @@ GApicks=loadmat("GA.mat")['GA']['picks']
 def genTS(net,st,ch,loc,starttime,endtime):
     
     #get the trace
-    print "querying database..."
+    print("querying database...")
     try:
         waveforms=fds.get_waveforms(net, st, loc, ch, 
                       starttime, endtime,
@@ -32,7 +32,7 @@ def genTS(net,st,ch,loc,starttime,endtime):
             ret=None
     except:
         ret=None
-    print "done"
+    print("done")
     return ret
 
 
@@ -120,4 +120,4 @@ for event,phases in enumerate(GApicks['ph']):
                 
                 
 
-print str(Sctr)+'/'+str(pSctr),"waveforms harvested"
+print(str(Sctr)+'/'+str(pSctr),"waveforms harvested")
