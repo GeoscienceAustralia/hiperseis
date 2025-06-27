@@ -969,9 +969,9 @@ def IntervalStackXCorr(refds, tempds,
                   'time_domain_norm': time_domain_norm,
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
-                  'ensemble_stack': int(ensemble_stack),
-                  'simple_stack': int(apply_simple_stacking),
-                  'subset_stack': int(subset_stacker is not None)}
+                  'is_ensemble_stack': int(ensemble_stack),
+                  'is_simple_stack': int(apply_simple_stacking),
+                  'is_subset_stack': int(subset_stacker is not None)}
         if(subset_stacker is not None):
             for k, v in subset_stacker.param_dict.items():
                 k = 'subset_stack.{}'.format(k.lower())

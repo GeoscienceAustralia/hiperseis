@@ -400,7 +400,7 @@ class SpooledMatrix:
         """
         try:
             ds = ncDataset(nc_file)
-            xcorr = np.array(ds.variables['xcorr'])
+            xcorr = np.array(ds.variables['X'])
             shp = xcorr.shape
             ncols = 0
 
