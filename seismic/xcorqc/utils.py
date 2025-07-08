@@ -179,6 +179,7 @@ def read_subset_stacker_config()->dict:
             "EMAG_MAX",
             "AZ_TOL"]
     fn = os.path.join(os.getcwd(), 'subset_stack.conf')
+    d = {}
     try:
         d = read_key_value_pairs(fn, keys, strict=True)
         for k in keys[1:]:
