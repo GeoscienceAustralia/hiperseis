@@ -20,6 +20,8 @@ class Dataset:
         self._earth_radius = 6371  # km
 
         self.fds = FederatedASDFDataSet(asdf_file_name)
+        self.nslc_coverage = self.fds.get_nslc_coverage()
+
         # Gather station metadata
         netsta_list_subset = set(netsta_list.split(' ')) if netsta_list != '*' else netsta_list
         self.netsta_list = []

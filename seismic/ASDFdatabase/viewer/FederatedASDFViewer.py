@@ -482,9 +482,9 @@ class DataViewer(App):
         # populate net, sta, loc, cha dict
         self.nslc_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        nslc_list = self.fds.get_nslc_list()
-        for row in nslc_list:
-            net, sta, loc, cha = row
+        nslc_coverage = self.fds.get_nslc_coverage()
+        for row in nslc_coverage:
+            net, sta, loc, cha, _, _ = row
             self.nslc_dict[net][sta][loc].append(cha)
         # end for
 

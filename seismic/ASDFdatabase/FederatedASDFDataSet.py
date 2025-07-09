@@ -138,13 +138,15 @@ class FederatedASDFDataSet():
 
     # end func
 
-    def get_nslc_list(self):
+    def get_nslc_coverage(self):
         """
-        Get a list of all net, sta, loc, cha combinations featured in the database
+        Get a structured numpy array with named columns
+        'net', 'sta', 'loc', 'cha', 'min_st', 'max_et'
+        representing contents of the database
         @return:
         """
 
-        results = self.fds.get_nslc_list()
+        results = self.fds.get_nslc_coverage()
         return results
     # end if
 
