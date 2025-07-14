@@ -61,6 +61,7 @@ class SubsetStacker():
         self.DIST_MINMAX = [d['DIST_MIN'], d['DIST_MAX']]
         self.EMAG_MINMAX = [d['EMAG_MIN'], d['EMAG_MAX']]
         self.AZ_TOL = d['AZ_TOL']
+        self.param_dict = d
 
         self.gc = None
         if(self.rank == 0):
@@ -90,6 +91,24 @@ class SubsetStacker():
         @return: returns np.ndarrays mean, mean_Xei, mean_Xec, mean_XeiUXec and mean_Xeo
                  as defined in the manuscript
         """
+
+        def circular_select(angles, min_angle, max_angle):
+            # Normalize angles to [0, 360)
+            angles = np.mod(angles, 360);
+            min_angle = np.mod(min_angle, 360);
+            max_angle = np.mod(max_angle, 360);
+
+            result = None
+            if min_angle <= max_angle:
+                # Linear range (e.g., 10-20)
+                result = (angles >= min_angle) & (angles <= max_angle)
+            else:
+                # Circular wraparound range (e.g., 350-10)
+                result = (angles >= min_angle) | (angles <= max_angle)
+            # end if
+
+            return result
+        # end func
 
         def get_affected_indices(source_eids, pat, swat, swet):
             """
@@ -173,9 +192,8 @@ class SubsetStacker():
         eids2 = (edistdeg2 >= self.DIST_MINMAX[0]) & (edistdeg2 <= self.DIST_MINMAX[1])
 
         # find event indices within azimuth of stations 1 and 2
-        eids1_inside_az = eids1 & ((eaz1 >= (baz - self.AZ_TOL)) & (eaz1 <= (baz + self.AZ_TOL)))
-        eids2_inside_az = eids2 & ((eaz2 >= (az - self.AZ_TOL)) & (eaz2 <= (az + self.AZ_TOL)))
-
+        eids1_inside_az = eids1 & circular_select(eaz1, (baz - self.AZ_TOL), (baz + self.AZ_TOL))
+        eids2_inside_az = eids2 & circular_select(eaz2, (az - self.AZ_TOL), (az + self.AZ_TOL))
         eids_inside_az = eids1_inside_az | eids2_inside_az
 
         # find event indices outside azimuth of both stations
@@ -183,10 +201,6 @@ class SubsetStacker():
 
         if(True):
             # sanity check
-            test = (eids1 & ((eaz1 < (baz - self.AZ_TOL)) | (eaz1 > (baz + self.AZ_TOL)))) & \
-                   (eids2 & ((eaz2 < (az - self.AZ_TOL)) | (eaz2 > (az + self.AZ_TOL))))
-
-            assert np.alltrue(eids_outside_az == test)
             assert len(set(np.where(eids1_inside_az | eids2_inside_az)[0]).intersection( \
                                     set(np.where(eids_outside_az)[0]))) == 0
         # end if
@@ -236,18 +250,18 @@ class SubsetStacker():
         wc_XeiUXec = np.sum(idsXeiUXec)
         wc_Xeo = np.sum(idsXeo)
 
-        mean /= float(wc)
-        mean_Xei /= float(wc_Xei)
-        mean_Xec /= float(wc_Xec)
-        mean_XeiUXec /= float(wc_XeiUXec)
-        mean_Xeo /= float(wc_Xeo)
+        if(wc > 0): mean /= float(wc)
+        if(wc_Xei > 0): mean_Xei /= float(wc_Xei)
+        if(wc_Xec > 0): mean_Xec /= float(wc_Xec)
+        if(wc_XeiUXec > 0): mean_XeiUXec /= float(wc_XeiUXec)
+        if(wc_Xeo > 0): mean_Xeo /= float(wc_Xeo)
 
-        #"""
+        """
         np.savez('stack3outputs.npz', xcf=mean,
                  xcf1=mean_Xei, xcf2=mean_Xec, xcf3=mean_XeiUXec,
                  xcf4=mean_Xeo, idsXei=idsXei, idsXec=idsXec,
                  idsXeiUXec=idsXeiUXec, idsXeo=idsXeo)
-        #"""
+        """
 
         return mean, mean_Xei, mean_Xec, mean_XeiUXec, mean_Xeo, \
                wc, wc_Xei, wc_Xec, wc_XeiUXec, wc_Xeo

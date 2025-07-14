@@ -83,13 +83,13 @@ def test_correlator():
         fn = os.path.join(curr_output_folder, '%s.%s.%s.%s.%s.%s.nc'%(netsta1, loc_code, cha,
                                                                       netsta2, '', cha))
         dc = Dataset(fn)
-        xcorr_c = dc.variables['xcorr'][:]
+        xcorr_c = dc.variables['X'][:]
 
         # Read expected
         fn = '%s/%s.%s.%s.%s.%s.%s.nc'%(curr_expected_folder, netsta1, loc_code, cha,
                                         netsta2, '', cha)
         de = Dataset(fn)
-        xcorr_e = de.variables['xcorr'][:]
+        xcorr_e = de.variables['X'][:]
 
         rtol = 1e-5
         atol = 1e-5
@@ -116,13 +116,13 @@ def test_correlator():
         fn = os.path.join(curr_output_folder, '%s.%s.%s.%s.%s.%s.nc'%(netsta1, loc_code, cha,
                                                                       netsta2, '', cha))
         dc = Dataset(fn)
-        xcorr_c = dc.variables['xcorr'][:]
+        xcorr_c = dc.variables['X'][:]
 
         # Read expected
         fn = '%s/%s.%s.%s.%s.%s.%s.nc'%(curr_expected_folder, netsta1, loc_code, cha,
                                         netsta2, '', cha)
         de = Dataset(fn)
-        xcorr_e = de.variables['xcorr'][:]
+        xcorr_e = de.variables['X'][:]
 
         rtol = 1e-5
         atol = 1e-5

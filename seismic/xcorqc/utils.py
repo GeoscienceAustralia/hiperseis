@@ -20,6 +20,8 @@ class Dataset:
         self._earth_radius = 6371  # km
 
         self.fds = FederatedASDFDataSet(asdf_file_name)
+        self.nslc_coverage = self.fds.get_nslc_coverage()
+
         # Gather station metadata
         netsta_list_subset = set(netsta_list.split(' ')) if netsta_list != '*' else netsta_list
         self.netsta_list = []
@@ -179,6 +181,7 @@ def read_subset_stacker_config()->dict:
             "EMAG_MAX",
             "AZ_TOL"]
     fn = os.path.join(os.getcwd(), 'subset_stack.conf')
+    d = {}
     try:
         d = read_key_value_pairs(fn, keys, strict=True)
         for k in keys[1:]:
@@ -400,7 +403,7 @@ class SpooledMatrix:
         """
         try:
             ds = ncDataset(nc_file)
-            xcorr = np.array(ds.variables['xcorr'])
+            xcorr = np.array(ds.variables['X'])
             shp = xcorr.shape
             ncols = 0
 

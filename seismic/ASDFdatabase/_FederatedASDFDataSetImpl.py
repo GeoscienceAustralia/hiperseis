@@ -490,11 +490,17 @@ class _FederatedASDFDataSetImpl():
         return min, max
     # end func
 
-    def get_nslc_list(self):
-        query = "select net, sta, loc, cha from nslc"
+    def get_nslc_coverage(self):
+        query = "select net, sta, loc, cha, st, et from nslc"
         rows = self.conn.execute(query).fetchall()
 
-        return rows
+        fields = {'names': ['net', 'sta', 'loc', 'cha', 'min_st', 'max_et'],
+                  'formats': ['U10', 'U10', 'U10', 'U10', 'f8', 'f8']}
+        result = np.zeros(len(rows), dtype=fields)
+
+        for i, row in enumerate(rows): result[i] = row
+
+        return result
     # end if
 
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):

@@ -28,8 +28,8 @@ from obspy.core import Stream
 from ordered_set import OrderedSet as set
 from tqdm import tqdm
 from seismic.misc import split_list
-from seismic.misc import recursive_glob
 from seismic.ASDFdatabase.utils import cleanse_inventory
+from seismic.misc import recursive_glob
 
 def make_ASDF_tag(tr, tag):
     # def make_ASDF_tag(ri, tag):
@@ -45,7 +45,7 @@ def make_ASDF_tag(tr, tag):
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-BUFFER_LENGTH = 1000
+BUFFER_LENGTH = 2000
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-folder', required=True,
@@ -60,7 +60,7 @@ BUFFER_LENGTH = 1000
 @click.option('--min-length-sec', type=int, default=None, help="Minimum length in seconds")
 @click.option('--merge-threshold', type=int, default=None, help="Merge traces if the number of traces fetched for an "
                                                                 "interval exceeds this threshold")
-@click.option('--ntraces-per-file', type=int, default=3600, help="Maximum number of traces per file; if exceeded, the "
+@click.option('--ntraces-per-file', type=int, default=600, help="Maximum number of traces per file; if exceeded, the "
                                                                  "file is ignored.")
 @click.option('--dry-run', default=False, is_flag=True, show_default=True,
               help="Dry run only reports stations that were not found in the stationXML files, for "
@@ -75,6 +75,7 @@ def process(input_folder, inventory_folder, output_file_name, file_pattern,
     OUTPUT_FILE_NAME: Name of output ASDF file \n
     """
 
+    inventory_added = defaultdict(bool)
     def _read_inventories(inventory_folder):
         inv_files = recursive_glob(inventory_folder, '*.xml')
 
@@ -103,8 +104,11 @@ def process(input_folder, inventory_folder, output_file_name, file_pattern,
         # end try
 
         for item in netsta_set:
+            if(inventory_added[item]): continue
+
             try:
                 ds.add_stationxml(inventory_dict[item])
+                inventory_added[item] = True
             except Exception as e:
                 print(e)
                 print('Failed to append inventory:')
@@ -129,10 +133,7 @@ def process(input_folder, inventory_folder, output_file_name, file_pattern,
         inv = _read_inventories(inventory_folder)
 
         # generate a list of files
-        paths = [i for i in os.listdir(input_folder) if os.path.isfile(os.path.join(input_folder, i))]
-        expr = re.compile(fnmatch.translate(file_pattern), re.IGNORECASE)
-        files = [os.path.join(input_folder, j) for j in paths if re.match(expr, j)]
-
+        files = recursive_glob(input_folder, file_pattern)
         files = np.array(files)
         random.Random(nproc).shuffle(files)
         #print(files); exit(0)
@@ -143,21 +144,30 @@ def process(input_folder, inventory_folder, output_file_name, file_pattern,
         stationlist = []
         filtered_files = []
         for file in tqdm(files, desc='Reading trace headers: '):
-            #_, _, net, sta, _ = file.split('.')
-            #tokens = os.path.basename(file).split('.')
-            #net, sta = tokens[0], tokens[1]
+            net = sta = None
 
-            st = []
-            try:
-                st = read(file, headonly=True)
-            except Exception as e:
-                print(e)
-                continue
-            # end try
-            if(len(st) == 0): continue
+            if(True):
+                try:
+                    fn = os.path.basename(file)
+                    net, sta = fn.split('.')[:2]
+                except:
+                    continue
+                # end try
+                #tokens = os.path.basename(file).split('.')
+                #net, sta = tokens[0], tokens[1]
+            else:
+                st = []
+                try:
+                    st = read(file, headonly=True)
+                except Exception as e:
+                    print(e)
+                    continue
+                # end try
+                if(len(st) == 0): continue
 
-            net = st[0].meta.network
-            sta = st[0].meta.station
+                net = st[0].meta.network
+                sta = st[0].meta.station
+            # end if
 
             ustations.add('%s.%s' % (net, sta))
             networklist.append(net)

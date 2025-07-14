@@ -193,7 +193,6 @@ def process(data_source1, data_source2, output_path,
 
     startTime = UTCDateTime(start_time)
     endTime = UTCDateTime(end_time)
-    stationsCache = defaultdict(list)
     for pair in proc_stations[rank]:
         netsta1, netsta2 = pair
 
@@ -212,7 +211,9 @@ def process(data_source1, data_source2, output_path,
                      cha1 and cha2 -- e.g. ['.SHZ', '00.BHZ'], ['01.HHZ']
             """
             result = [[], []]
-            for chidx, (netsta, cha, ds) in enumerate(zip((netsta1, netsta2), (cha1, cha2), (ds1, ds2))):
+            for chidx, (netsta, cha, ds) in enumerate(zip((netsta1, netsta2),
+                                                          (cha1, cha2),
+                                                          (ds1, ds2))):
                 if('*' in cha1):
                     cha = cha.replace('*', '.*')  # hack to capture simple regex comparisons
                 # end if
@@ -225,12 +226,14 @@ def process(data_source1, data_source2, output_path,
 
                 net, sta = netsta.split('.')
 
-                if((start_time, end_time, net, sta) in stationsCache):
-                    stations = stationsCache[(start_time, end_time, net, sta)]
-                else:
-                    stations = ds.fds.get_stations(start_time, end_time, net, sta)
-                    stationsCache[(start_time, end_time, net, sta)] = stations
-                # end if
+                # find a list of entries where network and station names match and
+                # start- and end-times overlap with data coverage. Note that this is
+                # an approximate estimate and an actual cross-correlation may not be
+                # computed due to gaps in data
+                stations = ds.nslc_coverage[(ds.nslc_coverage['net'] == net) & \
+                                            (ds.nslc_coverage['sta'] == sta) & \
+                                            (ds.nslc_coverage['max_et'] >= startTime.timestamp) & \
+                                            (ds.nslc_coverage['min_st'] <= endTime.timestamp)]
 
                 loc_pref = location_preferences_dict[netsta]
                 ulocs = set()

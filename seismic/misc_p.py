@@ -31,7 +31,11 @@ class ProgressTracker:
 
         if(self.restart_mode):
             if(os.path.exists(self.proc_fn)):
-                self.prev_progress = int(open(self.proc_fn).read())
+                try:
+                    self.prev_progress = int(open(self.proc_fn).read())
+                except:
+                    pass
+                # end try
             # end if
         # end if
     # end func
@@ -41,12 +45,13 @@ class ProgressTracker:
         if(self.restart_mode and (self.prev_progress > 0) and (self.progress < self.prev_progress)):
             return False
         else:
-            tmpfn = self.proc_fn + '.tmp'
-            f = open(tmpfn, 'w+')
-            f.write(str(self.progress))
-            f.close()
-            os.rename(tmpfn, self.proc_fn)
-
+            try:
+                f = open(self.proc_fn, 'w+')
+                f.write(str(self.progress))
+                f.close()
+            except:
+                pass
+            # end try
             return True
         # end if
     # end func

@@ -809,7 +809,7 @@ def IntervalStackXCorr(refds, tempds,
         if(memoryTracker): memoryTracker.update()
     # wend (loop over time range)
 
-    x = None
+    times = None
     flattenedWindowCounts = None
     flattenedIntervalStartTimes = None
     flattenedIntervalEndTimes = None
@@ -817,7 +817,7 @@ def IntervalStackXCorr(refds, tempds,
     flattenedWindowEndTimes = None
     if(spooledXcorr and spooledXcorr.nrows):
         dt = 1./sr
-        x = np.linspace(-window_seconds + dt, window_seconds - dt, spooledXcorr.ncols)
+        times = np.linspace(-window_seconds + dt, window_seconds - dt, spooledXcorr.ncols)
                         
         flattenedWindowCounts = np.concatenate(windowCounts).ravel()
         flattenedIntervalStartTimes = np.concatenate(intervalStartTimes).ravel()
@@ -856,11 +856,11 @@ def IntervalStackXCorr(refds, tempds,
 
         # Add data
         if ensemble_stack:
-            nsw = root_grp.createVariable('NumStackedWindows', 'i8')
+            nsw = root_grp.createVariable('nX', 'i8')
             avgnsw = root_grp.createVariable('AvgNumStackedWindowsPerInterval', 'f4')
             ist = root_grp.createVariable('IntervalStartTime', 'i8')
             iet = root_grp.createVariable('IntervalEndTime', 'i8')
-            xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
+            xc = root_grp.createVariable('X', XCORR_FORMAT, ('lag',))
 
             totalIntervalCount = int(np.sum(flattenedWindowCounts > 0))
             totalWindowCount = int(np.sum(flattenedWindowCounts))
@@ -897,8 +897,8 @@ def IntervalStackXCorr(refds, tempds,
             wet[:] = flattenedWindowEndTimes
 
             if(apply_simple_stacking):
-                nsw = root_grp.createVariable('NumStackedWindows', 'f4', ('interval',))
-                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('interval', 'lag',),
+                nsw = root_grp.createVariable('nX', 'f4', ('interval',))
+                xc = root_grp.createVariable('X', XCORR_FORMAT, ('interval', 'lag',),
                                          chunksizes=(1, spooledXcorr.ncols),
                                          zlib=True)
                 nsw[:] = flattenedWindowCounts
@@ -906,17 +906,17 @@ def IntervalStackXCorr(refds, tempds,
                     xc[irow, :] = spooledXcorr.read_row(irow)
                 # end for
             elif subset_stacker is not None:
-                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('lag',))
-                xc_Xei = root_grp.createVariable('xcorr_Xei', XCORR_FORMAT, ('lag',))
-                xc_Xec = root_grp.createVariable('xcorr_Xec', XCORR_FORMAT, ('lag',))
-                xc_XeiUXec = root_grp.createVariable('xcorr_XeiUXec', XCORR_FORMAT, ('lag',))
-                xc_Xeo = root_grp.createVariable('xcorr_Xeo', XCORR_FORMAT, ('lag',))
+                xc = root_grp.createVariable('X', XCORR_FORMAT, ('lag',))
+                xc_Xei = root_grp.createVariable('Xei', XCORR_FORMAT, ('lag',))
+                xc_Xec = root_grp.createVariable('Xec', XCORR_FORMAT, ('lag',))
+                xc_XeiUXec = root_grp.createVariable('XeiUXec', XCORR_FORMAT, ('lag',))
+                xc_Xeo = root_grp.createVariable('Xeo', XCORR_FORMAT, ('lag',))
 
-                xc_wc = root_grp.createVariable('xcorr_NumStackedWindows', 'i8')
-                xc_Xei_wc = root_grp.createVariable('xcorr_Xei_NumStackedWindows', 'i8')
-                xc_Xec_wc = root_grp.createVariable('xcorr_Xec_NumStackedWindows', 'i8')
-                xc_XeiUXec_wc = root_grp.createVariable('xcorr_XeiUXec_NumStackedWindows', 'i8')
-                xc_Xeo_wc = root_grp.createVariable('xcorr_Xeo_NumStackedWindows', 'i8')
+                xc_wc = root_grp.createVariable('nX', 'i8')
+                xc_Xei_wc = root_grp.createVariable('nXei', 'i8')
+                xc_Xec_wc = root_grp.createVariable('nXec', 'i8')
+                xc_XeiUXec_wc = root_grp.createVariable('nXeiUXec', 'i8')
+                xc_Xeo_wc = root_grp.createVariable('nXeo', 'i8')
 
                 slon1, slat1 = refds.unique_coordinates[ref_net_sta]
                 slon2, slat2 = tempds.unique_coordinates[temp_net_sta]
@@ -938,7 +938,7 @@ def IntervalStackXCorr(refds, tempds,
                 xc_XeiUXec_wc[:] = wc_XeiUXec
                 xc_Xeo_wc[:] = wc_Xeo
             else:
-                xc = root_grp.createVariable('xcorr', XCORR_FORMAT, ('window', 'lag',),
+                xc = root_grp.createVariable('X', XCORR_FORMAT, ('window', 'lag',),
                                              chunksizes=(1, spooledXcorr.ncols),
                                              zlib=True)
                 for irow in np.arange(spooledXcorr.nrows):
@@ -947,7 +947,7 @@ def IntervalStackXCorr(refds, tempds,
             # end if
         # end if
 
-        lag[:] = x
+        lag[:] = times
 
         # Add and populate a new group for parameters used
         pg = root_grp.createGroup('Parameters')
@@ -969,9 +969,15 @@ def IntervalStackXCorr(refds, tempds,
                   'time_domain_norm': time_domain_norm,
                   'spectral_whitening': int(whitening),
                   'envelope_normalize': int(envelope_normalize),
-                  'ensemble_stack': int(ensemble_stack),
-                  'simple_stack': int(apply_simple_stacking),
-                  'subset_stack': int(subset_stacker is not None)}
+                  'is_ensemble_stack': int(ensemble_stack),
+                  'is_simple_stack': int(apply_simple_stacking),
+                  'is_subset_stack': int(subset_stacker is not None)}
+        if(subset_stacker is not None):
+            for k, v in subset_stacker.param_dict.items():
+                k = 'subset_stack.{}'.format(k.lower())
+                params.update({k: v})
+            # end for
+        # end if
 
         if whitening:
             params['whitening_window_frequency'] = whitening_window_frequency
