@@ -526,6 +526,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
                 # resample after lowpass @ resample_rate / 2 Hz
                 for tr in out_stream:
+                    tr.detrend()
+                    tr.taper(max_percentage=0.05, max_length=5)
                     zerophase_resample(tr, resample_hz)
                    
                     tr.stats.update({'wave_type':wave})

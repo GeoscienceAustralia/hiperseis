@@ -15,6 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 import pyproj
 from obspy.io.segy import segy
+from pyproj import Geod
 
 class DepthMigratedSegy:
     def __init__(self, segy_fn,
@@ -44,6 +45,7 @@ class DepthMigratedSegy:
                identifying problematic station-coordinates
         :param flip: Flip horizontally
         '''
+        self.output_epsg = 4326
         self.sfn = segy_fn
         self.coords_file = coords_file
         self.depth_zero_km = depth_zero_km
@@ -56,6 +58,7 @@ class DepthMigratedSegy:
         self.flip = flip
         # transformer to go from segy projection to wgs84
         self.transformer = pyproj.Transformer.from_crs(self.epsg_code, 4326)
+        self.geod = Geod(ellps='WGS84')
 
         # Read traces
         self.samples = []  # trace samples
@@ -100,33 +103,27 @@ class DepthMigratedSegy:
         self.xs = np.array(self.xs)
         self.ys = np.array(self.ys)
         self.cdps = np.array(self.cdps)
-        self.station_spacing = np.sqrt((self.xs[:-1] - self.xs[1:]) ** 2 +
-                                       (self.ys[:-1] - self.ys[1:]) ** 2)
-        self.station_spacing = np.concatenate([[0], self.station_spacing])
 
         # use station-spacing to weed out traces with incorrect coordinates
-        bad_indices = np.zeros(self.station_spacing.shape, dtype='?')
         if(self.filter_coordinates):
-            median_spacing = np.median(self.station_spacing)
-            bad_indices = np.fabs(self.station_spacing - median_spacing) > \
+            station_spacing = np.sqrt((self.xs[:-1] - self.xs[1:]) ** 2 +
+                                           (self.ys[:-1] - self.ys[1:]) ** 2)
+            station_spacing = np.concatenate([[0], station_spacing])
+            median_spacing = np.median(station_spacing)
+            bad_indices = np.fabs(station_spacing - median_spacing) > \
                           self.filter_coordinates_factor * median_spacing
             print('Warning: removing {} traces (~{:.3f}%) with '
                   'bad coordinates..'.format(np.sum(bad_indices),
                                          np.sum(bad_indices)/self.ntraces*100))
+            self.ns = self.ns[~bad_indices]
+            self.si = self.si[~bad_indices]
+            self.xs = self.xs[~bad_indices]
+            self.ys = self.ys[~bad_indices]
+            self.cdps = self.cdps[~bad_indices]
+            
+            self.ntraces -= np.sum(bad_indices)
+            self.samples = self.samples[:, ~bad_indices]
         # end if
-
-        self.ns = self.ns[~bad_indices]
-        self.si = self.si[~bad_indices]
-        self.xs = self.xs[~bad_indices]
-        self.ys = self.ys[~bad_indices]
-        self.cdps = self.cdps[~bad_indices]
-        self.station_spacing= self.station_spacing[~bad_indices]
-        self.ntraces -= np.sum(bad_indices)
-        self.samples = self.samples[:, ~bad_indices]
-
-        # compute euclidean distance along profile
-        self.ds = np.array([np.sum(self.station_spacing[:i])
-                            for i in range(len(self.station_spacing))]) / 1e3  # km
 
         self.times = np.linspace(0, (np.max(self.ns) - 1) * np.max(self.si),
                                  np.max(self.ns))
@@ -136,6 +133,14 @@ class DepthMigratedSegy:
 
         # convert x and y coordinates to lons and lats
         self.lats, self.lons = self.transformer.transform(self.xs, self.ys)
+
+        # compute euclidean distances along profile
+        self.ds = [0.0]
+        for i in range(1, len(self.lons)):
+            _, _, dist = self.geod.inv(self.lons[i-1], self.lats[i-1], self.lons[i], self.lats[i])
+            self.ds.append(self.ds[-1] + dist)
+        # end for
+        self.ds = np.array(self.ds) / 1e3 # in kms
     # end func
 
     def getAttribute(self, key, d):
@@ -244,7 +249,6 @@ class DepthMigratedSegy:
             if (prepend):
                 self.xs = np.hstack([other.xs, self.xs])
                 self.ys = np.hstack([other.ys, self.ys])
-                self.station_spacing = np.hstack([other.station_spacing, self.station_spacing])
 
                 result = np.zeros((self.samples.shape[0],
                                    self.samples.shape[1] + other.samples.shape[1]))
@@ -258,7 +262,6 @@ class DepthMigratedSegy:
             else:
                 self.xs = np.hstack([self.xs, other.xs])
                 self.ys = np.hstack([self.ys, other.ys])
-                self.station_spacing = np.hstack([self.station_spacing, other.station_spacing])
 
                 result = np.zeros((self.samples.shape[0],
                                    self.samples.shape[1] + other.samples.shape[1]))
@@ -271,12 +274,16 @@ class DepthMigratedSegy:
                 self.samples = result
             # end if
 
-            # recompute euclidean distance along profile
-            self.ds = np.array([np.sum(self.station_spacing[:i])
-                                for i in range(len(self.station_spacing))]) / 1e3  # km
-
             # convert x and y coordinates to lons and lats
             self.lats, self.lons = self.transformer.transform(self.xs, self.ys)
+            
+            # recompute euclidean distance along profile
+            self.ds = [0.0]
+            for i in range(1, len(self.lons)):
+                _, _, dist = self.geod.inv(self.lons[i-1], self.lats[i-1], self.lons[i], self.lats[i])
+                self.ds.append(self.ds[-1] + dist)
+            # end for
+            self.ds = np.array(self.ds) / 1e3 # in kms
         # end if
     # end func
 # end class
