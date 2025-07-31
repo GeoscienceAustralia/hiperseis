@@ -273,12 +273,20 @@ class FederatedASDFDataSet():
         return self.fds.find_gaps(network, station, location, channel, start_date_ts, end_date_ts, min_gap_length)
     # end func
 
-    def get_coverage(self, network=None):
+    def get_recording_time_seconds(self, network=None, station=None, location=None, channel=None):
         """
-        Generates coverage for the entire data holdings for a selected network.
+        Fetches recording time in seconds
+
+        @param network:
+        @param station:
+        @param location:
+        @param channel:
+        @return:
+        """
+        """
         @param network: network code
-        @return: Numpy record array with columns: net, sta, loc, cha,
-                 start_timestamp, end_timestamp
+        @param
+        @return: Numpy record array with columns: net, sta, loc, cha, duration_seconds
         """
 
         rows = self.fds.get_coverage(network=network)
@@ -312,7 +320,7 @@ def process(asdf_source, force_reindex, generate_summary):
             with open(ofn, 'w') as fh:
                 fh.write('# net, sta, loc, cha, lon, lat, min_starttime, max_endtime, duration_months\n')
 
-                rows = ds.get_coverage()
+                rows = ds.get_recording_time_seconds()
                 for row in rows:
                     net, sta, loc, cha, lon, lat, min_st, max_et = row
                     duration_months = (max_et - min_st) / (86400 * 30)

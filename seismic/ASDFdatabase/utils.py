@@ -15,6 +15,26 @@ import copy
 MAX_DATE = UTCDateTime(4102444800.0) #2100-01-01
 MIN_DATE = UTCDateTime(-2208988800.0) #1900-01-01
 
+def get_file_signature(file_path):
+    """Return a dictionary of key file attributes to track changes, including absolute path."""
+    abs_path = os.path.abspath(file_path)
+
+    if not os.path.exists(abs_path):
+        raise FileNotFoundError("File not found: {}".format(abs_path))
+    # end if
+
+    stat = os.stat(abs_path)
+
+    return {
+        'abs_path': abs_path,
+        'st_size': stat.st_size,
+        'st_mtime': stat.st_mtime,
+        'st_ctime': stat.st_ctime,
+        'st_ino': stat.st_ino,
+        'st_dev': stat.st_dev,
+    }
+# end func
+
 def cleanse_inventory(iinv: Inventory) -> Inventory:
     oinv = iinv.copy()
 

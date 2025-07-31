@@ -18,7 +18,6 @@ from mpi4py import MPI
 import os
 import glob
 import atexit
-import logging
 from ordered_set import OrderedSet as set
 import numpy as np
 
@@ -29,7 +28,8 @@ from collections import defaultdict
 import sqlite3
 import hashlib
 from functools import partial
-from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, InventoryAggregator
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, \
+    InventoryAggregator, get_file_signature
 from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
@@ -80,12 +80,15 @@ class _FederatedASDFDataSetImpl():
         self.single_threaded_access = single_threaded_access
         self.asdf_source = None
         self.asdf_file_names = []
+        self.history_fn = None
+        self.previous_db_fn = None
         self.asdf_station_coordinates = []
 
         if isinstance(asdf_source, str):
             self.asdf_source = asdf_source
             self.source_sha1 = hashlib.sha1(open(self.asdf_source).read().encode('utf-8')).hexdigest()
             self.db_fn = os.path.join(os.path.dirname(self.asdf_source), self.source_sha1 + '.db')
+            self.history_fn = os.path.join(os.path.dirname(self.asdf_source), '.fasdf_history')
 
             fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
 
@@ -94,8 +97,13 @@ class _FederatedASDFDataSetImpl():
                 if(fileContents[i][0]=='#'): continue # filter commented lines
 
                 fn = fileContents[i].strip(' \t\n\r\n')
-                self.asdf_file_names.append(fn)
+                if(os.path.exists(fn)):
+                    self.asdf_file_names.append(os.path.abspath(fn))
+                else:
+                    print("Warning: file {} not found. Moving along..".format(fn))
+                # end if
             # end for
+            self.asdf_file_names = list(set(self.asdf_file_names)) # drop duplicates if present
         else:
             raise NameError('Invalid value for asdf_source..')
         # end if
@@ -122,6 +130,12 @@ class _FederatedASDFDataSetImpl():
                 # end if
             # end if
         # end if
+
+        if(self.rank == 0):
+            # retrieve an earlier version of the database, if available
+            self.previous_db_fn = self._get_previous_db()
+        # end if
+
         self.comm.Barrier()
 
         # Create database
@@ -299,6 +313,83 @@ class _FederatedASDFDataSetImpl():
         return resultStream
     # end func
 
+    def _update_history(self):
+        fh = open(self.history_fn, 'a+')
+        fh.write('{}\n'.format(os.path.abspath(self.db_fn)))
+        fh.close()
+    # end func
+
+    def _get_previous_db(self):
+        result = None
+        if(os.path.exists(self.history_fn)):
+            fh = open(self.history_fn, 'r')
+            lines = fh.readlines()
+            if(len(lines) > 0):
+                fn = lines[-1].strip() if len(lines[-1]) > 0 else None
+
+                if(fn is not None and os.path.exists(fn)):
+                    result = fn
+                # end if
+            # end if
+        # end if
+        return result
+    # end func
+
+    def _copy_from_previous_db(self, table_name: str, new_ds_id: int):
+        """
+        Copy entries from an earlier database if the associated asdf file has not changed
+        @param table_name:
+        @param new_ds_id:
+        @return: boolean success/failure
+        """
+
+        rval = False
+        cur = self.conn.cursor()
+
+        # Attach source
+        cur.execute("attach database ? as src", (self.previous_db_fn,))
+
+        # Get ds_id from previous database where file-signature matches with that of given ds_id
+        cur.execute(f"select old_ds.ds_id from src.ds as old_ds, ds as new_ds where \
+                    old_ds.abs_path='{self.asdf_file_names[new_ds_id]}' and \
+                    old_ds.abs_path=new_ds.abs_path and \
+                    old_ds.st_size=new_ds.st_size and old_ds.st_mtime=new_ds.st_mtime \
+                    and old_ds.st_ctime=new_ds.st_ctime and old_ds.st_ino=new_ds.st_ino \
+                    and old_ds.st_dev=new_ds.st_dev")
+        r = cur.fetchall()
+
+        if(len(r) == 1):
+            # found a matching entry in the previous database where the file signature matches
+            old_ds_id = r[0][0]
+            # Get column names from target table
+            cur.execute(f"pragma table_info({table_name})")
+            columns = [row[1] for row in cur.fetchall()]
+
+            # all columns remain the same except ds_id, which is replaced by new_ds_id
+            column_mods = {'ds_id': str(new_ds_id)}
+            select_exprs = [
+                column_mods[col] if col in column_mods else col
+                for col in columns
+            ]
+
+            print(f"Copying entries in table '{table_name}' for '{self.asdf_file_names[new_ds_id]}'"
+                  f" from earlier database ({self.previous_db_fn})")
+            query = f"""
+            insert into {table_name} ({', '.join(columns)})
+            select {', '.join(select_exprs)}
+            from src.{table_name} as src_table where src_table.ds_id={old_ds_id}
+            """
+            cur.execute(query)
+
+            rval = True
+        # end if
+
+        self.conn.commit()
+        cur.execute(f"detach database src")
+
+        return rval
+    # end func
+
     def create_database(self):
         def decode_tag(tag, type='raw_recording'):
             """
@@ -343,7 +434,9 @@ class _FederatedASDFDataSetImpl():
 
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                self.conn.execute('create table ds(ds_id smallint, path text)')
+                self.conn.execute('create table ds(ds_id smallint, abs_path text, '
+                                  'st_size UNSIGNED BIG INT, st_mtime double, st_ctime double, '
+                                  'st_ino UNSIGNED BIG INT, st_dev UNSIGNED BIG INT)')
                 self.conn.execute('create table wtag(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
                 self.conn.execute('create table meta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
@@ -352,8 +445,11 @@ class _FederatedASDFDataSetImpl():
 
                 metadatalist = []
                 for ids, ds in enumerate(self.asdf_datasets):
-                    self.conn.execute('insert into ds(ds_id, path) values(?, ?)',
-                                      [ids, self.asdf_file_names[ids]])
+                    sig = get_file_signature(self.asdf_file_names[ids])
+                    self.conn.execute('insert into ds(ds_id, abs_path, st_size, st_mtime, st_ctime, st_ino, st_dev) '
+                                      'values(?, ?, ?, ?, ?, ?, ?)',
+                                      [ids, sig['abs_path'], sig['st_size'], sig['st_mtime'],
+                                       sig['st_ctime'], sig['st_ino'], sig['st_dev']])
 
                     coords_dict = ds.get_all_coordinates()
 
@@ -366,24 +462,36 @@ class _FederatedASDFDataSetImpl():
                               format(len(missing), self.asdf_file_names[ids]))
                     # end if
 
+                    # aggregate inventories
                     for k in coords_dict.keys():
-                        # we keep coordinates from all ASDF files to be able to track
-                        # potential discrepancies
-                        lon = coords_dict[k]['longitude']
-                        lat = coords_dict[k]['latitude']
-                        elev_m = coords_dict[k]['elevation_in_m']
-                        nc, sc = k.split('.')
-                        metadatalist.append([ids, nc, sc, lon, lat, elev_m])
-
-                        # aggregate inventories
                         inv = cleanse_inventory(ds.waveforms[k].StationXML)
                         ia.append(inv)
                     # end for
+
+                    if(self.previous_db_fn is not None and \
+                       self._copy_from_previous_db('meta', ids)):
+                        # copied entries from previous database for ASDF files that
+                        # have not changed
+                        pass
+                    else:
+                        # failed to copy required entries from an earlier database
+                        for k in coords_dict.keys():
+                            # we keep coordinates from all ASDF files to be able to track
+                            # potential discrepancies
+                            lon = coords_dict[k]['longitude']
+                            lat = coords_dict[k]['latitude']
+                            elev_m = coords_dict[k]['elevation_in_m']
+                            nc, sc = k.split('.')
+                            metadatalist.append([ids, nc, sc, lon, lat, elev_m])
+                        # end for
+                    # end if
                 # end for
 
                 masterinv = ia.summarize()
-                self.conn.executemany('insert into meta(ds_id, net, sta, lon, lat, elev_m) values '
-                                      '(?, ?, ?, ?, ?, ?)', metadatalist)
+                if(len(metadatalist) > 0):
+                    self.conn.executemany('insert into meta(ds_id, net, sta, lon, lat, elev_m) values '
+                                          '(?, ?, ?, ?, ?, ?)', metadatalist)
+                # end if
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
 
@@ -397,7 +505,23 @@ class _FederatedASDFDataSetImpl():
 
             tagsCount = 0
             for ids, ds in enumerate(self.asdf_datasets):
-                if(self.rank==0): print('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids])))
+                has_copied_entries = False
+                if(self.rank==0):
+                    if(self.previous_db_fn is not None):
+                        self.conn = sqlite3.connect(self.db_fn,
+                                                    check_same_thread=self.single_threaded_access)
+                        has_copied_entries = self._copy_from_previous_db('wtag', ids)
+                        self.conn.close()
+                    # end if
+
+                    if(not has_copied_entries):
+                        print('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids])))
+                    # end if
+                # end if
+                has_copied_entries = self.comm.bcast(has_copied_entries, root=0)
+                self.comm.Barrier()
+
+                if(has_copied_entries): continue
 
                 keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
@@ -439,15 +563,21 @@ class _FederatedASDFDataSetImpl():
             if(self.rank==0):
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                # create a convenience table with all combinations of net, sta, loc, cha
-                self.conn.execute('create table nslc as select net, sta, loc, cha, min(st) as st, max(et) as et from wtag group by net, sta, loc, cha')
-
                 print('Creating table indices..')
-                self.conn.execute('create index allindex on wtag(ds_id, net, sta, loc, cha, st, et)')
-                self.conn.execute('create index metaindex on meta(ds_id, net, sta)')
-                self.conn.execute('create index nslcindex on nslc(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index all_wtag_index on wtag(ds_id, net, sta, loc, cha, st, et)')
+                self.conn.execute('create index all_meta_index on meta(ds_id, net, sta)')
+                self.conn.execute('create index fast_wtag_index on wtag(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index fast_meta_index on meta(net, sta)')
                 self.conn.commit()
+
+                print('Creating convenience table with start-/end-times..')
+                self.conn.execute('create table nslc as select net, sta, loc, cha, min(st) as st, max(et) as et '
+                                  'from wtag group by net, sta, loc, cha order by net, sta, loc, cha')
+                self.conn.execute('create index all_nslc_index on nslc(net, sta, loc, cha, st, et)')
+                self.conn.commit()
+
                 self.conn.close()
+                self._update_history() # update the history file with latest db_fn
                 print('Done..')
             # end if
             self.comm.Barrier()
@@ -527,7 +657,7 @@ class _FederatedASDFDataSetImpl():
             (channel is not None)): query += ' and '
         query += ' et>=%f and st<=%f' \
                  % (starttime, endtime)
-        query += ' group by net, sta, loc, cha'
+        query += ' group by net, sta, loc, cha order by net, sta, loc, cha'
 
         rows = self.conn.execute(query).fetchall()
         results = set()
@@ -840,7 +970,7 @@ class _FederatedASDFDataSetImpl():
         return result
     # end func
 
-    def get_coverage(self, network=None):
+    def get_coverage(self, network=None, station=None, location=None, channel=None):
         query = """ 
                 select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
                 from wtag as w, meta as n where w.net=n.net and w.sta=n.sta 
