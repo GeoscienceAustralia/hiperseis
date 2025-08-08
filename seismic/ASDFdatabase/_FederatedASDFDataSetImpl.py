@@ -83,6 +83,7 @@ class _FederatedASDFDataSetImpl():
         self.history_fn = None
         self.previous_db_fn = None
         self.asdf_station_coordinates = []
+        self._unique_coordinates = defaultdict(list)
 
         if isinstance(asdf_source, str):
             self.asdf_source = asdf_source
@@ -576,6 +577,47 @@ class _FederatedASDFDataSetImpl():
                 self.conn.execute('create index all_nslc_index on nslc(net, sta, loc, cha, st, et)')
                 self.conn.commit()
 
+                print('Creating convenience table containing total recording durations in seconds..')
+                self.conn.execute('create table recording_time as select net, sta, loc, cha, sum(et-st) '
+                                  'as duration_seconds from wtag group by net, sta, loc, cha '
+                                  'order by net, sta, loc, cha;')
+                self.conn.execute('create index all_recording_time_index on '
+                                  'recording_time(net, sta, loc, cha, duration_seconds)')
+
+                print('Creating convenience table containing timespans of continuous recordings')
+                # use sqlite windowing to generate records of contiguous blocks of recordings where gaps
+                # less than a day are ignored to keep the final row-count reasonable
+                self.conn.execute("""create table coverage as WITH ordered AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                LAG(et) OVER (PARTITION BY net, sta, loc, cha ORDER BY st, et) AS prev_et
+                            FROM wtag
+                        ),
+                        segment_marks AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                CASE 
+                                    WHEN prev_et IS NULL OR st - prev_et >= 86400 THEN 1 
+                                    ELSE 0 
+                                END AS new_segment
+                            FROM ordered
+                        ),
+                        segmented AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                SUM(new_segment) OVER (PARTITION BY net, sta, loc, cha ORDER BY st, et) AS segment_id
+                            FROM segment_marks
+                        )
+                        SELECT 
+                            s.net, s.sta, s.loc, s.cha,  
+                            MIN(st) AS block_st,
+                            MAX(et) AS block_et
+                        FROM segmented as s
+                        GROUP BY s.net, s.sta, s.loc, s.cha, segment_id 
+                        ORDER BY s.net, s.sta, s.loc, s.cha, block_st;""")
+                self.conn.execute('create index all_coverage_index on coverage '
+                                  '(net, sta, loc, cha, block_st, block_et)')
+
                 self.conn.close()
                 self._update_history() # update the history file with latest db_fn
                 print('Done..')
@@ -592,12 +634,20 @@ class _FederatedASDFDataSetImpl():
             self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat, elev_m]
         # end for
 
+        # Populate unique coordinates dict
+        for ds_dict in self.asdf_station_coordinates:
+            for key in list(ds_dict.keys()):
+                lon, lat, _ = ds_dict[key]
+                self._unique_coordinates[key] = [lon, lat]
+            # end for
+        # end for
+
         # Load master inventory
         row = self.conn.execute('select * from masterinv').fetchall()
         self.masterinv = cPickle.loads(row[0][0])
     # end func
 
-    def get_global_time_range(self, network, station=None, location=None, channel=None):
+    def get_recording_timespan(self, network, station=None, location=None, channel=None):
         query = "select min(st), max(et) from nslc where net='%s' " % (network)
 
         if (station is not None):
@@ -620,7 +670,7 @@ class _FederatedASDFDataSetImpl():
         return min, max
     # end func
 
-    def get_nslc_coverage(self):
+    def get_all_recording_timespans(self):
         query = "select net, sta, loc, cha, st, et from nslc"
         rows = self.conn.execute(query).fetchall()
 
@@ -765,7 +815,7 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_location_codes(self, network, station, starttime=None, endtime=None):
-        st, et = self.get_global_time_range(network, station)
+        st, et = self.get_recording_timespan(network, station)
 
         if(starttime):
             starttime = UTCDateTime(starttime)
@@ -970,22 +1020,101 @@ class _FederatedASDFDataSetImpl():
         return result
     # end func
 
-    def get_coverage(self, network=None, station=None, location=None, channel=None):
-        query = """ 
-                select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
-                from wtag as w, meta as n where w.net=n.net and w.sta=n.sta 
+    def get_recording_duration(self, network=None, station=None, location=None, channel=None,
+                               starttime=None, endtime=None, cumulative=False):
+
+        if(starttime is not None): starttime = UTCDateTime(starttime).timestamp
+        if(endtime is not None): endtime= UTCDateTime(endtime).timestamp
+
+        clause_added = 0
+        query = """
+            select net, sta, loc, cha, """
+
+        if(starttime is not None and endtime is not None):
+            if(cumulative):
+                query += """
+                    max(block_st, {}), min(block_et, {}), 
+                    sum(
+                        max(0, 
+                            min(block_et, {}) - max(block_st, {})
+                        )
+                    ) as duration """.format(starttime, endtime, endtime, starttime)
+            else:
+                query += """ max(block_st, {}), min(block_et, {})
+                        """.format(starttime, endtime)
+            # end if
+        else:
+            if(cumulative):
+                query += " min(block_st), max(block_et), sum (block_et - block_st) as duration "
+            else:
+                query += " block_st, block_et "
+            # end if
+        # end if
+
+        query += " from coverage "
+
+        if (network or station or location or channel or (starttime and endtime)): query += " where "
+
+        if(starttime is not None and endtime is not None):
+            query += """
+              block_et > {}
+              and block_st < {}
+            """.format(starttime, endtime)
+            clause_added += 1
+        # end if
+
+        if(network is not None):
+            if(clause_added): query += "and net='{}' ".format(network)
+            else: query += "net='{}' ".format(network)
+            clause_added += 1
+        # end if
+        if(station is not None):
+            if (clause_added): query += " and sta='{}' ".format(station)
+            else: query += " sta='{}' ".format(station)
+            clause_added += 1
+        # end if
+        if(location is not None):
+            if(clause_added): query += " and loc='{}' ".format(location)
+            else: query += " loc='{}' ".format(location)
+            clause_added += 1
+        # end if
+        if(channel is not None):
+            if(clause_added): query += " and cha='{}' ".format(channel)
+            else: query += " cha='{}' ".format(channel)
+            clause_added += 1
+        # end if
+
+        if(cumulative):
+            query += """ 
+                group by net, sta, loc, cha
+                order by net, sta, loc, cha;
                 """
-        if(network): query += ' and w.net="{}"'.format(network)
-        query += " group by w.net, w.sta, w.loc, w.cha; "
+        else:
+            query += """ 
+                group by net, sta, loc, cha, block_st, block_et
+                order by net, sta, loc, cha, block_st, block_et;
+                """
+        # end if
 
+        print('\n{}\n'.format(query))
+        
         rows = self.conn.execute(query).fetchall()
-        array_dtype = [('net', 'U10'), ('sta', 'U10'),
-                       ('loc', 'U10'), ('cha', 'U10'),
-                       ('lon', 'float'), ('lat', 'float'),
-                       ('min_st', 'float'), ('max_et', 'float')]
-        rows = np.array(rows, dtype=array_dtype)
 
-        return rows
+        array_dtype = None
+        if(cumulative):
+            array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                           ('loc', 'U10'), ('cha', 'U10'),
+                           ('min_st', 'float'), ('max_et', 'float'),
+                           ('duration_seconds', 'float')]
+        else:
+            array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                           ('loc', 'U10'), ('cha', 'U10'),
+                           ('block_st', 'float'), ('block_et', 'float')]
+        # end if
+
+        result = np.array(rows, dtype=array_dtype)
+
+        return result
     # end func
 
     def cleanup(self):

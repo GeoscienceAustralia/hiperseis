@@ -72,7 +72,7 @@ def process_data(rank, fds, stations, start_time, end_time, resolution):
             continue
         # end if
 
-        st, et = fds.get_global_time_range(s[0], s[1])
+        st, et = fds.get_recording_timespan(s[0], s[1])
 
         if (start_time > st): st = start_time
         if (end_time < et): et = end_time

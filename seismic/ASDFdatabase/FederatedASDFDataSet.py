@@ -41,7 +41,6 @@ class FederatedASDFDataSet():
         """
         self.logger = logger
         self.asdf_source = asdf_source
-        self._unique_coordinates = None
         self._earth_radius = 6371  # km
 
         # Instantiate implementation class
@@ -50,16 +49,14 @@ class FederatedASDFDataSet():
                                              single_threaded_access=single_threaded_access)
 
         # Populate coordinates
-        self._unique_coordinates = defaultdict(list)
-
         rtps_dict = defaultdict()
         for ds_dict in self.fds.asdf_station_coordinates:
             for key in list(ds_dict.keys()):
-                self._unique_coordinates[key] = [ds_dict[key][0], ds_dict[key][1]]
 
+                lon, lat, _ = ds_dict[key]
                 rtps_dict[key] = [self._earth_radius,
-                                  np.radians(90 - ds_dict[key][1]),
-                                  np.radians(ds_dict[key][0])]
+                                  np.radians(90 - lat),
+                                  np.radians(lon)]
             # end for
         # end for
 
@@ -80,8 +77,7 @@ class FederatedASDFDataSet():
 
         :return: dictionary containing [lon, lat] coordinates indexed by 'net.sta'
         """
-        return self._unique_coordinates
-
+        return self.fds._unique_coordinates
     # end func
 
     def corrections_enabled(self):
@@ -124,7 +120,7 @@ class FederatedASDFDataSet():
 
     # end func
 
-    def get_global_time_range(self, network, station=None, location=None, channel=None):
+    def get_recording_timespan(self, network, station=None, location=None, channel=None):
         """
         :param network: network code
         :param station: station code
@@ -134,11 +130,10 @@ class FederatedASDFDataSet():
                  min is set to 2100-01-01T00:00:00.000000Z and max is set to 1900-01-01T00:00:00.000000Z
         """
 
-        return self.fds.get_global_time_range(network, station=station, location=location, channel=channel)
-
+        return self.fds.get_recording_timespan(network, station=station, location=location, channel=channel)
     # end func
 
-    def get_nslc_coverage(self):
+    def get_all_recording_timespans(self):
         """
         Get a structured numpy array with named columns
         'net', 'sta', 'loc', 'cha', 'min_st', 'max_et'
@@ -146,7 +141,7 @@ class FederatedASDFDataSet():
         @return:
         """
 
-        results = self.fds.get_nslc_coverage()
+        results = self.fds.get_all_recording_timespans()
         return results
     # end if
 
@@ -267,32 +262,36 @@ class FederatedASDFDataSet():
         @param channel: channel code
         @param start_date_ts: start timestamp
         @param end_date_ts: end timestamp
-        @param min_gap_length: minimum length of gap; smaller gaps in data are ignored
+        @param min_gap_length: minimum length of gap in seconds; smaller gaps in data are ignored
         @return:
         """
         return self.fds.find_gaps(network, station, location, channel, start_date_ts, end_date_ts, min_gap_length)
     # end func
 
-    def get_recording_time_seconds(self, network=None, station=None, location=None, channel=None):
+    def get_recording_duration(self, network=None, station=None, location=None, channel=None,
+                                     starttime=None, endtime=None, cumulative=False):
         """
-        Fetches recording time in seconds
+        Fetches total recording duration in seconds. Note that 'duration_seconds' in the output exclude data-gaps
 
         @param network:
         @param station:
         @param location:
         @param channel:
-        @return:
-        """
-        """
-        @param network: network code
-        @param
-        @return: Numpy record array with columns: net, sta, loc, cha, duration_seconds
+        @param starttime:
+        @param endtime:
+        @param cumulative: returns cumulative recording times, otherwise blocks of start- and end-times
+        @return: Numpy record array with columns, if cumulative=False:
+                 net, sta, loc, cha, block_st, block_et
+                 , otherwise:
+                 net, sta, loc, cha, lon, lat, min_st, max_et, duration_seconds
         """
 
-        rows = self.fds.get_coverage(network=network)
+        rows = self.fds.get_recording_duration(network=network, station=station, location=location, channel=channel,
+                                               starttime=starttime, endtime=endtime, cumulative=cumulative)
         return rows
     # end func
 # end class
+
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -320,16 +319,22 @@ def process(asdf_source, force_reindex, generate_summary):
             with open(ofn, 'w') as fh:
                 fh.write('# net, sta, loc, cha, lon, lat, min_starttime, max_endtime, duration_months\n')
 
-                rows = ds.get_recording_time_seconds()
+                rows = ds.get_recording_duration(cumulative=True)
                 for row in rows:
-                    net, sta, loc, cha, lon, lat, min_st, max_et = row
-                    duration_months = (max_et - min_st) / (86400 * 30)
+                    net, sta, loc, cha, min_st, max_et, duration_seconds = row
+                    duration_months = duration_seconds / (86400 * 30)
 
+                    lon, lat = ds.unique_coordinates['{}.{}'.format(net, sta)]
                     line = '{},{},{},{},{:3.4f},{:3.4f},{},{},{:5.3f}\n'.\
                            format(net, sta, loc, cha, lon, lat,
                                   UTCDateTime(min_st).strftime('%Y-%m-%dT%H:%M:%S'),
                                   UTCDateTime(max_et).strftime('%Y-%m-%dT%H:%M:%S'),
                                   duration_months)
+                    
+                    if(duration_seconds > (max_et - min_st)): 
+                        logger.warn('Potential overlapping data found: {}'.format(line.strip()))
+                    # end if
+                    
                     fh.write(line)
                 # end for
             # end with

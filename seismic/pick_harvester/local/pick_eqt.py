@@ -76,7 +76,7 @@ def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
         et = UTCDateTime(end_time)
 
         nc, sc = netsta.split('.')
-        gSt, gEt = fds.get_global_time_range(nc, sc)
+        gSt, gEt = fds.get_recording_timespan(nc, sc)
 
         if(st < gSt): st = gSt
         if(et > gEt): et = gEt

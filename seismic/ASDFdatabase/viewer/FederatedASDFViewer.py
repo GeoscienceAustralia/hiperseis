@@ -85,7 +85,7 @@ class DataViewer(App):
                 lons = []
                 lats = []
                 if(len(stations)):
-                    nstart, nend = self.fds.get_global_time_range(nc)
+                    nstart, nend = self.fds.get_recording_timespan(nc)
 
                     lons = []
                     lats = []
@@ -251,7 +251,7 @@ class DataViewer(App):
             if(cc == NULL_CHANNEL_CODE):
                 availStr = NULL_AVAILABILITY
             else:
-                st, et = self.fds.get_global_time_range(nc, sc, lc, cc)
+                st, et = self.fds.get_recording_timespan(nc, sc, lc, cc)
                 availStr = "Availability: {} - {}".format(st.strftime('%Y-%m-%d'), et.strftime('%Y-%m-%d'))
             # end if
 
@@ -263,7 +263,7 @@ class DataViewer(App):
 
             try:
                 if(st is None and et is None):
-                    st, et = self.fds.get_global_time_range(nc, sc, lc, cc)
+                    st, et = self.fds.get_recording_timespan(nc, sc, lc, cc)
 
                     # set start-time 
                     self.rowContainer.children[key].children['rightContainer'].children['startStepBox']. \
@@ -482,8 +482,8 @@ class DataViewer(App):
         # populate net, sta, loc, cha dict
         self.nslc_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        nslc_coverage = self.fds.get_nslc_coverage()
-        for row in nslc_coverage:
+        all_recording_timespans = self.fds.get_all_recording_timespans()
+        for row in all_recording_timespans:
             net, sta, loc, cha, _, _ = row
             self.nslc_dict[net][sta][loc].append(cha)
         # end for

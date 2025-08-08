@@ -230,10 +230,10 @@ def process(data_source1, data_source2, output_path,
                 # start- and end-times overlap with data coverage. Note that this is
                 # an approximate estimate and an actual cross-correlation may not be
                 # computed due to gaps in data
-                stations = ds.nslc_coverage[(ds.nslc_coverage['net'] == net) & \
-                                            (ds.nslc_coverage['sta'] == sta) & \
-                                            (ds.nslc_coverage['max_et'] >= startTime.timestamp) & \
-                                            (ds.nslc_coverage['min_st'] <= endTime.timestamp)]
+                stations = ds.all_recording_timespans[(ds.all_recording_timespans['net'] == net) & \
+                                                      (ds.all_recording_timespans['sta'] == sta) & \
+                                                      (ds.all_recording_timespans['max_et'] >= startTime.timestamp) & \
+                                                      (ds.all_recording_timespans['min_st'] <= endTime.timestamp)]
 
                 loc_pref = location_preferences_dict[netsta]
                 ulocs = set()
