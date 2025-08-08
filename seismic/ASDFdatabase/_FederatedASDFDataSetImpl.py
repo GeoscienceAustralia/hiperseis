@@ -911,12 +911,15 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def find_gaps(self, network=None, station=None, location=None,
-                  channel=None, start_date_ts=None, end_date_ts=None,
+                  channel=None, starttime=None, endtime=None,
                   min_gap_length=86400):
+
+        if(starttime is not None): starttime = UTCDateTime(starttime).timestamp
+        if(endtime is not None): endtime= UTCDateTime(endtime).timestamp
 
         clause_added = 0
         query = 'select net, sta, loc, cha, st, et from wtag '
-        if (network or station or location or channel or (start_date_ts and end_date_ts)): query += " where "
+        if (network or station or location or channel or (starttime and endtime)): query += " where "
 
         if (network):
             query += ' net="{}" '.format(network)
@@ -947,19 +950,19 @@ class _FederatedASDFDataSetImpl():
             clause_added += 1
         # end if
 
-        if (start_date_ts):
+        if (starttime):
             if (clause_added):
-                query += ' and st>={} '.format(start_date_ts)
+                query += ' and st>={} '.format(starttime)
             else:
-                query += ' st>={} '.format(start_date_ts)
+                query += ' st>={} '.format(starttime)
             clause_added += 1
         # end if
 
-        if (end_date_ts):
+        if (endtime):
             if (clause_added):
-                query += ' and et<={}'.format(end_date_ts)
+                query += ' and et<={}'.format(endtime)
             else:
-                query += ' et<={} '.format(end_date_ts)
+                query += ' et<={} '.format(endtime)
             clause_added += 1
         # end if
 

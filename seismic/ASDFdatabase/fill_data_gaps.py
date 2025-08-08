@@ -253,11 +253,8 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
             # ========================================================
             print('Filling gaps {}.{}.{}.{}:[{} - {}]'.format(net, sta, loc, cha, ref_st, ref_et),
                   end='', flush=True)
-            gaps = rds.find_gaps(network=net, station=sta,
-                                 location=loc, channel=cha,
-                                 start_date_ts=ref_st.timestamp,
-                                 end_date_ts=ref_et.timestamp,
-                                 min_gap_length=dp.min_gap_length)
+            gaps = rds.find_gaps(network=net, station=sta, location=loc, channel=cha, starttime=ref_st,
+                                 endtime=ref_et, min_gap_length=dp.min_gap_length)
             count = 0
             for gap in gaps:
                 for wd in dp.waveform_iterator(gap[0], gap[1], gap[2], gap[3],

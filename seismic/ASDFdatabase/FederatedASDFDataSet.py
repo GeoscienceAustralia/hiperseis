@@ -250,8 +250,7 @@ class FederatedASDFDataSet():
         return inv
     # end func
 
-    def find_gaps(self, network=None, station=None, location=None,
-                  channel=None, start_date_ts=None, end_date_ts=None,
+    def find_gaps(self, network=None, station=None, location=None, channel=None, starttime=None, endtime=None,
                   min_gap_length=86400):
         """
         This function returns gaps in data as a numpy array with columns: net, sta, loc, cha, start_timestamp,
@@ -260,12 +259,12 @@ class FederatedASDFDataSet():
         @param station: station code
         @param location: location code
         @param channel: channel code
-        @param start_date_ts: start timestamp
-        @param end_date_ts: end timestamp
+        @param starttime: start timestamp
+        @param endtime: end timestamp
         @param min_gap_length: minimum length of gap in seconds; smaller gaps in data are ignored
         @return:
         """
-        return self.fds.find_gaps(network, station, location, channel, start_date_ts, end_date_ts, min_gap_length)
+        return self.fds.find_gaps(network, station, location, channel, starttime, endtime, min_gap_length)
     # end func
 
     def get_recording_duration(self, network=None, station=None, location=None, channel=None,
