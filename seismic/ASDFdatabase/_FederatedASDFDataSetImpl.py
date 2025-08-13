@@ -58,12 +58,13 @@ def split_list_by_timespan(l, n):
 # end func
 
 class _FederatedASDFDataSetImpl():
-    def __init__(self, asdf_source, force_reindex=False, logger=None,
+    def __init__(self, asdf_source, fast=True, force_reindex=False, logger=None,
                  single_item_read_limit_in_mb=1024,
                  single_threaded_access=True):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
+        :param fast: enables in-memory optimizations for faster queries
         :param force_reindex: Force reindex even if a preexisting db file is found
         :param logger: logger instance
         :param single_item_read_limit_in_mb: buffer size for Obspy reads
@@ -82,6 +83,8 @@ class _FederatedASDFDataSetImpl():
         self.asdf_file_names = []
         self.history_fn = None
         self.previous_db_fn = None
+        self.fast = fast
+        self.has_in_mem_db = False
         self.asdf_station_coordinates = []
         self._unique_coordinates = defaultdict(list)
 
@@ -143,9 +146,30 @@ class _FederatedASDFDataSetImpl():
         self.conn = None
         self.masterinv = None
         self.create_database()
+        if(self.fast): self._attach_in_mem_db()
         self._load_corrections()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
+    # end func
+
+    def _attach_in_mem_db(self):
+        self.conn.execute("attach database ':memory:' as memdb;")
+
+        # create in-memory tables
+        self.conn.execute("create table memdb.coverage as select * from coverage;")
+        self.conn.execute("create table memdb.nslc as select * from nslc;")
+
+        # create in-memory indices
+        self.conn.execute('create index memdb.all_coverage_index on coverage '
+                                  '(net, sta, loc, cha, block_st, block_et)')
+        self.conn.execute('create index memdb.all_nslc_index on nslc(net, sta, loc, cha, st, et)')
+
+        self.has_in_mem_db = True
+    # end func
+
+    def _get_table_name(self, table_name: str):
+        if(self.has_in_mem_db): return f'memdb.{table_name}'
+        else: return table_name
     # end func
 
     def _load_corrections(self):
@@ -577,13 +601,6 @@ class _FederatedASDFDataSetImpl():
                 self.conn.execute('create index all_nslc_index on nslc(net, sta, loc, cha, st, et)')
                 self.conn.commit()
 
-                print('Creating convenience table containing total recording durations in seconds..')
-                self.conn.execute('create table recording_time as select net, sta, loc, cha, sum(et-st) '
-                                  'as duration_seconds from wtag group by net, sta, loc, cha '
-                                  'order by net, sta, loc, cha;')
-                self.conn.execute('create index all_recording_time_index on '
-                                  'recording_time(net, sta, loc, cha, duration_seconds)')
-
                 print('Creating convenience table containing timespans of continuous recordings')
                 # use sqlite windowing to generate records of contiguous blocks of recordings where gaps
                 # less than a day are ignored to keep the final row-count reasonable
@@ -648,7 +665,8 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_recording_timespan(self, network, station=None, location=None, channel=None):
-        query = "select min(st), max(et) from nslc where net='%s' " % (network)
+        query = "select min(st), max(et) from {} ".format(self._get_table_name('nslc'))
+        query += " where net='{}' ".format(network)
 
         if (station is not None):
             query += "and sta='%s' " % (station)
@@ -671,7 +689,7 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_all_recording_timespans(self):
-        query = "select net, sta, loc, cha, st, et from nslc"
+        query = "select net, sta, loc, cha, st, et from {} ".format(self._get_table_name('nslc'))
         rows = self.conn.execute(query).fetchall()
 
         fields = {'names': ['net', 'sta', 'loc', 'cha', 'min_st', 'max_et'],
@@ -683,9 +701,49 @@ class _FederatedASDFDataSetImpl():
         return result
     # end if
 
+    def _has_overlap(self, starttime, endtime, network=None, station=None, location=None, channel=None):
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
+
+        query = 'select net, sta, loc, cha from {} where '.format(self._get_table_name('coverage'))
+        if (network is not None): query += " net='%s' "%(network)
+        if (station is not None):
+            if(network is not None): query += "and sta='%s' "%(station)
+            else: query += "sta='%s' "%(station)
+        if (location is not None):
+            if((network is not None) or
+               (station is not None)): query += "and loc='%s' "%(location)
+            else: query += "loc='%s' "%(location)
+        if (channel is not None):
+            if((network is not None) or
+               (station is not None) or
+               (location is not None)): query += "and cha='%s' "%(channel)
+            else: query += "cha='%s' "%(channel)
+        if ((network is not None) or
+            (station is not None) or
+            (location is not None) or
+            (channel is not None)): query += ' and '
+        query += ' block_et>=%f and block_st<=%f' \
+                 % (starttime, endtime)
+        query += ' group by net, sta, loc, cha order by net, sta, loc, cha'
+
+        rows = self.conn.execute(query).fetchall()
+
+        if(len(rows)): return True
+
+        return False
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
+
+        # check if we have any overlap with available data. This is a
+        # cheap and crude check that helps avoid the cost of the
+        # fine-grain comparison involving table wtag below
+        if(not self._has_overlap(starttime, endtime, network=network,
+                                 station=station, location=location,
+                                 channel=channel)): return []
 
         query = 'select ds_id, net, sta, loc, cha from wtag where '
         if (network is not None): query += " net='%s' "%(network)
@@ -1054,7 +1112,7 @@ class _FederatedASDFDataSetImpl():
             # end if
         # end if
 
-        query += " from coverage "
+        query += " from {} ".format(self._get_table_name('coverage'))
 
         if (network or station or location or channel or (starttime and endtime)): query += " where "
 
@@ -1099,7 +1157,7 @@ class _FederatedASDFDataSetImpl():
                 """
         # end if
 
-        print('\n{}\n'.format(query))
+        #print('\n{}\n'.format(query))
         
         rows = self.conn.execute(query).fetchall()
 

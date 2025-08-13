@@ -24,7 +24,7 @@ from obspy.core import UTCDateTime
 import click
 
 class FederatedASDFDataSet():
-    def __init__(self, asdf_source, force_reindex=False, logger=None,
+    def __init__(self, asdf_source, fast=True, force_reindex=False, logger=None,
                  single_item_read_limit_in_mb=1024,
                  single_threaded_access=True):
         """
@@ -32,6 +32,7 @@ class FederatedASDFDataSet():
 
         :param asdf_source: Path to a text file containing a list of ASDF files. \
                Entries can be commented out with '#'
+        :param fast: enables in-memory optimizations for faster queries
         :param force_reindex: Force reindex even if a preexisting db file is found
         :param logger: logger instance
         :param single_item_read_limit_in_mb: buffer size for Obspy reads
@@ -44,7 +45,8 @@ class FederatedASDFDataSet():
         self._earth_radius = 6371  # km
 
         # Instantiate implementation class
-        self.fds = _FederatedASDFDataSetImpl(asdf_source, force_reindex=force_reindex, logger=logger,
+        self.fds = _FederatedASDFDataSetImpl(asdf_source, fast=fast,
+                                             force_reindex=force_reindex, logger=logger,
                                              single_item_read_limit_in_mb=single_item_read_limit_in_mb,
                                              single_threaded_access=single_threaded_access)
 
