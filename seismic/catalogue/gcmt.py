@@ -7,6 +7,11 @@ from obspy.core import UTCDateTime
 from collections import defaultdict
 from obspy.geodetics.base import degrees2kilometers
 from seismic.misc import rtp2xyz
+from obspy.core.event import Event, Origin, Magnitude, Catalog
+from obspy.core.utcdatetime import UTCDateTime
+from itertools import product
+from typing import Tuple
+from tqdm import tqdm
 
 def azimuth_difference(a, b, p, ellipse='WGS84'):
     geod = Geod(ellps=ellipse)
@@ -31,7 +36,7 @@ def azimuth_difference(a, b, p, ellipse='WGS84'):
 # end func
 
 class GCMTCatalog:
-    def __init__(self, fn, ellipse='WGS84'):
+    def __init__(self, source, ellipse='WGS84'):
         def read_gcmt_catalog(fn):
             """
             @param fn: GCMT catalog file name in text format. The expected columns (space-separated) are:
@@ -44,7 +49,6 @@ class GCMTCatalog:
                 a = str(eotime)
                 b = a[0:4] + '-' + a[4:6] + '-' + a[6:8] + 'T' + a[8:10] + ':' + a[10:12] + ':' + a[12:]
                 return UTCDateTime(b).timestamp
-
             # end func
 
             cat = pd.read_csv(fn, header=[1], delimiter='\s+')
@@ -53,11 +57,161 @@ class GCMTCatalog:
             return cat
         # end func
 
-        self.fn = fn
-        self.cat = read_gcmt_catalog(fn)
+        if (type(source) == pd.DataFrame):
+            self.cat = source.copy()
+        else:
+            self.cat = read_gcmt_catalog(source)
+        # end if
+        self._initialize(ellipse=ellipse)
+    # end func
+
+    def _initialize(self, ellipse='WGS84'):
         self.EARTH_RADIUS_KM = 6371.
-        self.tree = None
+
         self.geod = Geod(ellps=ellipse)
+        self.tree = None
+
+        # create kDTree for spatial queries
+        r = np.ones(len(self.cat)) * self.EARTH_RADIUS_KM
+        t = np.radians(90 - self.cat['lat'])
+        p = np.radians(self.cat['lon'])
+
+        xyz = rtp2xyz(r, t, p)
+        self.tree = cKDTree(xyz)
+    # end func
+
+    def prune(self,
+              time_range: Tuple[UTCDateTime, UTCDateTime] = None,
+              lon=None, lat=None, distance_range: Tuple[float, float] = None,
+              mag_range: Tuple[float, float] = None,
+              depth_range: Tuple[float, float] = None,
+              min_areal_separation_km=None):
+        """
+        @param time_range: start- and end-times to clip catalogue to
+        @param lon: longitude to be used for restricting events to distance_range
+        @param lat: latitude to be used for restricting events to distance_range
+        @param distance_range: distance range to clip events to in degrees
+        @param mag_range: magnitude Mw range to clip events to
+        @param depth_range: depth range in km to clip events to
+        @param min_areal_separation_km: areal extent over which proximal events that are within
+                                        15 minutes of each other and for which magnitudes do not
+                                        differ by more than 0.3 are dropped as being duplicates
+        @return: a new pruned catalog
+        """
+
+        TIME_DELTA = 60 * 15 # events must be within 15 minutes of each other
+        MAG_DELTA = 0.3      # and close enough in magnitude to qualify for
+                             # pruning due to spatial proximity
+
+        newCat = self.cat.copy()
+
+        if(time_range is not None):
+            st = UTCDateTime(time_range[0]).timestamp
+            et = UTCDateTime(time_range[1]).timestamp
+
+            keep_ids = (newCat['EventOrigintim'] >= st) & (newCat['EventOrigintim'] <= et)
+            newCat = newCat[keep_ids]
+        # end if
+
+        if(None not in [lon, lat, distance_range]):
+            n = len(newCat)
+            _, _, distances = self.geod.inv(np.ones(n) * lon,
+                                            np.ones(n) * lat,
+                                            newCat['lon'], newCat['lat'])
+            min_dist = degrees2kilometers(distance_range[0]) * 1e3
+            max_dist = degrees2kilometers(distance_range[1]) * 1e3
+            keep_ids = (distances >= min_dist) & (distances <= max_dist)
+            newCat = newCat[keep_ids]
+            print(len(newCat))
+        # end if
+
+        if(mag_range is not None):
+            keep_ids = (newCat['Mw'] >= mag_range[0]) & (newCat['Mw'] <= mag_range[1])
+            newCat = newCat[keep_ids]
+        # end if
+
+        if(depth_range is not None):
+            keep_ids = (newCat['dep'] >= depth_range[0]) & (newCat['dep'] <= depth_range[1])
+            newCat = newCat[keep_ids]
+        # end if
+
+        if(min_areal_separation_km is not None):
+            n = len(newCat)
+            if(n > 0):
+                qr = np.ones(n) * self.EARTH_RADIUS_KM
+                qt = np.radians(90 - newCat['lat'])
+                qp = np.radians(newCat['lon'])
+                qxyz = rtp2xyz(qr, qt, qp)
+                tree = cKDTree(qxyz)
+
+                id_lists = tree.query_ball_point(qxyz, min_areal_separation_km)
+
+                otimes = self.get_origin_timestamps()
+                magnitudes = self.get_event_magnitudes()
+                repeated_ids = np.zeros(n, dtype='?')
+                for ids in id_lists:
+                    prod = np.array(list(product(ids, ids)))
+                    prod = prod[~(prod[:, 0] == prod[:, 1])] # drop duplicates
+
+                    # find indices where proximal events are also within TIME_DELTA
+                    prod = prod[(np.fabs(otimes[prod[:, 0]] - otimes[prod[:, 1]]) < TIME_DELTA) &
+                                (np.fabs(magnitudes[prod[:, 0]] - magnitudes[prod[:, 1]]) < MAG_DELTA)]
+                    repeated_ids[prod.flatten()] = True
+                # end for
+                newCat = newCat[~repeated_ids]
+            # end if
+        # end if
+
+        return GCMTCatalog(newCat)
+    # end func
+
+    def get_origin_timestamps(self):
+        return np.array(self.cat['EventOrigintim'])
+    # end func
+
+    def get_event_longitudes(self):
+        return np.array(self.cat['lon'])
+    # end func
+
+    def get_event_latitudes(self):
+        return np.array(self.cat['lat'])
+    # end func
+
+    def get_event_depths_km(self):
+        return np.array(self.cat['dep'])
+    # end func
+
+    def get_event_magnitudes(self):
+        return np.array(self.cat['Mw'])
+    # end func
+
+    def to_obspy_catalog(self):
+        return Catalog([event for event in self])
+    # end func
+
+    def __iter__(self):
+        for i in np.arange(len(self.cat)):
+            row = self.cat.iloc[i]
+
+            event = Event(event_type="earthquake",
+                          creation_info="")
+            origin = Origin()
+            magnitude = Magnitude()
+
+            origin.time = row['EventOrigintim']
+            origin.latitude = row['lat']
+            origin.longitude = row['lon']
+            origin.depth = row['dep'] * 1e3 # in m
+
+            magnitude.mag = row['Mw']
+            magnitude.magnitude_type = "Mw"
+
+            event.origins.append(origin)
+            event.preferred_origin_id = origin.resource_id
+            event.magnitudes.append(magnitude)
+            event.preferred_magnitude_id = magnitude.resource_id
+            yield event
+        # end for
     # end func
 
     def get_compatible_events(self, station_lon1, station_lat1,
@@ -85,17 +239,6 @@ class GCMTCatalog:
         @return: dictionary indexed by a pair of event IDs, with the moment-tensor angle between
                  them as the value
         """
-
-        # create kDTree for spatial queries if not done so yet
-        if(self.tree is None):
-            # create kdtree for spatial queries
-            r = np.ones(len(self.cat)) * self.EARTH_RADIUS_KM
-            t = np.radians(90 - self.cat['lat'])
-            p = np.radians(self.cat['lon'])
-
-            xyz = rtp2xyz(r, t, p)
-            self.tree = cKDTree(xyz)
-        # end if
 
         MIN_DIST = degrees2kilometers(min_event_dist_deg) * 1e3
         MAX_DIST = degrees2kilometers(max_event_dist_deg) * 1e3
