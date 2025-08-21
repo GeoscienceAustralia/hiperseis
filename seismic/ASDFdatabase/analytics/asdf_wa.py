@@ -93,7 +93,7 @@ def process_asdf(asdf_source, network, station, channel, response_database,
     # end func
 
     def get_time_range_func(net, sta, loc, cha):
-        return fds.get_global_time_range(net, sta, loc, cha)
+        return fds.get_recording_timespan(net, sta, loc, cha)
     # end func
 
     sa = StationAnalytics(get_time_range_func, get_waveforms_func,

@@ -653,8 +653,8 @@ def IntervalStackXCorr(refds, tempds,
     ref_net, ref_sta = ref_net_sta.split('.')
     temp_net, temp_sta = temp_net_sta.split('.')
     # ignoring channel since channel can be '00T
-    grst, gret = refds.fds.get_global_time_range(ref_net, ref_sta, ref_loc)
-    gtst, gtet = tempds.fds.get_global_time_range(temp_net, temp_sta, temp_loc)
+    grst, gret = refds.fds.get_recording_timespan(ref_net, ref_sta, ref_loc)
+    gtst, gtet = tempds.fds.get_recording_timespan(temp_net, temp_sta, temp_loc)
 
     # Note that min/max times from fds are accurate to the closest second
     maxSt = UTCDateTime(max(grst.timestamp, gtst.timestamp)) - 1

@@ -70,7 +70,7 @@ class DataPool:
         for src in self.sources:
             min = max = None
             if(type(src)==MseedIndex): min, max = src.get_time_range(net, sta, loc, cha)
-            else: min, max = src.get_global_time_range(net, sta, loc, cha)
+            else: min, max = src.get_recording_timespan(net, sta, loc, cha)
 
             if(min < result_min): result_min = min
             if(max > result_max): result_max = max
@@ -217,7 +217,7 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
     for net, sta, loc, cha in dp_stations:
         # querying the reference dataset with net and sta only allows for
         # augmenting data from missing locations and channels
-        ref_st, ref_et = rds.get_global_time_range(net, sta)
+        ref_st, ref_et = rds.get_recording_timespan(net, sta)
         dp_st, dp_et = dp.get_time_range(net, sta, loc, cha)
 
         if(ref_st == MAX_DATE and ref_et == MIN_DATE):
@@ -253,11 +253,8 @@ def augment_and_fill(rds:FederatedASDFDataSet, dp:DataPool, output_filename:str,
             # ========================================================
             print('Filling gaps {}.{}.{}.{}:[{} - {}]'.format(net, sta, loc, cha, ref_st, ref_et),
                   end='', flush=True)
-            gaps = rds.find_gaps(network=net, station=sta,
-                                 location=loc, channel=cha,
-                                 start_date_ts=ref_st.timestamp,
-                                 end_date_ts=ref_et.timestamp,
-                                 min_gap_length=dp.min_gap_length)
+            gaps = rds.find_gaps(network=net, station=sta, location=loc, channel=cha, starttime=ref_st,
+                                 endtime=ref_et, min_gap_length=dp.min_gap_length)
             count = 0
             for gap in gaps:
                 for wd in dp.waveform_iterator(gap[0], gap[1], gap[2], gap[3],

@@ -18,7 +18,6 @@ from mpi4py import MPI
 import os
 import glob
 import atexit
-import logging
 from ordered_set import OrderedSet as set
 import numpy as np
 
@@ -29,7 +28,8 @@ from collections import defaultdict
 import sqlite3
 import hashlib
 from functools import partial
-from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, InventoryAggregator
+from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, \
+    InventoryAggregator, get_file_signature
 from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
@@ -58,12 +58,13 @@ def split_list_by_timespan(l, n):
 # end func
 
 class _FederatedASDFDataSetImpl():
-    def __init__(self, asdf_source, force_reindex=False, logger=None,
+    def __init__(self, asdf_source, fast=True, force_reindex=False, logger=None,
                  single_item_read_limit_in_mb=1024,
                  single_threaded_access=True):
         """
         :param asdf_source: path to a text file containing a list of ASDF files:
                Entries can be commented out with '#'
+        :param fast: enables in-memory optimizations for faster queries
         :param force_reindex: Force reindex even if a preexisting db file is found
         :param logger: logger instance
         :param single_item_read_limit_in_mb: buffer size for Obspy reads
@@ -80,12 +81,18 @@ class _FederatedASDFDataSetImpl():
         self.single_threaded_access = single_threaded_access
         self.asdf_source = None
         self.asdf_file_names = []
+        self.history_fn = None
+        self.previous_db_fn = None
+        self.fast = fast
+        self.has_in_mem_db = False
         self.asdf_station_coordinates = []
+        self._unique_coordinates = defaultdict(list)
 
         if isinstance(asdf_source, str):
             self.asdf_source = asdf_source
             self.source_sha1 = hashlib.sha1(open(self.asdf_source).read().encode('utf-8')).hexdigest()
             self.db_fn = os.path.join(os.path.dirname(self.asdf_source), self.source_sha1 + '.db')
+            self.history_fn = os.path.join(os.path.dirname(self.asdf_source), '.fasdf_history')
 
             fileContents = list(filter(len, open(self.asdf_source).read().splitlines()))
 
@@ -94,8 +101,13 @@ class _FederatedASDFDataSetImpl():
                 if(fileContents[i][0]=='#'): continue # filter commented lines
 
                 fn = fileContents[i].strip(' \t\n\r\n')
-                self.asdf_file_names.append(fn)
+                if(os.path.exists(fn)):
+                    self.asdf_file_names.append(os.path.abspath(fn))
+                else:
+                    print("Warning: file {} not found. Moving along..".format(fn))
+                # end if
             # end for
+            self.asdf_file_names = list(set(self.asdf_file_names)) # drop duplicates if present
         else:
             raise NameError('Invalid value for asdf_source..')
         # end if
@@ -122,15 +134,42 @@ class _FederatedASDFDataSetImpl():
                 # end if
             # end if
         # end if
+
+        if(self.rank == 0):
+            # retrieve an earlier version of the database, if available
+            self.previous_db_fn = self._get_previous_db()
+        # end if
+
         self.comm.Barrier()
 
         # Create database
         self.conn = None
         self.masterinv = None
         self.create_database()
+        if(self.fast): self._attach_in_mem_db()
         self._load_corrections()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
+    # end func
+
+    def _attach_in_mem_db(self):
+        self.conn.execute("attach database ':memory:' as memdb;")
+
+        # create in-memory tables
+        self.conn.execute("create table memdb.coverage as select * from coverage;")
+        self.conn.execute("create table memdb.nslc as select * from nslc;")
+
+        # create in-memory indices
+        self.conn.execute('create index memdb.all_coverage_index on coverage '
+                                  '(net, sta, loc, cha, block_st, block_et)')
+        self.conn.execute('create index memdb.all_nslc_index on nslc(net, sta, loc, cha, st, et)')
+
+        self.has_in_mem_db = True
+    # end func
+
+    def _get_table_name(self, table_name: str):
+        if(self.has_in_mem_db): return f'memdb.{table_name}'
+        else: return table_name
     # end func
 
     def _load_corrections(self):
@@ -299,6 +338,83 @@ class _FederatedASDFDataSetImpl():
         return resultStream
     # end func
 
+    def _update_history(self):
+        fh = open(self.history_fn, 'a+')
+        fh.write('{}\n'.format(os.path.abspath(self.db_fn)))
+        fh.close()
+    # end func
+
+    def _get_previous_db(self):
+        result = None
+        if(os.path.exists(self.history_fn)):
+            fh = open(self.history_fn, 'r')
+            lines = fh.readlines()
+            if(len(lines) > 0):
+                fn = lines[-1].strip() if len(lines[-1]) > 0 else None
+
+                if(fn is not None and os.path.exists(fn)):
+                    result = fn
+                # end if
+            # end if
+        # end if
+        return result
+    # end func
+
+    def _copy_from_previous_db(self, table_name: str, new_ds_id: int):
+        """
+        Copy entries from an earlier database if the associated asdf file has not changed
+        @param table_name:
+        @param new_ds_id:
+        @return: boolean success/failure
+        """
+
+        rval = False
+        cur = self.conn.cursor()
+
+        # Attach source
+        cur.execute("attach database ? as src", (self.previous_db_fn,))
+
+        # Get ds_id from previous database where file-signature matches with that of given ds_id
+        cur.execute(f"select old_ds.ds_id from src.ds as old_ds, ds as new_ds where \
+                    old_ds.abs_path='{self.asdf_file_names[new_ds_id]}' and \
+                    old_ds.abs_path=new_ds.abs_path and \
+                    old_ds.st_size=new_ds.st_size and old_ds.st_mtime=new_ds.st_mtime \
+                    and old_ds.st_ctime=new_ds.st_ctime and old_ds.st_ino=new_ds.st_ino \
+                    and old_ds.st_dev=new_ds.st_dev")
+        r = cur.fetchall()
+
+        if(len(r) == 1):
+            # found a matching entry in the previous database where the file signature matches
+            old_ds_id = r[0][0]
+            # Get column names from target table
+            cur.execute(f"pragma table_info({table_name})")
+            columns = [row[1] for row in cur.fetchall()]
+
+            # all columns remain the same except ds_id, which is replaced by new_ds_id
+            column_mods = {'ds_id': str(new_ds_id)}
+            select_exprs = [
+                column_mods[col] if col in column_mods else col
+                for col in columns
+            ]
+
+            print(f"Copying entries in table '{table_name}' for '{self.asdf_file_names[new_ds_id]}'"
+                  f" from earlier database ({self.previous_db_fn})")
+            query = f"""
+            insert into {table_name} ({', '.join(columns)})
+            select {', '.join(select_exprs)}
+            from src.{table_name} as src_table where src_table.ds_id={old_ds_id}
+            """
+            cur.execute(query)
+
+            rval = True
+        # end if
+
+        self.conn.commit()
+        cur.execute(f"detach database src")
+
+        return rval
+    # end func
+
     def create_database(self):
         def decode_tag(tag, type='raw_recording'):
             """
@@ -343,7 +459,9 @@ class _FederatedASDFDataSetImpl():
 
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                self.conn.execute('create table ds(ds_id smallint, path text)')
+                self.conn.execute('create table ds(ds_id smallint, abs_path text, '
+                                  'st_size UNSIGNED BIG INT, st_mtime double, st_ctime double, '
+                                  'st_ino UNSIGNED BIG INT, st_dev UNSIGNED BIG INT)')
                 self.conn.execute('create table wtag(ds_id smallint, net varchar(6), sta varchar(6), loc varchar(6), '
                                   'cha varchar(6), st double, et double, tag text)')
                 self.conn.execute('create table meta(ds_id smallint, net varchar(6), sta varchar(6), lon double, '
@@ -352,8 +470,11 @@ class _FederatedASDFDataSetImpl():
 
                 metadatalist = []
                 for ids, ds in enumerate(self.asdf_datasets):
-                    self.conn.execute('insert into ds(ds_id, path) values(?, ?)',
-                                      [ids, self.asdf_file_names[ids]])
+                    sig = get_file_signature(self.asdf_file_names[ids])
+                    self.conn.execute('insert into ds(ds_id, abs_path, st_size, st_mtime, st_ctime, st_ino, st_dev) '
+                                      'values(?, ?, ?, ?, ?, ?, ?)',
+                                      [ids, sig['abs_path'], sig['st_size'], sig['st_mtime'],
+                                       sig['st_ctime'], sig['st_ino'], sig['st_dev']])
 
                     coords_dict = ds.get_all_coordinates()
 
@@ -366,24 +487,36 @@ class _FederatedASDFDataSetImpl():
                               format(len(missing), self.asdf_file_names[ids]))
                     # end if
 
+                    # aggregate inventories
                     for k in coords_dict.keys():
-                        # we keep coordinates from all ASDF files to be able to track
-                        # potential discrepancies
-                        lon = coords_dict[k]['longitude']
-                        lat = coords_dict[k]['latitude']
-                        elev_m = coords_dict[k]['elevation_in_m']
-                        nc, sc = k.split('.')
-                        metadatalist.append([ids, nc, sc, lon, lat, elev_m])
-
-                        # aggregate inventories
                         inv = cleanse_inventory(ds.waveforms[k].StationXML)
                         ia.append(inv)
                     # end for
+
+                    if(self.previous_db_fn is not None and \
+                       self._copy_from_previous_db('meta', ids)):
+                        # copied entries from previous database for ASDF files that
+                        # have not changed
+                        pass
+                    else:
+                        # failed to copy required entries from an earlier database
+                        for k in coords_dict.keys():
+                            # we keep coordinates from all ASDF files to be able to track
+                            # potential discrepancies
+                            lon = coords_dict[k]['longitude']
+                            lat = coords_dict[k]['latitude']
+                            elev_m = coords_dict[k]['elevation_in_m']
+                            nc, sc = k.split('.')
+                            metadatalist.append([ids, nc, sc, lon, lat, elev_m])
+                        # end for
+                    # end if
                 # end for
 
                 masterinv = ia.summarize()
-                self.conn.executemany('insert into meta(ds_id, net, sta, lon, lat, elev_m) values '
-                                      '(?, ?, ?, ?, ?, ?)', metadatalist)
+                if(len(metadatalist) > 0):
+                    self.conn.executemany('insert into meta(ds_id, net, sta, lon, lat, elev_m) values '
+                                          '(?, ?, ?, ?, ?, ?)', metadatalist)
+                # end if
                 self.conn.execute('insert into masterinv(inv) values(?)',
                                   [cPickle.dumps(masterinv, cPickle.HIGHEST_PROTOCOL)])
 
@@ -397,7 +530,23 @@ class _FederatedASDFDataSetImpl():
 
             tagsCount = 0
             for ids, ds in enumerate(self.asdf_datasets):
-                if(self.rank==0): print('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids])))
+                has_copied_entries = False
+                if(self.rank==0):
+                    if(self.previous_db_fn is not None):
+                        self.conn = sqlite3.connect(self.db_fn,
+                                                    check_same_thread=self.single_threaded_access)
+                        has_copied_entries = self._copy_from_previous_db('wtag', ids)
+                        self.conn.close()
+                    # end if
+
+                    if(not has_copied_entries):
+                        print('Indexing %s..' % (os.path.basename(self.asdf_file_names[ids])))
+                    # end if
+                # end if
+                has_copied_entries = self.comm.bcast(has_copied_entries, root=0)
+                self.comm.Barrier()
+
+                if(has_copied_entries): continue
 
                 keys = list(ds.get_all_coordinates().keys())
                 keys = split_list(keys, self.nproc)
@@ -439,15 +588,55 @@ class _FederatedASDFDataSetImpl():
             if(self.rank==0):
                 self.conn = sqlite3.connect(self.db_fn,
                                             check_same_thread=self.single_threaded_access)
-                # create a convenience table with all combinations of net, sta, loc, cha
-                self.conn.execute('create table nslc as select net, sta, loc, cha, min(st) as st, max(et) as et from wtag group by net, sta, loc, cha')
-
                 print('Creating table indices..')
-                self.conn.execute('create index allindex on wtag(ds_id, net, sta, loc, cha, st, et)')
-                self.conn.execute('create index metaindex on meta(ds_id, net, sta)')
-                self.conn.execute('create index nslcindex on nslc(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index all_wtag_index on wtag(ds_id, net, sta, loc, cha, st, et)')
+                self.conn.execute('create index all_meta_index on meta(ds_id, net, sta)')
+                self.conn.execute('create index fast_wtag_index on wtag(net, sta, loc, cha, st, et)')
+                self.conn.execute('create index fast_meta_index on meta(net, sta)')
                 self.conn.commit()
+
+                print('Creating convenience table with start-/end-times..')
+                self.conn.execute('create table nslc as select net, sta, loc, cha, min(st) as st, max(et) as et '
+                                  'from wtag group by net, sta, loc, cha order by net, sta, loc, cha')
+                self.conn.execute('create index all_nslc_index on nslc(net, sta, loc, cha, st, et)')
+                self.conn.commit()
+
+                print('Creating convenience table containing timespans of continuous recordings')
+                # use sqlite windowing to generate records of contiguous blocks of recordings where gaps
+                # less than a day are ignored to keep the final row-count reasonable
+                self.conn.execute("""create table coverage as WITH ordered AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                LAG(et) OVER (PARTITION BY net, sta, loc, cha ORDER BY st, et) AS prev_et
+                            FROM wtag
+                        ),
+                        segment_marks AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                CASE 
+                                    WHEN prev_et IS NULL OR st - prev_et >= 86400 THEN 1 
+                                    ELSE 0 
+                                END AS new_segment
+                            FROM ordered
+                        ),
+                        segmented AS (
+                            SELECT 
+                                net, sta, loc, cha, st, et,
+                                SUM(new_segment) OVER (PARTITION BY net, sta, loc, cha ORDER BY st, et) AS segment_id
+                            FROM segment_marks
+                        )
+                        SELECT 
+                            s.net, s.sta, s.loc, s.cha,  
+                            MIN(st) AS block_st,
+                            MAX(et) AS block_et
+                        FROM segmented as s
+                        GROUP BY s.net, s.sta, s.loc, s.cha, segment_id 
+                        ORDER BY s.net, s.sta, s.loc, s.cha, block_st;""")
+                self.conn.execute('create index all_coverage_index on coverage '
+                                  '(net, sta, loc, cha, block_st, block_et)')
+
                 self.conn.close()
+                self._update_history() # update the history file with latest db_fn
                 print('Done..')
             # end if
             self.comm.Barrier()
@@ -462,13 +651,22 @@ class _FederatedASDFDataSetImpl():
             self.asdf_station_coordinates[ds_id]['%s.%s' % (net.strip(), sta.strip())] = [lon, lat, elev_m]
         # end for
 
+        # Populate unique coordinates dict
+        for ds_dict in self.asdf_station_coordinates:
+            for key in list(ds_dict.keys()):
+                lon, lat, _ = ds_dict[key]
+                self._unique_coordinates[key] = [lon, lat]
+            # end for
+        # end for
+
         # Load master inventory
         row = self.conn.execute('select * from masterinv').fetchall()
         self.masterinv = cPickle.loads(row[0][0])
     # end func
 
-    def get_global_time_range(self, network, station=None, location=None, channel=None):
-        query = "select min(st), max(et) from nslc where net='%s' " % (network)
+    def get_recording_timespan(self, network, station=None, location=None, channel=None):
+        query = "select min(st), max(et) from {} ".format(self._get_table_name('nslc'))
+        query += " where net='{}' ".format(network)
 
         if (station is not None):
             query += "and sta='%s' " % (station)
@@ -490,8 +688,8 @@ class _FederatedASDFDataSetImpl():
         return min, max
     # end func
 
-    def get_nslc_coverage(self):
-        query = "select net, sta, loc, cha, st, et from nslc"
+    def get_all_recording_timespans(self):
+        query = "select net, sta, loc, cha, st, et from {} ".format(self._get_table_name('nslc'))
         rows = self.conn.execute(query).fetchall()
 
         fields = {'names': ['net', 'sta', 'loc', 'cha', 'min_st', 'max_et'],
@@ -503,9 +701,49 @@ class _FederatedASDFDataSetImpl():
         return result
     # end if
 
+    def _has_overlap(self, starttime, endtime, network=None, station=None, location=None, channel=None):
+        starttime = UTCDateTime(starttime).timestamp
+        endtime = UTCDateTime(endtime).timestamp
+
+        query = 'select net, sta, loc, cha from {} where '.format(self._get_table_name('coverage'))
+        if (network is not None): query += " net='%s' "%(network)
+        if (station is not None):
+            if(network is not None): query += "and sta='%s' "%(station)
+            else: query += "sta='%s' "%(station)
+        if (location is not None):
+            if((network is not None) or
+               (station is not None)): query += "and loc='%s' "%(location)
+            else: query += "loc='%s' "%(location)
+        if (channel is not None):
+            if((network is not None) or
+               (station is not None) or
+               (location is not None)): query += "and cha='%s' "%(channel)
+            else: query += "cha='%s' "%(channel)
+        if ((network is not None) or
+            (station is not None) or
+            (location is not None) or
+            (channel is not None)): query += ' and '
+        query += ' block_et>=%f and block_st<=%f' \
+                 % (starttime, endtime)
+        query += ' group by net, sta, loc, cha order by net, sta, loc, cha'
+
+        rows = self.conn.execute(query).fetchall()
+
+        if(len(rows)): return True
+
+        return False
+    # end func
+
     def get_stations(self, starttime, endtime, network=None, station=None, location=None, channel=None):
         starttime = UTCDateTime(starttime).timestamp
         endtime = UTCDateTime(endtime).timestamp
+
+        # check if we have any overlap with available data. This is a
+        # cheap and crude check that helps avoid the cost of the
+        # fine-grain comparison involving table wtag below
+        if(not self._has_overlap(starttime, endtime, network=network,
+                                 station=station, location=location,
+                                 channel=channel)): return []
 
         query = 'select ds_id, net, sta, loc, cha from wtag where '
         if (network is not None): query += " net='%s' "%(network)
@@ -527,7 +765,7 @@ class _FederatedASDFDataSetImpl():
             (channel is not None)): query += ' and '
         query += ' et>=%f and st<=%f' \
                  % (starttime, endtime)
-        query += ' group by net, sta, loc, cha'
+        query += ' group by net, sta, loc, cha order by net, sta, loc, cha'
 
         rows = self.conn.execute(query).fetchall()
         results = set()
@@ -635,7 +873,7 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def get_location_codes(self, network, station, starttime=None, endtime=None):
-        st, et = self.get_global_time_range(network, station)
+        st, et = self.get_recording_timespan(network, station)
 
         if(starttime):
             starttime = UTCDateTime(starttime)
@@ -731,12 +969,15 @@ class _FederatedASDFDataSetImpl():
     # end func
 
     def find_gaps(self, network=None, station=None, location=None,
-                  channel=None, start_date_ts=None, end_date_ts=None,
+                  channel=None, starttime=None, endtime=None,
                   min_gap_length=86400):
+
+        if(starttime is not None): starttime = UTCDateTime(starttime).timestamp
+        if(endtime is not None): endtime= UTCDateTime(endtime).timestamp
 
         clause_added = 0
         query = 'select net, sta, loc, cha, st, et from wtag '
-        if (network or station or location or channel or (start_date_ts and end_date_ts)): query += " where "
+        if (network or station or location or channel or (starttime and endtime)): query += " where "
 
         if (network):
             query += ' net="{}" '.format(network)
@@ -767,19 +1008,19 @@ class _FederatedASDFDataSetImpl():
             clause_added += 1
         # end if
 
-        if (start_date_ts):
+        if (starttime):
             if (clause_added):
-                query += ' and st>={} '.format(start_date_ts)
+                query += ' and st>={} '.format(starttime)
             else:
-                query += ' st>={} '.format(start_date_ts)
+                query += ' st>={} '.format(starttime)
             clause_added += 1
         # end if
 
-        if (end_date_ts):
+        if (endtime):
             if (clause_added):
-                query += ' and et<={}'.format(end_date_ts)
+                query += ' and et<={}'.format(endtime)
             else:
-                query += ' et<={} '.format(end_date_ts)
+                query += ' et<={} '.format(endtime)
             clause_added += 1
         # end if
 
@@ -840,22 +1081,101 @@ class _FederatedASDFDataSetImpl():
         return result
     # end func
 
-    def get_coverage(self, network=None):
-        query = """ 
-                select w.net, w.sta, w.loc, w.cha, n.lon, n.lat, min(w.st), max(w.et) 
-                from wtag as w, meta as n where w.net=n.net and w.sta=n.sta 
+    def get_recording_duration(self, network=None, station=None, location=None, channel=None,
+                               starttime=None, endtime=None, cumulative=False):
+
+        if(starttime is not None): starttime = UTCDateTime(starttime).timestamp
+        if(endtime is not None): endtime= UTCDateTime(endtime).timestamp
+
+        clause_added = 0
+        query = """
+            select net, sta, loc, cha, """
+
+        if(starttime is not None and endtime is not None):
+            if(cumulative):
+                query += """
+                    max(block_st, {}), min(block_et, {}), 
+                    sum(
+                        max(0, 
+                            min(block_et, {}) - max(block_st, {})
+                        )
+                    ) as duration """.format(starttime, endtime, endtime, starttime)
+            else:
+                query += """ max(block_st, {}), min(block_et, {})
+                        """.format(starttime, endtime)
+            # end if
+        else:
+            if(cumulative):
+                query += " min(block_st), max(block_et), sum (block_et - block_st) as duration "
+            else:
+                query += " block_st, block_et "
+            # end if
+        # end if
+
+        query += " from {} ".format(self._get_table_name('coverage'))
+
+        if (network or station or location or channel or (starttime and endtime)): query += " where "
+
+        if(starttime is not None and endtime is not None):
+            query += """
+              block_et > {}
+              and block_st < {}
+            """.format(starttime, endtime)
+            clause_added += 1
+        # end if
+
+        if(network is not None):
+            if(clause_added): query += "and net='{}' ".format(network)
+            else: query += "net='{}' ".format(network)
+            clause_added += 1
+        # end if
+        if(station is not None):
+            if (clause_added): query += " and sta='{}' ".format(station)
+            else: query += " sta='{}' ".format(station)
+            clause_added += 1
+        # end if
+        if(location is not None):
+            if(clause_added): query += " and loc='{}' ".format(location)
+            else: query += " loc='{}' ".format(location)
+            clause_added += 1
+        # end if
+        if(channel is not None):
+            if(clause_added): query += " and cha='{}' ".format(channel)
+            else: query += " cha='{}' ".format(channel)
+            clause_added += 1
+        # end if
+
+        if(cumulative):
+            query += """ 
+                group by net, sta, loc, cha
+                order by net, sta, loc, cha;
                 """
-        if(network): query += ' and w.net="{}"'.format(network)
-        query += " group by w.net, w.sta, w.loc, w.cha; "
+        else:
+            query += """ 
+                group by net, sta, loc, cha, block_st, block_et
+                order by net, sta, loc, cha, block_st, block_et;
+                """
+        # end if
 
+        #print('\n{}\n'.format(query))
+        
         rows = self.conn.execute(query).fetchall()
-        array_dtype = [('net', 'U10'), ('sta', 'U10'),
-                       ('loc', 'U10'), ('cha', 'U10'),
-                       ('lon', 'float'), ('lat', 'float'),
-                       ('min_st', 'float'), ('max_et', 'float')]
-        rows = np.array(rows, dtype=array_dtype)
 
-        return rows
+        array_dtype = None
+        if(cumulative):
+            array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                           ('loc', 'U10'), ('cha', 'U10'),
+                           ('min_st', 'float'), ('max_et', 'float'),
+                           ('duration_seconds', 'float')]
+        else:
+            array_dtype = [('net', 'U10'), ('sta', 'U10'),
+                           ('loc', 'U10'), ('cha', 'U10'),
+                           ('block_st', 'float'), ('block_et', 'float')]
+        # end if
+
+        result = np.array(rows, dtype=array_dtype)
+
+        return result
     # end func
 
     def cleanup(self):

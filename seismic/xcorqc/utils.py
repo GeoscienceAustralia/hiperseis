@@ -20,7 +20,7 @@ class Dataset:
         self._earth_radius = 6371  # km
 
         self.fds = FederatedASDFDataSet(asdf_file_name)
-        self.nslc_coverage = self.fds.get_nslc_coverage()
+        self.all_recording_timespans = self.fds.get_all_recording_timespans()
 
         # Gather station metadata
         netsta_list_subset = set(netsta_list.split(' ')) if netsta_list != '*' else netsta_list
@@ -123,7 +123,7 @@ class Dataset:
                     st1, et1 = range_cache[ns1]
                 else:
                     net1, sta1 = ns1.split('.')
-                    st1, et1 = self.fds.get_global_time_range(net1, sta1)
+                    st1, et1 = self.fds.get_recording_timespan(net1, sta1)
                     range_cache[ns1] = (st1, et1)
                 # end if
 
@@ -131,7 +131,7 @@ class Dataset:
                     st2, et2 = range_cache[ns2]
                 else:
                     net2, sta2 = ns2.split('.')
-                    st2, et2 = other_dataset.fds.get_global_time_range(net2, sta2)
+                    st2, et2 = other_dataset.fds.get_recording_timespan(net2, sta2)
                     range_cache[ns2] = (st2, et2)
                 # end if
 

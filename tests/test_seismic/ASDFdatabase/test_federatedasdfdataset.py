@@ -111,7 +111,7 @@ def test_get_coordinates():
     assert len(fds.unique_coordinates) == len(station_set)
 # end func
 
-def test_get_global_time_range():
+def test_get_recording_timespan():
     fds = FederatedASDFDataSet(asdf_file_list)
 
     rows = np.array(fds.get_stations('1900-01-01T00:00:00', '2100-01-01T00:00:00'))
@@ -122,7 +122,7 @@ def test_get_global_time_range():
     minlist =[]
     maxlist = []
     for (n, s) in station_set:
-        min, max = fds.get_global_time_range(n, s)
+        min, max = fds.get_recording_timespan(n, s)
         minlist.append(min)
         maxlist.append(max)
     # end for
