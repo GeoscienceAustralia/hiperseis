@@ -85,7 +85,7 @@ class GCMTCatalog:
               lon=None, lat=None, distance_range: Tuple[float, float] = None,
               mag_range: Tuple[float, float] = None,
               depth_range: Tuple[float, float] = None,
-              min_areal_separation_km=None):
+              min_areal_separation_km=0):
         """
         @param time_range: start- and end-times to clip catalogue to
         @param lon: longitude to be used for restricting events to distance_range
@@ -122,7 +122,7 @@ class GCMTCatalog:
             max_dist = degrees2kilometers(distance_range[1]) * 1e3
             keep_ids = (distances >= min_dist) & (distances <= max_dist)
             newCat = newCat[keep_ids]
-            print(len(newCat))
+            #print(len(newCat))
         # end if
 
         if(mag_range is not None):
@@ -135,7 +135,7 @@ class GCMTCatalog:
             newCat = newCat[keep_ids]
         # end if
 
-        if(min_areal_separation_km is not None):
+        if(min_areal_separation_km > 0):
             n = len(newCat)
             if(n > 0):
                 qr = np.ones(n) * self.EARTH_RADIUS_KM
@@ -146,8 +146,8 @@ class GCMTCatalog:
 
                 id_lists = tree.query_ball_point(qxyz, min_areal_separation_km)
 
-                otimes = self.get_origin_timestamps()
-                magnitudes = self.get_event_magnitudes()
+                otimes = np.array(newCat['EventOrigintim'])
+                magnitudes = np.array(newCat['Mw'])
                 repeated_ids = np.zeros(n, dtype='?')
                 for ids in id_lists:
                     prod = np.array(list(product(ids, ids)))
@@ -158,7 +158,10 @@ class GCMTCatalog:
                                 (np.fabs(magnitudes[prod[:, 0]] - magnitudes[prod[:, 1]]) < MAG_DELTA)]
                     repeated_ids[prod.flatten()] = True
                 # end for
-                newCat = newCat[~repeated_ids]
+
+                #pd.set_option('display.max_columns', None)
+                #print(newCat[repeated_ids])
+                newCat = newCat[~repeated_ids] # drop proximal events
             # end if
         # end if
 

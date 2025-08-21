@@ -4,23 +4,12 @@ magnitude and time range.
 """
 
 import os.path
-import logging
 from mpi4py import MPI
-
-import warnings
-warnings.simplefilter("ignore", UserWarning)
-# pylint: disable=wrong-import-position
-import urllib3
 import re
 import numpy as np
 import obspy
-from obspy import read_inventory, read_events, UTCDateTime as UTC
-from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
 from obspy.core import Stream, Trace, UTCDateTime
-from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-from rf import iter_event_data
-from tqdm import tqdm
 import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
@@ -31,116 +20,19 @@ from obspy.core.inventory import Inventory
 from obspy.taup import TauPyModel
 
 from PhasePApy.phasepapy.phasepicker import aicdpicker
-from seismic.pick_harvester.utils import Event, Origin, Magnitude
 from seismic.pick_harvester.pick import extract_p, extract_s
 from seismic.stream_processing import zerophase_resample
-
+from seismic.catalogue.gcmt import GCMTCatalog
 from collections import defaultdict
-logging.basicConfig()
-
-# pylint: disable=invalid-name, logging-format-interpolation
+from seismic.misc import setup_logger, print_exception
+from seismic.misc_p import parallel_abort
+from pandas import DataFrame
+import warnings
+warnings.simplefilter("ignore", UserWarning)
 
 SW_MAX_DEPTH = 150 #km
-
-def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range, early_exit=True):
-    """Load event catalog (if available) or create event catalog from FDSN server.
-
-    :param lonlat: (Longitude, latitude) of reference location for finding events
-    :type lonlat: tuple(float, float)
-    :param starttime: Start time of period in which to query events
-    :type starttime: obspy.UTCDateTime or str in UTC datetime format
-    :param endtime: End time of period in which to query events
-    :type endtime: obspy.UTCDateTime or str in UTC datetime format
-    :param cat_file: File containing event catalog, or file name in which to store event catalog
-    :type cat_file: str or Path
-    :param distance_range: Range of distances over which to query seismic events
-    :type distance_range: tuple(float, float)
-    :param magnitude_range: Range of event magnitudes over which to query seismic events.
-    :type magnitude_range: tuple(float, float)
-    :param early_exit: If True, exit as soon as new catalog has been generated, defaults to True
-    :type early_exit: bool, optional
-    :return: Event catalog
-    :rtype: obspy.core.event.catalog.Catalog
-    """
-    log = logging.getLogger(__name__)
-
-    # If file needs to be generated, then this function requires internet access.
-    if os.path.exists(cat_file):
-        min_magnitude = magnitude_range[0]
-        max_magnitude = magnitude_range[1]
-        
-        # For HPC systems with no internet access, the catalog file must be pre-generated
-        log.warning("Loading catalog from file {} irrespective of command line options!!!".format(cat_file))
-        log.info("Using catalog file: {}".format(cat_file))
-        catalog = read_events(cat_file)
-        
-        # While events are downloaded, the ISC magnitude filter does not efectively cull earthquakes outside the requested 
-        # magnitude-range. A secondary magnitude filter is therefore added here to cull events outside the magnitude-range.
-        catalog = catalog.filter("time > {}".format(str(starttime)), "time < {}".format(str(endtime)),
-                                 "magnitude >= {}".format(min_magnitude), "magnitude <= {}".format(max_magnitude))
-    else:
-        min_magnitude = magnitude_range[0]
-        max_magnitude = magnitude_range[1]
-        client = Client('ISC')
-        kwargs = {'starttime': starttime, 'endtime': endtime,
-                  'latitude': lonlat[1], 'longitude': lonlat[0],
-                  'minradius': distance_range[0], 'maxradius': distance_range[1],
-                  'minmagnitude': min_magnitude, 'maxmagnitude': max_magnitude}
-
-        log.info("Following parameters will be used for earthquake event query:\n{}".format(kwargs))
-        catalog = client.get_events(**kwargs)
-        log.info("Catalog loaded from FDSN server")
-
-        log.info("Creating catalog file: {}".format(cat_file))
-        catalog.write(cat_file, 'QUAKEML')
-
-        if early_exit:
-            print("Run this process again using qsub")
-            exit(0)
-        # end if
-    # end if
-
-    # Filter catalog before saving
-    catalog = _filter_catalog_events(catalog)
-
-    return catalog
-# end func
-
-
-def _filter_catalog_events(catalog):
-    """Filter catalog with fixed filter criteria.
-
-    :param catalog: Seismic event catalog
-    :type catalog: obspy.core.event.catalog.Catalog
-    :return: Filtered event catalog
-    :rtype: obspy.core.event.catalog.Catalog
-    """
-    log = logging.getLogger(__name__)
-
-    def _earthquake_event_filter(event):
-        return event.get('event_type') == 'earthquake'
-
-    # Type filter
-    accepted_events = [e for e in catalog if _earthquake_event_filter(e)]
-    catalog = obspy.core.event.catalog.Catalog(accepted_events)
-
-    # Filter out events with missing magnitude or depth
-    n_before = len(catalog)
-    catalog = catalog.filter("magnitude > 0.0", "depth > 0.0")
-    n_after = len(catalog)
-    if n_after < n_before:
-        log.info("Removed {} events from catalog with invalid magnitude or depth values".format(n_before - n_after))
-
-    # Filter for standard error on travel time residuals
-    n_before = len(catalog)
-    catalog = catalog.filter("standard_error <= 5.0")
-    n_after = len(catalog)
-    if n_after < n_before:
-        log.info("Removed {} events from catalog with high travel time residuals".format(n_before - n_after))
-
-    return catalog
-# end func
-
+# descriptions
+DESCS = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surface-wave'}
 
 def asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
                        endtime):
@@ -176,46 +68,8 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
             # end if
         # end for
     # end if
-    if st:
-        try:
-            st = Stream([tr for tr in st if tr.stats.asdf.tag == 'raw_recording'])
-        except AttributeError:
-            log = logging.getLogger(__name__)
-            log.error("ASDF tag not found in Trace stats")
-        # end try
-    # end if
+
     return st
-# end func
-
-def timestamp_filename(fname, t0, t1):
-    """Append pair of timestamps (start and end time) to file name in format that is
-       compatible with filesystem file naming.
-
-    :param fname: File name
-    :type fname: str or path
-    :param t0: first timestamp
-    :type t0: obspy.UTCDateTime
-    :param t1: second timestamp
-    :type t1: obspy.UTCDateTime
-    """
-    t0_str = t0.strftime("%Y%m%dT%H%M%S")
-    t1_str = t1.strftime("%Y%m%dT%H%M%S")
-    bname, ext = os.path.splitext(fname)
-    bname += ("_" + t0_str + "-" + t1_str)
-    return bname + ext
-# end func
-
-
-def is_url(resource_path):
-    """Convenience function to check if a given resource path is a valid URL
-
-    :param resource_path: Path to test for URL-ness
-    :type resource_path: str
-    :return: True if input is a valid URL, False otherwise
-    :rtype: bool
-    """
-    str_parsed = urllib3.util.url.parse_url(resource_path)
-    return str_parsed.scheme and str_parsed.netloc
 # end func
 
 def trim_inventory(inventory, network_list, station_list):
@@ -228,8 +82,6 @@ def trim_inventory(inventory, network_list, station_list):
     :param network_list: a space-separated list of networks
     :param stations_list: a space-separated list of stations
     """
-
-    log = logging.getLogger(__name__)
 
     if(network_list=='*'):
         network_list = []
@@ -261,23 +113,6 @@ def trim_inventory(inventory, network_list, station_list):
         inventory = subset_inv
     # end if
 
-    net_codes = set()
-    sta_codes = set()
-    for net in inventory.networks:
-        net_codes.add(net.code)
-        for sta in net.stations:
-            sta_codes.add(sta.code)
-        # end for
-    # end for
-
-    if(len(sta_codes) == 0):
-        log.error('Inventory is empty! Aborting..')
-        exit(0)
-    # end if
-
-    log.info('Using %d networks: (%s)'%(len(net_codes), ', '.join(net_codes)))
-    log.info('and %d stations: (%s)'%(len(sta_codes), ', '.join(sta_codes)))
-
     return inventory
 #end func
 
@@ -303,7 +138,7 @@ class Picker():
 
     def pick(self, ztrace, ntrace, etrace, phase='P'):
         slope_ratio = -1
-        arrival_time = UTC(-1)
+        arrival_time = UTCDateTime(-1)
 
         # construct a named array for event meta-data, as expected in extract_[p/s]
         event_fields = {'names': ['source', 'event_id', 'origin_ts', 'mag', 'lon', 'lat', 'depth_km'],
@@ -338,62 +173,15 @@ class Picker():
     # end func
 # end class
 
-def sw_catalog(catalog, min_mag):
-    # Trim catalog for surface waves, removing proximal events, as done in function catclean in:
-    # https://github.com/jbrussell/DLOPy_v1.0/blob/master/pysave/locfuns.py
-    def close(x1, x2):
-        if (np.fabs(x1-x2) < 0.8):
-            return True
-        else:
-            return False
-        # end if
-    #end func
-
-    stime = np.array([e.preferred_origin().time.timestamp for e in catalog])
-    lon = np.array([e.preferred_origin().longitude for e in catalog])
-    lat = np.array([e.preferred_origin().latitude for e in catalog])
-    depth = np.array([e.preferred_origin().depth for e in catalog])
-    mag = np.array([float(e.magnitudes[0].mag) for e in catalog])
-
-    repeated = []
-    for i in np.arange((len(stime))):
-        for j in np.arange((len(stime))):
-            if(i==j): continue
-
-            if (np.fabs(stime[j]-stime[i]) < 60*15 and
-                    close(lat[j], lat[i]) and
-                    close(lon[j], lon[i]) and
-                    np.fabs(mag[j] - mag[i]) < 0.3):
-                repeated.append(j)
-            # end if
-        # end for
-    # end for
-    repeated = set(repeated)
-
-    out_cat = Catalog()
-    for i, e in enumerate(catalog):
-        if(e.magnitudes[0].mag < min_mag): continue
-        if(e.preferred_origin().depth/1e3 > SW_MAX_DEPTH): continue
-
-        if(i not in repeated):
-            out_cat.append(e)
-        # end if
-    # end for
-
-    return out_cat
-# end func
-
-def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
-                 wave, request_window, distance_range, resample_hz, tt_model='iasp91', pad=10,
+def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
+                 wave, request_window, time_range, distance_range, magnitude_range,
+                 depth_range, min_areal_separation_km, resample_hz, tt_model='iasp91', pad=10,
                  dry_run=True):
+    def closure_get_waveforms(network, station, location, channel, starttime, endtime):
+        return asdf_get_waveforms(fds, network, station, location, channel, starttime, endtime)
+    # end func
 
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
-
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.INFO)
-
-    # descriptions
-    descs = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surface-wave'}
 
     # initialize phase-map dict
     phase_map = defaultdict(str) # seconds
@@ -448,8 +236,6 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             nsl_dict[cproc][k] = v
             cproc = (cproc + 1)%nproc
         # end for
-
-        log.info('Processing {} events..'.format(descs[wave]))
     # end if
 
     nsl_dict = comm.scatter(nsl_dict, root=0)
@@ -463,6 +249,8 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 comm.Barrier()
             # end for
         else:
+            log_fn = os.path.join(log_folder, '{}.{}.log'.format(nsl, wave))
+            log = setup_logger('__func__', log_fn)
             net, sta, loc = nsl.split('.')
 
             curr_inv = inventory.select(network=net, station=sta, location=loc)
@@ -471,23 +259,50 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
             sta_lon, sta_lat = coord['longitude'], coord['latitude']
 
             if(dry_run):
-                log.info('{}: Extract {}-data between {} - {} s and distance range {} - {} deg'. \
-                         format(nsl, wave, *request_window, *distance_range))
+                log.info('{}: Extract {}-data between {} - {} s around event'. \
+                         format(nsl, wave, *request_window))
                 continue
             # end if
 
+            # set start- and end-times
+            st, et = fds.get_recording_timespan(network=net, station=sta, location=loc)
+            if(time_range[0] is None):
+                time_range[0] = st
+            else:
+                time_range[0] = UTCDateTime(time_range[0])
+                if(time_range[0] < st): time_range[0] = st
+            # end if
+            if(time_range[1] is None):
+                time_range[1] = et
+            else:
+                time_range[1] = UTCDateTime(time_range[1])
+                if(time_range[1] > et): time_range[1] = et
+            # end if
+
+            # tailor catalog for current station
+            log.info(f"""Pruning catalog for:
+\tlocation: {[sta_lon, sta_lat]} 
+\ttime range: [{time_range[0]} -- {time_range[1]}] 
+\tdistance range: [{distance_range[0]} -- {distance_range[1]}] deg 
+\tmagnitude range: [{magnitude_range[0]} -- {magnitude_range[1]}] 
+\tdepth range: [{depth_range[0]} -- {depth_range[1]}] km
+\tminimum areal separation: {min_areal_separation_km} km """)
+            curr_cat = catalog.prune(time_range, sta_lon, sta_lat,
+                                     distance_range, magnitude_range,
+                                     depth_range, min_areal_separation_km).to_obspy_catalog()
+            log.info('A total of {} events retained in catalog.\n'.format(len(curr_cat)))
+
+            log.info('Extracting data windows [{} -- {}] s around events..\n'.format(*request_window))
             stream_count = 0
             sta_stream = Stream()
-
-            status = defaultdict(int)
-            for s in safe_iter_event_data(catalog, curr_inv, waveform_getter,
+            status = DataFrame()
+            for s in safe_iter_event_data(curr_cat, curr_inv, closure_get_waveforms,
                                           use_rfstats=rfstats_map[wave],
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,
                                           request_window=request_window,
                                           pad=pad,
-                                          status=status,
-                                          dist_range=distance_range):
+                                          status=status):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
                 # be overwritten rather than duplicated.
@@ -535,8 +350,6 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 
                 sta_stream += out_stream
                 stream_count += 1
-
-                log.info("[{}] {} | {}".format(descs[wave], grp_id, event_time))
             # end for
 
             for irank in np.arange(nproc):
@@ -557,83 +370,55 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
                 comm.Barrier()
             # end for
 
-            summary_str = \
-            """
-            Station: {}
-            Recording time: {} - {}
-            Matching events: {} 
-            Events with no data: {} 
-            Discarded event data: {} 
-            {} streams written: {} 
-            """.format(nsl, curr_inv.networks[0].start_date, curr_inv.networks[0].end_date,
-                       status['events_processed'], status['no_data'],
-                       status['data_discarded'], descs[wave], stream_count)
-            warn_str = \
-            """
-            No {} traces found for {}! Added a null trace.
-            """.format(descs[wave], nsl)
-            log.info(summary_str)
-            if stream_count == 0:
-                log.warning(warn_str)
+            if(len(status)):
+                status.index += 1
+                log.info('Data extraction stats:\n{}\n'.format(status.to_string()))
             # end if
+            log.info('Summary: good data found for {}/{} events.'.format\
+                         (np.sum(np.array(status['status']=='Good data')) if(len(status)) else 0,
+                          len(status)))
+            if(len(curr_cat) != len(status)): log.warning('All events may not have been processed..')
+
+            warn_str = \
+            " No {} traces found for {}! Added a null trace.".format(DESCS[wave], nsl)
+            if stream_count == 0: log.warning(warn_str)
         # end if
     # end for
 # end func
 
 # ---+----------Main---------------------------------
-
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.command()
-@click.option('--inventory-file', type=click.Path(exists=True, dir_okay=False), required=False, default=None,
-              help=r'Optional path to input inventory file corresponding to waveform source provided through, '
-                   r'--waveform-database. Note that this parameter is required only when the waveform source is '
-                   r'not a definition file for a FederatedASDFDataSet, in which case, the relevant inventory '
-                   r'is extracted internally.')
+@click.argument('data-source',
+                type=click.Path(exists=True))
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
               show_default=True)
-@click.option('--waveform-database', type=str, required=True,
-              help=r'Location of waveform source database from which to extract traces. May be a recognized service '
-                   r'provider from obspy.clients.fdsn.header.URL_MAPPINGS (e.g. "ISC"), an actual URL '
-                   r'(e.g. "http://auspass.edu.au") or a file path. If detected as a URL, the obspy client '
-                   r'get_waveform function will be used to retrieve waveforms from web service. Otherwise, if detected '
-                   r'as a valid file path, then it must be the path to a definition file for a FederatedASDFDataSet, '
-                   r'e.g. "/g/data/ha3/Passive/SHARED_DATA/Index/asdf_files.txt".')
-@click.option('--event-catalog-file', type=click.Path(dir_okay=False, writable=True), required=True,
-              help='Path to event catalog file, e.g. "catalog_7X_for_rf.xml". '
-              'If file already exists, it will be loaded, otherwise it will be created by querying the ISC web '
-              'service. Note that for traceability, start and end times will be appended to file name.')
-@click.option('--event-trace-datafile', type=click.Path(dir_okay=False, writable=True), required=True,
-              help='Path to output file, e.g. "7X_event_waveforms.h5". '
-                   'Note that for traceability, start and end datetimes will be appended to file name.')
-@click.option('--start-time', type=str, default='', show_default=True,
+@click.option('--gcmt-catalog-file', type=click.Path(dir_okay=False), required=True,
+              help='Path to gcmt catalog file. ')
+@click.option('--output-file', type=click.Path(dir_okay=False, writable=True), required=True,
+              help='Path to output file, e.g. "7X_event_waveforms.h5".')
+@click.option('--log-folder', type=click.Path(dir_okay=True, file_okay=False, writable=True), required=True,
+              help='Path to output file, e.g. "7X_event_waveforms.h5".')
+@click.option('--start-time', type=str, default=None, show_default=True,
               help='Start datetime in ISO 8601 format, e.g. "2009-06-16T03:42:00". '
                    'If empty, will be inferred from the inventory file.')
-@click.option('--end-time', type=str, default='', show_default=True,
+@click.option('--end-time', type=str, default=None, show_default=True,
               help='End datetime in ISO 8601 format, e.g. "2011-04-01T23:18:49". '
                    'If empty, will be inferred from the inventory file.')
-@click.option('--taup-model', type=str, default='iasp91', show_default=True,
-              help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
-                   'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
-@click.option('--event-distance-range', type=(float, float), default=(0, 180.0), show_default=True,
-              help='Range of teleseismic distances (in degrees) to download events for')
-@click.option('--magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog for P/S arrivals.')
-@click.option('--sw-magnitude-range', type=(float, float), default=(6.0, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog for surface waves.')
-@click.option('--catalog-only', is_flag=True, default=False, show_default=True,
-              help='If set, only generate catalog file and exit. Used for preparing '
-                   'input file on HPC systems with no internet access.')
-@click.option('--resample-hz', type=float, default=10, show_default=True,
-              help='Resampling frequency (default 10 Hz) for output P/S traces')
-@click.option('--sw-resample-hz', type=float, default=2, show_default=True,
-              help='Resampling frequency (default 2 Hz) for surface waves')
 @click.option('--p-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around P-arrival')
 @click.option('--s-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around S-arrival')
 @click.option('--sw-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around surface-wave arrival')
+@click.option('--p-magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
+              help='Range of seismic event magnitudes to sample from the event catalog for P arrivals.')
+@click.option('--s-magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
+              help='Range of seismic event magnitudes to sample from the event catalog for S arrivals.')
+@click.option('--sw-magnitude-range', type=(float, float), default=(6.0, 10.0), show_default=True,
+              help='Range of seismic event magnitudes to sample from the event catalog for surface waves.')
 @click.option('--p-data-window', type=(int, int), default=(-70, 150), show_default=True,
               help='Time window for waveform data around P-arrivals to extract. Has no effect without '
                    '--p-data')
@@ -652,25 +437,40 @@ def extract_data(catalog, inventory, waveform_getter, event_trace_datafile,
 @click.option('--sw-distance-range', type=(int, int), default=(5, 175), show_default=True,
               help='Range of epicentral distances (in degrees) for which SW-arrival data at a given station '
                    'are to be fetched. Has no effect without --sw-data')
+@click.option('--p-resample-hz', type=float, default=10, show_default=True,
+              help='Resampling frequency (default 10 Hz) for output P traces')
+@click.option('--s-resample-hz', type=float, default=10, show_default=True,
+              help='Resampling frequency (default 10 Hz) for output S traces')
+@click.option('--sw-resample-hz', type=float, default=2, show_default=True,
+              help='Resampling frequency (default 2 Hz) for surface waves')
+@click.option('--taup-model', type=str, default='iasp91', show_default=True,
+              help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
+                   'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
 @click.option('--dry-run', is_flag=True, default=False, show_default=True,
               help='Reports events available to each station, by wave-type and exits without outputting any data. '
                    'Has no effect on --catalog-only mode.')
-def main(inventory_file, network_list, station_list, waveform_database, event_catalog_file, event_trace_datafile,
-         start_time, end_time, taup_model, event_distance_range, magnitude_range, sw_magnitude_range, catalog_only,
-         resample_hz, sw_resample_hz, p_data, s_data, sw_data, p_data_window, s_data_window, sw_data_window,
-         p_distance_range, s_distance_range, sw_distance_range, dry_run):
+def main(data_source, network_list, station_list, gcmt_catalog_file, output_file, log_folder,
+         start_time, end_time,
+         p_data, s_data, sw_data,
+         p_magnitude_range, s_magnitude_range, sw_magnitude_range,
+         p_data_window, s_data_window, sw_data_window,
+         p_distance_range, s_distance_range, sw_distance_range,
+         p_resample_hz, s_resample_hz, sw_resample_hz,
+         taup_model, dry_run):
+    """
+    DATA_SOURCE: Text file containing paths to ASDF files.
+    """
     
     # Initialize MPI
     comm = MPI.COMM_WORLD
-    nproc = comm.Get_size()
     rank = comm.Get_rank()
 
-    log = logging.getLogger('extract_event_traces')
-    log.setLevel(logging.INFO)
+    output_fn_base = os.path.splitext(os.path.basename(output_file))[0]
+    log = setup_logger('__func__', os.path.join(log_folder, output_fn_base + '.log'))
 
     # sanity check
     owave_types = defaultdict(bool)
-    if(not(p_data or s_data or sw_data) and not catalog_only):
+    if(not(p_data or s_data or sw_data)):
         assert 0, 'At least one from [--p-data, --s-data, --sw-data] must be specified. Aborting'
     else:
         owave_types['P'] = p_data
@@ -678,121 +478,103 @@ def main(inventory_file, network_list, station_list, waveform_database, event_ca
         owave_types['SW'] = sw_data
     # end if
 
-    # initialize event time-window dict
+    # initialize event magnitude range dict
+    magnitude_range = defaultdict(tuple)
+    magnitude_range['P'] = p_magnitude_range
+    magnitude_range['S'] = s_magnitude_range
+    magnitude_range['SW'] = sw_magnitude_range
+
+    # initialize event data window dict
     request_window = defaultdict(tuple) # seconds
     request_window['P'] = p_data_window
     request_window['S'] = s_data_window
     request_window['SW'] = sw_data_window
 
-    # initialize event distance-range dict
+    # initialize event distance range dict
     distance_range = defaultdict(tuple) # arc degrees
     distance_range['P'] = p_distance_range
     distance_range['S'] = s_distance_range
     distance_range['SW'] = sw_distance_range
 
+    # initialize resampling dict
+    resample_hz = defaultdict(tuple) # arc degrees
+    resample_hz['P'] = p_resample_hz
+    resample_hz['S'] = s_resample_hz
+    resample_hz['SW'] = sw_resample_hz
+
+    # initialize depth range dict
+    depth_range = defaultdict(tuple) # arc degrees
+    depth_range['P'] = [0, np.finfo('f4').max]
+    depth_range['S'] = [0, np.finfo('f4').max]
+    depth_range['SW'] = [0, 150] # max depth of 150 km
+
+    # initialize areal event separation dict
+    areal_separation_km = defaultdict(tuple) # arc degrees
+    areal_separation_km['P'] = 0
+    areal_separation_km['S'] = 0
+    areal_separation_km['SW'] = 100 # events within 15 minutes of each other, of similar magnitude,
+                                    # should be separated by at least 100 km
+
     inventory = None
-    asdf_dataset = None
     pad = 10 # nominal padding for waveforms in seconds
-    waveform_db_is_web = is_url(waveform_database) or waveform_database in obspy.clients.fdsn.header.URL_MAPPINGS
-    if not waveform_db_is_web:
-        assert os.path.exists(waveform_database), "Cannot find waveform database file {}".format(waveform_database)
-        asdf_dataset = FederatedASDFDataSet(waveform_database)
-        inventory = asdf_dataset.get_inventory()
+    fds = FederatedASDFDataSet(data_source)
 
-        #################################################
-        # Check if GPS clock-corrections are being applied
-        # A large padding is used to allow for time-shifts
-        # from clock-correction
-        #################################################
-        if (asdf_dataset.corrections_enabled()): pad = 3600
-    else:
-        assert inventory_file, 'Must provide inventory file if using a URL or an obspy client as waveform source'
-        inventory = read_inventory(inventory_file)
-        log.info("Loaded inventory {}".format(inventory_file))
-    # end if
+    #################################################
+    # Check if GPS clock-corrections are being applied
+    # A large padding is used to allow for time-shifts
+    # from clock-correction
+    #################################################
+    if (fds.corrections_enabled()): pad = 3600
 
+    # trim inventory based on inputs
+    log.info('Loading inventory...')
+    inventory = fds.get_inventory()
+
+    log.info('Trimming inventory...')
     inventory = trim_inventory(inventory, network_list=network_list, station_list=station_list)
+    netsta_df = DataFrame(columns=['net.sta', 'lon', 'lat'])
+    netsta_count = 0
+    for net in inventory.networks:
+        nc = net.code
+        for sta in net.stations:
+            sc = sta.code
+            netsta = '{}.{}'.format(nc, sc)
+            netsta_df.loc[netsta_count] = [netsta, *fds.unique_coordinates[netsta]]
+            netsta_count += 1
+        # end for
+    # end for
 
-    if(rank == 0): log.info("Using waveform data source: {}".format(waveform_database))
-
-    lonlat = None
-    if(rank == 0):
-        # Compute reference lonlat from the inventory.
-        channels = inventory.get_contents()['channels']
-        lonlat_coords = []
-        for ch in channels:
-            coords = inventory.get_coordinates(ch)
-            lonlat_coords.append((coords['longitude'], coords['latitude']))
-        lonlat_coords = np.array(lonlat_coords)
-        lonlat = np.mean(lonlat_coords, axis=0)
-        log.info("Inferred reference coordinates {}".format(lonlat))
-
-        # If start and end time not provided, infer from date range of inventory.
-        if not start_time:
-            start_time = inventory[0].start_date
-            for net in inventory:
-                start_time = min(start_time, net.start_date)
-            log.info("Inferred start time {}".format(start_time))
-        # end if
-        if not end_time:
-            end_time = inventory[0].end_date
-            if end_time is None:
-                end_time = UTC.now()
-            for net in inventory:
-                end_time = max(end_time, net.end_date)
-            log.info("Inferred end time {}".format(end_time))
-        # end if
-
-        start_time = UTC(start_time)
-        end_time = UTC(end_time)
-        if not os.path.exists(event_catalog_file):
-            event_catalog_file = timestamp_filename(event_catalog_file, start_time, end_time)
-        event_trace_datafile = timestamp_filename(event_trace_datafile, start_time, end_time)
-        assert not os.path.exists(event_trace_datafile), \
-            "Output file {} already exists, please remove!".format(event_trace_datafile)
-        log.info("Traces will be written to: {}".format(event_trace_datafile))
-    # end if
-    lonlat = comm.bcast(lonlat, root=0)
-    start_time = comm.bcast(start_time, root=0)
-    end_time = comm.bcast(end_time, root=0)
-    event_trace_datafile = comm.bcast(event_trace_datafile, root=0)
-
-    exit_after_catalog = catalog_only
-    catalog = get_events(lonlat, start_time, end_time, event_catalog_file, event_distance_range,
-                         magnitude_range, exit_after_catalog)
-
-    if waveform_db_is_web:
-        log.info("Use fresh query results from web")
-        client = Client(waveform_database)
-        waveform_getter = client.get_waveforms
+    if(len(netsta) == 0):
+        log.error('Inventory is empty! Aborting..')
+        parallel_abort('')
     else:
-        # Form closure to allow waveform source file to be derived from a setting (or command line input)
-        def closure_get_waveforms(network, station, location, channel, starttime, endtime):
-            return asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime, endtime)
-        waveform_getter = closure_get_waveforms
+        netsta_df.index += 1
+        log.info('Inventory contains a total of {} stations: \n {}\n'.format(netsta_count,
+                                                                             netsta_df.to_string()))
+    # end if
+    log.info('Loading GCMT catalog: {}..'.format(gcmt_catalog_file))
+    catalog = GCMTCatalog(gcmt_catalog_file)
+
+    if(rank == 0):
+        assert not os.path.exists(output_file), \
+            "Output file {} already exists, please remove!".format(output_file)
+        log.info("Traces will be written to: {}".format(output_file))
     # end if
 
     for wave, flag in owave_types.items():
         if(not flag): continue
 
-        curr_catalog = catalog
-        curr_resample_hz = resample_hz
-
-        if(wave == 'SW'):
-            # remove proximal events for surface-wave output
-            curr_catalog = sw_catalog(catalog, sw_magnitude_range[0])
-            curr_resample_hz = sw_resample_hz
-        # end if
-
-        extract_data(curr_catalog, inventory, waveform_getter, event_trace_datafile,
-                     wave, request_window[wave], distance_range[wave], curr_resample_hz,
-                     tt_model=taup_model, pad=pad, dry_run=dry_run)
+        log.info('Processing {} events..'.format(DESCS[wave]))
+        extract_data(fds, catalog, inventory, output_file, log_folder,
+                     wave, request_window[wave], [start_time, end_time],
+                     distance_range[wave], magnitude_range[wave],
+                     depth_range[wave], areal_separation_km[wave],
+                     resample_hz[wave], tt_model=taup_model, pad=pad, dry_run=dry_run)
     # end for
-    del asdf_dataset
-    
+
+    del fds
     if(rank == 0):
-        print("Finishing...")
-        print("extract_event_traces SUCCESS!")
+        log.info("extract_event_traces SUCCESS!")
     # end if
 # end main
 

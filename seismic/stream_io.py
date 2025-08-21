@@ -17,10 +17,8 @@ from os.path import splitext
 
 from seismic.units_utils import KM_PER_DEG
 from rf.rfstream import rfstats, obj2stats
-from obspy.geodetics import gps2dist_azimuth
-from obspy.geodetics import kilometers2degrees
-from obspy.core import Stream
 from collections import defaultdict
+from pandas import DataFrame
 # pylint: disable=invalid-name
 
 
@@ -36,7 +34,7 @@ EVENTIO_H5INDEX = (
 
 def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, phase='P',
                          request_window=None, pad=10, pbar=None,
-                         status:defaultdict(int)=None, **kwargs):
+                         status:DataFrame=None, **kwargs):
     """
     Return iterator yielding three component streams per station and event.
 
@@ -48,12 +46,9 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
     :param phase: Considered phase, e.g. 'P', 'S', 'PP'
     :type request_window: tuple (start, end)
     :param request_window: requested time window around the onset of the phase
-    :param float pad: add specified time in seconds to request window and
-       trim afterwards again
+    :param float pad: padding in seconds around request window
     :param pbar: tqdm_ instance for displaying a progressbar
-    :param status: a dictionary containing running statistics, updated every
-                   iteration, for keys: ['events_processed', 'no_data',
-                   'data_discarded']
+    :param status: an empty pandas DataFrame for retrieving statistics
     :param kwargs: all other kwargs are passed to `~rf.rfstream.rfstats()`
 
     :return: three component streams with raw data
@@ -87,13 +82,20 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
         pbar.total = len(events) * len(stations)
     # end if
 
-    events_processed = 0
-    no_data = 0
-    data_discarded = 0
-    for event, seedid in itertools.product(events, stations):
-        if pbar is not None:
-            pbar.update(1)
-        origin_time = (event.preferred_origin() or event.origins[0])['time']
+    for i, (event, seedid) in enumerate(itertools.product(events, stations)):
+        if pbar is not None: pbar.update(1)
+        origin = (event.preferred_origin() or event.origins[0])
+        magnitude = (event.preferred_magnitude() or event.magnitudes[0])
+        origin_time, elon, elat, edepth, eMw = origin['time'], origin['longitude'], \
+            origin['latitude'], origin['depth'], magnitude.mag
+        row_items = [seedid, origin_time, elon, elat, edepth/1e3, eMw]
+
+        # initialize status data-frame
+        if (i == 0 and status is not None):
+            cols = ['seed_id', 'origin_time', 'lon', 'lat', 'depth', 'magnitude', 'status']
+            for col in cols: status[col] = None
+        # end if
+
         try:
             # exclude datetime from call to get_coordinates to ensure incorrect
             # recording periods in the inventory do not lead to loss of usable
@@ -101,36 +103,30 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             args = (seedid[:-1] + stations[seedid], None)
             coords = inventory.get_coordinates(*args)
         except Exception:  # station not available at that time
+            if(status is not None): status.loc[i] = [*row_items, 'Invalid inventory']
             continue
+        # end try
 
         stats = None
         if(use_rfstats):
             try:
                 stats = rfstats(station=coords, event=event, phase=phase, **kwargs)
-            except Exception as ex:
+            except Exception as exception:
                 from warnings import warn
                 warn('Error "%s" in rfstats call for event %s, station %s.'
-                     % (ex, event.resource_id, seedid))
+                     % (exception, event.resource_id, seedid))
+                if(status is not None): status.loc[i] = [*row_items, 'Invalid rfstats']
                 continue
+            # end try
             if not stats:
+                if(status is not None): status.loc[i] = [*row_items, 'Invalid rfstats']
                 continue
-        else:
-            stats = obj2stats(event, coords)
-
-            dist_range = kwargs.get('dist_range')
-            if(dist_range):
-                dist, baz, _ = gps2dist_azimuth(stats.station_latitude,
-                                                stats.station_longitude,
-                                                stats.event_latitude,
-                                                stats.event_longitude)
-                dist = kilometers2degrees(dist / 1e3)
-                if dist_range and not dist_range[0] <= dist <= dist_range[1]:
-                    continue
-                # end if
             # end if
         # end if
+        else:
+            stats = obj2stats(event, coords)
+        # end if
 
-        events_processed += 1
         net, sta, loc, cha = seedid.split('.')
 
         if(use_rfstats):
@@ -148,9 +144,15 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             stream = get_waveforms(**kws)
             stream.trim(starttime, endtime)
             stream.merge()
+
+            if(len(stream) == 0):
+                if(status is not None): status.loc[i] = [*row_items, 'No data']
+                continue
+            # end if
         except Exception:  # no data available
-            no_data += 1
+            if(status is not None): status.loc[i] = [*row_items, 'Bad data']
             continue
+        # end try
 
         # drop unwanted channels
         if(len(stream) > 3):
@@ -176,7 +178,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             warn('Need 3 component seismograms. %d components '
                  'detected for event %s, station %s.'
                  % (len(stream), event.resource_id, seedid))
-            no_data += 1
+            if(status is not None): status.loc[i] = [*row_items, 'Missing components']
             continue
         # end if
 
@@ -198,24 +200,20 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                 from warnings import warn
                 warn('Gaps or overlaps detected for event %s, station %s.'
                      % (event.resource_id, seedid))
-                data_discarded += 1
+                if(status is not None): status.loc[i] = [*row_items, 'Patchy data']
                 continue
             else:
                 for tr in stream: tr.data = np.array(tr.data)
             # end if
-        # end for
+        # end if
 
         for tr in stream:
             tr.stats.update(stats)
         # end for
 
-        if(status is not None):
-            status['events_processed'] = events_processed
-            status['no_data'] = no_data
-            status['data_discarded'] = data_discarded
-        # end if
-
+        if(status is not None): status.loc[i] = [*row_items, 'Good data']
         yield RFStream(stream)
+    # end for
 # end func
 
 def safe_h5_root(src_file, root):
