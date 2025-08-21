@@ -400,7 +400,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('--output-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to output file, e.g. "7X_event_waveforms.h5".')
 @click.option('--log-folder', type=click.Path(dir_okay=True, file_okay=False, writable=True), required=True,
-              help='Path to output file, e.g. "7X_event_waveforms.h5".')
+              help='Path to folder in which log files are to be output.')
 @click.option('--start-time', type=str, default=None, show_default=True,
               help='Start datetime in ISO 8601 format, e.g. "2009-06-16T03:42:00". '
                    'If empty, will be inferred from the inventory file.')
@@ -447,8 +447,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
               help='Theoretical tau-p Earth model to use for Trace stats computation. Other possibilities, '
                    'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
 @click.option('--dry-run', is_flag=True, default=False, show_default=True,
-              help='Reports events available to each station, by wave-type and exits without outputting any data. '
-                   'Has no effect on --catalog-only mode.')
+              help='Reports events available to each station, by wave-type and exits without outputting any data. ')
 def main(data_source, network_list, station_list, gcmt_catalog_file, output_file, log_folder,
          start_time, end_time,
          p_data, s_data, sw_data,
