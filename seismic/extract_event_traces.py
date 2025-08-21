@@ -258,12 +258,6 @@ def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
             coord = curr_inv.get_coordinates(nsl + '.' + cha)
             sta_lon, sta_lat = coord['longitude'], coord['latitude']
 
-            if(dry_run):
-                log.info('{}: Extract {}-data between {} - {} s around event'. \
-                         format(nsl, wave, *request_window))
-                continue
-            # end if
-
             # set start- and end-times
             st, et = fds.get_recording_timespan(network=net, station=sta, location=loc)
             if(time_range[0] is None):
@@ -293,6 +287,9 @@ def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
             log.info('A total of {} events retained in catalog.\n'.format(len(curr_cat)))
 
             log.info('Extracting data windows [{} -- {}] s around events..\n'.format(*request_window))
+
+            if(dry_run): continue # nothing more to do for dry-runs
+
             stream_count = 0
             sta_stream = Stream()
             status = DataFrame()
