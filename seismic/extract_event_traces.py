@@ -11,7 +11,6 @@ import obspy
 from obspy.core.event import Catalog
 from obspy.core import Stream, Trace, UTCDateTime
 import click
-
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
 from seismic.stream_processing import zne_order
 from seismic.stream_io import safe_iter_event_data, write_h5_event_stream
@@ -34,11 +33,11 @@ SW_MAX_DEPTH = 150 #km
 # descriptions
 DESCS = {'P': 'P-wave', 'S': 'S-wave', 'SW': 'Surface-wave'}
 
-def asdf_get_waveforms(asdf_dataset, network, station, location, channel, starttime,
+def asdf_get_waveforms(ds:FederatedASDFDataSet, network, station, location, channel, starttime,
                        endtime):
     """Custom waveform getter function to retrieve waveforms from FederatedASDFDataSet.
 
-    :param asdf_dataset: Instance of FederatedASDFDataSet to query
+    :param ds: Instance of FederatedASDFDataSet to query
     :type asdf_dataset: seismic.ASDFdatabase.FederatedASDFDataSet
     :param network: Network code
     :type network: str
@@ -56,14 +55,14 @@ def asdf_get_waveforms(asdf_dataset, network, station, location, channel, startt
     :rtype: obspy.Stream of obspy.Traces
     """
     st = Stream()
-    matching_stations = asdf_dataset.get_stations(starttime, endtime, network=network, station=station,
+    matching_stations = ds.get_stations(starttime, endtime, network=network, station=station,
                                                   location=location)
     if matching_stations:
         channel = channel.replace('?', '.') # replace greedy matching by single-character matching
         ch_matcher = re.compile(channel)
         for net, sta, loc, cha, _, _, _ in matching_stations:
             if ch_matcher.match(cha):
-                st += asdf_dataset.get_waveforms(net, sta, loc, cha, starttime, endtime,
+                st += ds.get_waveforms(net, sta, loc, cha, starttime, endtime,
                                                  trace_count_threshold=50)
             # end if
         # end for
@@ -173,14 +172,11 @@ class Picker():
     # end func
 # end class
 
-def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
+def extract_data(recording_timespan_getter, waveform_getter,
+                 catalog, inventory, event_trace_datafile, log_folder,
                  wave, request_window, time_range, distance_range, magnitude_range,
                  depth_range, min_areal_separation_km, resample_hz, tt_model='iasp91', pad=10,
                  dry_run=True):
-    def closure_get_waveforms(network, station, location, channel, starttime, endtime):
-        return asdf_get_waveforms(fds, network, station, location, channel, starttime, endtime)
-    # end func
-
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
 
     # initialize phase-map dict
@@ -259,7 +255,7 @@ def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
             sta_lon, sta_lat = coord['longitude'], coord['latitude']
 
             # set start- and end-times
-            st, et = fds.get_recording_timespan(network=net, station=sta, location=loc)
+            st, et = recording_timespan_getter(network=net, station=sta, location=loc)
             if(time_range[0] is None):
                 time_range[0] = st
             else:
@@ -293,7 +289,7 @@ def extract_data(fds, catalog, inventory, event_trace_datafile, log_folder,
             stream_count = 0
             sta_stream = Stream()
             status = DataFrame()
-            for s in safe_iter_event_data(curr_cat, curr_inv, closure_get_waveforms,
+            for s in safe_iter_event_data(curr_cat, curr_inv, waveform_getter,
                                           use_rfstats=rfstats_map[wave],
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,
@@ -540,7 +536,7 @@ def main(data_source, network_list, station_list, gcmt_catalog_file, output_file
         # end for
     # end for
 
-    if(len(netsta) == 0):
+    if(len(netsta_df) == 0):
         log.error('Inventory is empty! Aborting..')
         parallel_abort('')
     else:
@@ -554,14 +550,24 @@ def main(data_source, network_list, station_list, gcmt_catalog_file, output_file
     if(rank == 0):
         assert not os.path.exists(output_file), \
             "Output file {} already exists, please remove!".format(output_file)
-        log.info("Traces will be written to: {}".format(output_file))
+        log.info("Traces will be written to: {}\n".format(output_file))
     # end if
+
+    # define closures for getting recording timespans and waveforms
+    def recording_timespan_getter(network, station, location):
+        return fds.get_recording_timespan(network=network, station=station, location=location)
+    # end func
+
+    def waveform_getter(network, station, location, channel, starttime, endtime):
+        return asdf_get_waveforms(fds, network, station, location, channel, starttime, endtime)
+    # end func
 
     for wave, flag in owave_types.items():
         if(not flag): continue
 
-        log.info('Processing {} events..'.format(DESCS[wave]))
-        extract_data(fds, catalog, inventory, output_file, log_folder,
+        if(rank == 0): log.info('Processing {} events..'.format(DESCS[wave]))
+        extract_data(recording_timespan_getter, waveform_getter, catalog,
+                     inventory, output_file, log_folder,
                      wave, request_window[wave], [start_time, end_time],
                      distance_range[wave], magnitude_range[wave],
                      depth_range[wave], areal_separation_km[wave],
