@@ -14,11 +14,10 @@ import h5py
 import obspyh5
 from obspyh5 import dataset2trace, is_obspyh5, trace2group
 from os.path import splitext
-
+from typing import DefaultDict
 from seismic.units_utils import KM_PER_DEG
 from rf.rfstream import rfstats, obj2stats
 from collections import defaultdict
-from pandas import DataFrame
 # pylint: disable=invalid-name
 
 
@@ -34,7 +33,7 @@ EVENTIO_H5INDEX = (
 
 def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, phase='P',
                          request_window=None, pad=10, pbar=None,
-                         status:DataFrame=None, **kwargs):
+                         status: DefaultDict[str, int] = None, log=None, **kwargs):
     """
     Return iterator yielding three component streams per station and event.
 
@@ -48,7 +47,8 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
     :param request_window: requested time window around the onset of the phase
     :param float pad: padding in seconds around request window
     :param pbar: tqdm_ instance for displaying a progressbar
-    :param status: an empty pandas DataFrame for retrieving statistics
+    :param status: a defaultdict for retrieving statistics
+    :param log: a python logging instance
     :param kwargs: all other kwargs are passed to `~rf.rfstream.rfstats()`
 
     :return: three component streams with raw data
@@ -82,19 +82,18 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
         pbar.total = len(events) * len(stations)
     # end if
 
+    fmt = "{:<15} {:<30} {:>9} {:>9} {:>7} {:>5} {:>15}"
+    if(log is not None):
+        log.info(fmt.format("seed_id", "origin_time", "lon", "lat", "depth", "mag", "status")+'\n',
+                 extra={'simple': True})
+    # end if
     for i, (event, seedid) in enumerate(itertools.product(events, stations)):
         if pbar is not None: pbar.update(1)
         origin = (event.preferred_origin() or event.origins[0])
         magnitude = (event.preferred_magnitude() or event.magnitudes[0])
         origin_time, elon, elat, edepth, eMw = origin['time'], origin['longitude'], \
             origin['latitude'], origin['depth'], magnitude.mag
-        row_items = [seedid, origin_time, elon, elat, edepth/1e3, eMw]
-
-        # initialize status data-frame
-        if (i == 0 and status is not None):
-            cols = ['seed_id', 'origin_time', 'lon', 'lat', 'depth', 'magnitude', 'status']
-            for col in cols: status[col] = None
-        # end if
+        row_items = [seedid, origin_time.strftime('%Y-%m-%dT%H:%M:%S.%f'), elon, elat, edepth/1e3, eMw]
 
         try:
             # exclude datetime from call to get_coordinates to ensure incorrect
@@ -103,7 +102,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             args = (seedid[:-1] + stations[seedid], None)
             coords = inventory.get_coordinates(*args)
         except Exception:  # station not available at that time
-            if(status is not None): status.loc[i] = [*row_items, 'Invalid inventory']
+            if(log is not None): log.info(fmt.format(*row_items, 'Invalid inventory'), extra={'simple': True})
             continue
         # end try
 
@@ -115,11 +114,11 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                 from warnings import warn
                 warn('Error "%s" in rfstats call for event %s, station %s.'
                      % (exception, event.resource_id, seedid))
-                if(status is not None): status.loc[i] = [*row_items, 'Invalid rfstats']
+                if (log is not None): log.info(fmt.format(*row_items, 'Invalid rfstats'), extra={'simple': True})
                 continue
             # end try
             if not stats:
-                if(status is not None): status.loc[i] = [*row_items, 'Invalid rfstats']
+                if (log is not None): log.info(fmt.format(*row_items, 'Invalid rfstats'), extra={'simple': True})
                 continue
             # end if
         # end if
@@ -146,11 +145,11 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             stream.merge()
 
             if(len(stream) == 0):
-                if(status is not None): status.loc[i] = [*row_items, 'No data']
+                if (log is not None): log.info(fmt.format(*row_items, 'No data'), extra={'simple': True})
                 continue
             # end if
         except Exception:  # no data available
-            if(status is not None): status.loc[i] = [*row_items, 'Bad data']
+            if (log is not None): log.info(fmt.format(*row_items, 'No data'), extra={'simple': True})
             continue
         # end try
 
@@ -178,7 +177,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             warn('Need 3 component seismograms. %d components '
                  'detected for event %s, station %s.'
                  % (len(stream), event.resource_id, seedid))
-            if(status is not None): status.loc[i] = [*row_items, 'Missing components']
+            if (log is not None): log.info(fmt.format(*row_items, 'Missing components'), extra={'simple': True})
             continue
         # end if
 
@@ -200,7 +199,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
                 from warnings import warn
                 warn('Gaps or overlaps detected for event %s, station %s.'
                      % (event.resource_id, seedid))
-                if(status is not None): status.loc[i] = [*row_items, 'Patchy data']
+                if (log is not None): log.info(fmt.format(*row_items, 'Patchy data'), extra={'simple': True})
                 continue
             else:
                 for tr in stream: tr.data = np.array(tr.data)
@@ -211,7 +210,8 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
             tr.stats.update(stats)
         # end for
 
-        if(status is not None): status.loc[i] = [*row_items, 'Good data']
+        if (log is not None): log.info(fmt.format(*row_items, 'Good data'), extra={'simple': True})
+        if(status is not None): status[seedid] += 1
         yield RFStream(stream)
     # end for
 # end func

@@ -23,12 +23,22 @@ def setup_logger(name, log_file=None, level=logging.INFO, propagate=False):
     """
     Function to setup a logger; adapted from stackoverflow
     """
+    class ConditionalFormatter(logging.Formatter):
+        def format(self, record):
+            if hasattr(record, 'simple') and record.simple:
+                return record.getMessage()
+            else:
+                return logging.Formatter.format(self, record)
+            # end if
+        # end func
+    # end class
+
     handler = None
     if(log_file):
         handler = logging.FileHandler(log_file, mode='w')
     # end if
 
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    formatter = ConditionalFormatter('%(asctime)s %(levelname)s %(message)s')
 
     logger = logging.getLogger(name+log_file if log_file else '')
     logger.setLevel(level)

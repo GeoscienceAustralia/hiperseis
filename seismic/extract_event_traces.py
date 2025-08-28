@@ -288,14 +288,14 @@ def extract_data(recording_timespan_getter, waveform_getter,
 
             stream_count = 0
             sta_stream = Stream()
-            status = DataFrame()
+            status = defaultdict(int)
+            log.info('Data extraction stats:\n')
             for s in safe_iter_event_data(curr_cat, curr_inv, waveform_getter,
                                           use_rfstats=rfstats_map[wave],
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,
                                           request_window=request_window,
-                                          pad=pad,
-                                          status=status):
+                                          pad=pad, status=status, log=log):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
                 # be overwritten rather than duplicated.
@@ -350,27 +350,24 @@ def extract_data(recording_timespan_getter, waveform_getter,
                     if(len(sta_stream)):
                         write_h5_event_stream(event_trace_datafile, sta_stream, index=h5_index, mode='a')
                     else:
-                        t = Trace(data=np.array([]),
+                        t = Trace(data=np.array([0]),
                                   header={'network': net, 'station': sta,
                                           'location': loc, 'channel': 'XXX',
                                           'wave_type': wave,
                                           'station_longitude': sta_lon,
                                           'station_latitude': sta_lat,
-                                          'event_time': UTCDateTime.now()})
+                                          'event_time': UTCDateTime(0)})
                         write_h5_event_stream(event_trace_datafile, Stream([t]), index=h5_index, mode='a')
                     # end if
                 # end if
                 comm.Barrier()
             # end for
 
-            if(len(status)):
-                status.index += 1
-                log.info('Data extraction stats:\n{}\n'.format(status.to_string()))
-            # end if
-            log.info('Summary: good data found for {}/{} events.'.format\
-                         (np.sum(np.array(status['status']=='Good data')) if(len(status)) else 0,
-                          len(status)))
-            if(len(curr_cat) != len(status)): log.warning('All events may not have been processed..')
+            log.info('\nSummary:\n', extra={'simple': True})
+            for k, v in status.items():
+                log.info('{}: good data found for {}/{} events.'.format \
+                         (k, v, len(curr_cat)), extra={'simple': True})
+            # end for
 
             warn_str = \
             " No {} traces found for {}! Added a null trace.".format(DESCS[wave], nsl)

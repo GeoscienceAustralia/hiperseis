@@ -120,8 +120,8 @@ def analyze_station_orientations(ned, curation_opts=DEFAULT_CURATION_OPTS,
     logger = logging.getLogger(__name__ + ':' + full_code)
     logger.setLevel(logging.INFO)
 
-    # check if ned has valid data
-    if not np.any(np.array([len(stream[0].data) for _, _, stream in ned])):
+    # check if ned has valid data. Note that null traces are length 1
+    if not np.any(np.array([(len(stream[0].data) > 1) for _, _, stream in ned])):
         return results
     # end if
 
