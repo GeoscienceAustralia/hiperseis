@@ -333,13 +333,22 @@ def extract_data(recording_timespan_getter, waveform_getter,
                 assert out_stream[2].stats.channel[-1] == 'E'
 
                 # resample after lowpass @ resample_rate / 2 Hz
+                resample_failed = False
                 for tr in out_stream:
                     tr.detrend()
                     tr.taper(max_percentage=0.05, max_length=5)
-                    zerophase_resample(tr, resample_hz)
-                   
+
+                    try:
+                        zerophase_resample(tr, resample_hz)
+                    except Exception as e:
+                        log.warn('Resampling failed for trace: {}, with exception: {}. Moving along..'.\
+                                 format(tr.stats, e))
+                        resample_failed = True
+                        break
+                    # end try
                     tr.stats.update({'wave_type':wave})
                 # end for
+                if(resample_failed): continue
 
                 sta_stream += out_stream
                 stream_count += 1
