@@ -283,7 +283,7 @@ def assert_homogenous_stream(stream, funcname):
     expected_station = stream[0].stats.station
     expected_channel = stream[0].stats.channel
     assert np.all(np.array([(tr.stats.station == expected_station) for tr in stream])), \
-        'Mixed station data incompatible with function {}'.format(funcname)
+        '{}: mixed station data incompatible with function {}'.format(stream[0].stats, funcname)
     assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in stream])), \
-        'Mixed channel data incompatible with function {}'.format(funcname)
+        '{}: mixed channel data incompatible with function {}'.format(stream[0].stats, funcname)
 # end func
