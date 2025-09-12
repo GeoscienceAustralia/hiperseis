@@ -255,29 +255,30 @@ def extract_data(recording_timespan_getter, waveform_getter,
             sta_lon, sta_lat = coord['longitude'], coord['latitude']
 
             # set start- and end-times
+            curr_time_range = time_range.copy()
             st, et = recording_timespan_getter(network=net, station=sta, location=loc)
-            if(time_range[0] is None):
-                time_range[0] = st
+            if(curr_time_range[0] is None):
+                curr_time_range[0] = st
             else:
-                time_range[0] = UTCDateTime(time_range[0])
-                if(time_range[0] < st): time_range[0] = st
+                curr_time_range[0] = UTCDateTime(curr_time_range[0])
+                if(curr_time_range[0] < st): curr_time_range[0] = st
             # end if
-            if(time_range[1] is None):
-                time_range[1] = et
+            if(curr_time_range[1] is None):
+                curr_time_range[1] = et
             else:
-                time_range[1] = UTCDateTime(time_range[1])
-                if(time_range[1] > et): time_range[1] = et
+                curr_time_range[1] = UTCDateTime(curr_time_range[1])
+                if(curr_time_range[1] > et): curr_time_range[1] = et
             # end if
 
             # tailor catalog for current station
             log.info(f"""Pruning catalog for:
 \tlocation: {[sta_lon, sta_lat]} 
-\ttime range: [{time_range[0]} -- {time_range[1]}] 
+\ttime range: [{curr_time_range[0]} -- {curr_time_range[1]}] 
 \tdistance range: [{distance_range[0]} -- {distance_range[1]}] deg 
 \tmagnitude range: [{magnitude_range[0]} -- {magnitude_range[1]}] 
 \tdepth range: [{depth_range[0]} -- {depth_range[1]}] km
 \tminimum areal separation: {min_areal_separation_km} km """)
-            curr_cat = catalog.prune(time_range, sta_lon, sta_lat,
+            curr_cat = catalog.prune(curr_time_range, sta_lon, sta_lat,
                                      distance_range, magnitude_range,
                                      depth_range, min_areal_separation_km).to_obspy_catalog()
             log.info('A total of {} events retained in catalog.\n'.format(len(curr_cat)))
