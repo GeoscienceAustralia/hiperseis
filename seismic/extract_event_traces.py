@@ -71,7 +71,7 @@ def asdf_get_waveforms(ds:FederatedASDFDataSet, network, station, location, chan
     return st
 # end func
 
-def trim_inventory(inventory, network_list, station_list):
+def trim_inventory(inventory, network_list, station_list, bb_bottom_left, bb_top_right):
     """
     Function to trim inventory with a given list of networks and stations.
     Note that duplicate station-names across different networks are not
@@ -80,6 +80,8 @@ def trim_inventory(inventory, network_list, station_list):
     :param inventory: obspy inventory
     :param network_list: a space-separated list of networks
     :param stations_list: a space-separated list of stations
+    :param bb_bottom_left: bounding-box coordinates
+    :param bb_top_right: bounding box coordinates
     """
 
     if(network_list=='*'):
@@ -109,6 +111,15 @@ def trim_inventory(inventory, network_list, station_list):
         for sta in station_list:
             subset_inv += inventory.select(station=sta)
         # end for
+        inventory = subset_inv
+    # end if
+
+    # clip with bounding box
+    if(bb_bottom_left is not None and bb_top_right is not None):
+        subset_inv = inventory.select(minlongitude=bb_bottom_left[0],
+                                      minlatitude=bb_bottom_left[1],
+                                      maxlongitude=bb_top_right[0],
+                                      maxlatitude=bb_top_right[1])
         inventory = subset_inv
     # end if
 
@@ -387,13 +398,20 @@ def extract_data(recording_timespan_getter, waveform_getter,
 # end func
 
 # ---+----------Main---------------------------------
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True,
+                        ignore_unknown_options=True)
 @click.command()
 @click.argument('data-source',
                 type=click.Path(exists=True))
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
               show_default=True)
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) to process.', type=str,
+              show_default=True)
+@click.option('--bb-bottom-left', type=(float, float), default=(None, None),
+              help='Bounding box coordinates (lon lat) of bottom left corner to restrict station selection to.',
+              show_default=True)
+@click.option('--bb-top-right', type=(float, float), default=(None, None),
+              help='Bounding box coordinates (lon lat) of of top right corner to restrict station selection to.',
               show_default=True)
 @click.option('--gcmt-catalog-file', type=click.Path(dir_okay=False), required=True,
               help='Path to gcmt catalog file. ')
@@ -448,7 +466,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
                    'such as ak135, are documented here: https://docs.obspy.org/packages/obspy.taup.html')
 @click.option('--dry-run', is_flag=True, default=False, show_default=True,
               help='Reports events available to each station, by wave-type and exits without outputting any data. ')
-def main(data_source, network_list, station_list, gcmt_catalog_file, output_file, log_folder,
+def main(data_source, network_list, station_list,
+         bb_bottom_left, bb_top_right,
+         gcmt_catalog_file, output_file, log_folder,
          start_time, end_time,
          p_data, s_data, sw_data,
          p_magnitude_range, s_magnitude_range, sw_magnitude_range,
@@ -467,7 +487,12 @@ def main(data_source, network_list, station_list, gcmt_catalog_file, output_file
     output_fn_base = os.path.splitext(os.path.basename(output_file))[0]
     log = setup_logger('__func__', os.path.join(log_folder, output_fn_base + '.log'))
 
-    # sanity check
+    # sanity checks
+    if(len([None for item in (bb_bottom_left, bb_top_right) if None in item]) == 1):
+        raise(RuntimeError('Both --bb-bottom-left and --bb-top-right must be specified for '
+                           'restricting stations to a bounding box'))
+    # end if
+
     owave_types = defaultdict(bool)
     if(not(p_data or s_data or sw_data)):
         assert 0, 'At least one from [--p-data, --s-data, --sw-data] must be specified. Aborting'
@@ -530,7 +555,8 @@ def main(data_source, network_list, station_list, gcmt_catalog_file, output_file
     inventory = fds.get_inventory()
 
     log.info('Trimming inventory...')
-    inventory = trim_inventory(inventory, network_list=network_list, station_list=station_list)
+    inventory = trim_inventory(inventory, network_list=network_list, station_list=station_list,
+                               bb_bottom_left=bb_bottom_left, bb_top_right=bb_top_right)
     netsta_df = DataFrame(columns=['net.sta', 'lon', 'lat'])
     netsta_count = 0
     for net in inventory.networks:
