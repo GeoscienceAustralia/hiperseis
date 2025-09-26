@@ -89,6 +89,7 @@ Each of these sub-dicts is described below:
           "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
           "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
           "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
+          "iter_gwidth_factor": float # Gaussian pulse-width factor, required only for iterative deconvolution
           "normalize": bool # Whether to normalize RF amplitude
         }
 
@@ -118,6 +119,7 @@ Default values for parameters in "filtering" and "processing", above, are drawn 
      DEFAULT_GAUSS_WIDTH = 1.0
      DEFAULT_WATER_LEVEL = 0.01
      DEFAULT_SPIKING = 0.5
+     DEFAULT_ITER_GWIDTH_FACTOR = 2.5
      DEFAULT_NORMALIZE = False
 ```
 
