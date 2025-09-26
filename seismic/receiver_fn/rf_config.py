@@ -25,7 +25,8 @@ DEFAULT_TRIM_START_TIME_SEC = -50.0
 DEFAULT_TRIM_END_TIME_SEC = 150.0
 DEFAULT_ROTATION_TYPE = 'zrt'   # from ['zrt', 'lqt']
 DEFAULT_DECONV_DOMAIN = 'time'  # from ['time', 'freq', 'iter']
-DEFAULT_GAUSS_WIDTH = 1.0
+DEFAULT_GAUSS_WIDTH = 1.0 # for frequency domain
+DEFAULT_ITER_GWIDTH_FACTOR = 2.5 # gaussian pulse-width factor for iterative deconvolution
 DEFAULT_WATER_LEVEL = 0.01
 DEFAULT_SPIKING = 0.5
 DEFAULT_NORMALIZE = False
@@ -66,6 +67,7 @@ class RFConfig:
           "gauss_width": float # Gaussian freq domain filter width. Only required for freq-domain deconvolution
           "water_level": float # Water-level for freq domain spectrum. Only required for freq-domain deconvolution
           "spiking": float # Spiking factor (noise suppression), only required for time-domain deconvolution
+          "iter_gwidth_factor": float # Gaussian pulse-width factor, required only for iterative deconvolution
           "normalize": bool # Whether to normalize RF amplitude
         }
 
@@ -103,6 +105,7 @@ class RFConfig:
                         "gauss_width": DEFAULT_GAUSS_WIDTH,
                         "water_level": DEFAULT_WATER_LEVEL,
                         "spiking": DEFAULT_SPIKING,
+                        "iter_gwidth_factor": DEFAULT_ITER_GWIDTH_FACTOR,
                         "normalize": DEFAULT_NORMALIZE,
                     },
 
@@ -179,7 +182,7 @@ class RFConfig:
         # validate <processing> block
         cp_keys = {'rf_type', 'custom_preproc', 'trim_start_time', 'trim_end_time',
                    'rotation_type', 'deconv_domain', 'gauss_width', 'water_level',
-                   'spiking', 'normalize'}
+                   'spiking', 'iter_gwidth_factor', 'normalize'}
         if(not set(self.config_processing.keys()).issubset(cp_keys)):
             raise ValueError('Invalid key(s) found in <processing> block in the config file. '
                              'Valid keys are: {}'.format(cp_keys))

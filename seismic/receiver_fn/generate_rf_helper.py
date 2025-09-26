@@ -11,8 +11,6 @@ logging.basicConfig()
 
 RAW_RESAMPLE_RATE_HZ = 10.0
 BANDPASS_FILTER_ORDER = 2
-ITER_GWIDTH_PRF = 2.5 # gaussian filter width for iterative deconvolution of P RFs
-ITER_GWIDTH_SRF = 3.5 # gaussian filter width for iterative deconvolution of S RFs
 
 def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
     """Generate P-phase receiver functions for a single 3-channel stream.
@@ -138,7 +136,7 @@ def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
 
             both_sided = False
             winsrc = 'P'
-            iter_gwidth = ITER_GWIDTH_PRF if rf_type == 'prf' else ITER_GWIDTH_SRF
+            iter_gwidth_factor = config_processing.get('iter_gwidth_factor')
             if(rf_type == 'srf'):
                 both_sided = True
                 winsrc = (trim_start_time_sec, trim_end_time_sec, 5)
@@ -149,7 +147,7 @@ def transform_stream_to_rf(ev_id, stream3c, rf_config, **kwargs):
                         winsrc=winsrc,
                         func=rf_iter_deconv, normalize=normalize, min_fit_threshold=75.0,
                         both_sided=both_sided,
-                        gwidth=iter_gwidth)
+                        gwidth=iter_gwidth_factor)
         else:
             assert False, "Not yet supported deconvolution technique '{}'".format(deconv_domain)
         # end if
