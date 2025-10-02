@@ -602,18 +602,19 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     return kept_data
 # end func
 
-def filter_invalid_radial_component(rf_stream):
+def filter_invalid_radial_component(rf_stream, check_channels=True):
     """
     Filter out invalid radial RFs with amplitudes > 1 or troughs around onset time
     :param rf_stream: Stream of RF traces to filter, should be **for a single component of a single station**
     :type rf_stream: rf.RFStream
+    :param check_channels: Checks channels equivalence by default.
     :return: Filtered RF stream
     :rtype: rf.RFStream
     """
     if(len(rf_stream) == 0): return rf_stream
 
     assert rf_stream[0].stats.channel[-1] in ('R', 'Q'), 'Invalid cahnnel; must be either R or Q. Aborting..'
-    assert_homogenous_stream(rf_stream, filter_invalid_radial_component.__name__)
+    assert_homogenous_stream(rf_stream, filter_invalid_radial_component.__name__, check_channels)
 
     rf_stream_out = []
     for trc in rf_stream:

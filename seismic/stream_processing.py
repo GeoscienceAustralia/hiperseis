@@ -267,12 +267,15 @@ def correct_back_azimuth(_event_id, stream, baz_correction):
     return stream
 # end func
 
-def assert_homogenous_stream(stream, funcname):
-    """
-    Verify that the given stream does not contain mixture of stations or channels/components.
 
+def assert_homogenous_stream(stream, funcname, check_channels=True):
+    """
+
+    Verify that the given stream does not contain mixture of stations or channels/components.
     :param stream: Stream containing one or more traces
     :type stream: obspy.Stream or rf.RFStream
+    :param funcname: name of calling function for reporting purposes
+    :param check_channels: checks channel equivalence by default.
     :return: None
     """
     # Check station and channel uniqueness. It is not sensible to expect RF similarity for
@@ -284,6 +287,9 @@ def assert_homogenous_stream(stream, funcname):
     expected_channel = stream[0].stats.channel
     assert np.all(np.array([(tr.stats.station == expected_station) for tr in stream])), \
         '{}: mixed station data incompatible with function {}'.format(stream[0].stats, funcname)
-    assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in stream])), \
-        '{}: mixed channel data incompatible with function {}'.format(stream[0].stats, funcname)
+
+    if(check_channels):
+        assert np.all(np.array([(tr.stats.channel == expected_channel) for tr in stream])), \
+            '{}: mixed channel data incompatible with function {}'.format(stream[0].stats, funcname)
+    # end if
 # end func

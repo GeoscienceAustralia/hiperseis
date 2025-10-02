@@ -35,6 +35,7 @@ from affine import Affine
 import struct
 from seismic.stream_io import get_obspyh5_index
 from seismic.misc import rtp2xyz, split_list
+from seismic.misc_p import parallel_abort
 
 class Gravity:
     def __init__(self, gravity_grid_fn):
@@ -150,7 +151,16 @@ class Migrator:
             # RF amplitudes should not exceed 1.0 and should peak around onset time --
             # otherwise, such traces are deemed problematic and discarded
             before = len(p_traces)
-            p_traces = rf_util.filter_invalid_radial_component(p_traces)
+            p_trace = None
+            try:
+                # disabling enforcement of channel equivalence to ensure RFs from all potential
+                # instruments e.g. SH* BH* under a given location code are included in the results
+                p_traces = rf_util.filter_invalid_radial_component(p_traces, check_channels=False)
+            except Exception as e:
+                print('Sifting radial components failed with error: {}'.format(e))
+                parallel_abort()
+            # end try
+
             after = len(p_traces)
             if (before > after):
                 self._logger.info('rank {}: {} ({}/{}) traces '
