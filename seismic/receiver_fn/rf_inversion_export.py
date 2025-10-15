@@ -70,7 +70,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                         min_station_weight=-1, apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
                         apply_phase_weighting=False, pw_exponent=1.,
-                        resample_freq=None, trim_window=(-5.0, 30.0),
+                        fmin=None, fmax=None, resample_freq=None, trim_window=(-5.0, 30.0),
                         moveout=True, logger=None):
     """Export receiver function to text format for ingestion into Fortran RF inversion code.
 
@@ -93,6 +93,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :type min_slope_ratio: float
     :param dereverberate
     type: bool
+    :param fmin: minimum frequency for bandpass filter
+    :param fmax: maximum frequency for bandpass filter
     :param resample_freq: Sampling rate (Hz) of the output files. The default (None) preserves original sampling rate
     :type resample_freq: float, optional
     :param trim_window: Time window to export relative to onset, defaults to (-5.0, 30.0). If data needs
@@ -112,8 +114,9 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     # 7. Apply back-azimuth filter if specified
     # 8. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
     # 9. Moveout and stack the RFs
-    # 10. Resample (lanczos) and trim RF
-    # 11. Export one file per station in (time, amplitude format)
+    # 10 Apply lowpass/highpass/bandpass filter based on fmin and fmax
+    # 11. Resample (lanczos) and trim RF
+    # 12. Export one file per station in (time, amplitude format)
 
     TRIM_BUFFER = 10
     if(logger is None): logger = setup_logger('__func__')
@@ -307,6 +310,18 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 # end if
                 trace = stack[0]
 
+                # Apply filter as specified
+                if(fmin and fmax):
+                    logger.info('{}.{}.{}: Applying a bandpass filter..'.format(network_code, sta, loc))
+                    stack.filter(type='bandpass', freqmin=fmin, freqmax=fmax, corners=1, zerophase=True)
+                elif(fmin):
+                    logger.info('{}.{}.{}: Applying a highpass filter..'.format(network_code, sta, loc))
+                    stack.filter(type='highpass', freq=fmin, corners=1, zerophase=True)
+                elif(fmax):
+                    logger.info('{}.{}.{}: Applying a lowpass filter..'.format(network_code, sta, loc))
+                    stack.filter(type='lowpass', freq=fmax, corners=1, zerophase=True)
+                # end if
+
                 if(resample_freq is not None):
                     exact_start_time = trace.stats.onset + trim_window[0]
                     stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
@@ -449,11 +464,17 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--pw-exponent', type=float, default=1, show_default=True,
               help='Exponent used in instantaneous phase-weighting of RF amplitudes. This parameter '
                    'has no effect when --apply-phase-weighting is absent.')
+@click.option('--fmin', type=float, default=None, show_default=True,
+              help="Lowest frequency for bandpass filter; default is None."
+                   "If only --fmin in provided, a highpass filter is aplied.")
+@click.option('--fmax', type=float, default=None, show_default=True,
+              help="Highest frequency for bandpass filter; default is None."
+                   "If only --fmax is provided, a lowpass filter is applied.")
 @click.option('--resample-rate', default=None, type=float, show_default=True,
               help='Resampling rate (Hz) for output traces.')
 def main(input_file, output_folder, output_plot_file, network_list, station_list, station_weights,
          min_station_weight, apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
-         dereverberate, apply_phase_weighting, pw_exponent, resample_rate):
+         dereverberate, apply_phase_weighting, pw_exponent, fmin, fmax, resample_rate):
     """
       INPUT_FILE : Input RFs in H5 format\n
                    (output of generate_rf.py or rf_quality_filter.py)\n
@@ -474,6 +495,8 @@ def main(input_file, output_folder, output_plot_file, network_list, station_list
                                        dereverberate=dereverberate,
                                        apply_phase_weighting=apply_phase_weighting,
                                        pw_exponent=pw_exponent,
+                                       fmin=fmin,
+                                       fmax=fmax,
                                        resample_freq=resample_rate,
                                        trim_window=(-5., 30.),
                                        moveout=True,

@@ -285,6 +285,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'purposes. Note that this parameter has no effect on the computation of the hk_stack')
 @click.option('--hk-hpf-freq', type=float, default=None, show_default=True,
               help='If present, cutoff frequency for high pass filter to use prior to generating H-k stacking plot')
+@click.option('--hk-hpf-after-dereverberation', is_flag=True, default=False, show_default=True,
+              help='If present, the high pass filter is applied after dereverberation -- by default, it is '
+                   'applied before dereverberation. This flag has no effect if --hk-hpf-freq is not specified')
 @click.option('--disable-semblance-weighting', is_flag=True, default=False, show_default=True,
               help='Disables default semblance-weighting applied to H-k stacks')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
@@ -292,7 +295,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
          force_dereverberate=None, filter_by_distance=None,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
          hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
-         hk_hpf_freq=None, disable_semblance_weighting=False):
+         hk_hpf_freq=None, hk_hpf_after_dereverberation=False, disable_semblance_weighting=False):
 
     """
     INPUT_FILE : Input RFs in H5 format\n
@@ -488,13 +491,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
                 # end if
 
-                if not rf_stream:
-                    continue
+                if not rf_stream: continue
 
                 ###############################################################################
-                # Filter rf_stream if needed
+                # Filter rf_stream if needed. The default approach is to filter before
+                # dereverberation is applied
                 ###############################################################################
-                if(hk_hpf_freq and hk_hpf_freq>0):
+                if(hk_hpf_freq and hk_hpf_freq>0 and not hk_hpf_after_dereverberation):
                     rf_stream.filter(type='highpass', freq=hk_hpf_freq,
                                      corners=1, zerophase=True)
                 # end if
@@ -529,8 +532,15 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     # end if
                 # end if
 
-                if not rf_stream:
-                    continue
+                if not rf_stream: continue
+
+                ###############################################################################
+                # Filter rf_stream if needed, after dereverberation, as requested
+                ###############################################################################
+                if(hk_hpf_freq and hk_hpf_freq>0 and hk_hpf_after_dereverberation):
+                    rf_stream.filter(type='highpass', freq=hk_hpf_freq,
+                                     corners=1, zerophase=True)
+                # end if
 
                 ############################################
                 # Collate streams to plot
