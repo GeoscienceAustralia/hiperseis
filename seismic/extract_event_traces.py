@@ -398,9 +398,8 @@ def extract_data(recording_timespan_getter, waveform_getter,
 # end func
 
 # ---+----------Main---------------------------------
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True,
-                        ignore_unknown_options=True)
-@click.command()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('data-source',
                 type=click.Path(exists=True))
 @click.option('--network-list', default='*', help='A space-separated list of networks (within quotes) to process.', type=str,
@@ -414,7 +413,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True,
               help='Bounding box coordinates (lon lat) of of top right corner to restrict station selection to.',
               show_default=True)
 @click.option('--gcmt-catalog-file', type=click.Path(dir_okay=False), required=True,
-              help='Path to gcmt catalog file. ')
+              help='Path to gcmt catalog file. For backward compatibility, an xml file in quakeML format can '
+                   'also be used.')
 @click.option('--output-file', type=click.Path(dir_okay=False, writable=True), required=True,
               help='Path to output file, e.g. "7X_event_waveforms.h5".')
 @click.option('--log-folder', type=click.Path(dir_okay=True, file_okay=False, writable=True), required=True,
@@ -577,7 +577,8 @@ def main(data_source, network_list, station_list,
         log.info('Inventory contains a total of {} stations: \n {}\n'.format(netsta_count,
                                                                              netsta_df.to_string()))
     # end if
-    log.info('Loading GCMT catalog: {}..'.format(gcmt_catalog_file))
+
+    log.info('Loading catalog: {}..'.format(gcmt_catalog_file))
     catalog = GCMTCatalog(gcmt_catalog_file)
 
     if(rank == 0):

@@ -8,6 +8,7 @@ from collections import defaultdict
 from obspy.geodetics.base import degrees2kilometers
 from seismic.misc import rtp2xyz
 from obspy.core.event import Event, Origin, Magnitude, Catalog
+from obspy import read_events
 from obspy.core.utcdatetime import UTCDateTime
 from itertools import product
 from typing import Tuple
@@ -43,6 +44,9 @@ class GCMTCatalog:
             lonp lon lat dep mrr mtt mff mrt mrf mtf exp EventOrigintim DC CLVD VOL Mw str1 dip1 rak1 \
             str2 dip2 rak2 plunP azP plunT azT Hlonp Hlon Hlat Hdep Ctime Chdur MwG base Bst Bco Bmp Bper \
             Sst Sco Smp Sper Mst Mco Mmp Mper
+            For backward compatibility, the class can also load QuakeML catalogs in xml format, extracting
+            only lon, lat, depth, origin-time and magnitude columns in such cases.
+
             @return: catalog in a pandas dataframe
             """
             def convert_to_timestamp(eotime):
@@ -57,11 +61,46 @@ class GCMTCatalog:
             return cat
         # end func
 
-        if (type(source) == pd.DataFrame):
+        def read_quakeml_catalog(fn):
+            """
+            Parse a QuakeML XML file into a compatible DataFrame.
+            Extracts basic source parameters (time, lat, lon, dep, Mw, MT components if available).
+            """
+            catalog = read_events(fn)
+            rows = []
+            for ev in catalog:
+                origin = ev.preferred_origin() or (ev.origins[0] if ev.origins else None)
+                magnitude = ev.preferred_magnitude() or (ev.magnitudes[0] if ev.magnitudes else None)
+                mt = None
+                if origin is None:
+                    continue
+                if ev.focal_mechanisms:
+                    fm = ev.focal_mechanisms[0]
+                    if fm.moment_tensor and fm.moment_tensor.tensor:
+                        mt = fm.moment_tensor.tensor
+                rows.append({
+                    "lon": origin.longitude,
+                    "lat": origin.latitude,
+                    "dep": origin.depth / 1e3 if origin.depth else None,  # km
+                    "EventOrigintim": origin.time.timestamp,
+                    "Mw": magnitude.mag if magnitude else None,
+                })
+            df = pd.DataFrame(rows)
+            return df
+        # end func
+
+        if isinstance(source, pd.DataFrame):
             self.cat = source.copy()
+        elif isinstance(source, str):
+            if source.lower().endswith((".xml")):
+                self.cat = read_quakeml_catalog(source)
+            else:
+                self.cat = read_gcmt_catalog(source)
+            # end if
         else:
-            self.cat = read_gcmt_catalog(source)
+            raise TypeError("source must be a DataFrame or a filename (.txt or .xml)")
         # end if
+
         self._initialize(ellipse=ellipse)
     # end func
 
