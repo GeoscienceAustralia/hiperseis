@@ -5,8 +5,6 @@ magnitude and time range.
 
 import os.path
 import logging
-from mpi4py import MPI
-
 import warnings
 
 warnings.simplefilter("ignore", UserWarning)
@@ -15,36 +13,20 @@ import urllib3
 import re
 import numpy as np
 import obspy
-from obspy import read_inventory, read_events, UTCDateTime as UTC
+from obspy import UTCDateTime as UTC
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
-from obspy.core import Stream, Trace, UTCDateTime
-from obspy.geodetics.base import gps2dist_azimuth, kilometers2degrees
-from rf import iter_event_data
-from tqdm import tqdm
+from obspy.core import Stream
 from seismic.misc import setup_logger
 import click
 
 from seismic.ASDFdatabase.FederatedASDFDataSet import FederatedASDFDataSet
-from seismic.stream_processing import zne_order
-from seismic.stream_io import safe_iter_event_data, write_h5_event_stream
 import obspy.core.util.version
 from obspy.core.inventory import Inventory
-from obspy.taup import TauPyModel
-
-from PhasePApy.phasepapy.phasepicker import aicdpicker
-from seismic.pick_harvester.utils import Event, Origin, Magnitude
-from seismic.pick_harvester.pick import extract_p, extract_s
-from seismic.stream_processing import zerophase_resample
-
-from collections import defaultdict
 
 logging.basicConfig()
 
 # pylint: disable=invalid-name, logging-format-interpolation
-
-SW_MAX_DEPTH = 150  # km
-
 
 def get_events(lonlat, starttime, endtime, cat_file, distance_range, magnitude_range):
     """Load event catalog (if available) or create event catalog from FDSN server.
