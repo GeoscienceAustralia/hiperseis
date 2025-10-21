@@ -612,10 +612,9 @@ class CCP_VerticalProfile():
                                           np.fabs((self._grid[i, 0] - ER))) < self._dz]
 
                 if (len(indices) == 0): continue
-                d = np.zeros(len(indices))
 
                 # compute distance of kdtree nodes from current node in swath
-                d[:] = np.sqrt(np.sum(np.power(sxyz[i] - data[indices, :3], 2), axis=1))
+                d = np.sqrt(np.sum(np.power(sxyz[i] - data[indices, :3], 2), axis=1))
 
                 # filter out nodes outside a cone, defined as current_radius = current depth;
                 # this is done to avoid lateral smearing at shallow depths, where piercing
@@ -627,7 +626,6 @@ class CCP_VerticalProfile():
 
                 # compute IDW weights
                 idwIndices = indices
-                idw = np.zeros(d.shape)
                 idw = 1. / np.power(d, p)
 
                 # compute mean instantaneous phase weight
