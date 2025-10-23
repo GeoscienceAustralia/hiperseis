@@ -64,7 +64,14 @@ def curate_stream3c(ev_id, stream3c, logger=None):
     if not (np.all(start_times == start_times[0]) and np.all(end_times == end_times[0])):
         clip_start_time = np.max(start_times)
         clip_end_time = np.min(end_times)
-        stream3c.trim(clip_start_time, clip_end_time)
+        try:
+            stream3c.trim(clip_start_time, clip_end_time)
+        except Exception as e:
+            if logger:
+                logger.warning("Channels in stream {} could not be trimmed:\n{}".format(ev_id, stream3c))
+            # end if
+            return False
+        # end try
     # end if
 
     if len(stream3c[0]) != len(stream3c[1]) or len(stream3c[0]) != len(stream3c[2]):
@@ -166,7 +173,7 @@ def curate_seismograms(data_all, curation_opts, logger, rotate_to_zrt=True):
     logger.info('Curation options:\n{}'.format(json.dumps(curation_opts, indent=4)))
 
     # Apply curation to streams prior to rotation
-    data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream))
+    data_all.curate(lambda _, evid, stream: curate_stream3c(evid, stream, logger=logger))
 
     if "baz_range" in curation_opts:
         # Filter by back-azimuth
