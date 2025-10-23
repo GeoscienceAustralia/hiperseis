@@ -96,6 +96,23 @@ def rtp2xyz(r, theta, phi):
     return xout
 # end func
 
+def xyz2rtp(x, y, z):
+    """
+    @param x
+    @param y
+    @param z
+    @return: r, theta, phi triplets on a sphere of radius r
+             t->[0, PI], p->[-PI, PI]
+    """
+    tmp1 = x*x + y*y
+    tmp2 = tmp1 + z*z
+    rout = np.zeros((x.shape[0], 3))
+    rout[:, 0] = np.sqrt(tmp2)
+    rout[:, 1] = np.arctan2(np.sqrt(tmp1), z)
+    rout[:, 2] = np.arctan2(y, x)
+    return rout
+# end func
+
 def read_key_value_pairs(file_path:str, keys:list, strict=False)->dict:
     """
     Reads a text file containing colon-separated key-value pairs and returns a dictionary with values for specified keys.

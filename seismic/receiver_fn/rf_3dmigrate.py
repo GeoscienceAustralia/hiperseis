@@ -19,6 +19,7 @@ import sys
 import logging
 import click
 from seismic.receiver_fn.rf_ccp_util import Migrator
+from seismic.receiver_fn.rf_ccp_util import ANTVolume
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('rf_3dmigrate')
@@ -42,7 +43,15 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'that indicates robustness of P-arrival. Typically, a minimum '
                    'slope-ratio of 5 is able to pick out strong arrivals. The '
                    'default value of -1 does not apply this filter')
-def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax, min_slope_ratio):
+@click.option('--ant-model', type=click.Path(exists=True, dir_okay=False),
+              default=None, show_default=True,
+              help='ANT model in .txt format to extract Vs from.')
+@click.option('--ant-model-max-depth', type=float,
+              default=100, show_default=True,
+              help='Maximum depth (km) up to which velocities from the ANT model are to be extracted. '
+                   'Has no impact if --ant-model is not speficied.')
+def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax, 
+         min_slope_ratio, ant_model, ant_model_max_depth):
     """Perform 3D migration of RFs
     RF_H5_FILE : Path to RFs in H5 format
     OUTPUT_H5_FILE: H5 output file name
@@ -52,8 +61,15 @@ def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax, min_slope_ratio)
     """
     log.setLevel(logging.DEBUG)
 
+    am = None
+    if(ant_model):
+        log.info('Loading ANT model: {}'.format(ant_model))
+        am = ANTVolume(ant_model, ant_model_max_depth)
+    # end if
+
     m = Migrator(rf_filename=rf_h5_file, dz=dz, max_depth=max_depth,
-                 min_slope_ratio=min_slope_ratio, logger=log)
+                 min_slope_ratio=min_slope_ratio, ant_model=am,
+                 logger=log)
     m.process_streams(output_h5_file, fmin=fmin, fmax=fmax)
 # end
 
