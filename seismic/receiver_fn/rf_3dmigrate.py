@@ -20,14 +20,15 @@ import logging
 import click
 from seismic.receiver_fn.rf_ccp_util import Migrator
 from seismic.receiver_fn.rf_ccp_util import ANTVolume
-
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger('rf_3dmigrate')
+from seismic.misc import setup_logger
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('rf-h5-file', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('output_h5_file', type=click.Path(exists=False, dir_okay=False), required=True)
+@click.option('--relax-sanity-checks', is_flag=True, default=False, show_default=True,
+              help='RF traces with amplitudes > 1.0 or troughs around onset time are dropped by default. '
+                   'This option allows RF traces with amplitudes > 1.0 to pass through')
 @click.option('--dz', type=float, default=0.1, show_default=True,
               help='Depth-step (km)')
 @click.option('--max-depth', type=click.FloatRange(0, 750), default=150, show_default=True,
@@ -50,7 +51,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               default=100, show_default=True,
               help='Maximum depth (km) up to which velocities from the ANT model are to be extracted. '
                    'Has no impact if --ant-model is not speficied.')
-def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax, 
+def main(rf_h5_file, output_h5_file, relax_sanity_checks, dz, max_depth, fmin, fmax,
          min_slope_ratio, ant_model, ant_model_max_depth):
     """Perform 3D migration of RFs
     RF_H5_FILE : Path to RFs in H5 format
@@ -59,7 +60,7 @@ def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax,
     Example usage:
         mpirun -np 48 python rf_3dmigrate.py OA-ZRT-R-cleaned.h5 mig.h5 --min-slope-ratio 5 --fmin 0.1
     """
-    log.setLevel(logging.DEBUG)
+    log = setup_logger('__func__')
 
     am = None
     if(ant_model):
@@ -70,7 +71,7 @@ def main(rf_h5_file, output_h5_file, dz, max_depth, fmin, fmax,
     m = Migrator(rf_filename=rf_h5_file, dz=dz, max_depth=max_depth,
                  min_slope_ratio=min_slope_ratio, ant_model=am,
                  logger=log)
-    m.process_streams(output_h5_file, fmin=fmin, fmax=fmax)
+    m.process_streams(output_h5_file, relax_sanity_checks=relax_sanity_checks, fmin=fmin, fmax=fmax)
 # end
 
 if __name__ == "__main__":

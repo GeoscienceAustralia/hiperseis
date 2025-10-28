@@ -208,7 +208,8 @@ class Migrator:
         self._stations = defaultdict(list)
     # end func
 
-    def process_streams(self, output_file, fmin=None, fmax=None, model='iasp91'):
+    def process_streams(self, output_file, relax_sanity_checks=False,
+                        fmin=None, fmax=None, model='iasp91'):
         proc_hkeys = None
         if(self._rank == 0):
             hkeys = get_obspyh5_index(self._rf_filename, seeds_only=True)
@@ -239,6 +240,29 @@ class Migrator:
             p_traces = traces.select(component=primary_component)
             assert len(p_traces), 'No {} component found in RF stream for {}. Aborting..'.format(primary_component,
                                                                                                  hkey)
+            # RF amplitudes should not exceed 1.0 and should peak around onset time --
+            # otherwise, such traces are deemed problematic and discarded
+            before = len(p_traces)
+            p_trace = None
+            try:
+                # disabling enforcement of channel equivalence to ensure RFs from all potential
+                # instruments e.g. SH* BH* under a given location code are included in the results
+                p_traces = rf_util.filter_invalid_radial_component(p_traces,
+                                                                   check_channels=False,
+                                                                   allow_rfs_over_unity=relax_sanity_checks)
+            except Exception as e:
+                print('Sifting radial components failed with error: {}'.format(e))
+                parallel_abort()
+            # end try
+
+            after = len(p_traces)
+            if (before > after):
+                self._logger.info('rank {}: {} ({}/{}) traces '
+                                  'dropped with sanity checks filter..'.format(
+                                    self._rank, hkey,
+                                    before-after, before))
+            # end if
+
             if (self._min_slope_ratio > 0):
                 before = len(p_traces)
                 p_traces = RFStream([tr for tr in p_traces \
@@ -248,27 +272,6 @@ class Migrator:
                 self._logger.info('rank {}: {} ({}/{}) traces '
                                   'dropped with min-slope-ratio filter..'.format(self._rank, hkey,
                                                                                  before-after, before))
-            # end if
-
-            # RF amplitudes should not exceed 1.0 and should peak around onset time --
-            # otherwise, such traces are deemed problematic and discarded
-            before = len(p_traces)
-            p_trace = None
-            try:
-                # disabling enforcement of channel equivalence to ensure RFs from all potential
-                # instruments e.g. SH* BH* under a given location code are included in the results
-                p_traces = rf_util.filter_invalid_radial_component(p_traces, check_channels=False)
-            except Exception as e:
-                print('Sifting radial components failed with error: {}'.format(e))
-                parallel_abort()
-            # end try
-
-            after = len(p_traces)
-            if (before > after):
-                self._logger.info('rank {}: {} ({}/{}) traces '
-                                  'with amplitudes > 1.0 or troughs around onset time dropped..'.format(
-                                    self._rank, hkey,
-                                    before-after, before))
             # end if
 
             if(len(p_traces) == 0):
@@ -630,12 +633,15 @@ class CCP_VerticalProfile():
         self._g_meta = {}
         for k in profile_meta.keys():
             arr = np.array(profile_meta[k])
-            # print([k,arr])
-            if (np.min(arr[:, 0]) > self._max_station_dist): continue
-            sta_idx = np.int_(arr[np.argmin(arr[:, 0]), 1])
-            node_idx = np.int_(arr[np.argmin(arr[:, 0]), 2])
+            # print([k, arr])
+            min_dist, i_min_dist = np.min(arr[:, 0]), np.argmin(arr[:, 0])
+            if (min_dist > self._max_station_dist): continue
+            sta_idx = np.int_(arr[i_min_dist, 1])
+            node_idx = np.int_(arr[i_min_dist, 2])
             # print([gx[node_idx], sta_list[sta_idx]])
-            self._g_meta[sta_list[sta_idx]] = {'distance': self._gx[node_idx], 'corrected': meta[k][-1]}
+            self._g_meta[sta_list[sta_idx]] = {'distance_along_profile': self._gx[node_idx],
+                                               'distance_from_profile': min_dist,
+                                               'corrected': meta[k][-1]}
         # end for
     # end func
 
@@ -764,7 +770,7 @@ class CCP_VerticalProfile():
         #print(self._grid_vals)
     # end func
 
-    def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, gravity=None):
+    def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, hk=None, gravity=None):
         if(gax and gravity):
             gvs = np.zeros(self._gx.shape)
             for i in np.arange(self._nLateralNodes):
@@ -799,11 +805,24 @@ class CCP_VerticalProfile():
                          extend='both')
         ax.invert_yaxis()
         for k in self._g_meta.keys():
-            px = self._g_meta[k]['distance']
+            px = self._g_meta[k]['distance_along_profile']
+            pd = self._g_meta[k]['distance_from_profile']
             py = -4.
-            ax.text(px, py, "{}{}".format('*' if self._g_meta[k]['corrected'] else '', k),
+            ax.text(px, py, "{}{}".
+                    format('*' if self._g_meta[k]['corrected'] else '', k),
                     horizontalalignment='center',
                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
+
+            # plot estimates from hk results
+            if(hk is not None):
+                if(k in list(hk['Station'])):
+                    idx = np.where(k == hk['Station'])[0][0]
+                    hlist = [hk.iloc[idx][key] for key in ['H0', 'H1', 'H2']]
+                    hlist = [item for item in hlist if not np.isnan(item)]
+
+                    for h in hlist: ax.scatter(px, h, marker='x', c='k')
+                # end if
+            # end if
         # end for
 
         titleAx = None

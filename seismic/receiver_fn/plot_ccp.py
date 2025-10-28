@@ -19,6 +19,7 @@ import numpy as np
 import click
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
 from PIL.PngImagePlugin import PngImageFile, PngInfo
 
 from seismic.receiver_fn.rf_ccp_util import CCPVolume, CCP_VerticalProfile, CCP_DepthProfile, Gravity
@@ -95,6 +96,10 @@ def read_profile_def(fname, ccpVolume, type):
 @click.command(name='vertical', context_settings=CONTEXT_SETTINGS)
 @click.argument('ccp-h5-volume', type=click.Path(exists=True, dir_okay=False), required=True)
 @click.argument('profile-def', type=click.Path(exists=True, dir_okay=False), required=True)
+@click.option('--hk-estimates', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
+              help='H-K stacking results in csv format, with the following columns: '
+                   'Net.Sta.loc, Lon, Lat, H0, k0, H1, k1, H2, k2. Depth estimates are plotted '
+                   'on CCP profiles, if available for a given station.')
 @click.option('--gravity-grid', type=click.Path(exists=True, dir_okay=False), default=None, show_default=True,
               help='Gravity grid in tif/ers format. If provided, a gravity line-plot is added to each'
                    ' vertical profile. Note that this parameter is ignored if the output-format is set '
@@ -145,9 +150,9 @@ def read_profile_def(fname, ccpVolume, type):
               help='Output format')
 @click.option('--plot-aspect', type=click.Choice(['auto', 'equal']), default='auto', show_default=True,
               help='Aspect ratio of CCP plot. Default is "auto", which applies a vertical exaggeration.')
-def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx, dz, max_depth, swath_width, ds,
-             extend, cell_radius, idw_exponent, pw_exponent, amplitude_min, amplitude_max, max_station_dist,
-             output_folder, output_format, plot_aspect):
+def vertical(ccp_h5_volume, profile_def, hk_estimates, gravity_grid, mt_sgrid, mt_utm_zone, dx, dz, max_depth,
+             swath_width, ds, extend, cell_radius, idw_exponent, pw_exponent, amplitude_min, amplitude_max,
+             max_station_dist, output_folder, output_format, plot_aspect):
     """ Plot CCP vertical profile \n
     CCP_H5_VOLUME: Path to CCP volume in H5 format (output of rf_3dmigrate.py) or a text file containing paths to CCP volumes in H5 format. The latter is useful for generating profiles spanning multiple neighboring networks \n
     PROFILE_DEF: text file containing start and end locations of each vertical profile as\n
@@ -170,6 +175,12 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
 
     log.info('Loading profile definition file {}..'.format(profile_def))
     profiles = read_profile_def(profile_def, vol, 'vertical')
+
+    hk = None
+    if(hk_estimates):
+        log.info('Loading hk estimates {}..'.format(hk_estimates))
+        hk = pd.read_csv(hk_estimates, delimiter=',', skipinitialspace=True)
+    # end if
 
     gravity = None
     if(gravity_grid):
@@ -237,7 +248,7 @@ def vertical(ccp_h5_volume, profile_def, gravity_grid, mt_sgrid, mt_utm_zone, dx
             ax.set_aspect(plot_aspect)
 
             # plot profile
-            vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, gravity=gravity)
+            vprof.plot(ax, amp_min=amplitude_min, amp_max=amplitude_max, gax=gax, hk=hk, gravity=gravity)
 
             fig.savefig(fname)
 
