@@ -209,7 +209,7 @@ class Migrator:
     # end func
 
     def process_streams(self, output_file, relax_sanity_checks=False,
-                        fmin=None, fmax=None, model='iasp91'):
+                        normalize=False, fmin=None, fmax=None, model='iasp91'):
         proc_hkeys = None
         if(self._rank == 0):
             hkeys = get_obspyh5_index(self._rf_filename, seeds_only=True)
@@ -277,6 +277,14 @@ class Migrator:
             if(len(p_traces) == 0):
                 self._logger.warn('rank {}: {}: No traces left to process..'.format(self._rank, hkey))
                 continue
+            # end if
+
+            # normalize traces
+            if(normalize):
+                for tr in p_traces:
+                    max_val = np.max(np.fabs(tr.data))
+                    if(max_val > 0): tr.data /= max_val
+                # end for
             # end if
 
             has_reverberations = rf_corrections.has_reverberations(p_traces)

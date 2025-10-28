@@ -29,6 +29,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--relax-sanity-checks', is_flag=True, default=False, show_default=True,
               help='RF traces with amplitudes > 1.0 or troughs around onset time are dropped by default. '
                    'This option allows RF traces with amplitudes > 1.0 to pass through')
+@click.option('--normalize', is_flag=True, default=False, show_default=True,
+              help='Normalizes each trace by its maximum absolute value')
 @click.option('--dz', type=float, default=0.1, show_default=True,
               help='Depth-step (km)')
 @click.option('--max-depth', type=click.FloatRange(0, 750), default=150, show_default=True,
@@ -51,7 +53,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               default=100, show_default=True,
               help='Maximum depth (km) up to which velocities from the ANT model are to be extracted. '
                    'Has no impact if --ant-model is not speficied.')
-def main(rf_h5_file, output_h5_file, relax_sanity_checks, dz, max_depth, fmin, fmax,
+def main(rf_h5_file, output_h5_file, relax_sanity_checks, normalize, dz, max_depth, fmin, fmax,
          min_slope_ratio, ant_model, ant_model_max_depth):
     """Perform 3D migration of RFs
     RF_H5_FILE : Path to RFs in H5 format
@@ -71,7 +73,8 @@ def main(rf_h5_file, output_h5_file, relax_sanity_checks, dz, max_depth, fmin, f
     m = Migrator(rf_filename=rf_h5_file, dz=dz, max_depth=max_depth,
                  min_slope_ratio=min_slope_ratio, ant_model=am,
                  logger=log)
-    m.process_streams(output_h5_file, relax_sanity_checks=relax_sanity_checks, fmin=fmin, fmax=fmax)
+    m.process_streams(output_h5_file, relax_sanity_checks=relax_sanity_checks,
+                      normalize=normalize, fmin=fmin, fmax=fmax)
 # end
 
 if __name__ == "__main__":
