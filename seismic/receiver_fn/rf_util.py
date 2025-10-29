@@ -602,7 +602,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     return kept_data
 # end func
 
-def filter_invalid_radial_component(rf_stream, check_channels=True):
+def filter_invalid_radial_component(rf_stream, check_channels=True, allow_rfs_over_unity=False):
     """
     Filter out invalid radial RFs with amplitudes > 1 or troughs around onset time
     :param rf_stream: Stream of RF traces to filter, should be **for a single component of a single station**
@@ -618,8 +618,10 @@ def filter_invalid_radial_component(rf_stream, check_channels=True):
 
     rf_stream_out = []
     for trc in rf_stream:
-        if ((np.max(trc.data) <= 1.0) and \
-            (np.max(trc.data) > -np.min(trc.data))):
+        if (np.max(trc.data) > -np.min(trc.data)):
+
+            if(not allow_rfs_over_unity and np.max(trc.data) > 1.0): continue
+
             rf_stream_out.append(trc)
         # end if
     # end for

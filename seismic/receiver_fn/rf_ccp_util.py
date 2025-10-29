@@ -21,7 +21,7 @@ from rf import read_rf, RFStream
 from rf.util import DEG2KM
 from obspy.taup import TauPyModel
 import h5py
-
+from obspy.geodetics.base import degrees2kilometers
 from scipy.interpolate import splev, splrep, sproot, interp1d
 from scipy.integrate import simps as simpson
 from scipy.signal import hilbert
@@ -34,8 +34,109 @@ from osgeo.gdalconst import *
 from affine import Affine
 import struct
 from seismic.stream_io import get_obspyh5_index
-from seismic.misc import rtp2xyz, split_list
+from seismic.misc import rtp2xyz, xyz2rtp, split_list
 from seismic.misc_p import parallel_abort
+
+
+class ANTVolume():
+    def __init__(self, input_fn, earth_radius=6371, max_depth=100):
+        """
+        input_fn: path to txt file containing the following columns:
+        Number Lon     Lat      depth     velocity   STD         VPVS      STD         XI        STD         RHO         STD
+        """
+        self.input_fn = input_fn
+        self.earth_radius = earth_radius # km
+        self.max_depth = max_depth
+        data = np.loadtxt(input_fn, delimiter=' ', skiprows=1)
+
+        self.lons = data[:, 1]
+        self.lats = data[:, 2]
+        self.depths_km = data[:, 3]
+        self.zs = self.earth_radius - self.depths_km
+        self.vs = data[:, 4]
+
+        # clip by max_depth
+        imask = self.depths_km < max_depth
+        self.lons = self.lons[imask]
+        self.lats = self.lats[imask]
+        self.depths_km = self.depths_km[imask]
+        self.zs = self.zs[imask]
+        self.vs = self.vs[imask]
+
+        self.xyz = rtp2xyz(self.earth_radius - self.depths_km,
+                           np.radians(90 - self.lats),
+                           np.radians(self.lons))
+        self.tree = cKDTree(self.xyz)
+
+        # nominal grid point separation
+        self.node_sep_km = degrees2kilometers(np.max([np.median(np.diff(np.unique(self.lats))),
+                                                      np.median(np.diff(np.unique(self.lats)))]))
+        # end func
+
+    def get_profile(self, lons, lats, max_depth_km=20, ndepths=200, nnbr=10, p=4):
+        """
+        Returns velocities along a vertical profile.
+        """
+        depths = np.linspace(0, max_depth_km, ndepths)
+
+        rtp = []
+        for d in depths:
+            for lon, lat in zip(lons, lats):
+                rtp.append([d, lat, lon])
+            # end for
+        # end for
+        rtp = np.array(rtp)
+        rtp[:, 0] = self.earth_radius - rtp[:, 0]
+        rtp[:, 1] = np.radians(90 - rtp[:, 1])
+        rtp[:, 2] = np.radians(rtp[:, 2])
+
+        xyz = rtp2xyz(rtp[:, 0], rtp[:, 1], rtp[:, 2])
+        ds, ids = self.tree.query(xyz, k=nnbr)
+
+        if (nnbr > 1):
+            idw = 1. / np.power(ds, p)
+            vals = np.sum(idw * np.reshape(self.vs[ids.flatten()], ids.shape), axis=1) / \
+                   np.sum(idw, axis=1)
+        else:
+            vals = self.vs[ids]
+        # end if
+
+        return depths, np.reshape(vals, (ndepths, len(lons)))
+    # end func
+
+    def get_velocity(self, lon, lat, depth_km, default=None):
+        """
+        Return the distance to and the velocity of the closest node. The default
+        value(s) is returned, if the distance to the closest node is larger than
+        nominal node separation.
+        """
+
+        rtp = [self.earth_radius - depth_km,
+               np.radians(90 - lat),
+               np.radians(lon)]
+
+        xyz = None
+        if (np.all([isinstance(item, np.ndarray) for item in rtp])):
+            xyz = rtp2xyz(rtp[0], rtp[1], rtp[2])
+            if (default is not None): assert len(default) == len(rtp[0]), 'Length mismatch detected..'
+        else:
+            xyz = rtp2xyz(np.array([rtp[0]]), np.array([rtp[1]]), np.array([rtp[2]]))
+            if (default is not None): default = np.array([default])
+        # end if
+
+        distances, indices = self.tree.query(xyz, k=1)
+        result = np.zeros(len(distances))
+        for i, (d, idx) in enumerate(zip(distances, indices)):
+            if (d > self.node_sep_km):
+                result[i] = default[i] if default is not None else 0
+            else:
+                result[i] = self.vs[idx]
+            # end for
+
+        if (len(result) == 1): result = result[0]
+        return result
+    # end func
+# end class
 
 class Gravity:
     def __init__(self, gravity_grid_fn):
@@ -52,7 +153,7 @@ class Gravity:
         self._gt = self._ds.GetGeoTransform()
         self._affine_forward_transform = Affine.from_gdal(*self._gt)
         self._affine_reverse_transform = ~(self._affine_forward_transform)
-        # end func
+    # end func
 
     def _readPixel(self, px, py):
         def translateFormat(pt):
@@ -66,7 +167,6 @@ class Gravity:
                 GDT_Float64: 'd'
             }
             return fmttypes.get(pt, 'x')
-
         # end func
 
         structval = self._band.ReadRaster(int(px), int(py), 1, 1, buf_type=self._band.DataType)
@@ -89,11 +189,13 @@ class Gravity:
 # end class
 
 class Migrator:
-    def __init__(self, rf_filename, dz, max_depth, min_slope_ratio=-1, earth_radius=6371, logger=None):
+    def __init__(self, rf_filename, dz, max_depth, min_slope_ratio=-1,
+                 ant_model: ANTVolume = None, earth_radius=6371, logger=None):
         self._rf_filename = rf_filename
         self._dz = dz
         self._max_depth = max_depth
         self._min_slope_ratio = min_slope_ratio
+        self.ant_model = ant_model
         self._earth_radius = earth_radius #km
         self._logger = logger
         # Initialize MPI
@@ -106,7 +208,8 @@ class Migrator:
         self._stations = defaultdict(list)
     # end func
 
-    def process_streams(self, output_file, fmin=None, fmax=None, model='iasp91'):
+    def process_streams(self, output_file, relax_sanity_checks=False,
+                        normalize=False, fmin=None, fmax=None, model='iasp91'):
         proc_hkeys = None
         if(self._rank == 0):
             hkeys = get_obspyh5_index(self._rf_filename, seeds_only=True)
@@ -137,6 +240,29 @@ class Migrator:
             p_traces = traces.select(component=primary_component)
             assert len(p_traces), 'No {} component found in RF stream for {}. Aborting..'.format(primary_component,
                                                                                                  hkey)
+            # RF amplitudes should not exceed 1.0 and should peak around onset time --
+            # otherwise, such traces are deemed problematic and discarded
+            before = len(p_traces)
+            p_trace = None
+            try:
+                # disabling enforcement of channel equivalence to ensure RFs from all potential
+                # instruments e.g. SH* BH* under a given location code are included in the results
+                p_traces = rf_util.filter_invalid_radial_component(p_traces,
+                                                                   check_channels=False,
+                                                                   allow_rfs_over_unity=relax_sanity_checks)
+            except Exception as e:
+                print('Sifting radial components failed with error: {}'.format(e))
+                parallel_abort()
+            # end try
+
+            after = len(p_traces)
+            if (before > after):
+                self._logger.info('rank {}: {} ({}/{}) traces '
+                                  'dropped with sanity checks filter..'.format(
+                                    self._rank, hkey,
+                                    before-after, before))
+            # end if
+
             if (self._min_slope_ratio > 0):
                 before = len(p_traces)
                 p_traces = RFStream([tr for tr in p_traces \
@@ -148,30 +274,17 @@ class Migrator:
                                                                                  before-after, before))
             # end if
 
-            # RF amplitudes should not exceed 1.0 and should peak around onset time --
-            # otherwise, such traces are deemed problematic and discarded
-            before = len(p_traces)
-            p_trace = None
-            try:
-                # disabling enforcement of channel equivalence to ensure RFs from all potential
-                # instruments e.g. SH* BH* under a given location code are included in the results
-                p_traces = rf_util.filter_invalid_radial_component(p_traces, check_channels=False)
-            except Exception as e:
-                print('Sifting radial components failed with error: {}'.format(e))
-                parallel_abort()
-            # end try
-
-            after = len(p_traces)
-            if (before > after):
-                self._logger.info('rank {}: {} ({}/{}) traces '
-                                  'with amplitudes > 1.0 or troughs around onset time dropped..'.format(
-                                    self._rank, hkey,
-                                    before-after, before))
-            # end if
-
             if(len(p_traces) == 0):
                 self._logger.warn('rank {}: {}: No traces left to process..'.format(self._rank, hkey))
                 continue
+            # end if
+
+            # normalize traces
+            if(normalize):
+                for tr in p_traces:
+                    max_val = np.max(np.fabs(tr.data))
+                    if(max_val > 0): tr.data /= max_val
+                # end for
             # end if
 
             has_reverberations = rf_corrections.has_reverberations(p_traces)
@@ -264,6 +377,20 @@ class Migrator:
             vp = vmodel.evaluate_above(dnew, 'p')
             vs = vmodel.evaluate_above(dnew, 's')
 
+            # extract velocities from provided ANT model up to a given depth
+            if(self.ant_model):
+                imask = dnew < self.ant_model.max_depth
+
+                rtp = xyz2rtp(t2xio(d2tio(dnew[imask])),
+                              t2yio(d2tio(dnew[imask])),
+                              t2zio(d2tio(dnew[imask])))
+                path_depths = self._earth_radius - rtp[:, 0]
+                path_lats = 90 - np.degrees(rtp[:, 1])
+                path_lons = np.degrees(rtp[:, 2])
+                vs[imask] = self.ant_model.get_velocity(path_lons, path_lats,
+                                                        path_depths, vs[imask])
+            # end if
+
             #========================================================================
             # Create an interpolant for the delay time (t_Ps) of a non-vertically
             # incident Ps wave as follows:
@@ -279,7 +406,6 @@ class Migrator:
                 tps[idx-1] = simpson(np.sqrt( np.power(vs[:idx], -2.) - p*p) -
                                      np.sqrt( np.power(vp[:idx], -2.) - p*p), dnew[:idx])
             #end for
-
 
             t.trim(starttime=t.stats.onset, endtime=t.stats.endtime)
             ipt.trim(starttime=ipt.stats.onset, endtime=ipt.stats.endtime)
@@ -515,12 +641,15 @@ class CCP_VerticalProfile():
         self._g_meta = {}
         for k in profile_meta.keys():
             arr = np.array(profile_meta[k])
-            # print([k,arr])
-            if (np.min(arr[:, 0]) > self._max_station_dist): continue
-            sta_idx = np.int_(arr[np.argmin(arr[:, 0]), 1])
-            node_idx = np.int_(arr[np.argmin(arr[:, 0]), 2])
+            # print([k, arr])
+            min_dist, i_min_dist = np.min(arr[:, 0]), np.argmin(arr[:, 0])
+            if (min_dist > self._max_station_dist): continue
+            sta_idx = np.int_(arr[i_min_dist, 1])
+            node_idx = np.int_(arr[i_min_dist, 2])
             # print([gx[node_idx], sta_list[sta_idx]])
-            self._g_meta[sta_list[sta_idx]] = {'distance': self._gx[node_idx], 'corrected': meta[k][-1]}
+            self._g_meta[sta_list[sta_idx]] = {'distance_along_profile': self._gx[node_idx],
+                                               'distance_from_profile': min_dist,
+                                               'corrected': meta[k][-1]}
         # end for
     # end func
 
@@ -649,7 +778,7 @@ class CCP_VerticalProfile():
         #print(self._grid_vals)
     # end func
 
-    def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, gravity=None):
+    def plot(self, ax, amp_min=-0.2, amp_max=0.2, gax=None, hk=None, gravity=None):
         if(gax and gravity):
             gvs = np.zeros(self._gx.shape)
             for i in np.arange(self._nLateralNodes):
@@ -684,11 +813,24 @@ class CCP_VerticalProfile():
                          extend='both')
         ax.invert_yaxis()
         for k in self._g_meta.keys():
-            px = self._g_meta[k]['distance']
+            px = self._g_meta[k]['distance_along_profile']
+            pd = self._g_meta[k]['distance_from_profile']
             py = -4.
-            ax.text(px, py, "{}{}".format('*' if self._g_meta[k]['corrected'] else '', k),
+            ax.text(px, py, "{}{}".
+                    format('*' if self._g_meta[k]['corrected'] else '', k),
                     horizontalalignment='center',
                     verticalalignment='top', fontsize=9, backgroundcolor='#ffffffa0')
+
+            # plot estimates from hk results
+            if(hk is not None):
+                if(k in list(hk['Station'])):
+                    idx = np.where(k == hk['Station'])[0][0]
+                    hlist = [hk.iloc[idx][key] for key in ['H0', 'H1', 'H2']]
+                    hlist = [item for item in hlist if not np.isnan(item)]
+
+                    for h in hlist: ax.scatter(px, h, marker='x', c='k')
+                # end if
+            # end if
         # end for
 
         titleAx = None

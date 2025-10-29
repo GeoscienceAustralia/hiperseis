@@ -6,7 +6,6 @@
 from mpi4py import MPI
 import os
 import re
-import logging
 import itertools
 
 import numpy as np
@@ -31,11 +30,9 @@ import uuid
 from shutil import rmtree
 from collections import defaultdict
 from seismic.misc import split_list
-
-logging.basicConfig()
+from seismic.misc import setup_logger
 
 paper_size_A4 = (8.27, 11.69)  # inches
-
 DEFAULT_HK_SOLN_LABEL = 'global'
 
 def _get_aspect(ax):
@@ -96,7 +93,7 @@ def _rf_layout_A4(fig):
 def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
                          weighting=rf_stacking.DEFAULT_WEIGHTS,
                          semblance_weighted=True, labelling=DEFAULT_HK_SOLN_LABEL,
-                         depth_colour_range=(20, 70)):
+                         depth_colour_range=(20, 70), log=None):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack = rf_stacking.compute_hk_stack(channel_data,
@@ -130,10 +127,10 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
     if labelling == 'global':
         h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
         soln = [(h_max, k_max)]
-        log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+        if(log): log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
         soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
-        log.info("Numerical solutions (H, k) = {}".format(soln))
+        if(log): log.info("Numerical solutions (H, k) = {}".format(soln))
     # end if
 
     # ==========================================================================
@@ -169,7 +166,7 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
 # end func
 
 def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT_Vp,
-                                  labelling=DEFAULT_HK_SOLN_LABEL):
+                                  labelling=DEFAULT_HK_SOLN_LABEL, log=None):
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack, weighting = rf_stacking.compute_sediment_hk_stack(channel_data,
@@ -200,10 +197,10 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
     if labelling == 'global':
         h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
         soln = [(h_max, k_max)]
-        log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+        if(log): log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
         soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
-        log.info("Numerical solutions (H, k) = {}".format(soln))
+        if(log): log.info("Numerical solutions (H, k) = {}".format(soln))
     # end if
 
     # Plot the local maxima
@@ -254,8 +251,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--event-mask-folder', type=click.Path(dir_okay=True, exists=True, file_okay=False),
               help='Folder containing event masks to use to filter traces. Such masks are generated '
                    'using rf_handpick_tool')
-@click.option('--apply-amplitude-filter', is_flag=True, default=False, show_default=True,
-              help='Apply RF amplitude filtering to the RFs. The default filtering logic includes: '
+@click.option('--relax-sanity-checks', is_flag=True, default=False, show_default=True,
+              help='RF traces with amplitudes > 1.0 or troughs around onset time are dropped by default. '
+                   'This option allows RF traces with amplitudes > 1.0 to pass through')
+@click.option('--apply-simple-quality-filter', is_flag=True, default=False, show_default=True,
+              help='Apply RF snr and amplitude filtering to the RFs. The default filtering logic includes: '
                    'Signal SNR >= 2.0 '
                    'RMS amplitude of signal < 0.2 '
                    'Maximum amplitude of signal < 1.0')
@@ -291,8 +291,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--disable-semblance-weighting', is_flag=True, default=False, show_default=True,
               help='Disables default semblance-weighting applied to H-k stacks')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
-         apply_amplitude_filter=False, apply_similarity_filter=False, min_slope_ratio=-1,
-         force_dereverberate=None, filter_by_distance=None,
+         relax_sanity_checks=False, apply_simple_quality_filter=False, apply_similarity_filter=False,
+         min_slope_ratio=-1, force_dereverberate=None, filter_by_distance=None,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
          hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
          hk_hpf_freq=None, hk_hpf_after_dereverberation=False, disable_semblance_weighting=False):
@@ -303,8 +303,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     OUTPUT_FILE : Output pdf file name
     """
 
+    log = setup_logger('__func__', log_file=os.path.splitext(output_file)[0] + '.log')
 
-    log.setLevel(logging.INFO)
+    # check parameter compatibility
+    if(relax_sanity_checks and apply_simple_quality_filter):
+        raise RuntimeError('Options --relax-sanity-checks and --apply-simple-quality-filter '
+                           'are mutually exclusive. Aborting..')
+    # end if
 
     comm = MPI.COMM_WORLD
     nproc = comm.Get_size()
@@ -416,8 +421,6 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
         total_trace_height_inches = paper_size_A4[1] - fixed_stack_height_inches - y_pad_inches
         max_trace_height = 0.2
 
-        log.setLevel(logging.WARNING)
-
         curr_output_file = os.path.join(tempdir, '{}.pdf'.format(nsl))
 
         with PdfPages(curr_output_file) as pdf:
@@ -443,12 +446,57 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 transverse_data = station_db[t_channel]
 
                 rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
+
+
+                ###############################################################################
+                # Remove streams from masked events
+                ###############################################################################
                 if event_mask_dict and full_code in event_mask_dict:
                     # Select events from external source
                     event_mask = event_mask_dict[full_code]
+                    before = len(rf_stream)
                     rf_stream = rf.RFStream(
                         [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort(['back_azimuth'])
+                    after = len(rf_stream)
+
+                    if (before > after):
+                        log.info("{}: {}/{} RF traces from masked events dropped..".
+                                 format(nsl,
+                                        before - after,
+                                        before))
+                    # end if
+                    if (after == 0):
+                        log.warning("All RF traces for {} were from masked events..".format(nsl))
+                    # end if
                 # end if
+
+                if not rf_stream: continue
+
+                ###############################################################################
+                # RF amplitudes should not exceed 1.0 and should peak around onset time --
+                # otherwise, such traces are deemed problematic and excluded while computing
+                # H-k stacks. Only applies for P RFs.
+                ###############################################################################
+                if(rf_type == 'prf'):
+                    before = len(rf_stream)
+                    rf_stream = rf_util.\
+                        filter_invalid_radial_component(rf_stream,
+                                                        allow_rfs_over_unity=relax_sanity_checks)
+                    after = len(rf_stream)
+
+                    if(before > after):
+                        log.info("{}: {}/{} RF traces with amplitudes > 1.0 or troughs around "
+                                 "onset time dropped before computing H-k stack ..".
+                                 format(nsl,
+                                        before - after,
+                                        before))
+                    # end if
+                    if (after == 0):
+                        log.warning("Sanity check filter has removed all traces for {}..".format(nsl))
+                    # end if
+                # end if
+
+                if not rf_stream: continue
 
                 ###############################################################################
                 # Restrict RFs by distance if specified
@@ -456,8 +504,13 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 if st in filter_by_distance_dict.keys():
                     min_dist, max_dist = filter_by_distance_dict[st]
 
+                    before = len(rf_stream)
                     rf_stream = rf_util.filter_by_distance(rf_stream, min_dist, max_dist)
-                    if (len(rf_stream) == 0):
+                    after = len(rf_stream)
+                    log.info('{}: ({}/{}) traces dropped using distance filter..'.format(nsl,
+                                                                                         before-after,
+                                                                                         before))
+                    if(after == 0):
                         log.warning("Filter-by-distance has removed all traces for {}.".format(nsl))
                     # end if
                 # end if
@@ -465,13 +518,19 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 ###############################################################################
                 # Apply amplitude filter
                 ###############################################################################
-                if apply_amplitude_filter:
+                if apply_simple_quality_filter:
                     # Label and filter quality
                     rf_util.label_rf_quality_simple_amplitude(rf_rot, rf_stream)
+                    before = len(rf_stream)
                     rf_stream = rf.RFStream(
                         [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
-                    if(len(rf_stream) == 0):
-                        log.warning("Amplitude filter has removed all traces for {}. "
+                    after = len(rf_stream)
+                    log.info('{}: ({}/{}) traces dropped using predicted quality filter..'.
+                             format(nsl,
+                                    before-after,
+                                    before))
+                    if(after == 0):
+                        log.warning("Predicted quality filter has removed all traces for {}. "
                                     "Ensure rf_quality_filter was run beforehand..".format(nsl))
                     # end if
                 # end if
@@ -480,15 +539,35 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # Apply slope-ratio filter
                 ###############################################################################
                 if(min_slope_ratio>0):
+                    before = len(rf_stream)
                     rf_stream = rf.RFStream([tr for tr in rf_stream \
                                              if tr.stats.slope_ratio > min_slope_ratio]).sort(['back_azimuth'])
+                    after = len(rf_stream)
+                    log.info('{}: ({}/{}) traces dropped using min-slope-ratio filter..'.
+                             format(nsl,
+                                    before - after,
+                                    before))
+                    if (after == 0):
+                        log.warning("Min-slope-ratio filter has removed all traces for {}..".format(nsl))
+                    # end if
                 # end if
+
+                if not rf_stream: continue
 
                 ###############################################################################
                 # Apply similarity filter
                 ###############################################################################
                 if apply_similarity_filter and len(rf_stream) >= 3:
+                    before = len(rf_stream)
                     rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
+                    after = len(rf_stream)
+                    log.info('{}: ({}/{}) traces dropped using similarity filter..'.
+                             format(nsl,
+                                    before - after,
+                                    before))
+                    if (after == 0):
+                        log.warning("Similarity filter has removed all traces for {}..".format(nsl))
+                    # end if
                 # end if
 
                 if not rf_stream: continue
@@ -509,30 +588,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 reverberations_removed = False
                 # Apply reverberation filter if needed (or forced). Only applies for P RFs
                 if((rf_corrections.has_reverberations(rf_stream) or st in fd_sta_list) and
-                   (rf_type == 'prf')):
+                        (rf_type == 'prf')):
                     rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
                     reverberations_removed = True
                 # end if
-
-                ###############################################################################
-                # RF amplitudes should not exceed 1.0 and should peak around onset time --
-                # otherwise, such traces are deemed problematic and excluded while computing
-                # H-k stacks. Only applies for P RFs.
-                ###############################################################################
-                if(rf_type == 'prf'):
-                    before = len(rf_stream)
-                    rf_stream = rf_util.filter_invalid_radial_component(rf_stream)
-                    after = len(rf_stream)
-
-                    if(before > after):
-                        print("{}: {}/{} RF traces with amplitudes > 1.0 or troughs around "
-                              "onset time dropped before computing H-k stack ..".format(full_code,
-                                                                                        before - after,
-                                                                                        before))
-                    # end if
-                # end if
-
-                if not rf_stream: continue
 
                 ###############################################################################
                 # Filter rf_stream if needed, after dereverberation, as requested
@@ -632,7 +691,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
                                                        semblance_weighted=(not disable_semblance_weighting),
                                                        labelling=hk_solution_labels,
-                                                       depth_colour_range=depth_colour_range)
+                                                       depth_colour_range=depth_colour_range,
+                                                       log=log)
                     hk_soln[nsl] = maxima
                     station_coords[nsl] = (channel_data[0].stats.station_longitude, channel_data[0].stats.station_latitude)
 
@@ -647,7 +707,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                         if(len(hk_soln[nsl])):
                             H_c = hk_soln[nsl][0][0]
                             k_c = hk_soln[nsl][0][1]
-                            fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp)
+                            fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp, log=log)
                             sediment_hk_soln[nsl] = maxima
 
                             sediment_station_coords[nsl] = (channel_data[0].stats.station_longitude,
@@ -732,12 +792,11 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     if(rank == 0):
         rmtree(tempdir)
 
-        print("Finishing...")
-        print("bulk_rf_report SUCCESS!")
+        log.info("Finishing...")
+        log.info("bulk_rf_report SUCCESS!")
     # end if
 # end main
 
 if __name__ == "__main__":
-    log = logging.getLogger(__name__)
     main()  # pylint: disable=no-value-for-parameter
 # end if
