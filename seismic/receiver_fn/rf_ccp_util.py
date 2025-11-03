@@ -812,6 +812,7 @@ class CCP_VerticalProfile():
                          levels=np.linspace(amp_min, amp_max, 100),
                          extend='both')
         ax.invert_yaxis()
+        legendCreated = False
         for k in self._g_meta.keys():
             px = self._g_meta[k]['distance_along_profile']
             pd = self._g_meta[k]['distance_from_profile']
@@ -823,12 +824,22 @@ class CCP_VerticalProfile():
 
             # plot estimates from hk results
             if(hk is not None):
+                markers = [{'marker':'o', 's':100, 'facecolors':'yellow', 'edgecolors':'k', 'lw':1},
+                           {'marker':'v', 's':100, 'facecolors':'green', 'edgecolors':'k', 'lw':1},
+                           {'marker':'s', 's':100, 'facecolors':'magenta', 'edgecolors':'k', 'lw':1}]
+                keys = ['H0', 'H1', 'H2']
                 if(k in list(hk['Station'])):
                     idx = np.where(k == hk['Station'])[0][0]
-                    hlist = [hk.iloc[idx][key] for key in ['H0', 'H1', 'H2']]
-                    hlist = [item for item in hlist if not np.isnan(item)]
+                    hlist = [hk.iloc[idx][key] for key in keys]
 
-                    for h in hlist: ax.scatter(px, h, marker='x', c='k')
+                    for i, h in enumerate(hlist):
+                        m = markers[i]
+                        if(not np.isnan(h)): ax.scatter(px, h, label=keys[i], **m)
+                    # end for
+                    if(not legendCreated):
+                        ax.legend(ncol=3, fontsize='small', loc='lower right')
+                        legendCreated = True
+                    # end if
                 # end if
             # end if
         # end for
