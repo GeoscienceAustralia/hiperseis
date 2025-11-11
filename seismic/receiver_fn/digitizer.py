@@ -115,11 +115,11 @@ class State:
         self._digitization_coords = []
         for i in np.arange(2, len(lines)): # two line header
             line = lines[i]
-            print(line)
-            px, py, lon, lat, depth = map(float, list(filter(len,re.split('\s+', line))))
+            print(line.strip())
+            px, py, lon, lat, distance, depth = map(float, list(filter(len,re.split('\s+', line))))
             px = int(px)
             py = int(py)
-            self._digitization_coords.append([px, py, lon, lat, depth])
+            self._digitization_coords.append([px, py, distance, depth])
         # end for
 
         self.draw_digitization()
