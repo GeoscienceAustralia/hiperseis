@@ -10,13 +10,15 @@ from matplotlib import cm, colors
 from netCDF4 import Dataset as NetCDFFile
 import numpy as np
 import click
-import rf
 import os
-from collections import defaultdict
-import gdal
 import h5py
 from obspyh5 import iterh5
 from seismic.receiver_fn.rf_ccp_util import Gravity
+from adjustText import adjust_text
+
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
+
 # below is work around of NCI python Basemap configuration problem, use line above for normal setup
 # from mympl_toolkits.basemap import Basemap
 
@@ -111,8 +113,11 @@ def rf_get_coords(rf_fn):
             for k3 in hf[k1][k2].keys():
                 group = '{}/{}/{}'.format(k1,k2,k3)
                 for t in iterh5(rf_fn, group=group, headonly=True, mode='r'):
-                    coords.append([t.stats.station_longitude, t.stats.station_latitude])
-                    names.append(k2)
+                    name = '.'.join(k2.split('.')[:-1])
+                    if(name not in names):
+                        names.append(name)
+                        coords.append([t.stats.station_longitude, t.stats.station_latitude])
+                    # end if
                     break
                 # end func
                 break
@@ -123,7 +128,7 @@ def rf_get_coords(rf_fn):
     return names, coords
 # end func
 
-def plot_topo(coords, topo_grid, cpt_file):
+def plot_topo(coords, topo_grid, cpt_file, show_colorbar=False):
 
     fig=plt.figure(figsize=(11.69,8.27))
     plt.tick_params(labelsize=8)
@@ -185,13 +190,13 @@ def plot_topo(coords, topo_grid, cpt_file):
     norm = colors.Normalize(vmin=-8000/zscale, vmax=5000/zscale)#myb
     rgb = ls.shade(topodat, cmap=cmap, norm=norm)
     im = m.imshow(rgb)
+    
+    if(show_colorbar): cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap))
 
-    cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap))
-
-    return m
+    return fig, m
 # end func
 
-def plot_grav(coords, grav_grid, cpt_file, resolution=1):
+def plot_grav(coords, grav_grid, cpt_file, resolution=1, show_colorbar=False):
     DEG2KM = 111.
     dlonlat = resolution/DEG2KM
 
@@ -256,9 +261,9 @@ def plot_grav(coords, grav_grid, cpt_file, resolution=1):
     cbinfo = m.pcolormesh(glons, glats, vals, latlon=True, cmap=cmap,
                           shading='auto', rasterized=True)
 
-    cbar = fig.colorbar(cbinfo)
+    if(show_colorbar): cbar = fig.colorbar(cbinfo)
 
-    return m
+    return fig, m
 # end func
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -274,7 +279,19 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path('r'))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
-def process(plot_type, rf_file, grid, cpt_file, output_path):
+@click.option('--marker-size', default=2, show_default=True,
+              help='Marker size for stations')
+@click.option('--label-font-size', default=5, show_default=True,
+              help='Font size for station names')
+@click.option('--adjust-labels', is_flag=True, default=False, show_default=True,
+              help='Adjusts text labels. Note that this option can slow down performance significantly')
+@click.option('--add-arrows', is_flag=True, default=False, show_default=True,
+              help='Add arrows between station labels and markers. Useful for scenarios in which '
+                   'station labels need to be moved far apart to reduce clutter')
+@click.option('--show-colorbar', is_flag=True, default=False, show_default=True,
+              help='Shows colorbar')
+def process(plot_type, rf_file, grid, cpt_file, output_path,
+            marker_size, label_font_size, adjust_labels, add_arrows, show_colorbar):
 
     """
     PLOT_TYPE : Plot-type; can be either topo (topography) or grav (gravity) \n
@@ -289,24 +306,44 @@ def process(plot_type, rf_file, grid, cpt_file, output_path):
     """
     names, coords = rf_get_coords(rf_file)
 
+    #names = names[:20]
+    #coords = coords[:20]
+
     # initialization of map
-    m = None
+    fig = m = None
     if(plot_type == 'topo'):
-        m = plot_topo(coords, grid, cpt_file)
+        fig, m = plot_topo(coords, grid, cpt_file, show_colorbar)
     elif(plot_type == 'grav'):
-        m = plot_grav(coords, grid, cpt_file)
+        fig, m = plot_grav(coords, grid, cpt_file, show_colorbar)
     # end if
 
+    ax = fig.axes[0]
     lon, lat = m(coords[:,0], coords[:, 1])
-    markers = plt.plot(lon, lat, 'y^', markeredgecolor='k', markeredgewidth=0.5, \
-                       markersize=2, alpha=0.3)
+    markers = ax.plot(lon, lat, 'y^', markeredgecolor='k', markeredgewidth=0.2, \
+                       markersize=marker_size)
     labels = []
     for name, x, y in zip(names, lon, lat):
         name = name.split('.')[1]
-        labels.append(plt.text(x, y, name, fontdict={'fontsize':5}))
+        labels.append(plt.text(x, y, name, fontdict={'fontsize':label_font_size}))
     # end for
+    
+    if(adjust_labels):
+        adjust_text(labels, 
+                    lon, lat, ax=ax, lim=50,
+                    add_object=markers)
+    # end if
 
-    #adjust_text(labels, add_object=markers, ha='center', va='bottom')
+    if(add_arrows):
+        for t, xi, yi in zip(labels, lon, lat):
+            ax.annotate('', xy=(xi, yi), xytext=t.get_position(),
+                        arrowprops=dict(
+                            arrowstyle="-",
+                            color='red',
+                            lw=0.2,
+                            mutation_scale=2,
+                            shrinkA=2,
+                            shrinkB=2))
+    # end if
 
     net = names[0].split('.')[0]
 
@@ -321,3 +358,4 @@ if __name__=='__main__':
     """ It is an example of how to plot nice maps """
 
     process()
+# end if
