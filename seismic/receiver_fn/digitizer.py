@@ -24,6 +24,7 @@ class State:
         self._xio = None
         self._yio = None
         self._digitization_coords = []
+        self._newly_added_coords = []
         self._geod = None
         self._az = None
         self._baz = None
@@ -129,10 +130,11 @@ class State:
     def mouse_callback(event, x, y, flags, self):
         if(not self._calibrated): return
         if (event == (cv2.EVENT_LBUTTONDOWN) and flags == (cv2.EVENT_LBUTTONDOWN + cv2.EVENT_FLAG_CTRLKEY)):
+            node = [x, y, float(self._xio(x)), float(self._yio(y))]
+            self._digitization_coords.append(node)
+            self._newly_added_coords.append([x, y])
+
             self._gui_circle(x, y, add_to_master=False)
-            self._digitization_coords.append([x, y,
-                                              float(self._xio(x)),
-                                              float(self._yio(y))])
         # end if
     # end func
 
@@ -141,11 +143,16 @@ class State:
         cv2.imshow(self._window_name, self._work_img)
     # end func
 
-    def _gui_circle(self, x, y, color=(0,0,0), radius=5, add_to_master=True):
+    def _gui_circle(self, x, y, color=(0, 255, 255), radius=15, add_to_master=True):
+
+        border_lw = 5
+        if([x, y] in self._newly_added_coords): border_lw = 30
         if(add_to_master):
+            cv2.circle(self._master_img, (x, y), radius, (0, 0, 0), border_lw)
             cv2.circle(self._master_img, (x, y), radius, color, -1)
         # end if
 
+        cv2.circle(self._work_img, (x, y), radius, (0, 0, 0), border_lw)
         cv2.circle(self._work_img, (x, y), radius, color, -1)
         cv2.imshow(self._window_name, self._work_img)
     # end func
