@@ -430,13 +430,13 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--s-data', is_flag=True, default=False, show_default=True,
               help='Extracts waveform data around S-arrival')
 @click.option('--sw-data', is_flag=True, default=False, show_default=True,
-              help='Extracts waveform data around surface-wave arrival')
+              help='Extracts waveform data for surface waves, defined by window around origin time')
 @click.option('--p-magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog for P arrivals.')
+              help='Range of seismic event magnitudes to sample from the event catalog for P arrivals')
 @click.option('--s-magnitude-range', type=(float, float), default=(5.5, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog for S arrivals.')
+              help='Range of seismic event magnitudes to sample from the event catalog for S arrivals')
 @click.option('--sw-magnitude-range', type=(float, float), default=(6.0, 10.0), show_default=True,
-              help='Range of seismic event magnitudes to sample from the event catalog for surface waves.')
+              help='Range of seismic event magnitudes to sample from the event catalog for surface waves')
 @click.option('--p-data-window', type=(int, int), default=(-70, 150), show_default=True,
               help='Time window for waveform data around P-arrivals to extract. Has no effect without '
                    '--p-data')

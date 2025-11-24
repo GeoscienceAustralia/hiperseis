@@ -257,8 +257,9 @@ def main(src_h5_event_file, network, output_basename, station_list, dump_swp_dat
             ax2.set_title('Surface-wave Polarization')
 
             results_rf = rf_station_orientations(ned_rf, ax=ax1)
-            results_swp = swp_station_orientations(ned_swp, grv_dict, ax=ax2,
-                                                   data_dump_file_name=curr_swp_dump_file)
+            results_swp = swp_station_orientations(ned_swp, grv_dict,
+                                                   data_dump_file_name=curr_swp_dump_file,
+                                                   ax=ax2)
 
             plt.tight_layout()
             pdf.savefig(dpi=300, orientation='portrait')

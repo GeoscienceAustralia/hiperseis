@@ -45,18 +45,20 @@ from mpi4py import MPI
 logging.basicConfig()
 
 GRV_FN = os.path.join(os.path.dirname(__file__), 'data/grv.h5')
+DATA_LENGTH_SECONDS = 60 * 60 * 4
 
-def checklen(st, hrs):
+def checklen(st):
     # checks to see if there is enough downloaded data to run program
     L=len(st)
 
     if(L != 3): return True
 
     for i in np.arange((L)):
-        if (UTCDateTime(st[i].stats.endtime)-UTCDateTime(st[i].stats.starttime))+100 < hrs:
+        if (UTCDateTime(st[i].stats.endtime)-UTCDateTime(st[i].stats.starttime))+100 < DATA_LENGTH_SECONDS:
             return True
-    if np.var(st[0].data)<1 or np.var(st[1].data)<1 or np.var(st[2].data)<1:
+    if np.var(st[0].data) < 1 or np.var(st[1].data) < 1 or np.var(st[2].data) < 1:
         return True
+
     return False
 # end func
 
@@ -295,7 +297,6 @@ def org(T,nameconv):
 
 def compute_phis(ned, grv_dict, logger=None):
     nameconv = 1
-    hrs = 60 * 60 * 4
 
     R1phi = None
     R1cc = None
@@ -332,7 +333,7 @@ def compute_phis(ned, grv_dict, logger=None):
         for j, (evid, st) in enumerate(evts.items()):
             st = org(st.copy(), nameconv)
 
-            if checklen(st, hrs):
+            if checklen(st):
                 discarded += 1
                 continue
             # end if
@@ -563,7 +564,7 @@ def fcalc1(phi,cc,lim,R1cc,R2cc):
 # end func
 
 
-def summary_calculations(R1cc, R1phi, R2cc, R2phi, logger=None):
+def summary_calculations(R1cc, R1phi, R2cc, R2phi, exclude_r2=False, logger=None):
     """
     Final Orientation Calculation File
     A. Doran and G. Laske
@@ -648,11 +649,22 @@ def summary_calculations(R1cc, R1phi, R2cc, R2phi, logger=None):
 
     for i in A:
         # create one massive list with necessary angles and cc values
-        phis = np.concatenate((flatten(R1phi[startL:i, :]), flatten(R2phi[startL:i, :])))
-        ccs = np.concatenate((flatten(R1cc[startL:i, :]), flatten(R2cc[startL:i, :])))
+        if(not exclude_r2):
+            phis = np.concatenate((flatten(R1phi[startL:i, :]), flatten(R2phi[startL:i, :])))
+            ccs = np.concatenate((flatten(R1cc[startL:i, :]), flatten(R2cc[startL:i, :])))
+        else:
+            phis = flatten(R1phi[startL:i, :])
+            ccs = flatten(R1cc[startL:i, :])
+        # end if
 
         # Doran-Laske calculation
-        val, err, n, ph = fcalc1(phis, ccs, LIM, R1cc, R2cc)
+        val = err = n = ph = None
+        if(not exclude_r2):
+            val, err, n, ph = fcalc1(phis, ccs, LIM, R1cc, R2cc)
+        else:
+            val, err, n, ph = fcalc1(phis, ccs, LIM, R1cc, R1cc)
+        # end if
+
         finval = np.append(finval, val)
         finerr = np.append(finerr, err)
         phases = np.append(phases, ph)
@@ -665,17 +677,63 @@ def summary_calculations(R1cc, R1phi, R2cc, R2phi, logger=None):
     return finval[-1], finerr[-1], phases[-1], max(LN)
 # end func
 
+def should_exclude_r2(ned):
+    lengths = []
+    for i, (sta, evts) in enumerate(ned.by_station()):  # ned contains 1 station
+        for j, (evid, st) in enumerate(evts.items()):
+            for tr in st:
+                lengths.append(tr.stats.endtime - tr.stats.starttime)
+            # end for
+        # end for
+    # end for
+    lengths = np.array(lengths)
+    if(np.median(lengths) < DATA_LENGTH_SECONDS): # exclude r2
+        # expand arrays to DATA_LENGTH_SECONDS for qualifying traces
+        for i, (sta, evts) in enumerate(ned.by_station()):  # ned contains 1 station
+            for j, (evid, st) in enumerate(evts.items()):
+                for tr in st:
+                    length = int(tr.stats.endtime - tr.stats.starttime)
+                    if (((length + 100) >= DATA_LENGTH_SECONDS / 2) and
+                        (length < DATA_LENGTH_SECONDS)):
+                        expanded = np.zeros(int(DATA_LENGTH_SECONDS * tr.stats.sampling_rate))
+                        expanded[:tr.data.shape[0]] = tr.data
+                        tr.data = expanded
+                    # end if
+                # end for
+            # end for
+        # end for
+        return True
+    else:
+        return False
+    # end if
+# end func
+
 def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_file_name=None, ax=None):
+    assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
+    if len(ned) == 0:
+        return {}
+    # end if
+    exclude_r2 = should_exclude_r2(ned)
+
     def dump_swp_data(r1phi, r1cc, r2phi, r2cc, e_array):
         freqs = [40, 35, 30, 25, 20, 15, 10]
         col_names = list(e_array.dtype.names) + \
                     ['R1Phi_{}'.format(item) for item in freqs] + \
-                    ['R1CC_{}'.format(item) for item in freqs] + \
-                    ['R2Phi_{}'.format(item) for item in freqs] + \
-                    ['R2CC_{}'.format(item) for item in freqs]
+                    ['R1CC_{}'.format(item) for item in freqs]
+        if(not exclude_r2):
+            col_names += ['R2Phi_{}'.format(item) for item in freqs] + \
+                         ['R2CC_{}'.format(item) for item in freqs]
+        # end if
+
+        fs = line = None
         with open(data_dump_file_name, 'w') as fh:
             fh.write(', '.join(col_names) + '\n')
-            fs = ('%f, '*32)[:-2] # 32 floats per line (4 event-related and 4x7 polarization values)
+
+            if(not exclude_r2):
+                fs = ('%f, '*32)[:-2] # 32 floats per line (4 event-related and 4x7 polarization values)
+            else:
+                fs = ('%f, '*18)[:-2] # 18 floats per line (4 event-related and 2x7 polarization values)
+            # end if
 
             for i in np.arange(len(e_array)):
                 if(np.sum(r1phi[i, :]) == np.sum(r2phi[i, :])):
@@ -683,21 +741,22 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_
                     continue
                 # end if
 
-                line = fs % (*e_array[i], \
-                             *r1phi[i, :], \
-                             *r1cc[i, :], \
-                             *r2phi[i, :], \
-                             *r2cc[i, :])
+                if(not exclude_r2):
+                    line = fs % (*e_array[i], \
+                                 *r1phi[i, :], \
+                                 *r1cc[i, :], \
+                                 *r2phi[i, :], \
+                                 *r2cc[i, :])
+                else:
+                    line = fs % (*e_array[i], \
+                                 *r1phi[i, :], \
+                                 *r1cc[i, :])
+                # end if
+
                 fh.write(line + '\n')
             # end for
         # end with
     # end func
-
-    assert isinstance(ned, NetworkEventDataset), 'Pass NetworkEventDataset as input'
-
-    if len(ned) == 0:
-        return {}
-    # end if
 
     # Determine limiting date range per station
     results = defaultdict(dict)
@@ -739,7 +798,8 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_
                                                                                   str(e))
         # end try
     #end if
-    corr, err, ndata, nevents_c = summary_calculations(r1cc, r1phi, r2cc, r2phi, logger)
+    corr, err, ndata, nevents_c = summary_calculations(r1cc, r1phi, r2cc, r2phi,
+                                                       exclude_r2=exclude_r2, logger=logger)
 
     corr *= -1 # converting to azimuth correction
     while (corr > 180): corr -= 360
@@ -759,8 +819,10 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_
         plt.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
         sc = plt.scatter(r1cc, centerat(-r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
                          label='R1')
-        plt.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
-                    label='R2')
+        if(not exclude_r2):
+            plt.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
+                        label='R2')
+        # end if
         plt.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
         cbar = plt.colorbar(sc)
         cbar.set_label('Frequency (mHz)')
@@ -788,8 +850,10 @@ def analyze_station_orientations(ned, grv_dict, save_plots_path=None, data_dump_
         ax.plot([0, 1], [corr, corr], '-', linewidth=4, color=(0.8, 0.8, 0.8), zorder=5)
         sc = ax.scatter(r1cc, centerat(-r1phi, m=CEN), c=c, marker='o', cmap=cm.viridis, alpha=0.5, zorder=1,
                          label='R1')
-        ax.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
-                    label='R2')
+        if(not exclude_r2):
+            ax.scatter(r2cc, centerat(-r2phi, m=CEN), c=c, marker='^', cmap=cm.viridis, alpha=0.5, zorder=1,
+                        label='R2')
+        # end if
         ax.text(0.5, corr, 'Mean: {0:.3f} deg'.format(corr), fontsize=14, zorder=10)
 
         cax = fig.add_axes([0.1, 0.075, 0.01, 0.1])
