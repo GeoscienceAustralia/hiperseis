@@ -128,7 +128,7 @@ def rf_get_coords(rf_fn):
     return names, coords
 # end func
 
-def plot_topo(coords, topo_grid, cpt_file, show_colorbar=False):
+def plot_topo(coords, topo_grid, cpt_file, show_colorbar=False, alpha=1):
 
     fig=plt.figure(figsize=(11.69,8.27))
     plt.tick_params(labelsize=8)
@@ -189,14 +189,14 @@ def plot_topo(coords, topo_grid, cpt_file, show_colorbar=False):
     ls = LightSource(azdeg = 180, altdeg = 45)
     norm = colors.Normalize(vmin=-8000/zscale, vmax=5000/zscale)#myb
     rgb = ls.shade(topodat, cmap=cmap, norm=norm)
-    im = m.imshow(rgb)
+    im = m.imshow(rgb, alpha=alpha)
     
     if(show_colorbar): cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap))
 
     return fig, m
 # end func
 
-def plot_grav(coords, grav_grid, cpt_file, resolution=1, show_colorbar=False):
+def plot_grav(coords, grav_grid, cpt_file, resolution=1, show_colorbar=False, alpha=1):
     DEG2KM = 111.
     dlonlat = resolution/DEG2KM
 
@@ -259,7 +259,7 @@ def plot_grav(coords, grav_grid, cpt_file, resolution=1, show_colorbar=False):
 
     zvals,cmap = gmtColormap(cpt_file)
     cbinfo = m.pcolormesh(glons, glats, vals, latlon=True, cmap=cmap,
-                          shading='auto', rasterized=True)
+                          shading='auto', rasterized=True, alpha=alpha)
 
     if(show_colorbar): cbar = fig.colorbar(cbinfo)
 
@@ -279,6 +279,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                 type=click.Path('r'))
 @click.argument('output-path', required=True,
                 type=click.Path(exists=True))
+@click.option('--alpha', default=1., show_default=True,
+              help='Alpha value for topography/gravity plot')
 @click.option('--marker-size', default=2, show_default=True,
               help='Marker size for stations')
 @click.option('--label-font-size', default=5, show_default=True,
@@ -290,7 +292,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'station labels need to be moved far apart to reduce clutter')
 @click.option('--show-colorbar', is_flag=True, default=False, show_default=True,
               help='Shows colorbar')
-def process(plot_type, rf_file, grid, cpt_file, output_path,
+def process(plot_type, rf_file, grid, cpt_file, output_path, alpha,
             marker_size, label_font_size, adjust_labels, add_arrows, show_colorbar):
 
     """
@@ -312,9 +314,9 @@ def process(plot_type, rf_file, grid, cpt_file, output_path,
     # initialization of map
     fig = m = None
     if(plot_type == 'topo'):
-        fig, m = plot_topo(coords, grid, cpt_file, show_colorbar)
+        fig, m = plot_topo(coords, grid, cpt_file, show_colorbar, alpha)
     elif(plot_type == 'grav'):
-        fig, m = plot_grav(coords, grid, cpt_file, show_colorbar)
+        fig, m = plot_grav(coords, grid, cpt_file, show_colorbar, alpha)
     # end if
 
     ax = fig.axes[0]
