@@ -64,7 +64,7 @@ def safe_iter_event_data(events, inventory, get_waveforms, use_rfstats=True, pha
     .. _tqdm: https://pypi.python.org/pypi/tqdm
     """
     def _get_stations(inventory):
-        valid_patterns = {'HH', 'BH', 'SH', 'EH'}
+        valid_patterns = {'HH', 'BH', 'SH', 'EH', 'CH'}
         channels = inventory.get_contents()['channels']
         stations = {ch[:-1] + '?': ch[-1] for ch in channels if ch.split('.')[3][:-1] in valid_patterns}
         return stations
