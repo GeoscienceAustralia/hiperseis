@@ -286,7 +286,7 @@ def process(data_source1, data_source2, output_path,
             try:
                 sta1_lon, sta1_lat = ds1.fds.unique_coordinates[netsta1]
                 sta2_lon, sta2_lat = ds2.fds.unique_coordinates[netsta2]
-                _, baz_netsta2, baz_netsta1 = gps2dist_azimuth(sta1_lat, sta1_lon, sta2_lat, sta2_lon)
+                _, baz_netsta1, baz_netsta2 = gps2dist_azimuth(sta1_lat, sta1_lon, sta2_lat, sta2_lon)
             except Exception as e:
                 print (e)
                 print (('Failed to compute back-azimuth for station-pairs; skipping %s.%s; '%(netsta1, netsta2)))
