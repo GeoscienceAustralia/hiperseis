@@ -186,9 +186,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 
                 # Drop traces that cannot be stacked
                 before = len(ch_traces)
-                all_trace_lens = np.array([len(tr) for tr in ch_traces])
-                most_common_len, _ = stats.mode(all_trace_lens, axis=None)
-                ch_traces = rf.RFStream([tr for tr in ch_traces if len(tr) == most_common_len])
+                ch_traces = rf_util.get_stackable_stream(ch_traces)
                 after = len(ch_traces)
                 if after < before:
                     logger.info('{}.{}.{}: {}/{} traces dropped to make them stackable!'.format(network_code, sta, loc,

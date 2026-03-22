@@ -8,11 +8,11 @@ import copy
 import os, re
 import numpy as np
 from scipy import signal
-from scipy.signal import hilbert, correlate
+from scipy.signal import hilbert
+from scipy import stats
 
 import obspy
 import rf
-import h5py
 
 from seismic.stream_processing import assert_homogenous_stream
 from seismic.receiver_fn.rf_network_dict import NetworkRFDict
@@ -646,4 +646,18 @@ def filter_by_distance(rf_stream, min_dist, max_dist):
     # end for
 
     return rf.RFStream(rf_stream_out)
+# end func
+
+def get_stackable_stream(cha_stream):
+    """
+    Returns a stream of traces with the most common length, dropping off discrepant ones
+    @param cha_stream: Stream containing a single component
+    @return: stackable stream
+    """
+
+    all_trace_lens = np.array([len(tr) for tr in cha_stream])
+    most_common_len, _ = stats.mode(all_trace_lens, axis=None)
+    stackable_stream = rf.RFStream([tr for tr in cha_stream if len(tr) == most_common_len])
+
+    return stackable_stream
 # end func
