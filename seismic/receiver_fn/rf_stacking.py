@@ -4,12 +4,12 @@ import logging
 
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.signal import correlate
 import seismic.receiver_fn.rf_util as rf_util
-from seismic.units_utils import KM_PER_DEG
+import rf
 from rf.util import DEG2KM
 from scipy.ndimage import gaussian_filter
 from scipy import interpolate
+from scipy.signal import find_peaks, peak_prominences
 from sklearn.cluster import dbscan
 from scipy.integrate import simps as simpson
 from scipy.optimize import minimize
@@ -23,12 +23,15 @@ import os
 logging.basicConfig()
 
 DEFAULT_Vp = 6.5  # km/sec
-DEFAULT_H_RANGE = tuple(np.linspace(20.0, 70.0, 501))
-DEFAULT_k_RANGE = tuple(np.linspace(1.5, 2.0, 301))
+DEFAULT_H_RANGE = np.linspace(20.0, 70.0, 501)
+DEFAULT_k_RANGE = np.linspace(1.5, 2.0, 301)
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
+# grids for 2-stage stacking
+DEFAULT_Vp_RANGE_SPARSE = np.linspace(6, 7.5, 51)
+DEFAULT_k_RANGE_SPARSE = np.linspace(1.5, 2, 31)
 
-DEFAULT_SED_H_RANGE = tuple(np.linspace(0.01, 10, 35))
-DEFAULT_SED_k_RANGE = tuple(np.linspace(1.0, 5.0, 21))
+DEFAULT_SED_H_RANGE = np.linspace(0.01, 10, 35)
+DEFAULT_SED_k_RANGE = np.linspace(1.0, 5.0, 21)
 
 def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
                      weights=DEFAULT_WEIGHTS, root_order=1, semblance_weighted=True):
@@ -128,7 +131,7 @@ def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
     return k_grid, h_grid, hk_stack
 # end func
 
-def compute_sediment_hk_stack(cha_data, H_c, k_c, Vp=DEFAULT_Vp, h_range=None, k_range=None, root_order=9):
+def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, root_order=9):
     """Compute H-k stacking array on a dataset of receiver functions.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
@@ -137,8 +140,6 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, Vp=DEFAULT_Vp, h_range=None, k
     :type H_c: float, optional
     :param k_c: Crustal Vp/Vs ratio estimate from H-k stack
     :type k_c: float, optional
-    :param Vp: Average crustal Vp for computing H-k stacks
-    :type Vp: float, optional
     :param h_range: Range of h values (Moho depth) values to cover, defaults to np.linspace(20.0, 70.0, 251)
     :type h_range: numpy.array [1D], optional
     :param k_range: Range of k values to cover, defaults to np.linspace(1.4, 2.0, 301)
@@ -357,4 +358,207 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
     if(len(result)): result = result[result[:, 0].argsort()]
 
     return result
+# end func
+
+#=========================================================
+# functions for 2-stage stacking (Zhang and Olugboji 2021)
+#=========================================================
+def get_rf_peaks(trc, window=(0, 9)):
+    lead_time = trc.stats.onset - trc.stats.starttime
+    relative_time = trc.times() - lead_time
+    mask = np.array((relative_time < window[0]) | (relative_time > window[1]))
+
+    filled = np.ma.masked_array(trc.data, mask=mask).filled(-np.inf)
+
+    peaks, _ = find_peaks(filled, height=0)
+    prominences = peak_prominences(filled, peaks)[0]
+    order = np.argsort(prominences)
+    peaks = peaks[order[::-1]]
+
+    return peaks, relative_time
+# end func
+
+def get_moho_conversions(rfc_stream):
+    stackable_stream = rf_util.get_stackable_stream(rfc_stream)
+    num_stackable = len(stackable_stream)
+    if num_stackable < len(rfc_stream):
+        print('Removed {} traces from RF plot to make it stackable!'.format(num_stackable))
+    # end if
+
+    # compute mean RF
+    mtr = stackable_stream[0].copy()
+    mtrd = np.zeros(mtr.data.shape)
+    for tr in stackable_stream: mtrd += tr.data
+    mtrd /= len(stackable_stream)
+    mtr.data = mtrd
+
+    peaks, rtimes = get_rf_peaks(mtr)
+    result_stream = []
+    tpms_list = []
+    if (len(peaks) >= 2):
+        mean_tpms = rtimes[peaks[1]]  # peak at index 1 is typically the moho converison PmS
+        #print('mean_tpms: {}'.format(mean_tpms))
+
+        for itrc, trc in enumerate(rfc_stream):
+            p = trc.stats.slowness / DEG2KM
+
+            # find PmS for each trace and compare with that from the mean trace
+            peaks, rtimes = get_rf_peaks(trc)
+            if (len(peaks) >= 2):
+                tpms = rtimes[peaks[1]]
+
+                if (np.fabs(mean_tpms - tpms) <= 1):
+                    tpms_list.append(tpms)
+                    result_stream.append(trc)
+                # end if
+            # end if
+        # end for
+    # end if
+
+    return tpms_list, rf.RFStream(result_stream)
+# end func
+
+def gaussian_pulse(times, centre_time, fwhm_seconds=0.5, amplitude=1):
+    if (isinstance(centre_time, np.ndarray)):
+        t = times[None, None, :]  # (1,1,2000)
+        ct = centre_time[..., None]  # (51,31,1)
+    else:
+        t = times
+        ct = centre_time
+    # end if
+
+    # print('times.shape: {}, centre_time.shape: {}'.format(times.shape, centre_time.shape))
+    x = (t - ct) ** 2
+    g = amplitude * np.exp(-4 * np.log(2) * x / fwhm_seconds ** 2)
+
+    return g  # (51, 31, 2000)
+# end func
+
+def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
+                  k_range=DEFAULT_k_RANGE_SPARSE, weights=DEFAULT_WEIGHTS,
+                  root_order=2):
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
+
+    k_grid, vp_grid = np.meshgrid(k_range, vp_range)
+
+    k_grid2 = k_grid * k_grid
+    vp_grid2 = vp_grid * vp_grid
+
+    tpms_list, vetted_rfc = get_moho_conversions(rfc_stream)
+    #print('len(tpms_list): {}, tpms_list: {}'.format(len(tpms_list), tpms_list))
+
+    tphase_amps = []
+    for itrc, trc in enumerate(vetted_rfc):
+        p = trc.stats.slowness / DEG2KM
+
+        A = np.sqrt(k_grid2 - p * p * vp_grid2)
+        B = np.sqrt(1 - p * p * vp_grid2)
+
+        t1 = tpms_list[itrc] * np.ones(k_grid.shape)  # tpms
+        t2 = (A + B) / (A - B) * t1  # tppms
+        t3 = (2 * A) / (A - B) * t1  # tpsms
+
+        lead_time = trc.stats.onset - trc.stats.starttime
+        times = trc.times() - lead_time
+        times_min = np.min(times)
+        times_max = np.max(times)
+        if (np.min(t1) < times_min or \
+                np.max(t1) > times_max or \
+                np.min(t2) < times_min or \
+                np.max(t2) > times_max or \
+                np.min(t3) < times_min or \
+                np.max(t3) > times_max):
+            nsl = '.'.join([trc.stats.network, trc.stats.station, trc.stats.location])
+            log.warning('\nCorrected times for a trace in {} fall outside the available time-range'.format(nsl))
+        # end if
+
+        row = []
+        for t, polarity in zip((t1, t2, t3), (1, 1, -1)):
+            g = gaussian_pulse(times, t, fwhm_seconds=0.5)
+            row.append(np.einsum('ijk,k->ij', g, trc.data) * polarity)
+        # end for
+        tphase_amps.append(row)
+    # end for
+    tphase_amps = np.array(tphase_amps)
+
+    stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
+    stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
+
+    mi = np.unravel_index(np.argmax(stack), stack.shape)
+
+    if(0):
+        fig, axes = plt.subplots(1, 2)
+        fig.set_size_inches(20, 10)
+        cbi = axes[0].contourf(k_grid, vp_grid, stack, levels=20, cmap='jet')
+        axes[0].scatter(k_grid[mi], vp_grid[mi], s=100, marker='x', c='k')
+    # end if
+
+    k, Vp = k_grid[mi], vp_grid[mi]
+    return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
+# end func
+
+def estimate_H(rfc_stream, vp, k, h_range=DEFAULT_H_RANGE, root_order=2, num_estimates=3):
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
+
+    h_grid = h_range
+    Vp_inv = 1. / vp
+    Vs_inv = k * Vp_inv
+    tphase_amps = []
+    for itrc, trc in enumerate(rfc_stream):
+        p = trc.stats.slowness / DEG2KM
+        term1 = np.sqrt(Vs_inv ** 2 - p ** 2)
+        term2 = np.sqrt(Vp_inv ** 2 - p ** 2)
+
+        t1 = h_grid * (term1 - term2)
+        t2 = h_grid * (term1 + term2)
+        t3 = h_grid * 2 * term1
+
+        try:
+            t1 += trc.stats.t1_offset
+            t2 += trc.stats.t2_offset
+            t3 += trc.stats.t3_offset
+        except:
+            pass
+        # end try
+
+        lead_time = trc.stats.onset - trc.stats.starttime
+        times = trc.times() - lead_time
+        times_min = np.min(times)
+        times_max = np.max(times)
+        if (np.min(t1) < times_min or \
+                np.max(t1) > times_max or \
+                np.min(t2) < times_min or \
+                np.max(t2) > times_max or \
+                np.min(t3) < times_min or \
+                np.max(t3) > times_max):
+            nsl = '.'.join([trc.stats.network, trc.stats.station, trc.stats.location])
+            log.warning('\nCorrected times for a trace in {} fall outside the available time-range'.format(nsl))
+        # end if
+
+        tio = interp1d(times, trc.data, fill_value=0, bounds_error=False)
+
+        a, b, c = tio(t1), tio(t2), -tio(t3)
+        tphase_amps.append([np.sign(a) * np.power(np.fabs(a), 1. / root_order),
+                            np.sign(b) * np.power(np.fabs(b), 1. / root_order),
+                            np.sign(c) * np.power(np.fabs(c), 1. / root_order)])
+    # end for
+    tphase_amps = np.array(tphase_amps)
+    stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), DEFAULT_WEIGHTS), axis=0)
+    stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
+
+    # create a list of H estimates
+    peaks, _ = find_peaks(stack, height=0)
+    prominences = peak_prominences(stack, peaks)[0]
+    order = np.argsort(prominences)
+    peaks = peaks[order[::-1]]
+    hlist = []
+    for p in peaks:
+        if (stack[p] >= stack[peaks[0]]*0.8):
+            hlist.append(h_grid[p])
+        # end if
+    # end for
+
+    return hlist[:num_estimates], h_grid, stack
 # end func

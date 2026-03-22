@@ -170,7 +170,7 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
     """Helper function to produce H-k stacking figure."""
 
     k_grid, h_grid, hk_stack, weighting = rf_stacking.compute_sediment_hk_stack(channel_data,
-                                                                     H_c=H_c, k_c=k_c, Vp=Vp,
+                                                                     H_c=H_c, k_c=k_c,
                                                                      h_range=rf_stacking.DEFAULT_SED_H_RANGE,
                                                                      k_range=rf_stacking.DEFAULT_SED_k_RANGE,
                                                                      root_order=9)
@@ -700,6 +700,18 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     fig.set_size_inches(*paper_landscape)
                     # plt.tight_layout()
                     # plt.subplots_adjust(hspace=0.15, top=0.95, bottom=0.15)
+                    pdf.savefig(dpi=300, orientation='landscape')
+                    plt.close()
+
+                    # 2-stage stacking
+                    fig, axes = plt.subplots(1, 2)
+                    fig.set_size_inches(*paper_landscape)
+
+                    k, Vp, k_grid, vp_grid, stack, ntraces_used = rf_stacking.estimate_k_vp(rf_stream)
+                    rf_plot_utils.plot_k_vp_stack(axes[0], k_grid, vp_grid, stack, num=ntraces_used)
+
+                    hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, Vp, k)
+                    rf_plot_utils.plot_h_estimates(axes[1], h_grid, stack, hlist)
                     pdf.savefig(dpi=300, orientation='landscape')
                     plt.close()
 
