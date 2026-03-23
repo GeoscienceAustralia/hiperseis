@@ -90,7 +90,10 @@ def getWorkLoad(fds:FederatedASDFDataSet, netsta_list:str,
 
             r = fds.get_stations(cTime, cTime + cStep, network=nc, station=sc)
             if(len(r)): # has data
-                result_list.append([netsta, cTime, cTime + cStep])
+                locs = set()
+                for row in r: locs.add(row[2])
+
+                for loc in locs: result_list.append([netsta, loc, cTime, cTime + cStep])
             # end if
             cTime += cStep
         # wend
@@ -418,9 +421,8 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
 
     loggerCache = defaultdict(list)
     # main loop
-    for netsta, st, et in proc_workload[rank]:
+    for netsta, loc, st, et in proc_workload[rank]:
         nc, sc = netsta.split('.')
-        loc_pref_dict = defaultdict(lambda: None) # ignoring location codes
 
         if (progTracker.increment()):
             pass
@@ -440,9 +442,9 @@ def process(asdf_source, ml_model_path, output_path, picking_params, station_nam
         # get streams
         stz, stn, ste = [], [], []
         try:
-            stz = get_stream(fds, nc, sc, zchan, st, et, loc_pref_dict, logger=logger)
-            if(len(stz)): stn = get_stream(fds, nc, sc, nchan, st, et, loc_pref_dict, logger=logger)
-            if(len(stn)): ste = get_stream(fds, nc, sc, echan, st, et, loc_pref_dict, logger=logger)
+            stz = get_stream(fds, nc, sc, loc, zchan, st, et, logger=logger)
+            if(len(stz)): stn = get_stream(fds, nc, sc, loc, nchan, st, et, logger=logger)
+            if(len(stn)): ste = get_stream(fds, nc, sc, loc, echan, st, et, logger=logger)
         except Exception as e:
             logger.error('\t' + str(e))
             logger.warning('\tError encountered while fetching data. Skipping along..')
