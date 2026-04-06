@@ -47,7 +47,8 @@ def process(data_source1, data_source2, output_path,
             location_preferences=None, ds1_zchan=None, ds1_nchan=None,
             ds1_echan=None, ds2_zchan=None, ds2_nchan=None, ds2_echan=None, corr_chan=None,
             envelope_normalize=False, ensemble_stack=False, subset_stacker=None, apply_simple_stacking=True,
-            restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None):
+            restart=False, dry_run=False, no_tracking_tag=False, scratch_folder=None,
+            transform_ds1=None, transform_ds2=None):
     """
     :param data_source1: Text file containing paths to ASDF files
     :param data_source2: Text file containing paths to ASDF files
@@ -123,6 +124,8 @@ def process(data_source1, data_source2, output_path,
             f.write('%35s\t\t\t: %s\n' % ('--restart', 'TRUE' if restart else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--no-tracking-tag', 'TRUE' if no_tracking_tag else 'FALSE'))
             f.write('%35s\t\t\t: %s\n' % ('--scratch-folder', scratch_folder))
+            f.write('%35s\t\t\t: %s\n' % ('--transform-ds1', 'None' if transform_ds1 is None else transform_ds1))
+            f.write('%35s\t\t\t: %s\n' % ('--transform-ds2', 'None' if transform_ds2 is None else transform_ds2))
 
             f.close()
         # end func
@@ -322,7 +325,7 @@ def process(data_source1, data_source2, output_path,
                                window_buffer_length, fmin, fmax, time_domain_norm, whitening,
                                whitening_window_frequency, envelope_normalize,
                                ensemble_stack, subset_stacker, apply_simple_stacking, output_path, 2,
-                               time_tag, scratch_folder, git_hash)
+                               time_tag, scratch_folder, git_hash, transform_ds1, transform_ds2)
         # end for
     # end for
 # end func
@@ -473,13 +476,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('--no-tracking-tag', default=False, is_flag=True, help='Do not tag output file names with a time-tag')
 @click.option('--scratch-folder', default=None, help="Scratch folder for large jobs (e.g. $PBS_JOBFS on the NCI); "
                                                      "default is to use the standard temp folder")
+@click.option('--transform-ds1', type=click.Choice(['uvw2enz', 'enz2uvw']), default=None,
+              help='Transform data from data-source-1 either from uvw->enz or enz->uvw. Default is None')
+@click.option('--transform-ds2', type=click.Choice(['uvw2enz', 'enz2uvw']), default=None,
+              help='Transform data from data-source-2 either from uvw->enz or enz->uvw. Default is None')
 def main(data_source1, data_source2, output_path, window_seconds, window_overlap, read_ahead_windows,
          stacking_interval_seconds, window_buffer_length, resample_rate, taper_length, nearest_neighbours,
          pair_min_dist, pair_max_dist, fmin, fmax, station_names1, station_names2, pairs_to_compute,
          start_time, end_time, instrument_response_inventory, instrument_response_output, water_level,
          time_domain_norm, whitening, whitening_window_frequency, location_preferences,
          ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
-         ensemble_stack, subset_stack, restart, dry_run, no_tracking_tag, scratch_folder):
+         ensemble_stack, subset_stack, restart, dry_run, no_tracking_tag, scratch_folder,
+         transform_ds1, transform_ds2):
     """
     DATA_SOURCE1: Text file containing paths to ASDF files \n
     DATA_SOURCE2: Text file containing paths to ASDF files \n
@@ -553,7 +561,7 @@ def main(data_source1, data_source2, output_path, window_seconds, window_overlap
             time_domain_norm, whitening, whitening_window_frequency, location_preferences,
             ds1_zchan, ds1_nchan, ds1_echan, ds2_zchan, ds2_nchan, ds2_echan, corr_chan, envelope_normalize,
             ensemble_stack, subset_stacker, apply_simple_stacking, restart, dry_run, no_tracking_tag,
-            scratch_folder)
+            scratch_folder, transform_ds1, transform_ds2)
 # end func
 
 if __name__ == '__main__':

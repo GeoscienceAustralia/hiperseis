@@ -12,7 +12,8 @@ from seismic.misc import rtp2xyz, read_key_value_pairs
 from seismic.misc import get_git_revision_hash, rtp2xyz, split_list
 import os, psutil
 from netCDF4 import Dataset as ncDataset
-
+from galperin import galperin_transform
+from seismic.misc_p import parallel_abort
 class Dataset:
     def __init__(self, asdf_file_name, netsta_list='*'):
 
@@ -278,10 +279,80 @@ def fill_gaps(data, dt, max_gap_seconds=3):
     return result
 # end func
 
-def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
-                      baz=None, trace_count_threshold=200,
-                      logger=None, verbose=1):
+def _get_stream_galperin(fds, net, sta, loc, start_time, end_time,
+                         direction,
+                         trace_count_threshold=200,
+                         logger=None, verbose=1):
+    stations = fds.get_stations(start_time, end_time, network=net, station=sta,
+                                location=loc)
 
+    stations_zch = [s for s in stations if 'Z' == s[3][-1].upper()]  # only Z channels
+    stations_nch = [s for s in stations if 'N' == s[3][-1].upper() or '1' == s[3][-1]]  # only N channels
+    stations_ech = [s for s in stations if 'E' == s[3][-1].upper() or '2' == s[3][-1]]  # only E channels
+
+    stt = Stream()
+    if (len(stations_zch) > 0 and (len(stations_zch) == len(stations_nch) == len(stations_ech))):
+        for codesz, codesn, codese in zip(stations_zch, stations_nch, stations_ech):
+
+            stz = fds.get_waveforms(codesz[0], codesz[1], codesz[2], codesz[3],
+                                    start_time,
+                                    end_time,
+                                    trace_count_threshold=trace_count_threshold)
+            stn = fds.get_waveforms(codesn[0], codesn[1], codesn[2], codesn[3],
+                                    start_time,
+                                    end_time,
+                                    trace_count_threshold=trace_count_threshold)
+            ste = fds.get_waveforms(codese[0], codese[1], codese[2], codese[3],
+                                    start_time,
+                                    end_time,
+                                    trace_count_threshold=trace_count_threshold)
+
+            if (len(stz) == 0): continue
+            if (len(stn) == 0): continue
+            if (len(ste) == 0): continue
+
+            drop_bogus_traces(stz)
+            drop_bogus_traces(stn)
+            drop_bogus_traces(ste)
+
+            # Merge station data. Note that we don't want to fill gaps; the
+            # default merge() operation creates masked numpy arrays, which we can use
+            # to detect and ignore windows that have gaps in their data.
+            try:
+                stz.merge()
+                stn.merge()
+                ste.merge()
+
+                max_start_time = np.max([stz[0].stats.starttime, stn[0].stats.starttime, ste[0].stats.starttime])
+                min_end_time   = np.min([stz[0].stats.endtime, stn[0].stats.endtime, ste[0].stats.endtime])
+
+                stz = stz.slice(starttime=max_start_time, endtime=min_end_time)
+                stn = stn.slice(starttime=max_start_time, endtime=min_end_time)
+                ste = ste.slice(starttime=max_start_time, endtime=min_end_time)
+            except Exception as e:
+                if logger: logger.warning('\tFailed to merge traces..')
+                st = None
+                raise
+            # end try
+
+            result = stz[0].copy()
+            if(direction==1):
+                z, n, e = galperin_transform(ste[0].data, stn[0].data, stz[0].data, direction=direction)
+                result.data = z
+            else:
+                u, v, w = galperin_transform(ste[0].data, stn[0].data, stz[0].data, direction=direction)
+                result.data = w
+            # end if
+
+            stt += result
+        # end for
+    # end if
+    return stt
+# end func
+
+def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
+                    baz=None, trace_count_threshold=200,
+                    logger=None, verbose=1):
     netsta = net + '.' + sta
     stations = fds.get_stations(start_time, end_time, network=net, station=sta,
                                 location=loc)
@@ -304,7 +375,7 @@ def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
 
             if (len(stn) == 0): continue
             if (len(ste) == 0): continue
-            
+
             drop_bogus_traces(stn)
             drop_bogus_traces(ste)
 
@@ -316,7 +387,7 @@ def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
                 ste.merge()
 
                 max_start_time = np.max([stn[0].stats.starttime, ste[0].stats.starttime])
-                min_end_time   = np.min([stn[0].stats.endtime, ste[0].stats.endtime])
+                min_end_time = np.min([stn[0].stats.endtime, ste[0].stats.endtime])
 
                 stn = stn.slice(starttime=max_start_time, endtime=min_end_time)
                 ste = ste.slice(starttime=max_start_time, endtime=min_end_time)
@@ -331,7 +402,7 @@ def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
 
             stt_curr = ste.copy()
             stt_curr[0].data = tdata
-            #stt_curr[0].stats.channel = '00T'
+            # stt_curr[0].stats.channel = '00T'
 
             stt += stt_curr
         # end for
@@ -342,7 +413,19 @@ def _get_stream_00T(fds, net, sta, loc, start_time, end_time,
 
 def get_stream(fds, net, sta, loc, cha, start_time, end_time,
                baz=None, trace_count_threshold=200,
+               transform_data=None,
                logger=None, verbose=1):
+
+    if((cha[-1] == 'T' or cha[-1] != 'Z') and transform_data is not None):
+        parallel_abort("{} channel cross-correction is not supported with Galperin rotations".format(cha[-1]))
+    # end if
+
+    if(transform_data is not None):
+        direction = 1 if transform_data=='uvw2enz' else -1
+        return _get_stream_galperin(fds, net, sta, loc, start_time, end_time, direction,
+                                    trace_count_threshold=trace_count_threshold,
+                                    logger=logger, verbose=verbose)
+    # end if
 
     if (cha[-1] == 'T'): return _get_stream_00T(fds, net, sta, loc, start_time, end_time,
                                                 baz=baz, trace_count_threshold=trace_count_threshold,

@@ -524,7 +524,9 @@ def IntervalStackXCorr(refds, tempds,
                        subset_stacker: SubsetStacker=None,
                        apply_simple_stacking=True,
                        outputPath='/tmp', verbose=1, tracking_tag='',
-                       scratch_folder=None, git_hash=''):
+                       scratch_folder=None, git_hash='',
+                       transform_ds1=None,
+                       transform_ds2=None):
     """
     This function rolls through two FederatedASDFDataSets, over a given time-range and cross-correlates
     waveforms from all possible station-pairs from the two data sets.
@@ -610,6 +612,8 @@ def IntervalStackXCorr(refds, tempds,
     :type git_hash: str
     :param git_hash: git hash of current scripts -- this can prove useful in comparing different sets
                      of results, corresponding to the versions of the scripts they were based on
+    :param transform_ds1: transform data in dataset1 from uvw->enz or enz->uvw; default is None
+    :param transform_ds2: transform data in dataset2 from uvw->enz or enz->uvw; default is None
     :return: 1: 1d np.array with time samples spanning [-window_samples+dt:window_samples-dt]
              2: A dictionary of 2d np.arrays containing cross-correlation results for each station-pair. \
                 Rows in each 2d array represent number of interval_seconds processed and columns \
@@ -705,7 +709,7 @@ def IntervalStackXCorr(refds, tempds,
             rnc, rsc = ref_net_sta.split('.')
             refSt = get_stream(refds, rnc, rsc,
                                ref_loc, ref_cha, cTime, cTime + cStep,
-                               baz=baz_ref_net_sta,
+                               baz=baz_ref_net_sta, transform_data=transform_ds1,
                                logger=logger, verbose=verbose)
         except Exception as e:
             logger.error('\t'+str(e))
@@ -731,7 +735,7 @@ def IntervalStackXCorr(refds, tempds,
             tnc, tsc = temp_net_sta.split('.')
             tempSt = get_stream(tempds, tnc, tsc,
                                 temp_loc, temp_cha, cTime, cTime + cStep,
-                                baz=baz_temp_net_sta,
+                                baz=baz_temp_net_sta, transform_data=transform_ds2,
                                 logger=logger, verbose=verbose)
         except Exception as e:
             logger.error('\t'+str(e))
