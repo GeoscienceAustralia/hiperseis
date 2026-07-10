@@ -29,7 +29,7 @@ import sqlite3
 import hashlib
 from functools import partial
 from seismic.ASDFdatabase.utils import MIN_DATE, MAX_DATE, cleanse_inventory, \
-    InventoryAggregator, get_file_signature
+    InventoryAggregator, get_file_signature, galperin_to_enz
 from seismic.misc import split_list, setup_logger
 import pickle as cPickle
 import pandas as pd
@@ -148,6 +148,7 @@ class _FederatedASDFDataSetImpl():
         self.create_database()
         if(self.fast): self._attach_in_mem_db()
         self._load_corrections()
+        self._load_modes()
 
         atexit.register(self.cleanup) # needed for closing asdf files at exit
     # end func
@@ -336,6 +337,94 @@ class _FederatedASDFDataSetImpl():
         # end for
 
         return resultStream
+    # end func
+
+    def _load_modes(self):
+        self.modes_files = []
+        self.enz_map_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.uvw_map_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.enz_map_bounds = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.uvw_map_bounds = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
+        # check to see if corrections are to be applied
+        self.modes_enabled = False
+        if ('MODE_CORRECTION' in os.environ.keys()):
+            try:
+                self.modes_enabled = np.bool_(np.int_(os.environ['MODE_CORRECTION']))
+            except Exception as e:
+                print(str(e))
+                assert 0, 'Invalid value for MODE_CORRECTION: {}. Must be 1 or 0. Aborting..'.format(
+                    os.environ['MODE_CORRECTION'])
+            # end try
+        # end if
+
+        if (not self.modes_enabled): return
+
+        pattern = os.path.join(os.path.dirname(self.asdf_source), '.modes/*.runs')
+        fnames = glob.glob(pattern)
+
+        if (len(fnames)): print('Loading mode-run files..')
+
+        dtypes = {'start': str, 'end': str, 'mode': str}
+        for fname in fnames:
+            df = pd.read_csv(fname, delimiter=',', header=0, dtype=dtypes, na_filter=False)
+
+            try:
+                net, sta, loc = os.path.basename(fname).split('.')[:3]
+                enz_count = 0
+                uvw_count = 0
+                for i in np.arange(len(df)):
+                    st = UTCDateTime(df['start'][i]).timestamp
+                    et = UTCDateTime(df['end'][i]).timestamp
+                    mode = df['mode'][i]
+
+                    if (mode == 'enz'):
+                        if (type(self.enz_map_tree[net][sta][loc]) != index.Index):
+                            self.enz_map_tree[net][sta][loc] = index.Index()
+                            self.enz_map_bounds[net][sta][loc] = []
+                        # end if
+
+                        self.enz_map_tree[net][sta][loc].insert(enz_count, (st, 1, et, 1))
+                        self.enz_map_bounds[net][sta][loc].append([st, et])
+                        enz_count += 1
+                    elif (mode == 'uvw'):
+                        if (type(self.uvw_map_tree[net][sta][loc]) != index.Index):
+                            self.uvw_map_tree[net][sta][loc] = index.Index()
+                            self.uvw_map_bounds[net][sta][loc] = []
+                        # end if
+                        self.uvw_map_tree[net][sta][loc].insert(uvw_count, (st, 1, et, 1))
+                        self.uvw_map_bounds[net][sta][loc].append([st, et])
+                        uvw_count += 1
+                        # end if
+                # end for
+            except Exception as e:
+                print('Warning: failed to read corrections file {} with error({}). '
+                      'Continuing along..'.format(fname, traceback.format_exc()))
+            # end try
+        # end for
+    # end func
+
+    def _get_overlap(self, net, sta, loc, st, et):
+        result = defaultdict(list)
+        enz_index = self.enz_map_tree[net][sta][loc]
+        uvw_index = self.uvw_map_tree[net][sta][loc]
+        if (type(enz_index) == index.Index):
+            enz_indices = list(enz_index.intersection((st.timestamp, 1, et.timestamp, 1)))
+            for i in enz_indices:
+                bst, bet = self.enz_map_bounds[net][sta][loc][i]
+                ost, oet = max(st.timestamp, bst), min(et.timestamp, bet)
+                result['enz'].append([ost, oet])
+            # end for
+        # end if
+        if (type(uvw_index) == index.Index):
+            uvw_indices = list(uvw_index.intersection((st.timestamp, 1, et.timestamp, 1)))
+            for i in uvw_indices:
+                bst, bet = self.uvw_map_bounds[net][sta][loc][i]
+                ost, oet = max(st.timestamp, bst), min(et.timestamp, bet)
+                result['uvw'].append([ost, oet])
+            # end for
+        # end if
+        return result
     # end func
 
     def _update_history(self):
@@ -795,8 +884,8 @@ class _FederatedASDFDataSetImpl():
         return num_traces
     # end func
 
-    def get_waveforms(self, network, station, location, channel, starttime,
-                      endtime, trace_count_threshold=200, nearest_sample=True):
+    def _get_waveforms_helper(self, network, station, location, channel, starttime,
+                              endtime, trace_count_threshold=200, nearest_sample=True):
 
         starttime = UTCDateTime(starttime)
         endtime = UTCDateTime(endtime)
@@ -870,6 +959,88 @@ class _FederatedASDFDataSetImpl():
         # end if
 
         return s
+    # end func
+    def get_waveforms(self, network, station, location, channel, starttime,
+                      endtime, trace_count_threshold=200, nearest_sample=True):
+        starttime = UTCDateTime(starttime)
+        endtime = UTCDateTime(endtime)
+        result = Stream()
+        olap = self._get_overlap(network, station, location, starttime, endtime)
+
+        if (len(olap) == 0):
+            result += self._get_waveforms_helper(network, station, location, channel, starttime,
+                                                 endtime, trace_count_threshold, nearest_sample)
+        else:
+            if (len(olap['enz'])):
+                for item in olap['enz']:
+                    result += self._get_waveforms_helper(network, station, location, channel, item[0],
+                                                         item[1], trace_count_threshold, nearest_sample)
+                # end for
+            # end if
+
+            if (len(olap['uvw'])):
+                ech = channel[:-1] + 'E';
+                nch = channel[:-1] + 'N';
+                zch = channel[:-1] + 'Z'
+                for item in olap['uvw']:
+                    ste = self._get_waveforms_helper(network, station, location, ech, item[0], item[1],
+                                                     trace_count_threshold, nearest_sample)
+                    stn = self._get_waveforms_helper(network, station, location, nch, item[0], item[1],
+                                                     trace_count_threshold, nearest_sample)
+                    stz = self._get_waveforms_helper(network, station, location, zch, item[0], item[1],
+                                                     trace_count_threshold, nearest_sample)
+
+                    if (len(stz) == 0): continue
+                    if (len(stn) == 0): continue
+                    if (len(ste) == 0): continue
+                    ste.sort(keys=["starttime"]);
+                    stn.sort(keys=["starttime"]);
+                    stz.sort(keys=["starttime"])
+
+                    i = j = k = 0
+                    while i < len(ste) and j < len(stn) and k < len(stz):
+                        tre = ste[i];
+                        trn = stn[j];
+                        trz = stz[k]
+                        # segment bounds for current traces
+                        e_st, e_et = tre.stats.starttime, tre.stats.endtime
+                        n_st, n_et = trn.stats.starttime, trn.stats.endtime
+                        z_st, z_et = trz.stats.starttime, trz.stats.endtime
+
+                        # common span among components
+                        comm_st = max(e_st, n_st, z_st)
+                        comm_et = min(e_et, n_et, z_et)
+                        if (comm_st < comm_et):
+                            tre_comm = tre.copy().trim(comm_st, comm_et, nearest_sample=nearest_sample, pad=False)
+                            trn_comm = trn.copy().trim(comm_st, comm_et, nearest_sample=nearest_sample, pad=False)
+                            trz_comm = trz.copy().trim(comm_st, comm_et, nearest_sample=nearest_sample, pad=False)
+
+                            if (tre_comm.data.shape == trn_comm.data.shape == trz_comm.data.shape):
+                                e, n, z = galperin_to_enz(tre_comm.data, trn_comm.data, trz_comm.data)
+                                tre_comm.data = e.astype(tre_comm.data.dtype)
+                                trn_comm.data = n.astype(trn_comm.data.dtype)
+                                trz_comm.data = z.astype(trz_comm.data.dtype)
+
+                                if (channel[-1] == 'E'):
+                                    result += tre_comm
+                                elif (channel[-1] == 'N'):
+                                    result += trn_comm
+                                elif (channel[-1] == 'Z'):
+                                    result += trz_comm
+                            else:
+                                print('mismatch found..')
+                            # end if
+                        # end if
+                        # advance exhausted components
+                        min_end = min(e_et, n_et, z_et)
+                        if e_et <= min_end: i += 1
+                        if n_et <= min_end: j += 1
+                        if z_et <= min_end: k += 1
+                    # end while
+                # end for
+            # end if
+        # end if
+        return result
     # end func
 
     def get_location_codes(self, network, station, starttime=None, endtime=None):
