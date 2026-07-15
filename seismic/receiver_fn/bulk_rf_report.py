@@ -290,12 +290,15 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    'applied before dereverberation. This flag has no effect if --hk-hpf-freq is not specified')
 @click.option('--disable-semblance-weighting', is_flag=True, default=False, show_default=True,
               help='Disables default semblance-weighting applied to H-k stacks')
+@click.option('--sort-by', type=click.Choice(['back_azimuth', 'onset']), default='back_azimuth', show_default=True,
+              help='Sort traces by baz|onset; default is by baz.')
 def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
          relax_sanity_checks=False, apply_simple_quality_filter=False, apply_similarity_filter=False,
          min_slope_ratio=-1, force_dereverberate=None, filter_by_distance=None,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
          hk_solution_labels=DEFAULT_HK_SOLN_LABEL, depth_colour_range=(20, 70),
-         hk_hpf_freq=None, hk_hpf_after_dereverberation=False, disable_semblance_weighting=False):
+         hk_hpf_freq=None, hk_hpf_after_dereverberation=False, disable_semblance_weighting=False,
+         sort_by='back_azimuth'):
 
     """
     INPUT_FILE : Input RFs in H5 format\n
@@ -445,7 +448,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 t_channel = ''.join(t_channel)
                 transverse_data = station_db[t_channel]
 
-                rf_stream = rf.RFStream(channel_data).sort(['back_azimuth'])
+                rf_stream = rf.RFStream(channel_data).sort([sort_by])
 
 
                 ###############################################################################
@@ -456,7 +459,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     event_mask = event_mask_dict[full_code]
                     before = len(rf_stream)
                     rf_stream = rf.RFStream(
-                        [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort(['back_azimuth'])
+                        [tr for tr in rf_stream if tr.stats.event_id in event_mask]).sort([sort_by])
                     after = len(rf_stream)
 
                     if (before > after):
@@ -523,7 +526,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     rf_util.label_rf_quality_simple_amplitude(rf_rot, rf_stream)
                     before = len(rf_stream)
                     rf_stream = rf.RFStream(
-                        [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort(['back_azimuth'])
+                        [tr for tr in rf_stream if tr.stats.predicted_quality == 'a']).sort([sort_by])
                     after = len(rf_stream)
                     log.info('{}: ({}/{}) traces dropped using predicted quality filter..'.
                              format(nsl,
@@ -541,7 +544,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 if(min_slope_ratio>0):
                     before = len(rf_stream)
                     rf_stream = rf.RFStream([tr for tr in rf_stream \
-                                             if tr.stats.slope_ratio > min_slope_ratio]).sort(['back_azimuth'])
+                                             if tr.stats.slope_ratio > min_slope_ratio]).sort([sort_by])
                     after = len(rf_stream)
                     log.info('{}: ({}/{}) traces dropped using min-slope-ratio filter..'.
                              format(nsl,
@@ -608,9 +611,9 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 num_traces = len(rf_stream)
 
                 rf_stream_raw = rf.RFStream(
-                    [tr for tr in rf_stream_raw if tr.stats.event_id in events]).sort(['back_azimuth'])
+                    [tr for tr in rf_stream_raw if tr.stats.event_id in events]).sort([sort_by])
                 t_stream = rf.RFStream(
-                    [tr for tr in transverse_data if tr.stats.event_id in events]).sort(['back_azimuth'])
+                    [tr for tr in transverse_data if tr.stats.event_id in events]).sort([sort_by])
                 assert len(t_stream) == num_traces or not t_stream
 
                 ############################################
@@ -649,7 +652,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # Plot raw RF stack of primary component
                 fig = rf_plot_utils.plot_rf_stack(rf_stream_raw, trace_height=trace_ht,
                                                   stack_height=fixed_stack_height_inches,
-                                                  fig_width=paper_size_A4[0])
+                                                  fig_width=paper_size_A4[0], sort_by=sort_by)
                 fig.suptitle("Channel {}".format(rf_stream[0].stats.channel))
                 # Customize layout to pack to top of page while preserving RF plots aspect ratios
                 _rf_layout_A4(fig)
@@ -661,7 +664,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     # Plot reverberation-filtered RF stack
                     fig = rf_plot_utils.plot_rf_stack(rf_stream, trace_height=trace_ht,
                                                       stack_height=fixed_stack_height_inches,
-                                                      fig_width=paper_size_A4[0])
+                                                      fig_width=paper_size_A4[0], sort_by=sort_by)
                     fig.suptitle("Channel {} (Reverberations removed)".format(rf_stream[0].stats.channel))
                     # Customize layout to pack to top of page while preserving RF plots aspect ratios
                     _rf_layout_A4(fig)
@@ -675,7 +678,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 if t_stream and rf_type == 'prf':
                     fig = rf_plot_utils.plot_rf_stack(t_stream, trace_height=trace_ht,
                                                       stack_height=fixed_stack_height_inches,
-                                                      fig_width=paper_size_A4[0])
+                                                      fig_width=paper_size_A4[0], sort_by=sort_by)
                     fig.suptitle("Channel {}".format(t_stream[0].stats.channel))
                     # Customize layout to pack to top of page while preserving RF plots aspect ratios
                     _rf_layout_A4(fig)
