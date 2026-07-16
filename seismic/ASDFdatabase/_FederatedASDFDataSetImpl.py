@@ -343,8 +343,10 @@ class _FederatedASDFDataSetImpl():
         self.modes_files = []
         self.enz_map_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         self.uvw_map_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.unknown_map_tree = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         self.enz_map_bounds = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         self.uvw_map_bounds = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.unknown_map_bounds = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
         # check to see if corrections are to be applied
         self.modes_enabled = False
@@ -373,6 +375,7 @@ class _FederatedASDFDataSetImpl():
                 net, sta, loc = os.path.basename(fname).split('.')[:3]
                 enz_count = 0
                 uvw_count = 0
+                unknown_count = 0
                 for i in np.arange(len(df)):
                     st = UTCDateTime(df['start'][i]).timestamp
                     et = UTCDateTime(df['end'][i]).timestamp
@@ -395,7 +398,15 @@ class _FederatedASDFDataSetImpl():
                         self.uvw_map_tree[net][sta][loc].insert(uvw_count, (st, 1, et, 1))
                         self.uvw_map_bounds[net][sta][loc].append([st, et])
                         uvw_count += 1
+                    elif (mode == 'unknown'):
+                        if (type(self.unknown_map_tree[net][sta][loc]) != index.Index):
+                            self.unknown_map_tree[net][sta][loc] = index.Index()
+                            self.unknown_map_bounds[net][sta][loc] = []
                         # end if
+                        self.unknown_map_tree[net][sta][loc].insert(unknown_count, (st, 1, et, 1))
+                        self.unknown_map_bounds[net][sta][loc].append([st, et])
+                        unknown_count += 1
+                    # end if
                 # end for
             except Exception as e:
                 print('Warning: failed to read corrections file {} with error({}). '
@@ -408,6 +419,7 @@ class _FederatedASDFDataSetImpl():
         result = defaultdict(list)
         enz_index = self.enz_map_tree[net][sta][loc]
         uvw_index = self.uvw_map_tree[net][sta][loc]
+        unknown_index = self.unknown_map_tree[net][sta][loc]
         if (type(enz_index) == index.Index):
             enz_indices = list(enz_index.intersection((st.timestamp, 1, et.timestamp, 1)))
             for i in enz_indices:
@@ -424,6 +436,15 @@ class _FederatedASDFDataSetImpl():
                 result['uvw'].append([ost, oet])
             # end for
         # end if
+        if (type(unknown_index) == index.Index):
+            unknown_indices = list(unknown_index.intersection((st.timestamp, 1, et.timestamp, 1)))
+            for i in unknown_indices:
+                bst, bet = self.unknown_map_bounds[net][sta][loc][i]
+                ost, oet = max(st.timestamp, bst), min(et.timestamp, bet)
+                result['unknown'].append([ost, oet])
+            # end for
+        # end if
+
         return result
     # end func
 
