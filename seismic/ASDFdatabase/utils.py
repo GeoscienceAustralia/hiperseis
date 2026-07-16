@@ -15,6 +15,28 @@ import copy
 MAX_DATE = UTCDateTime(4102444800.0) #2100-01-01
 MIN_DATE = UTCDateTime(-2208988800.0) #1900-01-01
 
+UVW2ENZ = (1 / np.sqrt(6)) * np.array([
+    [2.0, -1.0, -1.0],
+    [0.0,  np.sqrt(3), -np.sqrt(3)],
+    [np.sqrt(2), np.sqrt(2), np.sqrt(2)],
+])
+
+def galperin_to_enz(u, v, w):
+    """
+    Transform Galperin U, V, W components to orthonormal X, Y, Z.
+
+    Parameters: u, v, w : array-like Galperin components.
+    Returns
+    -------
+    e, n, z : ndarray Orthogonal Cartesian components.
+    """
+    ts_uvw = np.array([u, v, w])
+
+    e, n, z = UVW2ENZ @ ts_uvw
+
+    return e, n, z
+# end func
+
 def get_file_signature(file_path):
     """Return a dictionary of key file attributes to track changes, including absolute path."""
     abs_path = os.path.abspath(file_path)

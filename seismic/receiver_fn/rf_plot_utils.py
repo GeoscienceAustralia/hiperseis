@@ -20,7 +20,7 @@ import rf
 
 logging.basicConfig()
 
-def revert_baz(rf_stream):
+def revert_baz(rf_stream, sort_by='back_azimuth'):
     def apply(st):
         for tr in st:
             if('orig_back_azimuth' in tr.stats.keys()):
@@ -28,7 +28,7 @@ def revert_baz(rf_stream):
             # end it
         # end for
 
-        st.sort(['back_azimuth'])
+        if(sort_by=='back_azimuth'): st.sort([sort_by])
         return st
     # end func
 
@@ -72,7 +72,8 @@ def plot_rf_psd(rf_stream, ax, time_window=(-10.0, 30.0), min_slope_ratio=-1):
     # end if
 # end func
 
-def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_height=0.8, save_file=None, **kwargs):
+def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_height=0.8, save_file=None,
+                  sort_by='back_azimuth', **kwargs):
     """Wrapper function of rf.RFStream.plot_rf() to help do RF plotting with consistent formatting and layout.
 
     :param rf_stream: RFStream to plot
@@ -90,7 +91,7 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
     """
     # Ensure traces are stackable by ignoring those that don't conform to the predominant data shape
 
-    rf_stream = revert_baz(rf_stream)
+    rf_stream = revert_baz(rf_stream, sort_by=sort_by)
 
     if(time_window): rf_stream = rf_stream.copy().slice2(*time_window, reftime='onset')
 
@@ -105,6 +106,22 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
     fig = stackable_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window,
                                    trace_height=trace_height, stack_height=stack_height,
                                    fname=save_file, show_vlines=True, **kwargs)
+
+    # label RFs by onset time (useful for debugging)
+    ax = fig.axes[0]
+    for i, line in enumerate(ax.lines):
+        xdata = line.get_xdata()
+        ydata = line.get_ydata()
+        label = stackable_stream[i].stats['onset'].strftime("%Y-%m-%dT%H:%M:%S")
+        ax.annotate(label,
+            xy=(xdata[0], ydata[0]+0.15),
+            xytext=(5, 0),
+            textcoords="offset points",
+            va="center",
+            color=line.get_color(),
+            fontsize=4)
+    # end for
+
     return fig
 # end func
 
