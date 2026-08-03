@@ -191,7 +191,7 @@ def extract_data(recording_timespan_getter, waveform_getter,
     assert wave in ['P', 'S', 'SW'], 'Only P, S and SW (surface wave) is supported. Aborting..'
 
     # initialize phase-map dict
-    phase_map = defaultdict(str) # seconds
+    phase_map = defaultdict(str)
     phase_map['P'] = 'P'
     phase_map['S'] = 'S'
     # for surface-waves we use the default phase (P), but internally, safe_iter_event_data
@@ -199,7 +199,7 @@ def extract_data(recording_timespan_getter, waveform_getter,
     phase_map['SW'] = 'P'
 
     # initialize dict that indicates whether rfstats should be generated
-    rfstats_map = defaultdict(bool) # seconds
+    rfstats_map = defaultdict(bool)
     rfstats_map['P'] = True
     rfstats_map['S'] = True
     rfstats_map['SW'] = False # for surface-waves we don't need rfstats
@@ -307,6 +307,7 @@ def extract_data(recording_timespan_getter, waveform_getter,
                                           phase=phase_map[wave],
                                           tt_model=tt_model, pbar=None,
                                           request_window=request_window,
+                                          dist_range=distance_range,
                                           pad=pad, status=status, log=log):
                 # Write traces to output file in append mode so that arbitrarily large file
                 # can be processed. If the file already exists, then existing streams will
