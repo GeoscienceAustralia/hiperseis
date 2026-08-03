@@ -108,20 +108,21 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
                                    fname=save_file, show_vlines=True, **kwargs)
 
     # label RFs by onset time (useful for debugging)
-    ax = fig.axes[0]
-    for i, line in enumerate(ax.lines):
-        xdata = line.get_xdata()
-        ydata = line.get_ydata()
-        label = stackable_stream[i].stats['onset'].strftime("%Y-%m-%dT%H:%M:%S")
-        ax.annotate(label,
-            xy=(xdata[0], ydata[0]+0.15),
-            xytext=(5, 0),
-            textcoords="offset points",
-            va="center",
-            color=line.get_color(),
-            fontsize=4)
-    # end for
-
+    if(fig):
+        ax = fig.axes[0]
+        for i, line in enumerate(ax.lines):
+            xdata = line.get_xdata()
+            ydata = line.get_ydata()
+            label = stackable_stream[i].stats['onset'].strftime("%Y-%m-%dT%H:%M:%S")
+            ax.annotate(label,
+                xy=(xdata[0], ydata[0]+0.15),
+                xytext=(5, 0),
+                textcoords="offset points",
+                va="center",
+                color=line.get_color(),
+                fontsize=4)
+        # end for
+    # end if
     return fig
 # end func
 
