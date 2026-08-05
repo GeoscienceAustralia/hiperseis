@@ -39,6 +39,12 @@ f = open(asdf_file_list, 'w+')
 f.write('%s/asdf_test_data.h5'%(tempdir))
 f.close()
 
+# Copy gps and mode corrections files
+cmd = 'cp -r %s/data/corrections %s'%(path, '%s/.corrections'%(tempdir))
+os.system(cmd)
+cmd = 'cp -r %s/data/modes %s'%(path, '%s/.modes'%(tempdir))
+os.system(cmd)
+
 @pytest.fixture(params=[0.0025, 0.01, 0.04])
 def buffer_mb(request):
     # the first value above triggers _FederatedASDFDataSetImpl to
@@ -184,3 +190,65 @@ def test_get_waveform(buffer_mb):
     # end for
 # end func
 
+def test_gps_corrections():
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler('%s/log.txt'%(tempdir), mode='w')
+    handler.setFormatter(formatter)
+    logger = logging.getLogger('test')
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+
+    # instantiate instances of FederatedASDFDataSet with and without clock
+    # corrections enabled
+    n, s, l, c = 'AU', 'CTA', '', 'BHZ'
+    fds = FederatedASDFDataSet(asdf_file_list, logger=logger)
+
+    os.environ['GPS_CLOCK_CORRECTION'] = '1'
+    fdsc = FederatedASDFDataSet(asdf_file_list, logger=logger)
+
+    stream = fds.get_waveforms(n, s, l, c, '1900-01-01T00:00:00', '2100-01-01T00:00:00',
+                               trace_count_threshold=1e4)
+    streamc = fdsc.get_waveforms(n, s, l, c, '1900-01-01T00:00:00', '2100-01-01T00:00:00',
+                                 trace_count_threshold=1e4)
+
+    # note that number of traces returned w/wo clock corrections are slightly different
+    # due to the way traces are day-split and corrections applied.
+    logger.info('%s.%s: %d traces fetched without corrections'%(n, s, len(stream)))
+    logger.info('%s.%s: %d traces fetched with corrections' % (n, s, len(streamc)))
+
+    # a 5-second correction exists only for station CTA between 2001-04-21 to 2001-04-24
+    for tr, trc in zip(stream.slice(UTCDateTime('2001-04-21'), UTCDateTime('2001-04-24')),
+                       streamc.slice(UTCDateTime('2001-04-21'), UTCDateTime('2001-04-24'))):
+        if(len(tr.data)>1):
+            assert tr.stats.starttime == trc.stats.starttime + 5
+            assert tr.stats.endtime == trc.stats.endtime + 5
+        # end if
+    # end for
+# end func
+
+def test_mode_corrections():
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler = logging.FileHandler('%s/log.txt'%(tempdir), mode='w')
+    handler.setFormatter(formatter)
+    logger = logging.getLogger('test')
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+
+    # instantiate instances of FederatedASDFDataSet with and without clock
+    # corrections enabled
+    n, s, l, c = 'AU', 'CTA', '', 'BHZ'
+    fds = FederatedASDFDataSet(asdf_file_list, logger=logger)
+
+    os.environ['MODE_CORRECTION'] = '1'
+    fdsc = FederatedASDFDataSet(asdf_file_list, logger=logger)
+
+    # mode corrections exist for station CTA between 2001-04-21 to 2001-04-24
+    stream = fds.get_waveforms(n, s, l, c, '2001-04-22', '2001-04-23',
+                               trace_count_threshold=1e4).merge()
+    streamc = fdsc.get_waveforms(n, s, l, c, '2001-04-22', '2001-04-23',
+                                 trace_count_threshold=1e4).merge()
+    logger.info('%s.%s: %d traces fetched without corrections'%(n, s, len(stream)))
+    logger.info('%s.%s: %d traces fetched with corrections' % (n, s, len(streamc)))
+
+    assert not np.allclose(stream[0].data, streamc[0].data) # UVW-corrected data should be different
+# end func
