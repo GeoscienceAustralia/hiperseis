@@ -108,7 +108,8 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
     loc = channel_data[0].stats.location
     channel = channel_data[0].stats.channel
     num = len(channel_data)
-    title = '.'.join([sta, loc, channel])
+    slc = '.'.join([sta, loc, channel])
+    title = r'{} (traditional H-$\kappa$ stack)'.format(slc)
 
     fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, hk_stack, title=title, num=num,
                                       depth_colour_range=depth_colour_range,
@@ -380,6 +381,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
     pdf_names = []
     hk_soln = dict()
+    k_vp_h_soln = dict()
     sediment_hk_soln = dict()
     station_coords = dict()
     sediment_station_coords = dict()
@@ -691,6 +693,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 # Plot H-k stack using primary RF component. Only applicable for P RFs
                 ######################################################################
                 if(rf_type == 'prf'):
+                    # traditional stacking
                     fig, maxima = _produce_hk_stacking(rf_stream, Vp=hk_vp, weighting=hk_weights,
                                                        semblance_weighted=(not disable_semblance_weighting),
                                                        labelling=hk_solution_labels,
@@ -706,17 +709,29 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                     pdf.savefig(dpi=300, orientation='landscape')
                     plt.close()
 
-                    # 2-stage stacking
+                    # 2-stage k-Vp-h stacking
                     fig, axes = plt.subplots(1, 2)
                     fig.set_size_inches(*paper_landscape)
 
-                    k, Vp, k_grid, vp_grid, stack, ntraces_used = rf_stacking.estimate_k_vp(rf_stream)
-                    rf_plot_utils.plot_k_vp_stack(axes[0], k_grid, vp_grid, stack, num=ntraces_used)
+                    result = rf_stacking.estimate_k_vp(rf_stream)
+                    if(result is not None):
+                        k, Vp, k_grid, vp_grid, stack, ntraces_used = result
+                        rf_plot_utils.plot_k_vp_stack(axes[0], k_grid, vp_grid, stack, num=ntraces_used)
 
-                    hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, Vp, k)
-                    rf_plot_utils.plot_h_estimates(axes[1], h_grid, stack, hlist)
-                    pdf.savefig(dpi=300, orientation='landscape')
-                    plt.close()
+                        hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, Vp, k, num_estimates=1)
+                        k_vp_h_soln[nsl] = [k, Vp, hlist[0]]
+
+                        sta = channel_data[0].stats.station
+                        loc = channel_data[0].stats.location
+                        channel = channel_data[0].stats.channel
+                        slc = '.'.join([sta, loc, channel])
+                        title = r'{} (2 stage $\kappa$-$V_p$-$H$ stack)'.format(slc)
+                        fig.suptitle(title, fontsize=16)
+
+                        rf_plot_utils.plot_h_estimates(axes[1], h_grid, stack, hlist)
+                        pdf.savefig(dpi=300, orientation='landscape')
+                        plt.close()
+                    # end if
 
                     if reverberations_removed:
                         if(len(hk_soln[nsl])):
@@ -744,6 +759,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
     # gather hk_soln, sediment_hk_soln and associated coordinates on rank 0
     hk_soln = comm.gather(hk_soln, root=0)
+    k_vp_h_soln = comm.gather(k_vp_h_soln, root=0)
     sediment_hk_soln = comm.gather(sediment_hk_soln, root=0)
     station_coords = comm.gather(station_coords, root=0)
     sediment_station_coords = comm.gather(sediment_station_coords, root=0)
@@ -756,14 +772,15 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
         #end func
 
         hk_soln = flatten_dict_list(hk_soln)
+        k_vp_h_soln = flatten_dict_list(k_vp_h_soln)
         sediment_hk_soln = flatten_dict_list(sediment_hk_soln)
         station_coords = flatten_dict_list(station_coords)
         sediment_station_coords = flatten_dict_list(sediment_station_coords)
         # write solutions to csv files
-        for result_hk, result_coords, fname in zip([hk_soln, sediment_hk_soln],
+        for i, (result_hk, result_coords, fname) in enumerate(zip([hk_soln, sediment_hk_soln],
                                                      [station_coords, sediment_station_coords],
                                                      [os.path.splitext(output_file)[0] + '.csv',
-                                                      os.path.splitext(output_file)[0] + '.sed.csv']):
+                                                      os.path.splitext(output_file)[0] + '.sed.csv'])):
             assert len(result_hk) == len(result_coords)
 
             if(len(result_hk) == 0): continue
@@ -774,6 +791,7 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                 sorted_hks = sorted([tuple(hk) for hk in hks])
                 update_dict[nsl] = np.array(list(result_coords[nsl]) + [i for hk in sorted_hks for i in hk])
             # end for
+
             result_hk.update(update_dict)
 
             df = pd.DataFrame.from_dict(result_hk, orient='index')
@@ -782,11 +800,23 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
             df.columns = colnames
             df.index.name = 'Station'
 
-            # write formatted csv file (not currently supported by pandas)
-            hcolnames = ['Station'] + colnames
+            # Append available k-Vp-h estimates
+            if(i == 0):
+                df['two_stage_k'] = np.nan
+                df['two_stage_Vp'] = np.nan
+                df['two_stage_H'] = np.nan
+                for nsl, k_vp_h in k_vp_h_soln.items():
+                    df.loc[df.index == nsl, 'two_stage_k'] = k_vp_h[0]
+                    df.loc[df.index == nsl, 'two_stage_Vp'] = k_vp_h[1]
+                    df.loc[df.index == nsl, 'two_stage_H'] = k_vp_h[2]
+                # end for
+            # end if
 
-            hformatter = '{:>15s}, ' + ', '.join(['{:>10s}']*len(hcolnames[1:])) + '\n'
-            lineformatter = '{:>15s}, ' + ', '.join(['{:>10.3f}']*len(hcolnames[1:])) + '\n'
+            # write formatted csv file (not currently supported by pandas)
+            hcolnames = ['Station'] + list(df.columns)
+
+            hformatter = '{:>15s}, ' + ', '.join(['{:>12s}']*len(hcolnames[1:])) + '\n'
+            lineformatter = '{:>15s}, ' + ', '.join(['{:>12.3f}']*len(hcolnames[1:])) + '\n'
 
             header = hformatter.format(*hcolnames)
             with open(fname, 'w+') as fh:

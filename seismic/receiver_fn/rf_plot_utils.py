@@ -99,7 +99,11 @@ def plot_rf_stack(rf_stream, time_window=(-10.0, 30.0), trace_height=0.2, stack_
     stackable_stream = rf_util.get_stackable_stream(rf_stream)
     num_stackable = len(stackable_stream)
     if num_stackable < len(rf_stream):
-        logging.warning('Removed {} traces from RF plot to make it stackable!'.format(num_stackable))
+        num_dropped = len(rf_stream) - num_stackable
+        nsl = '.'.join([rf_stream[0].stats.network,
+                        rf_stream[0].stats.station,
+                        rf_stream[0].stats.location])
+        logging.warning('Removed {} traces from {} in {} to make stream stackable!'.format(num_dropped, nsl, __name__))
     # end if
 
     fig = stackable_stream.plot_rf(fillcolors=('#000000', '#a0a0a0'), trim=time_window,

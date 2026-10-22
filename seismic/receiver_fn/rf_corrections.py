@@ -54,7 +54,12 @@ class ResonanceFilter:
 
         num_stackable = len(stackable_stream)
         if num_stackable < len(cha_stream):
-            print('Removed {} traces from in ResonanceFilter to make stream stackable!'.format(num_stackable))
+            num_dropped = len(cha_stream) - num_stackable
+            nsl = '.'.join([cha_stream[0].stats.network,
+                            cha_stream[0].stats.station,
+                            cha_stream[0].stats.location])
+            logging.warning('Removed {} traces from {} in {} '
+                            'to make stream stackable!'.format(num_dropped, nsl, __name__))
         # end if
 
         # compute mean RF

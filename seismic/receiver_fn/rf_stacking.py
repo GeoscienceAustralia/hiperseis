@@ -382,7 +382,11 @@ def get_moho_conversions(rfc_stream):
     stackable_stream = rf_util.get_stackable_stream(rfc_stream)
     num_stackable = len(stackable_stream)
     if num_stackable < len(rfc_stream):
-        print('Removed {} traces from RF plot to make it stackable!'.format(num_stackable))
+        num_dropped = len(rfc_stream) - num_stackable
+        nsl = '.'.join([rfc_stream[0].stats.network,
+                        rfc_stream[0].stats.station,
+                        rfc_stream[0].stats.location])
+        logging.warning('Removed {} traces from {} in {} to make stream stackable!'.format(num_dropped, nsl, __name__))
     # end if
 
     # compute mean RF
@@ -402,10 +406,11 @@ def get_moho_conversions(rfc_stream):
         for itrc, trc in enumerate(rfc_stream):
             p = trc.stats.slowness / DEG2KM
 
-            # find PmS for each trace and compare with that from the mean trace
+            # find PmS for each trace, comparing with that from the mean trace
             peaks, rtimes = get_rf_peaks(trc)
             if (len(peaks) >= 2):
-                tpms = rtimes[peaks[1]]
+                peak_idx = np.argmin(np.fabs(mean_tpms - rtimes[peaks]))
+                tpms = rtimes[peaks[peak_idx]]
 
                 if (np.fabs(mean_tpms - tpms) <= 1):
                     tpms_list.append(tpms)
@@ -436,7 +441,16 @@ def gaussian_pulse(times, centre_time, fwhm_seconds=0.5, amplitude=1):
 
 def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
                   k_range=DEFAULT_k_RANGE_SPARSE, weights=DEFAULT_WEIGHTS,
-                  root_order=2):
+                  phase_delta_t=1, root_order=2):
+    """
+    @param rfc_stream:
+    @param vp_range:
+    @param k_range:
+    @param weights:
+    @param phase_delta_t: +/- delta t around putative phase arrival time used to locate actual arrival during stacking
+    @param root_order:
+    @return:
+    """
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
 
@@ -475,27 +489,44 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
 
         row = []
         for t, polarity in zip((t1, t2, t3), (1, 1, -1)):
-            g = gaussian_pulse(times, t, fwhm_seconds=0.5)
-            row.append(np.einsum('ijk,k->ij', g, trc.data) * polarity)
+            # window to look for phase within: shape(51, 31, 2000)
+            inside = (times[None, None, :] > (t[..., None] - phase_delta_t)) & \
+                     (times[None, None, :] < (t[..., None] + phase_delta_t))
+            # peak indices: shape(51, 31)
+            peak_indices = np.argmax(np.where(inside, trc.data[None, None, :], -np.inf), axis=-1)
+            g_bool = np.zeros(inside.shape)
+            np.put_along_axis(g_bool, peak_indices[..., None], True, axis=-1)
+
+            row.append(np.einsum('ijk,k->ij', g_bool, trc.data) * polarity)
         # end for
         tphase_amps.append(row)
     # end for
     tphase_amps = np.array(tphase_amps)
 
-    stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
-    stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
+    if(len(tphase_amps) > 0):
+        stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
+        stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
 
-    mi = np.unravel_index(np.argmax(stack), stack.shape)
+        mi = np.unravel_index(np.argmax(stack), stack.shape)
+        for i in np.arange(stack.ndim):
+            # max index must be an interior grid point, otherwise the estimate is considered weak
+            if((mi[i] == 0) or (mi[i] == (stack.shape[i] - 1))):
+                return None
+            # end if
+        # end for
 
-    if(0):
-        fig, axes = plt.subplots(1, 2)
-        fig.set_size_inches(20, 10)
-        cbi = axes[0].contourf(k_grid, vp_grid, stack, levels=20, cmap='jet')
-        axes[0].scatter(k_grid[mi], vp_grid[mi], s=100, marker='x', c='k')
+        if(0):
+            fig, axes = plt.subplots(1, 2)
+            fig.set_size_inches(20, 10)
+            cbi = axes[0].contourf(k_grid, vp_grid, stack, levels=20, cmap='jet')
+            axes[0].scatter(k_grid[mi], vp_grid[mi], s=100, marker='x', c='k')
+        # end if
+
+        k, Vp = k_grid[mi], vp_grid[mi]
+        return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
+    else:
+        return None
     # end if
-
-    k, Vp = k_grid[mi], vp_grid[mi]
-    return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
 # end func
 
 def estimate_H(rfc_stream, vp, k, h_range=DEFAULT_H_RANGE, root_order=2, num_estimates=3):
@@ -549,7 +580,7 @@ def estimate_H(rfc_stream, vp, k, h_range=DEFAULT_H_RANGE, root_order=2, num_est
     stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
 
     # create a list of H estimates
-    peaks, _ = find_peaks(stack, height=0)
+    peaks, _ = find_peaks(stack, height=0, distance=30)
     prominences = peak_prominences(stack, peaks)[0]
     order = np.argsort(prominences)
     peaks = peaks[order[::-1]]
