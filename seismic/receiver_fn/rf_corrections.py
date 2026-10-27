@@ -48,6 +48,8 @@ class ResonanceFilter:
         @param autocorr_window: window (seconds) over which autocorrelations are computed
         Creates a resonance filter and associated attributes
         """
+        log = logging.getLogger(__name__)
+
         self.autocorr_window = autocorr_window
 
         stackable_stream = rf_util.get_stackable_stream(cha_stream)
@@ -91,8 +93,17 @@ class ResonanceFilter:
             return c * np.exp(-a * t) * np.cos(np.pi * t / p)
 
         # end func
-        opt, _ = curve_fit(func, times, af)
-        af_fitted = func(times, *opt)
+        af_fitted = None
+        try:
+            opt, _ = curve_fit(func, times, af, maxfev=len(times)*100)
+            af_fitted = func(times, *opt)
+        except Exception as e:
+            log.warning('curve_fit failed for station: {}.{}.{}. '
+                        'Using autocorrelation of mean RF as a fallback.'.format(mtr.stats.network,
+                                                                                 mtr.stats.station,
+                                                                                 mtr.stats.location))
+            af_fitted = af
+        # end try
 
         if(0):
             fig, ax = plt.subplots()

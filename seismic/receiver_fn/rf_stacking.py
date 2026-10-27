@@ -27,8 +27,10 @@ DEFAULT_H_RANGE = np.linspace(20.0, 70.0, 501)
 DEFAULT_k_RANGE = np.linspace(1.5, 2.0, 301)
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
 # grids for 2-stage stacking
-DEFAULT_Vp_RANGE_SPARSE = np.linspace(6, 7.5, 51)
-DEFAULT_k_RANGE_SPARSE = np.linspace(1.5, 2, 31)
+#DEFAULT_Vp_RANGE_SPARSE = np.linspace(6, 7.5, 51)
+#DEFAULT_k_RANGE_SPARSE = np.linspace(1.5, 2, 31)
+DEFAULT_Vp_RANGE_SPARSE = np.linspace(4, 7.5, 51)
+DEFAULT_k_RANGE_SPARSE = np.linspace(1.55, 3, 31)
 
 DEFAULT_SED_H_RANGE = np.linspace(0.01, 10, 35)
 DEFAULT_SED_k_RANGE = np.linspace(1.0, 5.0, 21)
@@ -132,7 +134,8 @@ def compute_hk_stack(cha_data, Vp=DEFAULT_Vp, h_range=None, k_range=None,
 # end func
 
 def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, root_order=9):
-    """Compute H-k stacking array on a dataset of receiver functions.
+    """Compute H-k stacking array on a dataset of receiver functions. Refer to Yu et al. (2015)
+    section 2.4 for further details.
 
     :param cha_data: List or iterable of RF traces to use for H-k stacking.
     :type cha_data: Iterable(rf.RFTrace)
