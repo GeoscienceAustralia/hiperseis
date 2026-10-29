@@ -30,7 +30,8 @@ import uuid
 from shutil import rmtree
 from collections import defaultdict
 from seismic.misc import split_list
-from seismic.misc import setup_logger
+from seismic.misc import setup_logger, print_exception
+from seismic.misc_p import parallel_abort
 
 paper_size_A4 = (8.27, 11.69)  # inches
 DEFAULT_HK_SOLN_LABEL = 'global'
@@ -126,12 +127,12 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
     # Find and label location of maximum
     soln = []
     if labelling == 'global':
-        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
-        soln = [(h_max, k_max)]
-        if(log): log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+        k_max, h_max = rf_stacking.find_global_maximum(k_grid, h_grid, hk_stack)
+        soln = [(k_max, h_max)]
+        if(log): log.info("Numerical solution (k, H) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
-        soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
-        if(log): log.info("Numerical solutions (H, k) = {}".format(soln))
+        soln = rf_stacking.find_local_maxima(k_grid, h_grid, hk_stack)
+        if(log): log.info("Numerical solutions (k, H) = {}".format(soln))
     # end if
 
     # ==========================================================================
@@ -150,7 +151,7 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
 
         return t1, t2, t3
     # end func
-    for i, (h, k) in enumerate(soln):
+    for i, (k, h) in enumerate(soln):
         phase_time_dict = {}
         p_array = np.array([trc.stats.slowness / rf_stacking.DEG2KM for trc in channel_data])
         p_mean = np.mean(p_array)
@@ -196,16 +197,16 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
     # Find and label location of maximum
     soln = []
     if labelling == 'global':
-        h_max, k_max = rf_stacking.find_global_hk_maximum(k_grid, h_grid, hk_stack)
-        soln = [(h_max, k_max)]
-        if(log): log.info("Numerical solution (H, k) = ({:.3f}, {:.3f})".format(*soln[0]))
+        k_max, h_max = rf_stacking.find_global_maximum(k_grid, h_grid, hk_stack)
+        soln = [(k_max, h_max)]
+        if(log): log.info("Numerical solution (k, H) = ({:.3f}, {:.3f})".format(*soln[0]))
     elif labelling == 'local':
-        soln = rf_stacking.find_local_hk_maxima(k_grid, h_grid, hk_stack)
-        if(log): log.info("Numerical solutions (H, k) = {}".format(soln))
+        soln = rf_stacking.find_local_maxima(k_grid, h_grid, hk_stack)
+        if(log): log.info("Numerical solutions (k, H) = {}".format(soln))
     # end if
 
     # Plot the local maxima
-    for i, (h, k) in enumerate(soln):
+    for i, (k, h) in enumerate(soln):
         _plot_hk_solution_point(plt.gca(), k, h, i)
     # end for
 
@@ -240,6 +241,50 @@ def _plot_hk_solution_point(axes, k, h, idx, phase_time_dict=None):
     # end if
 # end func
 
+def read_merge_file(merge_fn, rf_file):
+    merge_dict = defaultdict(list)
+    try:
+        lines = open(merge_fn, 'r').readlines()
+        lines = [line.strip() for line in lines]
+        for line in lines:
+            src, dest = line.split(',')
+            src, dest = src.strip(), dest.strip()
+            for item in [src, dest]:
+                if(len(item.split('.')) != 3): raise ValueError('Invalid format: {}. NET.STA.LOC triplets expected.')
+            # end for
+            merge_dict[dest].append(src)
+        # end for
+    except Exception as e:
+        print_exception(e)
+        parallel_abort('failed to read {}'.format(merge_fn))
+    # end try
+
+    # ensure all stations listed in merge_stations_file are available
+    if (len(merge_dict)):
+        proc_hdfkeys = get_obspyh5_index(rf_file, seeds_only=True)
+        proc_hdfkeys_set = set(proc_hdfkeys)
+        not_found = None
+        for k, v in merge_dict.items():
+            if k not in proc_hdfkeys_set:
+                not_found = k
+                break
+            # end if
+
+            for item in v:
+                if item not in proc_hdfkeys_set:
+                    not_found = item
+                    break
+                # end if
+            # end for
+            if (not_found is not None): break
+        # end for
+        if (not_found is not None):
+            parallel_abort('Station {} listed in {} is not available in {}. Aborting..', logger=log)
+        # end if
+    # end if
+    return merge_dict
+# end func
+
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -249,6 +294,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
                                                   'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
+@click.option('--merge-stations-file', type=click.Path(exists=True, dir_okay=False),
+              help='A text file containing two comma-separated columns listing source and destination '
+                   'N.S.L triplets e.g. OA.AI33A., OA.AI33. -- RF traces from stations in the first column '
+                   'are renamed and merged with those from the second column.', show_default=True)
 @click.option('--event-mask-folder', type=click.Path(dir_okay=True, exists=True, file_okay=False),
               help='Folder containing event masks to use to filter traces. Such masks are generated '
                    'using rf_handpick_tool')
@@ -293,7 +342,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Disables default semblance-weighting applied to H-k stacks')
 @click.option('--sort-by', type=click.Choice(['back_azimuth', 'onset']), default='back_azimuth', show_default=True,
               help='Sort traces by baz|onset; default is by baz.')
-def main(input_file, output_file, network_list='*', station_list='*', event_mask_folder='',
+def main(input_file, output_file, network_list='*', station_list='*', merge_stations_file=None, event_mask_folder='',
          relax_sanity_checks=False, apply_simple_quality_filter=False, apply_similarity_filter=False,
          min_slope_ratio=-1, force_dereverberate=None, filter_by_distance=None,
          hk_vp=rf_stacking.DEFAULT_Vp, hk_weights=rf_stacking.DEFAULT_WEIGHTS,
@@ -308,6 +357,10 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     """
 
     log = setup_logger('__func__', log_file=os.path.splitext(output_file)[0] + '.log')
+
+    # load stations to be merged
+    merge_dict = defaultdict(list)
+    if(merge_stations_file is not None): merge_dict = read_merge_file(merge_stations_file, input_file)
 
     # check parameter compatibility
     if(relax_sanity_checks and apply_simple_quality_filter):
@@ -387,7 +440,20 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
     sediment_station_coords = dict()
 
     for proc_hdfkey in proc_hdfkeys[rank]:
-        data_all = rf.read_rf(input_file, format='h5', group='waveforms/%s'%(proc_hdfkey))
+        data_all = None
+        if(merge_dict is not None):
+            # check if station is getting merged, in which case, skipp processing
+            is_merged = False
+            for k, v in merge_dict.items(): is_merged = True if proc_hdfkey in v else False
+            if(is_merged): continue
+
+            if(len(merge_dict[proc_hdfkey]) > 0):
+                log.info('Merging: {} -> {}'.format(merge_dict[proc_hdfkey], proc_hdfkey))
+            else:
+                data_all = rf.read_rf(input_file, format='h5', group='waveforms/%s'%(proc_hdfkey))
+            # end if
+        # end if
+
         # Convert to hierarchical dictionary format
         data_dict = rf_util.rf_to_dict(data_all)
 
@@ -721,6 +787,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
                         hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, Vp, k, num_estimates=1)
                         k_vp_h_soln[nsl] = [k, Vp, hlist[0]]
 
+                        rf_plot_utils.plot_k_vp_solution_point(axes[0], [[k, Vp]])
+
                         sta = channel_data[0].stats.station
                         loc = channel_data[0].stats.location
                         channel = channel_data[0].stats.channel
@@ -735,8 +803,8 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
                     if reverberations_removed:
                         if(len(hk_soln[nsl])):
-                            H_c = hk_soln[nsl][0][0]
-                            k_c = hk_soln[nsl][0][1]
+                            k_c = hk_soln[nsl][0][0]
+                            H_c = hk_soln[nsl][0][1]
                             fig, maxima = _produce_sediment_hk_stacking(rf_stream, H_c=H_c, k_c=k_c, Vp=hk_vp, log=log)
                             sediment_hk_soln[nsl] = maxima
 
@@ -785,17 +853,15 @@ def main(input_file, output_file, network_list='*', station_list='*', event_mask
 
             if(len(result_hk) == 0): continue
 
-            # Sort H-k solutions by depth from low to high
+            # Convert results to arrays
             update_dict = {}
             for nsl, hks in result_hk.items():
-                sorted_hks = sorted([tuple(hk) for hk in hks])
-                update_dict[nsl] = np.array(list(result_coords[nsl]) + [i for hk in sorted_hks for i in hk])
+                update_dict[nsl] = np.array(list(result_coords[nsl]) + [i for hk in hks for i in hk])
             # end for
-
             result_hk.update(update_dict)
 
             df = pd.DataFrame.from_dict(result_hk, orient='index')
-            colnames = [('H{}'.format(i), 'k{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
+            colnames = [('k{}'.format(i), 'H{}'.format(i)) for i in range((len(df.columns) - 2)//2)]
             colnames = ['Longitude', 'Latitude'] + list(itertools.chain.from_iterable(colnames))
             df.columns = colnames
             df.index.name = 'Station'

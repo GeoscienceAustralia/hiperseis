@@ -427,9 +427,6 @@ def plot_k_vp_stack(ax, k_grid, vp_grid, stack, title=None, num=None,
     :return: Handle to the figure created for the plot
     :rtype: matplotlib.figure.Figure
     """
-    mi = np.unravel_index(np.argmax(stack), stack.shape)
-    k, Vp = k_grid[mi], vp_grid[mi]
-
     cmap = plt.cm.get_cmap('rainbow')
 
     if clip_negative:
@@ -453,15 +450,6 @@ def plot_k_vp_stack(ax, k_grid, vp_grid, stack, title=None, num=None,
     ax.set_xlim(np.min(k_grid), np.max(k_grid))
     ax.set_ylim(np.min(vp_grid), np.max(vp_grid))
 
-    ax.scatter(k_grid[mi], vp_grid[mi], s=20, marker='+', c='k')
-
-    xl = ax.get_xlim()
-    x = np.mean(np.array(ax.get_xlim()))
-    x1 = x + (xl[1] - x) * 0.55
-    ax.text(x, Vp, r"$\kappa$={:.3f}, $V_p$={:.3f}".format(k, Vp),
-            color="#000000", fontsize=12, horizontalalignment='left',
-            clip_on=False)
-
     if num is not None:
         xl = ax.get_xlim()
         yl = ax.get_ylim()
@@ -470,6 +458,18 @@ def plot_k_vp_stack(ax, k_grid, vp_grid, stack, title=None, num=None,
         ax.text(txt_x, txt_y, "N = {}".format(num), horizontalalignment='right',
                 color="#ffffff", fontsize=16, fontweight='bold', rasterized=True)
     # end if
+# end func
+
+def plot_k_vp_solution_point(ax, soln):
+    for k, Vp in soln:
+        ax.scatter(k, Vp, s=20, marker='+', c='k')
+
+        xl = ax.get_xlim()
+        x = np.mean(np.array(ax.get_xlim()))
+        ax.text(x, Vp, r"$\kappa$={:.3f}, $V_p$={:.3f}".format(k, Vp),
+                color="#000000", fontsize=12, horizontalalignment='left',
+                clip_on=False)
+    # end for
 # end func
 
 def plot_h_estimates(ax, h_grid, stack, hlist, title=None):

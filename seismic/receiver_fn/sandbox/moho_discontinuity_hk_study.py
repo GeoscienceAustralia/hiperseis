@@ -70,13 +70,13 @@ def main():
     stack = rf_stacking.compute_weighted_stack(hk, weighting=w)
     hk_fig = rf_plot_utils.plot_hk_stack(k_grid, h_grid, stack, num=len(stream_all),
                                          title="Synthetic H-k stack ({})".format(w_str))
-    maxima = rf_stacking.find_local_hk_maxima(k_grid, h_grid, stack, min_rel_value=0.9)
+    maxima = rf_stacking.find_local_maxima(k_grid, h_grid, stack, min_rel_value=0.9)
     log.info("Numerical solutions:{}".format(maxima))
     plt.text(k, H_0 + 1.5, "Solution $H_0$ = {:.3f}, k = {:.3f}".format(H_0, k),
              color="#ffffff", fontsize=16, horizontalalignment='left')
     plt.text(k, H_1 + 1.5, "Solution $H_1$ = {:.3f}, k = {:.3f}".format(H_1, k),
              color="#ffffff", fontsize=16, horizontalalignment='left')
-    for h_max, k_max, _, _, _ in maxima:
+    for k_max, h_max, _, _, _ in maxima:
         plt.scatter(k_max, h_max, marker='+', c="#000000", s=20)
     # end for
     # Save result

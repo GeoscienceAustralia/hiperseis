@@ -27,10 +27,8 @@ DEFAULT_H_RANGE = np.linspace(20.0, 70.0, 501)
 DEFAULT_k_RANGE = np.linspace(1.5, 2.0, 301)
 DEFAULT_WEIGHTS = np.array([0.5, 0.4, 0.1])
 # grids for 2-stage stacking
-#DEFAULT_Vp_RANGE_SPARSE = np.linspace(6, 7.5, 51)
-#DEFAULT_k_RANGE_SPARSE = np.linspace(1.5, 2, 31)
-DEFAULT_Vp_RANGE_SPARSE = np.linspace(4, 7.5, 51)
-DEFAULT_k_RANGE_SPARSE = np.linspace(1.55, 3, 31)
+DEFAULT_Vp_RANGE_SPARSE = np.linspace(6, 7.5, 51)
+DEFAULT_k_RANGE_SPARSE = np.linspace(1.5, 2, 31)
 
 DEFAULT_SED_H_RANGE = np.linspace(0.01, 10, 35)
 DEFAULT_SED_k_RANGE = np.linspace(1.0, 5.0, 21)
@@ -238,9 +236,9 @@ def compute_sediment_hk_stack(cha_data, H_c, k_c, h_range=None, k_range=None, ro
 # end func
 
 
-def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
-    """Given the weighted stack computed from function `compute_weighted_stack` and the corresponding
-    k-grid and h-grid, find the location in H-k space of the global maximum.
+def find_global_maximum(k_grid, h_grid, hk_weighted_stack):
+    """Given a weighted stack e.g. the one computed in function `compute_weighted_stack` and the corresponding
+    k-grid and h-grid, find the location of the global maximum.
 
     :param k_grid: Grid of k-values
     :type k_grid: Two-dimensional numpy.array
@@ -255,13 +253,13 @@ def find_global_hk_maximum(k_grid, h_grid, hk_weighted_stack):
     max_loc = np.unravel_index(np.argmax(hk_weighted_stack), hk_weighted_stack.shape)
     h_max = h_grid[max_loc[0], 0]
     k_max = k_grid[0, max_loc[1]]
-    return (h_max, k_max)
+    return (k_max, h_max)
 # end func
 
 
-def _find_local_hk_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.5):
-    """Given the weighted stack computed from function `compute_weighted_stack` and the corresponding
-    k-grid and h-grid, find the locations in H-k space of all local maxima above a certain threshold.
+def _find_local_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.5):
+    """Given a weighted stack e.g. the one computed in function `compute_weighted_stack` and the
+    corresponding k-grid and h-grid, find the locations in of all local maxima above a certain threshold.
 
     :param k_grid: Grid of k-values
     :type k_grid: Two-dimensional numpy.array
@@ -294,13 +292,13 @@ def _find_local_hk_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.5):
     # Zip the candidate solutions into a tuple (H, k, stack, row_index, col_index).
     # Note that the row and column index here are in the original k- and h-grid, so must have +1 added
     # since the masking was done on the interior grid points only.
-    solutions = tuple(zip(h_vals, k_vals, stack_vals, m_idx[0] + 1, m_idx[1] + 1))
-    # Sort the solutions from highest stack value to the lowest.
+    solutions = tuple(zip(k_vals, h_vals, stack_vals, m_idx[0] + 1, m_idx[1] + 1))
+    # Sort the solutions from the highest stack value to the lowest.
     solutions = sorted(solutions, key=lambda v: v[2], reverse=True)
     return solutions
 # end func
 
-def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
+def find_local_maxima(k_grid, h_grid, hk_stack_sum, smooth_sigma=3, max_number=3):
     # Method here is:
     # 1) find all local maxima
     # 2) cluster local maxima and compute centroid of each cluster
@@ -312,12 +310,12 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
     hk_stack_max = np.nanmax(hk_stack)
 
     # Smooth the stack, as we're not interested in high frequency local maxima
-    hk_stack = gaussian_filter(hk_stack, sigma=3, mode='nearest')
+    hk_stack = gaussian_filter(hk_stack, sigma=smooth_sigma, mode='nearest')
 
     # This method only returns locations in the interior, not on the boundary of the domain
-    local_maxima = _find_local_hk_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.7)
+    local_maxima = _find_local_maxima_helper(k_grid, h_grid, hk_stack, min_rel_value=0.7)
     if len(local_maxima) <= 1:
-        return [(h, k) for h, k, _, _, _ in local_maxima]
+        return [(k, h) for k, h, _, _, _ in local_maxima]
     # end if
 
     # Perform clustering in normalized coordinates
@@ -328,8 +326,8 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
 
     # Use DBSCAN to cluster nearby pointwise local maxima
     eps = 0.05
-    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range, v/hk_stack_max] for h, k, v, _, _ in local_maxima])
-    pts_hk = np.array([[h, k] for h, k, _, _, _ in local_maxima])
+    pts_norm = np.array([[(k - k_min)/k_range, (h - h_min)/h_range, v/hk_stack_max] for k, h, v, _, _ in local_maxima])
+    pts_hk = np.array([[k, h] for k, h, _, _, _ in local_maxima])
     _, labels = dbscan(pts_norm, eps, min_samples=2, metric='euclidean')
 
     # Collect group-based local maxima
@@ -345,20 +343,18 @@ def find_local_hk_maxima(k_grid, h_grid, hk_stack_sum, max_number=3):
         maxima_coords.extend(loners)
     # end if
 
-    # Sort the maxima by amplitude of stack, and then discard values with amplitude too weak compared to strongest peak
+    # Sort the maxima by amplitude of stack, and then discard values with amplitude too weak compared to the
+    # strongest peak
     if len(maxima_coords) > 1:
         finterp = interpolate.interp2d(k_grid[0, :], h_grid[:, 0], hk_stack_sum)
-        maxima_coords.sort(key=lambda p: finterp(p[1], p[0]), reverse=True)
-        strongest = finterp(maxima_coords[0][1], maxima_coords[0][0])
-        while finterp(maxima_coords[-1][1], maxima_coords[-1][0]) < 0.8*strongest:
+        maxima_coords.sort(key=lambda p: finterp(p[0], p[1]), reverse=True)
+        strongest = finterp(maxima_coords[0][0], maxima_coords[0][1])
+        while finterp(maxima_coords[-1][0], maxima_coords[-1][1]) < 0.8*strongest:
             maxima_coords.pop()
         # end while
     # end if
 
     result = np.array(maxima_coords[:max_number])
-
-    # sort results by depth
-    if(len(result)): result = result[result[:, 0].argsort()]
 
     return result
 # end func
@@ -476,6 +472,15 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
         t2 = (A + B) / (A - B) * t1  # tppms
         t3 = (2 * A) / (A - B) * t1  # tpsms
 
+        try:
+            pass
+            t1 += trc.stats.t1_offset
+            t2 += trc.stats.t2_offset
+            t3 += trc.stats.t3_offset
+        except:
+            pass
+        # end try
+
         lead_time = trc.stats.onset - trc.stats.starttime
         times = trc.times() - lead_time
         times_min = np.min(times)
@@ -492,15 +497,8 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
 
         row = []
         for t, polarity in zip((t1, t2, t3), (1, 1, -1)):
-            # window to look for phase within: shape(51, 31, 2000)
-            inside = (times[None, None, :] > (t[..., None] - phase_delta_t)) & \
-                     (times[None, None, :] < (t[..., None] + phase_delta_t))
-            # peak indices: shape(51, 31)
-            peak_indices = np.argmax(np.where(inside, trc.data[None, None, :], -np.inf), axis=-1)
-            g_bool = np.zeros(inside.shape)
-            np.put_along_axis(g_bool, peak_indices[..., None], True, axis=-1)
-
-            row.append(np.einsum('ijk,k->ij', g_bool, trc.data) * polarity)
+            g = gaussian_pulse(times, t, fwhm_seconds=1.)
+            row.append(np.einsum('ijk,k->ij', g, trc.data) * polarity)
         # end for
         tphase_amps.append(row)
     # end for
@@ -510,26 +508,14 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
         stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
         stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
 
-        mi = np.unravel_index(np.argmax(stack), stack.shape)
-        for i in np.arange(stack.ndim):
-            # max index must be an interior grid point, otherwise the estimate is considered weak
-            if((mi[i] == 0) or (mi[i] == (stack.shape[i] - 1))):
-                return None
-            # end if
-        # end for
-
-        if(0):
-            fig, axes = plt.subplots(1, 2)
-            fig.set_size_inches(20, 10)
-            cbi = axes[0].contourf(k_grid, vp_grid, stack, levels=20, cmap='jet')
-            axes[0].scatter(k_grid[mi], vp_grid[mi], s=100, marker='x', c='k')
+        soln = find_local_maxima(k_grid, vp_grid, stack, smooth_sigma=1)
+        if(len(soln) > 0):
+            k, Vp = soln[0][0], soln[0][1]
+            return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
         # end if
-
-        k, Vp = k_grid[mi], vp_grid[mi]
-        return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
-    else:
-        return None
     # end if
+
+    return None
 # end func
 
 def estimate_H(rfc_stream, vp, k, h_range=DEFAULT_H_RANGE, root_order=2, num_estimates=3):
