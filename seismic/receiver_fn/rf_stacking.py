@@ -510,20 +510,19 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
 
         soln = find_local_maxima(k_grid, vp_grid, stack, smooth_sigma=1)
         if(len(soln) > 0):
-            k, Vp = soln[0][0], soln[0][1]
-            return k, Vp, k_grid, vp_grid, stack, len(vetted_rfc)
+            return soln, k_grid, vp_grid, stack, len(vetted_rfc)
         # end if
     # end if
 
     return None
 # end func
 
-def estimate_H(rfc_stream, vp, k, h_range=DEFAULT_H_RANGE, root_order=2, num_estimates=3):
+def estimate_H(rfc_stream, k, Vp, h_range=DEFAULT_H_RANGE, root_order=2, num_estimates=3):
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
 
     h_grid = h_range
-    Vp_inv = 1. / vp
+    Vp_inv = 1. / Vp
     Vs_inv = k * Vp_inv
     tphase_amps = []
     for itrc, trc in enumerate(rfc_stream):

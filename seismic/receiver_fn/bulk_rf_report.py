@@ -161,7 +161,7 @@ def _produce_hk_stacking(channel_data, Vp=rf_stacking.DEFAULT_Vp,
         phase_time_dict['t1'] = sorted(np.array([min_times[0], max_times[0]]))
         phase_time_dict['t2'] = sorted(np.array([min_times[1], max_times[1]]))
         phase_time_dict['t3'] = sorted(np.array([min_times[2], max_times[2]]))
-        _plot_hk_solution_point(plt.gca(), k, h, i, phase_time_dict)
+        rf_plot_utils.plot_hk_solution_point(plt.gca(), k, h, i, phase_time_dict)
     # end for
 
     return fig, soln
@@ -207,38 +207,10 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
 
     # Plot the local maxima
     for i, (k, h) in enumerate(soln):
-        _plot_hk_solution_point(plt.gca(), k, h, i)
+        rf_plot_utils.plot_hk_solution_point(plt.gca(), k, h, i)
     # end for
 
     return fig, soln
-# end func
-
-def _plot_hk_solution_point(axes, k, h, idx, phase_time_dict=None):
-    xl = axes.get_xlim()
-    yl = axes.get_ylim()
-
-    axes.text(k, h, "  %d"%(idx),
-              color="#000000", fontsize=10, horizontalalignment='right',
-              clip_on=False, rasterized=True)
-
-    axes.scatter(k, h, marker='+', c="#000000", s=20)
-
-    x = np.mean(np.array(xl))
-    x1 = x + (xl[1]-x)*0.55
-    axes.text(x, h, "H{}={:.3f}, k{}={:.3f}".format(idx, h, idx, k),
-              color="#000000", fontsize=12, horizontalalignment='left',
-              clip_on=False)
-    if(phase_time_dict):
-        axes.text(x1, h+0.6, "Ps: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t1']),
-                  color="#000000", fontsize=4, horizontalalignment='left',
-                  clip_on=False)
-        axes.text(x1, h, "PpPs: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t2']),
-                  color="#000000", fontsize=4, horizontalalignment='left',
-                  clip_on=False)
-        axes.text(x1, h-0.6, "PpSs+PsPs: [{:.1f} - {:.1f}] s".format(*phase_time_dict['t3']),
-                  color="#000000", fontsize=4, horizontalalignment='left',
-                  clip_on=False)
-    # end if
 # end func
 
 def read_merge_file(merge_fn, rf_file):
@@ -775,19 +747,29 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                     pdf.savefig(dpi=300, orientation='landscape')
                     plt.close()
 
+                    ######################################################################
                     # 2-stage k-Vp-h stacking
+                    ######################################################################
                     fig, axes = plt.subplots(1, 2)
                     fig.set_size_inches(*paper_landscape)
 
+                    # estimate k and Vp
                     result = rf_stacking.estimate_k_vp(rf_stream)
                     if(result is not None):
-                        k, Vp, k_grid, vp_grid, stack, ntraces_used = result
+                        soln, k_grid, vp_grid, stack, ntraces_used = result
                         rf_plot_utils.plot_k_vp_stack(axes[0], k_grid, vp_grid, stack, num=ntraces_used)
 
-                        hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, Vp, k, num_estimates=1)
-                        k_vp_h_soln[nsl] = [k, Vp, hlist[0]]
+                        soln_list = []
+                        for idx, (k, Vp) in enumerate(soln):
+                            rf_plot_utils.plot_k_vp_solution_point(axes[0], k, Vp, idx)
 
-                        rf_plot_utils.plot_k_vp_solution_point(axes[0], [[k, Vp]])
+                            hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, k, Vp, num_estimates=1)
+                            if(len(hlist)): rf_plot_utils.plot_h_estimate(axes[1], h_grid, stack, hlist[0], idx)
+
+                            soln_list.append([k, Vp, hlist[0]])
+                        # end for
+
+                        k_vp_h_soln[nsl] = list(itertools.chain.from_iterable(soln_list)) # k0, Vp0, H0, k1, Vp1, H1 ...
 
                         sta = channel_data[0].stats.station
                         loc = channel_data[0].stats.location
@@ -796,7 +778,6 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                         title = r'{} (2 stage $\kappa$-$V_p$-$H$ stack)'.format(slc)
                         fig.suptitle(title, fontsize=16)
 
-                        rf_plot_utils.plot_h_estimates(axes[1], h_grid, stack, hlist)
                         pdf.savefig(dpi=300, orientation='landscape')
                         plt.close()
                     # end if
@@ -866,16 +847,15 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
             df.columns = colnames
             df.index.name = 'Station'
 
-            # Append available k-Vp-h estimates
+            # Append available k-Vp-H estimates
             if(i == 0):
-                df['two_stage_k'] = np.nan
-                df['two_stage_Vp'] = np.nan
-                df['two_stage_H'] = np.nan
-                for nsl, k_vp_h in k_vp_h_soln.items():
-                    df.loc[df.index == nsl, 'two_stage_k'] = k_vp_h[0]
-                    df.loc[df.index == nsl, 'two_stage_Vp'] = k_vp_h[1]
-                    df.loc[df.index == nsl, 'two_stage_H'] = k_vp_h[2]
-                # end for
+                two_stage_df = pd.DataFrame.from_dict(k_vp_h_soln, orient='index')
+                colnames = [('2stg_k{}'.format(i), '2stg_Vp{}'.format(i), '2stg_H{}'.format(i))
+                            for i in range(len(two_stage_df.columns)//3)]
+                two_stage_df.columns = list(itertools.chain.from_iterable(colnames))
+                two_stage_df.index.name = 'Station'
+
+                df = pd.merge(df, two_stage_df, on='Station', how='left')
             # end if
 
             # write formatted csv file (not currently supported by pandas)
