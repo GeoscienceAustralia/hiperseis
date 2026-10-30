@@ -508,7 +508,7 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
         stack = np.sum(np.dot(np.moveaxis(tphase_amps, 1, -1), weights), axis=0)
         stack = np.sign(stack) * np.power(np.fabs(stack), root_order)
 
-        soln = find_local_maxima(k_grid, vp_grid, stack, smooth_sigma=1)
+        soln = find_local_maxima(k_grid, vp_grid, stack, smooth_sigma=0)
         if(len(soln) > 0):
             return soln, k_grid, vp_grid, stack, len(vetted_rfc)
         # end if
