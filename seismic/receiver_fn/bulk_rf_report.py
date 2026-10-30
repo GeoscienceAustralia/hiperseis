@@ -764,9 +764,10 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                             rf_plot_utils.plot_k_vp_solution_point(axes[0], k, Vp, idx)
 
                             hlist, h_grid, stack = rf_stacking.estimate_H(rf_stream, k, Vp, num_estimates=1)
-                            if(len(hlist)): rf_plot_utils.plot_h_estimate(axes[1], h_grid, stack, hlist[0], idx)
-
-                            soln_list.append([k, Vp, hlist[0]])
+                            if(len(hlist)):
+                                rf_plot_utils.plot_h_estimate(axes[1], h_grid, stack, hlist[0], idx)
+                                soln_list.append([k, Vp, hlist[0]])
+                            # end if
                         # end for
 
                         k_vp_h_soln[nsl] = list(itertools.chain.from_iterable(soln_list)) # k0, Vp0, H0, k1, Vp1, H1 ...

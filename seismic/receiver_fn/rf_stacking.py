@@ -497,7 +497,7 @@ def estimate_k_vp(rfc_stream, vp_range=DEFAULT_Vp_RANGE_SPARSE,
 
         row = []
         for t, polarity in zip((t1, t2, t3), (1, 1, -1)):
-            g = gaussian_pulse(times, t, fwhm_seconds=1.)
+            g = gaussian_pulse(times, t, fwhm_seconds=0.5)
             row.append(np.einsum('ijk,k->ij', g, trc.data) * polarity)
         # end for
         tphase_amps.append(row)
