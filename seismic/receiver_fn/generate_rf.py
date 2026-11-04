@@ -10,6 +10,7 @@ import numpy as np
 import click
 import os, json
 import tqdm.auto as tqdm
+from seismic.receiver_fn import rf_reader
 from seismic.receiver_fn import rf_util
 from seismic.receiver_fn.rf_config import RFConfig, Corrections
 from seismic.receiver_fn.generate_rf_helper import transform_stream_to_rf
@@ -76,7 +77,7 @@ def event_waveforms_to_rf(input_file: str, output_file: str, config: RFConfig,
         # ene try
 
         # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
+        proc_hdfkeys = rf_reader.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
 
         if(only_corrections): # trim the hdf_keys if processing only corrections
             corrections = Corrections(config, proc_hdfkeys)

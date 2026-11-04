@@ -15,7 +15,7 @@ import os
 from collections import defaultdict
 import tqdm.auto as tqdm
 
-import seismic.receiver_fn.rf_util as rf_util
+import seismic.receiver_fn.rf_reader as rf_read_util
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
 from seismic.stream_io import get_obspyh5_index
 from seismic.misc import split_list
@@ -214,7 +214,7 @@ def main(src_h5_event_file, network, output_basename, station_list, dump_swp_dat
 
         # trim stations to be processed based on the user-provided network- and station-list
         try:
-            proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network, station_list)
+            proc_hdfkeys = rf_read_util.trim_hdf_keys(proc_hdfkeys, network, station_list)
         except Exception as e:
             parallel_abort(str(e), logger)
         # end try

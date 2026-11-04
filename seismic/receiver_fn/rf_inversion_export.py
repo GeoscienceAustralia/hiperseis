@@ -9,7 +9,9 @@ import rf
 from obspy.core import Stream
 from rf import RFStream
 import pandas as pd
-from seismic.receiver_fn import rf_util, rf_corrections
+
+import seismic.receiver_fn.rf_reader
+from seismic.receiver_fn import rf_reader, rf_util, rf_corrections
 from collections import defaultdict
 from scipy import stats
 from seismic.stream_io import get_obspyh5_index
@@ -124,7 +126,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     hdfkeys = get_obspyh5_index(input_h5_file, seeds_only=True)
 
     # trim stations to be processed based on the user-provided network- and station-list
-    hdfkeys = rf_util.trim_hdf_keys(hdfkeys, network_list, station_list)
+    hdfkeys = rf_reader.trim_hdf_keys(hdfkeys, network_list, station_list)
 
     outputStream = Stream()
     # Iterate over all data, grouped by (net, sta, loc)
@@ -132,7 +134,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
         net, sta, loc = hdfkey.split('.')
 
         # Load data
-        data = rf_util.read_h5_rf(input_h5_file, network=net, station=sta, loc=loc)
+        data = seismic.receiver_fn.rf_reader.read_h5_rf(input_h5_file, network=net, station=sta, loc=loc)
 
         # Select component
         data_dict = rf_util.rf_to_dict(data)

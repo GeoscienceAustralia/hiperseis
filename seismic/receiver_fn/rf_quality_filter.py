@@ -25,7 +25,7 @@ from joblib import Parallel, delayed
 import rf
 
 from seismic.receiver_fn.rf_process_io import async_write
-from seismic.receiver_fn.rf_h5_file_station_iterator import IterRfH5StationEvents
+from seismic.receiver_fn.rf_reader import IterRfH5StationEvents
 from seismic.receiver_fn import rf_util
 
 logging.basicConfig()

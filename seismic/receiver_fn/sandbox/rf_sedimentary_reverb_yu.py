@@ -16,6 +16,7 @@ import scipy.signal as signal
 
 import rf
 
+import seismic.receiver_fn.rf_reader
 import seismic.receiver_fn.rf_util as rf_util
 
 
@@ -106,7 +107,7 @@ def main(input_file, output_file, network, reverb_stations=None):
     else:
         reverb_stations = reverb_stations.read().splitlines()
     # end if
-    rf_stream = rf_util.read_h5_rf(input_file)
+    rf_stream = seismic.receiver_fn.rf_reader.read_h5_rf(input_file)
     rf_stream = rf_stream.select(network=network, component='R')
     stations = tqdm(reverb_stations, total=len(reverb_stations))
     for sta in stations:
