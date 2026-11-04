@@ -19,19 +19,20 @@ import tqdm.auto as tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import pandas as pd
+import seismic.receiver_fn.rf_reader as rf_read_util
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_corrections as rf_corrections
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
+from seismic.receiver_fn.rf_reader import read_merge_file
 from seismic.stream_io import get_obspyh5_index
 import uuid
 from shutil import rmtree
 from collections import defaultdict
 from seismic.misc import split_list
-from seismic.misc import setup_logger, print_exception
-from seismic.misc_p import parallel_abort
+from seismic.misc import setup_logger
 
 paper_size_A4 = (8.27, 11.69)  # inches
 DEFAULT_HK_SOLN_LABEL = 'global'
@@ -213,50 +214,6 @@ def _produce_sediment_hk_stacking(channel_data, H_c, k_c, Vp=rf_stacking.DEFAULT
     return fig, soln
 # end func
 
-def read_merge_file(merge_fn, rf_file):
-    merge_dict = defaultdict(list)
-    try:
-        lines = open(merge_fn, 'r').readlines()
-        lines = [line.strip() for line in lines]
-        for line in lines:
-            src, dest = line.split(',')
-            src, dest = src.strip(), dest.strip()
-            for item in [src, dest]:
-                if(len(item.split('.')) != 3): raise ValueError('Invalid format: {}. NET.STA.LOC triplets expected.')
-            # end for
-            merge_dict[dest].append(src)
-        # end for
-    except Exception as e:
-        print_exception(e)
-        parallel_abort('failed to read {}'.format(merge_fn))
-    # end try
-
-    # ensure all stations listed in merge_stations_file are available
-    if (len(merge_dict)):
-        proc_hdfkeys = get_obspyh5_index(rf_file, seeds_only=True)
-        proc_hdfkeys_set = set(proc_hdfkeys)
-        not_found = None
-        for k, v in merge_dict.items():
-            if k not in proc_hdfkeys_set:
-                not_found = k
-                break
-            # end if
-
-            for item in v:
-                if item not in proc_hdfkeys_set:
-                    not_found = item
-                    break
-                # end if
-            # end for
-            if (not_found is not None): break
-        # end for
-        if (not_found is not None):
-            parallel_abort('Station {} listed in {} is not available in {}. Aborting..', logger=log)
-        # end if
-    # end if
-    return merge_dict
-# end func
-
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('input-file', type=click.Path(exists=True, dir_okay=False), required=True)
@@ -332,7 +289,7 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
 
     # load stations to be merged
     merge_dict = defaultdict(list)
-    if(merge_stations_file is not None): merge_dict = read_merge_file(merge_stations_file, input_file)
+    if(merge_stations_file is not None): merge_dict = read_merge_file(merge_stations_file, input_file, log=log)
 
     # check parameter compatibility
     if(relax_sanity_checks and apply_simple_quality_filter):
@@ -387,7 +344,7 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
         # end if
 
         # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
+        proc_hdfkeys = rf_read_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
 
         # split work-load over all procs
         proc_hdfkeys = split_list(proc_hdfkeys, nproc)

@@ -14,6 +14,7 @@ import matplotlib
 
 import rf
 
+import seismic.receiver_fn.rf_reader
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 
@@ -96,7 +97,7 @@ def main():
     log.info("Output files will be emitted to {}".format(output_folder))
 
     log.info("Loading %s", infile)
-    data_all = rf_util.read_h5_rf(infile)
+    data_all = seismic.receiver_fn.rf_read_util.read_h5_rf(infile)
     data_dict = rf_util.rf_to_dict(data_all)
 
     stations = sorted(list(data_dict.keys()))
