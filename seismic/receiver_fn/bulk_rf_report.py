@@ -19,14 +19,13 @@ import tqdm.auto as tqdm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import pandas as pd
-import seismic.receiver_fn.rf_reader as rf_read_util
+import seismic.receiver_fn.rf_reader as rf_reader
 import seismic.receiver_fn.rf_util as rf_util
 import seismic.receiver_fn.rf_corrections as rf_corrections
 import seismic.receiver_fn.rf_plot_utils as rf_plot_utils
 import seismic.receiver_fn.rf_stacking as rf_stacking
 # pylint: disable=invalid-name, logging-format-interpolation, too-many-arguments, too-many-statements, too-many-locals
 from seismic.receiver_fn.rf_plot_utils import pdf_merge
-from seismic.receiver_fn.rf_reader import read_merge_file
 from seismic.stream_io import get_obspyh5_index
 import uuid
 from shutil import rmtree
@@ -288,8 +287,8 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
     log = setup_logger('__func__', log_file=os.path.splitext(output_file)[0] + '.log')
 
     # load stations to be merged
-    merge_dict = defaultdict(list)
-    if(merge_stations_file is not None): merge_dict = read_merge_file(merge_stations_file, input_file, log=log)
+    merge_info = None
+    if(merge_stations_file is not None): merge_info = rf_reader.MergeInfo(merge_stations_file, input_file, log=log)
 
     # check parameter compatibility
     if(relax_sanity_checks and apply_simple_quality_filter):
@@ -344,7 +343,7 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
         # end if
 
         # trim stations to be processed based on the user-provided network- and station-list
-        proc_hdfkeys = rf_read_util.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
+        proc_hdfkeys = rf_reader.trim_hdf_keys(proc_hdfkeys, network_list, station_list)
 
         # split work-load over all procs
         proc_hdfkeys = split_list(proc_hdfkeys, nproc)
@@ -370,18 +369,17 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
 
     for proc_hdfkey in proc_hdfkeys[rank]:
         data_all = None
-        if(merge_dict is not None):
+        if(merge_info is not None):
             # check if station is getting merged, in which case, skipp processing
-            is_merged = False
-            for k, v in merge_dict.items(): is_merged = True if proc_hdfkey in v else False
-            if(is_merged): continue
-
-            if(len(merge_dict[proc_hdfkey]) > 0):
-                log.info('Merging: {} -> {}'.format(merge_dict[proc_hdfkey], proc_hdfkey))
-            else:
-                data_all = rf.read_rf(input_file, format='h5', group='waveforms/%s'%(proc_hdfkey))
+            if(merge_info.is_merged(proc_hdfkey)):
+                log.info('Station {} is being merged. Moving along..'.format(proc_hdfkey))
+                continue
             # end if
         # end if
+
+        proc_net, proc_sta, proc_loc = proc_hdfkey.split('.')
+        data_all = rf_reader.read_h5_rf(input_file, network=proc_net, station=proc_sta, loc=proc_loc,
+                                        root='/waveforms', merge_info=merge_info)
 
         # Convert to hierarchical dictionary format
         data_dict = rf_util.rf_to_dict(data_all)
