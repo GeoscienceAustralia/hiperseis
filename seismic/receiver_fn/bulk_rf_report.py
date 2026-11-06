@@ -361,6 +361,9 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
     pbar = tqdm.tqdm(total=len(proc_hdfkeys[rank]))
 
     pdf_names = []
+    ntraces_dict = defaultdict(int)
+    delayed_dict = defaultdict(bool)
+    dereverberated_dict = defaultdict(bool)
     hk_soln = dict()
     k_vp_h_soln = dict()
     sediment_hk_soln = dict()
@@ -471,6 +474,18 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                 if not rf_stream: continue
 
                 ###############################################################################
+                # RF stream should contain traces of equal length
+                ###############################################################################
+                before = len(rf_stream)
+                rf_stream = rf_util.get_stackable_stream(rf_stream)
+                after = len(rf_stream)
+                if(before > after):
+                    log.warning('Removed {} traces from {}'
+                                'to make stream stackable!'.format((before - after), nsl))
+                # end if
+                if not rf_stream: continue
+
+                ###############################################################################
                 # RF amplitudes should not exceed 1.0 and should peak around onset time --
                 # otherwise, such traces are deemed problematic and excluded while computing
                 # H-k stacks. Only applies for P RFs.
@@ -557,7 +572,7 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                 ###############################################################################
                 if apply_similarity_filter and len(rf_stream) >= 3:
                     before = len(rf_stream)
-                    rf_stream = rf_util.filter_crosscorr_coeff(rf_stream)
+                    rf_stream = rf_util.filter_crosscorr_coeff(rf_stream, time_window=(-2, 10))
                     after = len(rf_stream)
                     log.info('{}: ({}/{}) traces dropped using similarity filter..'.
                              format(nsl,
@@ -570,6 +585,7 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
 
                 if not rf_stream: continue
 
+                ntraces_dict[nsl] = len(rf_stream)
                 ###############################################################################
                 # Filter rf_stream if needed. The default approach is to filter before
                 # dereverberation is applied
@@ -583,12 +599,14 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                 ###############################################################################
                 # Apply reverberation filter for P RFs if needed
                 ###############################################################################
+                delayed_dict[nsl] = rf_corrections.is_delayed(rf_stream)
                 reverberations_removed = False
                 # Apply reverberation filter if needed (or forced). Only applies for P RFs
                 if((rf_corrections.has_reverberations(rf_stream) or st in fd_sta_list) and
                         (rf_type == 'prf')):
                     rf_stream = rf_corrections.apply_reverberation_filter(rf_stream)
                     reverberations_removed = True
+                    dereverberated_dict[nsl] = True
                 # end if
 
                 ###############################################################################
@@ -763,6 +781,9 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
     pbar.close()
 
     # gather hk_soln, sediment_hk_soln and associated coordinates on rank 0
+    ntraces_dict = comm.gather(ntraces_dict, root=0)
+    delayed_dict = comm.gather(delayed_dict, root=0)
+    dereverberated_dict = comm.gather(dereverberated_dict, root=0)
     hk_soln = comm.gather(hk_soln, root=0)
     k_vp_h_soln = comm.gather(k_vp_h_soln, root=0)
     sediment_hk_soln = comm.gather(sediment_hk_soln, root=0)
@@ -776,6 +797,9 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
             return {k: v for d in dict_list for k, v in d.items()}
         #end func
 
+        ntraces_dict = flatten_dict_list(ntraces_dict)
+        delayed_dict = flatten_dict_list(delayed_dict)
+        dereverberated_dict = flatten_dict_list(dereverberated_dict)
         hk_soln = flatten_dict_list(hk_soln)
         k_vp_h_soln = flatten_dict_list(k_vp_h_soln)
         sediment_hk_soln = flatten_dict_list(sediment_hk_soln)
@@ -812,13 +836,20 @@ def main(input_file, output_file, network_list='*', station_list='*', merge_stat
                 two_stage_df.index.name = 'Station'
 
                 df = pd.merge(df, two_stage_df, on='Station', how='left')
+
+                # Append ntraces, delayed, dereverberated
+                df['ntraces'] = df.index.map(ntraces_dict)
+                df['is_delayed'] = df.index.map(delayed_dict)
+                df['has_reverb'] = df.index.map(dereverberated_dict)
             # end if
 
             # write formatted csv file (not currently supported by pandas)
             hcolnames = ['Station'] + list(df.columns)
 
             hformatter = '{:>15s}, ' + ', '.join(['{:>12s}']*len(hcolnames[1:])) + '\n'
-            lineformatter = '{:>15s}, ' + ', '.join(['{:>12.3f}']*len(hcolnames[1:])) + '\n'
+            lineformatter = '{:>15s}, ' + ', '.join(['{:>12.3f}']*len(hcolnames[1:-3])) + \
+                            ', {:>12}, ' + \
+                            ', '.join(["{!s:>12}"]*2) + '\n'
 
             header = hformatter.format(*hcolnames)
             with open(fname, 'w+') as fh:

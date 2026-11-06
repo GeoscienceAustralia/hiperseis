@@ -475,7 +475,7 @@ def filter_crosscorr_coeff(rf_stream, time_window=(-2, 25), threshold_cc=0.70, m
     # relevant period around and after onset.
     data_cc = rf_stream.copy().trim2(*time_window, reftime='onset')
     if not data_cc:
-        return data_cc
+        return rf.RFStream([])
     # end if
 
     # Apply optional moveout
