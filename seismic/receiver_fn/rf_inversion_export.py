@@ -68,8 +68,9 @@ def phase_weighted_stack(stream:RFStream, phase_weight=1.):
     return dummy_stack
 # end func
 
-def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_list="*", station_weights_fn=None,
-                        min_station_weight=-1, apply_amplitude_filter=False, apply_similarity_filter=False,
+def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_list="*",
+                        write_individual_rfs=False, station_weights_fn=None, min_station_weight=-1,
+                        apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
                         apply_phase_weighting=False, pw_exponent=1.,
                         fmin=None, fmax=None, resample_freq=None, trim_window=(-5.0, 30.0),
@@ -85,6 +86,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :type network_list: str
     :param station_list: List of space-separated stations to process
     :type station_list: str
+    :param write_individual_rfs: outputs all RFs used to generate a stack for each station
+    :type bool
     :param min_station_weight: Minimum station weight
     :type float
     :param apply_amplitude_filter
@@ -107,16 +110,16 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :@return obspy Stream of traces exported
     """
     # Process for each station:
-    # 1. Load hdf5 file containing RFs
-    # 2. Filter to desired component.
-    # 3. Filter stations that fail the minimum-weight criteria
-    # 4. Apply amplitude filter if provided
-    # 5. Apply min-slope-ratio filter if provided
-    # 6. Apply dereverberation filter if specified
-    # 7. Apply back-azimuth filter if specified
-    # 8. Quality filter to those that meet criteria (Sippl cross-correlation similarity)
-    # 9. Moveout and stack the RFs
-    # 10 Apply lowpass/highpass/bandpass filter based on fmin and fmax
+    # 1.  Load hdf5 file containing RFs
+    # 2.  Filter to desired component.
+    # 3.  Filter stations that fail the minimum-weight criteria
+    # 4.  Apply amplitude filter if provided
+    # 5.  Apply min-slope-ratio filter if provided
+    # 6.  Apply dereverberation filter if specified
+    # 7.  Apply back-azimuth filter if specified
+    # 8.  Quality filter to those that meet criteria (Sippl cross-correlation similarity)
+    # 9.  Apply lowpass/highpass/bandpass filter based on fmin and fmax
+    # 10. Moveout and stack the RFs
     # 11. Resample (lanczos) and trim RF
     # 12. Export one file per station in (time, amplitude format)
 
@@ -238,8 +241,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 # Apply trace-similarity filter
                 if(apply_similarity_filter):
                     before = len(ch_traces)
-                    ch_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=trim_window,
-                                                                    apply_moveout=True)
+                    ch_traces = rf_util.filter_crosscorr_coeff(rf.RFStream(ch_traces), time_window=(-2, 10))
                     after = len(ch_traces)
                     logger.info('{}.{}.{}: {}/{} traces dropped with trace-similarity filter..'.format(network_code, sta,
                                                                                               loc, before - after,
@@ -265,9 +267,47 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                     continue
                 # end if
 
+                # Optionally output all RF traces for each station
+                if(write_individual_rfs):
+                    rf_folder_path = os.path.join(output_folder, ".".join([network_code, sta, loc, cha]))
+                    if (not os.path.exists(rf_folder_path)):
+                        os.mkdir(rf_folder_path)
+                    # end if
+
+                    for trace in ch_traces:
+                        times = trace.times() - (trace.stats.onset - trace.stats.starttime)
+
+                        ofn = os.path.join(rf_folder_path, "{}.{}.{}.{}.{}.rf.dat".format(network_code, sta, loc, cha,
+                                                                                          trace.stats.event_time))
+                        column_data = np.array([times, trace.data]).T
+                        np.savetxt(ofn, column_data, fmt=('%5.2f', '%.8f'),
+                                   header='{} (elon, elat): {}, {}'.format(trace.stats.event_time,
+                                                                           trace.stats.station_longitude,
+                                                                           trace.stats.station_latitude))
+                    # end for
+                # end if
+
                 if moveout:
                     logger.info('{}.{}.{}: Applying moveout..'.format(network_code, sta, loc))
                     ch_traces.moveout()
+                # end if
+
+                # Apply filter as specified
+                if(fmin and fmax):
+                    logger.info('{}.{}.{}: Applying a bandpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='bandpass', freqmin=fmin, freqmax=fmax, corners=1, zerophase=True)
+                    # end for
+                elif(fmin):
+                    logger.info('{}.{}.{}: Applying a highpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='highpass', freq=fmin, corners=1, zerophase=True)
+                    # end for
+                elif(fmax):
+                    logger.info('{}.{}.{}: Applying a lowpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='lowpass', freq=fmax, corners=1, zerophase=True)
+                    # end for
                 # end if
 
                 # report stats for traces included in stack
@@ -310,18 +350,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 # end if
                 trace = stack[0]
 
-                # Apply filter as specified
-                if(fmin and fmax):
-                    logger.info('{}.{}.{}: Applying a bandpass filter..'.format(network_code, sta, loc))
-                    stack.filter(type='bandpass', freqmin=fmin, freqmax=fmax, corners=1, zerophase=True)
-                elif(fmin):
-                    logger.info('{}.{}.{}: Applying a highpass filter..'.format(network_code, sta, loc))
-                    stack.filter(type='highpass', freq=fmin, corners=1, zerophase=True)
-                elif(fmax):
-                    logger.info('{}.{}.{}: Applying a lowpass filter..'.format(network_code, sta, loc))
-                    stack.filter(type='lowpass', freq=fmax, corners=1, zerophase=True)
-                # end if
-
                 if(resample_freq is not None):
                     exact_start_time = trace.stats.onset + trim_window[0]
                     stack.interpolate(sampling_rate=resample_freq, method='lanczos', a=10, starttime=exact_start_time)
@@ -336,7 +364,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
 
                 times = trace.times() - (trace.stats.onset - trace.stats.starttime)
                 column_data = np.array([times, trace.data]).T
-                fname = os.path.join(output_folder, "_".join([network_code, sta, trace.stats.location, cha]) + "_rf.dat")
+                fname = os.path.join(output_folder, ".".join([network_code, sta, trace.stats.location, cha]) +
+                                     ".rf_stack.dat")
                 np.savetxt(fname, column_data, fmt=('%5.2f', '%.8f'),
                            header='{} (lon, lat): {}, {}'.format(trace.id, trace.stats.station_longitude,
                                                                  trace.stats.station_latitude))
@@ -438,6 +467,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--station-weights', type=str, default=None, show_default=True,
               help='A comma-separated text file containing network and station in the first two columns, '
                    'respectively, with the last column being the weight')
+@click.option('--write-individual-rfs', is_flag=True, default=False, show_default=True,
+              help='Outputs all RFs used to compute a stack for each station')
 @click.option('--min-station-weight', type=float, default=-1, show_default=True,
               help='Stations with a weight below this value are discarded. Note that this parameter '
                    'has no effect if --station-weights is not specified')
@@ -473,8 +504,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--resample-rate', default=None, type=float, show_default=True,
               help='Resampling rate (Hz) for output traces.')
 def main(input_file, output_folder, output_plot_file, network_list, station_list, station_weights,
-         min_station_weight, apply_amplitude_filter, apply_similarity_filter, min_slope_ratio, baz_range,
-         dereverberate, apply_phase_weighting, pw_exponent, fmin, fmax, resample_rate):
+         write_individual_rfs, min_station_weight, apply_amplitude_filter, apply_similarity_filter,
+         min_slope_ratio, baz_range, dereverberate, apply_phase_weighting, pw_exponent, fmin, fmax,
+         resample_rate):
     """
       INPUT_FILE : Input RFs in H5 format\n
                    (output of generate_rf.py or rf_quality_filter.py)\n
@@ -486,6 +518,7 @@ def main(input_file, output_folder, output_plot_file, network_list, station_list
 
     assert baz_range[1] > baz_range[0], 'Invalid min/max back-azimuth; Aborting..'
     outputStream = rf_inversion_export(input_file, output_folder, network_list, station_list,
+                                       write_individual_rfs=write_individual_rfs,
                                        station_weights_fn=station_weights,
                                        min_station_weight=min_station_weight,
                                        apply_amplitude_filter=apply_amplitude_filter,
