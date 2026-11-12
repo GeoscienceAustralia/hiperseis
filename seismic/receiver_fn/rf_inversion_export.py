@@ -13,7 +13,6 @@ import pandas as pd
 import seismic.receiver_fn.rf_reader
 from seismic.receiver_fn import rf_reader, rf_util, rf_corrections
 from collections import defaultdict
-from scipy import stats
 from seismic.stream_io import get_obspyh5_index
 from scipy.signal import hilbert
 import matplotlib.pyplot as plt
@@ -68,7 +67,7 @@ def phase_weighted_stack(stream:RFStream, phase_weight=1.):
     return dummy_stack
 # end func
 
-def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_list="*",
+def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_list="*", merge_info=None,
                         write_individual_rfs=False, station_weights_fn=None, min_station_weight=-1,
                         apply_amplitude_filter=False, apply_similarity_filter=False,
                         min_slope_ratio=-1, dereverberate=False, baz_range=(0, 360),
@@ -86,6 +85,8 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     :type network_list: str
     :param station_list: List of space-separated stations to process
     :type station_list: str
+    :param merge_info: List of space-separated stations to process
+    :type merge_info: instance of rf_reader.MergeInfo
     :param write_individual_rfs: outputs all RFs used to generate a stack for each station
     :type bool
     :param min_station_weight: Minimum station weight
@@ -112,16 +113,18 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     # Process for each station:
     # 1.  Load hdf5 file containing RFs
     # 2.  Filter to desired component.
-    # 3.  Filter stations that fail the minimum-weight criteria
-    # 4.  Apply amplitude filter if provided
-    # 5.  Apply min-slope-ratio filter if provided
-    # 6.  Apply dereverberation filter if specified
-    # 7.  Apply back-azimuth filter if specified
-    # 8.  Quality filter to those that meet criteria (Sippl cross-correlation similarity)
-    # 9.  Apply lowpass/highpass/bandpass filter based on fmin and fmax
-    # 10. Moveout and stack the RFs
-    # 11. Resample (lanczos) and trim RF
-    # 12. Export one file per station in (time, amplitude format)
+    # 3.  Apply amplitude filter if provided
+    # 4.  Filter stations that fail the minimum-weight criteria
+    # 5.  Drop short traces
+    # 6.  Drop traces with invalid radial components
+    # 7.  Apply min-slope-ratio filter if provided
+    # 8.  Apply back-azimuth filter if specified
+    # 9.  Quality filter to those that meet criteria (Sippl cross-correlation similarity)
+    # 10. Apply lowpass/highpass/bandpass filter based on fmin and fmax
+    # 11. Apply dereverberation filter if specified
+    # 12. Moveout and stack the RFs
+    # 13. Resample (lanczos) and trim RF
+    # 14. Export one file per station in (time, amplitude format)
 
     TRIM_BUFFER = 10
     if(logger is None): logger = setup_logger('__func__')
@@ -136,8 +139,17 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
     for hdfkey in hdfkeys:
         net, sta, loc = hdfkey.split('.')
 
+        if(merge_info is not None):
+            # check if station is getting merged, in which case, skipp processing
+            if(merge_info.is_merged(hdfkey)):
+                logger.info('Station {} is being merged. Moving along..'.format(hdfkey))
+                continue
+            # end if
+        # end if
+
         # Load data
-        data = seismic.receiver_fn.rf_reader.read_h5_rf(input_h5_file, network=net, station=sta, loc=loc)
+        data = seismic.receiver_fn.rf_reader.read_h5_rf(input_h5_file, network=net, station=sta, loc=loc,
+                                                        root='/waveforms', merge_info=merge_info)
 
         # Select component
         data_dict = rf_util.rf_to_dict(data)
@@ -164,7 +176,7 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
         weights_dict = None
         if(station_weights_fn): weights_dict = read_weights(station_weights_fn)
 
-        for sta, ch_dict in data_dict:
+        for sta, ch_dict in sorted(data_dict):
             # Drop stations by weight
             if(weights_dict):
                 wt_key = '{}.{}'.format(net, sta)
@@ -177,18 +189,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
             # end if
 
             for cha, ch_traces in ch_dict.items():
-                if len(ch_traces) < 3:
-                    continue
-                # end if
-
-                # Trim data with TRIM_BUFFER seconds around trim_window relative to 'onset'.
-                # This ensures slightly shorter RF traces are not culled for not being the
-                # same length as the majority of the traces, while also ensuring processing
-                # artefacts confined to TRIM_BUFFER are excluded in the final trim down to
-                # trim_seconds around 'onset'.
-                buffered_trim_window = trim_window[0] - TRIM_BUFFER, trim_window[1] + TRIM_BUFFER
-                data.trim2(*buffered_trim_window, reftime='onset')
-
                 # Drop traces that cannot be stacked
                 before = len(ch_traces)
                 ch_traces = rf_util.get_stackable_stream(ch_traces)
@@ -196,6 +196,25 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 if after < before:
                     logger.info('{}.{}.{}: {}/{} traces dropped to make them stackable!'.format(network_code, sta, loc,
                                                                                        before-after, after))
+                # end if
+
+                # P RF amplitudes should not exceed 1.0 and should peak around onset time --
+                # otherwise, such traces are deemed problematic and discarded
+                if(rf_type == 'prf'):
+                    before = len(ch_traces)
+                    ch_traces = rf_util.filter_invalid_radial_component(ch_traces)
+                    after = len(ch_traces)
+                    if (before > after):
+                        logger.info('{}.{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
+                              network_code, sta, loc,
+                              before - after,
+                              before))
+                    # end if
+                # end if
+
+                if (len(ch_traces) == 0):
+                    logger.warn('{}.{}.{}: No traces left to process. Moving along..'.format(network_code, sta, loc))
+                    continue
                 # end if
 
                 # Apply min-slope-ratio filter
@@ -215,17 +234,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                     continue
                 # end if
 
-                # Apply de-reverberation filter if specified
-                if(dereverberate and rf_type == 'prf'):
-                    has_reverberations = rf_corrections.has_reverberations(ch_traces)
-                    if (has_reverberations):
-                        logger.info('{}.{}.{}: removing reverberations..'.format(network_code, sta, loc))
-                        ch_traces = rf_corrections.apply_reverberation_filter(ch_traces)
-                    # end if
-                elif(dereverberate and rf_type=='srf'):
-                    logger.warn('Dereverberation filter is only applicable for P RFs, skipping..')
-                # end if
-
                 # Apply baz-range filter
                 if(baz_range != (0, 360)):
                     before = len(ch_traces)
@@ -238,6 +246,11 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                                                                        before))
                 # end if
 
+                if (len(ch_traces) == 0):
+                    logger.warn('{}.{}.{}: No traces left to process. Moving along..'.format(network_code, sta, loc))
+                    continue
+                # end if
+
                 # Apply trace-similarity filter
                 if(apply_similarity_filter):
                     before = len(ch_traces)
@@ -248,23 +261,38 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                                                                                               before))
                 # end if
 
-                # P RF amplitudes should not exceed 1.0 and should peak around onset time --
-                # otherwise, such traces are deemed problematic and discarded
-                if(rf_type == 'prf'):
-                    before = len(ch_traces)
-                    ch_traces = rf_util.filter_invalid_radial_component(ch_traces)
-                    after = len(ch_traces)
-                    if (before > after):
-                        logger.info('{}.{}.{}: {}/{} RF traces with amplitudes > 1.0 or troughs around onset time dropped ..'.format(
-                              network_code, sta, loc,
-                              before - after,
-                              before))
-                    # end if
-                # end if
-
                 if (len(ch_traces) == 0):
                     logger.warn('{}.{}.{}: No traces left to stack. Moving along..'.format(network_code, sta, loc))
                     continue
+                # end if
+
+                # Apply filter as specified
+                if(fmin and fmax):
+                    logger.info('{}.{}.{}: Applying a bandpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='bandpass', freqmin=fmin, freqmax=fmax, corners=1, zerophase=True)
+                    # end for
+                elif(fmin):
+                    logger.info('{}.{}.{}: Applying a highpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='highpass', freq=fmin, corners=1, zerophase=True)
+                    # end for
+                elif(fmax):
+                    logger.info('{}.{}.{}: Applying a lowpass filter..'.format(network_code, sta, loc))
+                    for strc in ch_traces:
+                        strc.filter(type='lowpass', freq=fmax, corners=1, zerophase=True)
+                    # end for
+                # end if
+
+                # Apply de-reverberation filter if specified
+                if(dereverberate and rf_type == 'prf'):
+                    has_reverberations = rf_corrections.has_reverberations(ch_traces)
+                    if (has_reverberations):
+                        logger.info('{}.{}.{}: removing reverberations..'.format(network_code, sta, loc))
+                        ch_traces = rf_corrections.apply_reverberation_filter(ch_traces)
+                    # end if
+                elif(dereverberate and rf_type=='srf'):
+                    logger.warn('Dereverberation filter is only applicable for P RFs, skipping..')
                 # end if
 
                 # Optionally output all RF traces for each station
@@ -290,24 +318,6 @@ def rf_inversion_export(input_h5_file, output_folder, network_list="*", station_
                 if moveout:
                     logger.info('{}.{}.{}: Applying moveout..'.format(network_code, sta, loc))
                     ch_traces.moveout()
-                # end if
-
-                # Apply filter as specified
-                if(fmin and fmax):
-                    logger.info('{}.{}.{}: Applying a bandpass filter..'.format(network_code, sta, loc))
-                    for strc in ch_traces:
-                        strc.filter(type='bandpass', freqmin=fmin, freqmax=fmax, corners=1, zerophase=True)
-                    # end for
-                elif(fmin):
-                    logger.info('{}.{}.{}: Applying a highpass filter..'.format(network_code, sta, loc))
-                    for strc in ch_traces:
-                        strc.filter(type='highpass', freq=fmin, corners=1, zerophase=True)
-                    # end for
-                elif(fmax):
-                    logger.info('{}.{}.{}: Applying a lowpass filter..'.format(network_code, sta, loc))
-                    for strc in ch_traces:
-                        strc.filter(type='lowpass', freq=fmax, corners=1, zerophase=True)
-                    # end for
                 # end if
 
                 # report stats for traces included in stack
@@ -421,7 +431,7 @@ def generate_plots(stream:Stream, ofn:str):
 
     def _plot(ax, t, d, i, label):
         c1, c2 = ('#000000', '#a0a0a0')
-        ax.text(10, i + 0.2, label)
+        ax.text(-4.9, i + 0.2, label, fontsize=7)
         if c1:
             ax.fill_between(t, d + i, i, where=d >= 0, lw=0., facecolor=c1)
         if c2:
@@ -464,6 +474,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--station-list', default='*', help='A space-separated list of stations (within quotes) or a text file '
                                                   'with station names in each row, w/wo location codes.', type=str,
               show_default=True)
+@click.option('--merge-stations-file', type=click.Path(exists=True, dir_okay=False),
+              help='A text file containing two comma-separated columns listing source and destination '
+                   'N.S.L triplets e.g. OA.AI33A., OA.AI33. -- RF traces from stations in the first column '
+                   'are renamed and merged with those from the second column.', show_default=True)
 @click.option('--station-weights', type=str, default=None, show_default=True,
               help='A comma-separated text file containing network and station in the first two columns, '
                    'respectively, with the last column being the weight')
@@ -503,10 +517,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    "If only --fmax is provided, a lowpass filter is applied.")
 @click.option('--resample-rate', default=None, type=float, show_default=True,
               help='Resampling rate (Hz) for output traces.')
-def main(input_file, output_folder, output_plot_file, network_list, station_list, station_weights,
-         write_individual_rfs, min_station_weight, apply_amplitude_filter, apply_similarity_filter,
-         min_slope_ratio, baz_range, dereverberate, apply_phase_weighting, pw_exponent, fmin, fmax,
-         resample_rate):
+def main(input_file, output_folder, output_plot_file, network_list, station_list, merge_stations_file,
+         station_weights, write_individual_rfs, min_station_weight, apply_amplitude_filter,
+         apply_similarity_filter, min_slope_ratio, baz_range, dereverberate, apply_phase_weighting,
+         pw_exponent, fmin, fmax, resample_rate):
     """
       INPUT_FILE : Input RFs in H5 format\n
                    (output of generate_rf.py or rf_quality_filter.py)\n
@@ -517,7 +531,13 @@ def main(input_file, output_folder, output_plot_file, network_list, station_list
     logger = setup_logger('__func__')
 
     assert baz_range[1] > baz_range[0], 'Invalid min/max back-azimuth; Aborting..'
+
+    # load stations to be merged
+    merge_info = None
+    if(merge_stations_file is not None): merge_info = rf_reader.MergeInfo(merge_stations_file, input_file, log=logger)
+
     outputStream = rf_inversion_export(input_file, output_folder, network_list, station_list,
+                                       merge_info=merge_info,
                                        write_individual_rfs=write_individual_rfs,
                                        station_weights_fn=station_weights,
                                        min_station_weight=min_station_weight,
@@ -534,7 +554,7 @@ def main(input_file, output_folder, output_plot_file, network_list, station_list
                                        trim_window=(-5., 30.),
                                        moveout=True,
                                        logger=logger)
-    generate_plots(outputStream, output_plot_file)
+    generate_plots(outputStream.sort(reverse=True), output_plot_file)
 # end func
 
 if __name__ == "__main__":
